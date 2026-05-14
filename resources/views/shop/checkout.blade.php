@@ -536,7 +536,11 @@
                                 class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white inline-flex w-full items-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
                                 x-bind:disabled="placeOrderDisabled()"
                             >
-                                {{ $submitLabel }}
+                                <span x-show="!isSubmitting" x-cloak>{{ $submitLabel }}</span>
+                                <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
+                                    <span class="altcha-inline-spinner" aria-hidden="true"></span>
+                                    <span>{{ $requiresManualQuote ? 'Requesting Quote...' : 'Processing...' }}</span>
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -593,6 +597,7 @@
             deliveryUpdateNotice: '',
             quoteDirty: false,
             squareCard: null,
+            squareCardInitPromise: null,
             squareListenersBound: false,
             sourceId: '',
             errorMessage: '',
@@ -1275,32 +1280,37 @@
                     return false;
                 }
 
-                this.isCardLoading = true;
-                const ready = await this.waitForSquareSdk();
-                if (!ready) {
-                    this.errorMessage = 'Square SDK did not load.';
-                    this.isCardLoading = false;
-                    return false;
+                if (this.squareCardInitPromise) {
+                    return this.squareCardInitPromise;
                 }
 
-                if (this.squareCard) {
-                    this.bindSquareCardListeners();
-                    this.isCardLoading = false;
-                    return true;
-                }
+                this.squareCardInitPromise = (async () => {
+                    this.isCardLoading = true;
+                    const ready = await this.waitForSquareSdk();
+                    if (!ready) {
+                        this.errorMessage = 'Square SDK did not load.';
+                        return false;
+                    }
 
-                try {
+                    if (this.squareCard) {
+                        this.bindSquareCardListeners();
+                        return true;
+                    }
+
                     const payments = window.Square.payments(this.squareApplicationId, this.squareLocationId);
                     this.squareCard = await payments.card();
                     await this.squareCard.attach(this.$refs.squareCardContainer);
                     this.bindSquareCardListeners();
-                    this.isCardLoading = false;
                     return true;
-                } catch (error) {
+                })().catch((error) => {
                     this.errorMessage = error?.message || 'Unable to load card payment form.';
-                    this.isCardLoading = false;
                     return false;
-                }
+                }).finally(() => {
+                    this.isCardLoading = false;
+                    this.squareCardInitPromise = null;
+                });
+
+                return this.squareCardInitPromise;
             },
 
             bindSquareCardListeners() {

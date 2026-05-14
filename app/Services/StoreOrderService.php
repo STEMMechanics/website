@@ -24,6 +24,7 @@ use App\Models\SquareRefundOperation;
 use App\Models\SentEmail;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemCancellation;
 use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
@@ -672,9 +673,9 @@ class StoreOrderService
             $lockedItem = $this->lockOrderItemForUpdate($order, $item);
             $releasedReservedQuantity = 0;
 
-            if ((string) $lockedItem->order->status === StoreOrder::STATUS_CANCELLED) {
+            if ($lockedItem->order->isLockedForItemChanges()) {
                 throw ValidationException::withMessages([
-                    'available_quantity' => 'This order has already been cancelled.',
+                    'available_quantity' => 'This order is no longer open for item changes.',
                 ]);
             }
 
@@ -883,9 +884,9 @@ class StoreOrderService
         $summary = DB::transaction(function () use ($order, $item, $payload): array {
             $lockedItem = $this->lockOrderItemForUpdate($order, $item);
 
-            if ((string) $lockedItem->order->status === StoreOrder::STATUS_CANCELLED) {
+            if ($lockedItem->order->isLockedForItemChanges()) {
                 throw ValidationException::withMessages([
-                    'quantity' => 'Tracking cannot be added to a cancelled order.',
+                    'quantity' => 'This order is no longer open for item changes.',
                 ]);
             }
 
@@ -981,6 +982,194 @@ class StoreOrderService
         return $summary;
     }
 
+    public function addOrderItemCollection(
+        StoreOrder $order,
+        StoreOrderItem $item,
+        array $payload,
+        ?User $actingUser = null,
+        bool $suppressAdminNotifications = false
+    ): array
+    {
+        $summary = DB::transaction(function () use ($order, $item, $payload, $actingUser): array {
+            $lockedItem = $this->lockOrderItemForUpdate($order, $item);
+            $pickupState = trim((string) ($payload['pickup_state'] ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+
+            if (! $lockedItem->order->usesPickup()) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Collection can only be recorded for pickup orders.',
+                ]);
+            }
+
+            if ((string) $lockedItem->order->status === StoreOrder::STATUS_COLLECTED) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'This order has already been collected.',
+                ]);
+            }
+
+            if ($lockedItem->isDigital()) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Collections can only be recorded for physical order items.',
+                ]);
+            }
+
+            if (! in_array($pickupState, [
+                StoreOrderItemCollection::PICKUP_STATE_READY,
+                StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'pickup_state' => 'Choose a valid pickup action.',
+                ]);
+            }
+
+            $collectionType = trim((string) ($payload['collection_type'] ?? StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE));
+            if (! in_array($collectionType, [
+                StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                StoreOrderItemCollection::COLLECTION_TYPE_DELAYED,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'collection_type' => 'Choose a valid collection stage.',
+                ]);
+            }
+
+            $quantity = max(0, (int) ($payload['quantity'] ?? 0));
+            if ($quantity <= 0) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Enter a quantity to collect.',
+                ]);
+            }
+
+            $collectedAt = trim((string) ($payload['collected_at'] ?? ''));
+            try {
+                $parsedCollectedAt = $collectedAt !== ''
+                    ? Carbon::parse($collectedAt)
+                    : now();
+            } catch (Throwable) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Enter a valid collection date.',
+                ]);
+            }
+
+            $notes = $this->nullableTrimmedString($payload['notes'] ?? null);
+            $update = null;
+
+            if ($pickupState === StoreOrderItemCollection::PICKUP_STATE_READY) {
+                $remainingQuantity = $collectionType === StoreOrderItemCollection::COLLECTION_TYPE_DELAYED
+                    ? $lockedItem->remainingPickupDelayedToReadyQuantity()
+                    : $lockedItem->remainingPickupAvailableToReadyQuantity();
+
+                if ($quantity > $remainingQuantity) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'The ready quantity exceeds what is still waiting to be prepared for that pickup stage.',
+                    ]);
+                }
+
+                $collection = new StoreOrderItemCollection();
+                $collection->store_order_item_id = $lockedItem->id;
+                $collection->collection_type = $collectionType;
+                $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_READY;
+                $collection->quantity = $quantity;
+                $collection->collected_by_user_id = null;
+                $collection->notes = $notes;
+                $collection->collected_at = null;
+                $collection->save();
+
+                $update = $this->orderUpdates->recordCollectionAdded($lockedItem->order, $lockedItem, $collection);
+            } else {
+                $remainingQuantity = $collectionType === StoreOrderItemCollection::COLLECTION_TYPE_DELAYED
+                    ? $lockedItem->readyPickupDelayedQuantity()
+                    : $lockedItem->readyPickupAvailableQuantity();
+
+                if ($quantity > $remainingQuantity) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'The collection quantity exceeds what is already ready for that pickup stage.',
+                    ]);
+                }
+
+                $readyEntries = $lockedItem->collectionEntries()
+                    ->where('collection_type', $collectionType)
+                    ->where('pickup_state', StoreOrderItemCollection::PICKUP_STATE_READY)
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                $remainingToCollect = $quantity;
+                $recordedQuantity = 0;
+                foreach ($readyEntries as $readyEntry) {
+                    if ($remainingToCollect <= 0) {
+                        break;
+                    }
+
+                    $readyQuantity = max(0, (int) $readyEntry->quantity);
+                    $consumeQuantity = min($remainingToCollect, $readyQuantity);
+                    if ($consumeQuantity <= 0) {
+                        continue;
+                    }
+
+                    if ($consumeQuantity === $readyQuantity) {
+                        $readyEntry->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                        $readyEntry->collected_by_user_id = $actingUser?->id;
+                        $readyEntry->notes = $notes ?? $readyEntry->notes;
+                        $readyEntry->collected_at = $parsedCollectedAt;
+                        $readyEntry->save();
+                        $collection = $readyEntry;
+                    } else {
+                        $readyEntry->quantity = max(0, $readyQuantity - $consumeQuantity);
+                        $readyEntry->save();
+
+                        $collection = new StoreOrderItemCollection();
+                        $collection->store_order_item_id = $lockedItem->id;
+                        $collection->collection_type = $collectionType;
+                        $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                        $collection->quantity = $consumeQuantity;
+                        $collection->collected_by_user_id = $actingUser?->id;
+                        $collection->notes = $notes;
+                        $collection->collected_at = $parsedCollectedAt;
+                        $collection->save();
+                    }
+
+                    $releasedReservedQuantity = min($consumeQuantity, max(0, (int) $lockedItem->inventory_reserved_quantity));
+                    $lockedItem->inventory_reserved_quantity = max(0, (int) $lockedItem->inventory_reserved_quantity - $releasedReservedQuantity);
+                    $lockedItem->save();
+                    $remainingToCollect -= $consumeQuantity;
+                    $recordedQuantity += $consumeQuantity;
+                }
+
+                if ($remainingToCollect > 0) {
+                    throw ValidationException::withMessages([
+                        'quantity' => 'The collection quantity exceeds what is already ready for that pickup stage.',
+                    ]);
+                }
+
+                $collection = new StoreOrderItemCollection();
+                $collection->store_order_item_id = $lockedItem->id;
+                $collection->collection_type = $collectionType;
+                $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                $collection->quantity = $recordedQuantity;
+                $collection->collected_by_user_id = $actingUser?->id;
+                $collection->notes = $notes;
+                $collection->collected_at = $parsedCollectedAt;
+                $update = $this->orderUpdates->recordCollectionAdded($lockedItem->order, $lockedItem, $collection);
+            }
+
+            $this->syncOrderState($lockedItem->order->fresh('invoice'));
+
+            return [
+                'event_id' => $update?->id,
+                'order_id' => (int) $lockedItem->order->id,
+            ];
+        });
+
+        $freshOrder = StoreOrder::query()
+            ->with(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'items.collectionEntries', 'coupon', 'user'])
+            ->find((int) ($summary['order_id'] ?? 0));
+        if ($freshOrder instanceof StoreOrder && (int) ($summary['event_id'] ?? 0) > 0) {
+            $this->queueImmediateOrderUpdateNotifications($freshOrder, [(int) $summary['event_id']], $suppressAdminNotifications);
+        }
+
+        return $summary;
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $actions
      * @return array{
@@ -1062,6 +1251,7 @@ class StoreOrderService
             $cancellationSummary = [];
             $cancellationCount = 0;
             $trackingCount = 0;
+            $collectionCount = 0;
 
             foreach ($normalizedActions as $index => $action) {
                 $itemId = (int) ($action['item_id'] ?? 0);
@@ -1101,6 +1291,15 @@ class StoreOrderService
                     }
                     $cancellationSummary[$itemId] = $summaryRow;
                     $cancellationCount++;
+                } elseif ((string) ($action['type'] ?? '') === 'collection') {
+                    $result = $this->applyQueuedCollectionAction(
+                        $lockedOrder,
+                        $item,
+                        $action,
+                        $actingUser,
+                        $index + 1,
+                    );
+                    $collectionCount++;
                 } else {
                     $result = $this->applyQueuedTrackingAction(
                         $lockedOrder,
@@ -1213,6 +1412,7 @@ class StoreOrderService
                 'item_action_count' => count($normalizedActions),
                 'cancellation_count' => $cancellationCount,
                 'tracking_count' => $trackingCount,
+                'collection_count' => $collectionCount,
             ];
         });
 
@@ -1309,7 +1509,7 @@ class StoreOrderService
 
         $orderItems = $order->relationLoaded('items')
             ? $order->items
-            : $order->items()->with('trackingEntries')->get();
+            : $order->items()->with(['trackingEntries', 'collectionEntries'])->get();
 
         if ($this->allOrderItemsCancelled($orderItems)) {
             $order->status = StoreOrder::STATUS_CANCELLED;
@@ -1334,10 +1534,22 @@ class StoreOrderService
 
         if ($order->contains_physical) {
             if ($order->usesPickup()) {
-                if (! in_array((string) $order->status, [
-                    StoreOrder::STATUS_READY_FOR_PICKUP,
-                    StoreOrder::STATUS_COLLECTED,
-                ], true)) {
+                $pickupReadyQuantity = $orderItems->sum(fn (StoreOrderItem $item): int => $item->readyPickupQuantity());
+                $pickupCollectedQuantity = $orderItems->sum(fn (StoreOrderItem $item): int => $item->collectedQuantity());
+                $pickupRemainingQuantity = $orderItems->sum(fn (StoreOrderItem $item): int => $item->remainingPickupQuantity());
+                $currentPickupStatus = (string) $order->status;
+
+                if ($pickupRemainingQuantity <= 0 && $pickupCollectedQuantity > 0) {
+                    $order->status = StoreOrder::STATUS_COLLECTED;
+                } elseif ($pickupCollectedQuantity > 0 && $pickupRemainingQuantity > 0) {
+                    $order->status = StoreOrder::STATUS_PARTIALLY_COLLECTED;
+                } elseif ($currentPickupStatus === StoreOrder::STATUS_COLLECTED) {
+                    $order->status = StoreOrder::STATUS_COLLECTED;
+                } elseif ($pickupReadyQuantity > 0 && $pickupReadyQuantity < $pickupRemainingQuantity) {
+                    $order->status = StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION;
+                } elseif ($pickupReadyQuantity > 0 && $pickupReadyQuantity >= $pickupRemainingQuantity) {
+                    $order->status = StoreOrder::STATUS_READY_FOR_PICKUP;
+                } else {
                     $order->status = StoreOrder::STATUS_PROCESSING;
                 }
             } elseif ($order->isFullyShippedByEntries()) {
@@ -1451,6 +1663,45 @@ class StoreOrderService
                     ];
                 }
 
+                if ($type === 'collection') {
+                    $pickupState = trim((string) ($action['pickup_state'] ?? StoreOrderItemCollection::PICKUP_STATE_READY));
+                    if (! in_array($pickupState, [
+                        StoreOrderItemCollection::PICKUP_STATE_READY,
+                        StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+                    ], true)) {
+                        throw ValidationException::withMessages([
+                            'item_actions_json' => 'Queued pickup action #'.($index + 1).' has an invalid pickup state.',
+                        ]);
+                    }
+
+                    $collectionType = trim((string) ($action['collection_type'] ?? StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE));
+                    if (! in_array($collectionType, [
+                        StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        StoreOrderItemCollection::COLLECTION_TYPE_DELAYED,
+                    ], true)) {
+                        throw ValidationException::withMessages([
+                            'item_actions_json' => 'Queued pickup action #'.($index + 1).' has an invalid pickup stage.',
+                        ]);
+                    }
+
+                    $quantity = max(0, (int) ($action['quantity'] ?? 0));
+                    if ($quantity <= 0) {
+                        throw ValidationException::withMessages([
+                            'item_actions_json' => 'Queued pickup action #'.($index + 1).' must include a quantity.',
+                        ]);
+                    }
+
+                    return [
+                        'type' => 'collection',
+                        'item_id' => $itemId,
+                        'pickup_state' => $pickupState,
+                        'collection_type' => $collectionType,
+                        'quantity' => $quantity,
+                        'collected_at' => trim((string) ($action['collected_at'] ?? '')),
+                        'notes' => trim((string) ($action['notes'] ?? '')),
+                    ];
+                }
+
                 throw ValidationException::withMessages([
                     'item_actions_json' => 'Queued action #'.($index + 1).' has an unknown type.',
                 ]);
@@ -1471,9 +1722,9 @@ class StoreOrderService
     ): array {
         $releasedReservedQuantity = 0;
 
-        if ((string) $order->status === StoreOrder::STATUS_CANCELLED) {
+        if ($order->isLockedForItemChanges()) {
             throw ValidationException::withMessages([
-                'item_actions_json' => 'Queued cancellation #'.$actionNumber.' cannot be applied because this order is already cancelled.',
+                'item_actions_json' => 'Queued cancellation #'.$actionNumber.' cannot be applied because this order is no longer open for item changes.',
             ]);
         }
 
@@ -1559,15 +1810,188 @@ class StoreOrderService
      * @param  array<string, mixed>  $action
      * @return array{event_id:int|null}
      */
+    private function applyQueuedCollectionAction(
+        StoreOrder $order,
+        StoreOrderItem $item,
+        array $action,
+        ?User $actingUser,
+        int $actionNumber
+    ): array {
+        if (in_array((string) $order->status, [
+            StoreOrder::STATUS_CANCELLED,
+            StoreOrder::STATUS_FULFILLED,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued pickup action #'.$actionNumber.' cannot be applied because this order is already closed.',
+            ]);
+        }
+
+        if (! $order->usesPickup()) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued pickup action #'.$actionNumber.' can only be applied to pickup orders.',
+            ]);
+        }
+
+        if ($item->isDigital()) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued pickup action #'.$actionNumber.' can only be applied to physical items.',
+            ]);
+        }
+
+        $pickupState = (string) ($action['pickup_state'] ?? StoreOrderItemCollection::PICKUP_STATE_READY);
+        $collectionType = (string) ($action['collection_type'] ?? StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE);
+        $quantity = max(0, (int) ($action['quantity'] ?? 0));
+
+        if ($quantity <= 0) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued pickup action #'.$actionNumber.' must include a quantity.',
+            ]);
+        }
+
+        $collectedAt = trim((string) ($action['collected_at'] ?? ''));
+        try {
+            $parsedCollectedAt = $collectedAt !== ''
+                ? Carbon::parse($collectedAt)
+                : now();
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued pickup action #'.$actionNumber.' has an invalid pickup date.',
+            ]);
+        }
+
+        $notes = $this->nullableTrimmedString($action['notes'] ?? null);
+        $update = null;
+
+        if ($pickupState === StoreOrderItemCollection::PICKUP_STATE_READY) {
+            $remainingQuantity = $collectionType === StoreOrderItemCollection::COLLECTION_TYPE_DELAYED
+                ? $item->remainingPickupDelayedToReadyQuantity()
+                : $item->remainingPickupAvailableToReadyQuantity();
+
+            if ($quantity > $remainingQuantity) {
+                throw ValidationException::withMessages([
+                    'item_actions_json' => 'Queued pickup action #'.$actionNumber.' exceeds the quantity still waiting to be prepared on '.$item->displayTitle().'.',
+                ]);
+            }
+
+            $collection = new StoreOrderItemCollection();
+            $collection->store_order_item_id = $item->id;
+            $collection->collection_type = $collectionType;
+            $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_READY;
+            $collection->quantity = $quantity;
+            $collection->collected_by_user_id = null;
+            $collection->notes = $notes;
+            $collection->collected_at = null;
+            $collection->save();
+
+            if ($item->relationLoaded('collectionEntries')) {
+                $item->setRelation('collectionEntries', $item->collectionEntries->push($collection));
+            }
+
+            $update = $this->orderUpdates->recordCollectionAdded($order, $item, $collection);
+        } else {
+            $remainingQuantity = $collectionType === StoreOrderItemCollection::COLLECTION_TYPE_DELAYED
+                ? $item->readyPickupDelayedQuantity()
+                : $item->readyPickupAvailableQuantity();
+
+            if ($quantity > $remainingQuantity) {
+                throw ValidationException::withMessages([
+                    'item_actions_json' => 'Queued pickup action #'.$actionNumber.' exceeds the quantity already ready on '.$item->displayTitle().'.',
+                ]);
+            }
+
+            $readyEntries = $item->collectionEntries()
+                ->where('collection_type', $collectionType)
+                ->where('pickup_state', StoreOrderItemCollection::PICKUP_STATE_READY)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $remainingToCollect = $quantity;
+            $recordedQuantity = 0;
+            foreach ($readyEntries as $readyEntry) {
+                if ($remainingToCollect <= 0) {
+                    break;
+                }
+
+                $readyQuantity = max(0, (int) $readyEntry->quantity);
+                $consumeQuantity = min($remainingToCollect, $readyQuantity);
+                if ($consumeQuantity <= 0) {
+                    continue;
+                }
+
+                if ($consumeQuantity === $readyQuantity) {
+                    $readyEntry->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                    $readyEntry->collected_by_user_id = $actingUser?->id;
+                    $readyEntry->notes = $notes ?? $readyEntry->notes;
+                    $readyEntry->collected_at = $parsedCollectedAt;
+                    $readyEntry->save();
+                    $collection = $readyEntry;
+                } else {
+                    $readyEntry->quantity = max(0, $readyQuantity - $consumeQuantity);
+                    $readyEntry->save();
+
+                    $collection = new StoreOrderItemCollection();
+                    $collection->store_order_item_id = $item->id;
+                    $collection->collection_type = $collectionType;
+                    $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                    $collection->quantity = $consumeQuantity;
+                    $collection->collected_by_user_id = $actingUser?->id;
+                    $collection->notes = $notes;
+                    $collection->collected_at = $parsedCollectedAt;
+                    $collection->save();
+                }
+
+                $releasedReservedQuantity = min($consumeQuantity, max(0, (int) $item->inventory_reserved_quantity));
+                $item->inventory_reserved_quantity = max(0, (int) $item->inventory_reserved_quantity - $releasedReservedQuantity);
+                $item->save();
+                $remainingToCollect -= $consumeQuantity;
+                $recordedQuantity += $consumeQuantity;
+            }
+
+            if ($remainingToCollect > 0) {
+                throw ValidationException::withMessages([
+                    'item_actions_json' => 'Queued pickup action #'.$actionNumber.' exceeds the quantity already ready on '.$item->displayTitle().'.',
+                ]);
+            }
+
+            $collection = new StoreOrderItemCollection();
+            $collection->store_order_item_id = $item->id;
+            $collection->collection_type = $collectionType;
+            $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+            $collection->quantity = $recordedQuantity;
+            $collection->collected_by_user_id = $actingUser?->id;
+            $collection->notes = $notes;
+            $collection->collected_at = $parsedCollectedAt;
+            $collection->save();
+
+            if ($item->relationLoaded('collectionEntries')) {
+                $item->setRelation('collectionEntries', $item->collectionEntries->push($collection));
+            }
+
+            $update = $this->orderUpdates->recordCollectionAdded($order, $item, $collection);
+        }
+
+        $this->syncOrderState($order->fresh('invoice'));
+
+        return [
+            'event_id' => $update?->id,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @return array{event_id:int|null}
+     */
     private function applyQueuedTrackingAction(
         StoreOrder $order,
         StoreOrderItem $item,
         array $action,
         int $actionNumber
     ): array {
-        if ((string) $order->status === StoreOrder::STATUS_CANCELLED) {
+        if ($order->isLockedForItemChanges()) {
             throw ValidationException::withMessages([
-                'item_actions_json' => 'Queued tracking action #'.$actionNumber.' cannot be applied because this order is already cancelled.',
+                'item_actions_json' => 'Queued tracking action #'.$actionNumber.' cannot be applied because this order is no longer open for item changes.',
             ]);
         }
 
@@ -3449,6 +3873,70 @@ class StoreOrderService
         ]);
     }
 
+    public function buildStoreOrderPickListPdf(StoreOrder $order): PDF
+    {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            abort(500, 'Store order pick list PDF generation requires barryvdh/laravel-dompdf.');
+        }
+
+        $order->loadMissing('user', 'items.trackingEntries', 'items.variant');
+
+        $pickListItems = $order->items
+            ->map(function (StoreOrderItem $item) use ($order): array {
+                $orderedQuantity = max(0, (int) $item->quantity);
+                $openQuantity = max(0, (int) $item->remainingFulfillableQuantity());
+                $remainingAvailable = max(0, (int) $item->remainingAvailableQuantity());
+                $remainingDelayed = max(0, (int) $item->remainingDelayedQuantity());
+                $detailParts = [];
+
+                if ($order->usesPickup()) {
+                    if ($remainingAvailable > 0) {
+                        $detailParts[] = $remainingAvailable.' ready now';
+                    }
+
+                    if ($remainingDelayed > 0) {
+                        $detailParts[] = $remainingDelayed.' expected later'
+                            .($item->delayedShippingEstimateLabel('F jS Y') ? ' ('.$item->delayedShippingEstimateLabel('F jS Y').')' : '');
+                    }
+
+                    if ($detailParts === []) {
+                        $detailParts[] = $openQuantity > 0 ? 'Ready for collection' : 'No open quantity';
+                    }
+                } else {
+                    if ($remainingAvailable > 0) {
+                        $detailParts[] = $remainingAvailable.' preparing for dispatch';
+                    }
+
+                    if ($remainingDelayed > 0) {
+                        $detailParts[] = $remainingDelayed.' expected later'
+                            .($item->delayedShippingEstimateLabel('F jS Y') ? ' ('.$item->delayedShippingEstimateLabel('F jS Y').')' : '');
+                    }
+
+                    if ($detailParts === []) {
+                        $detailParts[] = $openQuantity > 0 ? 'Open for dispatch' : 'No open quantity';
+                    }
+                }
+
+                $sku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
+
+                return [
+                    'title' => $item->displayTitle(),
+                    'sku' => $sku !== '' ? $sku : null,
+                    'ordered_quantity' => $orderedQuantity,
+                    'open_quantity' => $openQuantity,
+                    'detail' => implode(', ', $detailParts),
+                ];
+            })
+            ->all();
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.store-order-pick-list', [
+            'order' => $order,
+            'pickListItems' => $pickListItems,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ]);
+    }
+
     private function buildTaxAdjustmentPdf(Invoice $invoice, TaxAdjustment $adjustment): PDF
     {
         $invoice->loadMissing('user');
@@ -3618,6 +4106,16 @@ class StoreOrderService
         }
 
         return 'invoice-'.$safeInvoiceNumber.'.pdf';
+    }
+
+    public function storeOrderPickListPdfFilename(StoreOrder $order): string
+    {
+        $safeOrderNumber = preg_replace('/[^A-Za-z0-9._-]/', '-', (string) $order->order_number);
+        if (! is_string($safeOrderNumber) || $safeOrderNumber === '') {
+            $safeOrderNumber = (string) $order->id;
+        }
+
+        return 'pick-list-'.$safeOrderNumber.'.pdf';
     }
 
     private function paymentReceiptPdfFilename(Payment $payment): string

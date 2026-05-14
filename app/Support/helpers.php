@@ -56,3 +56,37 @@ if (! function_exists('inlineSvgAsset')) {
         return $svgContent;
     }
 }
+
+if (! function_exists('formatPhoneNumber')) {
+    function formatPhoneNumber(?string $phone): string
+    {
+        $phone = trim((string) $phone);
+        if ($phone === '') {
+            return '';
+        }
+
+        $normalized = preg_replace('/[^\d+]/', '', $phone) ?? $phone;
+
+        if (str_starts_with($normalized, '+')) {
+            if (preg_match('/^\+(\d{2})(\d)(\d{4})(\d{4})$/', $normalized, $matches) === 1) {
+                return sprintf('+%s %s %s %s', $matches[1], $matches[2], $matches[3], $matches[4]);
+            }
+
+            return $phone;
+        }
+
+        if (str_starts_with($normalized, '04')) {
+            if (preg_match('/^(04\d{2})(\d{3})(\d{3})$/', $normalized, $matches) === 1) {
+                return sprintf('%s %s %s', $matches[1], $matches[2], $matches[3]);
+            }
+
+            return $phone;
+        }
+
+        if (preg_match('/^(\d{2})(\d{4})(\d{4})$/', $normalized, $matches) === 1) {
+            return sprintf('%s %s %s', $matches[1], $matches[2], $matches[3]);
+        }
+
+        return $phone;
+    }
+}

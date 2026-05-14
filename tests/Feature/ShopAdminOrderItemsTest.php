@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\SiteOption;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\StoreOrderUpdate;
 use App\Models\TaxAdjustment;
@@ -34,7 +35,10 @@ class ShopAdminOrderItemsTest extends TestCase
     public function test_admin_order_page_exposes_item_cancellation_and_tracking_actions(): void
     {
         $admin = $this->makeAdminUser();
-        $order = $this->makePhysicalOrder();
+        $order = $this->makePhysicalOrder()->forceFill([
+            'billing_phone' => '0400123456',
+        ]);
+        $order->save();
         StoreOrderItemTracking::query()->create([
             'store_order_item_id' => StoreOrderItem::factory()->create([
                 'store_order_id' => $order->id,
@@ -68,6 +72,7 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Placed')
             ->assertSee('Invoice')
             ->assertSee('Customer')
+            ->assertSee('0400 123 456')
             ->assertSee('Delivery Details')
             ->assertSee('Order Summary')
             ->assertSee('Outstanding')
@@ -87,6 +92,682 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Clear Staged Changes')
             ->assertDontSee('Finish Order Edits')
             ->assertSee($item->displayTitle());
+    }
+
+    public function test_admin_pickup_orders_show_pickup_copy_and_pick_list_pdf_link(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+            'shipping_breakdown_data' => [
+                'delivery_estimate_label' => 'Timing to be confirmed',
+                'shipments' => [
+                    [
+                        'delivery_estimate_label' => 'Available now',
+                        'title_meta' => 'Collection',
+                    ],
+                ],
+            ],
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Collection Details')
+            ->assertSee('Pick up / Collection')
+            ->assertSee('Customer will be contacted for collection.')
+            ->assertSee('Ready for Pickup')
+            ->assertSee('Pick List PDF')
+            ->assertDontSee('Timing to be confirmed')
+            ->assertDontSee('Collection: Available now');
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.pick-list.pdf', $order))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_admin_pickup_orders_expose_item_collection_actions_without_order_level_ready_button(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $productA = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+        $productB = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productA->id,
+            'product_title' => 'Pickup Item A',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productB->id,
+            'product_title' => 'Pickup Item B',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk();
+
+        $response
+            ->assertSeeHtml('x-on:click="openCollection(')
+            ->assertDontSee('x-on:click="markOrderReadyForPickup()"');
+    }
+
+    public function test_admin_ready_for_pickup_orders_lock_item_actions_after_save(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+            'fulfilled_at' => null,
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+                'quantity' => 1,
+                'collected_at' => now()->toDateString(),
+                'notes' => 'Ready for pickup.',
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $item = $item->fresh(['collectionEntries', 'trackingEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_READY_FOR_PICKUP, $order->status);
+        $this->assertSame(1, (int) $item->readyPickupQuantity());
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertDontSee('x-on:click="openCancel(')
+            ->assertDontSee('x-on:click="openTracking(')
+            ->assertDontSee('x-on:click="openBulkCancel()"')
+            ->assertDontSee('x-on:click="openBulkTracking()"')
+            ->assertDontSeeHtml('x-model="statusValue"')
+            ->assertSee('Pickup readiness is managed from the item actions.');
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.cancel', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'quantity' => 1,
+                'reason' => 'No longer needed',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrorsIn('cancelItem_'.$item->id, ['available_quantity']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.tracking.store', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+                'tracking_mode' => 'none',
+                'quantity' => 1,
+                'parcel_number' => 1,
+                'carrier' => '',
+                'tracking_number' => '',
+                'tracking_url' => '',
+                'notes' => '',
+                'dispatched_at' => now()->toDateString(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrorsIn('trackingItem_'.$item->id, ['quantity']);
+    }
+
+    public function test_admin_pickup_orders_can_record_partial_collections_and_transition_through_partial_collection_state(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+            'fulfilled_at' => null,
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 2,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 1,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSeeHtml('x-on:click="openCollection(')
+            ->assertDontSee('x-on:click="openTracking(');
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                'quantity' => 1,
+                'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+                'collected_at' => now()->toDateString(),
+                'notes' => 'Set aside for collection.',
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $item = $item->fresh(['collectionEntries', 'trackingEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION, $order->status);
+        $this->assertSame(0, (int) $item->collectedAvailableQuantity());
+        $this->assertSame(0, (int) $item->collectedDelayedQuantity());
+        $this->assertSame(1, (int) $item->readyPickupAvailableQuantity());
+        $this->assertSame(0, (int) $item->readyPickupDelayedQuantity());
+        $this->assertSame(1, (int) $item->readyPickupQuantity());
+        $this->assertSame(2, (int) $item->remainingPickupQuantity());
+        $this->assertDatabaseHas('store_order_item_collections', [
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'notes' => 'Set aside for collection.',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Ready for Partial Collection')
+            ->assertSeeHtml('x-on:click="openCollection(')
+            ->assertSeeHtml('Collected <span')
+            ->assertSeeHtml('To prepare <span');
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                'quantity' => 1,
+                'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+                'collected_at' => now()->toDateString(),
+                'notes' => 'Collected from the counter.',
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $item = $item->fresh(['collectionEntries', 'trackingEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_PARTIALLY_COLLECTED, $order->status);
+        $this->assertNotNull($order->fulfilled_at);
+        $this->assertSame(1, (int) $item->collectedAvailableQuantity());
+        $this->assertSame(0, (int) $item->collectedDelayedQuantity());
+        $this->assertSame(0, (int) $item->readyPickupQuantity());
+        $this->assertSame(1, (int) $item->remainingPickupQuantity());
+        $this->assertSame(0, (int) $item->inventory_reserved_quantity);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Partially Collected')
+            ->assertDontSee('x-on:click="openCollection(')
+            ->assertDontSeeHtml('x-model="statusValue"');
+    }
+
+    public function test_admin_pickup_orders_display_the_partial_collection_status_label(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 2,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 1,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Ready for Partial Collection')
+            ->assertSeeHtml('x-on:submit.prevent="stagePickupAction(')
+            ->assertSee('Stage Pickup Action')
+            ->assertSee('Pickup readiness is managed from the item actions.');
+    }
+
+    public function test_admin_pickup_orders_can_stage_multiple_ready_actions_before_saving_order_changes(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $productA = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+        $productB = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $itemA = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productA->id,
+            'product_title' => 'Pickup Item A',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+        $itemB = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productB->id,
+            'product_title' => 'Pickup Item B',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION,
+                'notes' => '',
+                'public_notes' => '',
+                'item_actions_json' => json_encode([
+                    [
+                        'type' => 'collection',
+                        'item_id' => $itemA->id,
+                        'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+                        'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        'quantity' => 1,
+                        'collected_at' => '',
+                        'notes' => 'Item A ready.',
+                    ],
+                    [
+                        'type' => 'collection',
+                        'item_id' => $itemB->id,
+                        'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+                        'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        'quantity' => 1,
+                        'collected_at' => '',
+                        'notes' => 'Item B ready.',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $itemA = $itemA->fresh(['collectionEntries']);
+        $itemB = $itemB->fresh(['collectionEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_READY_FOR_PICKUP, (string) $order->status);
+        $this->assertSame(1, (int) $itemA->readyPickupQuantity());
+        $this->assertSame(1, (int) $itemB->readyPickupQuantity());
+        $this->assertSame(1, (int) $itemA->remainingPickupQuantity());
+        $this->assertSame(1, (int) $itemB->remainingPickupQuantity());
+        $this->assertDatabaseHas('store_order_item_collections', [
+            'store_order_item_id' => $itemA->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'quantity' => 1,
+            'notes' => 'Item A ready.',
+        ]);
+        $this->assertDatabaseHas('store_order_item_collections', [
+            'store_order_item_id' => $itemB->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'quantity' => 1,
+            'notes' => 'Item B ready.',
+        ]);
+    }
+
+    public function test_admin_pickup_orders_can_stage_collections_after_items_have_been_marked_ready(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 1,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Item',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'quantity' => 1,
+            'collected_by_user_id' => null,
+            'notes' => 'Ready to collect.',
+            'collected_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+                'notes' => '',
+                'public_notes' => '',
+                'item_actions_json' => json_encode([
+                    [
+                        'type' => 'collection',
+                        'item_id' => $item->id,
+                        'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+                        'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        'quantity' => 1,
+                        'collected_at' => now()->toDateString(),
+                        'notes' => 'Collected at counter.',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $item = $item->fresh(['collectionEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_COLLECTED, (string) $order->status);
+        $this->assertSame(0, (int) $item->readyPickupQuantity());
+        $this->assertSame(1, (int) $item->collectedQuantity());
+        $this->assertDatabaseHas('store_order_item_collections', [
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+            'quantity' => 1,
+            'notes' => 'Collected at counter.',
+        ]);
+    }
+
+    public function test_admin_pickup_orders_become_collected_when_the_full_item_quantity_has_been_collected(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 2,
+            'available_now_quantity' => 2,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 2,
+        ]);
+
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'quantity' => 2,
+            'collected_by_user_id' => null,
+            'notes' => 'Ready to collect.',
+            'collected_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+                'notes' => '',
+                'public_notes' => '',
+                'item_actions_json' => json_encode([
+                    [
+                        'type' => 'collection',
+                        'item_id' => $item->id,
+                        'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+                        'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        'quantity' => 2,
+                        'collected_at' => now()->toDateString(),
+                        'notes' => 'Collected in full.',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $item = $item->fresh(['collectionEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_COLLECTED, (string) $order->status);
+        $this->assertSame(0, (int) $item->readyPickupQuantity());
+        $this->assertSame(2, (int) $item->collectedQuantity());
+        $this->assertSame(0, (int) $item->remainingPickupQuantity());
+    }
+
+    public function test_admin_pickup_orders_keep_other_items_unready_when_one_item_is_marked_ready(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $productA = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+        $productB = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $itemA = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productA->id,
+            'product_title' => 'Pickup Item A',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+        $itemB = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $productB->id,
+            'product_title' => 'Pickup Item B',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $itemA]), [
+                'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                'quantity' => 1,
+                'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+                'collected_at' => now()->toDateString(),
+                'notes' => 'First item set aside.',
+            ])
+            ->assertRedirect();
+
+        $order = $order->fresh();
+        $itemA = $itemA->fresh(['collectionEntries']);
+        $itemB = $itemB->fresh(['collectionEntries']);
+
+        $this->assertSame(StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION, $order->status);
+        $this->assertSame(1, (int) $itemA->readyPickupQuantity());
+        $this->assertSame(0, (int) $itemB->readyPickupQuantity());
+        $this->assertSame(1, (int) $itemA->remainingPickupQuantity());
+        $this->assertSame(1, (int) $itemB->remainingPickupQuantity());
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Ready for Partial Collection')
+            ->assertSee('Pickup Item A')
+            ->assertSee('Pickup Item B')
+            ->assertSeeHtml('x-text="readyPickup('.$itemA->id.')"')
+            ->assertSeeHtml('x-text="readyPickup('.$itemB->id.')"');
+    }
+
+    public function test_admin_pickup_orders_reject_manual_ready_for_pickup_status_changes(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+                'notes' => null,
+                'public_notes' => null,
+                'item_actions_json' => null,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(StoreOrder::STATUS_PROCESSING, $order->fresh()->status);
+    }
+
+    public function test_admin_collected_pickup_orders_hide_item_actions_and_reject_new_item_changes(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_COLLECTED,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+            'fulfilled_at' => now(),
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 2,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertSee('Collected')
+            ->assertDontSee('Cancel Items')
+            ->assertDontSee('Stage Cancellation')
+            ->assertDontSee('Add Shipment Entry');
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.cancel', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'quantity' => 1,
+                'reason' => 'No longer needed',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrorsIn('cancelItem_'.$item->id, ['available_quantity']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.order.item.tracking.store', ['storeOrder' => $order, 'storeOrderItem' => $item]), [
+                'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+                'tracking_mode' => 'none',
+                'quantity' => 1,
+                'parcel_number' => 1,
+                'carrier' => '',
+                'tracking_number' => '',
+                'tracking_url' => '',
+                'notes' => '',
+                'dispatched_at' => now()->toDateString(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrorsIn('trackingItem_'.$item->id, ['quantity']);
     }
 
     public function test_admin_invoice_page_lists_linked_refund_records_with_associated_payments(): void

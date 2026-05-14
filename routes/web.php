@@ -539,10 +539,12 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::delete('/admin/store/coupons/{coupon}', [ShopCouponController::class, 'destroy'])->name('admin.shop.coupon.destroy');
     Route::get('/admin/store/orders', [ShopAdminOrderController::class, 'index'])->name('admin.shop.order.index');
     Route::get('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'edit'])->name('admin.shop.order.edit');
+    Route::get('/admin/store/orders/{storeOrder}/pick-list/pdf', [ShopAdminOrderController::class, 'pickListPdf'])->name('admin.shop.order.pick-list.pdf');
     Route::put('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'update'])->name('admin.shop.order.update');
     Route::post('/admin/store/orders/{storeOrder}/quote', [ShopAdminOrderController::class, 'sendQuote'])->name('admin.shop.order.quote.send');
     Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/cancel', [ShopAdminOrderController::class, 'cancelItem'])->name('admin.shop.order.item.cancel');
     Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/tracking', [ShopAdminOrderController::class, 'storeItemTracking'])->name('admin.shop.order.item.tracking.store');
+    Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/collection', [ShopAdminOrderController::class, 'storeItemCollection'])->name('admin.shop.order.item.collection.store');
     Route::redirect('/admin/shop', '/admin/store', 302);
     Route::redirect('/admin/shop/{path}', '/admin/store/{path}', 302)->where('path', '.*');
     Route::get('/admin/pick-list-templates', [PickListTemplateController::class, 'index'])->name('admin.pick-list-template.index');

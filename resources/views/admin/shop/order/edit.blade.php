@@ -3,6 +3,12 @@
         $isQuoteRequested = (string) $order->status === \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED;
         $linkedQuote = $order->quote ?? $order->invoice?->quote;
         $shippingBreakdown = $order->shippingBreakdown();
+        $pickupCollectionOpen = $order->usesPickup()
+            && ! in_array((string) $order->status, [
+                \App\Models\StoreOrder::STATUS_COLLECTED,
+                \App\Models\StoreOrder::STATUS_FULFILLED,
+                \App\Models\StoreOrder::STATUS_CANCELLED,
+            ], true);
         $maxParcelNumber = (int) $order->items
             ->flatMap(fn ($item) => $item->trackingEntries)
             ->map(fn ($tracking) => max(0, (int) ($tracking->parcel_number ?? 0)))
@@ -10,9 +16,16 @@
         $maxParcelNumber = max(0, $maxParcelNumber);
         $defaultParcelNumber = max(1, $maxParcelNumber + 1);
         $itemActionMeta = $order->items
-            ->mapWithKeys(function ($item) use ($order) {
+            ->mapWithKeys(function ($item) use ($order, $pickupCollectionOpen) {
                 $remainingAvailable = $item->remainingAvailableQuantity();
                 $remainingDelayed = $item->remainingDelayedQuantity();
+                $remainingPickupAvailable = $item->remainingPickupAvailableQuantity();
+                $remainingPickupDelayed = $item->remainingPickupDelayedQuantity();
+                $remainingPickup = $item->remainingPickupQuantity();
+                $readyPickupAvailable = $item->readyPickupAvailableQuantity();
+                $readyPickupDelayed = $item->readyPickupDelayedQuantity();
+                $readyPickup = $item->readyPickupQuantity();
+                $remainingPickupToReady = $item->remainingPickupToReadyQuantity();
 
                 return [
                     (string) $item->id => [
@@ -25,8 +38,18 @@
                         'reserved_quantity' => $item->reservedInventory(),
                         'remaining_available' => $remainingAvailable,
                         'remaining_delayed' => $remainingDelayed,
+                        'remaining_pickup_available' => $remainingPickupAvailable,
+                        'remaining_pickup_delayed' => $remainingPickupDelayed,
+                        'remaining_pickup' => $remainingPickup,
+                        'ready_pickup_available' => $readyPickupAvailable,
+                        'ready_pickup_delayed' => $readyPickupDelayed,
+                        'ready_pickup' => $readyPickup,
+                        'remaining_pickup_to_ready' => $remainingPickupToReady,
+                        'collected_quantity' => $item->collectedQuantity(),
                         'open_quantity' => $item->remainingFulfillableQuantity(),
                         'can_track' => $order->contains_physical && ! $order->usesPickup() && ! $item->isDigital() && ($remainingAvailable > 0 || $remainingDelayed > 0),
+                        'can_ready' => $pickupCollectionOpen && ! $item->isDigital() && $remainingPickupToReady > 0,
+                        'can_collect' => $pickupCollectionOpen && ! $item->isDigital() && $readyPickup > 0,
                     ],
                 ];
             })
@@ -43,26 +66,31 @@
                 $initialPendingActions = [];
             }
         }
+        $itemActionsLocked = $order->isLockedForItemChanges();
         $orderEditorConfig = \Illuminate\Support\Js::from([
             'items' => $itemActionMeta,
             'initialActions' => $initialPendingActions,
             'initialSidebarTab' => $errors->has('public_notes') ? 'public-notes' : ($errors->has('notes') ? 'private-notes' : 'changes'),
-            'currentStatus' => (string) $order->status,
-            'containsPhysical' => (bool) $order->contains_physical,
-            'usesPickup' => (bool) $order->usesPickup(),
-            'maxParcelNumber' => $maxParcelNumber,
-            'trackingLinkTemplates' => \App\Support\ShopShippingSettings::trackingLinkTemplates(),
-            'statusLabels' => [
-                \App\Models\StoreOrder::STATUS_PENDING_PAYMENT => 'Pending Payment',
-                \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED => 'Quote Requested',
-                \App\Models\StoreOrder::STATUS_PROCESSING => 'Preparing Order',
-                \App\Models\StoreOrder::STATUS_READY_FOR_PICKUP => 'Ready for Pickup',
-                \App\Models\StoreOrder::STATUS_PARTIALLY_SHIPPED => 'Partially Shipped',
-                \App\Models\StoreOrder::STATUS_SHIPPED => 'Shipped',
-                \App\Models\StoreOrder::STATUS_COLLECTED => 'Collected',
+                'currentStatus' => (string) $order->status,
+                'containsPhysical' => (bool) $order->contains_physical,
+                'usesPickup' => (bool) $order->usesPickup(),
+                'pickupCollectionOpen' => (bool) $pickupCollectionOpen,
+                'maxParcelNumber' => $maxParcelNumber,
+                'trackingLinkTemplates' => \App\Support\ShopShippingSettings::trackingLinkTemplates(),
+                'statusLabels' => [
+                    \App\Models\StoreOrder::STATUS_PENDING_PAYMENT => 'Pending Payment',
+                    \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED => 'Quote Requested',
+                    \App\Models\StoreOrder::STATUS_PROCESSING => 'Preparing Order',
+                    \App\Models\StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION => 'Ready for Partial Collection',
+                    \App\Models\StoreOrder::STATUS_READY_FOR_PICKUP => 'Ready for Pickup',
+                    \App\Models\StoreOrder::STATUS_PARTIALLY_COLLECTED => 'Partially Collected',
+                    \App\Models\StoreOrder::STATUS_PARTIALLY_SHIPPED => 'Partially Shipped',
+                    \App\Models\StoreOrder::STATUS_SHIPPED => 'Shipped',
+                    \App\Models\StoreOrder::STATUS_COLLECTED => 'Collected',
                 \App\Models\StoreOrder::STATUS_FULFILLED => 'Complete',
                 \App\Models\StoreOrder::STATUS_CANCELLED => 'Cancelled',
             ],
+            'itemActionsLocked' => $itemActionsLocked,
         ]);
     @endphp
     <script>
@@ -78,14 +106,17 @@
                     available_quantity: Number(action?.available_quantity || 0),
                     delayed_quantity: Number(action?.delayed_quantity || 0),
                     reason: String(action?.reason || ''),
+                    collection_type: String(action?.collection_type || ''),
+                    pickup_state: String(action?.pickup_state || ''),
+                    quantity: Number(action?.quantity || 0),
+                    collected_at: String(action?.collected_at || ''),
+                    notes: String(action?.notes || ''),
                     tracking_mode: String(action?.tracking_mode || (String(action?.tracking_number || '').trim() !== '' || String(action?.tracking_url || '').trim() !== '' ? 'tracking_number' : 'none')),
                     shipment_type: String(action?.shipment_type || ''),
-                    quantity: Number(action?.quantity || 0),
                     parcel_number: Number(action?.parcel_number || 0),
                     carrier: String(action?.carrier || ''),
                     tracking_number: String(action?.tracking_number || ''),
                     tracking_url: String(action?.tracking_url || ''),
-                    notes: String(action?.notes || ''),
                     dispatched_at: String(action?.dispatched_at || ''),
                 })),
                 itemUi: {},
@@ -130,9 +161,12 @@
                         this.itemUi[key] = {
                             cancelOpen: false,
                             trackingOpen: false,
+                            collectionOpen: false,
                             detailsOpen: false,
                             cancelError: '',
                             trackingError: '',
+                            collectionError: '',
+                            pickupState: '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}',
                             trackingMode: 'none',
                             trackingModeTouched: false,
                             trackingShipmentType: '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}',
@@ -141,6 +175,10 @@
                             trackingCarrier: '',
                             trackingNumber: '',
                             trackingUrl: '',
+                            collectionType: '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}',
+                            collectionQuantity: 0,
+                            collectionCollectedAt: '',
+                            collectionNotes: '',
                         };
                     }
 
@@ -192,7 +230,32 @@
                     }
 
                     if (this.usesPickup) {
-                        return current;
+                        const pickupItems = this.physicalItems();
+                        if (pickupItems.length === 0) {
+                            return current;
+                        }
+
+                        const readyQuantity = pickupItems.reduce((carry, item) => carry + this.readyPickup(item.itemId), 0);
+                        const collectedQuantity = pickupItems.reduce((carry, item) => carry + this.collectedQuantity(item.itemId), 0);
+                        const remainingQuantity = pickupItems.reduce((carry, item) => carry + this.remainingPickup(item.itemId), 0);
+
+                        if (collectedQuantity > 0 && remainingQuantity > 0) {
+                            return '{{ \App\Models\StoreOrder::STATUS_PARTIALLY_COLLECTED }}';
+                        }
+
+                        if (remainingQuantity <= 0 && collectedQuantity > 0) {
+                            return '{{ \App\Models\StoreOrder::STATUS_COLLECTED }}';
+                        }
+
+                        if (readyQuantity > 0 && readyQuantity < remainingQuantity) {
+                            return '{{ \App\Models\StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION }}';
+                        }
+
+                        if (readyQuantity > 0 && readyQuantity >= remainingQuantity) {
+                            return '{{ \App\Models\StoreOrder::STATUS_READY_FOR_PICKUP }}';
+                        }
+
+                        return '{{ \App\Models\StoreOrder::STATUS_PROCESSING }}';
                     }
 
                     const physicalItems = this.physicalItems();
@@ -282,6 +345,25 @@
                     ui.trackingOpen = true;
                 },
 
+                openCollection(itemId, collectionType = null, quantity = null, collectedAt = null, notes = null, pickupState = null) {
+                    const ui = this.ensureItemUi(itemId);
+                    ui.collectionError = '';
+                    ui.pickupState = pickupState !== null && pickupState !== ''
+                        ? String(pickupState)
+                        : this.defaultPickupState(itemId);
+                    ui.collectionType = collectionType !== null && collectionType !== ''
+                        ? String(collectionType)
+                        : this.defaultCollectionType(itemId);
+                    ui.collectionQuantity = quantity !== null
+                        ? (quantity === '' ? '' : Number(quantity))
+                        : this.defaultCollectionQuantity(itemId, ui.collectionType, ui.pickupState);
+                    ui.collectionCollectedAt = collectedAt !== null && collectedAt !== undefined
+                        ? String(collectedAt)
+                        : this.defaultCollectionCollectedAt();
+                    ui.collectionNotes = notes !== null && notes !== undefined ? String(notes) : '';
+                    ui.collectionOpen = true;
+                },
+
                 defaultTrackingShipmentType(itemId) {
                     return this.remainingAvailable(itemId) > 0
                         ? '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}'
@@ -294,6 +376,37 @@
                     return selectedType === '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED }}'
                         ? this.remainingDelayed(itemId)
                         : this.remainingAvailable(itemId);
+                },
+
+                defaultPickupState(itemId) {
+                    return this.readyPickup(itemId) > 0
+                        ? '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}'
+                        : '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}';
+                },
+
+                defaultCollectionType(itemId) {
+                    return this.remainingPickupAvailable(itemId) > 0
+                        ? '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}'
+                        : '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}';
+                },
+
+                defaultCollectionQuantity(itemId, collectionType = null, pickupState = null) {
+                    const selectedType = String(collectionType || this.defaultCollectionType(itemId));
+                    const selectedState = String(pickupState || this.defaultPickupState(itemId));
+
+                    if (selectedState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}') {
+                        return selectedType === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}'
+                            ? this.readyPickupDelayed(itemId)
+                            : this.readyPickupAvailable(itemId);
+                    }
+
+                    return selectedType === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}'
+                        ? this.remainingPickupDelayedToReady(itemId)
+                        : this.remainingPickupAvailableToReady(itemId);
+                },
+
+                defaultCollectionCollectedAt() {
+                    return new Date().toISOString().slice(0, 10);
                 },
 
                 highestParcelNumber() {
@@ -418,6 +531,11 @@
                 closeTracking(itemId) {
                     const ui = this.ensureItemUi(itemId);
                     ui.trackingOpen = false;
+                },
+
+                closeCollection(itemId) {
+                    const ui = this.ensureItemUi(itemId);
+                    ui.collectionOpen = false;
                 },
 
                 isSelected(itemId) {
@@ -636,6 +754,52 @@
                     return Math.max(0, base - this.pendingCancelDelayed(itemId) - this.pendingTrackedDelayed(itemId));
                 },
 
+                remainingPickupAvailable(itemId) {
+                    return Number(this.itemMeta(itemId).remaining_pickup_available || 0);
+                },
+
+                remainingPickupDelayed(itemId) {
+                    return Number(this.itemMeta(itemId).remaining_pickup_delayed || 0);
+                },
+
+                remainingPickup(itemId) {
+                    return Math.max(0, Number(this.itemMeta(itemId).remaining_pickup || 0));
+                },
+
+                readyPickupAvailable(itemId) {
+                    const base = Number(this.itemMeta(itemId).ready_pickup_available || 0);
+                    return Math.max(0, base + this.pendingPickupReadyAvailable(itemId) - this.pendingPickupCollectedAvailable(itemId));
+                },
+
+                readyPickupDelayed(itemId) {
+                    const base = Number(this.itemMeta(itemId).ready_pickup_delayed || 0);
+                    return Math.max(0, base + this.pendingPickupReadyDelayed(itemId) - this.pendingPickupCollectedDelayed(itemId));
+                },
+
+                readyPickup(itemId) {
+                    return this.readyPickupAvailable(itemId) + this.readyPickupDelayed(itemId);
+                },
+
+                remainingPickupAvailableToReady(itemId) {
+                    return Number(this.itemMeta(itemId).remaining_pickup_to_ready || 0) > 0
+                        ? Math.max(0, Number(this.itemMeta(itemId).remaining_pickup_available || 0) - this.pendingPickupReadyAvailable(itemId))
+                        : 0;
+                },
+
+                remainingPickupDelayedToReady(itemId) {
+                    return Number(this.itemMeta(itemId).remaining_pickup_to_ready || 0) > 0
+                        ? Math.max(0, Number(this.itemMeta(itemId).remaining_pickup_delayed || 0) - this.pendingPickupReadyDelayed(itemId))
+                        : 0;
+                },
+
+                remainingPickupToReady(itemId) {
+                    return this.remainingPickupAvailableToReady(itemId) + this.remainingPickupDelayedToReady(itemId);
+                },
+
+                collectedQuantity(itemId) {
+                    return Math.max(0, Number(this.itemMeta(itemId).collected_quantity || 0) + this.pendingPickupCollectedAvailable(itemId) + this.pendingPickupCollectedDelayed(itemId));
+                },
+
                 reservedQuantity(itemId) {
                     const base = Number(this.itemMeta(itemId).reserved_quantity || 0);
                     return Math.max(0, base - this.pendingCancelAvailable(itemId) - this.pendingTrackedAvailable(itemId));
@@ -652,7 +816,9 @@
                 },
 
                 openQuantity(itemId) {
-                    return this.remainingAvailable(itemId) + this.remainingDelayed(itemId);
+                    return this.usesPickup
+                        ? this.remainingPickup(itemId)
+                        : this.remainingAvailable(itemId) + this.remainingDelayed(itemId);
                 },
 
                 canCancel(itemId) {
@@ -661,6 +827,14 @@
 
                 canTrack(itemId) {
                     return Boolean(this.itemMeta(itemId).can_track) && this.openQuantity(itemId) > 0;
+                },
+
+                canCollect(itemId) {
+                    return Boolean(this.itemMeta(itemId).can_collect) && this.readyPickup(itemId) > 0;
+                },
+
+                canReady(itemId) {
+                    return Boolean(this.itemMeta(itemId).can_ready) && this.remainingPickup(itemId) > 0;
                 },
 
                 hasPendingActions() {
@@ -675,6 +849,31 @@
                     return this.pendingActions.filter((action) => action.type === 'tracking').length;
                 },
 
+                pendingPickupCollectionQuantity(itemId, pickupState, collectionType) {
+                    return this.pendingActions
+                        .filter((action) => action.type === 'collection'
+                            && Number(action.item_id) === Number(itemId)
+                            && String(action.pickup_state || '') === String(pickupState)
+                            && String(action.collection_type || '') === String(collectionType))
+                        .reduce((carry, action) => carry + Number(action.quantity || 0), 0);
+                },
+
+                pendingPickupReadyAvailable(itemId) {
+                    return this.pendingPickupCollectionQuantity(itemId, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}', '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}');
+                },
+
+                pendingPickupReadyDelayed(itemId) {
+                    return this.pendingPickupCollectionQuantity(itemId, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}', '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}');
+                },
+
+                pendingPickupCollectedAvailable(itemId) {
+                    return this.pendingPickupCollectionQuantity(itemId, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}', '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}');
+                },
+
+                pendingPickupCollectedDelayed(itemId) {
+                    return this.pendingPickupCollectionQuantity(itemId, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}', '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}');
+                },
+
                 pendingActionCountForItem(itemId) {
                     return this.pendingActions.filter((action) => Number(action.item_id) === Number(itemId)).length;
                 },
@@ -686,6 +885,7 @@
                 pendingSummaryLabel(itemId) {
                     const cancelCount = this.pendingActions.filter((action) => action.type === 'cancel' && Number(action.item_id) === Number(itemId)).length;
                     const trackingCount = this.pendingActions.filter((action) => action.type === 'tracking' && Number(action.item_id) === Number(itemId)).length;
+                    const pickupCount = this.pendingActions.filter((action) => action.type === 'collection' && Number(action.item_id) === Number(itemId)).length;
                     const parts = [];
 
                     if (cancelCount > 0) {
@@ -694,6 +894,10 @@
 
                     if (trackingCount > 0) {
                         parts.push(`${trackingCount} tracking entr${trackingCount === 1 ? 'y' : 'ies'}`);
+                    }
+
+                    if (pickupCount > 0) {
+                        parts.push(`${pickupCount} pickup action${pickupCount === 1 ? '' : 's'}`);
                     }
 
                     return parts.join(' staged, ');
@@ -825,6 +1029,69 @@
                     this.syncStatusSelection();
                 },
 
+                stagePickupAction(itemId, form) {
+                    const ui = this.ensureItemUi(itemId);
+                    const formData = new FormData(form);
+                    const pickupState = String(formData.get('pickup_state') || '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}');
+                    const collectionType = String(formData.get('collection_type') || this.defaultCollectionType(itemId));
+                    const quantity = Math.max(0, Number(formData.get('quantity') || 0));
+                    const collectedAt = String(formData.get('collected_at') || '').trim();
+                    const notes = String(formData.get('notes') || '').trim();
+                    const remaining = pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}'
+                        ? (collectionType === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}'
+                            ? this.readyPickupDelayed(itemId)
+                            : this.readyPickupAvailable(itemId))
+                        : (collectionType === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}'
+                            ? this.remainingPickupDelayedToReady(itemId)
+                            : this.remainingPickupAvailableToReady(itemId));
+
+                    if (quantity <= 0) {
+                        ui.collectionError = 'Stage at least one quantity for this pickup action.';
+                        return;
+                    }
+
+                    if (quantity > remaining) {
+                        ui.collectionError = pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}'
+                            ? 'Collection quantity exceeds what is already ready after other staged actions.'
+                            : 'Ready quantity exceeds what is still waiting to be prepared after other staged actions.';
+                        return;
+                    }
+
+                    if (pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}' && collectedAt !== '') {
+                        const parsedDate = new Date(collectedAt);
+                        if (Number.isNaN(parsedDate.getTime())) {
+                            ui.collectionError = 'Enter a valid pickup date before staging this collection.';
+                            return;
+                        }
+                    }
+
+                    this.pendingActions.push({
+                        client_id: `queued-${this.nextClientId++}`,
+                        type: 'collection',
+                        item_id: Number(itemId),
+                        collection_type: collectionType,
+                        pickup_state: pickupState,
+                        quantity,
+                        collected_at: collectedAt,
+                        notes,
+                        available_quantity: 0,
+                        delayed_quantity: 0,
+                        reason: '',
+                        shipment_type: '',
+                        tracking_mode: '',
+                        parcel_number: 0,
+                        carrier: '',
+                        tracking_number: '',
+                        tracking_url: '',
+                        dispatched_at: '',
+                    });
+
+                    ui.collectionError = '';
+                    ui.collectionOpen = false;
+                    form.reset();
+                    this.syncStatusSelection();
+                },
+
                 removePendingAction(clientId) {
                     this.pendingActions = this.pendingActions.filter((action) => action.client_id !== clientId);
                     this.syncStatusSelection();
@@ -836,6 +1103,7 @@
                         const ui = this.ensureItemUi(itemId);
                         ui.cancelError = '';
                         ui.trackingError = '';
+                        ui.collectionError = '';
                     });
                     this.syncStatusSelection();
                 },
@@ -858,6 +1126,18 @@
 
                         const quantity = Number(action.quantity || 0);
                         return `${title} · Cancel ${quantity > 0 ? `${quantity} unit${quantity === 1 ? '' : 's'}` : parts.join(' / ').trim()}`.trim();
+                    }
+
+                    if (String(action.type) === 'collection') {
+                        const quantity = Number(action.quantity || 0);
+                        const pickupLabel = String(action.pickup_state) === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}'
+                            ? 'Record'
+                            : 'Stage';
+                        const stageLabel = String(action.collection_type) === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}'
+                            ? 'backorder'
+                            : 'reserved';
+
+                        return `${title} · ${pickupLabel} ${quantity > 0 ? `${quantity} ${stageLabel} item${quantity === 1 ? '' : 's'}` : `${stageLabel} pickup`}`.trim();
                     }
 
                     const shipmentLabel = String(action.shipment_type) === 'delayed' ? 'Backorder' : 'Reserved';
@@ -884,6 +1164,20 @@
                         return [parts.join(' | '), String(action.reason || '')]
                             .filter((part) => part !== '')
                             .join(' | ');
+                    }
+
+                    if (String(action.type) === 'collection') {
+                        const parts = [];
+                        parts.push(String(action.pickup_state) === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}' ? 'Collected' : 'Ready for pickup');
+                        parts.push(String(action.collection_type) === '{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}' ? 'Backorder stock' : 'Reserved stock');
+                        if (String(action.collected_at || '').trim() !== '') {
+                            parts.push(String(action.collected_at).trim());
+                        }
+                        if (String(action.notes || '').trim() !== '') {
+                            parts.push(String(action.notes).trim());
+                        }
+
+                        return parts.join(' | ');
                     }
 
                     const usesTrackingNumber = String(action.tracking_mode || '') === 'tracking_number'
@@ -926,6 +1220,7 @@
                         @if($order->invoice)
                             <x-ui.button href="{{ route('admin.invoice.edit', $order->invoice) }}" color="outline">Open Invoice</x-ui.button>
                         @endif
+                        <x-ui.button href="{{ route('admin.shop.order.pick-list.pdf', $order) }}" target="_blank" color="outline">Pick List PDF</x-ui.button>
                     </div>
                 </div>
 
@@ -946,19 +1241,33 @@
                         <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Customer</div>
                         <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->billing_name ?: '-' }}</div>
                         <div class="mt-0.5 text-xs text-gray-500 truncate">{{ $order->billing_email ?: '-' }}</div>
+                        <div class="mt-0.5 text-xs text-gray-500 truncate">{{ formatPhoneNumber($order->billing_phone) ?: '-' }}</div>
                     </div>
                 </div>
 
                 <div class="mt-4 grid gap-4 {{ $order->contains_physical ? 'md:grid-cols-2 md:items-start' : '' }}">
                     @if($order->contains_physical)
                         <div class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-4">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $order->usesPickup() ? 'Collection Details' : 'Delivery Details' }}</div>
-                            <div class="mt-4 space-y-2 text-sm text-gray-700">
-                                <div class="font-semibold text-gray-900">{{ $isQuoteRequested ? 'To be quoted' : ($order->shipping_method ?: 'Shipping') }}</div>
-                                @if(!$isQuoteRequested && $order->usesPickup())
-                                    <div class="text-xs text-gray-500">Customer will be contacted for collection.</div>
-                                @endif
-                                @if(!$isQuoteRequested && $order->shipping_package_summary)
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $order->usesPickup() ? 'Collection Details' : 'Delivery Details' }}</div>
+                                <div class="mt-4 space-y-2 text-sm text-gray-700">
+                                    <div class="font-semibold text-gray-900">
+                                        {{ $isQuoteRequested ? 'To be quoted' : ($order->usesPickup() ? 'Pick up / Collection' : ($order->shipping_method ?: 'Shipping')) }}
+                                    </div>
+                                    @if(!$isQuoteRequested && $order->usesPickup())
+                                        <div class="text-xs text-gray-500">
+                                        @if((string) $order->status === \App\Models\StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION)
+                                            Some items are ready for collection.
+                                        @elseif((string) $order->status === \App\Models\StoreOrder::STATUS_READY_FOR_PICKUP)
+                                            Ready for pickup now.
+                                        @elseif((string) $order->status === \App\Models\StoreOrder::STATUS_PARTIALLY_COLLECTED)
+                                            Some items have been collected.
+                                        @elseif((string) $order->status === \App\Models\StoreOrder::STATUS_COLLECTED)
+                                            Collected.
+                                        @else
+                                            Customer will be contacted for collection.
+                                        @endif
+                                        </div>
+                                    @elseif(!$isQuoteRequested && $order->shipping_package_summary)
                                     <div class="text-xs text-gray-500">{{ $order->shipping_package_summary }}</div>
                                 @endif
                             </div>
@@ -969,7 +1278,7 @@
                                     @endforeach
                                 </div>
                             @endif
-                            @if(!$isQuoteRequested && !empty($shippingBreakdown['shipments']))
+                            @if(!$order->usesPickup() && !$isQuoteRequested && !empty($shippingBreakdown['shipments']))
                                 <div class="mt-4">
                                     @include('shop.partials.shipping-breakdown', [
                                         'shipments' => $shippingBreakdown['shipments'],
@@ -1065,19 +1374,31 @@
                             @php
                                 $cancelBag = $errors->getBag('cancelItem_'.$item->id);
                                 $trackingBag = $errors->getBag('trackingItem_'.$item->id);
+                                $collectionBag = $errors->getBag('collectionItem_'.$item->id);
                                 $orderedQty = max(0, (int) $item->quantity);
                                 $availableTotal = $item->availableQuantityTotal();
                                 $delayedTotal = $item->delayedQuantityTotal();
                                 $remainingAvailable = $item->remainingAvailableQuantity();
                                 $remainingDelayed = $item->remainingDelayedQuantity();
+                                $remainingPickupAvailable = $item->remainingPickupAvailableQuantity();
+                                $remainingPickupDelayed = $item->remainingPickupDelayedQuantity();
+                                $remainingPickup = $item->remainingPickupQuantity();
+                                $readyPickupAvailable = $item->readyPickupAvailableQuantity();
+                                $readyPickupDelayed = $item->readyPickupDelayedQuantity();
+                                $readyPickup = $item->readyPickupQuantity();
+                                $remainingPickupToReady = $item->remainingPickupToReadyQuantity();
                                 $remainingTotal = $item->remainingFulfillableQuantity();
                                 $cancelledTotal = $item->cancelledQuantity();
                                 $trackedTotal = $item->trackedQuantity();
+                                $collectedTotal = $item->collectedQuantity();
                                 $dispatchedTotal = $trackedTotal;
                                 $reservedQty = $item->reservedInventory();
                                 $canTrack = $order->contains_physical && !$order->usesPickup() && !$item->isDigital() && ($remainingAvailable > 0 || $remainingDelayed > 0);
+                                $canReady = $pickupCollectionOpen && !$item->isDigital() && $remainingPickupToReady > 0;
+                                $canCollect = $pickupCollectionOpen && !$item->isDigital() && $readyPickup > 0;
                                 $cancelOpen = $cancelBag->isNotEmpty();
                                 $trackingOpen = $trackingBag->isNotEmpty();
+                                $collectionOpen = $collectionBag->isNotEmpty();
                                 $cancelAvailableValue = $cancelOpen ? old('available_quantity', '') : '';
                                 $cancelDelayedValue = $cancelOpen ? old('delayed_quantity', '') : '';
                                 $cancelReasonValue = $cancelOpen ? old('reason', '') : '';
@@ -1090,8 +1411,13 @@
                                 $trackingNumberValue = $trackingOpen ? old('tracking_number', '') : '';
                                 $trackingUrlValue = $trackingOpen ? old('tracking_url', '') : '';
                                 $trackingNotesValue = $trackingOpen ? old('notes', '') : '';
+                                $collectionTypeValue = $collectionOpen ? old('collection_type', \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE) : \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE;
+                                $collectionStateValue = $collectionOpen ? old('pickup_state', \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY) : \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY;
+                                $collectionQtyValue = $collectionOpen ? old('quantity', '') : '';
+                                $collectionNotesValue = $collectionOpen ? old('notes', '') : '';
+                                $collectionCollectedAtValue = $collectionOpen ? old('collected_at', now()->toDateString()) : now()->toDateString();
                             @endphp
-                                    <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif">
+                                    <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif @if($collectionOpen) openCollection({{ $item->id }}, @js($collectionTypeValue), @js($collectionQtyValue), @js($collectionCollectedAtValue), @js($collectionNotesValue), @js($collectionStateValue)); @endif">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                 @endphp
@@ -1145,18 +1471,36 @@
                                                 <i class="fa-solid fa-clipboard-list text-gray-400" aria-hidden="true"></i>
                                                 <span>Ordered <span x-text="orderedQuantity({{ $item->id }})">{{ $orderedQty }}</span></span>
                                             </span>
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1">
-                                                <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
-                                                <span>Open <span x-text="openQuantity({{ $item->id }})">{{ $remainingTotal }}</span></span>
-                                            </span>
+                                            @if($order->usesPickup())
+                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                    <i class="fa-solid fa-check text-emerald-500" aria-hidden="true"></i>
+                                                    <span>Ready <span x-text="readyPickup({{ $item->id }})">{{ $readyPickup }}</span></span>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1">
+                                                    <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
+                                                    <span>To prepare <span x-text="remainingPickupToReady({{ $item->id }})">{{ $remainingPickupToReady }}</span></span>
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1">
+                                                    <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
+                                                    <span>Open <span x-text="openQuantity({{ $item->id }})">{{ $remainingTotal }}</span></span>
+                                                </span>
+                                            @endif
                                             <span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-rose-800">
                                                 <i class="fa-solid fa-circle-xmark text-rose-500" aria-hidden="true"></i>
                                                 <span>Cancelled <span x-text="cancelledQuantity({{ $item->id }})">{{ $cancelledTotal }}</span></span>
                                             </span>
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
-                                                <i class="fa-solid fa-truck-fast text-emerald-500" aria-hidden="true"></i>
-                                                <span>Shipped <span x-text="dispatchedQuantity({{ $item->id }})">{{ $dispatchedTotal }}</span></span>
-                                            </span>
+                                            @if($order->usesPickup())
+                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                    <i class="fa-solid fa-box-check text-emerald-500" aria-hidden="true"></i>
+                                                    <span>Collected <span x-text="collectedQuantity({{ $item->id }})">{{ $collectedTotal }}</span></span>
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                    <i class="fa-solid fa-truck-fast text-emerald-500" aria-hidden="true"></i>
+                                                    <span>Shipped <span x-text="dispatchedQuantity({{ $item->id }})">{{ $dispatchedTotal }}</span></span>
+                                                </span>
+                                            @endif
                                             <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
                                                 <i class="fa-solid fa-warehouse text-amber-500" aria-hidden="true"></i>
                                                 <span>Reserved <span x-text="reservedQuantity({{ $item->id }})">{{ $reservedQty }}</span></span>
@@ -1168,8 +1512,20 @@
                                         </div>
 
                                         <div class="flex flex-wrap flex-col sm:flex-row gap-2 justify-end">
-                                            <x-ui.button type="button" class="w-full sm:w-auto" color="danger-outline" x-on:click="openCancel({{ $item->id }})" x-bind:disabled="!canCancel({{ $item->id }})">Cancel Items</x-ui.button>
-                                            <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openTracking({{ $item->id }})" x-bind:disabled="!canTrack({{ $item->id }})">Add Shipment</x-ui.button>
+                                            @unless($itemActionsLocked)
+                                                <x-ui.button type="button" class="w-full sm:w-auto" color="danger-outline" x-on:click="openCancel({{ $item->id }})" x-bind:disabled="!canCancel({{ $item->id }})">Cancel Items</x-ui.button>
+                                                @unless($order->usesPickup())
+                                                    <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openTracking({{ $item->id }})" x-bind:disabled="!canTrack({{ $item->id }})">Add Shipment</x-ui.button>
+                                                @endunless
+                                            @endunless
+                                            @if($pickupCollectionOpen)
+                                                @if($item->remainingPickupToReadyQuantity() > 0)
+                                                    <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openCollection({{ $item->id }}, null, defaultCollectionQuantity({{ $item->id }}, null, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}'), null, null, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}')" x-bind:disabled="!canReady({{ $item->id }})">Mark Ready</x-ui.button>
+                                                @endif
+                                                @if($item->readyPickupQuantity() > 0)
+                                                    <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openCollection({{ $item->id }}, null, defaultCollectionQuantity({{ $item->id }}, null, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}'), null, null, '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}')" x-bind:disabled="!canCollect({{ $item->id }})">Record Collection</x-ui.button>
+                                                @endif
+                                            @endif
                                         </div>
                                     </div>
 
@@ -1184,6 +1540,7 @@
                                     @endif
                                 </div>
 
+                                @unless($itemActionsLocked)
                                 <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].cancelOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeCancel({{ $item->id }})" x-on:keydown.escape.window="closeCancel({{ $item->id }})">
                                     <div class="flex min-h-full items-center justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
@@ -1257,7 +1614,9 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endunless
 
+                                @unless($itemActionsLocked)
                                 <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeTracking({{ $item->id }})" x-on:keydown.escape.window="closeTracking({{ $item->id }})">
                                     <div class="flex min-h-full items-center justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
@@ -1430,7 +1789,7 @@
                                                 @else
                                                     <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
                                                         @if($order->usesPickup())
-                                                            Tracking is hidden for pickup orders.
+                                                            Pickup orders use Ready for Pickup.
                                                         @elseif($item->isDigital())
                                                             Tracking is not used for digital items.
                                                         @else
@@ -1445,6 +1804,103 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endunless
+
+                                @if($pickupCollectionOpen)
+                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].collectionOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeCollection({{ $item->id }})" x-on:keydown.escape.window="closeCollection({{ $item->id }})">
+                                    <div class="flex min-h-full items-center justify-center p-4">
+                                        <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
+                                            <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+                                                <div>
+                                                    <h3 class="text-lg font-semibold text-gray-900">Pickup Action</h3>
+                                                    <p class="mt-1 text-sm text-gray-600">Mark this item ready for pickup or record a collection against the quantity that has already been prepared.</p>
+                                                </div>
+                                                <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCollection({{ $item->id }})" aria-label="Close collection modal">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </div>
+                                            <form method="POST" action="{{ route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stagePickupAction({{ $item->id }}, $event.target)">
+                                                @csrf
+                                                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                                    <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Ready to collect</div>
+                                                        <div class="mt-1 text-lg font-semibold text-gray-900" x-text="remainingPickupAvailable({{ $item->id }})">{{ $remainingPickupAvailable }}</div>
+                                                    </div>
+                                                    <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Still to prepare</div>
+                                                        <div class="mt-1 text-lg font-semibold text-gray-900" x-text="remainingPickupDelayed({{ $item->id }})">{{ $remainingPickupDelayed }}</div>
+                                                    </div>
+                                                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Collected</div>
+                                                        <div class="mt-1 text-lg font-semibold text-emerald-900" x-text="collectedQuantity({{ $item->id }})">{{ $collectedTotal }}</div>
+                                                    </div>
+                                                    <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+                                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">Open</div>
+                                                        <div class="mt-1 text-lg font-semibold text-sky-900" x-text="remainingPickup({{ $item->id }})">{{ $remainingPickup }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Pickup action</label>
+                                                        <select name="pickup_state" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" x-model="itemUi['{{ $item->id }}'].pickupState" x-on:change="itemUi['{{ $item->id }}'].collectionQuantity = defaultCollectionQuantity({{ $item->id }}, itemUi['{{ $item->id }}'].collectionType, itemUi['{{ $item->id }}'].pickupState)">
+                                                            <option value="{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}" @selected($collectionStateValue === \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY)>Mark Ready for Pickup</option>
+                                                            <option value="{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}" @selected($collectionStateValue === \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED)>Record Collection</option>
+                                                        </select>
+                                                        @if($collectionBag->first('pickup_state'))
+                                                            <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('pickup_state') }}</div>
+                                                        @endif
+                                                    </div>
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Collection stage</label>
+                                                        <select name="collection_type" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0">
+                                                            <option value="{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}" @selected($collectionTypeValue === \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE)>Available stock</option>
+                                                            <option value="{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}" @selected($collectionTypeValue === \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED)>Backorder stock</option>
+                                                        </select>
+                                                        @if($collectionBag->first('collection_type'))
+                                                            <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('collection_type') }}</div>
+                                                        @endif
+                                                    </div>
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Quantity</label>
+                                                        <input type="number" name="quantity" min="1" max="{{ $remainingPickup }}" x-model="itemUi['{{ $item->id }}'].collectionQuantity" x-bind:max="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}' ? readyPickup({{ $item->id }}) : remainingPickupToReady({{ $item->id }})" value="{{ $collectionQtyValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
+                                                        @if($collectionBag->first('quantity'))
+                                                            <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('quantity') }}</div>
+                                                        @endif
+                                                    </div>
+                                                    <div>
+                                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Action date</label>
+                                                        <input type="date" name="collected_at" value="{{ $collectionCollectedAtValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
+                                                        @if($collectionBag->first('collected_at'))
+                                                            <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('collected_at') }}</div>
+                                                        @endif
+                                                    </div>
+                                                    <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Pickup note</div>
+                                                        <div class="mt-2">Add pickup actions to the queue, then save the order once you are done staging items.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-4">
+                                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
+                                                    <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" placeholder="Optional pickup notes">{{ $collectionNotesValue }}</textarea>
+                                                    @if($collectionBag->first('notes'))
+                                                        <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('notes') }}</div>
+                                                    @endif
+                                                    @if($collectionBag->first('item'))
+                                                        <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('item') }}</div>
+                                                    @endif
+                                                </div>
+                                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].collectionError" x-cloak class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                                                    <span x-text="itemUi['{{ $item->id }}'] ? itemUi['{{ $item->id }}'].collectionError : ''"></span>
+                                                </div>
+                                                <div class="mt-5 flex flex-wrap justify-end gap-3">
+                                                    <x-ui.button type="button" color="outline" x-on:click="closeCollection({{ $item->id }})">Close</x-ui.button>
+                                                    <x-ui.button type="submit" color="primary">Stage Pickup Action</x-ui.button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
 
                                 @if($item->downloads->isNotEmpty())
                                     <div class="mt-4 border-t border-gray-200 pt-4 space-y-2">
@@ -1457,8 +1913,9 @@
                                     </div>
                                 @endif
                             </div>
-                        @endforeach
-
+                            @endforeach
+                        </div>
+                        @unless($itemActionsLocked)
                         <div x-show="bulkCancelOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeBulkCancel()" x-on:keydown.escape.window="closeBulkCancel()">
                             <div class="flex min-h-full items-center justify-center p-4">
                                 <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
@@ -1587,13 +2044,17 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mb-4 flex flex-wrap flex-col sm:flex-row items-center justify-end gap-3">
-                        <x-ui.button type="button" class="w-full sm:w-auto" color="danger-outline" x-on:click="openBulkCancel()" x-bind:disabled="selectedItemIds.length === 0">Cancel Selected</x-ui.button>
-                        <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openBulkTracking()" x-bind:disabled="selectedItemIds.length === 0">Add Shipment</x-ui.button>
-                        <x-ui.button type="button" class="w-full sm:w-auto" color="outline" x-on:click="clearSelection()" x-bind:disabled="selectedItemIds.length === 0">Clear Selection</x-ui.button>
-                    </div>
-                </section>
+                        @endunless
+                        @unless($itemActionsLocked)
+                            <div class="my-4 flex flex-wrap flex-col sm:flex-row items-center justify-end gap-3">
+                                <x-ui.button type="button" class="w-full sm:w-auto" color="danger-outline" x-on:click="openBulkCancel()" x-bind:disabled="selectedItemIds.length === 0">Cancel Selected</x-ui.button>
+                                @if(! $order->usesPickup())
+                                    <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openBulkTracking()" x-bind:disabled="selectedItemIds.length === 0">Add Shipment</x-ui.button>
+                                @endif
+                                <x-ui.button type="button" class="w-full sm:w-auto" color="outline" x-on:click="clearSelection()" x-bind:disabled="selectedItemIds.length === 0">Clear Selection</x-ui.button>
+                            </div>
+                        @endunless
+                    </section>
 
                 </div>
 
@@ -1647,37 +2108,39 @@
                             <div x-show="sidebarTab === 'changes'" x-cloak class="space-y-4">
                             <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
                                 <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Order Status</div>
-                                            <div class="mt-1 text-lg font-semibold text-gray-900">
-                                                <span x-show="statusEditorOpen" x-cloak x-text="statusLabel(statusValue)">{{ $order->statusLabel() }}</span>
-                                                <span x-show="!statusEditorOpen" x-cloak x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</span>
-                                            </div>
-                                            <div class="mt-1 text-xs text-gray-500">
-                                                <span x-show="statusEditorOpen" x-cloak>
-                                                    Editing: <span x-text="statusLabel(statusValue)">{{ $order->statusLabel() }}</span>
-                                                </span>
-                                                <span x-show="!statusEditorOpen && hasPendingActions()" x-cloak>
-                                                    Previously: {{ $order->statusLabel() }}
-                                                </span>
-                                            </div>
+                                    <div>
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Order Status</div>
+                                        <div class="mt-1 text-lg font-semibold text-gray-900">
+                                            <span x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</span>
                                         </div>
-                                        <div class="flex gap-2">
-                                            <x-ui.button type="button" color="outline" x-on:click="statusEditorOpen ? closeStatusEditor() : openStatusEditor()">
-                                                <span x-show="!statusEditorOpen" x-cloak>Edit</span>
-                                                <span x-show="statusEditorOpen" x-cloak>Done</span>
-                                            </x-ui.button>
+                                        <div class="mt-1 text-xs text-gray-500">
+                                            @if($order->usesPickup())
+                                                Pickup readiness is managed from the item actions.
+                                            @elseif($order->status === \App\Models\StoreOrder::STATUS_PROCESSING)
+                                                Leave this closed to let shipment and cancellation changes set the status automatically.
+                                            @else
+                                                {{ $order->statusLabel() }}.
+                                            @endif
                                         </div>
                                     </div>
+                                </div>
+                                @unless($order->usesPickup())
+                                    <div class="mt-4">
+                                        <x-ui.button type="button" color="outline" x-on:click="statusEditorOpen ? closeStatusEditor() : openStatusEditor()">
+                                            <span x-show="!statusEditorOpen" x-cloak>Edit</span>
+                                            <span x-show="statusEditorOpen" x-cloak>Done</span>
+                                        </x-ui.button>
+                                    </div>
                                     <div x-show="statusEditorOpen" x-cloak class="mt-4">
-                                    <x-ui.select name="status" label="Status" x-model="statusValue" x-bind:disabled="!statusEditorOpen" x-on:change="manualStatusTouched = true; refreshLiveStatus()">
+                                        <x-ui.select name="status" label="Status" x-model="statusValue" x-bind:disabled="!statusEditorOpen" x-on:change="manualStatusTouched = true; refreshLiveStatus()">
                                             @foreach(\App\Models\StoreOrder::STATUSES as $status)
                                                 <option value="{{ $status }}" @selected(old('status', $order->status) === $status)>{{ (new \App\Models\StoreOrder(['status' => $status]))->statusLabel() }}</option>
                                             @endforeach
                                         </x-ui.select>
                                         <div class="text-xs text-gray-500">Leave this closed to let shipment and cancellation changes set the status automatically.</div>
                                     </div>
-                                </div>
+                                @endunless
+                            </div>
 
                                 <div class="rounded-2xl border border-gray-200 bg-white px-4 py-4">
                                     <div class="flex flex-wrap items-start justify-between gap-4">
@@ -1715,7 +2178,7 @@
                                     </div>
 
                                     <div x-show="!hasPendingActions()" x-cloak class="mt-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-sm text-gray-600">
-                                        No item changes are staged yet. Use the item actions on the left to queue cancellations or tracking updates.
+                                        No item changes are staged yet. Use the item actions on the left to queue cancellations, tracking updates, or pickup actions.
                                     </div>
                                 </div>
                             </div>

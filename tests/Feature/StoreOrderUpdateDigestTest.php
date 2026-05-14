@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\StoreOrderUpdate;
 use App\Models\User;
@@ -227,7 +228,7 @@ class StoreOrderUpdateDigestTest extends TestCase
             'shipping_method' => 'Free pickup',
         ]);
 
-        StoreOrderItem::factory()->create([
+        $readyItem = StoreOrderItem::factory()->create([
             'store_order_id' => $order->id,
             'product_title' => 'Microbit Base',
             'variant_name' => '',
@@ -238,14 +239,12 @@ class StoreOrderUpdateDigestTest extends TestCase
             'delayed_shipping_estimate' => '2026-04-20',
             'inventory_reserved_quantity' => 2,
         ]);
-        StoreOrderItem::factory()->create([
-            'store_order_id' => $order->id,
-            'product_title' => 'Storage Case',
-            'variant_name' => '',
-            'quantity' => 1,
-            'available_now_quantity' => 1,
-            'delayed_quantity' => 0,
-            'inventory_reserved_quantity' => 1,
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $readyItem->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 2,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'collected_at' => now()->subMinutes(5),
         ]);
 
         $update = StoreOrderUpdate::query()->create([
@@ -265,13 +264,66 @@ class StoreOrderUpdateDigestTest extends TestCase
 
         $this->assertNotNull($payload);
         $this->assertSame('ready_for_pickup', $payload['orders'][0]['notification_type']);
-        $this->assertSame('Ready for pickup now', $payload['orders'][0]['item_sections'][0]['heading']);
+        $this->assertSame('Ready for collection now', $payload['orders'][0]['item_sections'][0]['heading']);
         $this->assertSame('Microbit Base', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
         $this->assertSame(2, $payload['orders'][0]['item_sections'][0]['items'][0]['quantity']);
-        $this->assertSame('Storage Case', $payload['orders'][0]['item_sections'][0]['items'][1]['title']);
         $this->assertSame('Still expected later', $payload['orders'][0]['item_sections'][1]['heading']);
         $this->assertSame(3, $payload['orders'][0]['item_sections'][1]['items'][0]['quantity']);
         $this->assertStringContainsString('Expected availability April 20th 2026', (string) $payload['orders'][0]['item_sections'][1]['items'][0]['detail']);
+    }
+
+    public function test_ready_for_partial_collection_payload_groups_ready_and_remaining_items(): void
+    {
+        $order = $this->makePaidPhysicalOrder([
+            'billing_name' => 'Jamie Example',
+            'billing_email' => 'jamie@example.com',
+            'order_number' => 'SO-2101B',
+            'status' => StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION,
+            'shipping_method_code' => 'pickup',
+            'shipping_method' => 'Free pickup',
+        ]);
+
+        $readyItem = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_title' => 'Microbit Base',
+            'variant_name' => '',
+            'quantity' => 2,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 1,
+            'delayed_fulfilment_type' => 'backorder',
+            'delayed_shipping_estimate' => '2026-04-20',
+            'inventory_reserved_quantity' => 1,
+        ]);
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $readyItem->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'collected_at' => now()->subMinutes(5),
+        ]);
+
+        $update = StoreOrderUpdate::query()->create([
+            'store_order_id' => $order->id,
+            'event_type' => StoreOrderUpdate::EVENT_STATUS_CHANGED,
+            'customer_visible' => true,
+            'payload' => [
+                'from_status' => StoreOrder::STATUS_PROCESSING,
+                'from_status_label' => 'Preparing Order',
+                'to_status' => StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION,
+                'to_status_label' => 'Ready for Partial Collection',
+            ],
+            'occurred_at' => now()->subMinutes(5),
+        ]);
+
+        $payload = app(StoreOrderUpdateService::class)->payloadForEvents([$update->id], false);
+
+        $this->assertNotNull($payload);
+        $this->assertSame('ready_for_partial_collection', $payload['orders'][0]['notification_type']);
+        $this->assertSame('Ready for partial collection', $payload['orders'][0]['item_sections'][0]['heading']);
+        $this->assertSame('Microbit Base', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
+        $this->assertSame(1, $payload['orders'][0]['item_sections'][0]['items'][0]['quantity']);
+        $this->assertSame('Still to be prepared', $payload['orders'][0]['item_sections'][1]['heading']);
+        $this->assertSame(1, $payload['orders'][0]['item_sections'][1]['items'][0]['quantity']);
     }
 
     public function test_tracking_payload_groups_shipped_and_remaining_items(): void

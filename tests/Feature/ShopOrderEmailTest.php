@@ -369,6 +369,117 @@ class ShopOrderEmailTest extends TestCase
         $this->assertStringContainsString('View Order', $rendered);
     }
 
+    public function test_ready_for_partial_collection_customer_update_notice_uses_pickup_partial_copy(): void
+    {
+        $customerMail = new StoreOrderCustomerUpdateNotice('Morgan Example', [[
+            'order_number' => '381470',
+            'status_label' => 'Ready for Partial Collection',
+            'notification_type' => 'ready_for_partial_collection',
+            'order_url' => 'https://test.stemmechanics.com.au/tracking/pickup-token',
+            'item_sections' => [
+                [
+                    'heading' => 'Ready for partial collection',
+                    'items' => [
+                        [
+                            'title' => 'Microbit Base',
+                            'quantity' => 1,
+                            'detail' => 'Ready for pickup.',
+                        ],
+                    ],
+                ],
+                [
+                    'heading' => 'Still to be prepared',
+                    'items' => [
+                        [
+                            'title' => 'Microbit Base',
+                            'quantity' => 1,
+                            'detail' => 'Expected availability April 20th 2026',
+                        ],
+                    ],
+                ],
+            ],
+            'updates' => [[
+                'type' => 'status_changed',
+                'time' => '11:34 am',
+                'summary' => 'Some items are ready for pickup.',
+                'detail' => 'Previously: Preparing Order.',
+            ]],
+        ]]);
+
+        $adminMail = new StoreOrderAdminUpdateNotice([[
+            'order_number' => '381470',
+            'status_label' => 'Ready for Partial Collection',
+            'notification_type' => 'ready_for_partial_collection',
+            'admin_url' => 'https://test.stemmechanics.com.au/admin/store/orders/381470',
+            'customer_name' => 'Morgan Example',
+            'customer_email' => 'morgan@example.com',
+            'updates' => [[
+                'type' => 'status_changed',
+                'time' => '11:34 am',
+                'summary' => 'Some items are ready for pickup.',
+                'detail' => 'Previously: Preparing Order.',
+            ]],
+        ]]);
+
+        $customerRendered = $customerMail->render();
+        $adminRendered = $adminMail->render();
+
+        $this->assertSame('Part of your order 381470 is now ready for partial collection', $customerMail->subjectLine);
+        $this->assertStringContainsString('Part of your order, 381470, is now ready for partial collection.', $customerRendered);
+        $this->assertStringContainsString('Ready for partial collection', $customerRendered);
+        $this->assertStringContainsString('Still to be prepared', $customerRendered);
+        $this->assertStringContainsString('Store order 381470 ready for partial collection', $adminMail->subjectLine);
+        $this->assertStringContainsString('Store Order Ready for Partial Collection', $adminRendered);
+        $this->assertStringContainsString('Some items on a store order are now ready for partial collection.', $adminRendered);
+    }
+
+    public function test_partially_collected_customer_update_notice_uses_pickup_partial_copy(): void
+    {
+        $customerMail = new StoreOrderCustomerUpdateNotice('Morgan Example', [[
+            'order_number' => '381469',
+            'status_label' => 'Partially Collected',
+            'notification_type' => 'partially_collected',
+            'order_url' => 'https://test.stemmechanics.com.au/tracking/pickup-token',
+            'item_sections' => [
+                [
+                    'heading' => 'Collected now',
+                    'items' => [
+                        [
+                            'title' => 'Pickup Kit',
+                            'quantity' => 1,
+                            'detail' => 'Collected.',
+                        ],
+                    ],
+                ],
+                [
+                    'heading' => 'Still to collect',
+                    'items' => [
+                        [
+                            'title' => 'Pickup Kit',
+                            'quantity' => 1,
+                            'detail' => 'Expected availability April 20th 2026',
+                        ],
+                    ],
+                ],
+            ],
+            'updates' => [[
+                'type' => 'status_changed',
+                'time' => '11:34 am',
+                'summary' => 'Part of the order has now been collected.',
+                'detail' => 'Previously: Ready for Pickup.',
+            ]],
+        ]]);
+
+        $rendered = $customerMail->render();
+
+        $this->assertSame('Part of your order 381469 has now been collected', $customerMail->subjectLine);
+        $this->assertStringContainsString('Part of your order, 381469, has now been collected.', $rendered);
+        $this->assertStringContainsString('Collected now', $rendered);
+        $this->assertStringContainsString('Still to collect', $rendered);
+        $this->assertStringContainsString('Pickup Kit', $rendered);
+        $this->assertStringContainsString('View Order', $rendered);
+    }
+
     public function test_shipped_customer_update_notice_renders_shared_delivery_detail_once(): void
     {
         $customerMail = new StoreOrderCustomerUpdateNotice('Jack Example', [[

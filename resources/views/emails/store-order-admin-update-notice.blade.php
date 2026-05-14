@@ -4,6 +4,8 @@
     $resolvedHeadline = $headline ?? match ($notificationType) {
         'shipped' => 'Store Order Shipped',
         'partially_shipped' => 'Store Order Partially Shipped',
+        'partially_collected' => 'Store Order Partially Collected',
+        'ready_for_partial_collection' => 'Store Order Ready for Partial Collection',
         'items_cancelled' => 'Store Order Items Cancelled',
         'cancelled' => 'Store Order Cancelled',
         'ready_for_pickup' => 'Store Order Ready for Pickup',
@@ -15,6 +17,8 @@
     $resolvedIntroLine = $introLine ?? match ($notificationType) {
         'shipped' => 'A store order has now shipped.',
         'partially_shipped' => 'Part of a store order has now shipped.',
+        'partially_collected' => 'Part of a store order has now been collected.',
+        'ready_for_partial_collection' => 'Some items on a store order are now ready for partial collection.',
         'items_cancelled' => 'Some items on a store order were cancelled.',
         'cancelled' => 'A store order has now been cancelled.',
         'ready_for_pickup' => 'A store order is now ready for pickup.',

@@ -84,6 +84,8 @@ class StoreOrderCustomerUpdateNotice extends Mailable
         return match ($notificationType) {
             'shipped' => 'Your order '.$orderNumber.' has now shipped',
             'partially_shipped' => 'Part of your order '.$orderNumber.' has now shipped',
+            'partially_collected' => 'Part of your order '.$orderNumber.' has now been collected',
+            'ready_for_partial_collection' => 'Part of your order '.$orderNumber.' is now ready for partial collection',
             'items_cancelled' => 'Some items on your order '.$orderNumber.' were cancelled',
             'cancelled' => 'Your order '.$orderNumber.' has been cancelled',
             'ready_for_pickup' => 'Your order '.$orderNumber.' is now ready for pickup',
@@ -101,6 +103,8 @@ class StoreOrderCustomerUpdateNotice extends Mailable
         return match ($notificationType) {
             'shipped' => 'Your order, '.$orderNumber.', has now shipped.',
             'partially_shipped' => 'Part of your order, '.$orderNumber.', has now shipped.',
+            'partially_collected' => 'Part of your order, '.$orderNumber.', has now been collected.',
+            'ready_for_partial_collection' => 'Part of your order, '.$orderNumber.', is now ready for partial collection.',
             'items_cancelled' => 'Some items on your order, '.$orderNumber.', were cancelled.',
             'cancelled' => 'Your order, '.$orderNumber.', has been cancelled.',
             'ready_for_pickup' => 'Your order, '.$orderNumber.', is now ready for pickup.',

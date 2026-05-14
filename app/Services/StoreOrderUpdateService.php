@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemCancellation;
 use App\Models\StoreOrderItemTracking;
 use App\Models\StoreOrderUpdate;
@@ -48,6 +49,23 @@ class StoreOrderUpdateService
                 'tracking_url' => trim((string) ($tracking->tracking_url ?? '')) ?: null,
                 'notes' => trim((string) ($tracking->notes ?? '')) ?: null,
                 'dispatched_at' => $tracking->dispatched_at?->toIso8601String(),
+            ],
+        );
+    }
+
+    public function recordCollectionAdded(StoreOrder $order, StoreOrderItem $item, StoreOrderItemCollection $collection): ?StoreOrderUpdate
+    {
+        return $this->createUpdate(
+            $order,
+            $item,
+            StoreOrderUpdate::EVENT_COLLECTION_ADDED,
+            [
+                'item_title' => $item->displayTitle(),
+                'quantity' => max(0, (int) $collection->quantity),
+                'collection_type' => (string) $collection->collection_type,
+                'pickup_state' => (string) ($collection->pickup_state ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED),
+                'collected_at' => $collection->collected_at?->toIso8601String(),
+                'notes' => trim((string) ($collection->notes ?? '')) ?: null,
             ],
         );
     }
@@ -131,7 +149,7 @@ class StoreOrderUpdateService
         }
 
         $query = StoreOrderUpdate::query()
-            ->with(['order.items.trackingEntries', 'orderItem'])
+            ->with(['order.items.trackingEntries', 'order.items.collectionEntries', 'orderItem'])
             ->whereIn('id', $ids)
             ->orderBy('occurred_at')
             ->orderBy('id');
@@ -157,7 +175,7 @@ class StoreOrderUpdateService
     public function pendingCustomerDigests(): Collection
     {
         $updates = StoreOrderUpdate::query()
-            ->with(['order.items.trackingEntries', 'orderItem'])
+            ->with(['order.items.trackingEntries', 'order.items.collectionEntries', 'orderItem'])
             ->where('customer_visible', true)
             ->whereNull('customer_digest_queued_at')
             ->orderBy('occurred_at')
@@ -212,7 +230,7 @@ class StoreOrderUpdateService
     public function pendingAdminDigest(): ?array
     {
         $updates = StoreOrderUpdate::query()
-            ->with(['order.items.trackingEntries', 'orderItem'])
+            ->with(['order.items.trackingEntries', 'order.items.collectionEntries', 'orderItem'])
             ->whereNull('admin_digest_queued_at')
             ->orderBy('occurred_at')
             ->orderBy('id')
@@ -377,6 +395,14 @@ class StoreOrderUpdateService
                     .' shipped.',
                 'detail' => $this->trackingDetail($payload),
             ],
+            StoreOrderUpdate::EVENT_COLLECTION_ADDED => [
+                'type' => StoreOrderUpdate::EVENT_COLLECTION_ADDED,
+                'time' => $update->occurredAtLabel(),
+                'summary' => $this->quantityLabel((int) ($payload['quantity'] ?? 0)).' of '
+                    .($itemTitle !== '' ? $itemTitle : 'an item')
+                    .' collected.',
+                'detail' => $this->collectionDetail($payload),
+            ],
             StoreOrderUpdate::EVENT_ITEM_CANCELLED => [
                 'type' => StoreOrderUpdate::EVENT_ITEM_CANCELLED,
                 'time' => $update->occurredAtLabel(),
@@ -438,13 +464,52 @@ class StoreOrderUpdateService
         return $detail !== '' ? $detail : null;
     }
 
+    private function collectionDetail(array $payload): ?string
+    {
+        $parts = collect();
+
+        $collectionType = trim((string) ($payload['collection_type'] ?? ''));
+        if ($collectionType === StoreOrderItemCollection::COLLECTION_TYPE_DELAYED) {
+            $parts->push('Backorder collection');
+        } elseif ($collectionType === StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE) {
+            $parts->push('Reserved stock collection');
+        }
+
+        $pickupState = trim((string) ($payload['pickup_state'] ?? ''));
+        if ($pickupState === StoreOrderItemCollection::PICKUP_STATE_READY) {
+            $parts->push('Ready for pickup');
+        } elseif ($pickupState === StoreOrderItemCollection::PICKUP_STATE_COLLECTED) {
+            $parts->push('Collected');
+        }
+
+        $collectedAt = trim((string) ($payload['collected_at'] ?? ''));
+        if ($collectedAt !== '') {
+            try {
+                $parts->push(Carbon::parse($collectedAt)->format('M j, Y g:i a'));
+            } catch (\Throwable) {
+                $parts->push($collectedAt);
+            }
+        }
+
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        if ($notes !== '') {
+            $parts->push($notes);
+        }
+
+        $detail = $parts->implode(' | ');
+
+        return $detail !== '' ? $detail : null;
+    }
+
     private function statusChangeSummary(array $payload): string
     {
         $toStatus = trim((string) ($payload['to_status'] ?? ''));
         $toStatusLabel = trim((string) ($payload['to_status_label'] ?? $this->statusLabel($toStatus)));
 
         return match ($toStatus) {
+            StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION => 'Some items are ready for pickup.',
             StoreOrder::STATUS_READY_FOR_PICKUP => 'The order is now ready for pickup.',
+            StoreOrder::STATUS_PARTIALLY_COLLECTED => 'Part of the order has now been collected.',
             StoreOrder::STATUS_PARTIALLY_SHIPPED => 'Part of the order has now shipped.',
             StoreOrder::STATUS_SHIPPED => 'The order has now shipped.',
             StoreOrder::STATUS_COLLECTED => 'The order has now been collected.',
@@ -485,7 +550,9 @@ class StoreOrderUpdateService
 
         if ($latestStatus !== null) {
             return match ((string) $latestStatus) {
+                StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION => 'ready_for_partial_collection',
                 StoreOrder::STATUS_READY_FOR_PICKUP => 'ready_for_pickup',
+                StoreOrder::STATUS_PARTIALLY_COLLECTED => 'partially_collected',
                 StoreOrder::STATUS_PARTIALLY_SHIPPED => 'partially_shipped',
                 StoreOrder::STATUS_SHIPPED => 'shipped',
                 StoreOrder::STATUS_COLLECTED => 'collected',
@@ -496,11 +563,35 @@ class StoreOrderUpdateService
             };
         }
 
+        $latestCollectionUpdate = $updates
+            ->filter(fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_COLLECTION_ADDED)
+            ->last();
+        if ($latestCollectionUpdate instanceof StoreOrderUpdate) {
+            $payload = is_array($latestCollectionUpdate->payload) ? $latestCollectionUpdate->payload : [];
+            if (trim((string) ($payload['pickup_state'] ?? '')) === StoreOrderItemCollection::PICKUP_STATE_READY) {
+                $readyQuantity = $order->items->sum(fn (StoreOrderItem $item): int => $item->readyPickupQuantity());
+                $remainingQuantity = $order->items->sum(fn (StoreOrderItem $item): int => $item->remainingPickupQuantity());
+
+                return $readyQuantity > 0 && $readyQuantity < $remainingQuantity
+                    ? 'ready_for_partial_collection'
+                    : 'ready_for_pickup';
+            }
+        }
+
         if ($updates->contains(fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_TRACKING_ADDED)) {
             return match ((string) $order->status) {
                 StoreOrder::STATUS_PARTIALLY_SHIPPED => 'partially_shipped',
                 StoreOrder::STATUS_SHIPPED => 'shipped',
                 default => 'shipped',
+            };
+        }
+
+        if ($updates->contains(fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_COLLECTION_ADDED)) {
+            return match ((string) $order->status) {
+                StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION => 'ready_for_partial_collection',
+                StoreOrder::STATUS_PARTIALLY_COLLECTED => 'partially_collected',
+                StoreOrder::STATUS_COLLECTED => 'collected',
+                default => 'partially_collected',
             };
         }
 
@@ -521,9 +612,8 @@ class StoreOrderUpdateService
      */
     private function customerItemSections(StoreOrder $order, Collection $orderUpdates, string $notificationType): array
     {
-        $items = $order->relationLoaded('items')
-            ? $order->items
-            : $order->items()->with('trackingEntries')->get();
+        $order->loadMissing('items.trackingEntries', 'items.collectionEntries');
+        $items = $order->items;
 
         if ($items->isEmpty()) {
             return [];
@@ -533,6 +623,23 @@ class StoreOrderUpdateService
         $hasTrackingUpdates = $orderUpdates->contains(
             fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_TRACKING_ADDED
         );
+        $hasCollectionUpdates = $orderUpdates->contains(
+            fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_COLLECTION_ADDED
+        );
+        $hasReadyCollectionUpdates = $orderUpdates->filter(
+            fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_COLLECTION_ADDED
+        )->contains(function (StoreOrderUpdate $update): bool {
+            $payload = is_array($update->payload) ? $update->payload : [];
+
+            return trim((string) ($payload['pickup_state'] ?? '')) === StoreOrderItemCollection::PICKUP_STATE_READY;
+        });
+        $hasCollectedCollectionUpdates = $orderUpdates->filter(
+            fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_COLLECTION_ADDED
+        )->contains(function (StoreOrderUpdate $update): bool {
+            $payload = is_array($update->payload) ? $update->payload : [];
+
+            return trim((string) ($payload['pickup_state'] ?? '')) === StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+        });
         $hasCancellationUpdates = $orderUpdates->contains(
             fn (StoreOrderUpdate $update): bool => (string) $update->event_type === StoreOrderUpdate::EVENT_ITEM_CANCELLED
         );
@@ -554,27 +661,51 @@ class StoreOrderUpdateService
                     'items' => $remainingItems,
                 ];
             }
-        } elseif ($notificationType === 'ready_for_pickup') {
+        } elseif ($hasCollectedCollectionUpdates || $notificationType === 'partially_collected' || $notificationType === 'collected') {
+            $collectedItems = $this->sectionRowsFromItems(
+                $items,
+                fn (StoreOrderItem $item): int => $item->collectedQuantity(),
+                fn (StoreOrderItem $item): ?string => $this->collectedOrderItemDetail($order, $item),
+            );
+            if ($collectedItems !== []) {
+                $sections[] = [
+                    'heading' => 'Collected now',
+                    'items' => $collectedItems,
+                ];
+            }
+
+            $remainingItems = $this->sectionRowsFromItems(
+                $items,
+                fn (StoreOrderItem $item): int => $item->remainingPickupQuantity(),
+                fn (StoreOrderItem $item): ?string => $this->pickupRemainingItemDetail($order, $item),
+            );
+            if ($remainingItems !== []) {
+                $sections[] = [
+                    'heading' => $notificationType === 'partially_collected' ? 'Still to collect' : 'Awaiting collection',
+                    'items' => $remainingItems,
+                ];
+            }
+        } elseif ($hasReadyCollectionUpdates || $notificationType === 'ready_for_partial_collection' || $notificationType === 'ready_for_pickup') {
             $readyItems = $this->sectionRowsFromItems(
                 $items,
-                fn (StoreOrderItem $item): int => $item->remainingAvailableQuantity(),
-                fn (StoreOrderItem $item): ?string => null,
+                fn (StoreOrderItem $item): int => $item->readyPickupQuantity(),
+                fn (StoreOrderItem $item): ?string => $this->pickupReadyOrderItemDetail($order, $item),
             );
             if ($readyItems !== []) {
                 $sections[] = [
-                    'heading' => 'Ready for pickup now',
+                    'heading' => $notificationType === 'ready_for_partial_collection' ? 'Ready for partial collection' : 'Ready for collection now',
                     'items' => $readyItems,
                 ];
             }
 
             $expectedItems = $this->sectionRowsFromItems(
                 $items,
-                fn (StoreOrderItem $item): int => $item->remainingDelayedQuantity(),
+                fn (StoreOrderItem $item): int => max(0, $item->remainingPickupQuantity() - $item->readyPickupQuantity()),
                 fn (StoreOrderItem $item): ?string => $this->expectedLaterDetail($order, $item),
             );
             if ($expectedItems !== []) {
                 $sections[] = [
-                    'heading' => 'Still expected later',
+                    'heading' => $notificationType === 'ready_for_partial_collection' ? 'Still to be prepared' : 'Still expected later',
                     'items' => $expectedItems,
                 ];
             }
@@ -789,6 +920,99 @@ class StoreOrderUpdateService
         }
 
         return null;
+    }
+
+    private function collectedOrderItemDetail(StoreOrder $order, StoreOrderItem $item): ?string
+    {
+        $collected = $item->collectedQuantity();
+        $remaining = $item->remainingPickupQuantity();
+
+        if ($collected <= 0) {
+            return null;
+        }
+
+        if ($remaining > 0) {
+            return $collected.' collected, '.$remaining.' still to collect';
+        }
+
+        return 'Collected.';
+    }
+
+    private function pickupRemainingItemDetail(StoreOrder $order, StoreOrderItem $item): ?string
+    {
+        $available = $item->remainingPickupAvailableQuantity();
+        $delayed = $item->remainingPickupDelayedQuantity();
+
+        if ($available > 0 && $delayed > 0) {
+            $timing = $item->delayedShippingEstimateLabel('F jS Y');
+
+            return $available.' ready to collect, '.$delayed.' still to collect'
+                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+        }
+
+        if ($available > 0) {
+            return 'Ready to collect.';
+        }
+
+        if ($delayed > 0) {
+            $detail = $this->expectedLaterDetail($order, $item);
+
+            return $detail !== null ? 'Still to collect ('.$detail.')' : 'Still to collect.';
+        }
+
+        return null;
+    }
+
+    private function pickupReadyOrderItemDetail(StoreOrder $order, StoreOrderItem $item): ?string
+    {
+        $readyAvailable = $item->readyPickupAvailableQuantity();
+        $readyDelayed = $item->readyPickupDelayedQuantity();
+        $waitingAvailable = max(0, $item->remainingPickupAvailableQuantity() - $readyAvailable);
+        $waitingDelayed = max(0, $item->remainingPickupDelayedQuantity() - $readyDelayed);
+
+        if ($readyAvailable <= 0 && $readyDelayed <= 0) {
+            return null;
+        }
+
+        if ($readyAvailable > 0 && $readyDelayed > 0) {
+            $timing = $item->delayedShippingEstimateLabel('F jS Y');
+
+            return $readyAvailable.' ready to collect, '.$readyDelayed.' ready to collect'.($waitingAvailable > 0 || $waitingDelayed > 0
+                ? ', '.$this->pickupRemainingSummary($order, $waitingAvailable, $waitingDelayed, $item)
+                : '');
+        }
+
+        if ($readyAvailable > 0) {
+            return $readyAvailable.' ready to collect'.($waitingDelayed > 0
+                ? ', '.$this->pickupRemainingSummary($order, 0, $waitingDelayed, $item)
+                : '');
+        }
+
+        return $readyDelayed.' ready to collect'.($waitingAvailable > 0
+            ? ', '.$this->pickupRemainingSummary($order, $waitingAvailable, 0, $item)
+            : '');
+    }
+
+    private function pickupRemainingSummary(StoreOrder $order, int $available, int $delayed, StoreOrderItem $item): string
+    {
+        if ($available > 0 && $delayed > 0) {
+            $timing = $item->delayedShippingEstimateLabel('F jS Y');
+
+            return $available.' still to be prepared, '.$delayed.' still to be prepared'
+                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+        }
+
+        if ($available > 0) {
+            return 'still to be prepared';
+        }
+
+        if ($delayed > 0) {
+            $detail = $this->expectedLaterDetail($order, $item);
+
+            return 'still to be prepared'.($detail !== null ? ' ('.$detail.')' : '');
+        }
+
+        return 'still to be prepared';
     }
 
     /**

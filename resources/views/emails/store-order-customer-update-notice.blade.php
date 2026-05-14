@@ -9,6 +9,8 @@
     $resolvedIntroLine = $introLine ?? match ($notificationType) {
         'shipped' => 'Your order, '.$primaryOrderNumber.', has now shipped.',
         'partially_shipped' => 'Part of your order, '.$primaryOrderNumber.', has now shipped.',
+        'partially_collected' => 'Part of your order, '.$primaryOrderNumber.', has now been collected.',
+        'ready_for_partial_collection' => 'Part of your order, '.$primaryOrderNumber.', is now ready for partial collection.',
         'items_cancelled' => 'Some items on your order, '.$primaryOrderNumber.', were cancelled.',
         'cancelled' => 'Your order, '.$primaryOrderNumber.', has been cancelled.',
         'ready_for_pickup' => 'Your order, '.$primaryOrderNumber.', is now ready for pickup.',

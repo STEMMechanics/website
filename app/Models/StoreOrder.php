@@ -17,7 +17,11 @@ class StoreOrder extends Model
 
     public const STATUS_PROCESSING = 'processing';
 
+    public const STATUS_READY_FOR_PARTIAL_COLLECTION = 'ready_for_partial_collection';
+
     public const STATUS_READY_FOR_PICKUP = 'ready_for_pickup';
+
+    public const STATUS_PARTIALLY_COLLECTED = 'partially_collected';
 
     public const STATUS_PARTIALLY_SHIPPED = 'partially_shipped';
 
@@ -33,7 +37,9 @@ class StoreOrder extends Model
         self::STATUS_PENDING_PAYMENT,
         self::STATUS_QUOTE_REQUESTED,
         self::STATUS_PROCESSING,
+        self::STATUS_READY_FOR_PARTIAL_COLLECTION,
         self::STATUS_READY_FOR_PICKUP,
+        self::STATUS_PARTIALLY_COLLECTED,
         self::STATUS_PARTIALLY_SHIPPED,
         self::STATUS_SHIPPED,
         self::STATUS_COLLECTED,
@@ -43,6 +49,7 @@ class StoreOrder extends Model
 
     public const FULFILMENT_STATUSES = [
         self::STATUS_READY_FOR_PICKUP,
+        self::STATUS_PARTIALLY_COLLECTED,
         self::STATUS_PARTIALLY_SHIPPED,
         self::STATUS_SHIPPED,
         self::STATUS_COLLECTED,
@@ -201,7 +208,9 @@ class StoreOrder extends Model
             self::STATUS_PENDING_PAYMENT => 'Pending Payment',
             self::STATUS_QUOTE_REQUESTED => 'Quote Requested',
             self::STATUS_PROCESSING => 'Preparing Order',
+            self::STATUS_READY_FOR_PARTIAL_COLLECTION => 'Ready for Partial Collection',
             self::STATUS_READY_FOR_PICKUP => 'Ready for Pickup',
+            self::STATUS_PARTIALLY_COLLECTED => 'Partially Collected',
             self::STATUS_PARTIALLY_SHIPPED => 'Partially Shipped',
             self::STATUS_SHIPPED => 'Shipped',
             self::STATUS_COLLECTED => 'Collected',
@@ -219,6 +228,37 @@ class StoreOrder extends Model
     public function usesPickup(): bool
     {
         return (string) $this->shipping_method_code === StoreShippingMethod::CODE_PICKUP;
+    }
+
+    public function isReadyForCollection(): bool
+    {
+        return (string) $this->status === self::STATUS_READY_FOR_PICKUP;
+    }
+
+    public function isReadyForPartialCollection(): bool
+    {
+        return (string) $this->status === self::STATUS_READY_FOR_PARTIAL_COLLECTION;
+    }
+
+    public function isCollected(): bool
+    {
+        return (string) $this->status === self::STATUS_COLLECTED;
+    }
+
+    public function isPartiallyCollected(): bool
+    {
+        return (string) $this->status === self::STATUS_PARTIALLY_COLLECTED;
+    }
+
+    public function isLockedForItemChanges(): bool
+    {
+        return in_array((string) $this->status, [
+            self::STATUS_READY_FOR_PICKUP,
+            self::STATUS_PARTIALLY_COLLECTED,
+            self::STATUS_COLLECTED,
+            self::STATUS_FULFILLED,
+            self::STATUS_CANCELLED,
+        ], true);
     }
 
     public function hasMultipleShipments(): bool

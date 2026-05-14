@@ -15,6 +15,8 @@ class StoreOrderUpdate extends Model
 
     public const EVENT_TRACKING_ADDED = 'tracking_added';
 
+    public const EVENT_COLLECTION_ADDED = 'collection_added';
+
     public const EVENT_ITEM_CANCELLED = 'item_cancelled';
 
     public const EVENT_STATUS_CHANGED = 'status_changed';

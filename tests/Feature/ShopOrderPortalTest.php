@@ -10,6 +10,7 @@ use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StoreOrder;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItem;
 use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
@@ -38,7 +39,7 @@ class ShopOrderPortalTest extends TestCase
 
         $order = StoreOrder::factory()->create([
             'invoice_id' => $invoice->id,
-            'status' => StoreOrder::STATUS_READY_FOR_PICKUP,
+            'status' => StoreOrder::STATUS_READY_FOR_PARTIAL_COLLECTION,
             'contains_physical' => true,
             'contains_digital' => false,
             'billing_name' => 'Casey Customer',
@@ -71,12 +72,129 @@ class ShopOrderPortalTest extends TestCase
             'price' => 45.00,
         ]);
 
-        StoreOrderItem::factory()->create([
+        $readyItem = StoreOrderItem::factory()->create([
             'store_order_id' => $order->id,
             'product_id' => $product->id,
             'product_title' => 'Pickup Kit',
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
             'quantity' => 1,
+            'available_now_quantity' => 1,
+            'line_total_amount' => 45.00,
+            'line_price_amount' => 45.00,
+            'line_shipping_amount' => 0,
+            'line_gst_amount' => 4.09,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit - Backorder',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'available_now_quantity' => 0,
+            'delayed_quantity' => 1,
+            'line_total_amount' => 0.00,
+            'line_price_amount' => 0.00,
+            'line_shipping_amount' => 0,
+            'line_gst_amount' => 0.00,
+        ]);
+
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $readyItem->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'notes' => 'Set aside for collection.',
+            'collected_at' => now()->subHour(),
+        ]);
+
+        $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
+            'total_amount' => 45.00,
+            'gst_amount' => 4.09,
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 45.00,
+        ]);
+
+        $this->get(route('shop.order.tracking', [
+            'accessToken' => $order->access_token,
+        ]))
+            ->assertOk()
+            ->assertSee('Ready for Partial Collection')
+            ->assertSee('Ready for partial collection')
+            ->assertSee('1 ready to collect')
+            ->assertSee('1 still to be prepared')
+            ->assertSee('Order Updates')
+            ->assertSee('Packed and waiting at the studio.')
+            ->assertSee('Bring photo ID for collection.')
+            ->assertDontSee('123 Hidden Street')
+            ->assertDontSee('casey@example.com')
+            ->assertDontSee('0400123123')
+            ->assertDontSee('Details')
+            ->assertDontSee('Step 2 of 2')
+            ->assertDontSee('1 x Small Satchel')
+            ->assertDontSee('Known packed weight')
+            ->assertDontSee('Keep this page URL if you checked out as a guest.')
+            ->assertDontSee('Recorded collections')
+            ->assertSee('Log in to view the saved address details for this order.');
+    }
+
+    public function test_guest_pickup_order_portal_does_not_tell_customers_to_collect_items_before_the_order_is_ready_for_pickup(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'subtotal_amount' => 45.00,
+            'gst_amount' => 4.09,
+            'total_amount' => 45.00,
+        ]);
+
+        $order = StoreOrder::factory()->create([
+            'invoice_id' => $invoice->id,
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'contains_physical' => true,
+            'contains_digital' => false,
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'shipping_name' => 'Casey Customer',
+            'shipping_phone' => '0400123123',
+            'shipping_address' => '123 Hidden Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+            'shipping_country' => 'Australia',
+            'shipping_method' => 'Pick up',
+            'shipping_method_code' => 'pickup',
+            'shipping_package_summary' => '1 x Small Satchel',
+            'shipping_chargeable_weight_grams' => 1250,
+            'total_amount' => 45.00,
+            'subtotal_amount' => 45.00,
+            'shipping_amount' => 0,
+            'discount_amount' => 0,
+            'gst_amount' => 4.09,
+            'paid_at' => now(),
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 45.00,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 2,
+            'available_now_quantity' => 2,
             'line_total_amount' => 45.00,
             'line_price_amount' => 45.00,
             'line_shipping_amount' => 0,
@@ -99,19 +217,179 @@ class ShopOrderPortalTest extends TestCase
             'accessToken' => $order->access_token,
         ]))
             ->assertOk()
-            ->assertSee('Ready for Pickup')
-            ->assertSee('Order Updates')
-            ->assertSee('Packed and waiting at the studio.')
-            ->assertSee('Bring photo ID for collection.')
-            ->assertDontSee('123 Hidden Street')
-            ->assertDontSee('casey@example.com')
-            ->assertDontSee('0400123123')
-            ->assertDontSee('Details')
-            ->assertDontSee('Step 2 of 2')
-            ->assertDontSee('1 x Small Satchel')
-            ->assertDontSee('Known packed weight')
-            ->assertDontSee('Keep this page URL if you checked out as a guest.')
-            ->assertSee('Log in to view the saved address details for this order.');
+            ->assertSee('Preparing for collection')
+            ->assertSee('These items are still being prepared or are expected to become available later.')
+            ->assertDontSee('Awaiting collection')
+            ->assertDontSee('2 ready to collect');
+    }
+
+    public function test_guest_pickup_order_portal_shows_collected_state_once_the_order_has_been_collected(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'subtotal_amount' => 45.00,
+            'gst_amount' => 4.09,
+            'total_amount' => 45.00,
+        ]);
+
+        $order = StoreOrder::factory()->create([
+            'invoice_id' => $invoice->id,
+            'status' => StoreOrder::STATUS_COLLECTED,
+            'contains_physical' => true,
+            'contains_digital' => false,
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'shipping_name' => 'Casey Customer',
+            'shipping_phone' => '0400123123',
+            'shipping_address' => '123 Hidden Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+            'shipping_country' => 'Australia',
+            'shipping_method' => 'Pick up',
+            'shipping_method_code' => 'pickup',
+            'total_amount' => 45.00,
+            'subtotal_amount' => 45.00,
+            'shipping_amount' => 0,
+            'discount_amount' => 0,
+            'gst_amount' => 4.09,
+            'paid_at' => now(),
+            'fulfilled_at' => now(),
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 45.00,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'line_total_amount' => 45.00,
+            'line_price_amount' => 45.00,
+            'line_shipping_amount' => 0,
+            'line_gst_amount' => 4.09,
+        ]);
+
+        $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
+            'total_amount' => 45.00,
+            'gst_amount' => 4.09,
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 45.00,
+        ]);
+
+        $this->get(route('shop.order.tracking', [
+            'accessToken' => $order->access_token,
+        ]))
+            ->assertOk()
+            ->assertSee('Collected')
+            ->assertDontSee('Awaiting collection')
+            ->assertDontSee('Preparing for collection')
+            ->assertDontSee('ready to collect');
+    }
+
+    public function test_guest_pickup_order_portal_shows_partial_collection_state_for_backordered_pickup_items(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'subtotal_amount' => 45.00,
+            'gst_amount' => 4.09,
+            'total_amount' => 45.00,
+        ]);
+
+        $order = StoreOrder::factory()->create([
+            'invoice_id' => $invoice->id,
+            'status' => StoreOrder::STATUS_PARTIALLY_COLLECTED,
+            'contains_physical' => true,
+            'contains_digital' => false,
+            'billing_name' => 'Casey Customer',
+            'billing_email' => 'casey@example.com',
+            'billing_phone' => '0400123123',
+            'shipping_name' => 'Casey Customer',
+            'shipping_phone' => '0400123123',
+            'shipping_address' => '123 Hidden Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+            'shipping_country' => 'Australia',
+            'shipping_method' => 'Pick up',
+            'shipping_method_code' => 'pickup',
+            'total_amount' => 45.00,
+            'subtotal_amount' => 45.00,
+            'shipping_amount' => 0,
+            'discount_amount' => 0,
+            'gst_amount' => 4.09,
+            'paid_at' => now(),
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 45.00,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 2,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 1,
+            'line_total_amount' => 45.00,
+            'line_price_amount' => 45.00,
+            'line_shipping_amount' => 0,
+            'line_gst_amount' => 4.09,
+        ]);
+
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'notes' => 'Collected from the counter.',
+            'collected_at' => now()->subHour(),
+        ]);
+
+        $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
+            'total_amount' => 45.00,
+            'gst_amount' => 4.09,
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 45.00,
+        ]);
+
+        $this->get(route('shop.order.tracking', [
+            'accessToken' => $order->access_token,
+        ]))
+            ->assertOk()
+            ->assertSee('Partially collected')
+            ->assertSee('1 collected')
+            ->assertSee('1 still to be prepared')
+            ->assertSee('Recorded collections')
+            ->assertSee('Collection 1')
+            ->assertDontSee('Awaiting collection')
+            ->assertDontSee('ready to collect');
     }
 
     public function test_guest_order_portal_shows_clean_shipping_history_and_cancelled_quantities(): void
@@ -963,13 +1241,12 @@ class ShopOrderPortalTest extends TestCase
             ->assertSee('Estimated arrival: 3-7 business days')
             ->assertSee('Items in this delivery')
             ->assertSee('TRACK-PART-1')
-            ->assertSee('2 still to be shipped')
             ->assertSee('2 expected shipping May 1st 2026')
             ->assertDontSee('still open')
             ->assertDontSee('Backorder · Expected shipping')
             ->assertDontSee('Backorder');
 
-        $this->assertSame(1, substr_count($response->getContent(), '2 still to be shipped'));
+        $this->assertSame(1, substr_count($response->getContent(), '2 expected shipping May 1st 2026'));
     }
 
     public function test_account_order_page_numbers_items_shows_skus_and_places_outstanding_in_the_summary(): void

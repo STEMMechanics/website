@@ -125,6 +125,14 @@ class StoreOrderItem extends Model
     }
 
     /**
+     * @return HasMany<StoreOrderItemCollection, $this>
+     */
+    public function collectionEntries(): HasMany
+    {
+        return $this->hasMany(StoreOrderItemCollection::class)->orderByDesc('collected_at')->orderByDesc('id');
+    }
+
+    /**
      * @return HasMany<StoreOrderItemCancellation, $this>
      */
     public function cancellations(): HasMany
@@ -220,6 +228,108 @@ class StoreOrderItem extends Model
     public function remainingFulfillableQuantity(): int
     {
         return $this->remainingAvailableQuantity() + $this->remainingDelayedQuantity();
+    }
+
+    /**
+     * Pickup collections are stored separately from shipping trackings, but we keep a
+     * legacy fallback so existing pickup orders with only tracking records continue to render.
+     *
+     * @return Collection
+     */
+    public function pickupCollectionEntries(): Collection
+    {
+        $collectionEntries = $this->relationLoaded('collectionEntries')
+            ? $this->collectionEntries
+            : $this->collectionEntries()->get();
+
+        if ($collectionEntries->isNotEmpty()) {
+            return $collectionEntries->values()->toBase();
+        }
+
+        $order = $this->relationLoaded('order')
+            ? $this->order
+            : $this->order()->first();
+
+        if (! $order instanceof StoreOrder || ! $order->usesPickup()) {
+            return collect();
+        }
+
+        $trackingEntries = $this->relationLoaded('trackingEntries')
+            ? $this->trackingEntries
+            : $this->trackingEntries()->get();
+
+        return $trackingEntries->values()->toBase();
+    }
+
+    private function pickupCollectionQuantityForTypeAndState(string $collectionType, string $pickupState): int
+    {
+        return $this->pickupCollectionEntries()
+            ->sum(function ($entry) use ($collectionType, $pickupState): int {
+                $entryType = trim((string) ($entry->collection_type ?? $entry->shipment_type ?? ''));
+                $entryState = trim((string) ($entry->pickup_state ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+
+                return $entryType === $collectionType && $entryState === $pickupState ? max(0, (int) ($entry->quantity ?? 0)) : 0;
+            });
+    }
+
+    public function collectedAvailableQuantity(): int
+    {
+        return min($this->availableQuantityTotal(), $this->pickupCollectionQuantityForTypeAndState(StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE, StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+    }
+
+    public function collectedDelayedQuantity(): int
+    {
+        return min($this->delayedQuantityTotal(), $this->pickupCollectionQuantityForTypeAndState(StoreOrderItemCollection::COLLECTION_TYPE_DELAYED, StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+    }
+
+    public function collectedQuantity(): int
+    {
+        return $this->collectedAvailableQuantity() + $this->collectedDelayedQuantity();
+    }
+
+    public function readyPickupAvailableQuantity(): int
+    {
+        return min($this->availableQuantityTotal(), $this->pickupCollectionQuantityForTypeAndState(StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE, StoreOrderItemCollection::PICKUP_STATE_READY));
+    }
+
+    public function readyPickupDelayedQuantity(): int
+    {
+        return min($this->delayedQuantityTotal(), $this->pickupCollectionQuantityForTypeAndState(StoreOrderItemCollection::COLLECTION_TYPE_DELAYED, StoreOrderItemCollection::PICKUP_STATE_READY));
+    }
+
+    public function readyPickupQuantity(): int
+    {
+        return $this->readyPickupAvailableQuantity() + $this->readyPickupDelayedQuantity();
+    }
+
+    public function remainingPickupAvailableQuantity(): int
+    {
+        return max(0, $this->availableQuantityTotal() - $this->cancelledAvailableQuantity() - $this->collectedAvailableQuantity());
+    }
+
+    public function remainingPickupDelayedQuantity(): int
+    {
+        return max(0, $this->delayedQuantityTotal() - $this->cancelledDelayedQuantity() - $this->collectedDelayedQuantity());
+    }
+
+    public function remainingPickupQuantity(): int
+    {
+        return $this->remainingPickupAvailableQuantity() + $this->remainingPickupDelayedQuantity();
+    }
+
+    public function remainingPickupAvailableToReadyQuantity(): int
+    {
+        return max(0, $this->remainingPickupAvailableQuantity() - $this->readyPickupAvailableQuantity());
+    }
+
+    public function remainingPickupDelayedToReadyQuantity(): int
+    {
+        return max(0, $this->remainingPickupDelayedQuantity() - $this->readyPickupDelayedQuantity());
+    }
+
+    public function remainingPickupToReadyQuantity(): int
+    {
+        return $this->remainingPickupAvailableToReadyQuantity() + $this->remainingPickupDelayedToReadyQuantity();
     }
 
     public function isFullyCancelled(): bool

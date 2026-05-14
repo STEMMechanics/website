@@ -72,6 +72,8 @@ class StoreOrderAdminUpdateNotice extends Mailable
         return match ($notificationType) {
             'shipped' => 'Store order '.$orderNumber.' shipped',
             'partially_shipped' => 'Store order '.$orderNumber.' partially shipped',
+            'partially_collected' => 'Store order '.$orderNumber.' partially collected',
+            'ready_for_partial_collection' => 'Store order '.$orderNumber.' ready for partial collection',
             'items_cancelled' => 'Items on store order '.$orderNumber.' cancelled',
             'cancelled' => 'Store order '.$orderNumber.' cancelled',
             'ready_for_pickup' => 'Store order '.$orderNumber.' ready for pickup',
@@ -87,6 +89,8 @@ class StoreOrderAdminUpdateNotice extends Mailable
         return match ($notificationType) {
             'shipped' => 'Store Order Shipped',
             'partially_shipped' => 'Store Order Partially Shipped',
+            'partially_collected' => 'Store Order Partially Collected',
+            'ready_for_partial_collection' => 'Store Order Ready for Partial Collection',
             'items_cancelled' => 'Store Order Items Cancelled',
             'cancelled' => 'Store Order Cancelled',
             'ready_for_pickup' => 'Store Order Ready for Pickup',
@@ -102,6 +106,8 @@ class StoreOrderAdminUpdateNotice extends Mailable
         return match ($notificationType) {
             'shipped' => 'A store order has now shipped.',
             'partially_shipped' => 'Part of a store order has now shipped.',
+            'partially_collected' => 'Part of a store order has now been collected.',
+            'ready_for_partial_collection' => 'Some items on a store order are now ready for partial collection.',
             'items_cancelled' => 'Some items on a store order were cancelled.',
             'cancelled' => 'A store order has now been cancelled.',
             'ready_for_pickup' => 'A store order is now ready for pickup.',

@@ -15,7 +15,30 @@
         $hasDocumentLinks = trim((string) ($invoicePdfUrl ?? '')) !== '' || $documentLinks !== [];
         $showDocumentsCard = $hasDocumentLinks || $emailDocumentsActionUrl !== '';
         $orderItems = collect($orderItems ?? $order->items)->values();
-        $awaitingSectionTitle = $order->usesPickup() ? 'Awaiting collection' : 'Awaiting shipping';
+        $pickupReadyForCollection = $order->usesPickup() && $order->isReadyForCollection();
+        $pickupReadyForPartialCollection = $order->usesPickup() && ($order->isReadyForPartialCollection() || ($orderItems->contains(fn ($item) => (int) ($item->readyPickupQuantity() ?? 0) > 0) && ! $order->isReadyForCollection() && ! $order->isPartiallyCollected() && ! $order->isCollected()));
+        $pickupPartiallyCollected = $order->usesPickup() && $order->isPartiallyCollected();
+        $pickupIsCollected = $order->usesPickup() && $order->isCollected();
+        $pickupHasReadyItems = $order->usesPickup() && $orderItems->contains(fn ($item) => (int) ($item->readyPickupQuantity() ?? 0) > 0);
+        $awaitingSectionTitle = $order->usesPickup()
+            ? ($pickupIsCollected ? 'Collected' : ($pickupPartiallyCollected ? 'Partially collected' : ($pickupReadyForPartialCollection ? 'Ready for partial collection' : ($pickupReadyForCollection ? 'Awaiting collection' : 'Preparing for collection'))))
+            : 'Awaiting shipping';
+        $pickupAwaitingSectionSubtitle = null;
+        if ($order->usesPickup()) {
+            if ($pickupIsCollected) {
+                $pickupAwaitingSectionSubtitle = 'These items have been collected.';
+            } elseif ($pickupPartiallyCollected) {
+                $pickupAwaitingSectionSubtitle = 'Some items have been collected and the remainder are still to be collected.';
+            } elseif ($pickupReadyForPartialCollection) {
+                $pickupAwaitingSectionSubtitle = 'Some items are ready to collect while others are still being prepared or are expected to become available later.';
+            } elseif ($pickupReadyForCollection) {
+                $pickupAwaitingSectionSubtitle = 'These items are ready to collect or are expected to become available later.';
+            } elseif ($pickupHasReadyItems) {
+                $pickupAwaitingSectionSubtitle = 'Some items are ready to collect while others are still being prepared or are expected to become available later.';
+            } else {
+                $pickupAwaitingSectionSubtitle = 'These items are still being prepared or are expected to become available later.';
+            }
+        }
         $deliveryGroupsTitle = $order->usesPickup() ? 'Recorded collections' : 'Recorded shipments';
         $deliveryDetailsTitle = $isQuoteRequested
             ? 'Shipping details'
@@ -403,22 +426,29 @@
                                             @if(trim((string) ($deliveryGroup['arrival_detail'] ?? '')) !== '')
                                                 <div class="text-sm text-emerald-900">{{ $deliveryGroup['arrival_detail'] }}</div>
                                             @endif
-                                            @if(trim((string) ($deliveryGroup['tracking_number'] ?? '')) !== '')
-                                                @if(trim((string) ($deliveryGroup['tracking_url'] ?? '')) !== '')
-                                                    <div class="text-sm text-emerald-900">Tracking: <a
-                                                                href="{{ $deliveryGroup['tracking_url'] }}"
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                class="text-sky-700 transition hover:text-sky-900"
-                                                        >{{ $deliveryGroup['tracking_number'] }}</a></div>
-                                                @else
-                                                    <div class="text-sm text-emerald-900">Tracking: {{ $deliveryGroup['tracking_number'] }}</div>
+                                            @if($order->usesPickup())
+                                                <div class="text-sm text-emerald-900">Collection recorded.</div>
+                                                @if(trim((string) ($deliveryGroup['notes'] ?? '')) !== '')
+                                                    <div class="text-sm text-emerald-900">{{ $deliveryGroup['notes'] }}</div>
                                                 @endif
                                             @else
-                                                <div class="text-sm text-emerald-900">Tracking not available</div>
-                                            @endif
-                                            @if(trim((string) ($deliveryGroup['notes'] ?? '')) !== '')
-                                                <div class="text-sm text-emerald-900">{{ $deliveryGroup['notes'] }}</div>
+                                                @if(trim((string) ($deliveryGroup['tracking_number'] ?? '')) !== '')
+                                                    @if(trim((string) ($deliveryGroup['tracking_url'] ?? '')) !== '')
+                                                        <div class="text-sm text-emerald-900">Tracking: <a
+                                                                    href="{{ $deliveryGroup['tracking_url'] }}"
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    class="text-sky-700 transition hover:text-sky-900"
+                                                            >{{ $deliveryGroup['tracking_number'] }}</a></div>
+                                                    @else
+                                                        <div class="text-sm text-emerald-900">Tracking: {{ $deliveryGroup['tracking_number'] }}</div>
+                                                    @endif
+                                                @else
+                                                    <div class="text-sm text-emerald-900">Tracking not available</div>
+                                                @endif
+                                                @if(trim((string) ($deliveryGroup['notes'] ?? '')) !== '')
+                                                    <div class="text-sm text-emerald-900">{{ $deliveryGroup['notes'] }}</div>
+                                                @endif
                                             @endif
                                         </div>
                                     </div>
@@ -450,20 +480,19 @@
                     </section>
                 @endif
 
-                @if($order->contains_physical && ! $isQuoteRequested && $awaitingFulfilmentItems->isNotEmpty())
+                @if($order->contains_physical && ! $isQuoteRequested && ! $pickupIsCollected && $awaitingFulfilmentItems->isNotEmpty())
                     <section class="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
                         <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                             <div>
                                 <h2 class="text-xl font-bold text-gray-900">{{ $awaitingSectionTitle }}</h2>
                                 <p class="mt-1 text-sm text-gray-600">
-                                    {{ $order->usesPickup()
-                                        ? 'These items are still being prepared or are expected to become available later.'
-                                        : 'These items have not shipped yet. Expected shipping dates are shown where available.' }}
+                                    @if($order->usesPickup())
+                                        {{ $pickupAwaitingSectionSubtitle }}
+                                    @else
+                                        These items have not shipped yet. Expected shipping dates are shown where available.
+                                    @endif
                                 </p>
                             </div>
-                            <span class="rounded-full bg-amber-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
-                                {{ $awaitingFulfilmentItems->sum(fn ($item) => (int) ($item['quantity'] ?? 0)) }} still to be {{ $order->usesPickup() ? 'collected' : 'shipped' }}
-                            </span>
                         </div>
 
                         <div class="space-y-3">

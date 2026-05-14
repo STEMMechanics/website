@@ -200,8 +200,11 @@
                             <button type="button" disabled class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Payment unavailable</button>
                         @else
                             <x-ui.button type="submit" x-bind:disabled="isSubmitting || isCardLoading">
-                                <span x-show="!isSubmitting">{{ $hasAmountDue ? 'Pay $'.number_format((float) ($summary['total'] ?? 0), 2) : 'Complete Order' }}</span>
-                                <span x-show="isSubmitting" x-cloak>Processing...</span>
+                                <span x-show="!isSubmitting" x-cloak>{{ $hasAmountDue ? 'Pay $'.number_format((float) ($summary['total'] ?? 0), 2) : 'Complete Order' }}</span>
+                                <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
+                                    <span class="altcha-inline-spinner" aria-hidden="true"></span>
+                                    <span>Processing...</span>
+                                </span>
                             </x-ui.button>
                         @endif
                     </div>
@@ -226,6 +229,7 @@
             squareApplicationId: config.squareApplicationId || '',
             squareLocationId: config.squareLocationId || '',
             squareCard: null,
+            squareCardInitPromise: null,
             sourceId: '',
             errorMessage: '',
             isSubmitting: false,
@@ -240,30 +244,35 @@
                     return false;
                 }
 
-                this.isCardLoading = true;
-                const ready = await this.waitForSquareSdk();
-                if (!ready) {
-                    this.errorMessage = 'Square SDK did not load.';
-                    this.isCardLoading = false;
-                    return false;
+                if (this.squareCardInitPromise) {
+                    return this.squareCardInitPromise;
                 }
 
-                if (this.squareCard) {
-                    this.isCardLoading = false;
-                    return true;
-                }
+                this.squareCardInitPromise = (async () => {
+                    this.isCardLoading = true;
+                    const ready = await this.waitForSquareSdk();
+                    if (!ready) {
+                        this.errorMessage = 'Square SDK did not load.';
+                        return false;
+                    }
 
-                try {
+                    if (this.squareCard) {
+                        return true;
+                    }
+
                     const payments = window.Square.payments(this.squareApplicationId, this.squareLocationId);
                     this.squareCard = await payments.card();
                     await this.squareCard.attach(this.$refs.squareCardContainer);
-                    this.isCardLoading = false;
                     return true;
-                } catch (error) {
+                })().catch((error) => {
                     this.errorMessage = error?.message || 'Unable to load card payment form.';
-                    this.isCardLoading = false;
                     return false;
-                }
+                }).finally(() => {
+                    this.isCardLoading = false;
+                    this.squareCardInitPromise = null;
+                });
+
+                return this.squareCardInitPromise;
             },
 
             async submitForm(event) {

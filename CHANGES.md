@@ -10,6 +10,7 @@
 - Added month view to workshops page
 - Fix display of private addresses in monthly view
 - Allow searching of amounts and gst in expense view
+- Improved store order workflows
 
 ## 1.4.4
 

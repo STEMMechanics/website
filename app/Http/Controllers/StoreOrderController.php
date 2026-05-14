@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemDownload;
 use App\Models\StoreOrderItemTracking;
 use App\Models\Token;
@@ -215,6 +216,7 @@ class StoreOrderController extends Controller
             'items.product.hero',
             'items.variant',
             'items.downloads.media',
+            'items.collectionEntries.collectedBy',
             'items.trackingEntries',
             'user',
             'coupon',
@@ -307,31 +309,54 @@ class StoreOrderController extends Controller
     private function buildAwaitingFulfilmentItems(StoreOrder $order, Collection $orderedItems): array
     {
         return $orderedItems
-            ->filter(fn (StoreOrderItem $item): bool => ! $item->isDigital() && $item->remainingFulfillableQuantity() > 0)
+            ->filter(fn (StoreOrderItem $item): bool => ! $item->isDigital() && ($order->usesPickup() ? $item->remainingPickupQuantity() > 0 : $item->remainingFulfillableQuantity() > 0))
             ->values()
             ->map(function (StoreOrderItem $item, int $index) use ($order): array {
                 $remainingAvailable = $item->remainingAvailableQuantity();
                 $remainingDelayed = $item->remainingDelayedQuantity();
+                $remainingPickupAvailable = $item->remainingPickupAvailableQuantity();
+                $remainingPickupDelayed = $item->remainingPickupDelayedQuantity();
                 $estimate = $item->is_preorder
                     ? $item->preorderShippingEstimateLabel('F jS Y')
                     : $item->delayedShippingEstimateLabel('F jS Y');
                 $parts = [];
 
-                if ($remainingAvailable > 0) {
-                    $parts[] = $order->usesPickup()
-                        ? $remainingAvailable.' ready to collect'
-                        : $remainingAvailable.' preparing for dispatch';
-                }
+                if ($order->usesPickup()) {
+                    $collectedQuantity = $item->collectedQuantity();
+                    $readyQuantity = $item->readyPickupQuantity();
+                    $waitingAvailable = max(0, $item->remainingPickupAvailableQuantity() - $item->readyPickupAvailableQuantity());
+                    $waitingDelayed = max(0, $item->remainingPickupDelayedQuantity() - $item->readyPickupDelayedQuantity());
 
-                if ($remainingDelayed > 0) {
-                    $parts[] = $remainingDelayed.' '.($order->usesPickup() ? 'expected availability ' : 'expected shipping ')
-                        .($estimate ?: 'to be confirmed');
+                    if ($collectedQuantity > 0) {
+                        $parts[] = $collectedQuantity.' collected';
+                    }
+
+                    if ($readyQuantity > 0) {
+                        $parts[] = $readyQuantity.' ready to collect';
+                    }
+
+                    if ($waitingAvailable > 0) {
+                        $parts[] = $waitingAvailable.' still to be prepared';
+                    }
+
+                    if ($waitingDelayed > 0) {
+                        $parts[] = $waitingDelayed.' still to be prepared'
+                            .($estimate ? ' (expected availability '.$estimate.')' : '');
+                    }
+                } else {
+                    if ($remainingAvailable > 0) {
+                        $parts[] = $remainingAvailable.' preparing for dispatch';
+                    }
+
+                    if ($remainingDelayed > 0) {
+                        $parts[] = $remainingDelayed.' expected shipping '.($estimate ?: 'to be confirmed');
+                    }
                 }
 
                 return [
                     'number' => $index + 1,
                     'title' => $item->displayTitle(),
-                    'quantity' => $item->remainingFulfillableQuantity(),
+                    'quantity' => $order->usesPickup() ? $item->remainingPickupQuantity() : $item->remainingFulfillableQuantity(),
                     'detail' => $parts !== [] ? implode(', ', $parts) : null,
                     'sku' => $this->resolveOrderItemSku($item),
                 ];
@@ -341,9 +366,13 @@ class StoreOrderController extends Controller
 
     private function buildDeliveryGroups(StoreOrder $order, Collection $orderedItems): array
     {
+        if ($order->usesPickup()) {
+            return $this->buildPickupCollectionGroups($order, $orderedItems);
+        }
+
         $arrivalDetail = null;
         $deliveryEstimate = $this->deliveryEstimateLabel($order);
-        if (! $order->usesPickup() && $deliveryEstimate !== null) {
+        if ($deliveryEstimate !== null) {
             $arrivalDetail = 'Estimated arrival: '.$deliveryEstimate;
         }
 
@@ -395,7 +424,7 @@ class StoreOrderController extends Controller
                 return $row;
             });
 
-        $deliveryNoun = $order->usesPickup() ? 'Collection' : 'Delivery';
+        $deliveryNoun = 'Delivery';
         $groupedRows = [];
         foreach ($trackingRows as $row) {
             $groupedRows[(string) $row['group_key']][] = $row;
@@ -463,6 +492,140 @@ class StoreOrderController extends Controller
                 ];
             })
             ->all();
+    }
+
+    private function buildPickupCollectionGroups(StoreOrder $order, Collection $orderedItems): array
+    {
+        $numberByItemId = $orderedItems->mapWithKeys(function (StoreOrderItem $item, int $index): array {
+            return [(int) $item->id => $index + 1];
+        });
+
+        $collectionRows = $order->items
+            ->filter(fn (StoreOrderItem $item): bool => ! $item->isDigital() && $item->pickupCollectionEntries()->isNotEmpty())
+            ->flatMap(function (StoreOrderItem $item) {
+                return $item->pickupCollectionEntries()
+                    ->filter(function ($collection): bool {
+                        return trim((string) ($collection->pickup_state ?? \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED)) === \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                    })
+                    ->map(function ($collection) use ($item): array {
+                    $collectionType = trim((string) ($collection->collection_type ?? $collection->shipment_type ?? ''));
+                    $pickupState = trim((string) ($collection->pickup_state ?? \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+                    $collectedAt = $collection->collected_at ?? $collection->dispatched_at ?? $collection->created_at;
+                    $notes = trim((string) ($collection->notes ?? ''));
+                    $collector = trim((string) ($collection->collectedBy ? $collection->collectedBy->getName() : ''));
+
+                    return [
+                        'item_id' => (int) $item->id,
+                        'item_number' => 0,
+                        'item_sku' => $this->resolveOrderItemSku($item),
+                        'collection_id' => (int) $collection->id,
+                        'group_key' => 'collection:'.(int) $collection->id,
+                        'recorded_timestamp' => $collection->created_at instanceof \Illuminate\Support\Carbon ? $collection->created_at->timestamp : 0,
+                        'collected_timestamp' => $collectedAt instanceof \Illuminate\Support\Carbon ? $collectedAt->timestamp : 0,
+                        'collected_label' => $collectedAt instanceof \Illuminate\Support\Carbon ? $collectedAt->format('M j, Y') : null,
+                        'collection_type' => $collectionType !== '' ? $collectionType : null,
+                        'pickup_state' => $pickupState !== '' ? $pickupState : null,
+                        'collector' => $collector !== '' ? $collector : null,
+                        'notes' => $notes !== '' ? $notes : null,
+                        'item_title' => $item->displayTitle(),
+                        'quantity' => max(0, (int) $collection->quantity),
+                    ];
+                })->all();
+            })
+            ->sort(function (array $left, array $right): int {
+                if ((int) $left['recorded_timestamp'] !== (int) $right['recorded_timestamp']) {
+                    return (int) $left['recorded_timestamp'] <=> (int) $right['recorded_timestamp'];
+                }
+
+                return (int) $left['collection_id'] <=> (int) $right['collection_id'];
+            })
+            ->values()
+            ->map(function (array $row) use ($numberByItemId): array {
+                $itemId = (int) $row['item_id'];
+                $row['item_number'] = (int) ($numberByItemId[$itemId] ?? 0);
+
+                return $row;
+            });
+
+        $groupedRows = [];
+        foreach ($collectionRows as $row) {
+            $groupedRows[(string) $row['group_key']][] = $row;
+        }
+
+        $groups = [];
+        foreach ($groupedRows as $groupKey => $rows) {
+            $groups[] = [
+                'group_key' => $groupKey,
+                'sort_timestamp' => (int) collect($rows)->min('recorded_timestamp'),
+                'rows' => $rows,
+            ];
+        }
+
+        usort($groups, function (array $left, array $right): int {
+            $leftTimestamp = (int) $left['sort_timestamp'];
+            $rightTimestamp = (int) $right['sort_timestamp'];
+            $timestampComparison = $leftTimestamp <=> $rightTimestamp;
+            if ($timestampComparison !== 0) {
+                return $timestampComparison;
+            }
+
+            return strcmp((string) $left['group_key'], (string) $right['group_key']);
+        });
+
+        return collect($groups)
+            ->values()
+            ->map(function (array $groupData, int $index): array {
+                $group = collect($groupData['rows']);
+                $first = $group->first();
+                $metaParts = $first === null
+                    ? []
+                    : array_values(array_filter([
+                        $first['collected_label'] ?? null,
+                        $first['collector'] ?? null,
+                        isset($first['pickup_state']) ? (new \App\Models\StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
+                        $first['collection_type'] !== null ? $this->pickupCollectionTypeLabel((string) $first['collection_type']) : null,
+                    ]));
+
+                $items = collect($group)
+                    ->groupBy('item_id')
+                    ->map(function ($itemGroup): array {
+                        $first = $itemGroup->first();
+
+                        return [
+                            'number' => (int) ($first['item_number'] ?? 0),
+                            'title' => (string) ($first['item_title'] ?? 'Item'),
+                            'quantity' => (int) collect($itemGroup)->sum('quantity'),
+                            'sku' => trim((string) ($first['item_sku'] ?? '')) !== '' ? trim((string) ($first['item_sku'] ?? '')) : null,
+                            'detail' => trim(implode(' | ', array_filter([
+                                isset($first['pickup_state']) ? (new \App\Models\StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
+                                $first['collection_type'] !== null ? $this->pickupCollectionTypeLabel((string) $first['collection_type']) : null,
+                                trim((string) ($first['notes'] ?? '')) !== '' ? (string) ($first['notes'] ?? '') : null,
+                            ]))),
+                        ];
+                    })
+                    ->sortBy('number')
+                    ->values()
+                    ->all();
+
+                return [
+                    'label' => 'Collection '.($index + 1),
+                    'meta' => $metaParts !== [] ? implode(' · ', $metaParts) : null,
+                    'arrival_detail' => null,
+                    'tracking_number' => null,
+                    'tracking_url' => null,
+                    'notes' => $first['notes'] ?? null,
+                    'items' => $items,
+                ];
+            })
+            ->all();
+    }
+
+    private function pickupCollectionTypeLabel(string $collectionType): string
+    {
+        return match ($collectionType) {
+            StoreOrderItemCollection::COLLECTION_TYPE_DELAYED => 'Backorder collection',
+            default => 'Reserved stock collection',
+        };
     }
 
     private function resolveOrderItemSku(StoreOrderItem $item): ?string

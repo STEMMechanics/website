@@ -9,6 +9,7 @@ use App\Models\InvoiceLine;
 use App\Models\Quote;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\User;
 use App\Services\DocumentNumberService;
@@ -61,6 +62,7 @@ class ShopAdminOrderController extends Controller
             'items.downloads.media',
             'items.product.hero',
             'items.variant',
+            'items.collectionEntries.collectedBy',
             'items.trackingEntries',
             'items.cancellations.cancelledBy',
             'user',
@@ -76,6 +78,7 @@ class ShopAdminOrderController extends Controller
                 'items.downloads.media',
                 'items.product.hero',
                 'items.variant',
+                'items.collectionEntries.collectedBy',
                 'items.trackingEntries',
                 'items.cancellations.cancelledBy',
                 'user',
@@ -83,6 +86,27 @@ class ShopAdminOrderController extends Controller
             ]),
             'carrierSuggestions' => $this->carrierSuggestions(),
         ]);
+    }
+
+    public function pickListPdf(Request $request, StoreOrder $storeOrder, StoreOrderService $orders)
+    {
+        $order = $storeOrder->load([
+            'user',
+            'items.product.hero',
+            'items.variant',
+            'items.collectionEntries.collectedBy',
+            'items.trackingEntries',
+        ]);
+
+        $pdf = $orders->buildStoreOrderPickListPdf($order);
+        $filename = $orders->storeOrderPickListPdfFilename($order);
+        $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
+
+        if ($download) {
+            return $pdf->download($filename);
+        }
+
+        return $pdf->stream($filename);
     }
 
     public function sendQuote(Request $request, StoreOrder $storeOrder, StoreOrderService $orders): RedirectResponse
@@ -199,8 +223,10 @@ class ShopAdminOrderController extends Controller
 
     public function update(Request $request, StoreOrder $storeOrder, StoreOrderService $orders): RedirectResponse
     {
+        $statusRules = ['required', Rule::in(StoreOrder::STATUSES)];
+
         $validated = $request->validate([
-            'status' => ['required', Rule::in(StoreOrder::STATUSES)],
+            'status' => $statusRules,
             'notes' => ['nullable', 'string'],
             'public_notes' => ['nullable', 'string'],
             'item_actions_json' => ['nullable', 'string'],
@@ -353,6 +379,50 @@ class ShopAdminOrderController extends Controller
 
         session()->flash('message', 'Shipment entry added.');
         session()->flash('message-title', 'Shipment saved');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back()->withFragment('item-'.$storeOrderItem->id);
+    }
+
+    public function storeItemCollection(Request $request, StoreOrder $storeOrder, StoreOrderItem $storeOrderItem, StoreOrderService $orders): RedirectResponse
+    {
+        $this->ensureOrderItemMatches($storeOrder, $storeOrderItem);
+
+        $bag = 'collectionItem_'.$storeOrderItem->id;
+        $validator = Validator::make($request->all(), [
+            'collection_type' => ['required', Rule::in([
+                StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                StoreOrderItemCollection::COLLECTION_TYPE_DELAYED,
+            ])],
+            'pickup_state' => ['required', Rule::in([
+                StoreOrderItemCollection::PICKUP_STATE_READY,
+                StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+            ])],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'notes' => ['nullable', 'string'],
+            'collected_at' => ['nullable', 'date'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()
+                ->back()
+                ->withErrors($validator, $bag)
+                ->withInput()
+                ->withFragment('item-'.$storeOrderItem->id);
+        }
+
+        try {
+            $orders->addOrderItemCollection($storeOrder, $storeOrderItem, $validator->validated(), $request->user(), true);
+        } catch (ValidationException $e) {
+            return redirect()
+                ->back()
+                ->withErrors($e->errors(), $bag)
+                ->withInput()
+                ->withFragment('item-'.$storeOrderItem->id);
+        }
+
+        session()->flash('message', 'Pickup collection recorded.');
+        session()->flash('message-title', 'Collection saved');
         session()->flash('message-type', 'success');
 
         return redirect()->back()->withFragment('item-'.$storeOrderItem->id);

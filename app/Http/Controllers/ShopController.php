@@ -13,6 +13,7 @@ use App\Services\StoreOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -726,18 +727,43 @@ class ShopController extends Controller
                 ? $orders->createFromCart($lines, $validated, $request->user())
                 : $orders->createAndChargeFromCart($lines, $validated, $payment['source_id'] ?? null, $request->user());
         } catch (ValidationException $e) {
+            $errors = $e->errors();
+            if (array_key_exists('source_id', $errors)) {
+                $reference = $this->checkoutPaymentFailureReference();
+                $errors = $this->appendCheckoutPaymentReference($errors, $reference);
+                logger()->warning('Store checkout payment validation failed.', [
+                    'reference' => $reference,
+                    'user_id' => $request->user()?->id,
+                    'payment_method' => $paymentMethod,
+                    'errors' => $errors,
+                ]);
+                session()->flash('message', 'Unable to process payment right now. Reference: '.$reference);
+                session()->flash('message-title', 'Payment failed');
+                session()->flash('message-type', 'danger');
+            }
+
             return redirect()->route('shop.checkout')
-                ->withErrors($e->errors())
+                ->withErrors($errors)
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         } catch (\Throwable $e) {
-            report($e);
+            $reference = $this->checkoutPaymentFailureReference();
 
-            session()->flash('message', 'Unable to process payment right now.');
+            report($e);
+            logger()->error('Store checkout payment failed.', [
+                'reference' => $reference,
+                'user_id' => $request->user()?->id,
+                'payment_method' => $paymentMethod,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            session()->flash('message', 'Unable to process payment right now. Reference: '.$reference);
             session()->flash('message-title', 'Payment failed');
             session()->flash('message-type', 'danger');
 
             return redirect()->route('shop.checkout')
+                ->withErrors(['source_id' => 'Unable to process payment right now. Reference: '.$reference])
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         }
@@ -951,6 +977,34 @@ class ShopController extends Controller
     {
         session()->forget(self::CHECKOUT_SESSION_KEY);
         session()->forget(self::LEGACY_CHECKOUT_SESSION_KEY);
+    }
+
+    private function checkoutPaymentFailureReference(): string
+    {
+        return 'CHK-'.now()->format('YmdHis').'-'.Str::upper(Str::random(6));
+    }
+
+    private function appendCheckoutPaymentReference(array $errors, string $reference): array
+    {
+        if (! array_key_exists('source_id', $errors)) {
+            return $errors;
+        }
+
+        $messages = array_map(
+            static fn (mixed $message): string => trim((string) $message),
+            (array) $errors['source_id']
+        );
+        $messages = array_values(array_filter($messages, static fn (string $message): bool => $message !== ''));
+        if ($messages === []) {
+            $messages = ['Unable to process payment right now.'];
+        }
+
+        $errors['source_id'] = array_map(
+            static fn (string $message): string => rtrim($message).' Reference: '.$reference,
+            $messages
+        );
+
+        return $errors;
     }
 
     private function rememberGuestOrderDocumentAccess(StoreOrder $order, Request $request): void

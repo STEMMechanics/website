@@ -11,8 +11,10 @@ use App\Models\Quote;
 use App\Models\StoreOrder;
 use App\Models\User;
 use App\Support\ShopShippingSettings;
+use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class ShopCheckoutTest extends TestCase
@@ -57,6 +59,51 @@ class ShopCheckoutTest extends TestCase
 
         $this->get(route('shop.checkout.payment'))
             ->assertRedirect(route('shop.checkout'));
+    }
+
+    public function test_failed_shop_checkout_payment_keeps_the_cart_and_does_not_create_an_order(): void
+    {
+        Queue::fake();
+
+        config()->set('services.square.enabled', true);
+        config()->set('services.square.location_id', 'L123');
+        config()->set('services.square.application_id', 'A123');
+
+        $squareApi = Mockery::mock(SquareApiService::class);
+        $squareApi->shouldReceive('isEnabled')->andReturn(true);
+        $squareApi->shouldReceive('createPayment')->once()->andThrow(new \RuntimeException('Card was declined.'));
+        $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
+        $this->app->instance(SquareApiService::class, $squareApi);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 19.95,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $response = $this->from(route('shop.checkout.payment'))->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Avery Example',
+            'billing_email' => 'avery@example.com',
+            'billing_phone' => '0400123456',
+            'shipping_country' => 'Australia',
+            'source_id' => 'cnon:card-nonce-ok',
+        ]);
+
+        $response->assertRedirect(route('shop.checkout'));
+        $response->assertSessionHasErrors('source_id');
+
+        $errors = session('errors');
+        $this->assertNotNull($errors);
+        $this->assertStringContainsString('Reference:', (string) $errors->getBag('default')->first('source_id'));
+        $this->assertSame(0, StoreOrder::query()->count());
+
+        $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
+            ->assertOk()
+            ->assertJsonPath('cart.summary.item_count', 1);
     }
 
     public function test_logged_in_shop_checkout_uses_account_credit_without_card_details_when_credit_covers_the_total(): void
