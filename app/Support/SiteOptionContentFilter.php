@@ -300,16 +300,6 @@ class SiteOptionContentFilter implements ContentFilter
         return Severity::tryFrom($value);
     }
 
-    /**
-     * @param  array<string, scalar|null>  $settings
-     */
-    private function maskCharacter(array $settings = []): string
-    {
-        $character = trim($this->optionValue('moderation.content-filter.profanity-mask-character', '*', $settings));
-
-        return mb_substr($character !== '' ? $character : '*', 0, 1);
-    }
-
     private function optionInteger(string $name, int $default, array $settings = []): int
     {
         $raw = trim($this->optionValue($name, (string) $default, $settings));
