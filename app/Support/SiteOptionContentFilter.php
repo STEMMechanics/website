@@ -4,7 +4,9 @@ namespace App\Support;
 
 use App\Contracts\ContentFilter;
 use App\Models\SiteOption;
+use Blaspsoft\Blasp\Core\Result;
 use Blaspsoft\Blasp\Facades\Blasp;
+use Blaspsoft\Blasp\Enums\Severity;
 use Illuminate\Support\Facades\Schema;
 
 class SiteOptionContentFilter implements ContentFilter
@@ -71,6 +73,44 @@ class SiteOptionContentFilter implements ContentFilter
     /**
      * @param  array<string, scalar|null>  $settings
      */
+    public function profanityResult(string $content, array $settings = []): ?Result
+    {
+        $plainText = ForumContent::plainText($content);
+        if ($plainText === '') {
+            return null;
+        }
+
+        $result = $this->blaspResult($plainText, $settings);
+        return $result->isOffensive() ? $result : null;
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
+    public function maskedProfanity(string $content, array $settings = []): ?string
+    {
+        $plainText = ForumContent::plainText($content);
+        if ($plainText === '') {
+            return null;
+        }
+
+        $result = $this->profanityResult($content, $settings);
+        if ($result === null) {
+            return null;
+        }
+
+        $masked = trim($result->clean());
+
+        if ($masked === '' || $masked === $plainText) {
+            return null;
+        }
+
+        return $masked;
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
     private function isEnabled(array $settings = []): bool
     {
         return $this->optionBoolean('moderation.content-filter.enabled', true, $settings);
@@ -81,8 +121,9 @@ class SiteOptionContentFilter implements ContentFilter
      */
     private function containsProfanity(string $plainText, array $settings = []): bool
     {
-        $result = Blasp::check($plainText);
-        if (! $result->hasProfanity()) {
+        $result = $this->blaspResult($plainText, $settings);
+
+        if (! $result->isOffensive()) {
             return false;
         }
 
@@ -91,8 +132,18 @@ class SiteOptionContentFilter implements ContentFilter
             return true;
         }
 
-        foreach ($result->getUniqueProfanitiesFound() as $profanity) {
-            if (! isset($exceptions[$this->canonicalizeToken((string) $profanity)])) {
+        foreach ($result->words() as $profanity) {
+            $capturedWord = $this->canonicalizeToken($profanity->text);
+            $resolvedWord = $this->canonicalizeToken($profanity->base);
+
+            if (
+                ($capturedWord !== '' && isset($exceptions[$capturedWord]))
+                || ($resolvedWord !== '' && isset($exceptions[$resolvedWord]))
+            ) {
+                continue;
+            }
+
+            if ($resolvedWord !== '' || $capturedWord !== '') {
                 return true;
             }
         }
@@ -222,6 +273,41 @@ class SiteOptionContentFilter implements ContentFilter
             ['1', 'true', 'yes', 'on'],
             true
         );
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
+    private function blaspResult(string $plainText, array $settings = []): Result
+    {
+        $minimumSeverity = $this->minimumSeverity($settings);
+
+        return $minimumSeverity !== null
+            ? Blasp::withSeverity($minimumSeverity)->check($plainText)
+            : Blasp::check($plainText);
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
+    private function minimumSeverity(array $settings = []): ?Severity
+    {
+        $value = strtolower(trim($this->optionValue('moderation.content-filter.minimum-severity', '', $settings)));
+        if ($value === '') {
+            return null;
+        }
+
+        return Severity::tryFrom($value);
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
+    private function maskCharacter(array $settings = []): string
+    {
+        $character = trim($this->optionValue('moderation.content-filter.profanity-mask-character', '*', $settings));
+
+        return mb_substr($character !== '' ? $character : '*', 0, 1);
     }
 
     private function optionInteger(string $name, int $default, array $settings = []): int

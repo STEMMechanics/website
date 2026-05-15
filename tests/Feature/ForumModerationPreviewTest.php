@@ -60,6 +60,81 @@ class ForumModerationPreviewTest extends TestCase
         ]);
     }
 
+    public function test_preview_endpoint_honours_minimum_severity_threshold(): void
+    {
+        $response = $this->postJson(route('admin.forum.moderation.preview'), [
+            'enabled' => '1',
+            'custom_patterns' => '',
+            'minimum_severity' => 'extreme',
+            'profanity_mask_character' => '*',
+            'blocked_message_placeholder' => '[Message blocked by moderation filter]',
+            'block_all_caps' => '1',
+            'min_all_caps_letters' => '12',
+            'max_repeated_character_run' => '6',
+            'max_repeated_word_run' => '4',
+            'message_failure_notification_delay_minutes' => '20',
+            'test_content' => 'This includes fucking directly.',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'blocked' => false,
+            'rule' => null,
+            'rule_label' => null,
+        ]);
+    }
+
+    public function test_preview_endpoint_can_override_minimum_severity_for_testing(): void
+    {
+        $response = $this->postJson(route('admin.forum.moderation.preview'), [
+            'enabled' => '1',
+            'custom_patterns' => '',
+            'minimum_severity' => 'mild',
+            'preview_minimum_severity' => 'moderate',
+            'profanity_mask_character' => '*',
+            'blocked_message_placeholder' => '[Message blocked by moderation filter]',
+            'block_all_caps' => '1',
+            'min_all_caps_letters' => '12',
+            'max_repeated_character_run' => '6',
+            'max_repeated_word_run' => '4',
+            'message_failure_notification_delay_minutes' => '20',
+            'test_content' => 'This includes damn directly.',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'blocked' => false,
+            'rule' => null,
+            'rule_label' => null,
+            'applied_minimum_severity' => 'moderate',
+        ]);
+    }
+
+    public function test_preview_endpoint_reports_profanity_details_for_f49(): void
+    {
+        $response = $this->postJson(route('admin.forum.moderation.preview'), [
+            'enabled' => '1',
+            'custom_patterns' => '',
+            'profanity_mask_character' => '*',
+            'blocked_message_placeholder' => '[Message blocked by moderation filter]',
+            'block_all_caps' => '1',
+            'min_all_caps_letters' => '12',
+            'max_repeated_character_run' => '6',
+            'max_repeated_word_run' => '4',
+            'message_failure_notification_delay_minutes' => '20',
+            'test_content' => 'This includes F:49 directly.',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'blocked' => true,
+            'rule' => 'profanity',
+            'rule_label' => 'Blasp profanity filter',
+            'profanity_severity' => 'extreme',
+            'profanity_score' => 62,
+            'applied_minimum_severity' => 'mild',
+        ]);
+        $response->assertJsonPath('profanity_words.0.base', 'fag');
+    }
+
     public function test_preview_endpoint_honours_exception_words_from_unsaved_settings(): void
     {
         $response = $this->postJson(route('admin.forum.moderation.preview'), [

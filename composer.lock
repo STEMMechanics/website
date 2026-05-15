@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6bcb9e037818f74190cda4d1f2028d82",
+    "content-hash": "f9179d260c35ca36cd5f9a80ad1937c2",
     "packages": [
         {
             "name": "agence104/livekit-server-sdk",
@@ -182,25 +182,25 @@
         },
         {
             "name": "blaspsoft/blasp",
-            "version": "v3.1.9",
+            "version": "v4.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Blaspsoft/blasp.git",
-                "reference": "db8457c1dbede87c10dde211989ffa0c88ffd053"
+                "reference": "e0a2ea52cbe7987bcb06a07aedc5ff5b5d730ad6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Blaspsoft/blasp/zipball/db8457c1dbede87c10dde211989ffa0c88ffd053",
-                "reference": "db8457c1dbede87c10dde211989ffa0c88ffd053",
+                "url": "https://api.github.com/repos/Blaspsoft/blasp/zipball/e0a2ea52cbe7987bcb06a07aedc5ff5b5d730ad6",
+                "reference": "e0a2ea52cbe7987bcb06a07aedc5ff5b5d730ad6",
                 "shasum": ""
             },
             "require": {
-                "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0",
+                "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.2"
             },
             "require-dev": {
-                "orchestra/testbench": "^10.0",
-                "phpunit/phpunit": "^11.0"
+                "orchestra/testbench": "^10.0|^11.0",
+                "phpunit/phpunit": "^11.0|^12.5.12"
             },
             "type": "library",
             "extra": {
@@ -209,7 +209,7 @@
                         "Blasp": "Blaspsoft\\Blasp\\Facades\\Blasp"
                     },
                     "providers": [
-                        "Blaspsoft\\Blasp\\ServiceProvider"
+                        "Blaspsoft\\Blasp\\BlaspServiceProvider"
                     ]
                 }
             },
@@ -237,9 +237,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Blaspsoft/blasp/issues",
-                "source": "https://github.com/Blaspsoft/blasp/tree/v3.1.9"
+                "source": "https://github.com/Blaspsoft/blasp/tree/v4.0.1"
             },
-            "time": "2026-02-11T15:38:27+00:00"
+            "time": "2026-03-27T07:00:36+00:00"
         },
         {
             "name": "brick/math",

@@ -170,7 +170,11 @@ class SiteOption extends Model
             ],
             'moderation.content-filter.exception-words' => [
                 'value' => '',
-                'description' => 'One word or phrase per line that should be treated as a false positive by Blasp and allowed through the profanity filter.',
+                'description' => 'One word or phrase per line that should be treated as a false positive by Blasp and allowed through the profanity filter. Matching checks both the captured text and Blasp’s resolved word.',
+            ],
+            'moderation.content-filter.minimum-severity' => [
+                'value' => 'mild',
+                'description' => 'Lowest Blasp severity that should be blocked. Mild matches the current “block all detected profanity” behaviour.',
             ],
             'moderation.content-filter.profanity-mask-character' => [
                 'value' => '*',

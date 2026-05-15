@@ -82,6 +82,24 @@
             </section>
 
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <h2 class="text-xl font-semibold text-gray-900">Blasp severity</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Set a minimum severity if you want to ignore milder profanity and only block stronger matches.</p>
+
+                <div class="mt-6 rounded-2xl bg-gray-50 p-4">
+                    <x-ui.select
+                        label="Minimum profanity severity"
+                        name="minimum_severity"
+                        info="Mild keeps the current behaviour. Raise this to ignore words below the chosen threshold."
+                    >
+                        <option value="mild" {{ $settings['minimum_severity'] === 'mild' ? 'selected' : '' }}>Mild</option>
+                        <option value="moderate" {{ $settings['minimum_severity'] === 'moderate' ? 'selected' : '' }}>Moderate</option>
+                        <option value="high" {{ $settings['minimum_severity'] === 'high' ? 'selected' : '' }}>High</option>
+                        <option value="extreme" {{ $settings['minimum_severity'] === 'extreme' ? 'selected' : '' }}>Extreme</option>
+                    </x-ui.select>
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <h2 class="text-xl font-semibold text-gray-900">Pattern rules</h2>
                 <p class="mt-2 text-sm leading-6 text-gray-600">Use these rules to catch things like shouting, repeated characters, or repeated words before a post goes live.</p>
 
@@ -170,9 +188,23 @@
                     />
                 </div>
 
-                <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <x-ui.button type="button" id="run-filter-test">Run full test</x-ui.button>
-                    <div class="text-sm text-gray-500" id="filter-tester-status">No test run yet.</div>
+                <div class="mt-5 grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+                    <x-ui.select
+                        label="Preview severity"
+                        name="preview_minimum_severity"
+                        info="Override the saved Blasp severity for this test run only."
+                    >
+                        <option value="">Current setting</option>
+                        <option value="mild" {{ $settings['minimum_severity'] === 'mild' ? 'selected' : '' }}>Mild</option>
+                        <option value="moderate" {{ $settings['minimum_severity'] === 'moderate' ? 'selected' : '' }}>Moderate</option>
+                        <option value="high" {{ $settings['minimum_severity'] === 'high' ? 'selected' : '' }}>High</option>
+                        <option value="extreme" {{ $settings['minimum_severity'] === 'extreme' ? 'selected' : '' }}>Extreme</option>
+                    </x-ui.select>
+
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <x-ui.button type="button" id="run-filter-test">Run moderation test</x-ui.button>
+                        <div class="text-sm text-gray-500" id="filter-tester-status">No test run yet.</div>
+                    </div>
                 </div>
 
                 <div class="mt-4 rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-700" id="filter-tester-result">
@@ -198,6 +230,7 @@
         const regexContentInput = form.querySelector('[name="regex_test_content"]');
         const regexResult = document.getElementById('regex-tester-result');
         const filterContentInput = form.querySelector('[name="filter_test_content"]');
+        const previewSeverityInput = form.querySelector('[name="preview_minimum_severity"]');
         const filterRunButton = document.getElementById('run-filter-test');
         const filterStatus = document.getElementById('filter-tester-status');
         const filterResult = document.getElementById('filter-tester-result');
@@ -213,6 +246,94 @@
                     ? 'bg-red-50 text-red-800'
                     : 'bg-gray-50 text-gray-700'}`;
             regexResult.textContent = message;
+        };
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+
+        const formatSeverity = (value) => String(value || '').trim().toUpperCase();
+
+        const renderKvRow = (label, value, mono = false) => {
+            if (value === null || value === undefined) {
+                return '';
+            }
+
+            const text = String(value).trim();
+            if (text === '') {
+                return '';
+            }
+
+            return `
+                <div class="grid grid-cols-[11rem_minmax(0,1fr)] items-start gap-x-6 py-3">
+                    <div class="text-sm font-semibold text-amber-800">${escapeHtml(label)}</div>
+                    <div class="${mono ? 'font-mono text-sm leading-6 text-amber-950 break-words' : 'text-sm leading-6 text-amber-950 break-words'}">${escapeHtml(text)}</div>
+                </div>
+            `;
+        };
+
+        const renderBlockedResult = (data, sample) => {
+            const rows = [];
+
+            rows.push(renderKvRow('Rule', data.rule_label || data.rule || 'Blocked'));
+            rows.push(renderKvRow('Message', data.message || 'This text would be blocked.'));
+            rows.push(renderKvRow('Threshold', data.applied_minimum_severity ? formatSeverity(data.applied_minimum_severity) : null));
+            rows.push(renderKvRow('Detected severity', data.profanity_severity ? formatSeverity(data.profanity_severity) : null));
+            rows.push(renderKvRow('Score', typeof data.profanity_score === 'number' ? String(data.profanity_score) : null));
+            rows.push(renderKvRow('Detail', data.detail || null));
+
+            const matchedTerms = Array.isArray(data.profanity_words)
+                ? data.profanity_words.map((word) => {
+                    const text = String(word?.text || '').trim();
+                    const base = String(word?.base || '').trim();
+                    const severity = String(word?.severity || '').trim();
+
+                    return {
+                        captured: text || base,
+                        resolved: base || text,
+                        severity: severity !== '' ? formatSeverity(severity) : '',
+                    };
+                }).filter((word) => word.captured !== '' || word.resolved !== '')
+                : [];
+
+            if (matchedTerms.length > 0) {
+                rows.push(`
+                    <div class="py-3">
+                        <div class="text-sm font-semibold text-amber-800">Captured / resolved</div>
+                        <div class="mt-3 space-y-4">
+                            ${matchedTerms.map((word, index) => `
+                                <div class="rounded-xl border border-amber-200 px-4 ${index % 2 === 0 ? 'bg-amber-100/60' : 'bg-white/70'}">
+                                    ${renderKvRow('Captured text', word.captured, true)}
+                                    ${renderKvRow('Resolves as', word.resolved, true)}
+                                    ${renderKvRow('Severity', word.severity || 'n/a', true)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `);
+            }
+
+            const filteredOutput = typeof data.filtered_message === 'string' && data.filtered_message.trim() !== '' && data.filtered_message !== sample
+                ? data.filtered_message
+                : '';
+            const placeholder = typeof data.blocked_message_placeholder === 'string' ? data.blocked_message_placeholder.trim() : '';
+
+            if (filteredOutput !== '') {
+                rows.push(renderKvRow('Filtered output', filteredOutput, true));
+            } else {
+                rows.push(renderKvRow('Placeholder', placeholder, true));
+            }
+
+            return `
+                <div class="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/80 px-4">
+                    <div>
+                        ${rows.filter(Boolean).join('')}
+                    </div>
+                </div>
+            `;
         };
 
         const updateRegexTest = () => {
@@ -262,10 +383,14 @@
             }
 
             filterRunButton.disabled = true;
-            filterStatus.textContent = 'Testing current settings...';
+            const previewSeverity = String(previewSeverityInput?.value || '').trim();
+            filterStatus.textContent = previewSeverity !== ''
+                ? `Testing current settings at ${previewSeverity} preview severity...`
+                : 'Testing current settings...';
 
             const payload = new FormData(form);
             payload.set('test_content', sample);
+            payload.set('preview_minimum_severity', previewSeverity);
 
             try {
                 const response = await fetch(@js(route('admin.forum.moderation.preview')), {
@@ -294,19 +419,7 @@
                 if (data.blocked) {
                     filterStatus.textContent = 'Blocked';
                     filterResult.className = 'mt-4 rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-900';
-                    const parts = [`${data.rule_label || data.rule || 'Blocked'}: ${data.message || 'This text would be blocked.'}`];
-
-                    if (data.detail) {
-                        parts.push(`Detail: ${data.detail}`);
-                    }
-
-                    if (typeof data.filtered_message === 'string' && data.filtered_message.trim() !== '' && data.filtered_message !== sample) {
-                        parts.push(`Filtered output: ${data.filtered_message}`);
-                    } else if (typeof data.blocked_message_placeholder === 'string' && data.blocked_message_placeholder.trim() !== '') {
-                        parts.push(`Placeholder: ${data.blocked_message_placeholder}`);
-                    }
-
-                    filterResult.textContent = parts.join(' ');
+                    filterResult.innerHTML = renderBlockedResult(data, sample);
                     return;
                 }
 

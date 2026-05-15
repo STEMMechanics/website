@@ -11,6 +11,7 @@
 - Fix display of private addresses in monthly view
 - Allow searching of amounts and gst in expense view
 - Improved store order workflows
+- Upgrade to Blasp v4
 
 ## 1.4.4
 

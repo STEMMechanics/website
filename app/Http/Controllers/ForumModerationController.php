@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\SiteOption;
 use App\Services\MinecraftMessageModerationService;
 use App\Support\SiteOptionContentFilter;
-use Blaspsoft\Blasp\Facades\Blasp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +25,7 @@ class ForumModerationController extends Controller
         'moderation.content-filter.enabled' => '1',
         'moderation.content-filter.custom-patterns' => '',
         'moderation.content-filter.exception-words' => '',
+        'moderation.content-filter.minimum-severity' => 'mild',
         'moderation.content-filter.profanity-mask-character' => '*',
         'moderation.content-filter.blocked-message-placeholder' => '[Message blocked by moderation filter]',
         'moderation.content-filter.block-all-caps' => '1',
@@ -44,6 +44,7 @@ class ForumModerationController extends Controller
                 'enabled' => $this->optionValue('moderation.content-filter.enabled', '1') === '1',
                 'custom_patterns' => $this->optionValue('moderation.content-filter.custom-patterns'),
                 'exception_words' => $this->optionValue('moderation.content-filter.exception-words'),
+                'minimum_severity' => $this->optionValue('moderation.content-filter.minimum-severity', 'mild'),
                 'profanity_mask_character' => $this->optionValue('moderation.content-filter.profanity-mask-character', '*'),
                 'blocked_message_placeholder' => $this->optionValue('moderation.content-filter.blocked-message-placeholder', '[Message blocked by moderation filter]'),
                 'block_all_caps' => $this->optionValue('moderation.content-filter.block-all-caps', '1') === '1',
@@ -67,6 +68,7 @@ class ForumModerationController extends Controller
         $this->storeOption('moderation.content-filter.enabled', (string) $validated['enabled']);
         $this->storeOption('moderation.content-filter.custom-patterns', trim((string) ($validated['custom_patterns'] ?? '')));
         $this->storeOption('moderation.content-filter.exception-words', $this->normalizedExceptionWords((string) ($validated['exception_words'] ?? '')));
+        $this->storeOption('moderation.content-filter.minimum-severity', strtolower(trim((string) ($validated['minimum_severity'] ?? 'mild'))));
         $this->storeOption('moderation.content-filter.profanity-mask-character', $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')));
         $this->storeOption('moderation.content-filter.blocked-message-placeholder', trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]');
         $this->storeOption('moderation.content-filter.block-all-caps', (string) $validated['block_all_caps']);
@@ -91,11 +93,19 @@ class ForumModerationController extends Controller
         $this->validateCustomPatterns((string) ($validated['custom_patterns'] ?? ''));
 
         $settings = $this->settingsFromValidated($validated);
+        $previewMinimumSeverity = strtolower(trim((string) ($validated['preview_minimum_severity'] ?? '')));
+        if ($previewMinimumSeverity !== '') {
+            $settings['moderation.content-filter.minimum-severity'] = $previewMinimumSeverity;
+        }
+
         $result = $this->contentFilter->inspectWithSettings(
             (string) $validated['test_content'],
             'forum',
             $settings,
         );
+        $profanityResult = $result->blocked && $result->rule === 'profanity'
+            ? $this->contentFilter->profanityResult((string) $validated['test_content'], $settings)
+            : null;
 
         return response()->json([
             'blocked' => $result->blocked,
@@ -103,11 +113,11 @@ class ForumModerationController extends Controller
             'rule_label' => $this->ruleLabel($result->rule),
             'message' => $result->message,
             'detail' => $result->detail,
-            'filtered_message' => $result->rule === 'profanity'
-                ? Blasp::maskWith($this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')))
-                    ->check((string) $validated['test_content'])
-                    ->getCleanString()
-                : null,
+            'applied_minimum_severity' => $settings['moderation.content-filter.minimum-severity'] ?? null,
+            'filtered_message' => $profanityResult !== null ? trim($profanityResult->clean()) : null,
+            'profanity_severity' => $profanityResult?->severity()?->value,
+            'profanity_score' => $profanityResult?->score(),
+            'profanity_words' => $profanityResult?->words()->map(fn ($word) => $word->toArray())->all(),
             'blocked_message_placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) !== ''
                 ? trim((string) $validated['blocked_message_placeholder'])
                 : $this->minecraftMessageModerationService->blockedPlaceholder(),
@@ -124,6 +134,7 @@ class ForumModerationController extends Controller
             'enabled' => ['required', 'in:0,1'],
             'custom_patterns' => ['nullable', 'string'],
             'exception_words' => ['nullable', 'string'],
+            'minimum_severity' => ['nullable', 'in:mild,moderate,high,extreme'],
             'profanity_mask_character' => ['required', 'string', 'max:10'],
             'blocked_message_placeholder' => ['required', 'string', 'max:255'],
             'block_all_caps' => ['required', 'in:0,1'],
@@ -131,6 +142,7 @@ class ForumModerationController extends Controller
             'max_repeated_character_run' => ['required', 'integer', 'min:2', 'max:100'],
             'max_repeated_word_run' => ['required', 'integer', 'min:2', 'max:100'],
             'message_failure_notification_delay_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            'preview_minimum_severity' => ['nullable', 'in:mild,moderate,high,extreme'],
         ], $extraRules));
     }
 
@@ -144,6 +156,7 @@ class ForumModerationController extends Controller
             'moderation.content-filter.enabled' => (string) $validated['enabled'],
             'moderation.content-filter.custom-patterns' => trim((string) ($validated['custom_patterns'] ?? '')),
             'moderation.content-filter.exception-words' => $this->normalizedExceptionWords((string) ($validated['exception_words'] ?? '')),
+            'moderation.content-filter.minimum-severity' => strtolower(trim((string) ($validated['minimum_severity'] ?? 'mild'))),
             'moderation.content-filter.profanity-mask-character' => $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')),
             'moderation.content-filter.blocked-message-placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]',
             'moderation.content-filter.block-all-caps' => (string) $validated['block_all_caps'],
