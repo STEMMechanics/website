@@ -82,6 +82,9 @@
                     <img id="expense-receipt-preview-image" class="hidden w-full max-h-[32rem] object-contain bg-white" alt="Receipt preview" src="" />
                     <iframe id="expense-receipt-preview-frame" class="hidden w-full h-[32rem] bg-white" title="Receipt preview"></iframe>
                 </div>
+                <div id="expense-receipt-preview-note" class="mt-2 hidden text-xs text-gray-500">
+                    PDF preview sizing depends on the browser. This viewer asks for page-width when the browser supports it.
+                </div>
             </div>
 
             @if(isset($expense) && $expense->receipt_document_path)
@@ -127,6 +130,7 @@
         const previewLoading = document.getElementById('expense-receipt-preview-loading');
         const previewImage = document.getElementById('expense-receipt-preview-image');
         const previewFrame = document.getElementById('expense-receipt-preview-frame');
+        const previewNote = document.getElementById('expense-receipt-preview-note');
         let existingPreviewUrl = null;
         existingPreviewUrl = @js($documentViewUrl);
         let existingDocumentName = '';
@@ -152,7 +156,7 @@
         };
 
         const resetPreviewVisibility = () => {
-            if (!previewWrap || !previewEmpty || !previewImage || !previewFrame || !previewLoading) {
+            if (!previewWrap || !previewEmpty || !previewImage || !previewFrame || !previewLoading || !previewNote) {
                 return;
             }
 
@@ -161,6 +165,7 @@
             previewImage.classList.add('hidden');
             previewFrame.classList.add('hidden');
             previewLoading.classList.add('hidden');
+            previewNote.classList.add('hidden');
         };
 
         const showPreviewLoading = () => {
@@ -191,7 +196,7 @@
         const clearPreview = () => {
             revokeObjectUrl();
 
-            if (!previewWrap || !previewEmpty || !previewImage || !previewFrame) {
+            if (!previewWrap || !previewEmpty || !previewImage || !previewFrame || !previewNote) {
                 return;
             }
 
@@ -199,9 +204,31 @@
             previewFrame.src = 'about:blank';
             previewImage.classList.add('hidden');
             previewFrame.classList.add('hidden');
+            previewNote.classList.add('hidden');
             hidePreviewLoading();
             previewWrap.classList.add('hidden');
             previewEmpty.classList.remove('hidden');
+        };
+
+        const appendPdfViewerHints = (url) => {
+            if (!url) {
+                return url;
+            }
+
+            const hashIndex = url.indexOf('#');
+            const baseUrl = hashIndex === -1 ? url : url.slice(0, hashIndex);
+            const existingFragment = hashIndex === -1 ? '' : url.slice(hashIndex + 1);
+            const hints = 'zoom=page-width&toolbar=0&navpanes=0&scrollbar=0';
+
+            return `${baseUrl}#${existingFragment ? `${existingFragment}&${hints}` : hints}`;
+        };
+
+        const setPreviewNote = (isPdf) => {
+            if (!previewNote) {
+                return;
+            }
+
+            previewNote.classList.toggle('hidden', !isPdf);
         };
 
         const showPreviewFromUrl = (url, mimeType, filename) => {
@@ -221,6 +248,10 @@
                 || fileNameLower.endsWith('.png')
                 || fileNameLower.endsWith('.gif')
                 || fileNameLower.endsWith('.webp');
+            const isPdf = (mimeType && mimeType === 'application/pdf')
+                || fileNameLower.endsWith('.pdf');
+
+            setPreviewNote(isPdf);
 
             if (isImage) {
                 previewImage.onload = () => {
@@ -238,7 +269,7 @@
                 hidePreviewLoading();
                 previewFrame.classList.remove('hidden');
             };
-            previewFrame.src = url;
+            previewFrame.src = isPdf ? appendPdfViewerHints(url) : url;
         };
 
         if (totalInput && gstInput) {
@@ -279,6 +310,9 @@
         } else if (previewWrap && previewEmpty) {
             previewWrap.classList.add('hidden');
             previewEmpty.classList.remove('hidden');
+            if (previewNote) {
+                previewNote.classList.add('hidden');
+            }
         }
 
         if (expenseForm && saveButton && saveLabel && saveLoading && saveLoadingText) {

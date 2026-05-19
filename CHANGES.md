@@ -12,6 +12,7 @@
 - Allow searching of amounts and gst in expense view
 - Improved store order workflows
 - Upgrade to Blasp v4
+- Hint on expense PDF preview
 
 ## 1.4.4
 
