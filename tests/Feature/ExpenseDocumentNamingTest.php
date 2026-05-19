@@ -35,7 +35,8 @@ class ExpenseDocumentNamingTest extends TestCase
             'gst_amount' => 5.00,
         ]);
 
-        $occupiedPath = 'finance/expenses/260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'.pdf';
+        $requestInvoiceId = '12345';
+        $occupiedPath = 'finance/expenses/260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'-INV'.$requestInvoiceId.'.pdf';
         Storage::disk('local')->put($occupiedPath, 'existing');
 
         $response = $this->actingAs($admin)
@@ -43,7 +44,7 @@ class ExpenseDocumentNamingTest extends TestCase
             ->put(route('admin.expense.update', $expense), [
                 'supplier' => 'STEM Supplies Co',
                 'description' => 'Updated expense',
-                'invoice_id' => '',
+                'invoice_id' => $requestInvoiceId,
                 'paid_on' => '2026-03-01',
                 'total_amount' => '55.00',
                 'gst_amount' => '5.00',
@@ -55,8 +56,8 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $expense->refresh();
 
-        $this->assertSame('finance/expenses/260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'-1.pdf', $expense->receipt_document_path);
-        $this->assertSame('260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'-1.pdf', $expense->receipt_document_name);
+        $this->assertSame('finance/expenses/260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'-INV'.$requestInvoiceId.'-1.pdf', $expense->receipt_document_path);
+        $this->assertSame('260301-STEM-SUPPLIES-CO-EXP'.$expense->id.'-INV'.$requestInvoiceId.'-1.pdf', $expense->receipt_document_name);
         Storage::disk('local')->assertExists($occupiedPath);
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }

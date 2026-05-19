@@ -147,9 +147,9 @@ class ExpenseController extends Controller
         $maxSize = max((int) round(Helpers::getMaxUploadSize() / 1024), 1);
 
         return $request->validate([
-            'supplier' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:255'],
-            'invoice_id' => ['nullable', 'string', 'max:120'],
+            'supplier' => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string', 'max:255'],
+            'invoice_id' => ['required', 'string', 'max:120'],
             'paid_on' => ['nullable', 'date'],
             'total_amount' => ['required', 'numeric', 'min:0'],
             'gst_amount' => ['required', 'numeric', 'min:0'],
