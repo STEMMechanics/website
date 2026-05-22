@@ -13,6 +13,7 @@
 - Improved store order workflows
 - Upgrade to Blasp v4
 - Fixes around auto-resizing PDFs in expense editor
+- Show linked invoices for quotes
 
 ## 1.4.4
 

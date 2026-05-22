@@ -35,7 +35,10 @@ class QuoteController extends Controller
     {
         Quote::expireOpenQuotes();
 
-        $query = Quote::query()->with('user');
+        $query = Quote::query()->with([
+            'user',
+            'invoices' => fn ($invoices) => $invoices->orderByDesc('issue_date')->orderByDesc('created_at')->orderByDesc('id'),
+        ]);
 
         if ($request->filled('search')) {
             $search = $request->search;
