@@ -24,6 +24,10 @@
 >
     <x-mast>Store</x-mast>
 
+    @include('shop.partials.processing-pause-notice', [
+        'notice' => $cartPayload['summary']['shipping_quote']['processing_pause_notice'] ?? null,
+    ])
+
     <style>
         @verbatim
         [data-shop-catalog] [data-shop-view-button] {

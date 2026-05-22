@@ -81,6 +81,10 @@
 >
     <x-mast backRoute="shop.index" backTitle="Store">{{ $product->title }}</x-mast>
 
+    @include('shop.partials.processing-pause-notice', [
+        'notice' => $cartPayload['summary']['shipping_quote']['processing_pause_notice'] ?? null,
+    ])
+
     <x-container class="py-8">
         <div
                 class="space-y-8"

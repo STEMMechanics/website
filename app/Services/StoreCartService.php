@@ -476,6 +476,8 @@ class StoreCartService
                     'consolidate_shipments' => (bool) ($summary['shipping_quote']['consolidate_shipments'] ?? false),
                     'second_shipment_charge_amount' => round((float) ($summary['shipping_quote']['second_shipment_charge_amount'] ?? 0), 2),
                     'consolidation_savings_amount' => round((float) ($summary['shipping_quote']['consolidation_savings_amount'] ?? 0), 2),
+                    'processing_pause_until' => $summary['shipping_quote']['processing_pause_until'] ?? null,
+                    'processing_pause_notice' => $summary['shipping_quote']['processing_pause_notice'] ?? null,
                     'shipments' => $summary['shipping_quote']['shipments'] ?? [],
                 ],
             ],

@@ -5,6 +5,10 @@
 <x-layout title="Cart" :canonical="route('shop.cart.show')">
     <x-mast backRoute="shop.index" backTitle="Store">Cart</x-mast>
 
+    @include('shop.partials.processing-pause-notice', [
+        'notice' => $summary['shipping_quote']['processing_pause_notice'] ?? null,
+    ])
+
     <x-container
         class="py-8"
         x-data="shopCartPage(window.shopCartPageConfig || {})"

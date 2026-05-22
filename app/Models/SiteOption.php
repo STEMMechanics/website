@@ -120,6 +120,11 @@ class SiteOption extends Model
                 'description' => 'Optional boxed shipping charge. Leave blank to require a manual quote.',
                 'input_type' => 'number',
             ],
+            'store.shipping.processing-pause-until' => [
+                'value' => '',
+                'description' => 'Optional date that pauses shipping processing while the store is away. Orders can still be placed and will be processed from this date onward.',
+                'input_type' => 'date',
+            ],
             'store.shipping.tracking-link-templates' => [
                 'value' => '{}',
                 'description' => 'JSON object of courier-name keys to tracking URL templates. Use {tracking} as the placeholder for the parcel number.',

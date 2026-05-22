@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\SiteOption;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,6 +18,8 @@ class ShopShippingSettings
     public const BOXED_MESSAGE_OPTION = 'store.shipping.boxed-shipping-message';
 
     public const BOXED_AMOUNT_OPTION = 'store.shipping.boxed-shipping-amount';
+
+    public const PROCESSING_PAUSE_UNTIL_OPTION = 'store.shipping.processing-pause-until';
 
     public const TRACKING_LINK_TEMPLATES_OPTION = 'store.shipping.tracking-link-templates';
 
@@ -90,6 +93,36 @@ class ShopShippingSettings
             ),
             'amount' => $amount !== '' && is_numeric($amount) ? round((float) $amount, 2) : null,
         ];
+    }
+
+    public static function processingPauseUntil(): ?Carbon
+    {
+        $value = self::stringOption(self::PROCESSING_PAUSE_UNTIL_OPTION, '');
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::parse($value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($date->lt(now()->startOfDay())) {
+            return null;
+        }
+
+        return $date;
+    }
+
+    public static function processingPauseNotice(): ?string
+    {
+        $date = self::processingPauseUntil();
+        if (! $date instanceof Carbon) {
+            return null;
+        }
+
+        return 'We are away for workshops until '.$date->format('F jS Y').'. Orders placed now will be processed after we return.';
     }
 
     /**

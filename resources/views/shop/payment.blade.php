@@ -28,6 +28,10 @@
 <x-layout title="Payment" :canonical="route('shop.checkout.payment')">
     <x-mast backRoute="shop.checkout" backTitle="Checkout">Payment</x-mast>
 
+    @include('shop.partials.processing-pause-notice', [
+        'notice' => $summary['shipping_quote']['processing_pause_notice'] ?? null,
+    ])
+
     <x-container class="max-w-4xl mt-6 mx-auto">
         <div
             class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6"

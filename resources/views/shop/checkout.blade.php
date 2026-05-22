@@ -22,6 +22,10 @@
 <x-layout title="Checkout" :canonical="route('shop.checkout')">
     <x-mast backRoute="shop.index" backTitle="Store">Checkout</x-mast>
 
+    @include('shop.partials.processing-pause-notice', [
+        'notice' => $summary['shipping_quote']['processing_pause_notice'] ?? null,
+    ])
+
     <x-container class="py-8">
         <div
             class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"

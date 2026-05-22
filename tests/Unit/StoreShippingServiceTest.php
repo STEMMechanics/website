@@ -3,12 +3,17 @@
 namespace Tests\Unit;
 
 use App\Models\Product;
+use App\Models\SiteOption;
 use App\Services\StoreShippingService;
+use App\Support\ShopShippingSettings;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class StoreShippingServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_it_packs_small_items_into_the_smallest_package(): void
     {
         $quote = $this->service()->quote(collect([
@@ -203,6 +208,40 @@ class StoreShippingServiceTest extends TestCase
         $this->assertSame('Single shipment once all items are available - Estimated April 20th 2026', $consolidatedQuote['shipments'][0]['title']);
         $this->assertSame('Single shipment once all items are available', $consolidatedQuote['shipments'][0]['title_primary']);
         $this->assertSame('Estimated April 20th 2026', $consolidatedQuote['shipments'][0]['title_meta']);
+    }
+
+    public function test_it_pushes_shipments_back_when_the_store_is_away(): void
+    {
+        $pauseUntil = Carbon::parse('2026-06-01')->startOfDay();
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION],
+            ['value' => $pauseUntil->toDateString()],
+        );
+
+        $lines = collect([
+            $this->line('Circuit kit', [
+                'shipping_units' => 0.5,
+                'min_satchel_rank' => 1,
+                'weight_grams' => 150,
+                'quantity' => 2,
+                'available_now_quantity' => 1,
+                'delayed_quantity' => 1,
+                'delayed_fulfilment_type' => 'backorder',
+                'delayed_shipping_estimate' => Carbon::parse('2026-05-25'),
+            ], 2),
+        ]);
+
+        $quote = $this->service()->quote($lines, 'Australia', 'regular', false);
+
+        $this->assertSame('2026-06-01', $quote['processing_pause_until']);
+        $this->assertSame('We are away for workshops until June 1st 2026. Orders placed now will be processed after we return.', $quote['processing_pause_notice']);
+        $this->assertSame('2026-06-01', $quote['shipments'][0]['dispatch_date']);
+        $this->assertSame('Processing from June 1st 2026', $quote['shipments'][0]['title_meta']);
+        $this->assertSame('Shipment 1 - Processing from June 1st 2026', $quote['shipments'][0]['title']);
+        $this->assertSame('2026-06-01', $quote['shipments'][1]['dispatch_date']);
+        $this->assertSame('Shipment 2: Ships later - Estimated June 1st 2026', $quote['shipments'][1]['title']);
+        $this->assertSame('Estimated June 1st 2026', $quote['shipments'][1]['title_meta']);
+        $this->assertSame('2026-06-01', $quote['delayed_dispatch_date']);
     }
 
     public function test_pickup_uses_collection_terminology_for_split_availability(): void

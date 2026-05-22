@@ -14,6 +14,7 @@
 - Upgrade to Blasp v4
 - Fixes around auto-resizing PDFs in expense editor
 - Show linked invoices for quotes
+- Added `away until` store front option
 
 ## 1.4.4
 

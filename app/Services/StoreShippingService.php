@@ -44,9 +44,10 @@ class StoreShippingService
         $physicalLines = $lines
             ->filter(fn ($line) => $line->product->isPhysical() && (int) $line->quantity > 0)
             ->values();
+        $processingPauseUntil = ShopShippingSettings::processingPauseUntil();
 
         if ($physicalLines->isEmpty()) {
-            return $this->decorateAggregateQuote([
+            return $this->applyProcessingPauseMetadata($this->decorateAggregateQuote([
                 'can_checkout' => true,
                 'boxed_shipping_required' => false,
                 'requires_manual_quote' => false,
@@ -68,11 +69,11 @@ class StoreShippingService
                 'delayed_item_count' => 0,
                 'second_shipment_charge_amount' => 0.0,
                 'delayed_dispatch_date' => null,
-            ], null);
+            ], null), $processingPauseUntil);
         }
 
         $selectedMethod = $this->selectedMethod($lines, $methodCode);
-        $shipmentGroups = $this->shipmentGroups($physicalLines, $consolidateShipments, $selectedMethod);
+        $shipmentGroups = $this->shipmentGroups($physicalLines, $consolidateShipments, $selectedMethod, $processingPauseUntil);
         $consolidationSavingsAmount = $this->consolidationSavingsAmount($shipmentGroups, $selectedMethod);
         $shipmentQuotes = collect($shipmentGroups['groups'] ?? [])->map(function (array $group) use ($selectedMethod): array {
             return [
@@ -150,7 +151,7 @@ class StoreShippingService
             ->values()
             ->all();
 
-        return $this->decorateAggregateQuote([
+        return $this->applyProcessingPauseMetadata($this->decorateAggregateQuote([
             'can_checkout' => $canCheckout,
             'boxed_shipping_required' => $shipmentQuotes->contains(
                 fn (array $shipment) => (bool) ($shipment['quote']['boxed_shipping_required'] ?? false)
@@ -177,7 +178,7 @@ class StoreShippingService
             'second_shipment_charge_amount' => round((float) $shipments->slice(1)->sum('amount'), 2),
             'consolidation_savings_amount' => $consolidationSavingsAmount,
             'delayed_dispatch_date' => $shipmentGroups['delayed_dispatch_date'] ?? null,
-        ], $selectedMethod);
+        ], $selectedMethod), $processingPauseUntil);
     }
 
     /**
@@ -271,7 +272,12 @@ class StoreShippingService
             ->values();
     }
 
-    private function shipmentGroups(Collection $physicalLines, bool $consolidateShipments, ?StoreShippingMethod $method): array
+    private function shipmentGroups(
+        Collection $physicalLines,
+        bool $consolidateShipments,
+        ?StoreShippingMethod $method,
+        ?Carbon $processingPauseUntil = null
+    ): array
     {
         $immediateLines = collect();
         $delayedLines = collect();
@@ -280,6 +286,7 @@ class StoreShippingService
         $shipmentLabel = $this->shipmentLabel($method);
         $immediateStatusLabel = $this->immediateStatusLabel($method);
         $delayedStatusLabel = $this->delayedStatusLabel($method);
+        $processingPauseDate = $this->processingPauseDate($processingPauseUntil);
 
         foreach ($physicalLines as $line) {
             $quantity = max(0, (int) ($line->quantity ?? 0));
@@ -303,6 +310,7 @@ class StoreShippingService
 
         $offersConsolidation = ! ($method?->isPickup() ?? false) && $immediateLines->isNotEmpty() && $delayedLines->isNotEmpty();
         $delayedDispatchDate = $this->latestDispatchDate($delayedLines);
+        $effectiveDelayedDispatchDate = $this->laterDispatchDate($delayedDispatchDate, $processingPauseDate);
         $groups = collect();
 
         if ($offersConsolidation && $consolidateShipments) {
@@ -311,22 +319,26 @@ class StoreShippingService
                 'consolidated',
                 $consolidatedTitle,
                 $allLines,
-                $delayedDispatchDate,
-                $delayedDispatchDate !== null
-                    ? 'Everything together from approximately '.$this->formatDispatchDate($delayedDispatchDate).'.'
+                $effectiveDelayedDispatchDate,
+                $effectiveDelayedDispatchDate !== null
+                    ? 'Everything together from approximately '.$this->formatDispatchDate($effectiveDelayedDispatchDate).'.'
                     : 'Held until all delayed items are available.',
-                $this->estimatedTitleDetail($delayedDispatchDate),
+                $this->estimatedTitleDetail($effectiveDelayedDispatchDate),
             ));
         } else {
             if ($immediateLines->isNotEmpty()) {
+                $immediateTitle = $processingPauseDate !== null
+                    ? ($delayedLines->isNotEmpty() ? $shipmentLabel.' 1' : $shipmentLabel)
+                    : ($delayedLines->isNotEmpty()
+                        ? $shipmentLabel.' 1: '.$immediateStatusLabel
+                        : $shipmentLabel.': '.$immediateStatusLabel);
                 $groups->push($this->buildShipmentGroup(
                     'immediate',
-                    $delayedLines->isNotEmpty()
-                        ? $shipmentLabel.' 1: '.$immediateStatusLabel
-                        : $shipmentLabel.': '.$immediateStatusLabel,
+                    $immediateTitle,
                     $immediateLines,
+                    $processingPauseDate,
                     null,
-                    null,
+                    $this->processingPauseTitleMeta($method, $processingPauseDate),
                 ));
             }
 
@@ -338,11 +350,11 @@ class StoreShippingService
                     'delayed',
                     $delayedTitle,
                     $delayedLines,
-                    $delayedDispatchDate,
-                    $delayedDispatchDate !== null
-                        ? $this->delayedDispatchLabel($method, $delayedDispatchDate)
+                    $effectiveDelayedDispatchDate,
+                    $effectiveDelayedDispatchDate !== null
+                        ? $this->delayedDispatchLabel($method, $effectiveDelayedDispatchDate)
                         : 'Expected once delayed items become available.',
-                    $this->estimatedTitleDetail($delayedDispatchDate),
+                    $this->estimatedTitleDetail($effectiveDelayedDispatchDate),
                 ));
             }
         }
@@ -351,7 +363,7 @@ class StoreShippingService
             'groups' => $groups->values()->all(),
             'offers_consolidation' => $offersConsolidation,
             'delayed_item_count' => $delayedItems,
-            'delayed_dispatch_date' => $delayedDispatchDate,
+            'delayed_dispatch_date' => $effectiveDelayedDispatchDate,
             'immediate_lines' => $immediateLines->values(),
             'delayed_lines' => $delayedLines->values(),
             'all_lines' => $allLines->values(),
@@ -930,6 +942,56 @@ class StoreShippingService
         $quote['delivery_estimate_label'] = $method?->deliveryEstimateLabel();
 
         return $quote;
+    }
+
+    private function applyProcessingPauseMetadata(array $quote, ?Carbon $processingPauseUntil): array
+    {
+        $processingPauseUntil = $processingPauseUntil instanceof Carbon ? $processingPauseUntil->copy()->startOfDay() : null;
+        $processingPauseDate = $this->processingPauseDate($processingPauseUntil);
+
+        $quote['processing_pause_until'] = $processingPauseDate;
+        $quote['processing_pause_notice'] = ShopShippingSettings::processingPauseNotice();
+
+        return $quote;
+    }
+
+    private function processingPauseDate(?Carbon $processingPauseUntil): ?string
+    {
+        if (! $processingPauseUntil instanceof Carbon) {
+            return null;
+        }
+
+        return $processingPauseUntil->copy()->startOfDay()->toDateString();
+    }
+
+    private function laterDispatchDate(?string $existingDate, ?string $processingPauseDate): ?string
+    {
+        $existing = trim((string) $existingDate);
+        $pause = trim((string) $processingPauseDate);
+
+        if ($existing === '') {
+            return $pause !== '' ? $pause : null;
+        }
+
+        if ($pause === '') {
+            return $existing;
+        }
+
+        return $existing >= $pause ? $existing : $pause;
+    }
+
+    private function processingPauseTitleMeta(?StoreShippingMethod $method, ?string $processingPauseDate): ?string
+    {
+        $formattedDate = $this->formatDispatchDate($processingPauseDate);
+        if ($formattedDate === null) {
+            return null;
+        }
+
+        if ($method?->isPickup()) {
+            return 'Available from '.$formattedDate;
+        }
+
+        return 'Processing from '.$formattedDate;
     }
 
     /**

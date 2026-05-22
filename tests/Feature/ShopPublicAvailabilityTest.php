@@ -11,7 +11,9 @@ use App\Models\UserGroup;
 use App\Models\SiteOption;
 use App\Models\User;
 use App\Support\ShopAvailability;
+use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ShopPublicAvailabilityTest extends TestCase
@@ -163,6 +165,31 @@ class ShopPublicAvailabilityTest extends TestCase
         $this->get(route('shop.product.show', $product))
             ->assertOk()
             ->assertSeeText('25 pack');
+    }
+
+    public function test_public_store_shows_a_processing_pause_notice_when_shipping_is_paused(): void
+    {
+        $pauseUntil = Carbon::now()->addWeek()->startOfDay();
+        $expectedNotice = 'We are away for workshops until '.$pauseUntil->format('F jS Y').'. Orders placed now will be processed after we return.';
+
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION],
+            ['value' => $pauseUntil->toDateString()],
+        );
+
+        $product = Product::factory()->create([
+            'title' => 'Workshop Kit',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        $this->get(route('shop.index'))
+            ->assertOk()
+            ->assertSeeText($expectedNotice);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText($expectedNotice);
     }
 
     public function test_public_store_can_filter_products_by_category_slug(): void

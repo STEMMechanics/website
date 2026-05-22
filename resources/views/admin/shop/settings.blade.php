@@ -58,6 +58,7 @@
             class="space-y-6"
             x-data="{
                 shippingMethods: @js($shippingMethodRows),
+                processingPauseUntil: @js(old('processing_pause_until', $processingPauseUntil ?? '')),
                 trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
                 trackingLinkTemplates: [],
                 init() {
@@ -218,6 +219,31 @@
                     @error('public_enabled')
                         <div class="text-sm text-red-600">{{ $message }}</div>
                     @enderror
+
+                    <div class="pt-2">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Away Until</label>
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="date"
+                                name="processing_pause_until"
+                                class="{{ $inlineInputClasses }} mb-0!"
+                                x-model="processingPauseUntil"
+                            >
+                            <x-ui.button
+                                type="button"
+                                color="outline"
+                                class="shrink-0 px-3!"
+                                x-on:click="processingPauseUntil = ''"
+                                x-bind:disabled="!processingPauseUntil"
+                            >
+                                Clear
+                            </x-ui.button>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500">Orders placed while you are away will be held until this date.</div>
+                        @error('processing_pause_until')
+                            <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </section>
 
                 <section class="{{ $settingsCardClasses }} space-y-4">

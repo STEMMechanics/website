@@ -23,6 +23,7 @@ class ShopSettingsController extends Controller
             'publicEnabled' => $availability->isPublicEnabled(),
             'maxSatchelWeightGrams' => ShopShippingSettings::maxSatchelWeightGrams(),
             'boxedShipping' => ShopShippingSettings::boxedShipping(),
+            'processingPauseUntil' => SiteOption::value(ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION),
             'trackingLinkTemplates' => array_map(
                 static fn (string $carrier, string $template): array => [
                     'carrier' => $carrier,
@@ -46,6 +47,7 @@ class ShopSettingsController extends Controller
             'boxed_shipping_label' => ['required', 'string', 'max:120'],
             'boxed_shipping_message' => ['required', 'string', 'max:500'],
             'boxed_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+            'processing_pause_until' => ['nullable', 'date'],
             'tracking_link_templates' => ['nullable', 'array'],
             'tracking_link_templates.*.carrier' => ['required', 'string', 'max:120'],
             'tracking_link_templates.*.template' => ['required', 'string', 'max:500'],
@@ -99,6 +101,10 @@ class ShopSettingsController extends Controller
             ($validated['boxed_shipping_amount'] ?? null) !== null
                 ? number_format((float) $validated['boxed_shipping_amount'], 2, '.', '')
                 : ''
+        );
+        $this->storeOption(
+            ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION,
+            trim((string) ($validated['processing_pause_until'] ?? ''))
         );
         $this->storeOption(
             ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,

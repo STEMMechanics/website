@@ -22,6 +22,7 @@ class AdminShopSettingsTest extends TestCase
     public function test_admin_can_update_shop_shipping_settings(): void
     {
         $admin = User::factory()->create();
+        $processingPauseUntil = now()->addDays(8)->startOfDay()->toDateString();
         UserGroup::query()->create([
             'user_id' => (string) $admin->id,
             'slug' => 'admin',
@@ -43,6 +44,7 @@ class AdminShopSettingsTest extends TestCase
                 'boxed_shipping_label' => 'Special box shipping',
                 'boxed_shipping_message' => 'This order needs a custom boxed shipment.',
                 'boxed_shipping_amount' => '25.00',
+                'processing_pause_until' => $processingPauseUntil,
                 'tracking_link_templates' => [
                     [
                         'carrier' => 'Australia Post',
@@ -144,6 +146,14 @@ class AdminShopSettingsTest extends TestCase
             'name' => ShopShippingSettings::BOXED_LABEL_OPTION,
             'value' => 'Special box shipping',
         ]);
+        $this->assertDatabaseHas('site_options', [
+            'name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION,
+            'value' => $processingPauseUntil,
+        ]);
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION],
+            ['value' => ''],
+        );
         $this->assertDatabaseHas('site_options', [
             'name' => ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
             'value' => json_encode([

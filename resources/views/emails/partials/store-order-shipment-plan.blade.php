@@ -15,8 +15,14 @@
     $shipmentLabel = $shipments->count() > 1 ? $shipmentNoun.' '.$loop->iteration : $shipmentNoun;
     $dispatchDateLabel = preg_replace('/^Estimated\s+/i', '', $dispatchTiming) ?: $dispatchTiming;
     $summaryParts = [];
+    $hasStorePauseTiming = $dispatchTiming !== '' && preg_match('/^(Processing|Available)\s+/i', $dispatchTiming);
 
-    if ($isPickup) {
+    if ($hasStorePauseTiming) {
+        if ($primary !== '') {
+            $summaryParts[] = $primary;
+        }
+        $summaryParts[] = $dispatchTiming;
+    } elseif ($isPickup) {
         if ($dispatchDateLabel !== '') {
             $summaryParts[] = 'Available '.$dispatchDateLabel;
         } elseif ($primary !== '') {
