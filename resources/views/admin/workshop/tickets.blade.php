@@ -130,7 +130,15 @@
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
                         <div>
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Invoice</div>
-                            <div class="mt-1 text-sm text-gray-700">{{ $invoice?->invoice_number ?? '-' }}</div>
+                            <div class="mt-1 text-sm text-gray-700 text-left">
+                                @if($invoice)
+                                    <a href="{{ route('admin.invoice.edit', $invoice) }}" class="block text-left font-normal text-primary-color hover:underline">
+                                        {{ $invoice->invoice_number }}
+                                    </a>
+                                @else
+                                    --
+                                @endif
+                            </div>
                         </div>
                         <div>
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</div>
@@ -232,7 +240,15 @@
                     </td>
                     <td>{{ $statusText }}</td>
                     @if($showInvoiceColumn ?? false)
-                    <td>{{ $invoice?->invoice_number ?? '-' }}</td>
+                    <td class="text-center">
+                        @if($invoice)
+                            <a href="{{ route('admin.invoice.edit', $invoice) }}" class="block text-center font-normal text-primary-color hover:underline">
+                                {{ $invoice->invoice_number }}
+                            </a>
+                        @else
+                            -
+                        @endif
+                    </td>
                     @endif
                     <td>
                         <div class="flex justify-center items-center gap-3">

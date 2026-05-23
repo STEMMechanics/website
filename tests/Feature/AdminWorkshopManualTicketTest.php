@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\TicketOrderConfirmation;
+use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\User;
@@ -119,6 +120,27 @@ class AdminWorkshopManualTicketTest extends TestCase
         $response->assertSee('x-on:click.prevent="createTicketOpen = true"', false);
         $response->assertSee('Email ticket to this email address');
         $response->assertSee('Email customer about this cancellation');
+    }
+
+    public function test_admin_workshop_ticket_screen_links_invoiced_tickets_to_the_invoice_edit_page(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop();
+        $invoice = Invoice::factory()->create([
+            'status' => Invoice::STATUS_ISSUED,
+        ]);
+
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'invoice_id' => $invoice->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.invoice.edit', $invoice), false);
+        $response->assertSee($invoice->invoice_number);
     }
 
     public function test_admin_can_create_reserved_ticket_with_invoice_from_workshop_ticket_screen(): void

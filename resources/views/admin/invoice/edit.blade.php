@@ -138,42 +138,47 @@
             this.invoiceEmailModalOpen = false;
             this.invoiceEmailHelpOpen = false;
         },
-    }"
+        }"
 >
         @isset($invoice)
-            <div class="flex justify-end mb-4 gap-2">
-                @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
-                    <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                    <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})">Email Invoice</x-ui.button>
-                    <x-admin.invoice-email-modal />
-                    <x-ui.button
-                        type="button"
-                        color="secondary"
-                        x-data
-                        x-on:click.prevent="
-                            fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Accept': 'application/json'
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (!data || !data.url) {
-                                    throw new Error('Unable to generate payment link.');
-                                }
-                                SM.copyToClipboard(data.url);
-                                SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                            })
-                            .catch((error) => {
-                                SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                            });
-                        "
-                    >Copy Payment Link</x-ui.button>
-                    <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}">Record Payment</x-ui.button>
-                @endif
-            </div>
+            @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
+                <x-ui.toolbar break="md" class="mb-4">
+                    <x-slot:right>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                            <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
+                            <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
+                            <x-admin.invoice-email-modal />
+                            <x-ui.button
+                                type="button"
+                                color="secondary"
+                                x-data
+                                x-on:click.prevent="
+                                    fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'Accept': 'application/json'
+                                        }
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (!data || !data.url) {
+                                            throw new Error('Unable to generate payment link.');
+                                        }
+                                        SM.copyToClipboard(data.url);
+                                        SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                    })
+                                    .catch((error) => {
+                                        SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                    });
+                                "
+                                class="w-full sm:w-auto"
+                            >Copy Payment Link</x-ui.button>
+                            <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                        </div>
+                    </x-slot:right>
+                </x-ui.toolbar>
+            @endif
             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
             <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
                 <div class="flex flex-wrap gap-6 text-sm">
@@ -195,8 +200,58 @@
                     @if($invoicePaymentRows->isEmpty())
                         <div class="text-sm text-gray-500">No payments allocated to this invoice yet.</div>
                     @else
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                        <div class="space-y-3 md:hidden">
+                            @foreach($invoicePaymentRows as $row)
+                                @php
+                                    $payment = $row['payment'];
+                                    $refunds = $row['refunds'];
+                                @endphp
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-semibold text-gray-900">{{ $payment?->id ? '#'.$payment->id : '-' }}</div>
+                                            <div class="mt-0.5 text-xs text-gray-600">{{ $payment?->payment_method ? \App\Models\Payment::paymentMethodLabel((string) $payment->payment_method) : '-' }}</div>
+                                        </div>
+                                        <div class="text-right text-sm font-semibold text-gray-900">${{ number_format((float) $row['allocated_amount'], 2) }}</div>
+                                    </div>
+                                    <div class="mt-3 grid gap-2 text-xs text-gray-600">
+                                        <div><span class="font-semibold text-gray-500">Date:</span> {{ $payment?->received_on?->format('M j, Y g:i a') ?? $payment?->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                        <div><span class="font-semibold text-gray-500">Method:</span> {{ $payment?->payment_method ? \App\Models\Payment::paymentMethodLabel((string) $payment->payment_method) : '-' }}</div>
+                                        <div><span class="font-semibold text-gray-500">Invoice effect:</span> ${{ number_format((float) $row['allocated_amount'], 2) }}</div>
+                                    </div>
+                                    <div class="mt-3 flex items-center gap-3">
+                                        @if($payment)
+                                            <a href="{{ route('admin.payment.edit', $payment) }}" class="text-sm text-primary-color hover:underline" title="Open payment">Open payment</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $payment]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View receipt">Receipt</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $payment, 'download' => 1]) }}" class="text-sm text-primary-color hover:underline" title="Download receipt">Download</a>
+                                        @endif
+                                    </div>
+                                </div>
+                                @foreach($refunds as $refund)
+                                    <div class="ml-4 rounded-lg border border-gray-200 bg-white p-3">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-900">#{{ $refund->id }}</div>
+                                                <div class="mt-0.5 text-xs text-gray-600">Refund for #{{ $payment?->id ?? '-' }}</div>
+                                            </div>
+                                            <div class="text-right text-sm font-semibold text-gray-900">-${{ number_format((float) $refund->total_amount, 2) }}</div>
+                                        </div>
+                                        <div class="mt-3 grid gap-2 text-xs text-gray-600">
+                                            <div><span class="font-semibold text-gray-500">Date:</span> {{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                            <div><span class="font-semibold text-gray-500">Method:</span> {{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</div>
+                                            <div><span class="font-semibold text-gray-500">Type:</span> Refund</div>
+                                        </div>
+                                        <div class="mt-3 flex items-center gap-3">
+                                            <a href="{{ route('admin.payment.edit', $refund) }}" class="text-sm text-primary-color hover:underline" title="Open refund record">Open refund</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $refund]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View refund receipt">Receipt</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="text-sm text-primary-color hover:underline" title="Download refund receipt">Download</a>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            @endforeach
+                        </div>
+                        <div class="hidden md:block overflow-x-auto">
+                            <table class="w-full min-w-[52rem] text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200">
                                         <th class="text-left py-2 pr-3">Date</th>
@@ -255,17 +310,17 @@
                     @endif
                 </div>
                 <div class="mt-6" id="tax-adjustments">
-                    <div class="flex items-center justify-between mb-2">
+                    <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 class="font-semibold">Tax Adjustment Notes</h3>
                         @if($isLocked)
-                            <x-ui.button color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}">Create Tax Adjustment Note</x-ui.button>
+                            <x-ui.button color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}" class="w-full sm:w-auto">Create Tax Adjustment Note</x-ui.button>
                         @endif
                     </div>
                     @if($invoiceAdjustments->isEmpty())
                         <div class="text-sm text-gray-500">No tax adjustment notes linked to this invoice yet.</div>
                     @else
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                            <table class="w-full min-w-[42rem] text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200">
                                         <th class="text-left py-2 pr-3">Document #</th>
@@ -743,10 +798,10 @@
             </div>
 
             <div class="border rounded-lg p-4 mb-4" x-init="serializeLineItems()">
-                <div class="flex justify-between items-center mb-3">
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h3 class="font-bold text-lg">Line Items</h3>
                     @if(! $isLocked)
-                        <button type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem()">Add Item</button>
+                        <button type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white w-full whitespace-nowrap text-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition sm:w-auto" x-on:click.prevent="addLineItem()">Add Item</button>
                     @endif
                 </div>
 
@@ -755,11 +810,11 @@
                 </template>
 
                 <template x-for="(item, index) in lineItems" :key="index">
-                    <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-6 items-start">
-                        <div class="col-span-2">
-                            <label class="block text-sm pl-1" :for="`line_item_kind_${index}`">Type</label>
-                            <x-ui.select
-                                name="line_item_kind"
+                        <div class="grid grid-cols-1 gap-3 mb-4 border-b border-gray-300 pb-6 items-start md:grid-cols-12">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm pl-1" :for="`line_item_kind_${index}`">Type</label>
+                                <x-ui.select
+                                    name="line_item_kind"
                                 noLabel="true"
                                 class="mb-0"
                                 innerClass="mt-1"
@@ -770,29 +825,30 @@
                                 <option value="generic">Generic</option>
                                 <option value="product">Product</option>
                                 <option value="ticket">Ticket</option>
-                            </x-ui.select>
-                        </div>
-                        <div class="col-span-3">
-                            <label class="block text-sm pl-1">Description</label>
-                            <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm pl-1">Qty / Hrs</label>
-                            <input type="number" step="any" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
-                        </div>
-                        <div class="col-span-3">
-                            <label class="block text-sm pl-1">Unit Price (Ex GST)</label>
-                            <input type="number" step="0.01" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" />
-                            <div class="mt-1 text-xs text-gray-600">
-                                Total (Ex GST): $<span x-text="lineTotalExFormatted(item)"></span>
+                                </x-ui.select>
                             </div>
-                        </div>
-                        <div class="col-span-1">
-                            <label class="block text-sm pl-1">GST</label>
+                            <div class="md:col-span-3">
+                                <label class="block text-sm pl-1">Description</label>
+                                <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm pl-1">Qty / Hrs</label>
+                                <input type="number" step="any" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
+                            </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-sm pl-1">Unit Price (Ex GST)</label>
+                            <div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                <div class="min-w-0 flex-1">
+                                    <input type="number" step="0.01" class="disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" />
+                                    <div class="mt-1 text-xs text-gray-600">
+                                        Total (Ex GST): $<span x-text="lineTotalExFormatted(item)"></span>
+                                    </div>
+                                </div>
                                 <x-ui.checkbox
-                                    class="h-12 w-12 flex"
+                                    class="shrink-0"
                                     inputClass="mt-0"
-                                    :labelHidden="true"
+                                    :label="'GST applies'"
+                                    :inline="true"
                                     :noWrapper="true"
                                     :disabled="$isLocked"
                                     x-model="item.gst_applicable"
@@ -800,15 +856,16 @@
                                     x-bind:id="'line_item_gst_' + index"
                                     x-on:change="serializeLineItems()"
                                 />
+                            </div>
                         </div>
-                        <div class="col-span-1">
+                        <div class="md:col-span-1">
                             @if(! $isLocked)
                                 <button type="button" class="text-red-600 hover:text-red-700 h-[42px]" x-on:click.prevent="removeLineItem(index)">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             @endif
                         </div>
-                        <div class="col-span-12">
+                        <div class="md:col-span-12">
                             <label class="block text-sm pl-1">Line Item Notes</label>
                             <textarea rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></textarea>
                         </div>

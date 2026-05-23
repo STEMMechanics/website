@@ -81,7 +81,9 @@
                                     : $workshopRawPrice;
                             }
                             $attendee = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
-                            $invoiceNumber = (string) ($ticket->invoice?->invoice_number ?? '-');
+                            $invoice = $ticket->invoice;
+                            $invoiceNumber = (string) ($invoice?->invoice_number ?? '-');
+                            $invoiceUrl = $invoice ? route('admin.invoice.edit', $invoice) : null;
                             $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                             $isInactiveStatus = in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true);
                             $hasSquarePayment = $ticket->invoice
@@ -123,14 +125,30 @@
                                     <div class="text-xs text-gray-600">Purchased: {{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                                 @endif
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $attendee }} · {{ $ticket->email ?: '-' }}</div>
-                                <div class="lg:hidden text-xs text-gray-600">{{ $invoiceNumber !== '-' ? 'Invoice #'.$invoiceNumber : '-' }}</div>
+                                <div class="lg:hidden text-xs text-gray-600">
+                                    @if($invoiceUrl)
+                                        <a href="{{ $invoiceUrl }}" class="text-primary-color hover:underline">
+                                            {{ $invoiceNumber }}
+                                        </a>
+                                    @else
+                                        --
+                                    @endif
+                                </div>
                             </td>
                             <td class="hidden md:table-cell">
                                 <div>{{ $attendee }}</div>
                                 <div class="text-xs text-gray-600">{{ $ticket->email ?: '-' }}</div>
                             </td>
                             <td class="hidden lg:table-cell">{{ $statusText }}</td>
-                            <td class="hidden lg:table-cell">{{ $invoiceNumber !== '-' ? 'Invoice #'.$invoiceNumber : '-' }}</td>
+                            <td class="hidden lg:table-cell text-center">
+                                @if($invoiceUrl)
+                                    <a href="{{ $invoiceUrl }}" class="text-primary-color hover:underline">
+                                        {{ $invoiceNumber }}
+                                    </a>
+                                @else
+                                    --
+                                @endif
+                            </td>
                             <td class="hidden md:table-cell">{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
                             <td>
                                 <div class="flex justify-center items-center gap-3 whitespace-nowrap">
