@@ -1114,6 +1114,13 @@ class MediaController extends Controller
             'Content-Disposition' => ($download ? 'attachment; ' : '') . 'filename="' . $name . '"',
         ];
 
+        if (Helpers::isApacheXSendfileAvailable()) {
+            $headers['X-Sendfile'] = $file;
+            $headers['Content-Length'] = (string) filesize($file);
+
+            return response('', 200, $headers);
+        }
+
         return response()->file($file, $headers);
     }
 

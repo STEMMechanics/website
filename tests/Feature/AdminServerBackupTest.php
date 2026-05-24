@@ -103,6 +103,7 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('Node Version')
             ->assertSee('npm Version')
             ->assertSee('Composer Version')
+            ->assertSee('Media Downloads via X-Sendfile')
             ->assertSee('Backups &amp; Downloads', false)
             ->assertDontSee('Database Backup')
             ->assertDontSee('Bulk File Download');

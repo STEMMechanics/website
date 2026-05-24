@@ -3,6 +3,7 @@
 namespace App;
 
 use DateTime;
+use App\Models\SiteOption;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -26,10 +27,23 @@ class Helpers
     public static function roleUploadCap(?User $user = null): int
     {
         if ($user?->isAdmin()) {
-            return 512 * 1024 * 1024;
+            return PHP_INT_MAX;
         }
 
-        return 25 * 1024 * 1024;
+        return SiteOption::intValue('media.upload.non-admin-max-bytes', 25 * 1024 * 1024);
+    }
+
+    public static function isApacheXSendfileAvailable(): bool
+    {
+        if (! config('media.use_x_sendfile', false)) {
+            return false;
+        }
+
+        if (! function_exists('apache_get_modules')) {
+            return true;
+        }
+
+        return in_array('xsendfile_module', apache_get_modules(), true);
     }
     public static function stringToBytes(string $val): int
     {

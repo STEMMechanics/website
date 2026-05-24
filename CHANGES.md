@@ -8,6 +8,7 @@
 - UI Improvements
 - Manual refund for credit
 - Bugfix for private file settings
+- Support xsendfile and max public upload size
 
 ## 1.4.5
 

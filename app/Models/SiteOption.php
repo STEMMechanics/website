@@ -20,6 +20,11 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'Optional notice bar shown across the site.',
             ],
+            'media.upload.non-admin-max-bytes' => [
+                'value' => (string) (25 * 1024 * 1024),
+                'description' => 'Maximum upload size in bytes for non-admin media uploads. Admin accounts are not limited by this site option.',
+                'input_type' => 'number',
+            ],
             'backup.database.keep' => [
                 'value' => '168',
                 'description' => 'Number of database backup files to retain when database:backup runs without an explicit --keep value.',
@@ -315,5 +320,12 @@ class SiteOption extends Model
         $raw = trim((string) (static::value($name, static::defaultValue($name) ?? $fallback) ?? $fallback));
 
         return in_array(strtolower($raw), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    public static function intValue(string $name, int $default = 0): int
+    {
+        $raw = trim((string) (static::value($name, static::defaultValue($name) ?? (string) $default) ?? $default));
+
+        return is_numeric($raw) ? (int) $raw : $default;
     }
 }

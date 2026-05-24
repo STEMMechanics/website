@@ -192,6 +192,10 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 
+        if ($optionName === 'media.upload.non-admin-max-bytes') {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:1099511627776'];
+        }
+
         if (in_array($optionName, [
             'backup.database.keep',
             'backup.files.keep',
