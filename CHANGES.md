@@ -1,5 +1,9 @@
 # Changes
 
+## Current
+
+- Added trustProxies
+
 ## 1.4.5
 
 - Improved UI
