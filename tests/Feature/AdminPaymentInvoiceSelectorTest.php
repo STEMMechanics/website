@@ -192,6 +192,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
 
         $response->assertOk();
         $response->assertSee(route('admin.invoice.edit', $invoice), false);
+        $response->assertSee(route('admin.user.edit', $customer), false);
         $response->assertSee('Invoice #INV-500001', false);
     }
 

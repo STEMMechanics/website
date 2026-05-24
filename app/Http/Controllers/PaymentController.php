@@ -992,14 +992,6 @@ class PaymentController extends Controller
 
     public function refundManual(Request $request, Payment $payment): RedirectResponse
     {
-        if ($this->isCreditGrantPayment($payment)) {
-            session()->flash('message', 'Credit payments are not refundable.');
-            session()->flash('message-title', 'Refund blocked');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->back();
-        }
-
         if ($this->isSquareManagedPayment($payment)) {
             session()->flash('message', 'This payment is managed by Square. Use the Square refund action.');
             session()->flash('message-title', 'Refund blocked');
@@ -1009,7 +1001,7 @@ class PaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'amount' => [($request->boolean('strict_amount') ? 'required' : 'nullable'), 'numeric', 'min:0.01'],
             'payment_method' => ['required', Rule::in([
                 Payment::PAYMENT_METHOD_CASH,
                 Payment::PAYMENT_METHOD_BANK_TRANSFER,

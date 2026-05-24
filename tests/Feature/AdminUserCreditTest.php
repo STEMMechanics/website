@@ -47,28 +47,53 @@ class AdminUserCreditTest extends TestCase
         $payment = Payment::factory()->create([
             'user_id' => $user->id,
             'created_by' => $admin->id,
-            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
             'total_amount' => 20.00,
             'gst_amount' => 0,
-            'gateway_provider' => 'square',
-            'square_payment_id' => 'sq-test-123',
-            'square_paid_money_amount' => 2000,
-            'square_refunded_money_amount' => 0,
-        ]);
-
-        InvoicePaymentAllocation::factory()->create([
-            'payment_id' => $payment->id,
-            'invoice_id' => $invoice->id,
-            'allocated_amount' => 5.00,
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.user.edit', $user));
 
         $response->assertOk();
         $response->assertSee('Account Credit');
-        $response->assertSee('$15.00');
-        $response->assertSee('Card-refundable');
+        $response->assertSee('$20.00');
+        $response->assertSee('Create refund');
+        $response->assertSee('Refund Amount', false);
+        $response->assertSee('Refund Method');
+        $response->assertSee('This user currently has $20.00 in account credit', false);
+        $response->assertSee('value="20.00"', false);
         $response->assertSee('Payments');
+    }
+
+    public function test_admin_user_edit_page_shows_create_refund_for_refundable_non_credit_payment(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Refundable',
+            'surname' => 'Customer',
+            'email' => 'refundable-customer@example.com',
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'gateway_provider' => 'square',
+            'square_payment_id' => 'sq-test-789',
+            'square_paid_money_amount' => 2750,
+            'square_refunded_money_amount' => 0,
+            'reference' => 'Refundable square payment',
+            'total_amount' => 27.50,
+            'gst_amount' => 0,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.user.edit', $user));
+
+        $response->assertOk();
+        $response->assertSee('Account Credit');
+        $response->assertSee('$27.50');
+        $response->assertSee('Create refund');
+        $response->assertSee(route('admin.payment.edit', $payment), false);
     }
 
     public function test_admin_can_set_account_terms_on_a_user(): void
@@ -165,6 +190,148 @@ class AdminUserCreditTest extends TestCase
         $response->assertSee(route('admin.invoice.edit', $invoice), false);
         $response->assertSee('#'.$order->order_number);
         $response->assertDontSee('Store order 1004');
+    }
+
+    public function test_admin_can_create_refund_from_account_credit_on_the_user_payments_page(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Customer',
+            'email' => 'credit-customer@example.com',
+        ]);
+
+        $creditPayment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
+            'reference' => 'Account credit grant',
+            'total_amount' => 27.50,
+            'gst_amount' => 0,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.user.payments', $user));
+
+        $response->assertOk();
+        $response->assertSee('Create refund', false);
+        $response->assertSee('Available credit', false);
+        $response->assertSee('$27.50');
+
+        $postResponse = $this->actingAs($admin)->post(route('admin.payment.refund.manual', $creditPayment), [
+            'amount' => '27.50',
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->format('Y-m-d\TH:i'),
+            'reference' => 'Bank transfer payout 123',
+            'reason' => 'Customer requested payout',
+        ]);
+
+        $postResponse->assertRedirect();
+
+        $creditPayment->refresh();
+        $this->assertSame(1, (int) $creditPayment->refunds()->count());
+        $this->assertSame(0.0, (float) app(\App\Services\AccountCreditService::class)->availableCreditForUser($user));
+
+        $refundPayment = Payment::query()
+            ->where('refund_of_payment_id', $creditPayment->id)
+            ->where('kind', Payment::KIND_REFUND)
+            ->where('payment_method', Payment::PAYMENT_METHOD_BANK_TRANSFER)
+            ->first();
+        $this->assertNotNull($refundPayment);
+        $this->assertSame(27.50, (float) $refundPayment->total_amount);
+        $this->assertSame('Bank transfer payout 123', (string) $refundPayment->reference);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($user): bool {
+            return $job->to === $user->email
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->isRefund === true;
+        });
+    }
+
+    public function test_admin_can_create_partial_refund_from_the_user_page_modal(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Customer',
+            'email' => 'credit-modal@example.com',
+        ]);
+
+        $creditPayment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
+            'reference' => 'Account credit grant',
+            'total_amount' => 27.50,
+            'gst_amount' => 0,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.user.edit', $user));
+
+        $response->assertOk();
+        $response->assertSee('Create refund', false);
+        $response->assertSee('Refund Amount', false);
+
+        $postResponse = $this->actingAs($admin)->post(route('admin.payment.refund.manual', $creditPayment), [
+            'amount' => '10.00',
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->format('Y-m-d\TH:i'),
+            'reference' => 'Bank transfer payout 456',
+            'reason' => 'Partial refund requested',
+        ]);
+
+        $postResponse->assertRedirect();
+
+        $creditPayment->refresh();
+        $this->assertSame(1, (int) $creditPayment->refunds()->count());
+        $this->assertSame(17.50, (float) app(\App\Services\AccountCreditService::class)->availableCreditForUser($user));
+
+        $refundPayment = Payment::query()
+            ->where('refund_of_payment_id', $creditPayment->id)
+            ->where('kind', Payment::KIND_REFUND)
+            ->where('payment_method', Payment::PAYMENT_METHOD_BANK_TRANSFER)
+            ->first();
+        $this->assertNotNull($refundPayment);
+        $this->assertSame(10.00, (float) $refundPayment->total_amount);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($user): bool {
+            return $job->to === $user->email
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->isRefund === true;
+        });
+    }
+
+    public function test_admin_cannot_submit_blank_refund_amount_from_user_page_modal(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Customer',
+            'email' => 'credit-blank@example.com',
+        ]);
+
+        $creditPayment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
+            'reference' => 'Account credit grant',
+            'total_amount' => 27.50,
+            'gst_amount' => 0,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.refund.manual', $creditPayment), [
+            'amount' => '',
+            'strict_amount' => 1,
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->format('Y-m-d\TH:i'),
+            'reference' => 'Bank transfer payout 789',
+            'reason' => 'Blank amount should fail',
+        ]);
+
+        $response->assertSessionHasErrors('amount');
     }
 
     public function test_admin_user_finance_page_explains_payment_reallocation_across_cancelled_tickets(): void

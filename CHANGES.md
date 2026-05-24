@@ -6,6 +6,7 @@
 - Change Navbar colour on dev sites
 - Updated cancellation email template
 - UI Improvements
+- Manual refund for credit
 
 ## 1.4.5
 

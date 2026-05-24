@@ -185,11 +185,15 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $accountCredit = $this->accountCreditForUser($user);
+        $refundPayment = $this->refundPaymentForUser($user);
+        $refundPaymentAvailableAmount = $refundPayment ? $this->refundAvailableAmountForPayment($refundPayment) : 0.0;
 
         return view('admin.user.edit', [
             'user' => $user->load('groups'),
             'accountCredit' => $accountCredit,
             'cardRefundableCredit' => $this->cardRefundableCreditForUser($user),
+            'refundPayment' => $refundPayment,
+            'refundPaymentAvailableAmount' => $refundPaymentAvailableAmount,
             'groupSuggestions' => $this->groupSuggestions(),
         ]);
     }
@@ -526,6 +530,36 @@ class UserController extends Controller
         return (float) $creditPayments->sum(function (Payment $payment): float {
             return $this->refundableSquareAmountForPayment($payment);
         });
+    }
+
+    private function refundPaymentForUser(User $user): ?Payment
+    {
+        return Payment::query()
+            ->where('user_id', $user->id)
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->orderByRaw('CASE WHEN payment_method = ? THEN 0 ELSE 1 END', [Payment::PAYMENT_METHOD_CREDIT])
+            ->orderByDesc('received_on')
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(function (Payment $payment): bool {
+                $total = (float) $payment->total_amount;
+                $allocated = (float) ($payment->allocated_amount_sum ?? 0);
+                $refunded = (float) ($payment->refunded_amount_sum ?? 0);
+
+                return max(0, round($total - $allocated - $refunded, 2)) > 0.0001;
+            });
+    }
+
+    private function refundAvailableAmountForPayment(Payment $payment): float
+    {
+        $total = max(0, round((float) $payment->total_amount, 2));
+        $allocated = (float) ($payment->allocated_amount_sum ?? 0);
+        $refunded = (float) ($payment->refunded_amount_sum ?? 0);
+
+        return max(0, round($total - $allocated - $refunded, 2));
     }
 
     private function refundableSquareAmountForPayment(Payment $payment): float

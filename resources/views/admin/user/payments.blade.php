@@ -40,6 +40,9 @@
                             $unallocated = max(0, round(((float) $payment->total_amount) - $allocated - (float) $payment->refunds->sum('total_amount'), 2));
                             $squareRefundable = max(0, round((float) ($payment->card_refundable_amount ?? 0), 2));
                             $isRefundableSquare = $squareRefundable > 0.0001;
+                            $isCreditGrant = (string) ($payment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_CREDIT;
+                            $creditCashOutAmount = $isCreditGrant ? $unallocated : 0.0;
+                            $canCashOutCredit = $isCreditGrant && $creditCashOutAmount > 0.0001;
                             $reference = trim((string) ($payment->reference ?? ''));
                             $linkedInvoiceContexts = collect($payment->linked_invoice_contexts ?? []);
                         @endphp
@@ -105,13 +108,13 @@
                                         <span>{{ money((float) $allocated) }}</span>
                                     </div>
                                     <div class="flex items-center justify-between gap-3">
-                                        <span>Refundable by card</span>
-                                        <span>{{ money($squareRefundable) }}</span>
+                                        <span>{{ $isCreditGrant ? 'Available credit' : 'Refundable by card' }}</span>
+                                        <span>{{ money($isCreditGrant ? $creditCashOutAmount : $squareRefundable) }}</span>
                                     </div>
                                 </div>
                             </td>
-                            <td class="align-top">
-                                <div class="flex flex-wrap items-center gap-2">
+                    <td class="align-top">
+                                <div x-data="{ createRefundOpen: false, isSubmitting: false }" class="flex flex-wrap items-center gap-2">
                                     <a href="{{ route('admin.payment.edit', $payment) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open payment">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                         <span class="sr-only">Open payment</span>
@@ -132,6 +135,70 @@
                                             <input type="hidden" name="reason" value="Account credit refund">
                                             <button type="submit" class="inline-flex items-center rounded-md border border-red-600 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white">Refund {{ money($squareRefundable) }}</button>
                                         </form>
+                                    @endif
+                                    @if($canCashOutCredit)
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center rounded-md border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                                            x-on:click="createRefundOpen = true"
+                                        >
+                                            Create refund
+                                        </button>
+                                        <template x-teleport="body">
+                                            <div
+                                                x-show="createRefundOpen"
+                                                x-cloak
+                                                x-on:keydown.escape.window="createRefundOpen = false"
+                                                class="fixed inset-0 z-220 flex items-center justify-center p-4"
+                                                role="dialog"
+                                                aria-modal="true"
+                                            >
+                                                <div class="absolute inset-0 bg-black/40" x-on:click="createRefundOpen = false"></div>
+                                                <div class="relative w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+                                                    <div class="mb-4 flex items-start justify-between gap-4">
+                                                        <div>
+                                                            <h3 class="text-lg font-semibold text-gray-950">Create refund</h3>
+                                                            <p class="text-sm text-gray-600">Record a refund payment against this account credit balance.</p>
+                                                        </div>
+                                                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createRefundOpen = false">
+                                                            <i class="fa-solid fa-xmark"></i>
+                                                        </button>
+                                                    </div>
+
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('admin.payment.refund.manual', $payment) }}"
+                                                        class="space-y-4"
+                                                        x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();"
+                                                    >
+                                                        @csrf
+                                                        <x-ui.input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            label="Refund Amount (optional)"
+                                                            name="amount"
+                                                            value=""
+                                                            info="Leave blank to refund the remaining account credit."
+                                                            :moneyFormat="true"
+                                                        />
+                                                        <x-ui.select label="Payout Method" name="payment_method">
+                                                            <option value="" disabled {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === '' ? 'selected' : '' }}>Select payout method</option>
+                                                            <option value="{{ \App\Models\Payment::PAYMENT_METHOD_CASH }}" {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === \App\Models\Payment::PAYMENT_METHOD_CASH ? 'selected' : '' }}>Cash</option>
+                                                            <option value="{{ \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER }}" {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER ? 'selected' : '' }}>Bank Transfer</option>
+                                                        </x-ui.select>
+                                                        <x-ui.input type="datetime-local" label="Payout Date/Time" name="received_on" value="{{ now()->format('Y-m-d\TH:i') }}" />
+                                                        <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
+                                                        <x-ui.input label="Reason (optional)" name="reason" value="" />
+
+                                                        <div class="flex justify-end gap-3 pt-1">
+                                                            <x-ui.button type="button" color="secondary" x-on:click="createRefundOpen = false">Cancel</x-ui.button>
+                                                            <x-ui.button type="submit" color="dark" x-bind:disabled="isSubmitting">Create refund</x-ui.button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </template>
                                     @endif
                                 </div>
                             </td>

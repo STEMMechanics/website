@@ -66,6 +66,9 @@
     ], true)
         ? (string) $customerPayment->payment_method
         : '';
+    if ($isCreditGrant && $manualRefundDefaultMethod === '') {
+        $manualRefundDefaultMethod = \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER;
+    }
     $highlightRefundId = (int) request()->query('highlight_refund', 0);
 
     if ($savedAllocations === null) {
@@ -782,11 +785,7 @@
 
         @if(isset($customerPayment) && ! $isRefundRecord)
             <div class="mt-4">
-                @if($isCreditGrant)
-                    <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
-                        This payment method is Credit and is not refundable.
-                    </div>
-                @elseif($isSquareManaged)
+                @if($isSquareManaged)
                     @if($squareRemainingCents <= 0 || $displayRemainingRefundableAmount <= 0)
                         <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
                             Square refund is unavailable because there are no unallocated funds available to refund.
@@ -813,7 +812,7 @@
                 @else
                     @if($displayRemainingRefundableAmount <= 0)
                         <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
-                            Manual refund is unavailable because there are no unallocated funds available to refund.
+                            {{ $isCreditGrant ? 'Refund is unavailable because there are no unallocated funds available to refund.' : 'Manual refund is unavailable because there are no unallocated funds available to refund.' }}
                         </div>
                     @else
                         <form method="POST"
@@ -822,19 +821,28 @@
                               x-data="{ isSubmitting: false }"
                               x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();">
                             @csrf
-                            <h3 class="font-bold text-lg mb-3">Record Manual Refund</h3>
-                            <x-ui.input type="number" step="0.01" min="0.01" label="Refund Amount (optional)" name="amount" value="" info="Leave blank to refund remaining amount. Refunds unallocated credit only and does not alter invoices." :moneyFormat="true" />
-                            <x-ui.select label="Refund Method" name="payment_method">
+                            <h3 class="font-bold text-lg mb-3">{{ $isCreditGrant ? 'Create refund' : 'Record Manual Refund' }}</h3>
+                            <x-ui.input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                label="{{ $isCreditGrant ? 'Refund Amount (optional)' : 'Refund Amount (optional)' }}"
+                                name="amount"
+                                value=""
+                                info="{{ $isCreditGrant ? 'Leave blank to refund the remaining account credit. This records a refund payment against the customer account.' : 'Leave blank to refund remaining amount. Refunds unallocated credit only and does not alter invoices.' }}"
+                                :moneyFormat="true"
+                            />
+                            <x-ui.select label="{{ $isCreditGrant ? 'Refund Method' : 'Refund Method' }}" name="payment_method">
                                 <option value="" disabled {{ old('payment_method', $manualRefundDefaultMethod) === '' ? 'selected' : '' }}>Select refund method</option>
                                 <option value="{{ \App\Models\Payment::PAYMENT_METHOD_CASH }}" {{ old('payment_method', $manualRefundDefaultMethod) === \App\Models\Payment::PAYMENT_METHOD_CASH ? 'selected' : '' }}>Cash</option>
                                 <option value="{{ \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER }}" {{ old('payment_method', $manualRefundDefaultMethod) === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER ? 'selected' : '' }}>Bank Transfer</option>
                             </x-ui.select>
-                            <x-ui.input type="datetime-local" label="Refund Date/Time" name="received_on" value="{{ old('received_on', now()->format('Y-m-d\TH:i')) }}" />
+                            <x-ui.input type="datetime-local" label="{{ $isCreditGrant ? 'Refund Date/Time' : 'Refund Date/Time' }}" name="received_on" value="{{ old('received_on', now()->format('Y-m-d\TH:i')) }}" />
                             <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
                             <x-ui.input label="Reason (optional)" name="reason" value="" />
                             <div class="mt-4 text-right">
                                 <x-ui.button type="submit" color="dark" x-bind:disabled="isSubmitting">
-                                    <span x-show="!isSubmitting">Record Refund</span>
+                                    <span x-show="!isSubmitting">{{ $isCreditGrant ? 'Create refund' : 'Record Refund' }}</span>
                                     <span x-show="isSubmitting" x-cloak>Processing...</span>
                                 </x-ui.button>
                             </div>

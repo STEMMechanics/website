@@ -97,7 +97,15 @@
                             <div class="min-w-0">
                                 <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">#{{ $customerPayment->id }}</a>
                                 <div class="mt-1 text-xs text-gray-600">{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                                <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
+                                <div class="text-xs text-gray-600">
+                                    @if($customerPayment->user)
+                                        <a href="{{ route('admin.user.edit', $customerPayment->user) }}" class="hover:text-primary-color hover:underline">
+                                            {{ $customerPayment->user->getName() }}
+                                        </a>
+                                    @else
+                                        -
+                                    @endif
+                                </div>
                             </div>
                             <div class="text-right">
                                 <div class="font-semibold text-gray-950">{{ money((float) $customerPayment->total_amount) }}</div>
@@ -155,7 +163,15 @@
                                 <div class="min-w-0">
                                     <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">↳ #{{ $refund->id }}</a>
                                     <div class="mt-1 text-xs text-gray-600">{{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                                    <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">
+                                        @if($refund->user)
+                                            <a href="{{ route('admin.user.edit', $refund->user) }}" class="hover:text-primary-color hover:underline">
+                                                {{ $refund->user->getName() }}
+                                            </a>
+                                        @else
+                                            -
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="text-right">
                                     <div class="font-semibold text-gray-950">{{ money(-((float) $refund->total_amount)) }}</div>
@@ -222,7 +238,15 @@
                                 </td>
                                 <td class="">
                                     <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                                    <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">
+                                        @if($customerPayment->user)
+                                            <a href="{{ route('admin.user.edit', $customerPayment->user) }}" class="hover:text-primary-color hover:underline">
+                                                {{ $customerPayment->user->getName() }}
+                                            </a>
+                                        @else
+                                            -
+                                        @endif
+                                    </div>
                                     <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
                                     <div class="mt-1 md:hidden">
                                         <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
@@ -298,7 +322,15 @@
                                     </td>
                                     <td>
                                         <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                                        <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">
+                                        @if($refund->user)
+                                            <a href="{{ route('admin.user.edit', $refund->user) }}" class="hover:text-primary-color hover:underline">
+                                                {{ $refund->user->getName() }}
+                                            </a>
+                                        @else
+                                            -
+                                        @endif
+                                    </div>
                                         <div class="text-xs text-gray-600 md:hidden">Refund</div>
                                     </td>
                                     <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>

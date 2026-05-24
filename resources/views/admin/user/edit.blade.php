@@ -20,15 +20,85 @@
         @endphp
 
         @if($accountCredit > 0.0001)
-            <div class="absolute right-4 mb-6 rounded-b-lg border border-emerald-200 bg-emerald-50 py-2 px-4 text-emerald-950">
+            <div
+                class="absolute right-4 mb-6 rounded-b-lg border border-emerald-200 bg-emerald-50 py-2 px-4 text-emerald-950"
+                x-data="{ createRefundOpen: false, isSubmitting: false }"
+            >
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Account Credit</div>
                     <div class="font-semibold">{{ money($accountCredit) }}</div>
                     @if($cardRefundableCredit > 0.0001)
                         <div class="text-xs text-emerald-800">Card-refundable: {{ money($cardRefundableCredit) }}</div>
                     @endif
+                    @if(isset($refundPayment))
+                        <x-ui.button color="primary-outline-sm" type="button" x-on:click="createRefundOpen = true">Create refund</x-ui.button>
+                    @endif
                     <x-ui.button color="primary-outline-sm" href="{{ route('admin.user.payments', $user) }}">Payments</x-ui.button>
                 </div>
+
+                @if(isset($refundPayment))
+                    <template x-teleport="body">
+                        <div
+                            x-show="createRefundOpen"
+                            x-cloak
+                            x-on:keydown.escape.window="createRefundOpen = false"
+                            class="fixed inset-0 z-220 flex items-center justify-center p-4"
+                            role="dialog"
+                            aria-modal="true"
+                        >
+                            <div class="absolute inset-0 bg-black/40" x-on:click="createRefundOpen = false"></div>
+                            <div class="relative w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+                                <div class="mb-4 flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-950">Create refund</h3>
+                                        <p class="text-sm text-gray-600">
+                                            Record a refund payment against the available account credit.
+                                            This user currently has {{ money($accountCredit) }} in account credit, and {{ money($refundPaymentAvailableAmount) }} is available to refund from this payment.
+                                        </p>
+                                    </div>
+                                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createRefundOpen = false">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('admin.payment.refund.manual', $refundPayment) }}"
+                                    class="space-y-4"
+                                    x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();"
+                                >
+                                    @csrf
+                                    <x-ui.input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        max="{{ number_format($refundPaymentAvailableAmount, 2, '.', '') }}"
+                                        required
+                                        label="Refund Amount"
+                                        name="amount"
+                                        value="{{ number_format($refundPaymentAvailableAmount, 2, '.', '') }}"
+                                        info="Enter an amount up to {{ money($refundPaymentAvailableAmount) }}."
+                                        :moneyFormat="true"
+                                    />
+                                    <input type="hidden" name="strict_amount" value="1">
+                                    <x-ui.select label="Refund Method" name="payment_method">
+                                        <option value="" disabled {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === '' ? 'selected' : '' }}>Select refund method</option>
+                                        <option value="{{ \App\Models\Payment::PAYMENT_METHOD_CASH }}" {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === \App\Models\Payment::PAYMENT_METHOD_CASH ? 'selected' : '' }}>Cash</option>
+                                        <option value="{{ \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER }}" {{ old('payment_method', \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER ? 'selected' : '' }}>Bank Transfer</option>
+                                    </x-ui.select>
+                                    <x-ui.input type="datetime-local" label="Refund Date/Time" name="received_on" value="{{ now()->format('Y-m-d\TH:i') }}" />
+                                    <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
+                                    <x-ui.input label="Reason (optional)" name="reason" value="" />
+
+                                    <div class="flex justify-end gap-3 pt-1">
+                                        <x-ui.button type="button" color="secondary" x-on:click="createRefundOpen = false">Cancel</x-ui.button>
+                                        <x-ui.button type="submit" color="dark" x-bind:disabled="isSubmitting">Create refund</x-ui.button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+                @endif
             </div>
         @endif
 
