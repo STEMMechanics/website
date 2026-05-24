@@ -7,7 +7,7 @@
 <x-layout>
     <x-mast backRoute="admin.user.edit" :backRouteParams="['user' => $user]" backTitle="User">Payments</x-mast>
 
-    <x-container>
+    <x-container class="mt-4">
         <div class="mb-6 grid gap-4 md:grid-cols-3">
             <div class="rounded-lg border border-gray-200 bg-white p-4">
                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Account Credit</div>
