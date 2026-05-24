@@ -1,5 +1,14 @@
 <div x-data="shopNavbarController(window.shopNavbarConfig || {})">
-<nav class="relative z-120 isolate shadow bg-white">
+@php
+    $isTestSite = request()->getHost() === 'test.stemmechanics.com.au';
+    $navClass = $isTestSite
+        ? 'relative z-120 isolate border-b border-purple-300 shadow bg-purple-50'
+        : 'relative z-120 isolate shadow bg-white';
+    $navStyle = $isTestSite
+        ? 'background-image: repeating-linear-gradient(45deg, rgba(126, 34, 206, 0.08) 0 10px, rgba(255, 255, 255, 0.05) 10px 20px);'
+        : '';
+@endphp
+<nav class="{{ $navClass }}" @if($navStyle !== '') style="{{ $navStyle }}" @endif>
     @php
         $navUser = auth()->user();
         \App\Models\Quote::expireOpenQuotes();
