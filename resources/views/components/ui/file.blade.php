@@ -48,7 +48,7 @@
                             <i class="fa-solid fa-circle-notch animate-spin"></i>
                             <span id="{{ $stateTextId }}">Uploading...</span>
                         </span>
-                        <div id="{{ $stateDetailId }}" class="mt-1 text-[11px] text-gray-500"></div>
+                        <div id="{{ $stateDetailId }}" class="mt-1 text-[11px] font-mono tabular-nums whitespace-nowrap text-gray-500"></div>
                         <div class="mt-2 h-2 w-56 overflow-hidden rounded bg-gray-200">
                             <div id="{{ $stateProgressBarId }}" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>
                         </div>
@@ -227,19 +227,19 @@
                 const stateText = document.getElementById(@js($stateTextId));
                 const stateDetail = document.getElementById(@js($stateDetailId));
 
-                if (stateElement) {
-                    stateElement.classList.remove('hidden');
-                }
-                if (progressBar) {
-                    progressBar.style.width = '0%';
-                }
-                if (stateText) {
-                    stateText.textContent = 'Uploading...';
-                }
-                if (stateDetail) {
-                    stateDetail.textContent = '';
-                }
-            },
+        if (stateElement) {
+            stateElement.classList.remove('hidden');
+        }
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
+        if (stateText) {
+            stateText.textContent = 'Uploading... 0%';
+        }
+        if (stateDetail) {
+            stateDetail.textContent = '';
+        }
+    },
             onProgress: ({ percent, loaded, total }) => {
                 const progress = Math.max(0, Math.min(100, Number(percent) || 0));
                 const progressBar = document.getElementById(@js($stateProgressBarId));
@@ -247,25 +247,39 @@
                 const stateDetail = document.getElementById(@js($stateDetailId));
                 const loadedBytes = Number.isFinite(Number(loaded)) ? Number(loaded) : null;
                 const totalBytes = Number.isFinite(Number(total)) ? Number(total) : null;
-                const bytesToString = (bytes) => {
-                    if (window.SM && typeof window.SM.bytesToString === 'function') {
-                        return window.SM.bytesToString(bytes);
+                const bytesToCompactString = (bytes) => {
+                    const numericBytes = Number(bytes);
+                    if (!Number.isFinite(numericBytes) || numericBytes < 0) {
+                        return '0.0B';
                     }
 
-                    return `${Math.round(Number(bytes) / 1024)} KB`;
+                    const units = [
+                        { threshold: 1024 * 1024 * 1024 * 1024, suffix: 'TB', decimals: 2 },
+                        { threshold: 1024 * 1024 * 1024, suffix: 'GB', decimals: 2 },
+                        { threshold: 1024 * 1024, suffix: 'MB', decimals: 1 },
+                        { threshold: 1024, suffix: 'KB', decimals: 1 },
+                    ];
+
+                    for (const unit of units) {
+                        if (numericBytes >= unit.threshold) {
+                            return `${(numericBytes / unit.threshold).toFixed(unit.decimals)}${unit.suffix}`;
+                        }
+                    }
+
+                    return `${numericBytes.toFixed(1)}B`;
                 };
 
                 if (progressBar) {
                     progressBar.style.width = `${progress}%`;
                 }
                 if (stateText) {
-                    stateText.textContent = 'Uploading...';
+                    stateText.textContent = `Uploading... ${Math.round(progress)}%`;
                 }
                 if (stateDetail) {
                     if (loadedBytes !== null && totalBytes !== null && totalBytes > 0) {
-                        stateDetail.textContent = `${bytesToString(loadedBytes)} of ${bytesToString(totalBytes)}`;
+                        stateDetail.textContent = `${bytesToCompactString(loadedBytes)} of ${bytesToCompactString(totalBytes)}`;
                     } else if (loadedBytes !== null) {
-                        stateDetail.textContent = `${bytesToString(loadedBytes)} uploaded`;
+                        stateDetail.textContent = `${bytesToCompactString(loadedBytes)} uploaded`;
                     } else {
                         stateDetail.textContent = '';
                     }
