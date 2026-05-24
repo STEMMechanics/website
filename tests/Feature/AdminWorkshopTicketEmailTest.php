@@ -171,8 +171,18 @@ class AdminWorkshopTicketEmailTest extends TestCase
         $ticket->refresh();
         $this->assertSame(Ticket::STATUS_CANCELLED, (int) $ticket->status);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            return $job->to === 'cancelme@example.com'
-                && $job->mailable instanceof TicketCancelledNotice;
+            if ($job->to !== 'cancelme@example.com' || ! $job->mailable instanceof TicketCancelledNotice) {
+                return false;
+            }
+
+            $this->assertSame("We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details.", $job->mailable->introLine);
+
+            $rendered = html_entity_decode(strip_tags($job->mailable->render()));
+            $this->assertStringContainsString('Refund and credit guidance', $rendered);
+            $this->assertStringContainsString('If you paid online by card', $rendered);
+            $this->assertStringContainsString('If you paid by bank transfer or paid at the door', $rendered);
+
+            return true;
         });
     }
 

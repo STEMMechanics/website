@@ -939,7 +939,9 @@ class WorkshopController extends Controller
                     'ticket_ids' => $activeTicketIds,
                     'process_square_refund' => 1,
                     'email_customer' => 1,
-                    'reason' => $workshopCancelReason !== '' ? $workshopCancelReason : 'The workshop has been cancelled.',
+                    'reason' => $workshopCancelReason !== ''
+                        ? $workshopCancelReason
+                        : "We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details.",
                 ]);
                 $bulkRequest->setLaravelSession($request->session());
                 $bulkRequest->setUserResolver(fn () => $request->user());

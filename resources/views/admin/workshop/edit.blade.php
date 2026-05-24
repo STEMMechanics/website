@@ -76,6 +76,7 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
             ticketHolderNotificationCount: @js((int) ($ticketChangeNotificationRecipientCount ?? 0)),
             notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
             ticketChangeEmailNotes: @js((string) old('ticket_change_email_notes', '')),
+            workshopCancelReasonDefault: @js("We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details."),
             workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
             hasCustomPickList: @js($hasCustomPickList),
             originalPickListTemplateId: @js((string) ($workshop->pick_list_template_id ?? '')),
@@ -218,7 +219,7 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
             },
             openCancelWorkshopModal() {
             if (!String(this.workshopCancelReason || '').trim()) {
-                this.workshopCancelReason = 'The workshop has been cancelled.';
+                this.workshopCancelReason = this.workshopCancelReasonDefault;
             }
 
             this.cancelWorkshopOpen = true;

@@ -1758,7 +1758,9 @@ class TicketController extends Controller
     {
         $reason = trim((string) $request->input('reason', ''));
 
-        return $reason !== '' ? $reason : 'The following ticket has been cancelled.';
+        return $reason !== ''
+            ? $reason
+            : "We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details.";
     }
 
     private function resolveTicketsAccessTokenEmail(Request $request): string

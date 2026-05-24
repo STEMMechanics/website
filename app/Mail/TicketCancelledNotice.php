@@ -40,7 +40,7 @@ class TicketCancelledNotice extends Mailable
         string $financialSummary,
         array $attachments = [],
         string $documentSummary = '',
-        string $introLine = 'The following ticket has been cancelled.'
+        string $introLine = "We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details."
     ) {
         $this->recipientName = $recipientName;
         $this->ticketReference = $ticketReference;
@@ -49,7 +49,9 @@ class TicketCancelledNotice extends Mailable
         $this->workshopLocation = $workshopLocation;
         $this->financialSummary = $financialSummary;
         $this->documentSummary = trim($documentSummary);
-        $this->introLine = trim($introLine) !== '' ? trim($introLine) : 'The following ticket has been cancelled.';
+        $this->introLine = trim($introLine) !== ''
+            ? trim($introLine)
+            : "We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details.";
         $this->attachmentsPayload = collect($attachments)->map(function ($attachment): array {
             $content = (string) ($attachment['content'] ?? '');
 

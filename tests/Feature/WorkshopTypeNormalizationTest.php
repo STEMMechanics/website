@@ -93,6 +93,21 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertSee('Existing workshop summary', false);
     }
 
+    public function test_admin_workshop_edit_prefills_cancellation_message_with_generic_copy(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'tickets');
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('Please see below for your refund or credit details.', false);
+    }
+
     public function test_admin_workshop_edit_can_reset_a_custom_pick_list_back_to_the_template(): void
     {
         $admin = $this->createAdminUser();

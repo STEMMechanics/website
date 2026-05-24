@@ -4,6 +4,7 @@
 
 - Added trustProxies
 - Change Navbar colour on dev sites
+- Updated cancellation email template
 
 ## 1.4.5
 
