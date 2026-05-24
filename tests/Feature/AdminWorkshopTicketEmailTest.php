@@ -179,8 +179,8 @@ class AdminWorkshopTicketEmailTest extends TestCase
 
             $rendered = html_entity_decode(strip_tags($job->mailable->render()));
             $this->assertStringContainsString('Refund and credit guidance', $rendered);
-            $this->assertStringContainsString('If you paid online by card', $rendered);
-            $this->assertStringContainsString('If you paid by bank transfer or paid at the door', $rendered);
+            $this->assertStringContainsString('If you paid online by credit card', $rendered);
+            $this->assertStringContainsString('If you paid by bank transfer', $rendered);
 
             return true;
         });
