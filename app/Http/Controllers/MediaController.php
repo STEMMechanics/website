@@ -340,7 +340,7 @@ class MediaController extends Controller
             $ownerId = '';
         }
 
-        $password = trim((string) $request->input('password', ''));
+        $password = trim((string) $this->mediaPasswordInput($request));
         $passwordHash = null;
         if ($password !== '') {
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
@@ -474,10 +474,10 @@ class MediaController extends Controller
         if ($request->boolean('password_clear')) {
             $mediaData['password'] = null;
         } else {
-            $password = $request->get('password');
+            $password = $this->mediaPasswordInput($request);
 
             if($password !== null && $password !== '') {
-                $mediaData['password'] = password_hash($request->get('password'), PASSWORD_DEFAULT);
+                $mediaData['password'] = password_hash($password, PASSWORD_DEFAULT);
             } else {
                 unset($mediaData['password']);
             }
@@ -1058,11 +1058,11 @@ class MediaController extends Controller
         }
 
         if($media->password !== null && !Auth::user()?->isAdmin()) {
-            if(!$request->has('password')) {
+            $password = $this->mediaPasswordInput($request);
+
+            if($password === null) {
                 return view('media-password');
             } else {
-                $password = $request->get('password');
-
                 if($password === '' || $password === null) {
                     return view('media-password', [
                         'error' => 'Password is required',
@@ -1206,6 +1206,16 @@ class MediaController extends Controller
     private function canDeleteMedia(Media $media): bool
     {
         return ! Auth::user()?->isAdmin() && $this->ownsMedia($media);
+    }
+
+    private function mediaPasswordInput(Request $request): ?string
+    {
+        $value = $request->input('password_password');
+        if ($value === null) {
+            $value = $request->input('password');
+        }
+
+        return is_string($value) ? trim($value) : null;
     }
 
     private function mediaOwners()

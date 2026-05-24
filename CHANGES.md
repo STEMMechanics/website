@@ -12,6 +12,7 @@
 - Fix drag-drop on file ui control
 - Fix password not saved on creating files
 - Fix zip last processing error
+- Fix password processing error
 
 ## 1.4.5
 

@@ -75,13 +75,42 @@ class AdminMediaUploadTest extends TestCase
         $this->actingAs($admin)
             ->postJson(route('admin.media.store'), [
                 'title' => 'Protected Archive',
-                'password' => 'secret1234',
+                'password_password' => 'secret1234',
                 'file' => $file,
             ])
             ->assertOk()
             ->assertJsonPath('name', 'protected-archive.zip');
 
         $media = Media::query()->findOrFail('protected-archive.zip');
+
+        $this->assertNotNull($media->password);
+        $this->assertTrue(Hash::check('secret1234', (string) $media->password));
+    }
+
+    public function test_admin_media_update_persists_password_from_form_field_name(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $media = Media::query()->create([
+            'name' => 'update-archive.zip',
+            'title' => 'Update Archive',
+            'hash' => str_repeat('d', 64),
+            'mime_type' => 'application/zip',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+
+        Storage::disk('media')->put($media->hash, 'zip-bytes');
+
+        $this->actingAs($admin)
+            ->put(route('admin.media.update', $media), [
+                'title' => 'Update Archive',
+                'password_password' => 'secret1234',
+            ])
+            ->assertRedirect(route('admin.media.index'));
+
+        $media->refresh();
 
         $this->assertNotNull($media->password);
         $this->assertTrue(Hash::check('secret1234', (string) $media->password));
