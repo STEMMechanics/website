@@ -134,6 +134,7 @@ class AdminWorkshopManualTicketTest extends TestCase
             'workshop_id' => $workshop->id,
             'status' => Ticket::STATUS_PAID,
             'invoice_id' => $invoice->id,
+            'phone' => '0400 123 456',
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop));
@@ -141,6 +142,7 @@ class AdminWorkshopManualTicketTest extends TestCase
         $response->assertOk();
         $response->assertSee(route('admin.invoice.edit', $invoice), false);
         $response->assertSee($invoice->invoice_number);
+        $response->assertSee('0400 123 456');
     }
 
     public function test_admin_can_create_reserved_ticket_with_invoice_from_workshop_ticket_screen(): void

@@ -116,6 +116,7 @@
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $isInactiveStatus = in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true);
                 $attendeeName = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
+                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? '')) ?: '-';
                 @endphp
                 <section class="rounded-2xl border p-4 shadow-sm {{ $isInactiveStatus ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white' }}">
                     <div class="flex items-start justify-between gap-3">
@@ -123,6 +124,7 @@
                             <div class="text-sm font-semibold text-gray-900">{{ $ticket->reference_code ?: $ticket->id }}</div>
                             <div class="mt-1 text-sm text-gray-700">{{ $attendeeName }}</div>
                             <div class="text-xs text-gray-500 break-all">{{ $ticket->email ?: '-' }}</div>
+                            <div class="text-xs text-gray-500">{{ $attendeeMobile }}</div>
                         </div>
                         <x-ui.badge color="gray">{{ $statusText }}</x-ui.badge>
                     </div>
@@ -141,8 +143,8 @@
                             </div>
                         </div>
                         <div>
-                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</div>
-                            <div class="mt-1 text-sm text-gray-700">{{ $ticket->phone ?: '-' }}</div>
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Mobile</div>
+                            <div class="mt-1 text-sm text-gray-700">{{ $attendeeMobile }}</div>
                         </div>
                     </div>
 
@@ -231,12 +233,14 @@
                 : false;
                 $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
+                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? '')) ?: '-';
                 @endphp
                 <tr style="{{ in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true) ? 'background-color: rgb(254 226 226);' : '' }}">
                     <td>{{ $ticket->reference_code ?: $ticket->id }}</td>
                     <td>
                         <div>{{ trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-' }}</div>
                         <div class="text-xs text-gray-500">{{ $ticket->email ?: '-' }}</div>
+                        <div class="text-xs text-gray-500">{{ $attendeeMobile }}</div>
                     </td>
                     <td>{{ $statusText }}</td>
                     @if($showInvoiceColumn ?? false)
