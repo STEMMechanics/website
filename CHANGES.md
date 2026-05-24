@@ -3,6 +3,7 @@
 ## Current
 
 - Added trustProxies
+- Change Navbar colour on dev sites
 
 ## 1.4.5
 
