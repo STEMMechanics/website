@@ -1058,29 +1058,44 @@ class MediaController extends Controller
         }
 
         if($media->password !== null && !Auth::user()?->isAdmin()) {
-            $password = $this->mediaPasswordInput($request);
-
-            if($password === null) {
-                return view('media-password');
+            if ($this->mediaDownloadUnlocked($media)) {
+                // already unlocked for this session
             } else {
-                if($password === '' || $password === null) {
+                $password = $this->mediaPasswordInput($request);
+
+                if($password === null) {
+                    $this->rememberMediaDownloadIntendedUrl($request, $media);
+
                     return view('media-password', [
+                        'media' => $media,
+                    ]);
+                }
+
+                if($password === '' || $password === null) {
+                    $this->rememberMediaDownloadIntendedUrl($request, $media);
+
+                    return view('media-password', [
+                        'media' => $media,
                         'error' => 'Password is required',
                     ]);
                 }
 
-                $isValid = password_verify($password, $media->password);
-                if(!$isValid) {
-                    $decodedPassword = base64_decode((string) $password, true);
-                    if(is_string($decodedPassword) && $decodedPassword !== '' && $decodedPassword !== $password) {
-                        $isValid = password_verify($decodedPassword, $media->password);
-                    }
-                }
+                if(! $this->mediaPasswordMatches($password, $media)) {
+                    $this->rememberMediaDownloadIntendedUrl($request, $media);
 
-                if(! $isValid) {
                     return view('media-password', [
+                        'media' => $media,
                         'error' => 'Password is incorrect',
                     ]);
+                }
+
+                $this->unlockMediaDownload($media);
+
+                if ($request->hasAny(['password_password', 'password'])) {
+                    return redirect()->to($request->fullUrlWithoutQuery([
+                        'password_password',
+                        'password',
+                    ]));
                 }
             }
         }
@@ -1129,6 +1144,39 @@ class MediaController extends Controller
         }
 
         return response()->file($file, $headers);
+    }
+
+    public function unlock(Request $request, Media $media)
+    {
+        $this->authorizeMediaAccess($media);
+
+        $file = $media->path();
+        if($file === null) {
+            abort(404, 'File not found');
+        }
+
+        if ($media->password === null || Auth::user()?->isAdmin()) {
+            return redirect()->to($this->mediaDownloadIntendedUrl($media));
+        }
+
+        $password = trim((string) $request->input('password', ''));
+        if($password === '') {
+            return view('media-password', [
+                'media' => $media,
+                'error' => 'Password is required',
+            ]);
+        }
+
+        if(! $this->mediaPasswordMatches($password, $media)) {
+            return view('media-password', [
+                'media' => $media,
+                'error' => 'Password is incorrect',
+            ]);
+        }
+
+        $this->unlockMediaDownload($media);
+
+        return redirect()->to($this->mediaDownloadIntendedUrl($media));
     }
 
     private function publicMediaPayload(Media $media): array
@@ -1210,12 +1258,63 @@ class MediaController extends Controller
 
     private function mediaPasswordInput(Request $request): ?string
     {
-        $value = $request->input('password_password');
+        $value = $request->input('password');
         if ($value === null) {
-            $value = $request->input('password');
+            $value = $request->input('password_password');
         }
 
         return is_string($value) ? trim($value) : null;
+    }
+
+    private function mediaPasswordMatches(string $password, Media $media): bool
+    {
+        $isValid = password_verify($password, $media->password);
+        if(! $isValid) {
+            $decodedPassword = base64_decode($password, true);
+            if(is_string($decodedPassword) && $decodedPassword !== '' && $decodedPassword !== $password) {
+                $isValid = password_verify($decodedPassword, $media->password);
+            }
+        }
+
+        return $isValid;
+    }
+
+    private function mediaDownloadUnlocked(Media $media): bool
+    {
+        return (bool) session()->get($this->mediaDownloadUnlockSessionKey($media), false);
+    }
+
+    private function unlockMediaDownload(Media $media): void
+    {
+        session()->put($this->mediaDownloadUnlockSessionKey($media), true);
+    }
+
+    private function rememberMediaDownloadIntendedUrl(Request $request, Media $media): void
+    {
+        session()->put($this->mediaDownloadIntendedUrlSessionKey($media), $request->fullUrlWithoutQuery([
+            'password_password',
+            'password',
+        ]));
+    }
+
+    private function mediaDownloadIntendedUrl(Media $media): string
+    {
+        $url = session()->pull($this->mediaDownloadIntendedUrlSessionKey($media), null);
+        if (is_string($url) && $url !== '') {
+            return $url;
+        }
+
+        return route('media.download', $media);
+    }
+
+    private function mediaDownloadUnlockSessionKey(Media $media): string
+    {
+        return 'media.download.unlocked.' . $media->getKey() . '.' . sha1((string) ($media->password ?? ''));
+    }
+
+    private function mediaDownloadIntendedUrlSessionKey(Media $media): string
+    {
+        return 'media.download.intended.' . $media->getKey();
     }
 
     private function mediaOwners()

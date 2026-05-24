@@ -283,6 +283,7 @@ Route::get('/privacy', function () {
 Route::get('/media', [MediaController::class, 'index'])->name('media.index');
 Route::get('/media/{media}', [MediaController::class, 'show'])->name('media.show');
 Route::get('/media/download/{media}', [MediaController::class, 'download'])->name('media.download');
+Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
