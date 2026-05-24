@@ -9,6 +9,9 @@
 - Manual refund for credit
 - Bugfix for private file settings
 - Support xsendfile and max public upload size
+- Fix drag-drop on file ui control
+- Fix password not saved on creating files
+- Fix zip last processing error
 
 ## 1.4.5
 

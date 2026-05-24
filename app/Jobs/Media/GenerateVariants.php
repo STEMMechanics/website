@@ -83,7 +83,6 @@ class GenerateVariants implements ShouldQueue
 
             $variantData = $media->getVariantTypes($matchingMimeType);
             if (count($variantData) === 0) {
-                $processingError = 'No variant configuration found for MIME type: '.((string) $media->mime_type);
                 return;
             }
 

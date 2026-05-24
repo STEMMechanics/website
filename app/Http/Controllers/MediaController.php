@@ -340,13 +340,20 @@ class MediaController extends Controller
             $ownerId = '';
         }
 
+        $password = trim((string) $request->input('password', ''));
+        $passwordHash = null;
+        if ($password !== '') {
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        }
+
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
             'user_id' => $ownerId !== '' ? $ownerId : auth()->id(),
             'name' => $fileName,
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
-            'hash' => $hash
+            'hash' => $hash,
+            'password' => $passwordHash,
         ]);
 
         if(!$exists) {
@@ -464,7 +471,7 @@ class MediaController extends Controller
 //            $mediaData['hash'] = $hash;
 //        }
 
-        if($request->get('password_clear') === 'on') {
+        if ($request->boolean('password_clear')) {
             $mediaData['password'] = null;
         } else {
             $password = $request->get('password');

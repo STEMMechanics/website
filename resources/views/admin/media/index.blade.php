@@ -19,7 +19,7 @@
                 <a href="{{ $allMediaRoute }}" class="ml-2 text-primary-color hover:underline">Show all media</a>
             </div>
         @endif
-        <div class="mb-4 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
+        <div class="my-4 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <div class="text-base font-semibold text-gray-900">Quick upload</div>
