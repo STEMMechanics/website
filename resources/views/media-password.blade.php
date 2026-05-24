@@ -40,7 +40,7 @@
     function submit() {
         const password = document.querySelector('input[name="password"]').value;
         const url = new URL(window.location.href);
-        url.searchParams.set('password', btoa(password));
+        url.searchParams.set('password', password);
         window.location.href = url.href;
 
         window.setTimeout(() => {

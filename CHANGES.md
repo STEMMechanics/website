@@ -7,6 +7,7 @@
 - Updated cancellation email template
 - UI Improvements
 - Manual refund for credit
+- Bugfix for private file settings
 
 ## 1.4.5
 

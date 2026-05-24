@@ -1062,7 +1062,15 @@ class MediaController extends Controller
                     ]);
                 }
 
-                if(!password_verify(base64_decode($password), $media->password)) {
+                $isValid = password_verify($password, $media->password);
+                if(!$isValid) {
+                    $decodedPassword = base64_decode((string) $password, true);
+                    if(is_string($decodedPassword) && $decodedPassword !== '' && $decodedPassword !== $password) {
+                        $isValid = password_verify($decodedPassword, $media->password);
+                    }
+                }
+
+                if(! $isValid) {
                     return view('media-password', [
                         'error' => 'Password is incorrect',
                     ]);
