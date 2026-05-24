@@ -1071,7 +1071,7 @@ class MediaController extends Controller
                     ]);
                 }
 
-                if($password === '' || $password === null) {
+                if($password === '') {
                     $this->rememberMediaDownloadIntendedUrl($request, $media);
 
                     return view('media-password', [
