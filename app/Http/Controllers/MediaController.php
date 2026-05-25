@@ -1176,7 +1176,11 @@ class MediaController extends Controller
 
         $this->unlockMediaDownload($media);
 
-        return redirect()->to($this->mediaDownloadIntendedUrl($media));
+        return view('media-download-started', [
+            'media' => $media,
+            'downloadUrl' => $this->mediaDownloadIntendedUrl($media),
+            'backUrl' => route('media.download', $media),
+        ]);
     }
 
     private function publicMediaPayload(Media $media): array

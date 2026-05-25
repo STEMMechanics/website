@@ -39,7 +39,10 @@ class MediaPasswordAccessTest extends TestCase
             'password' => 'secret1234',
         ]);
 
-        $unlock->assertRedirect(route('media.download', $media));
+        $unlock
+            ->assertOk()
+            ->assertSee('Your download is starting...')
+            ->assertSee('Download Now');
 
         $this->get(route('media.download', $media))
             ->assertOk();

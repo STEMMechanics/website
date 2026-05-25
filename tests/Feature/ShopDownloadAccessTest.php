@@ -85,8 +85,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your download is starting')
-            ->assertSee('click here to download it now');
+            ->assertSee('Your Download Is Starting')
+            ->assertSee('Download Now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,
@@ -183,8 +183,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your download is starting')
-            ->assertSee('click here to download it now');
+            ->assertSee('Your Download Is Starting')
+            ->assertSee('Download Now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,
@@ -275,8 +275,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your download is starting')
-            ->assertSee('click here to download it now');
+            ->assertSee('Your Download Is Starting')
+            ->assertSee('Download Now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,
