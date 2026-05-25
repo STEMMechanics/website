@@ -2,7 +2,17 @@
     $defaultBulkEmailSubject = 'A message about the '.trim((string) ($workshop->title ?? 'workshop'));
     $createTicketModalOpen = old('manual_ticket_type') !== null || $errors->has('manual_ticket_type');
     $bulkEmailModalOpen = $errors->has('email_subject') || $errors->has('email_message');
+    $smsModalOpen = old('sms_message') !== null || $errors->has('sms_message') || $errors->has('sms_recipient_ids');
     $emailTicketChecked = in_array((string) old('email_ticket', '1'), ['1', 'on', 'true'], true);
+    $smsSelectedRecipientIds = collect(old('sms_recipient_ids', $smsDefaultRecipientIds ?? []))
+        ->map(fn ($id) => (string) $id)
+        ->filter(fn ($id) => $id !== '')
+        ->values()
+        ->all();
+    $smsButtonEnabled = (bool) ($smsFlowConfigured ?? false) && (int) ($smsRecipientCount ?? 0) > 0;
+    $smsButtonTitle = ! ($smsFlowConfigured ?? false)
+        ? 'SMSFlow is not configured'
+        : ((int) ($smsRecipientCount ?? 0) > 0 ? 'Text ticket contacts' : 'No ticket contacts with mobile numbers are available');
 @endphp
 
 <x-layout>
@@ -38,6 +48,7 @@
                     this.editPhone = '';
                 },
                 bulkEmailOpen: @js($bulkEmailModalOpen),
+                smsOpen: @js($smsModalOpen),
             }"
             data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
             x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
@@ -90,6 +101,16 @@
                 >
                     <i class="fa-regular fa-envelope"></i>
                 </button>
+                <button
+                    type="button"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                    x-on:click.prevent="smsOpen = true"
+                    title="{{ $smsButtonTitle }}"
+                    aria-label="{{ $smsButtonTitle }}"
+                    @disabled(! $smsButtonEnabled)
+                >
+                    <i class="fa-solid fa-comment-sms"></i>
+                </button>
             </div>
             <div class="w-full md:w-auto md:min-w-[18rem]">
                 <x-ui.search name="search" label="Search Tickets" class="w-full" />
@@ -116,7 +137,7 @@
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $isInactiveStatus = in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true);
                 $attendeeName = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
-                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? '')) ?: '-';
+                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? $ticket->user?->phone ?? '')) ?: '-';
                 @endphp
                 <section class="rounded-2xl border p-4 shadow-sm {{ $isInactiveStatus ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white' }}">
                     <div class="flex items-start justify-between gap-3">
@@ -233,7 +254,7 @@
                 : false;
                 $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
-                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? '')) ?: '-';
+                $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? $ticket->user?->phone ?? '')) ?: '-';
                 @endphp
                 <tr style="{{ in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true) ? 'background-color: rgb(254 226 226);' : '' }}">
                     <td>{{ $ticket->reference_code ?: $ticket->id }}</td>
@@ -482,6 +503,91 @@
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div
+            x-show="smsOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-on:keydown.escape.window="smsOpen = false">
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="smsOpen = false"></div>
+            <div class="relative z-10 w-full max-w-3xl rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">Text Ticket Contacts</h3>
+                        <p class="mt-1 text-sm text-gray-600">Only ticket holders with a mobile number are selectable.</p>
+                    </div>
+                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="smsOpen = false">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                @if(($smsRecipientCount ?? 0) === 0)
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        No ticket holders with a mobile number are available for this workshop.
+                    </div>
+                @else
+                <form method="POST" action="{{ route('admin.workshop.tickets.sms', $workshop) }}" class="mt-4 space-y-4">
+                    @csrf
+
+                    <div>
+                        <label class="block text-sm pl-1" for="workshop-sms-message">Message</label>
+                        <textarea
+                            id="workshop-sms-message"
+                            name="sms_message"
+                            rows="6"
+                            class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('sms_message') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                            required>{{ (string) old('sms_message', '') }}</textarea>
+                        @if($errors->has('sms_message'))
+                        <div class="text-xs text-red-600 ml-2 mt-1">{{ $errors->first('sms_message') }}</div>
+                        @endif
+                    </div>
+
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-semibold text-gray-900">Recipients</div>
+                                <div class="mt-1 text-xs text-gray-600">
+                                    Sending to {{ count($smsSelectedRecipientIds) }} {{ count($smsSelectedRecipientIds) === 1 ? 'person' : 'people' }}.
+                                </div>
+                            </div>
+                        </div>
+
+                        @if($errors->has('sms_recipient_ids'))
+                        <div class="mt-2 text-xs text-red-600">{{ $errors->first('sms_recipient_ids') }}</div>
+                        @endif
+
+                        <div class="mt-4 max-h-[28rem] space-y-2 overflow-auto pr-1">
+                            @foreach($smsRecipients as $recipient)
+                                <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 {{ $recipient['can_message'] ? '' : 'opacity-60' }}">
+                                    <input
+                                        type="checkbox"
+                                        name="sms_recipient_ids[]"
+                                        value="{{ $recipient['ticket_id'] }}"
+                                        @checked(in_array((string) $recipient['ticket_id'], $smsSelectedRecipientIds, true))
+                                        @disabled(! $recipient['can_message'])
+                                        class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color" />
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-semibold text-gray-900">{{ $recipient['reference'] }} - {{ $recipient['name'] }}</div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ $recipient['can_message'] ? $recipient['formatted_phone'] : 'No mobile number on file' }}
+                                        </div>
+                                        @if(($recipient['can_message'] ?? false) && count($recipient['ticket_ids'] ?? []) > 1)
+                                            <div class="mt-0.5 text-xs text-gray-500">{{ count($recipient['ticket_ids']) }} tickets share this number</div>
+                                        @endif
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end gap-3">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="smsOpen = false">Cancel</x-ui.button>
+                        <x-ui.button type="submit">Send SMS</x-ui.button>
+                    </div>
+                </form>
+                @endif
             </div>
         </div>
 

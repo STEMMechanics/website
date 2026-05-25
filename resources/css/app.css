@@ -1348,7 +1348,11 @@ body.image-resize-active {
 }
 
 table tr.highlight-row {
-    background: #fef9c3;
+    background: #fffbeb;
+}
+
+.table tr.highlight-row td {
+    background-color: rgb(255 251 235);
 }
 
 @media (max-width: 767px) {

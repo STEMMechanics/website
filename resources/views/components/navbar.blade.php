@@ -58,6 +58,13 @@
                 ->count()
             : 0;
         $overdueInvoiceCount = $isAdmin ? \App\Models\Invoice::overdueCount() : 0;
+        $unacknowledgedSmsReplyCount = $isAdmin
+            ? \App\Models\InboundSms::query()
+                ->where('provider', 'smsflow')
+                ->where('topic', 'sms.incoming')
+                ->whereNull('acknowledged_at')
+                ->count()
+            : 0;
         $adminNavSections = $isAdmin ? [
                 [
                     'title' => 'Store',
@@ -109,6 +116,7 @@
                     ['label' => 'Analytics', 'route' => route('admin.analytics.index'), 'icon' => 'fa-solid fa-chart-line', 'active' => ['admin.analytics.*']],
                     ['label' => 'Audit Log', 'route' => route('admin.server.audit'), 'icon' => 'fa-solid fa-clipboard-list', 'active' => ['admin.server.audit*']],
                     ['label' => 'Sent Emails', 'route' => route('admin.server.sent-emails'), 'icon' => 'fa-solid fa-envelope-circle-check', 'active' => ['admin.server.sent-emails*']],
+                    ['label' => 'Sent SMS', 'route' => route('admin.server.sent-sms'), 'icon' => 'fa-solid fa-comment-sms', 'active' => ['admin.server.sent-sms*'], 'badge' => $unacknowledgedSmsReplyCount],
                     ['label' => 'Orphaned Files', 'route' => route('admin.server.orphans'), 'icon' => 'fa-solid fa-link-slash', 'active' => ['admin.server.orphans*']],
                     ['label' => 'Site Options', 'route' => route('admin.site_option.index'), 'icon' => 'fa-solid fa-sliders', 'active' => ['admin.site_option.*']],
                     ['label' => 'OAuth Clients', 'route' => route('admin.oauth-clients.index'), 'icon' => 'fa-solid fa-key', 'active' => ['admin.oauth-clients.*']],

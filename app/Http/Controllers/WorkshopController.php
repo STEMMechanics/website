@@ -22,6 +22,8 @@ use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
 use App\Services\DocumentNumberService;
 use App\Services\ManualWorkshopTicketEmailService;
+use App\Services\SmsFlowMessageService;
+use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopPickListService;
 use App\Services\WorkshopTicketService;
@@ -1173,7 +1175,14 @@ class WorkshopController extends Controller
     public function admin_tickets(Workshop $workshop, Request $request)
     {
         $bulkEmailRecipientCount = count($this->resolveWorkshopTicketEmailRecipients($workshop));
+        $smsRecipients = $this->resolveWorkshopTicketSmsRecipients($workshop);
+        $smsRecipientCount = count(array_filter($smsRecipients, fn (array $recipient): bool => (bool) $recipient['can_message']));
+        $smsDefaultRecipientIds = array_map(
+            fn (array $recipient): string => (string) $recipient['ticket_id'],
+            array_values(array_filter($smsRecipients, fn (array $recipient): bool => (bool) $recipient['can_message']))
+        );
         $availableTicketCount = app(WorkshopTicketService::class)->availableTickets($workshop);
+        $smsFlowConfigured = app(SmsFlowService::class)->isConfigured();
 
         $activeTicketCount = Ticket::query()
             ->where('workshop_id', $workshop->id)
@@ -1218,6 +1227,10 @@ class WorkshopController extends Controller
             'availableTicketCount' => $availableTicketCount,
             'showInvoiceColumn' => $showInvoiceColumn,
             'bulkEmailRecipientCount' => $bulkEmailRecipientCount,
+            'smsRecipients' => $smsRecipients,
+            'smsRecipientCount' => $smsRecipientCount,
+            'smsDefaultRecipientIds' => $smsDefaultRecipientIds,
+            'smsFlowConfigured' => $smsFlowConfigured,
         ]);
     }
 
@@ -1332,6 +1345,152 @@ class WorkshopController extends Controller
         session()->flash('message', 'Email sent to '.count($recipients).' recipient'.(count($recipients) == 1 ? '' : 's').'.');
         session()->flash('message-title', 'Email queued');
         session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function admin_tickets_sms(
+        Request $request,
+        Workshop $workshop,
+        SmsFlowService $smsFlowService,
+        SmsFlowMessageService $smsFlowMessageService
+    ): RedirectResponse
+    {
+        if (! $smsFlowService->isConfigured()) {
+            session()->flash('message', 'SMSFlow API key is not configured.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $validated = $request->validate([
+            'sms_message' => ['required', 'string', 'max:500'],
+            'sms_recipient_ids' => ['required', 'array', 'min:1'],
+            'sms_recipient_ids.*' => ['required', 'integer'],
+        ]);
+
+        $message = trim((string) ($validated['sms_message'] ?? ''));
+        $selectedRecipientIds = collect($validated['sms_recipient_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($selectedRecipientIds->isEmpty()) {
+            session()->flash('message', 'Select at least one ticket holder to message.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $tickets = Ticket::query()
+            ->with('user')
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('id', $selectedRecipientIds->all())
+            ->where('status', '!=', Ticket::STATUS_HOLD)
+            ->orderBy('reference_code')
+            ->orderBy('id')
+            ->get();
+
+        if ($tickets->isEmpty()) {
+            session()->flash('message', 'No selected ticket holders could be found.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $sendTargets = [];
+        $missingPhones = [];
+
+        foreach ($tickets as $ticket) {
+            $phone = $this->resolveWorkshopTicketSmsPhone($ticket);
+
+            if ($phone === null) {
+                $missingPhones[] = (string) ($ticket->reference_code ?: '#'.$ticket->id);
+                continue;
+            }
+
+            $sendTargets[] = [
+                'ticket_id' => (int) $ticket->id,
+                'reference' => (string) ($ticket->reference_code ?: '#'.$ticket->id),
+                'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: null,
+                'phone' => $phone,
+            ];
+        }
+
+        if ($sendTargets === []) {
+            session()->flash('message', 'None of the selected ticket holders have a mobile number available.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $successfulSends = 0;
+        $failedSends = [];
+        $referenceBase = 'workshop-'.$workshop->id;
+
+        foreach ($sendTargets as $target) {
+            try {
+                $smsFlowMessageService->send(
+                    (string) $target['phone'],
+                    $message,
+                    [
+                        'reference' => $referenceBase.'-ticket-'.$target['ticket_id'],
+                        'origin' => 'admin.workshop.tickets',
+                        'recipient_name' => (string) ($target['name'] ?? ''),
+                        'initiated_by_user_id' => (string) (auth()->id() ?? ''),
+                        'initiated_by_name' => trim((string) (auth()->user()?->getName() ?? '')) ?: null,
+                        'context' => [
+                            'source' => 'admin.workshop.tickets',
+                            'workshop_id' => (int) $workshop->id,
+                            'ticket_id' => (int) $target['ticket_id'],
+                        ],
+                    ]
+                );
+                $successfulSends++;
+            } catch (Throwable $e) {
+                report($e);
+                $failedSends[] = [
+                    'ticket' => (string) $target['reference'],
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        if ($successfulSends === 0) {
+            $errorMessage = 'SMS delivery failed.';
+            if ($failedSends !== []) {
+                $errorMessage .= ' '.implode(' ', array_map(
+                    fn (array $failure): string => $failure['ticket'].': '.$failure['error'],
+                    array_slice($failedSends, 0, 2)
+                ));
+            }
+            if ($missingPhones !== []) {
+                $errorMessage .= ' '.count($missingPhones).' selected ticket holder'.(count($missingPhones) === 1 ? ' was' : 's were').' skipped because no mobile number was available.';
+            }
+
+            session()->flash('message', $errorMessage);
+            session()->flash('message-title', 'SMS failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $messageText = 'SMS sent to '.$successfulSends.' recipient'.($successfulSends === 1 ? '' : 's').'.';
+        if ($missingPhones !== []) {
+            $messageText .= ' '.count($missingPhones).' selected ticket holder'.(count($missingPhones) === 1 ? ' was' : 's were').' skipped because no mobile number was available.';
+        }
+        if ($failedSends !== []) {
+            $messageText .= ' '.count($failedSends).' failed.';
+        }
+
+        session()->flash('message', $messageText);
+        session()->flash('message-title', 'SMS queued');
+        session()->flash('message-type', ($failedSends === [] && $missingPhones === []) ? 'success' : 'warning');
 
         return redirect()->back();
     }
@@ -3482,6 +3641,98 @@ class WorkshopController extends Controller
         }
 
         return array_values($normalized);
+    }
+
+    /**
+     * @return array<int, array{
+     *     ticket_id: int,
+     *     reference: string,
+     *     name: string,
+     *     phone: ?string,
+     *     formatted_phone: string,
+     *     can_message: bool
+     * }>
+     */
+    private function resolveWorkshopTicketSmsRecipients(Workshop $workshop): array
+    {
+        $smsFlowService = app(SmsFlowService::class);
+        $tickets = Ticket::query()
+            ->with('user')
+            ->where('workshop_id', $workshop->id)
+            ->where('status', '!=', Ticket::STATUS_HOLD)
+            ->orderBy('reference_code')
+            ->orderBy('id')
+            ->get();
+
+        $recipients = [];
+
+        foreach ($tickets as $ticket) {
+            $phone = $this->resolveWorkshopTicketSmsPhone($ticket);
+            $name = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? '')));
+            if ($name === '') {
+                $name = 'Ticket #'.(string) ($ticket->reference_code ?: $ticket->id);
+            }
+
+            if ($phone === null) {
+                $recipients[] = [
+                    'recipient_key' => 'ticket-'.$ticket->id,
+                    'ticket_id' => (int) $ticket->id,
+                    'ticket_ids' => [(int) $ticket->id],
+                    'reference' => (string) ($ticket->reference_code ?: $ticket->id),
+                    'name' => $name,
+                    'phone' => null,
+                    'formatted_phone' => '',
+                    'can_message' => false,
+                ];
+
+                continue;
+            }
+
+            $normalizedPhone = null;
+
+            try {
+                $normalizedPhone = $smsFlowService->normalizePhoneNumber($phone);
+            } catch (Throwable) {
+                $normalizedPhone = null;
+            }
+
+            $recipientKey = $normalizedPhone !== null
+                ? 'phone-'.$normalizedPhone
+                : 'phone-'.preg_replace('/\D+/', '', $phone);
+
+            if (isset($recipients[$recipientKey])) {
+                $recipients[$recipientKey]['ticket_ids'][] = (int) $ticket->id;
+                continue;
+            }
+
+            $recipients[$recipientKey] = [
+                'recipient_key' => $recipientKey,
+                'ticket_id' => (int) $ticket->id,
+                'ticket_ids' => [(int) $ticket->id],
+                'reference' => (string) ($ticket->reference_code ?: $ticket->id),
+                'name' => $name,
+                'phone' => $phone,
+                'formatted_phone' => formatPhoneNumber($phone) ?: $phone,
+                'can_message' => true,
+            ];
+        }
+
+        return array_values($recipients);
+    }
+
+    private function resolveWorkshopTicketSmsPhone(Ticket $ticket): ?string
+    {
+        $phone = trim((string) ($ticket->phone ?? ''));
+        if ($phone !== '') {
+            return $phone;
+        }
+
+        $userPhone = trim((string) ($ticket->user->phone ?? ''));
+        if ($userPhone !== '') {
+            return $userPhone;
+        }
+
+        return null;
     }
 
     /**

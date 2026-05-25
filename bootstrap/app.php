@@ -49,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/stemcraft/server',
             'webhooks/minecraft/server',
             'webhooks/livekit',
+            'webhooks/smsflow',
             'unsubscribe/*',
         ]);
     })

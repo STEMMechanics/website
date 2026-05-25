@@ -42,6 +42,13 @@ return [
         'webhook_url' => env('SQUARE_WEBHOOK_URL'),
     ],
 
+    'smsflow' => [
+        'api_key' => env('SMSFLOW_API_KEY'),
+        'base_url' => env('SMSFLOW_BASE_URL', 'https://api.smsflow.com.au/v2'),
+        'from' => env('SMSFLOW_FROM'),
+        'callback_url' => env('SMSFLOW_CALLBACK_URL'),
+    ],
+
     'deploy' => [
         'script_path' => env('DEPLOY_SCRIPT_PATH', '/app/scripts/deploy.sh'),
         'output_log' => env('DEPLOY_OUTPUT_LOG', '/var/tmp/stemmechanics_deploy.log'),

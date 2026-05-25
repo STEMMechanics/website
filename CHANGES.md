@@ -13,6 +13,7 @@
 - Fix password not saved on creating files
 - Fix zip last processing error
 - Fix password processing error
+- Added SMS Gateway support
 
 ## 1.4.5
 

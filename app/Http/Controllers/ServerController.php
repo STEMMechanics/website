@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Helpers;
 use App\Models\AuditLog;
+use App\Models\InboundSms;
 use App\Models\Expense;
 use App\Models\Media;
 use App\Models\Payment;
 use App\Models\SentEmail;
+use App\Models\SentSms;
+use App\Models\User;
 use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
 use App\Services\FileBackupService;
 use App\Services\DatabaseBackupService;
+use App\Services\SmsFlowMessageService;
+use App\Services\SmsFlowService;
 use App\Services\SquareWebhookSyncService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
@@ -806,7 +811,358 @@ class ServerController extends Controller
             SentEmail::STATUS_FAILED,
         ],
     ]);
-}
+    }
+
+    public function admin_sent_sms(Request $request, SmsFlowService $smsFlowService, SmsFlowMessageService $smsFlowMessageService): View
+    {
+        $query = SentSms::query()->with('initiatedBy');
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder->where('id', 'like', '%'.$search.'%')
+                    ->orWhere('recipient', 'like', '%'.$search.'%')
+                    ->orWhere('recipient_name', 'like', '%'.$search.'%')
+                    ->orWhere('message', 'like', '%'.$search.'%')
+                    ->orWhere('reference', 'like', '%'.$search.'%')
+                    ->orWhere('provider_message_id', 'like', '%'.$search.'%')
+                    ->orWhere('origin', 'like', '%'.$search.'%')
+                    ->orWhere('error_message', 'like', '%'.$search.'%')
+                    ->orWhere('initiated_by_name', 'like', '%'.$search.'%');
+            });
+        }
+
+        $status = trim((string) $request->query('status', ''));
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        $balance = null;
+        $balanceError = null;
+        if ($smsFlowService->isConfigured()) {
+            try {
+                $balance = $smsFlowMessageService->accountBalance();
+            } catch (\Throwable $exception) {
+                report($exception);
+                $balanceError = $exception->getMessage();
+            }
+        } else {
+            $balanceError = 'SMSFlow API key is not configured.';
+        }
+
+        $messages = $query
+            ->orderByDesc('created_at')
+            ->paginate(50)
+            ->onEachSide(1);
+
+        $recipientLookup = $this->buildSmsRecipientLookup($smsFlowService);
+        $messages->getCollection()->transform(function (SentSms $sms) use ($recipientLookup, $smsFlowService): SentSms {
+            $recipient = trim((string) $sms->recipient);
+            $normalizedRecipient = null;
+
+            try {
+                $normalizedRecipient = $smsFlowService->normalizePhoneNumber($recipient);
+            } catch (\Throwable) {
+                $normalizedRecipient = null;
+            }
+
+            $recipientPhoneDisplay = trim((string) (formatPhoneNumber($recipient) ?: $recipient));
+            $recipientLookupEntry = $normalizedRecipient !== null ? ($recipientLookup[$normalizedRecipient] ?? null) : null;
+            $recipientDisplayName = trim((string) ($sms->recipient_name ?: ($recipientLookupEntry['name'] ?? '')));
+            $responseStatusLabel = $this->humanReadableSmsResponseStatus(
+                $sms->response_status,
+                (string) $sms->status
+            );
+
+            $sms->setAttribute('recipient_phone_display', $recipientPhoneDisplay !== '' ? $recipientPhoneDisplay : $recipient);
+            $sms->setAttribute('recipient_display_name', $recipientDisplayName !== '' ? $recipientDisplayName : null);
+            $sms->setAttribute('recipient_user_id', $recipientLookupEntry['id'] ?? null);
+            $sms->setAttribute('response_status_label', $responseStatusLabel);
+
+            return $sms;
+        });
+
+        $unacknowledgedReplyCount = InboundSms::query()
+            ->where('provider', 'smsflow')
+            ->where('topic', 'sms.incoming')
+            ->unacknowledged()
+            ->count();
+
+        $replies = InboundSms::query()
+            ->with(['sentSms.initiatedBy', 'acknowledgedBy'])
+            ->where('provider', 'smsflow')
+            ->where('topic', 'sms.incoming')
+            ->orderByDesc('received_at')
+            ->orderByDesc('created_at')
+            ->limit(25)
+            ->get();
+
+        $replies = $replies->map(function (InboundSms $reply) use ($recipientLookup, $smsFlowService): InboundSms {
+            $matchedSms = $reply->sentSms;
+
+            if ($matchedSms instanceof SentSms) {
+                $recipient = trim((string) $matchedSms->recipient);
+                $normalizedRecipient = null;
+
+                try {
+                    $normalizedRecipient = $smsFlowService->normalizePhoneNumber($recipient);
+                } catch (\Throwable) {
+                    $normalizedRecipient = null;
+                }
+
+                $recipientPhoneDisplay = trim((string) (formatPhoneNumber($recipient) ?: $recipient));
+                $recipientLookupEntry = $normalizedRecipient !== null ? ($recipientLookup[$normalizedRecipient] ?? null) : null;
+                $recipientDisplayName = trim((string) ($matchedSms->recipient_name ?: ($recipientLookupEntry['name'] ?? '')));
+
+                $matchedSms->setAttribute('recipient_phone_display', $recipientPhoneDisplay !== '' ? $recipientPhoneDisplay : $recipient);
+                $matchedSms->setAttribute('recipient_display_name', $recipientDisplayName !== '' ? $recipientDisplayName : null);
+                $matchedSms->setAttribute('recipient_user_id', $recipientLookupEntry['id'] ?? null);
+                $matchedSms->setAttribute('sent_at_label', $matchedSms->sent_at?->format('M j, Y g:i a') ?? ($matchedSms->created_at?->format('M j, Y g:i a') ?? '-'));
+            }
+
+            $reply->setAttribute('reply_from_display', formatPhoneNumber((string) $reply->originator) ?: (string) $reply->originator);
+            $reply->setAttribute('is_acknowledged', $reply->acknowledged_at !== null);
+
+            return $reply;
+        });
+
+        $repliesBySentSmsId = $replies
+            ->filter(fn (InboundSms $reply): bool => $reply->sent_sms_id !== null)
+            ->groupBy(fn (InboundSms $reply): string => (string) $reply->sent_sms_id)
+            ->sortByDesc(function ($threadReplies): int {
+                $latestReply = collect($threadReplies)
+                    ->sortByDesc(fn (InboundSms $reply): int => (int) ($reply->received_at->timestamp ?? $reply->created_at->timestamp ?? 0))
+                    ->first();
+
+                return (int) ($latestReply->received_at->timestamp ?? $latestReply->created_at->timestamp ?? 0);
+            });
+
+        $unmatchedReplies = $replies
+            ->filter(fn (InboundSms $reply): bool => $reply->sent_sms_id === null)
+            ->sortByDesc(fn (InboundSms $reply): int => (int) ($reply->received_at->timestamp ?? $reply->created_at->timestamp ?? 0))
+            ->values();
+
+        return view('admin.server.sent-sms', [
+            'messages' => $messages,
+            'replies' => $replies,
+            'repliesBySentSmsId' => $repliesBySentSmsId,
+            'unmatchedReplies' => $unmatchedReplies,
+            'unacknowledgedReplyCount' => $unacknowledgedReplyCount,
+            'statuses' => [
+                SentSms::STATUS_QUEUED,
+                SentSms::STATUS_SENT,
+                SentSms::STATUS_FAILED,
+            ],
+            'balance' => $balance,
+            'balanceError' => $balanceError,
+            'smsFlowConfigured' => $smsFlowService->isConfigured(),
+        ]);
+    }
+
+    public function admin_sent_sms_store(
+        Request $request,
+        SmsFlowService $smsFlowService,
+        SmsFlowMessageService $smsFlowMessageService
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'recipient' => ['required', 'string', 'max:500'],
+            'message' => ['required', 'string', 'max:500'],
+            'reference' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        if (! $smsFlowService->isConfigured()) {
+            session()->flash('message', 'SMSFlow API key is not configured.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        [$recipientList, $invalidRecipients] = $this->parseSmsRecipients(
+            (string) $validated['recipient'],
+            $smsFlowService
+        );
+
+        if ($invalidRecipients !== []) {
+            $message = 'Invalid recipient number'.(count($invalidRecipients) === 1 ? '' : 's').': '.implode(', ', $invalidRecipients).'.';
+            session()->flash('message', $message);
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ($recipientList === []) {
+            session()->flash('message', 'Enter at least one recipient number.');
+            session()->flash('message-title', 'SMS not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $successfulSends = 0;
+        $failedSends = [];
+
+        foreach ($recipientList as $recipient) {
+            try {
+                $smsFlowMessageService->send(
+                    $recipient,
+                    (string) $validated['message'],
+                    [
+                        'origin' => 'admin.server.sent-sms',
+                        'reference' => trim((string) ($validated['reference'] ?? '')) ?: null,
+                        'initiated_by_user_id' => (string) (Auth::id() ?? ''),
+                        'initiated_by_name' => trim((string) ((Auth::user()->firstname ?? '').' '.(Auth::user()->surname ?? ''))) ?: null,
+                        'context' => [
+                            'source' => 'admin.server.sent-sms',
+                        ],
+                    ]
+                );
+                $successfulSends++;
+            } catch (\Throwable $exception) {
+                report($exception);
+                $failedSends[] = [
+                    'recipient' => $recipient,
+                    'error' => $exception->getMessage(),
+                ];
+            }
+        }
+
+        if ($successfulSends === 0) {
+            $errorMessage = 'SMS send failed.';
+            if ($failedSends !== []) {
+                $errorMessage .= ' '.implode(' ', array_map(
+                    fn (array $failure): string => $failure['recipient'].': '.$failure['error'],
+                    array_slice($failedSends, 0, 2)
+                ));
+            }
+
+            session()->flash('message', $errorMessage);
+            session()->flash('message-title', 'SMS failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $message = 'SMS sent to '.$successfulSends.' recipient'.($successfulSends === 1 ? '' : 's').'.';
+        if ($failedSends !== []) {
+            $message .= ' '.count($failedSends).' recipient'.(count($failedSends) === 1 ? ' was' : 's were').' skipped because delivery failed.';
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', $failedSends === [] ? 'SMS queued' : 'SMS queued with warnings');
+        session()->flash('message-type', $failedSends === [] ? 'success' : 'warning');
+
+        return redirect()->back();
+    }
+
+    public function admin_sent_sms_reply_acknowledge(Request $request, InboundSms $inboundSms): RedirectResponse|JsonResponse
+    {
+        if ($inboundSms->acknowledged_at === null) {
+            $inboundSms->acknowledged_at = now();
+            $inboundSms->acknowledged_by_user_id = Auth::id();
+            $inboundSms->save();
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'inbound_sms' => [
+                    'id' => $inboundSms->id,
+                    'acknowledged_at' => $inboundSms->acknowledged_at?->toIso8601String(),
+                ],
+            ]);
+        }
+
+        session()->flash('message', 'Reply acknowledged.');
+        session()->flash('message-title', 'Reply updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    /**
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function parseSmsRecipients(string $recipientInput, SmsFlowService $smsFlowService): array
+    {
+        $parts = preg_split('/\s*;\s*/', trim($recipientInput)) ?: [];
+        $recipients = [];
+        $invalidRecipients = [];
+
+        foreach ($parts as $part) {
+            $recipient = trim((string) $part);
+            if ($recipient === '') {
+                continue;
+            }
+
+            try {
+                $smsFlowService->normalizePhoneNumber($recipient);
+                $recipients[] = $recipient;
+            } catch (\Throwable) {
+                $invalidRecipients[] = $recipient;
+            }
+        }
+
+        $recipients = collect($recipients)
+            ->map(fn (string $recipient): string => trim($recipient))
+            ->filter(fn (string $recipient): bool => $recipient !== '')
+            ->values()
+            ->all();
+
+        return [$recipients, array_values(array_unique($invalidRecipients))];
+    }
+
+    /**
+     * @return array<string, array{id: string, name: string}>
+     */
+    private function buildSmsRecipientLookup(SmsFlowService $smsFlowService): array
+    {
+        $lookup = [];
+
+        User::query()
+            ->select(['id', 'firstname', 'surname', 'username', 'email', 'phone', 'anonymized_at'])
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->get()
+            ->each(function (User $user) use (&$lookup, $smsFlowService): void {
+                $phone = trim((string) ($user->phone ?? ''));
+                if ($phone === '') {
+                    return;
+                }
+
+                try {
+                    $normalized = $smsFlowService->normalizePhoneNumber($phone);
+                } catch (\Throwable) {
+                    return;
+                }
+
+                $name = trim((string) $user->getName());
+                if ($name === '') {
+                    return;
+                }
+
+                if (! array_key_exists($normalized, $lookup) || ($lookup[$normalized]['name'] === 'deleted' && $name !== 'deleted')) {
+                    $lookup[$normalized] = [
+                        'id' => (string) $user->id,
+                        'name' => $name,
+                    ];
+                }
+            });
+
+        return $lookup;
+    }
+
+    private function humanReadableSmsResponseStatus(?int $responseStatus, string $status): string
+    {
+        if ($responseStatus === null) {
+            return $status === SentSms::STATUS_FAILED ? 'Failed' : '-';
+        }
+
+        $statusText = SymfonyResponse::$statusTexts[$responseStatus] ?? 'HTTP '.$responseStatus;
+
+        return $responseStatus.' - '.$statusText;
+    }
 
     public function admin_audit(Request $request): View
     {

@@ -41,6 +41,7 @@ use App\Http\Controllers\ShopProductCategoryController;
 use App\Http\Controllers\ShopCouponController;
 use App\Http\Controllers\ShopProductController;
 use App\Http\Controllers\ShopSettingsController;
+use App\Http\Controllers\SmsFlowWebhookController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteOptionController;
 use App\Http\Controllers\OpenId\UserInfoController;
@@ -141,6 +142,7 @@ Route::post('/pay/{invoice}/email-documents', [InvoiceController::class, 'public
     Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.stemcraft.server');
     Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
     Route::post('/webhooks/livekit', [LiveKitWebhookController::class, 'handle'])->name('webhook.livekit');
+    Route::post('/webhooks/smsflow', [SmsFlowWebhookController::class, 'handle'])->name('webhook.smsflow');
     Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
 Route::get('/forum/feed', [ForumController::class, 'feed'])->name('forum.feed');
@@ -421,6 +423,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/square-webhooks/{event}/ignore', [ServerController::class, 'admin_square_webhook_ignore'])->name('admin.server.square-webhooks.ignore');
     Route::delete('/admin/server/square-webhooks/{event}/ignore', [ServerController::class, 'admin_square_webhook_unignore'])->name('admin.server.square-webhooks.unignore');
     Route::get('/admin/server/square-webhooks/{event}', [ServerController::class, 'admin_square_webhook_show'])->name('admin.server.square-webhooks.show');
+    Route::get('/admin/server/sent-sms', [ServerController::class, 'admin_sent_sms'])->name('admin.server.sent-sms');
+    Route::post('/admin/server/sent-sms', [ServerController::class, 'admin_sent_sms_store'])->name('admin.server.sent-sms.store');
+    Route::patch('/admin/server/sent-sms/replies/{inboundSms}/acknowledge', [ServerController::class, 'admin_sent_sms_reply_acknowledge'])->name('admin.server.sent-sms.replies.acknowledge');
     Route::get('/admin/server/sent-emails', [ServerController::class, 'admin_sent_emails'])->name('admin.server.sent-emails');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics.index');
     Route::post('/admin/analytics/prune', [AnalyticsController::class, 'prune'])->name('admin.analytics.prune');
@@ -435,6 +440,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/workshops/{workshop}/tickets', [WorkshopController::class, 'admin_tickets_store'])->name('admin.workshop.tickets.store');
     Route::get('/admin/workshops/{workshop}/tickets/pdf', [WorkshopController::class, 'admin_tickets_pdf'])->name('admin.workshop.tickets.pdf');
     Route::post('/admin/workshops/{workshop}/tickets/email', [WorkshopController::class, 'admin_tickets_email'])->name('admin.workshop.tickets.email');
+    Route::post('/admin/workshops/{workshop}/tickets/sms', [WorkshopController::class, 'admin_tickets_sms'])->name('admin.workshop.tickets.sms');
     Route::get('/admin/workshops/{workshop}/attendance', [WorkshopController::class, 'admin_attendance'])->name('admin.workshop.attendance');
     Route::get('/admin/workshops/{workshop}/attendance/eftpos-payments', [WorkshopController::class, 'admin_attendance_eftpos_payments'])->name('admin.workshop.attendance.eftpos-payments');
     Route::get('/admin/workshops/{workshop}/attendance/csv', [WorkshopController::class, 'admin_attendance_csv'])->name('admin.workshop.attendance.csv');
