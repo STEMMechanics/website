@@ -14,6 +14,7 @@
 - Fix zip last processing error
 - Fix password processing error
 - Added SMS Gateway support
+- Dependency updates
 
 ## 1.4.5
 
