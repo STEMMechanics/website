@@ -236,6 +236,7 @@
                 <a href="{{ route('stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft">STEMCraft</a>
                 <a href="{{ route('contact') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if($isAdmin)
+                    <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
                     @foreach($adminNavSections as $section)
                         <div class="border-t border-gray-200 mt-4 pt-4 px-2">
                             <div class="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{{ $section['title'] }}</div>

@@ -5,6 +5,7 @@ use App\Http\Controllers\Account\ClassroomController as AccountClassroomControll
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\ChildAccountController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Account\ConnectedAppController;
@@ -288,6 +289,8 @@ Route::get('/media/download/{media}', [MediaController::class, 'download'])->nam
 Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
+    Route::redirect('/admin', '/admin/dashboard');
+    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
     Route::post('/admin/media/regenerate-missing-variants', [MediaController::class, 'admin_regenerate_missing_variants'])->name('admin.media.regenerate-missing-variants');
     Route::get('/admin/media/regenerate-missing-variants/status', [MediaController::class, 'admin_regenerate_missing_variants_status'])->name('admin.media.regenerate-missing-variants.status');

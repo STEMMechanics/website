@@ -320,6 +320,10 @@ class AuthController extends Controller
             return redirect($url);
         }
 
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
         return redirect()->action([HomeController::class, 'index']);
     }
 

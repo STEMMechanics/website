@@ -17,6 +17,7 @@
 - Dependency updates
 - Only show Cancellation reason for ticketed workshops
 - Added Early Bird options
+- Added Admin Dashboard
 
 ## 1.4.5
 

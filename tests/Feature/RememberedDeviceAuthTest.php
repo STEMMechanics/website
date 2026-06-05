@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Token;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Support\RememberedDeviceManager;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,6 +113,28 @@ class RememberedDeviceAuthTest extends TestCase
 
         $response->assertOk();
         $response->assertCookieExpired(RememberedDeviceManager::EMAIL_COOKIE);
+    }
+
+    public function test_admin_login_without_intended_url_redirects_to_dashboard(): void
+    {
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'password' => 'secret-pass',
+            'email_verified_at' => now(),
+        ]);
+        UserGroup::query()->create([
+            'user_id' => $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $response = $this->withSession($this->trustedAltchaSessionPayload())
+            ->post(route('login.store'), [
+                'login' => $admin->email,
+                'password' => 'secret-pass',
+            ]);
+
+        $response->assertRedirect(route('admin.dashboard'));
+        $this->assertAuthenticatedAs($admin);
     }
 
     public function test_login_route_auto_signs_in_with_valid_remembered_device_cookie(): void
