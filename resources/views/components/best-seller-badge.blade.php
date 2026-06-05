@@ -2,6 +2,6 @@
     'label' => 'Best seller',
 ])
 
-<x-ui.badge color="warning" variant="solid" size="xxs" uppercase="true" icon="fa-solid fa-trophy" {{ $attributes }}>
+<x-ui.badge color="warning" variant="solid" size="xs" uppercase="true" icon="fa-solid fa-trophy" {{ $attributes }}>
     {{ $label }}
 </x-ui.badge>

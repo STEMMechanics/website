@@ -11,7 +11,7 @@ class UiBadgeTest extends TestCase
     {
         $html = Blade::render(<<<'BLADE'
             <x-ui.badge color="success">Paid</x-ui.badge>
-            <x-ui.badge color="warning" size="xxs" uppercase="true">Queued</x-ui.badge>
+            <x-ui.badge color="warning" size="xs" uppercase="true">Queued</x-ui.badge>
             <x-ui.badge color="purple" variant="solid" icon="fa-solid fa-star">Featured</x-ui.badge>
             BLADE);
 

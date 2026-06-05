@@ -133,7 +133,9 @@ class WorkshopTicketFlowController extends Controller
         ];
         $purchaserUserId = $this->resolveCheckoutUserId($workshop, $purchaser);
 
-        $holdIds = DB::transaction(function () use ($workshop, $ticketService, $validated, $purchaser, $purchaserUserId) {
+        $earlyBirdFlags = $this->allocateEarlyBirdFlags($workshop, $ticketService, (int) $validated['quantity']);
+
+        $holdIds = DB::transaction(function () use ($workshop, $ticketService, $validated, $purchaser, $purchaserUserId, $earlyBirdFlags) {
             $ticketService->cleanupExpiredHolds($workshop);
             $available = $ticketService->availableTickets($workshop);
             if ($available !== null && (int) $validated['quantity'] > $available) {
@@ -152,6 +154,7 @@ class WorkshopTicketFlowController extends Controller
                 $ticket->surname = $purchaser['surname'];
                 $ticket->email = $purchaser['email'];
                 $ticket->phone = $purchaser['phone'];
+                $ticket->is_early_bird = $earlyBirdFlags[$i] ?? false;
                 $ticket->save();
                 $ticket->ensureReferenceCode();
                 $ids[] = $ticket->id;
@@ -205,12 +208,6 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
-        $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
-            ->whereIn('id', $session['hold_ids'] ?? [])
-            ->orderBy('id')
-            ->get();
-        $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
         $checkoutTotals = $this->resolveTicketCheckoutTotals($workshop, $ticketService, $session, true);
         $session = $checkoutTotals['session'];
         $accountCreditAvailable = $checkoutTotals['account_credit_available'];
@@ -223,6 +220,7 @@ class WorkshopTicketFlowController extends Controller
             'workshop' => $workshop,
             'session' => $session,
             'holdCount' => $checkoutTotals['hold_count'],
+            'ticketPricing' => $checkoutTotals['ticket_pricing'],
             'ticketPriceAmount' => $checkoutTotals['ticket_price_amount'],
             'totalAmount' => $checkoutTotals['total_amount'],
             'voucherCode' => $checkoutTotals['voucher_code'],
@@ -288,7 +286,12 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $holdIds = $checkoutTotals['hold_ids'];
-        $ticketPriceAmount = $checkoutTotals['ticket_price_amount'];
+        $tickets = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('id', $holdIds)
+            ->orderBy('id')
+            ->get();
+        $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
         $amount = $checkoutTotals['total_amount'];
         $creditUser = $checkoutTotals['credit_user'];
         $accountCreditAvailable = $checkoutTotals['account_credit_available'];
@@ -320,7 +323,7 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
-        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays, $checkoutTotals) {
+        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays, $checkoutTotals) {
             $holds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
@@ -346,7 +349,6 @@ class WorkshopTicketFlowController extends Controller
                 $invoice = $this->createTicketInvoice(
                     $workshop,
                     $holds,
-                    $ticketPriceAmount,
                     $session['purchaser'] ?? [],
                     $purchaserUserId !== '' ? $purchaserUserId : null,
                     $paymentMethod === 'account_terms' ? $accountTermsDays : null,
@@ -497,6 +499,9 @@ class WorkshopTicketFlowController extends Controller
                 }
                 $ticket->invoice_id = $invoice?->id;
                 $ticket->invoice_line_id = $lineIdByTicketId[(int) $ticket->id] ?? null;
+                if ($ticket->is_early_bird === null) {
+                    $ticket->is_early_bird = $workshop->earlyBirdIsActive();
+                }
                 $ticket->save();
             }
 
@@ -634,6 +639,9 @@ class WorkshopTicketFlowController extends Controller
                 }
                 $ticket->invoice_id = null;
                 $ticket->invoice_line_id = null;
+                if ($ticket->is_early_bird === null) {
+                    $ticket->is_early_bird = $workshop->earlyBirdIsActive();
+                }
                 $ticket->save();
             }
 
@@ -692,7 +700,8 @@ class WorkshopTicketFlowController extends Controller
      *     account_credit_login_hint: bool,
      *     account_terms_days: int,
      *     apply_account_credit_default: bool,
-     *     credit_debug: array<string, mixed>
+     *     credit_debug: array<string, mixed>,
+     *     ticket_pricing: array<string, mixed>
      * }
      */
     private function resolveTicketCheckoutTotals(
@@ -702,8 +711,15 @@ class WorkshopTicketFlowController extends Controller
         bool $clearInvalidVoucher = false
     ): array {
         $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
-        $ticketPriceAmount = round($ticketService->ticketPriceAmount($workshop), 2);
-        $subtotal = round($ticketPriceAmount * count($holdIds), 2);
+        $tickets = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('id', $holdIds)
+            ->orderBy('id')
+            ->get();
+        $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
+        $ticketPricing = $this->calculateTicketCheckoutPricing($workshop, $tickets);
+        $ticketPriceAmount = (float) ($ticketPricing['standard_unit_price'] ?? $ticketService->ticketPriceAmount($workshop));
+        $subtotal = round((float) ($ticketPricing['subtotal_amount'] ?? 0), 2);
         $creditUser = $this->checkoutCreditUser($session);
         $accountCreditAvailable = round($this->accountCredit->availableCreditForUser($creditUser), 2);
         $accountTermsDays = $this->checkoutAccountTermsDays();
@@ -765,7 +781,133 @@ class WorkshopTicketFlowController extends Controller
             'account_terms_days' => $accountTermsDays,
             'apply_account_credit_default' => $applyAccountCreditDefault,
             'credit_debug' => $creditDebug,
+            'ticket_pricing' => $ticketPricing,
         ];
+    }
+
+    /**
+     * @param  iterable<int, Ticket>  $tickets
+     * @return array<string, mixed>
+     */
+    private function calculateTicketCheckoutPricing(Workshop $workshop, iterable $tickets): array
+    {
+        $baseUnitPrice = round($workshop->baseTicketPriceAmount(), 2);
+        $earlyBirdUnitPrice = $workshop->earlyBirdPriceAmount();
+        $earlyBirdUnitPrice = $earlyBirdUnitPrice !== null ? round($earlyBirdUnitPrice, 2) : null;
+
+        $ticketItems = [];
+        $subtotal = 0.0;
+        $earlyBirdCount = 0;
+        $standardCount = 0;
+
+        foreach ($tickets as $ticket) {
+            if (! $ticket instanceof Ticket) {
+                continue;
+            }
+
+            $isEarlyBird = $ticket->isEarlyBirdTicket() && $earlyBirdUnitPrice !== null;
+            $unitPrice = $isEarlyBird ? $earlyBirdUnitPrice : $baseUnitPrice;
+            $subtotal = round($subtotal + (float) $unitPrice, 2);
+
+            if ($isEarlyBird) {
+                $earlyBirdCount++;
+            } else {
+                $standardCount++;
+            }
+
+            $ticketItems[] = [
+                'ticket_id' => (int) $ticket->id,
+                'ticket_reference' => $ticket->ensureReferenceCode(),
+                'is_early_bird' => $isEarlyBird,
+                'unit_price' => (float) $unitPrice,
+            ];
+        }
+
+        $groupedItems = [];
+        foreach ($ticketItems as $item) {
+            $key = $item['is_early_bird'] ? 'early_bird' : 'standard';
+            if (! isset($groupedItems[$key])) {
+                $groupedItems[$key] = [
+                    'label' => $item['is_early_bird'] ? 'Early Bird' : 'Standard',
+                    'count' => 0,
+                    'unit_price' => $item['unit_price'],
+                    'amount' => 0.0,
+                    'is_early_bird' => $item['is_early_bird'],
+                ];
+            }
+
+            $groupedItems[$key]['count']++;
+            $groupedItems[$key]['amount'] = round($groupedItems[$key]['amount'] + $item['unit_price'], 2);
+        }
+
+        return [
+            'ticket_count' => count($ticketItems),
+            'early_bird_count' => $earlyBirdCount,
+            'standard_count' => $standardCount,
+            'early_bird_unit_price' => $earlyBirdUnitPrice,
+            'standard_unit_price' => $baseUnitPrice,
+            'subtotal_amount' => $subtotal,
+            'items' => array_values($groupedItems),
+        ];
+    }
+
+    /**
+     * @return array<int, bool>
+     */
+    private function allocateEarlyBirdFlags(
+        Workshop $workshop,
+        WorkshopTicketService $ticketService,
+        int $quantity
+    ): array {
+        $remaining = $this->earlyBirdSlotsRemainingForCheckout($workshop, $ticketService);
+        if ($remaining === 0 || $quantity <= 0) {
+            return array_fill(0, max(0, $quantity), false);
+        }
+
+        if ($remaining === null) {
+            return array_fill(0, $quantity, true);
+        }
+
+        $earlyBirdCount = min($quantity, $remaining);
+        $flags = [];
+        for ($i = 0; $i < $quantity; $i++) {
+            $flags[] = $i < $earlyBirdCount;
+        }
+
+        return $flags;
+    }
+
+    private function earlyBirdSlotsRemainingForCheckout(
+        Workshop $workshop,
+        WorkshopTicketService $ticketService
+    ): ?int {
+        if (! $workshop->hasEarlyBirdOffer()) {
+            return 0;
+        }
+
+        if ($workshop->early_bird_ends_at !== null && Carbon::parse($workshop->early_bird_ends_at)->isPast()) {
+            return 0;
+        }
+
+        $limit = $workshop->earlyBirdTicketLimit();
+        if ($limit === null) {
+            return null;
+        }
+
+        $threshold = now()->subMinutes($ticketService->holdWindowMinutes());
+        $reserved = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->where('is_early_bird', true)
+            ->where(function ($builder) use ($threshold) {
+                $builder->whereIn('status', Ticket::activePurchasedStatuses())
+                    ->orWhere(function ($holdQuery) use ($threshold) {
+                        $holdQuery->where('status', Ticket::STATUS_HOLD)
+                            ->where('created_at', '>=', $threshold);
+                    });
+            })
+            ->count();
+
+        return max(0, $limit - $reserved);
     }
 
     private function ticketVoucherCode(array $session): string
@@ -878,11 +1020,13 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
+        $ticketPricing = $this->calculateTicketCheckoutPricing($workshop, $tickets);
 
         return view('workshop.tickets.details', [
             'workshop' => $workshop,
             'session' => $session,
             'tickets' => $tickets,
+            'ticketPricing' => $ticketPricing,
             'bankTransferDetails' => (string) ($session['payment_method'] ?? '') === 'bank_transfer'
                 ? $this->bankTransferDetails($invoice)
                 : null,
@@ -1041,6 +1185,7 @@ class WorkshopTicketFlowController extends Controller
         $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
         $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
         $payment = isset($session['payment_id']) ? Payment::query()->find((int) $session['payment_id']) : null;
+        $ticketPricing = $this->calculateTicketCheckoutPricing($workshop, $tickets);
         $sentToEmail = trim((string) ($session['purchaser']['email'] ?? $tickets->first()->email ?? ''));
         $accessToken = null;
 
@@ -1065,6 +1210,7 @@ class WorkshopTicketFlowController extends Controller
             'session' => $session,
             'sentToEmail' => $sentToEmail,
             'accessToken' => $accessToken,
+            'ticketPricing' => $ticketPricing,
         ]);
     }
 
@@ -1172,7 +1318,6 @@ class WorkshopTicketFlowController extends Controller
     private function createTicketInvoice(
         Workshop $workshop,
         $holds,
-        float $ticketPriceAmount,
         array $purchaser,
         ?string $purchaserUserId = null,
         ?int $termDays = null,
@@ -1182,8 +1327,8 @@ class WorkshopTicketFlowController extends Controller
     {
         $tickets = collect($holds)->values();
         $quantity = max(1, $tickets->count());
-        $ticketPriceAmount = round($ticketPriceAmount, 2);
-        $subtotalAmount = round($ticketPriceAmount * $quantity, 2);
+        $linePrices = $tickets->map(fn (Ticket $ticket): float => $this->ticketCheckoutUnitPrice($workshop, $ticket))->values();
+        $subtotalAmount = round($linePrices->sum(), 2);
         $voucherAmount = round(min($subtotalAmount, max(0, $voucherAmount)), 2);
         $totalAmount = round(max(0, $subtotalAmount - $voucherAmount), 2);
 
@@ -1217,7 +1362,7 @@ class WorkshopTicketFlowController extends Controller
         $gst = 0.0;
 
         foreach ($tickets as $index => $ticket) {
-            $lineTotalInc = $ticketPriceAmount;
+            $lineTotalInc = round((float) ($linePrices[$index] ?? $this->ticketCheckoutUnitPrice($workshop, $ticket)), 2);
             $lineTotalEx = round($lineTotalInc / 1.1, 2);
             $taxAmount = round($lineTotalInc - $lineTotalEx, 2);
             $ticketReference = $ticket->ensureReferenceCode();
@@ -1227,10 +1372,7 @@ class WorkshopTicketFlowController extends Controller
             $line->line_number = $index + 1;
             $line->kind = 'ticket';
             $line->description = $workshop->title.' - Ticket '.$ticketReference;
-            $line->notes = trim(implode("\n", [
-                'Workshop date/time: '.$workshop->getTicketTimeRangeLabel(),
-                'Workshop location: '.((string) ($workshop->getLocationName())),
-            ]));
+            $line->notes = $workshop->ticketInvoiceLineNotes($ticket);
             $line->details_json = [
                 'ticket_id' => (int) $ticket->id,
                 'ticket_reference' => $ticketReference,
@@ -1293,6 +1435,21 @@ class WorkshopTicketFlowController extends Controller
         $invoice->setRelation('lines', $lines);
 
         return $invoice;
+    }
+
+    private function ticketCheckoutUnitPrice(Workshop $workshop, Ticket $ticket): float
+    {
+        $baseUnitPrice = round($workshop->baseTicketPriceAmount(), 2);
+        if (! $ticket->isEarlyBirdTicket()) {
+            return $baseUnitPrice;
+        }
+
+        $earlyBirdUnitPrice = $workshop->earlyBirdPriceAmount();
+        if ($earlyBirdUnitPrice === null) {
+            return $baseUnitPrice;
+        }
+
+        return round($earlyBirdUnitPrice, 2);
     }
 
     private function bankTransferMethodNotice(): ?string

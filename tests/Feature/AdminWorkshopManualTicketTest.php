@@ -145,6 +145,66 @@ class AdminWorkshopManualTicketTest extends TestCase
         $response->assertSee('0400 123 456');
     }
 
+    public function test_admin_workshop_ticket_screen_marks_early_bird_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop();
+
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('data-early-bird-badge="true"', false);
+        $response->assertSee('Early Bird', false);
+    }
+
+    public function test_admin_workshop_ticket_screen_shows_both_standard_and_discounted_prices_when_early_bird_is_active(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop([
+            'price' => '$25.00',
+            'early_bird_price' => '20.00',
+            'early_bird_ticket_limit' => 5,
+            'early_bird_ends_at' => now()->addDay(),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('$25.00', false);
+        $response->assertSee('$20.00', false);
+        $response->assertDontSee('Save $5.00 with earlybird pricing', false);
+    }
+
+    public function test_admin_workshop_ticket_screen_keeps_showing_discount_price_after_early_bird_sells_out(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop([
+            'price' => '$25.00',
+            'early_bird_price' => '20.00',
+            'early_bird_ticket_limit' => 1,
+            'early_bird_ends_at' => now()->addDay(),
+        ]);
+
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('$25.00', false);
+        $response->assertSee('$20.00', false);
+        $response->assertDontSee('Save $5.00 with earlybird pricing', false);
+    }
+
     public function test_admin_can_create_reserved_ticket_with_invoice_from_workshop_ticket_screen(): void
     {
         $admin = $this->createAdminUser();

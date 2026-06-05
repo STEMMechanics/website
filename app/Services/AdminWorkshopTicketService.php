@@ -140,11 +140,9 @@ class AdminWorkshopTicketService
         $line->line_number = 1;
         $line->kind = 'ticket';
         $line->description = $workshop->title.' - Ticket '.$ticketReference;
-        $line->notes = trim(implode("\n", [
-            'Workshop date/time: '.($workshop->starts_at?->format('M j, Y g:i a') ?? '-'),
-            'Workshop location: '.((string) $workshop->getLocationName()),
+        $line->notes = $workshop->ticketInvoiceLineNotes($ticket, [
             'Reserved by admin as pay-at-door ticket.',
-        ]));
+        ]);
         $line->details_json = [
             'ticket_id' => (int) $ticket->id,
             'ticket_reference' => $ticketReference,

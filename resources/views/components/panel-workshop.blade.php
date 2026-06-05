@@ -11,6 +11,13 @@
     $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
     $cardStartLabel = $workshop->courseScheduleFirstStartLabel();
     $cardCadenceLabel = $workshop->courseScheduleCadenceLabel();
+    $ticketPricing = $workshop->ticketPricing();
+    $ticketPriceAmount = (float) ($ticketPricing['ticketPriceAmount'] ?? 0);
+    $nonDiscountAmount = (float) ($ticketPricing['nonDiscountAmount'] ?? $ticketPriceAmount);
+    $earlyBirdSummary = $ticketPricing['earlyBirdSummary'] ?? null;
+    $earlyBirdStatus = $ticketPricing['earlyBirdStatus'] ?? $earlyBirdSummary;
+    $earlyBirdDisplay = trim((string) ($attributes->get('data-early-bird-display') ?? 'summary'));
+    $showEarlyBirdBadgeOnly = $earlyBirdDisplay === 'badge';
 
     if($workshop->status === 'scheduled') {
         $statusClass = 'soon';
@@ -53,7 +60,19 @@
                 <div class="w-6 flex items-center justify-center">
                     <i class="fa-solid fa-dollar-sign"></i>
                 </div>
-                {{ $workshop->price && $workshop->price !== '0' ? number_format((float)$workshop->price, 2) : 'Free' }}
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span>
+                            {{ $ticketPriceAmount > 0.0001 ? number_format($ticketPriceAmount, 2) : 'Free' }}
+                            @if($showEarlyBirdBadgeOnly && $earlyBirdSummary)
+                                <span class="text-gray-500 text-xs">- Early Bird Pricing</span>
+                            @endif
+                        </span>
+                    </div>
+                    @if(!$showEarlyBirdBadgeOnly && $earlyBirdStatus)
+                        <div class="text-xs text-gray-500 mt-0.5">{{ $earlyBirdStatus }}</div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

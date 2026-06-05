@@ -12,10 +12,10 @@
             <h2 class="text-lg font-semibold text-gray-900">Login Authentication</h2>
             <p class="mt-1 text-sm text-gray-600">Manage how sign-in verification works for your account.</p>
         </div>
-        <x-ui.badge color="success" uppercase="true" size="xxs" x-cloak x-show="$store.tfa.enabled">
+        <x-ui.badge color="success" uppercase="true" size="xs" x-cloak x-show="$store.tfa.enabled">
             <span x-text="'Authenticator enabled'"></span>
         </x-ui.badge>
-        <x-ui.badge color="gray" uppercase="true" size="xxs" x-cloak x-show="!$store.tfa.enabled">
+        <x-ui.badge color="gray" uppercase="true" size="xs" x-cloak x-show="!$store.tfa.enabled">
             <span x-text="'{{ $supportsEmailVerification ? 'Email only' : 'Authenticator not linked' }}'"></span>
         </x-ui.badge>
     </div>
@@ -30,7 +30,7 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-sm font-semibold text-gray-900">Email verification</h3>
-                            <x-ui.badge color="success" size="xxs" uppercase="true">Enabled</x-ui.badge>
+                            <x-ui.badge color="success" size="xs" uppercase="true">Enabled</x-ui.badge>
                         </div>
                         <p class="mt-2 text-sm text-gray-600">Security links are always sent to your account email when required.</p>
                     </div>
@@ -49,7 +49,7 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-sm font-semibold text-gray-900">Password login</h3>
-                        <x-ui.badge :color="$passwordConfigured ? 'success' : 'gray'" size="xxs" uppercase="true">
+                        <x-ui.badge :color="$passwordConfigured ? 'success' : 'gray'" size="xs" uppercase="true">
                             {{ $passwordConfigured ? 'Enabled' : 'Not set' }}
                         </x-ui.badge>
                     </div>

@@ -16,9 +16,11 @@
         ->filter(fn ($line) => trim((string) $line) !== '')
         ->take($compact ? 2 : 3)
         ->values();
-    $priceLabel = $workshop->price && is_numeric($workshop->price) && $workshop->price != '0'
-        ? '$'.number_format((float) $workshop->price, 2)
+    $priceAmount = $workshop->currentTicketPriceAmount();
+    $priceLabel = $priceAmount > 0.0001
+        ? '$'.number_format($priceAmount, 2)
         : 'Free';
+    $earlyBirdSummary = $workshop->earlyBirdSummaryLabel();
     $statusLabel = $workshop->status === 'scheduled' ? 'Opens Soon' : null;
     $ctaUrl = route('workshop.show', $workshop);
     $ctaLabel = 'View Details';
@@ -122,6 +124,9 @@
 <tr>
 <td valign="middle" style="padding:14px 0 0 0; width:60%;">
 <span class="newsletter-workshop-card__price" style="font-size:20px; line-height:1; font-weight:900; color:#0f172a; letter-spacing:-0.04em;">{{ $priceLabel }}</span>
+@if($earlyBirdSummary)
+<div style="margin-top:5px; font-size:12px; line-height:1.4; color:#b45309; font-weight:700;">{{ $earlyBirdSummary }}</div>
+@endif
 </td>
 <td valign="middle" align="right" style="padding:14px 0 0 0; width:40%;">
 <a href="{{ $ctaUrl }}" @if($ctaTarget) target="{{ $ctaTarget }}" rel="noopener" @endif class="newsletter-workshop-cta" style="display:inline-block; padding:11px 16px; border-radius:10px; background:#f8fafc; border:1px solid {{ $accent }}; color:{{ $accent }}; font-size:14px; font-weight:800; text-decoration:none; text-align:center; white-space:nowrap;">{{ $ctaLabel }}</a>

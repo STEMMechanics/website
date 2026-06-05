@@ -75,7 +75,7 @@
                                         <div class="mt-1 text-xs text-gray-500">{{ $resolvedPhone !== '' ? $resolvedPhone : '-' }}</div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <x-ui.badge color="gray" size="xxs">{{ $accountLabel }}</x-ui.badge>
+                                        <x-ui.badge color="gray" size="xs">{{ $accountLabel }}</x-ui.badge>
                                         @if($linkedUser !== null)
                                             <div class="mt-2 text-xs text-gray-500">{{ $linkedUser->getName() }}</div>
                                         @endif

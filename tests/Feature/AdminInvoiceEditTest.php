@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\Product;
 use App\Models\TaxAdjustment;
 use App\Models\Ticket;
@@ -197,6 +198,39 @@ class AdminInvoiceEditTest extends TestCase
         $this->assertSame(StoreOrder::STATUS_READY_FOR_PICKUP, (string) $order->fresh()->status);
         $this->assertSame(4, (int) $product->fresh()->inventory_quantity);
         $this->assertSame(1, (int) $order->fresh('items')->items->first()->inventory_reserved_quantity);
+    }
+
+    public function test_admin_invoice_edit_renders_line_item_notes_as_a_full_width_row(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_DRAFT,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'line_number' => 1,
+            'kind' => 'ticket',
+            'description' => 'Pinball Machines - Ticket WUF9XZ',
+            'notes' => "Workshop date/time: Saturday, 20 Jun 2026 from 10:30 am to 11:30 am\nWorkshop location: Herberton Library",
+            'quantity' => 1,
+            'unit_price_ex_tax' => 4.55,
+            'line_total_ex_tax' => 4.55,
+            'tax_amount' => 0.45,
+            'line_total_inc_tax' => 5.00,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.invoice.edit', $invoice))
+            ->assertOk()
+            ->assertSee('Line Item Notes')
+            ->assertSee('md:col-span-12', false);
     }
 
     public function test_admin_invoice_edit_disables_cancel_action_when_tax_adjustment_exists(): void

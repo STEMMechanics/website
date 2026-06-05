@@ -36,7 +36,7 @@
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="text-base font-semibold text-gray-900">{{ $client->name }}</h3>
-                                        <x-ui.badge color="gray" size="xxs" uppercase="true">
+                                        <x-ui.badge color="gray" size="xs" uppercase="true">
                                             {{ (int) $connectedApp['token_count'] }} token{{ (int) $connectedApp['token_count'] === 1 ? '' : 's' }}
                                         </x-ui.badge>
                                     </div>

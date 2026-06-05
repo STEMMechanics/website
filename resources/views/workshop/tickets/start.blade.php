@@ -2,8 +2,15 @@
     <x-mast>{{ $workshop->title }}</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
-        @php($checkoutUser = auth()->user())
-        @php($isClassroomAccess = $workshop->usesClassroomRegistration())
+        @php
+            $checkoutUser = auth()->user();
+            $isClassroomAccess = $workshop->usesClassroomRegistration();
+            $ticketPricing = $workshop->ticketPricing();
+            $earlyBirdStatus = $ticketPricing['earlyBirdStatus'] ?? ($ticketPricing['earlyBirdSummary'] ?? null);
+            $earlyBirdPlacesRemaining = is_numeric($ticketPricing['earlyBirdPlacesRemaining'] ?? null)
+                ? max(0, (int) $ticketPricing['earlyBirdPlacesRemaining'])
+                : null;
+        @endphp
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Enrol Now' : 'Get Tickets' }}</h2>
@@ -14,13 +21,28 @@
                     </p>
                 @endif
 
+                @php
+                    $placesValue = $availableTickets ?? 'Unlimited';
+                    $placesHtml = $placesValue;
+                    if (is_int($earlyBirdPlacesRemaining) && $earlyBirdPlacesRemaining > 0) {
+                        $placesHtml .= ' <span class="text-gray-500">('.$earlyBirdPlacesRemaining.' early bird ticket'.($earlyBirdPlacesRemaining === 1 ? '' : 's').' remain'.($earlyBirdPlacesRemaining === 1 ? 's' : '').')</span>';
+                    }
+
+                    $summaryRows = [
+                        ['label' => 'Price', 'value' => $ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free'],
+                    ];
+                    if ($earlyBirdStatus) {
+                        $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdStatus];
+                    }
+                    $summaryRows[] = is_int($earlyBirdPlacesRemaining) && $earlyBirdPlacesRemaining > 0
+                        ? ['label' => 'Places', 'value_html' => $placesHtml]
+                        : ['label' => 'Places', 'value' => $placesValue];
+                @endphp
+
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,
                     'hideLocation' => (bool) ($requiresPrivateCode ?? false),
-                    'rows' => [
-                        ['label' => 'Price', 'value' => $ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free'],
-                        ['label' => 'Places', 'value' => $availableTickets ?? 'Unlimited'],
-                    ],
+                    'rows' => $summaryRows,
                 ])
 
                 @if($checkoutUser?->isChildAccount())

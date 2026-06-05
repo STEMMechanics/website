@@ -103,6 +103,9 @@
                     style=" {{ $isCancelledOrReissued ? 'background-color: rgb(254 226 226);' : '' }}">
                     <td>
                         <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                        @if($ticket->isEarlyBirdTicket())
+                            <div class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Early bird</div>
+                        @endif
                         <div class="md:hidden text-xs text-gray-600 whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
                         @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
                             <div class="md:hidden mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>

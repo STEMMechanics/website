@@ -152,7 +152,7 @@
                                 <h2 class="text-lg font-semibold text-gray-900">Login clients</h2>
                                 <p class="mt-1 text-sm text-gray-600">These are the OAuth clients that can sign users in from external platforms.</p>
                             </div>
-                        <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $clients->count() }} total</x-ui.badge>
+                        <x-ui.badge color="gray" size="xs" uppercase="true">{{ $clients->count() }} total</x-ui.badge>
                         </div>
                 </div>
 
@@ -162,8 +162,8 @@
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <h3 class="text-lg font-semibold text-gray-900">{{ $client->name }}</h3>
-                                    <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xxs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
-                                    <x-ui.badge :color="$client->confidential() ? 'sky' : 'warning'" size="xxs" uppercase="true">{{ $client->confidential() ? 'Confidential' : 'Public' }}</x-ui.badge>
+                                    <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
+                                    <x-ui.badge :color="$client->confidential() ? 'sky' : 'warning'" size="xs" uppercase="true">{{ $client->confidential() ? 'Confidential' : 'Public' }}</x-ui.badge>
                                 </div>
                                 <div class="mt-2 grid gap-1 text-sm text-gray-600">
                                     <div class="break-all"><span class="font-semibold text-gray-900">Client ID:</span> {{ $client->id }}</div>
@@ -234,7 +234,7 @@
                                 <h2 class="text-lg font-semibold text-gray-900">Internal Passport clients</h2>
                                 <p class="mt-1 text-sm text-gray-600">These are Passport-managed clients such as personal access clients. They are not external login platforms.</p>
                             </div>
-                        <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $internalClients->count() }} total</x-ui.badge>
+                        <x-ui.badge color="gray" size="xs" uppercase="true">{{ $internalClients->count() }} total</x-ui.badge>
                         </div>
 
                     <div class="mt-5 space-y-4">
@@ -244,8 +244,8 @@
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <h3 class="text-lg font-semibold text-gray-900">{{ $client->name }}</h3>
-                                            <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xxs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
-                                            <x-ui.badge color="slate" size="xxs" uppercase="true">Internal</x-ui.badge>
+                                            <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
+                                            <x-ui.badge color="slate" size="xs" uppercase="true">Internal</x-ui.badge>
                                         </div>
                                         <div class="mt-2 grid gap-1 text-sm text-gray-600">
                                             <div class="break-all"><span class="font-semibold text-gray-900">Client ID:</span> {{ $client->id }}</div>

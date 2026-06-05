@@ -7,13 +7,36 @@
     $voucherCode = trim((string) ($voucherCode ?? ''));
     $voucherDiscountAmount = round((float) ($voucherDiscountAmount ?? 0), 2);
     $voucherButtonLabel = trim((string) ($voucherButtonLabel ?? ($voucherCode !== '' ? 'Change voucher' : 'Add voucher')));
-    $ticketSubtotal = round((float) $ticketPriceAmount * (int) ($holdCount ?? 0), 2);
+    $ticketPricing = is_array($ticketPricing ?? null) ? $ticketPricing : [];
+    $pricingItems = is_array($ticketPricing['items'] ?? null) ? $ticketPricing['items'] : [];
+    $ticketSubtotal = round((float) ($ticketPricing['subtotal_amount'] ?? ((float) $ticketPriceAmount * (int) ($holdCount ?? 0))), 2);
     $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount), 2);
     $hasAmountDue = $ticketTotal > 0.0001;
     $isClassroomAccess = (bool) ($isClassroomAccess ?? $workshop->usesClassroomRegistration());
-    $summaryRows = [
-        ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')],
-    ];
+    $earlyBirdSummary = $workshop->earlyBirdSummaryLabel();
+    $summaryRows = [];
+    if ($pricingItems !== []) {
+        foreach ($pricingItems as $item) {
+            $count = (int) ($item['count'] ?? 0);
+            $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
+            $label = trim((string) ($item['label'] ?? 'Tickets'));
+            $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free');
+
+            if (! empty($item['is_early_bird'])) {
+                $value .= ' (Early bird)';
+            }
+
+            $summaryRows[] = [
+                'label' => $label,
+                'value' => $value,
+            ];
+        }
+    } else {
+        $summaryRows[] = ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')];
+    }
+    if ($earlyBirdSummary && count($pricingItems) <= 1) {
+        $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdSummary];
+    }
     if ($voucherDiscountAmount > 0.0001) {
         $summaryRows[] = ['type' => 'spacer'];
         $summaryRows[] = [

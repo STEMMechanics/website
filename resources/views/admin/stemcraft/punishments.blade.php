@@ -83,7 +83,7 @@
                                 <div>
                                     <div class="flex flex-wrap items-center gap-3">
                                         <div class="font-semibold text-gray-900">{{ $penalty->username }}</div>
-                                        <x-ui.badge :color="$penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'danger' : 'warning'" size="xxs" uppercase="true">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</x-ui.badge>
+                                        <x-ui.badge :color="$penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'danger' : 'warning'" size="xs" uppercase="true">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</x-ui.badge>
                                     </div>
                                     <div class="mt-1 text-xs text-gray-600">UUID: <span class="font-mono">{{ $penalty->uuid ?: 'Pending resolution' }}</span></div>
                                     @if($penalty->reason)
@@ -124,7 +124,7 @@
                                 <div>
                                     <div class="flex flex-wrap items-center gap-3">
                                         <div class="font-semibold text-gray-900">{{ $entry->username }}</div>
-                                        <x-ui.badge color="danger" size="xxs" uppercase="true">Legacy ban</x-ui.badge>
+                                        <x-ui.badge color="danger" size="xs" uppercase="true">Legacy ban</x-ui.badge>
                                     </div>
                                     <div class="mt-1 text-xs text-gray-600">UUID: <span class="font-mono">{{ $entry->uuid ?: 'Pending resolution' }}</span></div>
                                     @if($entry->reason)

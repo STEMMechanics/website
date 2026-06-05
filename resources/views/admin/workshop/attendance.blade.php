@@ -761,11 +761,16 @@
                                     $isCancelledTicket = (int) $ticket->status === \App\Models\Ticket::STATUS_CANCELLED;
                                     $canCancelTicket = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                                     $canRecordPayment = $canCancelTicket && $invoiceMeta !== null && $invoiceOutstanding > 0.0001;
+                                    $isEarlyBirdTicket = (bool) $ticket->isEarlyBirdTicket();
                                 @endphp
                                 <section class="rounded-2xl border border-gray-200 p-4 shadow-sm {{ $isCancelledTicket ? 'bg-red-50' : 'bg-white' }}">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
-                                            <div class="text-sm font-semibold text-gray-900 {{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $ticket->reference_code ?: $ticket->id }}</div>
+                                            <div class="text-sm font-semibold text-gray-900 {{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $ticket->reference_code ?: $ticket->id }}
+                                                @if($isEarlyBirdTicket)
+                                                    <x-ui.badge color="amber" size="xs" uppercase="true" data-early-bird-badge="true" class="ml-2">Early Bird</x-ui.badge>
+                                                @endif
+                                            </div>
                                             <div class="mt-1 text-sm text-gray-700 {{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $attendeeName }}</div>
                                         </div>
                                         @if($canCancelTicket)
@@ -813,6 +818,7 @@
                                                 <x-ui.badge color="success" size="sm">Paid</x-ui.badge>
                                             @endif
                                             @if($canCancelTicket)
+                                                <div class="flex justify-end">
                                                 <x-ui.button
                                                     type="button"
                                                     color="danger-outline"
@@ -820,6 +826,7 @@
                                                     x-on:click="openCancelTicketModal({{ (int) $ticket->id }}, {{ (int) ($ticket->invoice_id ?? 0) }})">
                                                     Cancel Ticket
                                                 </x-ui.button>
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
@@ -830,14 +837,14 @@
                         <div class="hidden lg:block">
                         <x-ui.table>
                             <x-slot:header>
-                                <th>Attended</th>
-                                <th>Ticket Ref</th>
-                                <th>Attendee</th>
+                                <th class="text-center">Attended</th>
+                                <th class="text-center">Ticket Ref</th>
+                                <th class="text-center">Attendee</th>
                                 <th>Contact</th>
-                                <th>Status</th>
-                                <th>Invoice</th>
-                                <th>Payment</th>
-                                <th>Ticket</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Invoice</th>
+                                <th class="text-center">Payment</th>
+                                <th class="text-center">Ticket</th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($ticketInvoiceGroups as $ticketGroup)
@@ -858,32 +865,44 @@
                                         @php
                                             $canCancelTicket = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                                             $isCancelledTicket = (int) $ticket->status === \App\Models\Ticket::STATUS_CANCELLED;
+                                            $isEarlyBirdTicket = (bool) $ticket->isEarlyBirdTicket();
                                         @endphp
                                         <tr class="{{ $isCancelledTicket ? 'bg-red-50' : '' }}">
-                                            <td>
+                                            <td class="text-center">
                                                 @if($canCancelTicket)
-                                                    <x-ui.checkbox
-                                                        :id="'attended-ticket-'.$ticket->id"
-                                                        label="Attended"
-                                                        :small="true"
-                                                        :inline="true"
-                                                        :noWrapper="true"
-                                                        :labelHidden="true"
-                                                        x-model="ticketAttendance[{{ (int) $ticket->id }}]"
-                                                        x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
+                                                    <div class="flex justify-center">
+                                                        <x-ui.checkbox
+                                                            :id="'attended-ticket-'.$ticket->id"
+                                                            label="Attended"
+                                                            :small="true"
+                                                            :inline="true"
+                                                            :noWrapper="true"
+                                                            :labelHidden="true"
+                                                            x-model="ticketAttendance[{{ (int) $ticket->id }}]"
+                                                            x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
+                                                    </div>
                                                 @else
                                                     <span class="text-gray-400">-</span>
                                                 @endif
                                             </td>
-                                            <td class="{{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $ticket->reference_code ?: $ticket->id }}</td>
-                                            <td class="{{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-' }}</td>
-                                            <td>
+                                            <td class="text-center {{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">
+                                                <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                                                @if($isEarlyBirdTicket)
+                                                    <x-ui.badge color="amber" size="xs" uppercase="true" data-early-bird-badge="true">Early Bird</x-ui.badge>
+                                                @endif
+                                            </td>
+                                            <td class="text-center {{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-' }}</td>
+                                            <td class="text-left">
                                                 <div class="{{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $ticket->email ?: '-' }}</div>
                                                 <div class="text-xs text-gray-500 {{ $isCancelledTicket ? 'line-through text-gray-500' : '' }}">{{ $ticket->phone ?: '-' }}</div>
                                             </td>
-                                            <td>{{ $ticket->customer_status_label }}</td>
+                                            <td class="text-center">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <span>{{ $ticket->customer_status_label }}</span>
+                                                </div>
+                                            </td>
                                             @if($loop->first)
-                                                <td rowspan="{{ $groupRowspan }}">
+                                                <td rowspan="{{ $groupRowspan }}" class="text-center">
                                                     @if($groupFirstTicket->invoice)
                                                         <a href="{{ route('admin.invoice.edit', $groupFirstTicket->invoice) }}" class="text-primary-color hover:underline">{{ $groupInvoiceMeta['number'] ?? ($groupFirstTicket->invoice->invoice_number ?: '#'.$groupFirstTicket->invoice->id) }}</a>
                                                         @if($groupInvoiceMeta)
@@ -906,7 +925,7 @@
                                                     @endif
                                                 </td>
                                             @endif
-                                            <td>
+                                            <td class="text-center">
                                                 @if($canCancelTicket)
                                                     <x-ui.button
                                                         type="button"

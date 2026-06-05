@@ -24,9 +24,27 @@
                 if ($creditAppliedAmount > 0.0001 && (string) ($session['payment_method'] ?? '') !== 'credit') {
                 $paymentMethodLabel = 'Account Credit + '.$paymentMethodLabel;
                 }
+                $ticketPricing = is_array($ticketPricing ?? null) ? $ticketPricing : [];
+                $earlyBirdCount = (int) ($ticketPricing['early_bird_count'] ?? 0);
+                $standardUnitPrice = round((float) ($ticketPricing['standard_unit_price'] ?? 0), 2);
+                $earlyBirdUnitPrice = $ticketPricing['early_bird_unit_price'] ?? null;
+                $earlyBirdUnitPrice = is_numeric($earlyBirdUnitPrice) ? round((float) $earlyBirdUnitPrice, 2) : null;
+                $orderEarlyBirdSummary = null;
+                if ($earlyBirdCount > 0 && $earlyBirdUnitPrice !== null && $standardUnitPrice > $earlyBirdUnitPrice) {
+                $orderSavings = round(($standardUnitPrice - $earlyBirdUnitPrice) * $earlyBirdCount, 2);
+                if ($orderSavings > 0.0001) {
+                $orderEarlyBirdSummary = 'Save $'.number_format($orderSavings, 2).' with earlybird pricing.';
+                }
+                }
                 $summaryRows = [
                 ['label' => 'Payment Method', 'value' => $paymentMethodLabel],
                 ];
+                if ($orderEarlyBirdSummary) {
+                $summaryRows[] = [
+                'label' => 'Early Bird',
+                'value' => $orderEarlyBirdSummary,
+                ];
+                }
                 if ($creditAppliedAmount > 0.0001) {
                 $summaryRows[] = [
                 'label' => 'Account Credit Applied',
@@ -89,7 +107,12 @@
                         <tbody>
                             @foreach($tickets as $ticket)
                             <tr class="border-t border-t-gray-300 text-sm">
-                                <td class="px-3 py-2">{{ $ticket->reference_code ?: $ticket->id }}</td>
+                                <td class="px-3 py-2">
+                                    <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                                    @if($ticket->isEarlyBirdTicket())
+                                        <div class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Early bird</div>
+                                    @endif
+                                </td>
                                 <td class="px-3 py-2">{{ trim(($ticket->firstname ?? '').' '.($ticket->surname ?? '')) ?: '-' }}<br><span class="text-gray-500 text-xs">{{ $ticket->email ?: '-' }}</span></td>
                                 @unless($isClassroomAccess)
                                     <td class="px-3 py-2 text-center">

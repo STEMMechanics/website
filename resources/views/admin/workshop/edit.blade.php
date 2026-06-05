@@ -1,10 +1,10 @@
 @php
+$workshopModel = $workshop ?? null;
 $workshopContent = isset($workshop) ? $workshop->content : '';
-$workshopSummary = old('summary', isset($workshop) ? (string) ($workshop->getRawOriginal('summary') ?? '') : '');
-$workshopStatusForForm = old('status', $workshop->status ?? 'draft');
-$selectedClassSessionId = old('class_session_id', $workshop->class_session_id ?? '');
-$workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshop->starts_at ?? ''));
-$workshopEndValue = old('ends_at', \App\Helpers::timestampNoSeconds($workshop->ends_at ?? ''));
+$workshopStatusForForm = old('status', $workshopModel?->status ?? 'draft');
+$selectedClassSessionId = old('class_session_id', $workshopModel?->class_session_id ?? '');
+$workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshopModel?->starts_at ?? ''));
+$workshopEndValue = old('ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->ends_at ?? ''));
 $managedClassSessions = collect(($classSessions ?? collect())->all())
     ->map(function ($classSession): array {
         $schedule = $classSession->broadcastSchedule();
@@ -45,41 +45,101 @@ $savedTickets = isset($workshop)
 : '[]';
 }
 
-$pickListTemplateFieldValue = old('pick_list_template_id', $workshop->pick_list_template_id ?? '');
+$pickListTemplateFieldValue = old('pick_list_template_id', $workshopModel?->pick_list_template_id ?? '');
 $pickListTemplateMode = old('pick_list_template_id') !== null
     ? $pickListTemplateFieldValue
-    : ((isset($workshop) && $workshop->pick_list_is_customized) ? 'custom' : $pickListTemplateFieldValue);
-$hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customized;
+    : (($workshopModel?->pick_list_is_customized) ? 'custom' : $pickListTemplateFieldValue);
+$hasCustomPickList = (bool) ($workshopModel?->pick_list_is_customized);
+$soldTicketCount = (int) ($soldTicketCount ?? $activeTicketCount ?? 0);
+$soldEarlyBirdTicketCount = (int) ($soldEarlyBirdTicketCount ?? 0);
+$maxTicketsTotal = is_numeric($workshopModel?->max_tickets ?? null) ? max(0, (int) $workshopModel->max_tickets) : null;
+$earlyBirdTicketLimitTotal = $workshopModel instanceof \App\Models\Workshop ? $workshopModel->earlyBirdTicketLimit() : null;
+$earlyBirdPriceValue = old('early_bird_price', $workshopModel?->early_bird_price ?? '');
+$earlyBirdEndsAtValue = old('early_bird_ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->early_bird_ends_at ?? ''));
+$earlyBirdTicketLimitValue = old('early_bird_ticket_limit', $workshopModel?->early_bird_ticket_limit ?? '');
+$maxTicketsRemaining = is_numeric($maxTicketsRemaining ?? null) ? max(0, (int) $maxTicketsRemaining) : null;
+$earlyBirdTicketCount = (int) ($earlyBirdTicketCount ?? 0);
+$earlyBirdTicketLimitRemaining = is_numeric($earlyBirdTicketLimitRemaining ?? null) ? max(0, (int) $earlyBirdTicketLimitRemaining) : null;
+$maxTicketsInfo = 'Set the overall capacity for the workshop.';
+$earlyBirdTicketLimitInfo = 'Stops the offer once this many tickets are sold.';
+$earlyBirdSectionSummaryParts = [];
+if (trim((string) $earlyBirdPriceValue) !== '' && is_numeric($earlyBirdPriceValue)) {
+    $earlyBirdSectionSummaryParts[] = 'Price $'.number_format((float) $earlyBirdPriceValue, 2);
+}
+if (trim((string) $earlyBirdEndsAtValue) !== '') {
+    try {
+        $earlyBirdSectionSummaryParts[] = 'Ends '.\Carbon\Carbon::parse((string) $earlyBirdEndsAtValue)->format('d M');
+    } catch (\Throwable $exception) {
+        $earlyBirdSectionSummaryParts[] = 'Ends '.trim((string) $earlyBirdEndsAtValue);
+    }
+}
+if (trim((string) $earlyBirdTicketLimitValue) !== '' && is_numeric($earlyBirdTicketLimitValue) && (int) $earlyBirdTicketLimitValue > 0) {
+    $earlyBirdSectionSummaryParts[] = 'Limit '.(int) $earlyBirdTicketLimitValue;
+}
+$earlyBirdSectionSummary = $earlyBirdSectionSummaryParts !== [] ? implode(' · ', $earlyBirdSectionSummaryParts) : 'No early bird settings';
+$earlyBirdSectionOpen = $errors->hasAny(['early_bird_price', 'early_bird_ends_at', 'early_bird_ticket_limit'])
+    || trim((string) $earlyBirdPriceValue) !== ''
+    || trim((string) $earlyBirdEndsAtValue) !== ''
+    || trim((string) $earlyBirdTicketLimitValue) !== '';
+if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+    if ($maxTicketsTotal !== null) {
+        if ($soldTicketCount >= $maxTicketsTotal) {
+            $maxTicketsInfo = 'All '.$maxTicketsTotal.' ticket'.($maxTicketsTotal === 1 ? '' : 's').' are currently sold.';
+        } elseif ($soldTicketCount > 0) {
+            $maxTicketsInfo = $soldTicketCount.' of '.$maxTicketsTotal.' ticket'.($maxTicketsTotal === 1 ? '' : 's').' are currently sold.';
+        } else {
+            $maxTicketsInfo = 'No tickets are currently sold. '.$maxTicketsRemaining.' remaining before full.';
+        }
+    }
+
+    if ($earlyBirdTicketLimitTotal !== null) {
+        if ($soldEarlyBirdTicketCount >= $earlyBirdTicketLimitTotal) {
+            $earlyBirdTicketLimitInfo = 'All '.$earlyBirdTicketLimitTotal.' early-bird ticket'.($earlyBirdTicketLimitTotal === 1 ? '' : 's').' are currently sold.';
+        } elseif ($soldEarlyBirdTicketCount > 0) {
+            $earlyBirdTicketLimitInfo = $soldEarlyBirdTicketCount.' of '.$earlyBirdTicketLimitTotal.' early-bird ticket'.($earlyBirdTicketLimitTotal === 1 ? '' : 's').' are currently sold.';
+        } else {
+            $earlyBirdTicketLimitInfo = 'No early-bird tickets are currently sold. '.$earlyBirdTicketLimitRemaining.' remaining at this limit.';
+        }
+    } elseif ($soldEarlyBirdTicketCount > 0) {
+        $earlyBirdTicketLimitInfo = $soldEarlyBirdTicketCount.' early-bird ticket'.($soldEarlyBirdTicketCount === 1 ? '' : 's').' are currently sold.';
+    }
+}
 @endphp
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-mast>
 
     <x-container class="mt-4">
         <form x-data="{
-            type: @js(old('type', isset($workshop) && $workshop->location_id ? 'physical' : 'online')),
+            type: @js(old('type', isset($workshopModel) && $workshopModel->location_id ? 'physical' : 'online')),
             status: @js($workshopStatusForForm),
-            originalStatus: @js(isset($workshop) ? (string) $workshop->status : $workshopStatusForForm),
-            isPrivate: @js((bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)),
-            isHidden: @js((bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)),
-            registration: @js(old('registration', $workshop->registration ?? 'none')),
-            maxTickets: @js(old('max_tickets', $workshop->max_tickets ?? '')),
-            ticketGroupRaw: @js(old('ticket_group_slug', $workshop->ticket_group_slug ?? '')),
+            originalStatus: @js(isset($workshopModel) ? (string) $workshopModel->status : $workshopStatusForForm),
+            isPrivate: @js((bool) old('is_private', isset($workshopModel) ? $workshopModel->isPrivate() : false)),
+            isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
+            registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
+            maxTickets: @js(old('max_tickets', $workshopModel?->max_tickets ?? '')),
+            earlyBirdPrice: @js((string) $earlyBirdPriceValue),
+            earlyBirdEndsAt: @js((string) $earlyBirdEndsAtValue),
+            earlyBirdTicketLimit: @js(old('early_bird_ticket_limit', $workshopModel?->early_bird_ticket_limit ?? '')),
+            originalEarlyBirdTicketLimit: @js((int) ($workshopModel?->early_bird_ticket_limit ?? 0)),
+            soldTicketCount: @js((int) ($soldTicketCount ?? 0)),
+            soldEarlyBirdTicketCount: @js((int) ($soldEarlyBirdTicketCount ?? 0)),
+            ticketGroupRaw: @js(old('ticket_group_slug', $workshopModel?->ticket_group_slug ?? '')),
             selectedClassSessionId: @js($selectedClassSessionId),
             classSessions: @js($managedClassSessions),
             managedStartFallback: @js($workshopStartValue),
             managedEndFallback: @js($workshopEndValue),
             manualStartsAt: @js($workshopStartValue),
             manualEndsAt: @js($workshopEndValue),
-            originalStartsAt: @js(isset($workshop) ? $workshopStartValue : ''),
-            originalEndsAt: @js(isset($workshop) ? $workshopEndValue : ''),
-            originalLocationId: @js(isset($workshop) ? trim((string) ($workshop->location_id ?? '')) : ''),
+            originalStartsAt: @js(isset($workshopModel) ? $workshopStartValue : ''),
+            originalEndsAt: @js(isset($workshopModel) ? $workshopEndValue : ''),
+            originalLocationId: @js(isset($workshopModel) ? trim((string) ($workshopModel->location_id ?? '')) : ''),
             ticketHolderNotificationCount: @js((int) ($ticketChangeNotificationRecipientCount ?? 0)),
             notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
             ticketChangeEmailNotes: @js((string) old('ticket_change_email_notes', '')),
             workshopCancelReasonDefault: @js("We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details."),
             workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
             hasCustomPickList: @js($hasCustomPickList),
-            originalPickListTemplateId: @js((string) ($workshop->pick_list_template_id ?? '')),
+            originalPickListTemplateId: @js((string) ($workshopModel?->pick_list_template_id ?? '')),
             pickListTemplateMode: @js((string) $pickListTemplateMode),
             pickListTemplateId: @js((string) $pickListTemplateFieldValue),
             pickListTemplateReset: false,
@@ -105,7 +165,7 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
             'name' => (string) $location->name,
             'address' => (string) ($location->address ?? ''),
             ])->values()->all()),
-            selectedLocationId: @js(old('location_id', $workshop->location_id ?? '')),
+            selectedLocationId: @js(old('location_id', $workshopModel?->location_id ?? '')),
             createLocationOpen: false,
             createLocationSubmitting: false,
             createLocationError: '',
@@ -279,6 +339,89 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
 
             return String(this.selectedLocationId ?? '').trim();
             },
+            parseEarlyBirdPrice(value) {
+            const raw = String(value || '').trim();
+            if (raw === '') {
+                return null;
+            }
+
+            const amount = Number.parseFloat(raw);
+            if (!Number.isFinite(amount) || amount < 0) {
+                return null;
+            }
+
+            return amount.toFixed(2);
+            },
+            formatEarlyBirdDate(value) {
+            const raw = String(value || '').trim();
+            if (raw === '') {
+                return '';
+            }
+
+            const datePart = raw.split('T')[0] || raw;
+            const [year, month, day] = datePart.split('-');
+            if (!year || !month || !day) {
+                return raw;
+            }
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = Number.parseInt(month, 10) - 1;
+            const monthLabel = monthNames[monthIndex] || month;
+
+            return `${day} ${monthLabel}`;
+            },
+            earlyBirdSummaryText() {
+            const parts = [];
+            const price = this.parseEarlyBirdPrice(this.earlyBirdPrice);
+            const endsAt = this.formatEarlyBirdDate(this.earlyBirdEndsAt);
+            const limit = Number.parseInt(String(this.earlyBirdTicketLimit || ''), 10);
+
+            if (price !== null) {
+                parts.push(`Price $${price}`);
+            }
+
+            if (endsAt !== '') {
+                parts.push(`Ends ${endsAt}`);
+            }
+
+            if (Number.isFinite(limit) && limit > 0) {
+                parts.push(`Limit ${limit}`);
+            }
+
+            return parts.length > 0 ? parts.join(' · ') : 'No early bird settings';
+            },
+            currentEarlyBirdTicketLimit() {
+            const value = Number.parseInt(String(this.earlyBirdTicketLimit || 0), 10);
+            return Number.isFinite(value) && value > 0 ? value : 0;
+            },
+            soldStandardTicketCount() {
+            return Math.max(0, Number.parseInt(String(this.soldTicketCount || 0), 10) - Number.parseInt(String(this.soldEarlyBirdTicketCount || 0), 10));
+            },
+            shouldConfirmEarlyBirdLimitIncrease() {
+            if (!@js(isset($workshop))) {
+            return false;
+            }
+
+            return this.currentEarlyBirdTicketLimit() > this.originalEarlyBirdTicketLimit
+                && this.soldStandardTicketCount() > 0;
+            },
+            async confirmEarlyBirdLimitIncrease() {
+            const nextLimit = this.currentEarlyBirdTicketLimit();
+            const remaining = Math.max(0, nextLimit - Number.parseInt(String(this.soldTicketCount || 0), 10));
+            const remainingLabel = remaining === 1 ? 'ticket' : 'tickets';
+
+            if (typeof window.SM === 'undefined' || !window.SM || typeof window.SM.confirm !== 'function') {
+            return true;
+            }
+
+            const result = await window.SM.confirm(
+                'Increase early bird limit?',
+                `This will mark existing tickets as early bird in order of purchase.<br><strong>${remaining}</strong> early bird ${remainingLabel} will remain after the update.<br><strong>This cannot be undone.</strong>`,
+                'OK'
+            );
+
+            return Boolean(result?.isConfirmed);
+            },
             hasRelevantTicketHolderChange() {
             if (!@js(isset($workshop)) || Number.parseInt(String(this.ticketHolderNotificationCount || 0), 10) <= 0) {
             return false;
@@ -303,6 +446,10 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
             async handleSubmit() {
             if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets', 'classroom'].includes(String(this.registration || ''))) {
             this.openCancelWorkshopModal();
+            return;
+            }
+
+            if (this.shouldConfirmEarlyBirdLimitIncrease() && !await this.confirmEarlyBirdLimitIncrease()) {
             return;
             }
 
@@ -458,16 +605,6 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
                 </div>
                 <div class="mb-4">
                     <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
-                </div>
-                <div class="mb-4">
-                    <x-ui.input
-                        type="textarea"
-                        label="Summary"
-                        name="summary"
-                        :value="$workshopSummary"
-                        rows="4"
-                        info="Short copy used in newsletter emails. Leave blank and the email will generate one from the workshop content."
-                    />
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
@@ -655,6 +792,29 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
                         <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
                     </div>
                 </div>
+                <x-ui.collapsible-section
+                    :open="$earlyBirdSectionOpen"
+                    title="Early Bird"
+                    x-show="registration==='tickets' || registration==='classroom'"
+                >
+                    <x-slot:summary>
+                        <span x-text="earlyBirdSummaryText()">{{ $earlyBirdSectionSummary }}</span>
+                    </x-slot:summary>
+                    <div class="flex flex-col sm:flex-row sm:gap-8">
+                        <div class="flex-1">
+                            <x-ui.input type="number" step="0.01" min="0" label="Early Bird Price" name="early_bird_price" x-model="earlyBirdPrice" value="{{ $earlyBirdPriceValue }}" info="Optional. Leave blank for a special instead of a discount." error="{{ $errors->first('early_bird_price') }}" />
+                        </div>
+                        <div class="flex-1">
+                            <x-ui.input type="datetime-local" label="Early Bird Ends At" name="early_bird_ends_at" x-model="earlyBirdEndsAt" value="{{ $earlyBirdEndsAtValue }}" info="Use this, the ticket limit, or both to end the early bird offer." error="{{ $errors->first('early_bird_ends_at') }}" />
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
+                        <div class="flex-1">
+                            <x-ui.input type="number" min="1" step="1" label="Early Bird Ticket Limit" name="early_bird_ticket_limit" x-model="earlyBirdTicketLimit" value="{{ $earlyBirdTicketLimitValue }}" info="{{ $earlyBirdTicketLimitInfo }}" error="{{ $errors->first('early_bird_ticket_limit') }}" />
+                        </div>
+                        <div class="flex-1"></div>
+                    </div>
+                </x-ui.collapsible-section>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
@@ -669,7 +829,7 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
                     </div>
                     <div class="flex-1">
                         <span x-show="registration==='tickets' || registration==='classroom'">
-                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" error="{{ $errors->first('max_tickets') }}" />
+                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
                         </span>
                         <span x-show="registration==='link'">
                             <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{!! isset($workshop) ? $workshop->registration_data : '' !!}" error="{{ $errors->first('registration_data') }}" />

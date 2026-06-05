@@ -35,7 +35,7 @@
                                 <div class="font-semibold text-gray-900">{{ $classSession->title }}</div>
                             </td>
                             <td class="text-center">
-                                <x-ui.badge :color="$classSession->adminListStatusTone()" size="xxs" uppercase="true">{{ $classSession->adminListStatusLabel() }}</x-ui.badge>
+                                <x-ui.badge :color="$classSession->adminListStatusTone()" size="xs" uppercase="true">{{ $classSession->adminListStatusLabel() }}</x-ui.badge>
                             </td>
                             <td class="hidden lg:table-cell text-center">
                                 <div class="text-sm font-semibold text-gray-900">{{ $studentCount }}</div>

@@ -16,6 +16,7 @@
 - Added SMS Gateway support
 - Dependency updates
 - Only show Cancellation reason for ticketed workshops
+- Added Early Bird options
 
 ## 1.4.5
 

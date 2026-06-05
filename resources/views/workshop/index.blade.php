@@ -182,7 +182,7 @@
             @else
                 <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
                     @foreach ($workshops as $workshop)
-                        <x-panel-workshop :workshop="$workshop" />
+                        <x-panel-workshop :workshop="$workshop" data-early-bird-display="badge" />
                     @endforeach
                 </x-container>
                 <x-container>

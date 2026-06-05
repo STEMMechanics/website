@@ -77,7 +77,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertSame('Online workshop summary', (string) $workshop->fresh()->summary);
     }
 
-    public function test_admin_workshop_edit_shows_summary_field_and_prefills_saved_value(): void
+    public function test_admin_workshop_edit_hides_unused_summary_and_early_bird_note_fields(): void
     {
         $admin = $this->createAdminUser();
         $owner = User::factory()->create();
@@ -89,8 +89,100 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
 
         $response->assertOk();
-        $response->assertSee('Summary');
-        $response->assertSee('Existing workshop summary', false);
+        $response->assertDontSee('name="summary"', false);
+        $response->assertDontSee('Short copy used in newsletter emails.', false);
+        $response->assertDontSee('Early Bird Note');
+        $response->assertSee('Early Bird', false);
+        $response->assertSee('ui-collapsible-section', false);
+        $response->assertSee('earlyBirdSummaryText()', false);
+    }
+
+    public function test_admin_workshop_edit_shows_sold_and_remaining_counts_for_capacity_fields(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = Workshop::query()->create([
+            'title' => 'Ticket Capacity Workshop',
+            'content' => '<p>Workshop content</p>',
+            'starts_at' => now()->addDays(5),
+            'ends_at' => now()->addDays(5)->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addDays(4),
+            'status' => 'open',
+            'registration' => 'tickets',
+            'price' => '10.00',
+            'early_bird_price' => '8.00',
+            'early_bird_ends_at' => now()->addWeek(),
+            'early_bird_ticket_limit' => 4,
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+            'max_tickets' => 10,
+        ]);
+
+        Ticket::factory()->count(4)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => true,
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('5 of 10 tickets are currently sold.', false);
+        $response->assertSee('All 4 early-bird tickets are currently sold.', false);
+    }
+
+    public function test_admin_workshop_edit_uses_all_copy_when_capacity_is_fully_sold(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = Workshop::query()->create([
+            'title' => 'Sold Out Capacity Workshop',
+            'content' => '<p>Workshop content</p>',
+            'starts_at' => now()->addDays(5),
+            'ends_at' => now()->addDays(5)->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addDays(4),
+            'status' => 'open',
+            'registration' => 'tickets',
+            'price' => '10.00',
+            'early_bird_price' => '8.00',
+            'early_bird_ends_at' => now()->addWeek(),
+            'early_bird_ticket_limit' => 4,
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+            'max_tickets' => 5,
+        ]);
+
+        Ticket::factory()->count(4)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => true,
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => false,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('All 5 tickets are currently sold.', false);
+        $response->assertSee('All 4 early-bird tickets are currently sold.', false);
     }
 
     public function test_admin_workshop_edit_prefills_cancellation_message_with_generic_copy(): void
@@ -106,6 +198,95 @@ class WorkshopTypeNormalizationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Please see below for your refund or credit details.', false);
+    }
+
+    public function test_admin_workshop_update_rejects_lowering_the_early_bird_limit_below_already_used_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'tickets');
+        $workshop->forceFill([
+            'price' => '10.00',
+            'early_bird_price' => '8.00',
+            'early_bird_ends_at' => now()->addWeek(),
+            'early_bird_ticket_limit' => 4,
+            'max_tickets' => 10,
+        ])->save();
+
+        Ticket::factory()->count(4)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => true,
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => false,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'registration' => 'tickets',
+                'max_tickets' => 10,
+                'early_bird_price' => '8.00',
+                'early_bird_ends_at' => now()->addWeek()->toDateTimeString(),
+                'early_bird_ticket_limit' => 2,
+            ]));
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('early_bird_ticket_limit');
+        $this->assertSame(4, (int) $workshop->fresh()->early_bird_ticket_limit);
+    }
+
+    public function test_increasing_the_early_bird_limit_marks_existing_tickets_in_purchase_order(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'tickets');
+        $workshop->forceFill([
+            'price' => '10.00',
+            'early_bird_price' => '8.00',
+            'early_bird_ends_at' => now()->addWeek(),
+            'early_bird_ticket_limit' => 2,
+            'max_tickets' => 10,
+        ])->save();
+
+        $tickets = Ticket::factory()->count(5)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'is_early_bird' => false,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'registration' => 'tickets',
+                'max_tickets' => 10,
+                'early_bird_price' => '8.00',
+                'early_bird_ends_at' => now()->addWeek()->toDateTimeString(),
+                'early_bird_ticket_limit' => 3,
+            ]));
+
+        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertSessionHasNoErrors();
+
+        $ticketFlags = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Ticket $ticket): bool => $ticket->isEarlyBirdTicket())
+            ->values()
+            ->all();
+
+        $this->assertSame([true, true, true, false, false], $ticketFlags);
+        $this->assertSame([true, true, true], $tickets->take(3)->map(fn (Ticket $ticket): bool => $ticket->fresh()->isEarlyBirdTicket())->values()->all());
+        $this->assertSame([false, false], $tickets->slice(3)->map(fn (Ticket $ticket): bool => $ticket->fresh()->isEarlyBirdTicket())->values()->all());
+        $this->assertSame(3, (int) $workshop->fresh()->early_bird_ticket_limit);
     }
 
     public function test_admin_workshop_edit_uses_the_current_registration_when_deciding_whether_to_show_the_cancel_flow(): void

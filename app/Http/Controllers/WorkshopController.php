@@ -491,7 +491,10 @@ class WorkshopController extends Controller
     {
         $query = Workshop::query()
             ->publiclyVisible()
-            ->with(['hero', 'location']);
+            ->with(['hero', 'location'])
+            ->withCount([
+                'tickets as active_tickets_count' => fn ($ticketQuery) => $ticketQuery->whereIn('status', Ticket::activePurchasedStatuses()),
+            ]);
 
         if ($past) {
             return $query
@@ -522,16 +525,12 @@ class WorkshopController extends Controller
 
     private function workshopFeedPriceLabel(Workshop $workshop): string
     {
-        $price = trim((string) ($workshop->price ?? ''));
-        if ($price === '' || $price === '0' || $price === '0.00') {
+        $priceAmount = $workshop->currentTicketPriceAmount();
+        if ($priceAmount <= 0.0001) {
             return 'Free';
         }
 
-        if (is_numeric($price)) {
-            return number_format((float) $price, 2, '.', '');
-        }
-
-        return $price;
+        return number_format($priceAmount, 2, '.', '');
     }
 
     private function workshopFeedEnclosure(Workshop $workshop): ?array
@@ -555,7 +554,10 @@ class WorkshopController extends Controller
     {
         $query = Workshop::query()
             ->with(['hero', 'location'])
-            ->withCount('interests');
+            ->withCount([
+                'interests',
+                'tickets as active_tickets_count' => fn ($ticketQuery) => $ticketQuery->whereIn('status', Ticket::activePurchasedStatuses()),
+            ]);
 
         if ($search !== '') {
             $query->where(function (Builder $builder) use ($search): void {
@@ -606,6 +608,9 @@ class WorkshopController extends Controller
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
+            'early_bird_price' => 'nullable|numeric|min:0',
+            'early_bird_ends_at' => 'nullable|date',
+            'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
         ], [
@@ -662,6 +667,14 @@ class WorkshopController extends Controller
             $workshopData['registration_data'] = null;
         }
         $this->normalizeWorkshopRegistrationData($workshopData);
+        $workshopData['early_bird_price'] = trim((string) ($workshopData['early_bird_price'] ?? '')) !== ''
+            ? round((float) $workshopData['early_bird_price'], 2)
+            : null;
+        $earlyBirdEndsAt = trim((string) ($workshopData['early_bird_ends_at'] ?? ''));
+        $workshopData['early_bird_ends_at'] = $earlyBirdEndsAt !== '' ? Carbon::parse($earlyBirdEndsAt) : null;
+        $workshopData['early_bird_ticket_limit'] = trim((string) ($workshopData['early_bird_ticket_limit'] ?? '')) !== ''
+            ? (int) $workshopData['early_bird_ticket_limit']
+            : null;
         if (array_key_exists('summary', $workshopData)) {
             $summary = trim((string) ($workshopData['summary'] ?? ''));
             $workshopData['summary'] = $summary !== '' ? $summary : null;
@@ -674,6 +687,11 @@ class WorkshopController extends Controller
             $workshopData['private_code'] = $privateCode !== '' ? $privateCode : null;
             $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
             $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
+        }
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+            $workshopData['early_bird_price'] = null;
+            $workshopData['early_bird_ends_at'] = null;
+            $workshopData['early_bird_ticket_limit'] = null;
         }
 
         if ($workshopData['status'] === 'open' && Carbon::parse($workshopData['starts_at'])->lt(Carbon::now())) {
@@ -707,6 +725,9 @@ class WorkshopController extends Controller
         }
 
         $workshop->loadMissing(['classSession.forumCategory', 'classroomForumCategory']);
+        $workshop->loadCount([
+            'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+        ]);
         $ticketService->cleanupExpiredHolds($workshop);
         $availableTickets = $ticketService->availableTickets($workshop);
         $ticketPriceAmount = $ticketService->ticketPriceAmount($workshop);
@@ -740,16 +761,37 @@ class WorkshopController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function admin_edit(Workshop $workshop)
+    public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
         $workshop->loadCount('interests');
         $workshop->loadMissing('classSession.forumCategory', 'pickListTemplate');
+        $workshop->loadCount([
+            'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+        ]);
+        $soldTicketCount = $workshop->activeTicketCount();
+        $soldEarlyBirdTicketCount = $this->countSoldEarlyBirdTickets($workshop);
+        $reservedTicketCount = $ticketService->countReservedTickets($workshop);
+        $earlyBirdTicketCount = $this->countReservedEarlyBirdTickets($workshop, $ticketService);
+        $maxTicketsRemaining = $workshop->max_tickets !== null
+            ? max(0, (int) $workshop->max_tickets - $soldTicketCount)
+            : null;
+        $earlyBirdTicketLimit = $workshop->earlyBirdTicketLimit();
+        $earlyBirdTicketLimitRemaining = $earlyBirdTicketLimit !== null
+            ? max(0, $earlyBirdTicketLimit - $soldEarlyBirdTicketCount)
+            : null;
 
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'classSessions' => $this->availableClassSessions($workshop),
+            'activeTicketCount' => $workshop->activeTicketCount(),
+            'soldTicketCount' => $soldTicketCount,
+            'soldEarlyBirdTicketCount' => $soldEarlyBirdTicketCount,
+            'reservedTicketCount' => $reservedTicketCount,
+            'earlyBirdTicketCount' => $earlyBirdTicketCount,
+            'maxTicketsRemaining' => $maxTicketsRemaining,
+            'earlyBirdTicketLimitRemaining' => $earlyBirdTicketLimitRemaining,
             'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop, false)),
         ]);
     }
@@ -772,7 +814,7 @@ class WorkshopController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function admin_update(Request $request, Workshop $workshop, SquareApiService $squareApi)
+    public function admin_update(Request $request, Workshop $workshop, WorkshopTicketService $ticketService, SquareApiService $squareApi)
     {
         $request->validate([
             'title' => 'required',
@@ -796,6 +838,9 @@ class WorkshopController extends Controller
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
+            'early_bird_price' => 'nullable|numeric|min:0',
+            'early_bird_ends_at' => 'nullable|date',
+            'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'reset_pick_list_customization' => 'nullable|boolean',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
@@ -883,6 +928,14 @@ class WorkshopController extends Controller
             $workshopData['registration_data'] = null;
         }
         $this->normalizeWorkshopRegistrationData($workshopData);
+        $workshopData['early_bird_price'] = trim((string) ($workshopData['early_bird_price'] ?? '')) !== ''
+            ? round((float) $workshopData['early_bird_price'], 2)
+            : null;
+        $earlyBirdEndsAt = trim((string) ($workshopData['early_bird_ends_at'] ?? ''));
+        $workshopData['early_bird_ends_at'] = $earlyBirdEndsAt !== '' ? Carbon::parse($earlyBirdEndsAt) : null;
+        $workshopData['early_bird_ticket_limit'] = trim((string) ($workshopData['early_bird_ticket_limit'] ?? '')) !== ''
+            ? (int) $workshopData['early_bird_ticket_limit']
+            : null;
         if (array_key_exists('summary', $workshopData)) {
             $summary = trim((string) ($workshopData['summary'] ?? ''));
             $workshopData['summary'] = $summary !== '' ? $summary : null;
@@ -896,6 +949,41 @@ class WorkshopController extends Controller
             $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
             $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
         }
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+            $workshopData['early_bird_price'] = null;
+            $workshopData['early_bird_ends_at'] = null;
+            $workshopData['early_bird_ticket_limit'] = null;
+        }
+
+        if (in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+            $reservedTicketCount = $ticketService->countReservedTickets($workshop);
+            $earlyBirdTicketCount = $this->countReservedEarlyBirdTickets($workshop, $ticketService);
+
+            if (($workshopData['max_tickets'] ?? null) !== null) {
+                $newMaxTickets = (int) $workshopData['max_tickets'];
+                if ($newMaxTickets < $reservedTicketCount) {
+                    throw ValidationException::withMessages([
+                        'max_tickets' => 'At least '.$reservedTicketCount.' ticket'.($reservedTicketCount === 1 ? '' : 's').' are already sold or reserved.',
+                    ]);
+                }
+            }
+
+            if (($workshopData['early_bird_ticket_limit'] ?? null) !== null) {
+                $newEarlyBirdTicketLimit = (int) $workshopData['early_bird_ticket_limit'];
+                if ($newEarlyBirdTicketLimit < $earlyBirdTicketCount) {
+                    throw ValidationException::withMessages([
+                        'early_bird_ticket_limit' => 'At least '.$earlyBirdTicketCount.' early-bird ticket'.($earlyBirdTicketCount === 1 ? '' : 's').' are already sold or reserved.',
+                    ]);
+                }
+            }
+        }
+
+        $originalEarlyBirdTicketLimit = $workshop->earlyBirdTicketLimit() ?? 0;
+        $newEarlyBirdTicketLimit = ($workshopData['early_bird_ticket_limit'] ?? null) !== null
+            ? (int) $workshopData['early_bird_ticket_limit']
+            : null;
+        $shouldReflagEarlyBirdTickets = $newEarlyBirdTicketLimit !== null && $newEarlyBirdTicketLimit > $originalEarlyBirdTicketLimit;
+
         if ($workshopData['status'] === 'open' && Carbon::parse($workshopData['starts_at'])->lt(Carbon::now())) {
             $workshopData['status'] = 'closed';
         }
@@ -921,6 +1009,9 @@ class WorkshopController extends Controller
         }
 
         $workshop->update($workshopData);
+        if ($shouldReflagEarlyBirdTickets && $newEarlyBirdTicketLimit !== null) {
+            $this->reflagEarlyBirdTicketsForLimit($workshop, $newEarlyBirdTicketLimit);
+        }
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles($request->input('private_files'), 'private');
         $this->syncWorkshopClassroom($workshop, $request);
@@ -1198,6 +1289,7 @@ class WorkshopController extends Controller
             ->where('workshop_id', $workshop->id)
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->count();
+        $workshop->setAttribute('active_tickets_count', $activeTicketCount);
 
         $showInvoiceColumn = Ticket::query()
             ->where('workshop_id', $workshop->id)
@@ -1635,14 +1727,7 @@ class WorkshopController extends Controller
             [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($activeTickets);
             $availableEftposPayments = $this->buildAttendanceEftposPaymentOptions($relevantInvoiceUserIds);
 
-            $fallbackTicketPrice = 0.0;
-            $rawWorkshopPrice = trim((string) ($workshop->price ?? ''));
-            if ($rawWorkshopPrice !== '') {
-                $numericWorkshopPrice = preg_replace('/[^0-9.]/', '', $rawWorkshopPrice);
-                if (is_string($numericWorkshopPrice) && $numericWorkshopPrice !== '' && is_numeric($numericWorkshopPrice)) {
-                    $fallbackTicketPrice = round((float) $numericWorkshopPrice, 2);
-                }
-            }
+            $fallbackTicketPrice = $workshop->currentTicketPriceAmount();
 
             $ticketPaymentRows = $activeTickets->map(function (Ticket $ticket) use ($attendanceInvoiceMeta, $fallbackTicketPrice): array {
                 $invoiceId = (int) ($ticket->invoice_id ?? 0);
@@ -3743,6 +3828,63 @@ class WorkshopController extends Controller
         }
 
         return null;
+    }
+
+    private function countReservedEarlyBirdTickets(Workshop $workshop, WorkshopTicketService $ticketService): int
+    {
+        $threshold = now()->subMinutes($ticketService->holdWindowMinutes());
+
+        return Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->where('is_early_bird', true)
+            ->where(function ($builder) use ($threshold) {
+                $builder->whereIn('status', Ticket::activePurchasedStatuses())
+                    ->orWhere(function ($holdQuery) use ($threshold) {
+                        $holdQuery->where('status', Ticket::STATUS_HOLD)
+                            ->where('created_at', '>=', $threshold);
+                    });
+            })
+            ->count();
+    }
+
+    private function countSoldEarlyBirdTickets(Workshop $workshop): int
+    {
+        return Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->where('is_early_bird', true)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->count();
+    }
+
+    private function reflagEarlyBirdTicketsForLimit(Workshop $workshop, int $newLimit): void
+    {
+        $orderedTicketIds = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
+        if ($orderedTicketIds === []) {
+            return;
+        }
+
+        $earlyBirdTicketIds = array_slice($orderedTicketIds, 0, max(0, $newLimit));
+        $eligibleTicketIds = $orderedTicketIds;
+
+        Ticket::query()
+            ->whereIn('id', $eligibleTicketIds)
+            ->update(['is_early_bird' => false]);
+
+        if ($earlyBirdTicketIds !== []) {
+            Ticket::query()
+                ->whereIn('id', $earlyBirdTicketIds)
+                ->update(['is_early_bird' => true]);
+        }
     }
 
     /**

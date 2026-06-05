@@ -44,11 +44,13 @@ class Ticket extends Model
         'attended_at',
         'reissued_to_ticket_id',
         'reissued_from_ticket_id',
+        'is_early_bird',
     ];
 
     protected $casts = [
         'status' => 'integer',
         'attended_at' => 'datetime',
+        'is_early_bird' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -164,6 +166,11 @@ class Ticket extends Model
     public function reissuedFromTicket(): BelongsTo
     {
         return $this->belongsTo(self::class, 'reissued_from_ticket_id');
+    }
+
+    public function isEarlyBirdTicket(): bool
+    {
+        return (bool) $this->is_early_bird;
     }
 
     private function reissuedStatusLabel(): string

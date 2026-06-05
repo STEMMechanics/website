@@ -34,6 +34,7 @@
             $rowType = trim((string) ($row['type'] ?? 'data'));
             $label = trim((string) ($row['label'] ?? '-'));
             $valueClass = trim((string) ($row['value_class'] ?? 'text-gray-900'));
+            $valueHtml = $row['value_html'] ?? null;
         @endphp
         @if($rowType === 'spacer')
             <tr aria-hidden="true">
@@ -51,6 +52,8 @@
                         </button>
                         <span class="font-semibold">{{ $row['value'] ?? '-' }}</span>
                     </div>
+                @elseif($valueHtml !== null)
+                    {!! $valueHtml !!}
                 @else
                     {{ $row['value'] ?? '-' }}
                 @endif

@@ -30,6 +30,9 @@ class Workshop extends Model
         'closes_at',
         'status',
         'price',
+        'early_bird_price',
+        'early_bird_ends_at',
+        'early_bird_ticket_limit',
         'ages',
         'registration',
         'registration_data',
@@ -60,9 +63,12 @@ class Workshop extends Model
         'ends_at' => 'datetime',
         'publish_at' => 'datetime',
         'closes_at' => 'datetime',
+        'early_bird_ends_at' => 'datetime',
+        'early_bird_price' => 'decimal:2',
         'is_private' => 'boolean',
         'is_hidden' => 'boolean',
         'max_tickets' => 'integer',
+        'early_bird_ticket_limit' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
         'pick_list_custom_items' => 'array',
@@ -198,6 +204,246 @@ class Workshop extends Model
         $content = trim((string) Str::of(strip_tags($content))->squish());
 
         return Str::limit($content, $limit);
+    }
+
+    public function baseTicketPriceAmount(): float
+    {
+        $raw = trim((string) ($this->price ?? ''));
+        if ($raw === '') {
+            return 0.0;
+        }
+
+        $normalized = strtolower($raw);
+        if (in_array($normalized, ['free', 'tbd', 'tbc'], true)) {
+            return 0.0;
+        }
+
+        $number = preg_replace('/[^0-9.]/', '', $raw);
+        if (! is_string($number) || $number === '' || ! is_numeric($number)) {
+            return 0.0;
+        }
+
+        return max(0, round((float) $number, 2));
+    }
+
+    public function earlyBirdPriceAmount(): ?float
+    {
+        if ($this->early_bird_price === null || trim((string) $this->early_bird_price) === '') {
+            return null;
+        }
+
+        return max(0, round((float) $this->early_bird_price, 2));
+    }
+
+    public function earlyBirdTicketLimit(): ?int
+    {
+        $limit = $this->early_bird_ticket_limit;
+
+        return is_numeric($limit) && (int) $limit > 0 ? (int) $limit : null;
+    }
+
+    public function activeTicketCount(): int
+    {
+        $count = $this->getAttribute('active_tickets_count');
+        if (is_numeric($count)) {
+            return max(0, (int) $count);
+        }
+
+        if ($this->relationLoaded('tickets')) {
+            return (int) $this->tickets
+                ->filter(fn (Ticket $ticket): bool => in_array((int) $ticket->status, Ticket::activePurchasedStatuses(), true))
+                ->count();
+        }
+
+        return (int) $this->tickets()
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->count();
+    }
+
+    public function earlyBirdTicketLimitRemaining(): ?int
+    {
+        $limit = $this->earlyBirdTicketLimit();
+        if ($limit === null) {
+            return null;
+        }
+
+        $holdMinutes = 10;
+        try {
+            $configuredHoldMinutes = SiteOption::value('tickets.hold-minutes', '10');
+            if (is_numeric($configuredHoldMinutes)) {
+                $holdMinutes = (int) $configuredHoldMinutes;
+            }
+        } catch (\Throwable) {
+            $holdMinutes = 10;
+        }
+        $holdMinutes = max(1, min(240, $holdMinutes));
+        $threshold = now()->subMinutes($holdMinutes);
+        try {
+            $reserved = Ticket::query()
+                ->where('workshop_id', $this->id)
+                ->where('is_early_bird', true)
+                ->where(function ($builder) use ($threshold) {
+                    $builder->whereIn('status', Ticket::activePurchasedStatuses())
+                        ->orWhere(function ($holdQuery) use ($threshold) {
+                            $holdQuery->where('status', Ticket::STATUS_HOLD)
+                                ->where('created_at', '>=', $threshold);
+                        });
+                })
+                ->count();
+        } catch (\Throwable) {
+            return max(0, $limit - $this->activeTicketCount());
+        }
+
+        return max(0, $limit - $reserved);
+    }
+
+    public function hasEarlyBirdOffer(): bool
+    {
+        return $this->earlyBirdPriceAmount() !== null
+            || $this->earlyBirdTicketLimit() !== null
+            || $this->early_bird_ends_at !== null;
+    }
+
+    public function earlyBirdIsActive(): bool
+    {
+        if (! $this->hasEarlyBirdOffer()) {
+            return false;
+        }
+
+        if ($this->early_bird_ends_at !== null && Carbon::parse($this->early_bird_ends_at)->isPast()) {
+            return false;
+        }
+
+        $remaining = $this->earlyBirdTicketLimitRemaining();
+        if ($remaining !== null && $remaining <= 0) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function currentTicketPriceAmount(): float
+    {
+        $earlyBirdPrice = $this->earlyBirdPriceAmount();
+        if ($earlyBirdPrice !== null && $this->earlyBirdIsActive()) {
+            return $earlyBirdPrice;
+        }
+
+        return $this->baseTicketPriceAmount();
+    }
+
+    /**
+     * @return array{
+     *     ticketPriceAmount: float,
+     *     nonDiscountAmount: float,
+     *     earlyBirdSummary: ?string,
+     *     earlyBirdPlacesRemaining: ?int
+     * }
+     */
+    public function ticketPricing(): array
+    {
+        $ticketPriceAmount = $this->currentTicketPriceAmount();
+        $nonDiscountAmount = ($this->earlyBirdPriceAmount() !== null && $this->earlyBirdIsActive())
+            ? $this->baseTicketPriceAmount()
+            : $ticketPriceAmount;
+
+        return [
+            'ticketPriceAmount' => $ticketPriceAmount,
+            'nonDiscountAmount' => $nonDiscountAmount,
+            'earlyBirdSummary' => $this->earlyBirdSummaryLabel(),
+            'earlyBirdStatus' => $this->earlyBirdStatusLabel(),
+            'earlyBirdPlacesRemaining' => $this->earlyBirdTicketLimitRemaining(),
+        ];
+    }
+
+    /**
+     * Build the standard invoice line notes for a ticket on this workshop.
+     *
+     * @param  array<int, string>  $extraLines
+     */
+    public function ticketInvoiceLineNotes(?Ticket $ticket = null, array $extraLines = []): string
+    {
+        $lines = [
+            'Workshop date/time: '.$this->getTicketTimeRangeLabel(),
+            'Workshop location: '.((string) $this->getLocationName()),
+        ];
+
+        if ($ticket instanceof Ticket && $ticket->isEarlyBirdTicket()) {
+            $lines[] = 'Early Bird ticket.';
+        }
+
+        foreach ($extraLines as $line) {
+            $value = trim((string) $line);
+            if ($value !== '') {
+                $lines[] = $value;
+            }
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    public function earlyBirdCutoffLabel(): ?string
+    {
+        if (! $this->hasEarlyBirdOffer()) {
+            return null;
+        }
+
+        $parts = [];
+
+        if ($this->early_bird_ends_at !== null) {
+            $parts[] = 'ends '.Carbon::parse($this->early_bird_ends_at)->format('j M Y g:ia');
+        }
+
+        $limit = $this->earlyBirdTicketLimit();
+        if ($limit !== null) {
+            $parts[] = 'first '.$limit.' tickets';
+        }
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode(' or ', $parts);
+    }
+
+    public function earlyBirdSummaryLabel(): ?string
+    {
+        if (! $this->earlyBirdIsActive()) {
+            return null;
+        }
+
+        $savings = max(0, round($this->baseTicketPriceAmount() - $this->currentTicketPriceAmount(), 2));
+        if ($savings <= 0.0001) {
+            return null;
+        }
+
+        $summary = 'Save $'.number_format($savings, 2).' with earlybird pricing';
+        if ($this->early_bird_ends_at !== null) {
+            $summary .= '. Ends '.Carbon::parse($this->early_bird_ends_at)->format('d M');
+        }
+        if ($this->earlyBirdTicketLimit() !== null) {
+            $summary .= '. Limited tickets available';
+        }
+
+        return $summary;
+    }
+
+    public function earlyBirdStatusLabel(): ?string
+    {
+        if (! $this->hasEarlyBirdOffer()) {
+            return null;
+        }
+
+        $summary = $this->earlyBirdSummaryLabel();
+        if ($summary !== null) {
+            return $summary;
+        }
+
+        if ($this->early_bird_ends_at !== null && Carbon::parse($this->early_bird_ends_at)->isPast()) {
+            return 'Early bird ended '.Carbon::parse($this->early_bird_ends_at)->format('d M');
+        }
+
+        return null;
     }
 
     public function getTicketTimeRangeLabel(): string

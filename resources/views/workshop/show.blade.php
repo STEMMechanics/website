@@ -87,6 +87,10 @@
     $workshopContent = \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($workshop->content ?? ''));
     $courseScheduleLines = $workshop->courseScheduleDisplayLines();
     $courseScheduleCadence = $workshop->courseScheduleCadenceLabel();
+    $ticketPricing = $workshop->ticketPricing();
+    $ticketPriceAmount = (float) ($ticketPricing['ticketPriceAmount'] ?? 0);
+    $nonDiscountAmount = (float) ($ticketPricing['nonDiscountAmount'] ?? $ticketPriceAmount);
+    $earlyBirdStatus = $ticketPricing['earlyBirdStatus'] ?? ($ticketPricing['earlyBirdSummary'] ?? null);
 @endphp
 
     <x-layout
@@ -101,8 +105,7 @@
         <x-ui.image-hero :image="$workshop->hero?->url" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
             <div class="flex flex-col flex-1">
-                <h1 class="text-3xl font-bold mb-6">{!! $workshop->title !!}</h1>
-                <article class="content mb-4">{!! $workshopContent !!}</article>
+                <article class="content my-4">{!! $workshopContent !!}</article>
                 <x-ui.filelist class="mt-16" value="{!! $workshop->files()->orderBy('name')->get() !!}" />
             </div>
             <div class="flex flex-col sm:pt-8 basis-64 grow-0 shrink-0">
@@ -321,15 +324,20 @@
                 <h2 class="text-gray-600 text-lg font-bold mb-2"><i class="mr-1 fa-regular fa-face-smile w-5 text-center"></i> {{ isset($workshop->ages) && $workshop->ages !== '' ? 'Ages ' . $workshop->ages : 'All ages' }}</h2>
                 @if(\App\Helpers::isUnderAge($workshop->ages) && $workshop->getLocationName() !== 'Online')
                     <p class="text-gray-600 text-xs pl-3 ml-2 mb-6 border-l-4 border-l-yellow-400">Parental supervision may be required for children 8 years of age and under.</p>
+                @else
+                    <p class="mb-6">&nbsp;</p>
                 @endif
-                <h2 class="text-gray-600 text-lg font-bold mb-2">
+                <h2 class="text-gray-600 text-lg font-bold">
                     <i class="mr-1 fa-solid fa-dollar-sign w-5 text-center"></i>
-                    {{
-                        is_numeric(trim((string) ($workshop->price ?? ''))) && (float) trim((string) ($workshop->price ?? '')) > 0
-                            ? number_format((float) trim((string) ($workshop->price ?? '')), 2, '.', '')
-                            : 'Free'
-                    }}
+                    <span class="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span>
+                            {{ $ticketPriceAmount > 0.0001 ? number_format((float) $ticketPriceAmount, 2, '.', '') : 'Free' }}
+                        </span>
+                    </span>
                 </h2>
+                @if($earlyBirdStatus)
+                    <p class="text-gray-600 text-xs pl-6 mb-6">{{ $earlyBirdStatus }}</p>
+                @endif
             </div>
         </div>
     </x-container>

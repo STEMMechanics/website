@@ -1,5 +1,19 @@
 <x-layout>
-    @php($isClassroomAccess = $workshop->usesClassroomRegistration())
+    @php
+        $isClassroomAccess = $workshop->usesClassroomRegistration();
+        $ticketPricing = is_array($ticketPricing ?? null) ? $ticketPricing : [];
+        $earlyBirdCount = (int) ($ticketPricing['early_bird_count'] ?? 0);
+        $standardUnitPrice = round((float) ($ticketPricing['standard_unit_price'] ?? 0), 2);
+        $earlyBirdUnitPrice = $ticketPricing['early_bird_unit_price'] ?? null;
+        $earlyBirdUnitPrice = is_numeric($earlyBirdUnitPrice) ? round((float) $earlyBirdUnitPrice, 2) : null;
+        $orderEarlyBirdSummary = null;
+        if ($earlyBirdCount > 0 && $earlyBirdUnitPrice !== null && $standardUnitPrice > $earlyBirdUnitPrice) {
+            $orderSavings = round(($standardUnitPrice - $earlyBirdUnitPrice) * $earlyBirdCount, 2);
+            if ($orderSavings > 0.0001) {
+                $orderEarlyBirdSummary = 'Save $'.number_format($orderSavings, 2).' with earlybird pricing.';
+            }
+        }
+    @endphp
     <x-mast>{{ $isClassroomAccess ? 'Course Registration Details' : 'Ticket Details' }}</x-mast>
 
     <x-container class="max-w-4xl mt-6 mx-auto">
@@ -10,6 +24,11 @@
                     Congrats, you're in. Your {{ $isClassroomAccess ? 'course registration' : 'ticket'.($tickets->count() === 1 ? '' : 's') }} {{ $isClassroomAccess ? 'is' : 'are' }} reserved for <strong>{{ $workshop->title }}</strong>.
                 </p>
                 <p class="text-sm text-gray-600 mb-4">{{ $isClassroomAccess ? 'Add details for each course registration holder below.' : 'Add details for each ticket holder below.' }}</p>
+                @if($orderEarlyBirdSummary)
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                        {{ $orderEarlyBirdSummary }}
+                    </div>
+                @endif
 
                 @if((string) ($session['payment_method'] ?? '') === 'bank_transfer' && is_array($bankTransferDetails ?? null))
                     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -32,7 +51,12 @@
                     @csrf
                     @foreach($tickets as $index => $ticket)
                     <div class="border border-gray-400 rounded-lg p-4 mb-3">
-                        <div class="font-semibold mb-2">{{ $isClassroomAccess ? 'Course Registration' : 'Ticket' }} {{ $index + 1 }} - {{ $ticket->reference_code }}</div>
+                        <div class="font-semibold mb-2">
+                            {{ $isClassroomAccess ? 'Course Registration' : 'Ticket' }} {{ $index + 1 }} - {{ $ticket->reference_code }}
+                            @if($ticket->isEarlyBirdTicket())
+                                <span class="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 align-middle">Early bird</span>
+                            @endif
+                        </div>
                         <input type="hidden" name="tickets[{{ $index }}][id]" value="{{ $ticket->id }}">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />

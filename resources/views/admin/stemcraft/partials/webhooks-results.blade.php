@@ -47,8 +47,8 @@
                 data-webhook-row-key="{{ $log->id }}"
             >
                 <div class="flex flex-wrap items-center gap-3">
-                    <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $log->direction }}</x-ui.badge>
-                    <x-ui.badge :color="$statusTone" size="xxs">{{ $log->status }}</x-ui.badge>
+                    <x-ui.badge color="gray" size="xs" uppercase="true">{{ $log->direction }}</x-ui.badge>
+                    <x-ui.badge :color="$statusTone" size="xs">{{ $log->status }}</x-ui.badge>
                     <span class="text-xs text-gray-500">#{{ $log->id }}</span>
                 </div>
                 <div class="mt-3 text-sm font-semibold text-gray-900">{{ $log->event ?: 'Unknown event' }}</div>
@@ -232,7 +232,7 @@
                             @endif
                         </td>
                         <td class="whitespace-nowrap!">
-                            <x-ui.badge :color="$statusTone" size="xxs">{{ $log->status }}</x-ui.badge>
+                            <x-ui.badge :color="$statusTone" size="xs">{{ $log->status }}</x-ui.badge>
                             @if($log->response_status)
                                 <div class="text-xs text-gray-500">HTTP {{ $log->response_status }}</div>
                             @endif

@@ -149,6 +149,29 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertTrue($publicWorkshop->isPubliclyVisible());
     }
 
+    public function test_public_workshop_index_cards_show_a_compact_early_bird_badge(): void
+    {
+        $publicWorkshop = $this->createWorkshop(
+            title: 'Public Early Bird Session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            price: '20.00'
+        );
+        $publicWorkshop->update([
+            'early_bird_price' => '15.00',
+            'early_bird_ticket_limit' => 3,
+            'early_bird_ends_at' => now()->addDay(),
+        ]);
+
+        $response = $this->get(route('workshop.index'));
+
+        $response->assertOk();
+        $response->assertSee('Public Early Bird Session');
+        $response->assertSee('Early Bird', false);
+        $response->assertDontSee('Save $5.00 with earlybird pricing', false);
+    }
+
     public function test_public_workshop_index_calendar_view_groups_workshops_and_shows_month_navigation(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));

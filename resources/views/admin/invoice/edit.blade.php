@@ -837,7 +837,7 @@
                             </div>
                         <div class="md:col-span-4">
                             <label class="block text-sm pl-1">Unit Price (Ex GST)</label>
-                            <div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="min-w-0 flex-1">
                                     <input type="number" step="0.01" class="disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" />
                                     <div class="mt-1 text-xs text-gray-600">
@@ -845,8 +845,7 @@
                                     </div>
                                 </div>
                                 <x-ui.checkbox
-                                    class="shrink-0"
-                                    inputClass="mt-0"
+                                    class="shrink-0 mt-1"
                                     :label="'GST applies'"
                                     :inline="true"
                                     :noWrapper="true"
@@ -858,16 +857,16 @@
                                 />
                             </div>
                         </div>
+                        @if(! $isLocked)
                         <div class="md:col-span-1">
-                            @if(! $isLocked)
                                 <button type="button" class="text-red-600 hover:text-red-700 h-[42px]" x-on:click.prevent="removeLineItem(index)">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
-                            @endif
                         </div>
+                        @endif
                         <div class="md:col-span-12">
                             <label class="block text-sm pl-1">Line Item Notes</label>
-                            <textarea rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></textarea>
+                            <textarea rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full max-w-none resize-y text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></textarea>
                         </div>
                     </div>
                 </template>

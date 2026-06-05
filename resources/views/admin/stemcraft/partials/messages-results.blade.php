@@ -8,8 +8,8 @@
                 @foreach($messages as $message)
             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm {{ (string) request('highlight') === (string) $message->id ? 'ring-2 ring-amber-300' : '' }}">
                 <div class="flex flex-wrap items-center gap-3">
-                    <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
-                    <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xxs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
+                    <x-ui.badge color="gray" size="xs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
+                    <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
                     <span class="text-xs text-gray-500">#{{ $message->id }}</span>
                 </div>
 
@@ -75,11 +75,11 @@
                             @endif
                         </td>
                         <td class="whitespace-nowrap">
-                            <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
+                            <x-ui.badge color="gray" size="xs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
                             <div class="text-xs text-gray-500">{{ $message->server_name }}</div>
                         </td>
                         <td>
-                            <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xxs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
+                            <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
                             @if(! $message->passed)
                                 <div class="mt-1 text-xs text-gray-600">{{ $message->failureSummary() }}</div>
                             @endif

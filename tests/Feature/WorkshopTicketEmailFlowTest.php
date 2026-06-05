@@ -41,6 +41,105 @@ class WorkshopTicketEmailFlowTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_ticket_checkout_allocates_early_bird_pricing_only_up_to_the_configured_limit(): void
+    {
+        Queue::fake();
+
+        $workshop = $this->createTicketedWorkshop([
+            'price' => '10.00',
+            'early_bird_price' => '8.00',
+            'early_bird_ticket_limit' => 2,
+            'early_bird_ends_at' => now()->addWeek(),
+        ]);
+
+        $this->travelTo(now()->startOfMinute());
+
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 3,
+            'firstname' => 'Jamie',
+            'surname' => 'Example',
+            'email' => 'buyer@example.com',
+            'phone' => '0400123456',
+        ])->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+
+        $this->assertSame(
+            [true, true, false],
+            Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Ticket $ticket): bool => $ticket->isEarlyBirdTicket())
+                ->all()
+        );
+        $this->assertFalse($workshop->fresh()->earlyBirdIsActive());
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertDontSee('Early bird sold out', false);
+
+        $this->get(route('workshop.ticket.flow.payment', $workshop))
+            ->assertOk()
+            ->assertSee('Early Bird', false)
+            ->assertSee('2 @ $8.00 per ticket (Early bird)', false)
+            ->assertSee('Standard', false)
+            ->assertSee('1 @ $10.00 per ticket', false)
+            ->assertSee('$26.00', false);
+
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), [
+            'payment_method' => 'pay_at_door',
+        ])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+
+        $this->get(route('workshop.ticket.flow.details', $workshop))
+            ->assertOk()
+            ->assertSee('Save $4.00 with earlybird pricing.', false);
+
+        $invoice = Invoice::query()->sole();
+        $lines = InvoiceLine::query()
+            ->where('invoice_id', $invoice->id)
+            ->orderBy('line_number')
+            ->get();
+
+        $this->assertSame(26.00, (float) $invoice->total_amount);
+        $this->assertSame([8.00, 8.00, 10.00], $lines->map(fn (InvoiceLine $line): float => (float) $line->line_total_inc_tax)->all());
+        $this->assertStringContainsString('Early Bird ticket.', (string) $lines[0]->notes);
+        $this->assertStringContainsString('Early Bird ticket.', (string) $lines[1]->notes);
+        $this->assertStringNotContainsString('Early Bird ticket.', (string) $lines[2]->notes);
+        $this->assertSame(
+            [true, true, false],
+            Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Ticket $ticket): bool => $ticket->isEarlyBirdTicket())
+                ->all()
+        );
+        $this->assertSame(
+            [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_DOOR],
+            Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (Ticket $ticket): int => (int) $ticket->status)
+                ->all()
+        );
+    }
+
+    public function test_ticket_checkout_start_page_shows_the_remaining_early_bird_slots_in_places(): void
+    {
+        $workshop = $this->createTicketedWorkshop([
+            'max_tickets' => 6,
+            'price' => '10.00',
+            'early_bird_price' => '7.00',
+            'early_bird_ticket_limit' => 1,
+            'early_bird_ends_at' => now()->addWeek(),
+        ]);
+
+        $this->get(route('workshop.ticket.flow.start', $workshop))
+            ->assertOk()
+            ->assertSee('Places', false)
+            ->assertSeeHtml('6 <span class="text-gray-500">(1 early bird ticket remains)</span>');
+    }
+
     public function test_paid_ticket_checkout_sends_the_combined_email_to_the_purchaser_and_the_ticket_email_to_a_different_holder(): void
     {
         Queue::fake();

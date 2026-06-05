@@ -71,7 +71,7 @@
                                     @if($statusTimestamp)
                                         <div class="mt-0.5 text-xs text-gray-500">{{ $statusTimestamp->format('M j Y, g:i a') }}</div>
                                     @endif
-                                    <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                    <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                                     @if($newsletterStatus === \App\Models\SentEmail::STATUS_FAILED && ! empty($latestNewsletter->error_message))
                                         <div class="mt-1 text-xs text-gray-500">
                                             {{ \Illuminate\Support\Str::limit($latestNewsletter->error_message, 120) }}
@@ -144,7 +144,7 @@
                                 @if($latestNewsletter === null)
                                     -
                                 @else
-                                    <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                    <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                                     @if($statusTimestamp)
                                         <div class="mt-1 text-xs text-gray-500">{{ $statusTimestamp->format('M j Y, g:i a') }}</div>
                                     @endif

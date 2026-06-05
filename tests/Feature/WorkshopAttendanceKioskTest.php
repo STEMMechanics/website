@@ -221,6 +221,31 @@ class WorkshopAttendanceKioskTest extends TestCase
             ->assertSee('Record Ticket Payment');
     }
 
+    public function test_ticketed_attendance_page_marks_early_bird_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+
+        Ticket::query()->create([
+            'status' => Ticket::STATUS_PAID,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'firstname' => 'Early',
+            'surname' => 'Bird',
+            'email' => 'early@example.com',
+            'phone' => '0400111222',
+            'attended_at' => null,
+            'is_early_bird' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.attendance', $workshop))
+            ->assertOk()
+            ->assertSee('data-early-bird-badge="true"', false)
+            ->assertSee('Early Bird', false);
+    }
+
     public function test_ticketed_attendance_can_optionally_show_cancelled_tickets(): void
     {
         $admin = $this->createAdminUser();

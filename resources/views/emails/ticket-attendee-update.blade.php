@@ -23,6 +23,9 @@ You're in! {{ $purchaserName !== '' ? $purchaserName : 'A purchaser' }} has purc
 **Phone:** {{ (string) ($ticket['phone'] ?? '-') }}
 @else
 **Ticket Reference:** {{ (string) ($ticket['reference'] ?? '-') }}<br>
+@if(!empty($ticket['earlyBird'] ?? false))
+**Ticket Type:** Early bird ticket<br>
+@endif
 **Attendee:** {{ (string) ($ticket['name'] ?? '-') }}<br>
 **Email:** {{ (string) ($ticket['email'] ?? '-') }}<br>
 **Phone:** {{ (string) ($ticket['phone'] ?? '-') }}

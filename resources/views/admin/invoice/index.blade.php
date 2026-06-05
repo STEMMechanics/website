@@ -104,7 +104,7 @@
                                 @endif
                                 <div class="mt-1 text-xs text-gray-600">{{ $invoice->user?->getName() ?? '-' }}</div>
                             </div>
-                            <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                            <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                         </div>
 
                         <div class="mt-3 space-y-2 text-xs">
@@ -223,7 +223,7 @@
                                     <div class="mt-1 text-xs text-gray-600">{{ $invoice->user?->getName() ?? '-' }}</div>
                                     <div class="text-xs text-gray-600">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</div>
                                 </div>
-                                <x-ui.badge color="slate" size="xxs">Tax Adjustment</x-ui.badge>
+                                <x-ui.badge color="slate" size="xs">Tax Adjustment</x-ui.badge>
                             </div>
                             <div class="mt-3">
                                 <div class="text-sm font-semibold text-gray-950">${{ number_format((float) $adjustment->total_amount, 2) }}</div>

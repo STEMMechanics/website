@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\Ticket;
 use App\Models\Workshop;
 
 class HomeController extends Controller
@@ -14,6 +15,9 @@ class HomeController extends Controller
             ->publiclyVisible()
             ->where('starts_at', '>', now())
             ->whereIn('status', ['open', 'scheduled', 'full'])
+            ->withCount([
+                'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+            ])
             ->orderBy('starts_at', 'asc')
             ->limit(4)
             ->get();

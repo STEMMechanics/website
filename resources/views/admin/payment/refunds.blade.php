@@ -101,7 +101,7 @@
                                 <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
                                 <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </div>
-                            <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                            <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                         </div>
 
                         <div class="mt-4 space-y-3">
@@ -370,7 +370,7 @@
                                 @endif
                                 </td>
                                 <td class="align-top text-center">
-                                    <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                    <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                                 </td>
                                 <td class="align-top">
                                     <div class="flex justify-center gap-3 whitespace-nowrap">

@@ -121,21 +121,6 @@ class WorkshopTicketService
 
     public function ticketPriceAmount(Workshop $workshop): float
     {
-        $raw = trim((string) ($workshop->price ?? ''));
-        if ($raw === '') {
-            return 0.0;
-        }
-
-        $normalized = strtolower($raw);
-        if (in_array($normalized, ['free', 'tbd', 'tbc'], true)) {
-            return 0.0;
-        }
-
-        $number = preg_replace('/[^0-9.]/', '', $raw);
-        if (! is_string($number) || $number === '') {
-            return 0.0;
-        }
-
-        return max(0, round((float) $number, 2));
+        return $workshop->currentTicketPriceAmount();
     }
 }

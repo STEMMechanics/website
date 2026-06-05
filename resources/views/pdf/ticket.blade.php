@@ -170,6 +170,9 @@
                 <td>
                     <div class="title">{{ $workshop?->title }}</div>
                     <div class="subtitle">General Ticket</div>
+                    @if($ticket?->isEarlyBirdTicket())
+                        <div class="subtitle" style="margin-top:-10px; color:#b45309; font-weight:700;">Early bird ticket</div>
+                    @endif
                 </td>
                 <td class="image-wrap">
                     @if(!empty($ticketHeroImagePath))

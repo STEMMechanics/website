@@ -46,7 +46,7 @@ $passwordLoginAvailable = $user->canUsePasswordLogin();
                                 <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
                                 <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
                             </div>
-                            <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $rememberedDevices->count() }} saved</x-ui.badge>
+                            <x-ui.badge color="gray" size="xs" uppercase="true">{{ $rememberedDevices->count() }} saved</x-ui.badge>
                         </div>
 
                         <div class="rounded-2xl mt-4 bg-gray-50 p-4">
@@ -88,7 +88,7 @@ $passwordLoginAvailable = $user->canUsePasswordLogin();
                                                     <i class="fa-solid fa-pen"></i>
                                                 </button>
                                                 @if(! empty($device['is_current']))
-                                                    <x-ui.badge color="success" size="xxs">Current device</x-ui.badge>
+                                                    <x-ui.badge color="success" size="xs">Current device</x-ui.badge>
                                                 @endif
                                             </div>
                                             <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">

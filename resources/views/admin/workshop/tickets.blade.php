@@ -55,6 +55,15 @@
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="text-lg font-semibold">{{ $workshop->title }}</div>
             <div class="flex gap-1 flex-col sm:flex-row sm:gap-6">
+                @php
+                    $baseTicketPriceAmount = (float) $workshop->baseTicketPriceAmount();
+                    $earlyBirdPriceAmount = $workshop->earlyBirdPriceAmount();
+                    $hasEarlyBirdPrice = $earlyBirdPriceAmount !== null && abs($baseTicketPriceAmount - $earlyBirdPriceAmount) > 0.0001;
+                    $priceDisplay = $baseTicketPriceAmount > 0.0001 ? '$'.number_format($baseTicketPriceAmount, 2) : 'Free';
+                    $earlyBirdPriceDisplay = $earlyBirdPriceAmount !== null && $earlyBirdPriceAmount > 0.0001
+                        ? '$'.number_format($earlyBirdPriceAmount, 2)
+                        : 'Free';
+                @endphp
                 <div class="text-sm text-gray-600">
                     <span class="font-semibold">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}
                 </div>
@@ -62,17 +71,11 @@
                     <span class="font-semibold">Tickets:</span> {{ (int) ($activeTicketCount ?? 0) }} / {{ $workshop->max_tickets !== null ? (int) $workshop->max_tickets : 'Unlimited' }}
                 </div>
                 <div class="text-sm text-gray-600">
-                    @php
-                    $rawPrice = trim((string) ($workshop->price ?? ''));
-                    $priceDisplay = 'Free';
-                    if ($rawPrice !== '' && $rawPrice !== '0') {
-                    $numericPrice = preg_replace('/[^0-9.]/', '', $rawPrice);
-                    $priceDisplay = is_string($numericPrice) && $numericPrice !== '' && is_numeric($numericPrice)
-                    ? '$'.number_format((float) $numericPrice, 2)
-                    : $rawPrice;
-                    }
-                    @endphp
-                    <span class="font-semibold">Price:</span> {{ $priceDisplay }}
+                    <span class="font-semibold">Price:</span>
+                    <span>{{ $priceDisplay }}</span>
+                    @if($hasEarlyBirdPrice)
+                        <span>(Early bird price: {{ $earlyBirdPriceDisplay }})</span>
+                    @endif
                 </div>
                 <div class="text-sm text-gray-600">
                     <span class="font-semibold">Available:</span> {{ $availableTicketCount !== null ? (int) $availableTicketCount : 'Unlimited' }}
@@ -136,18 +139,25 @@
                 $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $isInactiveStatus = in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true);
+                $isEarlyBirdTicket = (bool) $ticket->isEarlyBirdTicket();
                 $attendeeName = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
                 $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? $ticket->user?->phone ?? '')) ?: '-';
                 @endphp
                 <section class="rounded-2xl border p-4 shadow-sm {{ $isInactiveStatus ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white' }}">
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <div class="text-sm font-semibold text-gray-900">{{ $ticket->reference_code ?: $ticket->id }}</div>
+                            <div class="text-sm font-semibold text-gray-900">{{ $ticket->reference_code ?: $ticket->id }}
+                                @if($isEarlyBirdTicket)
+                                    <x-ui.badge color="amber" size="xs" uppercase="true" data-early-bird-badge="true" class="ml-2">Early Bird</x-ui.badge>
+                                @endif
+                            </div>
                             <div class="mt-1 text-sm text-gray-700">{{ $attendeeName }}</div>
                             <div class="text-xs text-gray-500 break-all">{{ $ticket->email ?: '-' }}</div>
                             <div class="text-xs text-gray-500">{{ $attendeeMobile }}</div>
                         </div>
-                        <x-ui.badge color="gray">{{ $statusText }}</x-ui.badge>
+                        <div class="flex flex-col items-end gap-2">
+                            <x-ui.badge color="gray">{{ $statusText }}</x-ui.badge>
+                        </div>
                     </div>
 
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -255,15 +265,23 @@
                 $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                 $attendeeMobile = formatPhoneNumber((string) ($ticket->phone ?? $ticket->user?->phone ?? '')) ?: '-';
+                $isEarlyBirdTicket = (bool) $ticket->isEarlyBirdTicket();
                 @endphp
                 <tr style="{{ in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true) ? 'background-color: rgb(254 226 226);' : '' }}">
-                    <td>{{ $ticket->reference_code ?: $ticket->id }}</td>
+                    <td class="text-center!">
+                        <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                        @if($isEarlyBirdTicket)
+                            <x-ui.badge color="amber" size="xs" uppercase="true" data-early-bird-badge="true">Early Bird</x-ui.badge>
+                        @endif
+                    </td>
                     <td>
                         <div>{{ trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-' }}</div>
                         <div class="text-xs text-gray-500">{{ $ticket->email ?: '-' }}</div>
                         <div class="text-xs text-gray-500">{{ $attendeeMobile }}</div>
                     </td>
-                    <td>{{ $statusText }}</td>
+                    <td class="text-center">
+                        <span>{{ $statusText }}</span>
+                    </td>
                     @if($showInvoiceColumn ?? false)
                     <td class="text-center">
                         @if($invoice)

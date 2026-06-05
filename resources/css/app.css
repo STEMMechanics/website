@@ -257,6 +257,47 @@ input::-webkit-datetime-edit {
     list-style: circle;
 }
 
+details.ui-collapsible-section {
+    @apply mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm;
+}
+
+details.ui-collapsible-section > summary {
+    @apply flex list-none items-center justify-between gap-4 px-4 py-4 text-sm font-semibold text-gray-900;
+    cursor: pointer;
+}
+
+details.ui-collapsible-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+details.ui-collapsible-section .ui-collapsible-section__summary-title {
+    @apply flex min-w-0 flex-1 items-center gap-2;
+}
+
+details.ui-collapsible-section .ui-collapsible-section__summary-text {
+    @apply min-w-0 truncate;
+}
+
+details.ui-collapsible-section .ui-collapsible-section__summary-text--subtitle {
+    @apply font-normal text-gray-500;
+}
+
+details.ui-collapsible-section .ui-collapsible-section__summary-actions {
+    @apply flex flex-shrink-0 items-center gap-2;
+}
+
+details.ui-collapsible-section .ui-collapsible-section__chevron {
+    @apply inline-flex items-center justify-center text-gray-400 transition-transform duration-200;
+}
+
+details.ui-collapsible-section[open] > summary .ui-collapsible-section__chevron {
+    transform: rotate(180deg);
+}
+
+details.ui-collapsible-section .ui-collapsible-section__content {
+    @apply border-t border-gray-200 px-4 py-4;
+}
+
 details.sm-collapsible-node {
     @apply my-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50;
 }
@@ -1296,7 +1337,7 @@ body.image-resize-active {
 
 .table th,
 .table td {
-    border-width: 1px 0 0 1px;
+    border-width: 0 0 1px 1px;
     border-style: solid;
     border-color: rgb(209, 213, 219);
     padding: 1rem 1rem;
@@ -1335,8 +1376,8 @@ body.image-resize-active {
     border-bottom-right-radius: 0.5em;
 }
 
-.table tr:last-child td {
-    border-bottom-width: 1px;
+.table tr:first-child td {
+    border-top-width: 1px;
 }
 
 .table tr:nth-child(even) {

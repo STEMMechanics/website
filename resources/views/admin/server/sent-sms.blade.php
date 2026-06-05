@@ -304,7 +304,7 @@
                                                 <span class="mx-1">·</span>
                                                 <span>From {{ $replyFrom }}</span>
                                                 @if(data_get($reply, 'opted_out', false))
-                                                    <x-ui.badge color="danger" size="xxs">Opted out</x-ui.badge>
+                                                    <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                                 @endif
                                             </div>
                                             <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
@@ -422,7 +422,7 @@
                                                             <span class="mx-1">·</span>
                                                             <span>From {{ $replyFrom }}</span>
                                                             @if(data_get($reply, 'opted_out', false))
-                                                                <x-ui.badge color="danger" size="xxs">Opted out</x-ui.badge>
+                                                                <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                                             @endif
                                                         </div>
                                                         <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
@@ -459,7 +459,7 @@
                             <p class="mt-1 text-sm text-gray-600">Inbound SMS replies that could not be linked to a sent message.</p>
                         </div>
                         @if(($unacknowledgedReplyCount ?? 0) > 0)
-                            <x-ui.badge color="warning" size="xxs">{{ $unacknowledgedReplyCount }} awaiting acknowledgement</x-ui.badge>
+                            <x-ui.badge color="warning" size="xs">{{ $unacknowledgedReplyCount }} awaiting acknowledgement</x-ui.badge>
                         @endif
                     </div>
 
@@ -487,7 +487,7 @@
                                             <span class="mx-1">·</span>
                                             <span>From {{ $replyFrom }}</span>
                                             @if(data_get($reply, 'opted_out', false))
-                                                <x-ui.badge color="danger" size="xxs">Opted out</x-ui.badge>
+                                                <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                             @endif
                                         </div>
                                         <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>

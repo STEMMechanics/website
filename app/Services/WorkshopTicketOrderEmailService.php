@@ -191,6 +191,7 @@ class WorkshopTicketOrderEmailService
                 'reference' => $ticket->ensureReferenceCode(),
                 'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
                 'email' => (string) ($ticket->email ?? ''),
+                'earlyBird' => $ticket->isEarlyBirdTicket(),
             ];
         })->values()->all();
 
@@ -269,6 +270,7 @@ class WorkshopTicketOrderEmailService
                     'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
                     'email' => (string) ($ticket->email ?? ''),
                     'phone' => (string) ($ticket->phone ?? ''),
+                    'earlyBird' => $ticket->isEarlyBirdTicket(),
                 ];
 
                 dispatch(new SendEmail($recipient, new TicketAttendeeUpdate(

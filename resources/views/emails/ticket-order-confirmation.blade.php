@@ -77,7 +77,7 @@ $paymentAmount = round((float) ($paymentAmount ?? 0), 2);
 @if(count($tickets) > 0 && (string) ($workshop['registration'] ?? '') !== 'classroom')
 ### Ticket Details
 @foreach($tickets as $ticket)
-- `{{ (string) ($ticket['reference'] ?? '-') }}` | {{ (string) ($ticket['name'] ?? '-') }} | {{ (string) ($ticket['email'] ?? '-') }}
+- `{{ (string) ($ticket['reference'] ?? '-') }}` | {{ (string) ($ticket['name'] ?? '-') }} | {{ (string) ($ticket['email'] ?? '-') }}@if(!empty($ticket['earlyBird'] ?? false)) | Early bird @endif
 @endforeach
 @endif
 

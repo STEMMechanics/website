@@ -109,7 +109,7 @@
                             </div>
                             <div class="text-right">
                                 <div class="font-semibold text-gray-950">{{ money((float) $customerPayment->total_amount) }}</div>
-                                <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                             </div>
                         </div>
 
@@ -175,7 +175,7 @@
                                 </div>
                                 <div class="text-right">
                                     <div class="font-semibold text-gray-950">{{ money(-((float) $refund->total_amount)) }}</div>
-                                    <x-ui.badge color="slate" size="xxs">Refund</x-ui.badge>
+                                    <x-ui.badge color="slate" size="xs">Refund</x-ui.badge>
                                 </div>
                             </div>
                             <div class="mt-3 text-xs text-gray-600">Refund</div>
@@ -249,7 +249,7 @@
                                     </div>
                                     <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
                                     <div class="mt-1 md:hidden">
-                                        <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                        <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                                     </div>
                                     <div class="text-xs text-gray-600 lg:hidden mt-1">
                                         Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}

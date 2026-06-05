@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Ticket;
 use App\Models\Workshop;
 use App\Support\ShopAvailability;
 use App\Services\StoreCartService;
@@ -43,7 +44,11 @@ class SearchController extends Controller
 
     private function searchWorkshops(Collection $searchWords): LengthAwarePaginator
     {
-        $workshopQuery = Workshop::query()->publiclyVisible();
+        $workshopQuery = Workshop::query()
+            ->publiclyVisible()
+            ->withCount([
+                'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+            ]);
 
         if ($searchWords->isEmpty()) {
             return $workshopQuery

@@ -40,7 +40,7 @@
                                 @endif
                                 <div class="mt-1 text-xs text-gray-600">{{ $quote->user?->getName() ?? '-' }}</div>
                             </div>
-                            <x-ui.badge :color="$quote->statusBadgeTone()" size="xxs">{{ $quote->statusLabel() }}</x-ui.badge>
+                            <x-ui.badge :color="$quote->statusBadgeTone()" size="xs">{{ $quote->statusLabel() }}</x-ui.badge>
                         </div>
                         <div class="mt-3 flex items-center justify-between gap-3 text-xs text-gray-600">
                             <span>Quote date</span>
@@ -183,7 +183,7 @@
                                     @endif
                                     <div class="md:hidden text-xs text-gray-600 mt-1">{{ $quote->user?->getName() ?? '-' }}</div>
                                     <div class="md:hidden mt-1">
-                                        <x-ui.badge :color="$quote->statusBadgeTone()" size="xxs">{{ $quote->statusLabel() }}</x-ui.badge>
+                                        <x-ui.badge :color="$quote->statusBadgeTone()" size="xs">{{ $quote->statusLabel() }}</x-ui.badge>
                                     </div>
                                     <div class="md:hidden text-xs text-gray-600">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
                                 </td>

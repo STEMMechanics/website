@@ -1610,6 +1610,7 @@ class TicketController extends Controller
                     'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
                     'email' => $holderEmail,
                     'phone' => (string) ($ticket->phone ?? '-'),
+                    'earlyBird' => $ticket->isEarlyBirdTicket(),
                 ],
             )))->onQueue('mail');
         }
@@ -1935,6 +1936,7 @@ class TicketController extends Controller
             'name' => $attendeeName !== '' ? $attendeeName : '-',
             'email' => (string) ($newTicket->email ?? ''),
             'phone' => (string) ($newTicket->phone ?? ''),
+            'earlyBird' => $newTicket->isEarlyBirdTicket(),
         ];
 
         if ($emailChanged) {

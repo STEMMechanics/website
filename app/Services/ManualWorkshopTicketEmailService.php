@@ -49,6 +49,7 @@ class ManualWorkshopTicketEmailService
                 'reference' => $ticket->ensureReferenceCode(),
                 'name' => $recipientName !== '' ? $recipientName : '-',
                 'email' => (string) ($ticket->email ?? ''),
+                'earlyBird' => $ticket->isEarlyBirdTicket(),
             ]],
             paymentMethodLabel: $type === 'reserve' ? 'Pay at Door' : 'Free',
             amount: (float) ($invoice instanceof Invoice ? $invoice->total_amount : 0),
