@@ -301,7 +301,7 @@ $hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customiz
             form.submit();
             },
             async handleSubmit() {
-            if (this.status === 'cancelled' && this.originalStatus !== 'cancelled') {
+            if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets', 'classroom'].includes(String(this.registration || ''))) {
             this.openCancelWorkshopModal();
             return;
             }

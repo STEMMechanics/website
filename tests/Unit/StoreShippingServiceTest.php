@@ -212,7 +212,7 @@ class StoreShippingServiceTest extends TestCase
 
     public function test_it_pushes_shipments_back_when_the_store_is_away(): void
     {
-        $pauseUntil = Carbon::parse('2026-06-01')->startOfDay();
+        $pauseUntil = now()->addDays(5)->startOfDay();
         SiteOption::query()->updateOrCreate(
             ['name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION],
             ['value' => $pauseUntil->toDateString()],
@@ -233,15 +233,17 @@ class StoreShippingServiceTest extends TestCase
 
         $quote = $this->service()->quote($lines, 'Australia', 'regular', false);
 
-        $this->assertSame('2026-06-01', $quote['processing_pause_until']);
-        $this->assertSame('We are away for workshops until June 1st 2026. Orders placed now will be processed after we return.', $quote['processing_pause_notice']);
-        $this->assertSame('2026-06-01', $quote['shipments'][0]['dispatch_date']);
-        $this->assertSame('Processing from June 1st 2026', $quote['shipments'][0]['title_meta']);
-        $this->assertSame('Shipment 1 - Processing from June 1st 2026', $quote['shipments'][0]['title']);
-        $this->assertSame('2026-06-01', $quote['shipments'][1]['dispatch_date']);
-        $this->assertSame('Shipment 2: Ships later - Estimated June 1st 2026', $quote['shipments'][1]['title']);
-        $this->assertSame('Estimated June 1st 2026', $quote['shipments'][1]['title_meta']);
-        $this->assertSame('2026-06-01', $quote['delayed_dispatch_date']);
+        $formattedPauseUntil = $pauseUntil->format('F jS Y');
+
+        $this->assertSame($pauseUntil->toDateString(), $quote['processing_pause_until']);
+        $this->assertSame('We are away for workshops until '.$formattedPauseUntil.'. Orders placed now will be processed after we return.', $quote['processing_pause_notice']);
+        $this->assertSame($pauseUntil->toDateString(), $quote['shipments'][0]['dispatch_date']);
+        $this->assertSame('Processing from '.$formattedPauseUntil, $quote['shipments'][0]['title_meta']);
+        $this->assertSame('Shipment 1 - Processing from '.$formattedPauseUntil, $quote['shipments'][0]['title']);
+        $this->assertSame($pauseUntil->toDateString(), $quote['shipments'][1]['dispatch_date']);
+        $this->assertSame('Shipment 2: Ships later - Estimated '.$formattedPauseUntil, $quote['shipments'][1]['title']);
+        $this->assertSame('Estimated '.$formattedPauseUntil, $quote['shipments'][1]['title_meta']);
+        $this->assertSame($pauseUntil->toDateString(), $quote['delayed_dispatch_date']);
     }
 
     public function test_pickup_uses_collection_terminology_for_split_availability(): void

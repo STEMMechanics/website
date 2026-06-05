@@ -108,6 +108,63 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertSee('Please see below for your refund or credit details.', false);
     }
 
+    public function test_admin_workshop_edit_uses_the_current_registration_when_deciding_whether_to_show_the_cancel_flow(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = Workshop::query()->create([
+            'title' => 'External Link Workshop',
+            'content' => '<p>Workshop content</p>',
+            'starts_at' => now()->addDays(5),
+            'ends_at' => now()->addDays(5)->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addDays(4),
+            'status' => 'open',
+            'registration' => 'link',
+            'registration_data' => 'https://example.com/tickets',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee("registration: 'link'", false);
+        $response->assertSee("['tickets', 'classroom'].includes(String(this.registration || ''))", false);
+    }
+
+    public function test_cancelling_external_link_workshops_does_not_cancel_internal_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'link', null, null, 'https://example.com/tickets');
+        $ticket = Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'registration' => 'link',
+                'registration_data' => 'https://example.com/tickets',
+                'status' => 'cancelled',
+            ]));
+
+        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertSessionHas('message-title', 'Workshop cancelled');
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertSame('cancelled', (string) $freshWorkshop->status);
+        $this->assertSame(Ticket::STATUS_PAID, (int) $ticket->fresh()->status);
+    }
+
     public function test_admin_workshop_edit_can_reset_a_custom_pick_list_back_to_the_template(): void
     {
         $admin = $this->createAdminUser();
@@ -257,10 +314,11 @@ class WorkshopTypeNormalizationTest extends TestCase
         string $heroName,
         string $registration = 'none',
         ?string $summary = null,
-        ?string $content = null
+        ?string $content = null,
+        ?string $registrationData = null
     ): Workshop
     {
-        return Workshop::query()->create([
+        $payload = [
             'title' => 'Physical Workshop',
             'content' => $content ?? '<p>Workshop content</p>',
             'summary' => $summary,
@@ -270,10 +328,13 @@ class WorkshopTypeNormalizationTest extends TestCase
             'closes_at' => now()->addDays(4),
             'status' => 'open',
             'registration' => $registration,
+            'registration_data' => $registrationData,
             'location_id' => $location->id,
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
-        ]);
+        ];
+
+        return Workshop::query()->create($payload);
     }
 
     /**

@@ -926,7 +926,9 @@ class WorkshopController extends Controller
         $this->syncWorkshopClassroom($workshop, $request);
 
         $cancelSummary = null;
-        if ($previousStatus !== 'cancelled' && ($workshopData['status'] ?? '') === 'cancelled') {
+        $workshopCancelled = $previousStatus !== 'cancelled' && ($workshopData['status'] ?? '') === 'cancelled';
+        $usesManagedTickets = in_array((string) ($workshopData['registration'] ?? $workshop->registration), ['tickets', 'classroom'], true);
+        if ($workshopCancelled && $usesManagedTickets) {
             $activeTicketIds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('status', Ticket::activePurchasedStatuses())
@@ -955,8 +957,13 @@ class WorkshopController extends Controller
         }
 
         $message = 'Workshop has been updated.';
-        session()->flash('message-title', 'Workshop updated');
-        session()->flash('message-type', 'success');
+        $messageTitle = 'Workshop updated';
+        $messageType = 'success';
+
+        if ($workshopCancelled) {
+            $message = 'Workshop has been cancelled.';
+            $messageTitle = 'Workshop cancelled';
+        }
 
         if (is_array($cancelSummary)) {
             $cancelledCount = (int) ($cancelSummary['cancelled_count'] ?? 0);
@@ -965,8 +972,8 @@ class WorkshopController extends Controller
             if ($failedCount > 0) {
                 $message .= ' '.$failedCount.' ticket'.($failedCount === 1 ? ' could' : 's could').' not be cancelled.';
             }
-            session()->flash('message-title', 'Workshop cancelled');
-            session()->flash('message-type', $failedCount > 0 ? 'warning' : 'success');
+            $messageTitle = 'Workshop cancelled';
+            $messageType = $failedCount > 0 ? 'warning' : 'success';
         }
 
         if ($shouldNotifyTicketHolders && $ticketChangeSummary !== null) {
@@ -978,17 +985,20 @@ class WorkshopController extends Controller
                         .$recipientCount.' ticket holder'.($recipientCount === 1 ? '' : 's').'.';
                 } else {
                     $message = 'Workshop has been updated, but no active ticket-holder email addresses were found for this change notice.';
-                    session()->flash('message-type', 'warning');
+                    $messageType = 'warning';
                 }
             } catch (Throwable $e) {
                 report($e);
 
                 $message = 'Workshop has been updated, but the change email could not be queued.';
-                session()->flash('message-type', 'warning');
+                $messageTitle = 'Workshop updated';
+                $messageType = 'warning';
             }
         }
 
         session()->flash('message', $message);
+        session()->flash('message-title', $messageTitle);
+        session()->flash('message-type', $messageType);
 
         return redirect()->route('admin.workshop.index');
     }

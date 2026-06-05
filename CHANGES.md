@@ -15,6 +15,7 @@
 - Fix password processing error
 - Added SMS Gateway support
 - Dependency updates
+- Only show Cancellation reason for ticketed workshops
 
 ## 1.4.5
 
