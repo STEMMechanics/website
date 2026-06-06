@@ -7,11 +7,15 @@ use App\Models\EmailSubscriptions;
 use App\Models\Expense;
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\Product;
 use App\Models\Payment;
+use App\Models\StoreOrder;
+use App\Models\StoreOrderItem;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopInterest;
 use App\Services\AdminDashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -91,6 +95,14 @@ class AdminDashboardServiceTest extends TestCase
             'referrer_host' => null,
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
+        ]);
+
+        WorkshopInterest::query()->create([
+            'workshop_id' => $previousWorkshop->id,
+            'user_id' => $previousUser->id,
+            'name' => 'Previous Interest',
+            'email' => 'prev-interest@example.com',
+            'phone' => '0400999000',
         ]);
 
         EmailSubscriptions::query()->create([
@@ -220,6 +232,15 @@ class AdminDashboardServiceTest extends TestCase
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
+
+        WorkshopInterest::query()->create([
+            'workshop_id' => $currentWorkshop->id,
+            'user_id' => $currentUser->id,
+            'name' => 'Current Interest',
+            'email' => 'current-interest@example.com',
+            'phone' => '0400888000',
+        ]);
+
         AnalyticsEvent::query()->create([
             'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
             'session_token' => 'current-session-b',
@@ -227,6 +248,79 @@ class AdminDashboardServiceTest extends TestCase
             'path' => '/store',
             'route_name' => 'shop.index',
             'workshop_id' => null,
+            'search_term' => null,
+            'referrer_host' => null,
+            'http_method' => 'GET',
+            'created_at' => Carbon::now(),
+        ]);
+        $currentStoreProductOne = Product::factory()->create([
+            'title' => 'Store Item One',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+        $currentStoreProductTwo = Product::factory()->create([
+            'title' => 'Store Item Two',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+        $currentStoreOrder = StoreOrder::factory()->create([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'paid_at' => Carbon::now(),
+            'user_id' => $currentUser->id,
+        ]);
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $currentStoreOrder->id,
+            'product_id' => $currentStoreProductOne->id,
+            'product_title' => 'Store Item One',
+            'product_slug' => $currentStoreProductOne->slug,
+            'quantity' => 3,
+            'available_now_quantity' => 3,
+            'delayed_quantity' => 0,
+            'cancelled_available_quantity' => 0,
+            'cancelled_delayed_quantity' => 0,
+        ]);
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $currentStoreOrder->id,
+            'product_id' => $currentStoreProductTwo->id,
+            'product_title' => 'Store Item Two',
+            'product_slug' => $currentStoreProductTwo->slug,
+            'quantity' => 2,
+            'available_now_quantity' => 2,
+            'delayed_quantity' => 0,
+            'cancelled_available_quantity' => 0,
+            'cancelled_delayed_quantity' => 0,
+        ]);
+        AnalyticsEvent::query()->create([
+            'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+            'session_token' => 'current-session-c',
+            'visitor_hash' => 'current-visitor-c',
+            'path' => route('shop.product.show', $currentStoreProductOne, false),
+            'route_name' => 'shop.product.show',
+            'workshop_id' => null,
+            'search_term' => null,
+            'referrer_host' => null,
+            'http_method' => 'GET',
+            'created_at' => Carbon::now(),
+        ]);
+        AnalyticsEvent::query()->create([
+            'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+            'session_token' => 'current-session-d',
+            'visitor_hash' => 'current-visitor-d',
+            'path' => route('shop.product.show', $currentStoreProductTwo, false),
+            'route_name' => 'shop.product.show',
+            'workshop_id' => null,
+            'search_term' => null,
+            'referrer_host' => null,
+            'http_method' => 'GET',
+            'created_at' => Carbon::now(),
+        ]);
+        AnalyticsEvent::query()->create([
+            'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+            'session_token' => 'current-session-b',
+            'visitor_hash' => 'current-visitor-b',
+            'path' => route('workshop.show', $currentExternalWorkshop, false),
+            'route_name' => 'workshop.show',
+            'workshop_id' => $currentExternalWorkshop->id,
             'search_term' => null,
             'referrer_host' => null,
             'http_method' => 'GET',
@@ -256,26 +350,47 @@ class AdminDashboardServiceTest extends TestCase
 
         $this->assertSame('week', $data['period']);
         $this->assertSame('This week', $data['periodLabel']);
-        $this->assertSame('2', $data['cards'][0]['metrics'][0]['current']);
-        $this->assertSame('1', $data['cards'][0]['metrics'][1]['current']);
-        $this->assertSame('1', $data['cards'][0]['metrics'][2]['current']);
-        $this->assertSame('3.0', $data['cards'][0]['metrics'][3]['current']);
-        $this->assertSame('3', $data['cards'][1]['metrics'][0]['current']);
-        $this->assertSame('1', $data['cards'][1]['metrics'][1]['current']);
-        $this->assertSame('$120.00', $data['cards'][2]['metrics'][0]['current']);
-        $this->assertSame('$15.00', $data['cards'][2]['metrics'][1]['current']);
-        $this->assertSame('$105.00', $data['cards'][2]['metrics'][2]['current']);
-        $this->assertSame('$40.00', $data['cards'][2]['metrics'][3]['current']);
-        $this->assertSame('$65.00', $data['cards'][2]['metrics'][4]['current']);
-        $this->assertSame('5', $data['cards'][3]['metrics'][0]['current']);
-        $this->assertSame('2', $data['cards'][3]['metrics'][1]['current']);
-        $this->assertSame('2', $data['cards'][3]['metrics'][2]['current']);
-        $this->assertSame('3', $data['cards'][4]['metrics'][0]['current']);
-        $this->assertSame('1', $data['cards'][4]['metrics'][1]['current']);
-        $this->assertCount(1, $data['workshopSalesRows']);
+        $this->assertSame(['Workshops', 'Tickets', 'Store', 'Finance', 'Website', 'Growth'], collect($data['cards'])->pluck('title')->all());
+
+        $workshops = $this->cardByTitle($data, 'Workshops');
+        $tickets = $this->cardByTitle($data, 'Tickets');
+        $store = $this->cardByTitle($data, 'Store');
+        $finance = $this->cardByTitle($data, 'Finance');
+        $website = $this->cardByTitle($data, 'Website');
+        $growth = $this->cardByTitle($data, 'Growth');
+
+        $this->assertSame('3', $this->metricByLabel($workshops, 'Workshop views')['current']);
+
+        $this->assertSame('3', $this->metricByLabel($tickets, 'Tickets sold')['current']);
+
+        $this->assertSame('1', $this->metricByLabel($store, 'Store views')['current']);
+        $this->assertSame('2', $this->metricByLabel($store, 'Product views')['current']);
+        $this->assertSame('5', $this->metricByLabel($store, 'Items sold')['current']);
+
+        $this->assertSame('$65.00', $this->metricByLabel($finance, 'Profit')['current']);
+        $this->assertSame('$120.00', $this->metricByLabel($finance, 'Income')['current']);
+        $this->assertSame('$15.00', $this->metricByLabel($finance, 'Refunds')['current']);
+        $this->assertSame('$40.00', $this->metricByLabel($finance, 'Expenses')['current']);
+
+        $this->assertSame('8', $this->metricByLabel($website, 'Page views')['current']);
+        $this->assertSame('4', $this->metricByLabel($website, 'Unique visitors')['current']);
+
+        $this->assertSame('3', $this->metricByLabel($growth, 'New users')['current']);
+        $this->assertSame('1', $this->metricByLabel($growth, 'New subscriptions')['current']);
+        $this->assertCount(2, $data['workshopSalesRows']);
         $this->assertSame('Current Workshop', $data['workshopSalesRows'][0]['workshop_title']);
+        $this->assertSame(1, $data['workshopSalesRows'][0]['views']);
         $this->assertSame(3, $data['workshopSalesRows'][0]['tickets_sold']);
-        $this->assertSame(1, $data['workshopSalesRows'][0]['early_bird_tickets']);
+        $this->assertSame('External Workshop', $data['workshopSalesRows'][1]['workshop_title']);
+        $this->assertSame(1, $data['workshopSalesRows'][1]['views']);
+        $this->assertSame(0, $data['workshopSalesRows'][1]['tickets_sold']);
+        $this->assertCount(2, $data['storeSalesRows']);
+        $this->assertSame('Store Item One', $data['storeSalesRows'][0]['product_title']);
+        $this->assertSame(1, $data['storeSalesRows'][0]['views']);
+        $this->assertSame(3, $data['storeSalesRows'][0]['items_sold']);
+        $this->assertSame('Store Item Two', $data['storeSalesRows'][1]['product_title']);
+        $this->assertSame(1, $data['storeSalesRows'][1]['views']);
+        $this->assertSame(2, $data['storeSalesRows'][1]['items_sold']);
 
         Carbon::setTestNow();
     }
@@ -322,5 +437,31 @@ class AdminDashboardServiceTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
         ], $overrides));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function cardByTitle(array $data, string $title): array
+    {
+        $card = collect($data['cards'])->firstWhere('title', $title);
+
+        $this->assertIsArray($card);
+
+        return $card;
+    }
+
+    /**
+     * @param  array<string, mixed>  $card
+     * @return array<string, mixed>
+     */
+    private function metricByLabel(array $card, string $label): array
+    {
+        $metric = collect($card['metrics'])->firstWhere('label', $label);
+
+        $this->assertIsArray($metric);
+
+        return $metric;
     }
 }

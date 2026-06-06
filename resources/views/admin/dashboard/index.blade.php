@@ -63,8 +63,8 @@
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Top Workshop Ticket Sales</h2>
-                    <p class="mt-1 text-sm text-gray-500">Internal ticketed workshops with sales in the selected period.</p>
+                    <h2 class="text-lg font-semibold text-gray-900">Top Workshop Views and Ticket Sales</h2>
+                    <p class="mt-1 text-sm text-gray-500">Workshop views and ticket sales in the selected period.</p>
                 </div>
             </div>
 
@@ -72,9 +72,9 @@
                 <x-ui.table>
                     <x-slot:header>
                         <th>Workshop</th>
+                        <th>Views</th>
                         <th class="hidden md:table-cell">Start</th>
                         <th>Tickets</th>
-                        <th class="hidden md:table-cell">Early Bird</th>
                     </x-slot:header>
                     <x-slot:body>
                         @forelse($workshopSalesRows as $row)
@@ -93,18 +93,59 @@
                                         <div class="mt-1 text-xs text-gray-500">{{ $location }}</div>
                                     @endif
                                 </td>
+                                <td>
+                                    <div class="font-semibold text-gray-900">{{ number_format((int) $row['views']) }}</div>
+                                </td>
                                 <td class="hidden md:table-cell">
                                     {{ $startsAt ? $startsAt->format('M j, Y g:ia') : '-' }}
                                 </td>
                                 <td>
                                     <div class="font-semibold text-gray-900">{{ number_format((int) $row['tickets_sold']) }}</div>
-                                    <div class="mt-1 text-xs text-gray-500 md:hidden">Early bird: {{ number_format((int) $row['early_bird_tickets']) }}</div>
                                 </td>
-                                <td class="hidden md:table-cell">{{ number_format((int) $row['early_bird_tickets']) }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center text-gray-500">No ticket sales in this period.</td>
+                                <td colspan="4" class="text-center text-gray-500">No workshop views or ticket sales in this period.</td>
+                            </tr>
+                        @endforelse
+                    </x-slot:body>
+                </x-ui.table>
+            </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Top Store Item Views and Sales</h2>
+                    <p class="mt-1 text-sm text-gray-500">Store item views and item sales in the selected period.</p>
+                </div>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                <x-ui.table>
+                    <x-slot:header>
+                        <th>Item</th>
+                        <th>Views</th>
+                        <th>Items Sold</th>
+                    </x-slot:header>
+                    <x-slot:body>
+                        @forelse($storeSalesRows as $row)
+                            <tr>
+                                <td>
+                                    <a href="{{ route('admin.shop.product.edit', ['product' => $row['product_id']]) }}" class="font-semibold text-gray-900 hover:text-primary-color">
+                                        {{ $row['product_title'] }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="font-semibold text-gray-900">{{ number_format((int) $row['views']) }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-semibold text-gray-900">{{ number_format((int) $row['items_sold']) }}</div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center text-gray-500">No item views or sales in this period.</td>
                             </tr>
                         @endforelse
                     </x-slot:body>

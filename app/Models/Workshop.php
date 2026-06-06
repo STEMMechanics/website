@@ -801,6 +801,17 @@ class Workshop extends Model
         return ucwords($status);
     }
 
+    public function calendarStatusLabel(): string
+    {
+        return match ($this->publicStatus()) {
+            'scheduled' => 'Soon',
+            'cancelled' => 'Canc.',
+            'private' => 'Priv.',
+            'hidden' => 'Hid.',
+            default => $this->publicStatusLabel(),
+        };
+    }
+
     public function isPubliclyVisible(): bool
     {
         if ($this->status === 'draft') {

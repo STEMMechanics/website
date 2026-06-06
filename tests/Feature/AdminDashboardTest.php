@@ -24,7 +24,10 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Top Workshop Ticket Sales')
+            ->assertSee('Top Workshop Views and Ticket Sales')
+            ->assertSee('Top Store Item Views and Sales')
+            ->assertSee('Workshop views')
+            ->assertSee('Profit')
             ->assertSee('Selected range')
             ->assertSee('onchange="this.form.submit()"', false)
             ->assertDontSee('g:ia', false);

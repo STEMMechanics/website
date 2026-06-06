@@ -81,10 +81,12 @@
                                                 @php
                                                     $statusClass = $workshop->publicStatus();
                                                     $statusTitle = $workshop->publicStatusLabel();
+                                                    $statusShortTitle = $workshop->calendarStatusLabel();
 
                                                     if ($workshop->status === 'scheduled') {
                                                         $statusClass = 'soon';
                                                         $statusTitle = 'Opens Soon';
+                                                        $statusShortTitle = 'Soon';
                                                     }
                                                 @endphp
                                                 <a href="{{ route('workshop.show', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
@@ -94,7 +96,7 @@
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                             <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
-                                                        <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
+                                                        <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
                                                     </div>
                                                 </a>
                                             @empty
@@ -138,17 +140,19 @@
                                                         @php
                                                             $statusClass = $workshop->publicStatus();
                                                             $statusTitle = $workshop->publicStatusLabel();
+                                                            $statusShortTitle = $workshop->calendarStatusLabel();
 
                                                             if ($workshop->status === 'scheduled') {
                                                                 $statusClass = 'soon';
                                                                 $statusTitle = 'Opens Soon';
+                                                                $statusShortTitle = 'Soon';
                                                             }
                                                         @endphp
                                                         <div class="flex items-start justify-between gap-2">
                                                             <div class="w-full">
                                                                 <div class="flex justify-between items-center">
                                                                     <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                                                    <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
+                                                                    <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
                                                                 </div>
                                                                 <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                                 <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>

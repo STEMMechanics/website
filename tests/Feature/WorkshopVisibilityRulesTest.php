@@ -191,6 +191,16 @@ class WorkshopVisibilityRulesTest extends TestCase
             ]);
 
             $this->createWorkshop(
+                title: 'Cancelled workshop',
+                status: 'cancelled',
+                isHidden: false,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $monthStart->copy()->addDays(1),
+                'ends_at' => $monthStart->copy()->addDays(1)->addHours(2),
+            ]);
+
+            $this->createWorkshop(
                 title: 'Workshop next month',
                 status: 'open',
                 isHidden: false,
@@ -235,6 +245,9 @@ class WorkshopVisibilityRulesTest extends TestCase
             $response->assertSee('Workshop this month');
             $response->assertSee('Open');
             $response->assertSee('sm-banner-open', false);
+            $response->assertSee('Cancelled workshop');
+            $response->assertSee('Canc.', false);
+            $response->assertSee('title="Cancelled"', false);
             $response->assertDontSee('Workshop next month');
             $response->assertDontSee('Hidden calendar session');
             $response->assertDontSee('Draft calendar session');

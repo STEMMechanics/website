@@ -6,11 +6,13 @@ use App\Models\AnalyticsEvent;
 use App\Models\EmailSubscriptions;
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\StoreOrder;
+use App\Models\StoreOrderItem;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Models\Workshop;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardService
 {
@@ -36,36 +38,29 @@ class AdminDashboardService
         $previousStart = $previousWindow['start'];
         $previousEnd = $previousWindow['end'];
 
-        $workshopsCreatedCurrent = $this->countWorkshopsCreatedBetween($currentStart, $currentEnd);
-        $workshopsCreatedPrevious = $this->countWorkshopsCreatedBetween($previousStart, $previousEnd);
-        $workshopsStartingCurrent = $this->countWorkshopsStartingBetween($currentStart, $currentEnd);
-        $workshopsStartingPrevious = $this->countWorkshopsStartingBetween($previousStart, $previousEnd);
-
+        $workshopViewsCurrent = $this->countAnalyticsEventsForRoutesBetween($currentStart, $currentEnd, ['workshop.index', 'workshop.show']);
+        $workshopViewsPrevious = $this->countAnalyticsEventsForRoutesBetween($previousStart, $previousEnd, ['workshop.index', 'workshop.show']);
         $ticketsSoldCurrent = $this->countWorkshopTicketSalesBetween($currentStart, $currentEnd);
         $ticketsSoldPrevious = $this->countWorkshopTicketSalesBetween($previousStart, $previousEnd);
-        $earlyBirdTicketsCurrent = $this->countWorkshopEarlyBirdSalesBetween($currentStart, $currentEnd);
-        $earlyBirdTicketsPrevious = $this->countWorkshopEarlyBirdSalesBetween($previousStart, $previousEnd);
-        $ticketedWorkshopsCurrent = $this->countTicketedWorkshopsBetween($currentStart, $currentEnd);
-        $ticketedWorkshopsPrevious = $this->countTicketedWorkshopsBetween($previousStart, $previousEnd);
-
-        $avgTicketsPerWorkshopCurrent = $ticketedWorkshopsCurrent > 0 ? round($ticketsSoldCurrent / $ticketedWorkshopsCurrent, 1) : 0.0;
-        $avgTicketsPerWorkshopPrevious = $ticketedWorkshopsPrevious > 0 ? round($ticketsSoldPrevious / $ticketedWorkshopsPrevious, 1) : 0.0;
 
         $incomeGrossCurrent = $this->sumPaymentsBetween($currentStart, $currentEnd, Payment::KIND_PAYMENT);
         $incomeGrossPrevious = $this->sumPaymentsBetween($previousStart, $previousEnd, Payment::KIND_PAYMENT);
         $refundsCurrent = $this->sumPaymentsBetween($currentStart, $currentEnd, Payment::KIND_REFUND);
         $refundsPrevious = $this->sumPaymentsBetween($previousStart, $previousEnd, Payment::KIND_REFUND);
-        $netIncomeCurrent = round($incomeGrossCurrent - $refundsCurrent, 2);
-        $netIncomePrevious = round($incomeGrossPrevious - $refundsPrevious, 2);
         $expensesCurrent = $this->sumExpensesBetween($currentStart, $currentEnd);
         $expensesPrevious = $this->sumExpensesBetween($previousStart, $previousEnd);
-        $netAfterExpensesCurrent = round($netIncomeCurrent - $expensesCurrent, 2);
-        $netAfterExpensesPrevious = round($netIncomePrevious - $expensesPrevious, 2);
+        $profitCurrent = round($incomeGrossCurrent - $refundsCurrent - $expensesCurrent, 2);
+        $profitPrevious = round($incomeGrossPrevious - $refundsPrevious - $expensesPrevious, 2);
+
+        $storeViewsCurrent = $this->countAnalyticsEventsForRoutesBetween($currentStart, $currentEnd, ['shop.index']);
+        $storeViewsPrevious = $this->countAnalyticsEventsForRoutesBetween($previousStart, $previousEnd, ['shop.index']);
+        $storeItemViewsCurrent = $this->countAnalyticsEventsForRoutesBetween($currentStart, $currentEnd, ['shop.product.show']);
+        $storeItemViewsPrevious = $this->countAnalyticsEventsForRoutesBetween($previousStart, $previousEnd, ['shop.product.show']);
+        $storeItemsSoldCurrent = $this->countStoreItemsSoldBetween($currentStart, $currentEnd);
+        $storeItemsSoldPrevious = $this->countStoreItemsSoldBetween($previousStart, $previousEnd);
 
         $analyticsViewsCurrent = $this->countAnalyticsEventsBetween($currentStart, $currentEnd);
         $analyticsViewsPrevious = $this->countAnalyticsEventsBetween($previousStart, $previousEnd);
-        $analyticsSessionsCurrent = $this->countAnalyticsSessionsBetween($currentStart, $currentEnd);
-        $analyticsSessionsPrevious = $this->countAnalyticsSessionsBetween($previousStart, $previousEnd);
         $analyticsVisitorsCurrent = $this->countAnalyticsVisitorsBetween($currentStart, $currentEnd);
         $analyticsVisitorsPrevious = $this->countAnalyticsVisitorsBetween($previousStart, $previousEnd);
 
@@ -75,6 +70,7 @@ class AdminDashboardService
         $newSubscriptionsPrevious = $this->countSubscriptionsBetween($previousStart, $previousEnd);
 
         $workshopSalesRows = $this->topWorkshopSalesRows($currentStart, $currentEnd);
+        $storeSalesRows = $this->topStoreSalesRows($currentStart, $currentEnd);
 
         return [
             'period' => $periodKey,
@@ -84,16 +80,13 @@ class AdminDashboardService
             'cards' => [
                 [
                     'title' => 'Workshops',
-                    'description' => 'Workshop creation and ticketed activity in the selected period.',
+                    'description' => 'Workshop page views in the selected period.',
                     'links' => [
                         ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn'],
                         ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket'],
                     ],
                     'metrics' => [
-                        $this->metric('Created', $workshopsCreatedCurrent, $workshopsCreatedPrevious),
-                        $this->metric('Starting in period', $workshopsStartingCurrent, $workshopsStartingPrevious),
-                        $this->metric('Ticketed workshops with sales', $ticketedWorkshopsCurrent, $ticketedWorkshopsPrevious),
-                        $this->metric('Avg tickets per ticketed workshop', $avgTicketsPerWorkshopCurrent, $avgTicketsPerWorkshopPrevious, 1),
+                        $this->metric('Workshop views', $workshopViewsCurrent, $workshopViewsPrevious),
                     ],
                 ],
                 [
@@ -104,23 +97,34 @@ class AdminDashboardService
                     ],
                     'metrics' => [
                         $this->metric('Tickets sold', $ticketsSoldCurrent, $ticketsSoldPrevious),
-                        $this->metric('Early-bird tickets sold', $earlyBirdTicketsCurrent, $earlyBirdTicketsPrevious),
+                    ],
+                ],
+                [
+                    'title' => 'Store',
+                    'description' => 'Store page and product views in the selected period.',
+                    'links' => [
+                        ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-box'],
+                        ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-receipt'],
+                    ],
+                    'metrics' => [
+                        $this->metric('Store views', $storeViewsCurrent, $storeViewsPrevious),
+                        $this->metric('Product views', $storeItemViewsCurrent, $storeItemViewsPrevious),
+                        $this->metric('Items sold', $storeItemsSoldCurrent, $storeItemsSoldPrevious),
                     ],
                 ],
                 [
                     'title' => 'Finance',
-                    'description' => 'Income, refunds and expenses during the selected period.',
+                    'description' => 'Income, refunds, expenses and profit during the selected period.',
                     'links' => [
                         ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator'],
                         ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt'],
                         ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar'],
                     ],
                     'metrics' => [
-                        $this->moneyMetric('Gross income', $incomeGrossCurrent, $incomeGrossPrevious),
-                        $this->moneyMetric('Refunds', $refundsCurrent, $refundsPrevious, false),
-                        $this->moneyMetric('Net income', $netIncomeCurrent, $netIncomePrevious),
+                        $this->moneyMetric('Profit', $profitCurrent, $profitPrevious),
+                        $this->moneyMetric('Income', $incomeGrossCurrent, $incomeGrossPrevious),
                         $this->moneyMetric('Expenses', $expensesCurrent, $expensesPrevious, false),
-                        $this->moneyMetric('Net after expenses', $netAfterExpensesCurrent, $netAfterExpensesPrevious),
+                        $this->moneyMetric('Refunds', $refundsCurrent, $refundsPrevious, false),
                     ],
                 ],
                 [
@@ -131,7 +135,6 @@ class AdminDashboardService
                     ],
                     'metrics' => [
                         $this->metric('Page views', $analyticsViewsCurrent, $analyticsViewsPrevious),
-                        $this->metric('Sessions', $analyticsSessionsCurrent, $analyticsSessionsPrevious),
                         $this->metric('Unique visitors', $analyticsVisitorsCurrent, $analyticsVisitorsPrevious),
                     ],
                 ],
@@ -149,6 +152,7 @@ class AdminDashboardService
                 ],
             ],
             'workshopSalesRows' => $workshopSalesRows,
+            'storeSalesRows' => $storeSalesRows,
         ];
     }
 
@@ -250,24 +254,6 @@ class AdminDashboardService
         };
     }
 
-    private function countWorkshopsCreatedBetween(Carbon $start, Carbon $end): int
-    {
-        return Workshop::query()
-            ->where('created_at', '>=', $start)
-            ->where('created_at', '<', $end)
-            ->count();
-    }
-
-    private function countWorkshopsStartingBetween(Carbon $start, Carbon $end): int
-    {
-        return Workshop::query()
-            ->whereIn('registration', self::INTERNAL_WORKSHOP_REGISTRATIONS)
-            ->whereNotNull('starts_at')
-            ->where('starts_at', '>=', $start)
-            ->where('starts_at', '<', $end)
-            ->count();
-    }
-
     private function countWorkshopTicketSalesBetween(Carbon $start, Carbon $end): int
     {
         return Ticket::query()
@@ -277,30 +263,6 @@ class AdminDashboardService
             ->where('tickets.created_at', '<', $end)
             ->whereIn('tickets.status', Ticket::activePurchasedStatuses())
             ->count();
-    }
-
-    private function countWorkshopEarlyBirdSalesBetween(Carbon $start, Carbon $end): int
-    {
-        return Ticket::query()
-            ->join('workshops', 'workshops.id', '=', 'tickets.workshop_id')
-            ->whereIn('workshops.registration', self::INTERNAL_WORKSHOP_REGISTRATIONS)
-            ->where('tickets.created_at', '>=', $start)
-            ->where('tickets.created_at', '<', $end)
-            ->whereIn('tickets.status', Ticket::activePurchasedStatuses())
-            ->where('tickets.is_early_bird', true)
-            ->count();
-    }
-
-    private function countTicketedWorkshopsBetween(Carbon $start, Carbon $end): int
-    {
-        return Ticket::query()
-            ->join('workshops', 'workshops.id', '=', 'tickets.workshop_id')
-            ->whereIn('workshops.registration', self::INTERNAL_WORKSHOP_REGISTRATIONS)
-            ->where('tickets.created_at', '>=', $start)
-            ->where('tickets.created_at', '<', $end)
-            ->whereIn('tickets.status', Ticket::activePurchasedStatuses())
-            ->distinct()
-            ->count('tickets.workshop_id');
     }
 
     private function sumPaymentsBetween(Carbon $start, Carbon $end, string $kind): float
@@ -330,15 +292,6 @@ class AdminDashboardService
             ->count();
     }
 
-    private function countAnalyticsSessionsBetween(Carbon $start, Carbon $end): int
-    {
-        return AnalyticsEvent::query()
-            ->where('created_at', '>=', $start)
-            ->where('created_at', '<', $end)
-            ->distinct('session_token')
-            ->count('session_token');
-    }
-
     private function countAnalyticsVisitorsBetween(Carbon $start, Carbon $end): int
     {
         return AnalyticsEvent::query()
@@ -365,57 +318,187 @@ class AdminDashboardService
             ->count();
     }
 
-    /**
-     * @return Collection<int, array{
-     *     workshop_id: string,
-     *     workshop_title: string,
-     *     workshop_starts_at: ?string,
-     *     location_name: string,
-     *     tickets_sold: int,
-     *     early_bird_tickets: int
-     * }>
-     */
+    private function countStoreItemsSoldBetween(Carbon $start, Carbon $end): int
+    {
+        $quantitySql = $this->storeItemSoldQuantitySql();
+
+        $itemsSold = StoreOrderItem::query()
+            ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
+            ->whereNotNull('store_orders.paid_at')
+            ->where('store_orders.paid_at', '>=', $start)
+            ->where('store_orders.paid_at', '<', $end)
+            ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED)
+            ->selectRaw('COALESCE(SUM('.$quantitySql.'), 0) as items_sold')
+            ->value('items_sold');
+
+        return max(0, (int) ($itemsSold ?? 0));
+    }
+
+    private function countAnalyticsEventsForRoutesBetween(Carbon $start, Carbon $end, array $routeNames): int
+    {
+        if ($routeNames === []) {
+            return 0;
+        }
+
+        return AnalyticsEvent::query()
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
+            ->whereIn('route_name', $routeNames)
+            ->count();
+    }
+
     private function topWorkshopSalesRows(Carbon $start, Carbon $end): Collection
     {
-        return Ticket::query()
+        $ticketCounts = DB::table('tickets')
             ->join('workshops', 'workshops.id', '=', 'tickets.workshop_id')
-            ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
             ->whereIn('workshops.registration', self::INTERNAL_WORKSHOP_REGISTRATIONS)
             ->where('tickets.created_at', '>=', $start)
             ->where('tickets.created_at', '<', $end)
             ->whereIn('tickets.status', Ticket::activePurchasedStatuses())
+            ->selectRaw('tickets.workshop_id, COUNT(*) as tickets_sold')
+            ->groupBy('tickets.workshop_id');
+
+        return DB::table('analytics_events')
+            ->join('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
+            ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+            ->leftJoinSub($ticketCounts, 'ticket_counts', function ($join): void {
+                $join->on('ticket_counts.workshop_id', '=', 'workshops.id');
+            })
+            ->where('analytics_events.route_name', 'workshop.show')
+            ->where('analytics_events.created_at', '>=', $start)
+            ->where('analytics_events.created_at', '<', $end)
             ->selectRaw('
                 workshops.id as workshop_id,
                 workshops.title as workshop_title,
                 workshops.starts_at as workshop_starts_at,
-                workshops.location_id as workshop_location_id,
                 COALESCE(locations.name, \'\') as location_name,
-                COUNT(*) as tickets_sold,
-                SUM(CASE WHEN tickets.is_early_bird = 1 THEN 1 ELSE 0 END) as early_bird_tickets
+                COUNT(*) as views,
+                COALESCE(ticket_counts.tickets_sold, 0) as tickets_sold
             ')
             ->groupBy(
                 'workshops.id',
                 'workshops.title',
                 'workshops.starts_at',
-                'workshops.location_id',
-                'locations.name'
+                'locations.name',
+                'ticket_counts.tickets_sold'
             )
+            ->orderByDesc('views')
             ->orderByDesc('tickets_sold')
             ->orderBy('workshops.starts_at')
             ->limit(5)
             ->get()
-            ->map(function ($row): array {
-                $workshopStartsAt = trim((string) ($row->workshop_starts_at ?? ''));
+            ->map(
+                /**
+                 * @return array{
+                 *     workshop_id: non-empty-string,
+                 *     workshop_title: non-empty-string,
+                 *     workshop_starts_at: string|null,
+                 *     location_name: string,
+                 *     views: int,
+                 *     tickets_sold: int,
+                 * }
+                 */
+                function ($row): array {
+                    $workshopId = (string) ($row->workshop_id ?? '');
+                    $workshopTitle = (string) ($row->workshop_title ?? '');
+                    $workshopStartsAt = (string) ($row->workshop_starts_at ?? '');
 
-                return [
-                    'workshop_id' => (string) $row->workshop_id,
-                    'workshop_title' => (string) $row->workshop_title,
-                    'workshop_starts_at' => $workshopStartsAt !== '' ? $workshopStartsAt : null,
-                    'location_name' => trim((string) ($row->location_name ?? '')),
-                    'tickets_sold' => (int) $row->tickets_sold,
-                    'early_bird_tickets' => (int) $row->early_bird_tickets,
-                ];
-            })
+                    if ($workshopId === '' || $workshopTitle === '') {
+                        throw new \RuntimeException('Workshop sales row is missing required fields.');
+                    }
+
+                    return [
+                        'workshop_id' => $workshopId,
+                        'workshop_title' => $workshopTitle,
+                        'workshop_starts_at' => $workshopStartsAt !== '' ? $workshopStartsAt : null,
+                        'location_name' => (string) ($row->location_name ?? ''),
+                        'views' => (int) $row->views,
+                        'tickets_sold' => (int) $row->tickets_sold,
+                    ];
+                })
             ->values();
+    }
+
+    /**
+     * @return Collection<int, array{
+     *     product_id: string,
+     *     product_title: string,
+     *     views: int,
+     *     items_sold: int
+     * }>
+     */
+    private function topStoreSalesRows(Carbon $start, Carbon $end): Collection
+    {
+        $quantitySql = $this->storeItemSoldQuantitySql();
+
+        $productViews = DB::table('analytics_events')
+            ->where('analytics_events.route_name', 'shop.product.show')
+            ->where('analytics_events.created_at', '>=', $start)
+            ->where('analytics_events.created_at', '<', $end)
+            ->where('analytics_events.path', 'like', '/store/%')
+            ->selectRaw("SUBSTR(analytics_events.path, 8) as product_slug, COUNT(*) as views")
+            ->groupBy(DB::raw("SUBSTR(analytics_events.path, 8)"));
+
+        return DB::table('store_order_items')
+            ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
+            ->leftJoinSub($productViews, 'product_views', function ($join): void {
+                $join->on('product_views.product_slug', '=', 'store_order_items.product_slug');
+            })
+            ->whereNotNull('store_orders.paid_at')
+            ->where('store_orders.paid_at', '>=', $start)
+            ->where('store_orders.paid_at', '<', $end)
+            ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED)
+            ->selectRaw('
+                store_order_items.product_id as product_id,
+                COALESCE(store_order_items.product_title, \'\') as product_title,
+                COALESCE(product_views.views, 0) as views,
+                SUM('.$quantitySql.') as items_sold
+            ')
+            ->groupBy('store_order_items.product_id', 'store_order_items.product_title', 'product_views.views')
+            ->havingRaw('SUM('.$quantitySql.') > 0')
+            ->orderByDesc('items_sold')
+            ->orderByDesc('views')
+            ->orderBy('store_order_items.product_title')
+            ->limit(5)
+            ->get()
+            ->map(
+                /**
+                 * @return array{
+                 *     product_id: string,
+                 *     product_title: string,
+                 *     views: int,
+                 *     items_sold: int
+                 * }
+                 */
+                function ($row): array {
+                    $productId = (string) ($row->product_id ?? '');
+                    $productTitle = (string) ($row->product_title ?? '');
+
+                    return [
+                        'product_id' => $this->assertNonEmptyString($productId, 'Store sales row is missing required fields.'),
+                        'product_title' => $this->assertNonEmptyString($productTitle, 'Store sales row is missing required fields.'),
+                        'views' => (int) $row->views,
+                        'items_sold' => (int) $row->items_sold,
+                    ];
+                }
+            )
+            ->values();
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    private function assertNonEmptyString(string $value, string $message): string
+    {
+        if ($value === '') {
+            throw new \RuntimeException($message);
+        }
+
+        return $value;
+    }
+
+    private function storeItemSoldQuantitySql(string $tableAlias = 'store_order_items'): string
+    {
+        return 'CASE WHEN COALESCE('.$tableAlias.'.quantity, 0) - COALESCE('.$tableAlias.'.cancelled_available_quantity, 0) - COALESCE('.$tableAlias.'.cancelled_delayed_quantity, 0) > 0 THEN COALESCE('.$tableAlias.'.quantity, 0) - COALESCE('.$tableAlias.'.cancelled_available_quantity, 0) - COALESCE('.$tableAlias.'.cancelled_delayed_quantity, 0) ELSE 0 END';
     }
 }

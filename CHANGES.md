@@ -18,6 +18,7 @@
 - Only show Cancellation reason for ticketed workshops
 - Added Early Bird options
 - Added Admin Dashboard
+- UI Fixes
 
 ## 1.4.5
 
