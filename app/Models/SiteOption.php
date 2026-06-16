@@ -88,8 +88,8 @@ class SiteOption extends Model
                 'description' => 'Footer travel text for invoice, quote, and tax adjustment PDFs.',
             ],
             'document.footer.questions' => [
-                'value' => 'If you have any questions about this invoice, please feel free to contact us.',
-                'description' => 'Footer questions text for invoice, quote, and tax adjustment PDFs.',
+                'value' => 'If you have any questions about this {document}, please feel free to contact us.',
+                'description' => 'Footer questions text for invoice, quote, and tax adjustment PDFs. Use {document} to insert the current document type.',
             ],
             'document.footer.bank-reference' => [
                 'value' => 'Please include the invoice number as the payment description.',

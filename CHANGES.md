@@ -2,6 +2,7 @@
 
 ## Current
 
+- Added `{document}` placeholder support to PDF footer questions text
 - Added trustProxies
 - Change Navbar colour on dev sites
 - Updated cancellation email template

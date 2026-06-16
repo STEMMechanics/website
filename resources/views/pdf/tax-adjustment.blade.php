@@ -31,6 +31,7 @@
         }
         $billingCountry = trim((string) ($customer?->billing_country ?? ''));
         $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
+        $documentType = 'tax adjustment';
         $renderLineNotes = function (string $rawNotes): string {
         $lines = preg_split('/\r\n|\r|\n/', $rawNotes) ?: [];
         $html = [];

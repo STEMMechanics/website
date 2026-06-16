@@ -33,9 +33,10 @@
         if ($billToPersonName === '') {
         $billToPersonName = trim((string) ($invoice->billing_name ?? ''));
         }
-        $billingCountry = trim((string) ($customer?->billing_country ?? ''));
+    $billingCountry = trim((string) ($customer?->billing_country ?? ''));
     $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
     $documentTitle = 'tax invoice';
+    $documentType = 'invoice';
     $isCancelled = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED;
     $publicPayUrl = isset($publicPayUrl) && is_string($publicPayUrl) ? $publicPayUrl : null;
     $displayPublicPayUrl = $publicPayUrl !== null ? preg_replace('#^https?://#', '', $publicPayUrl) : '';

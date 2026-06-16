@@ -4,6 +4,11 @@
                     $travelFooterText = trim((string) \App\Models\SiteOption::value('document.footer.travel'));
                     $questionsFooterText = trim((string) \App\Models\SiteOption::value('document.footer.questions'));
                     $bankReferenceText = trim((string) \App\Models\SiteOption::value('document.footer.bank-reference'));
+                    $documentType = trim((string) ($documentType ?? 'document'));
+                    if ($documentType === '') {
+                        $documentType = 'document';
+                    }
+                    $questionsFooterText = str_replace('{document}', $documentType, $questionsFooterText);
                     $bankAccountName = trim((string) \App\Models\SiteOption::value('payments.bank-account-name'));
                     $bankBsb = trim((string) \App\Models\SiteOption::value('payments.bank-bsb'));
                     $bankAccountNumber = trim((string) \App\Models\SiteOption::value('payments.bank-account-number'));
