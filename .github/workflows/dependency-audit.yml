@@ -11,7 +11,7 @@ on:
 
 jobs:
   audit:
-    runs-on: laravel-ci
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
