@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/renovatebot/renovate:43.78.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - run: renovate
         working-directory: ${{ github.workspace }}

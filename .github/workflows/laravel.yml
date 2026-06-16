@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Copy .env
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"
 
       - name: Cache Composer
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/composer-cache
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
@@ -27,7 +27,7 @@ jobs:
       - name: Install PHP Dependencies
         env:
           COMPOSER_CACHE_DIR: /tmp/composer-cache
-        run: composer install -q --no-interaction --no-progress --prefer-dist
+        run: composer install -q --no-interaction --no-progress --prefer-dist --ignore-platform-req=ext-redis
 
       - name: Generate key
         run: php artisan key:generate
@@ -46,7 +46,7 @@ jobs:
           touch database/database.sqlite
 
       - name: Cache npm
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /root/.npm
           key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}

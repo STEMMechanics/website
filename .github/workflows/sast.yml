@@ -9,7 +9,7 @@ jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Semgrep
         run: |
@@ -23,10 +23,10 @@ jobs:
   phpstan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cache Composer
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/composer-cache
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
@@ -36,7 +36,7 @@ jobs:
       - name: Install PHP Dependencies
         env:
           COMPOSER_CACHE_DIR: /tmp/composer-cache
-        run: composer install --no-interaction --no-progress --prefer-dist
+        run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-req=ext-redis
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G

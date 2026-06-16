@@ -2,6 +2,7 @@
 
 ## Current
 
+- Update GitHub Actions to ignore ext-redis during Composer install and use Node 24-compatible actions
 - Moved CI workflows to GitHub Actions and updated Renovate for GitHub
 - Added `{document}` placeholder support to PDF footer questions text
 - Added trustProxies
