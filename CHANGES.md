@@ -2,6 +2,7 @@
 
 ## Current
 
+- Moved CI workflows to GitHub Actions and updated Renovate for GitHub
 - Added `{document}` placeholder support to PDF footer questions text
 - Added trustProxies
 - Change Navbar colour on dev sites

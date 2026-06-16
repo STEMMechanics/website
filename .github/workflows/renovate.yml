@@ -10,13 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/renovatebot/renovate:43.78.0
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - run: renovate
-        working-directory: ${{ gitea.workspace }}
+        working-directory: ${{ github.workspace }}
         env:
           RENOVATE_CONFIG_FILE: "renovate-config.json"
           LOG_LEVEL: "info"
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
           GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
-        

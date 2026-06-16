@@ -9,7 +9,7 @@ jobs:
   semgrep:
     runs-on: laravel-ci
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Install Semgrep
         run: |
@@ -23,7 +23,7 @@ jobs:
   phpstan:
     runs-on: laravel-ci
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Cache Composer
         uses: actions/cache@v4
