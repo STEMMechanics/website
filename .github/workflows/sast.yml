@@ -25,6 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: imagick, mbstring, fileinfo, zip, redis
+
       - name: Cache Composer
         uses: actions/cache@v5
         with:
