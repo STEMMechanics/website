@@ -24,6 +24,7 @@
 - Added Early Bird options
 - Added Admin Dashboard
 - UI Fixes
+- Fixes to Renovate
 
 ## 1.4.5
 
