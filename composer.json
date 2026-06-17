@@ -23,6 +23,7 @@
         "livewire/livewire": "^4.1",
         "php-ffmpeg/php-ffmpeg": "^1.2",
         "phpseclib/phpseclib": "^3.0.54",
+        "predis/predis": "^3.5",
         "robthree/twofactorauth": "^3.0",
         "tales-from-a-dev/tailwind-merge-php": "^0.2.0"
     },
