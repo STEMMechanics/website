@@ -12,9 +12,7 @@ WORKDIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_FILE="$WORKDIR/storage/app/last_release"
 APP_USER="${APP_USER:-}"
 
-WORKDIR="/app"
-REPO_URL="${REPO_URL:-https://git.stemmechanics.com.au/STEMMechanics/Website.git}"
-RELEASE_FILE="/app/storage/app/last_release"
+REPO_URL="${REPO_URL:-https://www.github.com/STEMMechanics/website.git}"
 
 # Optional Pushover notification configuration
 PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-}"
@@ -64,11 +62,7 @@ on_error() {
 trap on_error ERR
 
 run_app() {
-  if [[ "$(id -u)" -eq 0 && -n "$APP_USER" && "$(id -u "$APP_USER" 2>/dev/null || true)" != "" ]]; then
-    su -s /bin/bash - "$APP_USER" -c "$*"
-  else
-    bash -lc "$*"
-  fi
+  bash -lc "$*"
 }
 
 check_runtime_tools() {
@@ -176,7 +170,7 @@ fix_permissions() {
   chmod -R 775 "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
 
   if [[ "$(id -u)" -eq 0 ]]; then
-    chown -R application:application "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
+    chown -R www-data:www-data "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
   fi
 }
 
