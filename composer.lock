@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "572c252ef3c98d7b79a4f9ba41e841a6",
+    "content-hash": "e60dfacbb3fa9794119bebc9a6532977",
     "packages": [
         {
             "name": "agence104/livekit-server-sdk",
@@ -7386,16 +7386,16 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.38.1",
+            "version": "v1.38.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92"
+                "reference": "d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/14c5439eec4ccff081ac14eca2dc57feb2a66d92",
-                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6",
+                "reference": "d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6",
                 "shasum": ""
             },
             "require": {
@@ -7447,7 +7447,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.38.1"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.38.2"
             },
             "funding": [
                 {
@@ -7467,7 +7467,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-26T12:51:13+00:00"
+            "time": "2026-05-27T06:59:30+00:00"
         },
         {
             "name": "symfony/polyfill-php80",
@@ -8712,16 +8712,16 @@
         },
         {
             "name": "tales-from-a-dev/tailwind-merge-php",
-            "version": "v0.2.0",
+            "version": "v0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/tales-from-a-dev/tailwind-merge-php.git",
-                "reference": "df42e7bafdf4628e92da752dafb175db28a77e82"
+                "reference": "48ecbb5c87ebcc521a344a6d3bfeec9720af00da"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/df42e7bafdf4628e92da752dafb175db28a77e82",
-                "reference": "df42e7bafdf4628e92da752dafb175db28a77e82",
+                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/48ecbb5c87ebcc521a344a6d3bfeec9720af00da",
+                "reference": "48ecbb5c87ebcc521a344a6d3bfeec9720af00da",
                 "shasum": ""
             },
             "require": {
@@ -8764,9 +8764,9 @@
             ],
             "support": {
                 "issues": "https://github.com/tales-from-a-dev/tailwind-merge-php/issues",
-                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.2.0"
+                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.3.0"
             },
-            "time": "2026-02-20T01:12:11+00:00"
+            "time": "2026-05-11T09:52:11+00:00"
         },
         {
             "name": "thecodingmachine/safe",
