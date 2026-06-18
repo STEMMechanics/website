@@ -7,6 +7,11 @@ set -Eeuo pipefail
 # - If last_release is a commit: deploy only if latest tag commit is newer than that commit
 # Supports empty starting point, --force, and --current.
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKDIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RELEASE_FILE="$WORKDIR/storage/app/last_release"
+APP_USER="${APP_USER:-}"
+
 WORKDIR="/app"
 REPO_URL="${REPO_URL:-https://git.stemmechanics.com.au/STEMMechanics/Website.git}"
 RELEASE_FILE="/app/storage/app/last_release"
@@ -59,8 +64,8 @@ on_error() {
 trap on_error ERR
 
 run_app() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    su -s /bin/bash - application -c "$*"
+  if [[ "$(id -u)" -eq 0 && -n "$APP_USER" && "$(id -u "$APP_USER" 2>/dev/null || true)" != "" ]]; then
+    su -s /bin/bash - "$APP_USER" -c "$*"
   else
     bash -lc "$*"
   fi
