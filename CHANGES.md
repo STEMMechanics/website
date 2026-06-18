@@ -25,6 +25,7 @@
 - Added Admin Dashboard
 - UI Fixes
 - Fixes to Renovate
+- Make deploy script resolve app path automatically
 
 ## 1.4.5
 
