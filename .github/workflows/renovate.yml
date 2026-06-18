@@ -16,7 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: renovatebot/github-action@v43
+      - uses: renovatebot/github-action@v43.0.14
+        with:
+          renovate-version: 43.78.0
         env:
           RENOVATE_CONFIG_FILE: renovate-config.json
           LOG_LEVEL: info
