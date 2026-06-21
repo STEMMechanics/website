@@ -3,6 +3,8 @@
 ## Current
 
 - Updated Tiptap dependencies to `3.27.1` so `highlight` and `typography` stay aligned with `core`, `pm`, `react`, and `starter-kit`
+- Trim dependency audit workflow to pull requests and manual runs only
+- Update Guzzle dependencies to clear Composer audit findings
 - Upgrade Vite stack to clear the npm audit/esbuild issue
 - Set GitHub Actions PHP jobs to PHP 8.4 for Composer compatibility
 - Update GitHub Actions to ignore ext-redis during Composer install and use Node 24-compatible actions
@@ -26,6 +28,7 @@
 - Added Admin Dashboard
 - UI Fixes
 - Fixes to Renovate
+- Make deploy script resolve app path automatically
 
 ## 1.4.5
 
