@@ -2,6 +2,7 @@
 
 ## Current
 
+- Updated Tiptap dependencies to `3.27.1` so `highlight` and `typography` stay aligned with `core`, `pm`, `react`, and `starter-kit`
 - Trim dependency audit workflow to pull requests and manual runs only
 - Update Guzzle dependencies to clear Composer audit findings
 - Upgrade Vite stack to clear the npm audit/esbuild issue
