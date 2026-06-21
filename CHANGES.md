@@ -2,6 +2,7 @@
 
 ## Current
 
+- Updated Tiptap dependencies to `3.27.1` so `highlight` and `typography` stay aligned with `core`, `pm`, `react`, and `starter-kit`
 - Upgrade Vite stack to clear the npm audit/esbuild issue
 - Set GitHub Actions PHP jobs to PHP 8.4 for Composer compatibility
 - Update GitHub Actions to ignore ext-redis during Composer install and use Node 24-compatible actions
