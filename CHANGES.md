@@ -3,6 +3,7 @@
 ## Current
 
 - Trim dependency audit workflow to pull requests and manual runs only
+- Update Guzzle dependencies to clear Composer audit findings
 - Upgrade Vite stack to clear the npm audit/esbuild issue
 - Set GitHub Actions PHP jobs to PHP 8.4 for Composer compatibility
 - Update GitHub Actions to ignore ext-redis during Composer install and use Node 24-compatible actions

@@ -19,7 +19,7 @@
         "vite": "^8.0.16"
     },
     "dependencies": {
-        "@livekit/components-react": "^2.9.20",
+        "@livekit/components-react": "^2.9.21",
         "@tiptap/core": "^3.10.7",
         "@tiptap/extension-highlight": "^3.18.0",
         "@tiptap/extension-image": "^3.18.0",
