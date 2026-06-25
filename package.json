@@ -37,7 +37,7 @@
         "@tiptap/react": "^3.27.1",
         "@tiptap/starter-kit": "^3.27.1",
         "fabric": "^7.2.0",
-        "livekit-client": "^2.18.0",
+        "livekit-client": "^2.20.0",
         "react": "^19.2.4",
         "react-dom": "^19.2.7",
         "tailwindcss": "^4.1.17"
