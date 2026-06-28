@@ -5,8 +5,6 @@ namespace App\Models;
 use App\Helpers;
 use App\Traits\HasFiles;
 use App\Traits\Slug;
-use App\Models\ClassSession;
-use App\Models\ForumCategory;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -799,6 +797,19 @@ class Workshop extends Model
         }
 
         return ucwords($status);
+    }
+
+    public function adminStatusLabel(): string
+    {
+        if ($this->isPrivate() && $this->status === 'open') {
+            return 'Private';
+        }
+
+        if ($this->status === 'scheduled') {
+            return 'Opens Soon';
+        }
+
+        return ucwords((string) $this->status);
     }
 
     public function calendarStatusLabel(): string

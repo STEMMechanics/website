@@ -227,13 +227,18 @@
                                             <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
                                         </div>
                                         <div>
-                                            <a href="{{ route('admin.workshop.edit', $workshop) }}" class="whitespace-normal text-gray-900 hover:text-primary-color">{{ $workshop->title }}</a>
-                                            <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->publicStatusLabel() }})</div>
+                                            <div class="inline-flex max-w-full items-center gap-1.5 align-middle">
+                                                <a href="{{ route('admin.workshop.edit', $workshop) }}" class="min-w-0 whitespace-normal text-gray-900 hover:text-primary-color">{{ $workshop->title }}</a>
+                                                @if((bool) ($workshop->is_hidden ?? false))
+                                                    <i class="fa-solid fa-eye-slash shrink-0 text-xs text-gray-400" title="Hidden workshop" aria-label="Hidden workshop"></i>
+                                                @endif
+                                            </div>
+                                            <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->adminStatusLabel() }})</div>
                                             <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="hidden lg:table-cell whitespace-nowrap text-center">{{ $workshop->publicStatusLabel() }}</td>
+                                <td class="hidden lg:table-cell whitespace-nowrap text-center">{{ $workshop->adminStatusLabel() }}</td>
                                 <td class="hidden lg:table-cell">{{ $workshop->getLocationName() }}</td>
                                 <td class="hidden md:table-cell">
                                     <span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y') }}</span><span class="hidden xl:inline">, </span><span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('g:i a') }}</span>
