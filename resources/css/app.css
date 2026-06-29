@@ -1575,11 +1575,11 @@ table tr.highlight-row {
 }
 
 .sm-banner-cancelled {
-    @apply bg-red-600 text-xs;
+    @apply bg-red-600;
 }
 
 .sm-banner-soon {
-    @apply bg-purple-600 text-xs;
+    @apply bg-purple-600;
 }
 
 .sm-banner-private {
