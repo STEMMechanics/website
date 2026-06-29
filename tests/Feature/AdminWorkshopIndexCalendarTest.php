@@ -3,13 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Location;
+use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
-use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -29,6 +30,25 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertOk();
         $response->assertSee('Title');
         $response->assertSee('Workshop list view');
+    }
+
+    public function test_admin_workshop_index_shows_cancelled_status_for_hidden_cancelled_workshops(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('Hidden cancelled workshop', now()->addDays(10));
+        $workshop->update([
+            'status' => 'cancelled',
+            'is_hidden' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index'));
+
+        $response->assertOk();
+        $response->assertSee('Hidden cancelled workshop');
+        $response->assertSee('Cancelled');
+        $response->assertSee('title="Hidden workshop"', false);
+        $response->assertSee('fa-eye-slash', false);
+        $response->assertDontSee('Hidden</td>', false);
     }
 
     public function test_admin_workshop_index_month_view_groups_workshops_and_shows_month_navigation(): void
@@ -185,8 +205,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
     public function test_admin_workshop_month_materials_pdf_route_can_filter_to_upcoming_workshops(): void
     {
         $admin = $this->createAdminUser();
-        $fixedNow = \Illuminate\Support\Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone'));
-        \Illuminate\Support\Carbon::setTestNow($fixedNow);
+        $fixedNow = Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone'));
+        Carbon::setTestNow($fixedNow);
 
         try {
             $template = $this->createPickListTemplate();
@@ -214,7 +234,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             $this->assertMatchesRegularExpression('/Upcoming workshop/i', $pdfText);
             $this->assertStringNotContainsString('Past workshop', $pdfText);
         } finally {
-            \Illuminate\Support\Carbon::setTestNow();
+            Carbon::setTestNow();
         }
     }
 
@@ -261,7 +281,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         return $admin;
     }
 
-    private function createWorkshop(string $title, \Illuminate\Support\Carbon $startsAt): Workshop
+    private function createWorkshop(string $title, Carbon $startsAt): Workshop
     {
         $owner = User::factory()->create();
         $location = Location::factory()->create();
@@ -327,7 +347,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         return $template;
     }
 
-    private function createWorkshopWithPickList(string $title, \Illuminate\Support\Carbon $startsAt, PickListTemplate $template, int $participants): Workshop
+    private function createWorkshopWithPickList(string $title, Carbon $startsAt, PickListTemplate $template, int $participants): Workshop
     {
         $workshop = $this->createWorkshop($title, $startsAt);
 
@@ -363,7 +383,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
     }
 
     /**
-     * @param array<int, string> $commandParts
+     * @param  array<int, string>  $commandParts
      */
     private function runBinaryCommand(array $commandParts): string
     {
