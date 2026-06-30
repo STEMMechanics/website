@@ -10,7 +10,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKDIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_FILE="$WORKDIR/storage/app/last_release"
-APP_USER="${APP_USER:-}"
+DEPLOY_LOCK_PATH="$WORKDIR/storage/app/deploy.lock"
 
 REPO_URL="${REPO_URL:-https://www.github.com/STEMMechanics/website.git}"
 
@@ -41,6 +41,32 @@ notify_pushover() {
     https://api.pushover.net/1/messages.json >/dev/null || true
 }
 
+release_deploy_lock() {
+  if [[ "${DEPLOY_LOCK_MODE:-}" == "dir" ]]; then
+    rmdir "$DEPLOY_LOCK_PATH" >/dev/null 2>&1 || true
+  fi
+}
+
+acquire_deploy_lock() {
+  mkdir -p "$(dirname "$DEPLOY_LOCK_PATH")" || true
+
+  if command -v flock >/dev/null 2>&1; then
+    exec 9>"$DEPLOY_LOCK_PATH"
+    if ! flock -n 9; then
+      abort_deploy "Deploy aborted: another deploy appears to be running ($DEPLOY_LOCK_PATH)"
+    fi
+    DEPLOY_LOCK_MODE="flock"
+    return 0
+  fi
+
+  if ! mkdir "$DEPLOY_LOCK_PATH" 2>/dev/null; then
+    abort_deploy "Deploy aborted: another deploy appears to be running ($DEPLOY_LOCK_PATH)"
+  fi
+
+  DEPLOY_LOCK_MODE="dir"
+  trap release_deploy_lock EXIT
+}
+
 abort_deploy() {
   local message="$1"
   echo "$message"
@@ -63,6 +89,28 @@ trap on_error ERR
 
 run_app() {
   bash -lc "$*"
+}
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local env_file="$WORKDIR/.env"
+  local tmp_file
+
+  tmp_file="$(mktemp "$WORKDIR/.env.tmp.XXXXXX")"
+  if [[ -f "$env_file" ]]; then
+    awk -v key="$key" -v value="$value" '
+      BEGIN { prefix = key "="; found = 0 }
+      index($0, prefix) == 1 { print prefix value; found = 1; next }
+      { print }
+      END { if (found == 0) print prefix value }
+    ' "$env_file" > "$tmp_file"
+  else
+    printf '%s=%s\n' "$key" "$value" > "$tmp_file"
+  fi
+
+  mv "$tmp_file" "$env_file"
+  chmod 664 "$env_file" || true
 }
 
 check_runtime_tools() {
@@ -181,16 +229,15 @@ else
 fi
 
 ensure_repo_present
+acquire_deploy_lock
 parse_last_release
 
 # Decide target and whether to deploy
 TARGET_REF=""
-TARGET_STATE=""
 DEPLOY_LABEL=""
 
 if [[ "$CURRENT" -eq 1 ]]; then
   TARGET_REF="$(get_latest_main_commit)"
-  TARGET_STATE="commit:$TARGET_REF"
   DEPLOY_LABEL="main@${TARGET_REF:0:10}"
 
   if [[ "$FORCE" -ne 1 && -n "${LAST_COMMIT:-}" && "$TARGET_REF" == "$LAST_COMMIT" ]]; then
@@ -207,7 +254,6 @@ else
 
   LATEST_TAG_COMMIT="$(get_commit_for_tag "$LATEST_TAG")"
   TARGET_REF="$LATEST_TAG"
-  TARGET_STATE="tag:$LATEST_TAG"
   DEPLOY_LABEL="$LATEST_TAG"
 
   if [[ "$FORCE" -ne 1 ]]; then
@@ -249,6 +295,9 @@ DID_DEPLOY=1
 notify_pushover "Deploy starting: $DEPLOY_LABEL"
 check_runtime_tools
 
+# Put app into maintenance mode before mutating the checked-out code or built assets.
+run_app "cd $WORKDIR && php artisan down || true"
+
 # Checkout the selected target
 if [[ "$CURRENT" -eq 1 ]]; then
   run_app "cd $WORKDIR && git fetch --prune origin main"
@@ -275,11 +324,8 @@ else
   VERSION_STRING="$TARGET_REF"
 fi
 
-run_app "cd $WORKDIR && (grep -q '^APP_VERSION=' .env && sed -i.bak -E 's/^APP_VERSION=.*/APP_VERSION=$VERSION_STRING/' .env || echo 'APP_VERSION=$VERSION_STRING' >> .env)"
-run_app "cd $WORKDIR && (grep -q '^APP_COMMIT=' .env && sed -i.bak -E 's/^APP_COMMIT=.*/APP_COMMIT=$COMMIT_HASH/' .env || echo 'APP_COMMIT=$COMMIT_HASH' >> .env)"
-
-# Put app into maintenance mode (best-effort)
-run_app "cd $WORKDIR && php artisan down || true"
+set_env_value "APP_VERSION" "$VERSION_STRING"
+set_env_value "APP_COMMIT" "$COMMIT_HASH"
 
 # PHP deps
 #run_app "cd $WORKDIR && composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader"

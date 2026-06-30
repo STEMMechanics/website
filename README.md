@@ -66,6 +66,14 @@ Standard Laravel deployment. This repo uses a release‑tag based flow. The serv
 - Updates `APP_VERSION` and `APP_COMMIT` in `.env`
 - Uses `scripts/deploy.sh` by default, with `DEPLOY_SCRIPT_PATH` available if you need to override the location.
 
+Production permissions expected by the app and deploy script:
+
+- The deploy user must be able to write to the repository working tree, `.env`, `public/build`, `node_modules`, `vendor`, `bootstrap/cache`, and `storage`.
+- The web user must be able to read the checked-out app and write to `storage` and `bootstrap/cache`.
+- Shared writable directories should normally be owned by the deploy/web user group with directories `775` and files `664`. In a typical Debian/Ubuntu PHP-FPM setup, keep `storage` and `bootstrap/cache` accessible to `www-data`.
+- The deploy script runs best-effort permission repair on `public`, `storage`, and `bootstrap/cache`. When run as root, it also changes `storage` and `bootstrap/cache` ownership to `www-data:www-data`.
+- Local file backups live under `storage/app/backups/files`; backup run directories must remain readable by the web user so the admin backups page can list and inspect them.
+
 See `CHANGES.md` for release notes.
 
 ## Contributing
