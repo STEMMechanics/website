@@ -68,10 +68,11 @@ Standard Laravel deployment. This repo uses a release‑tag based flow. The serv
 
 Production permissions expected by the app and deploy script:
 
-- The deploy user must be able to write to the repository working tree, `.env`, `public/build`, `node_modules`, `vendor`, `bootstrap/cache`, and `storage`.
+- The deploy user must be able to write to the repository working tree, `.git`, `.env`, `public/build`, `node_modules`, `vendor`, `bootstrap/cache`, and `storage`.
 - The web user must be able to read the checked-out app and write to `storage` and `bootstrap/cache`.
+- Deploy-time Git, npm, and Composer state is stored under `storage/app` (`deploy-gitconfig`, `npm-cache`, `composer-home`, and `composer-cache`) so the deploy does not depend on a writable `/var/www` home directory.
 - Shared writable directories should normally be owned by the deploy/web user group with directories `775` and files `664`. In a typical Debian/Ubuntu PHP-FPM setup, keep `storage` and `bootstrap/cache` accessible to `www-data`.
-- The deploy script runs best-effort permission repair on `public`, `storage`, and `bootstrap/cache`. When run as root, it also changes `storage` and `bootstrap/cache` ownership to `www-data:www-data`.
+- The deploy script runs best-effort permission repair on `public`, `storage`, and `bootstrap/cache`. When run as root, it also changes mutable deploy paths such as `.git`, `.env`, `public/build`, `node_modules`, `vendor`, `storage`, and `bootstrap/cache` to `www-data:www-data` by default. Override with `DEPLOY_WEB_USER` and `DEPLOY_WEB_GROUP` if the container uses a different deploy/web user.
 - Local file backups live under `storage/app/backups/files`; backup run directories must remain readable by the web user so the admin backups page can list and inspect them.
 
 See `CHANGES.md` for release notes.

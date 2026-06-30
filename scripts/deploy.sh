@@ -11,6 +11,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKDIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_FILE="$WORKDIR/storage/app/last_release"
 DEPLOY_LOCK_PATH="$WORKDIR/storage/app/deploy.lock"
+DEPLOY_GIT_CONFIG="$WORKDIR/storage/app/deploy-gitconfig"
+DEPLOY_NPM_CACHE="$WORKDIR/storage/app/npm-cache"
+DEPLOY_COMPOSER_HOME="$WORKDIR/storage/app/composer-home"
+DEPLOY_COMPOSER_CACHE="$WORKDIR/storage/app/composer-cache"
+DEPLOY_WEB_USER="${DEPLOY_WEB_USER:-www-data}"
+DEPLOY_WEB_GROUP="${DEPLOY_WEB_GROUP:-www-data}"
+export GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-$DEPLOY_GIT_CONFIG}"
+export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$DEPLOY_NPM_CACHE}"
+export COMPOSER_HOME="${COMPOSER_HOME:-$DEPLOY_COMPOSER_HOME}"
+export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$DEPLOY_COMPOSER_CACHE}"
 
 REPO_URL="${REPO_URL:-https://www.github.com/STEMMechanics/website.git}"
 
@@ -121,17 +131,29 @@ check_runtime_tools() {
   command -v git >/dev/null 2>&1 || abort_deploy "Deploy aborted: git not found"
 }
 
+ensure_tool_caches() {
+  mkdir -p "$NPM_CONFIG_CACHE" || abort_deploy "Deploy aborted: cannot create npm cache at $NPM_CONFIG_CACHE"
+  mkdir -p "$COMPOSER_HOME" || abort_deploy "Deploy aborted: cannot create Composer home at $COMPOSER_HOME"
+  mkdir -p "$COMPOSER_CACHE_DIR" || abort_deploy "Deploy aborted: cannot create Composer cache at $COMPOSER_CACHE_DIR"
+  chmod -R 775 "$NPM_CONFIG_CACHE" || true
+  chmod -R 775 "$COMPOSER_HOME" || true
+  chmod -R 775 "$COMPOSER_CACHE_DIR" || true
+}
+
 ensure_repo_present() {
   mkdir -p "$WORKDIR"
   mkdir -p "$(dirname "$RELEASE_FILE")" || true
+  touch "$GIT_CONFIG_GLOBAL" || abort_deploy "Deploy aborted: cannot write git config at $GIT_CONFIG_GLOBAL"
+  chmod 664 "$GIT_CONFIG_GLOBAL" || true
 
   if [[ ! -d "$WORKDIR/.git" ]]; then
     echo "Empty directory detected. Performing initial clone..."
     run_app "git clone \"$REPO_URL\" \"$WORKDIR\""
   fi
 
-  # For newer git versions
-  run_app "git config --global --add safe.directory $WORKDIR"
+  # For newer git versions. Use an app-local global config because web users
+  # may not have a writable HOME for /var/www/.gitconfig.
+  run_app "git config --global --replace-all safe.directory \"$WORKDIR\""
 }
 
 get_latest_tag() {
@@ -208,6 +230,15 @@ write_last_release() {
 }
 
 fix_permissions() {
+  local chown_paths=(
+    "$WORKDIR/.git"
+    "$WORKDIR/bootstrap/cache"
+    "$WORKDIR/node_modules"
+    "$WORKDIR/public/build"
+    "$WORKDIR/storage"
+    "$WORKDIR/vendor"
+  )
+
   chmod 755 "$WORKDIR" || true
   chmod 755 "$WORKDIR/public" || true
 
@@ -218,7 +249,10 @@ fix_permissions() {
   chmod -R 775 "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
 
   if [[ "$(id -u)" -eq 0 ]]; then
-    chown -R www-data:www-data "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
+    for path in "${chown_paths[@]}"; do
+      [[ -e "$path" ]] && chown -R "$DEPLOY_WEB_USER:$DEPLOY_WEB_GROUP" "$path" || true
+    done
+    [[ -f "$WORKDIR/.env" ]] && chown "$DEPLOY_WEB_USER:$DEPLOY_WEB_GROUP" "$WORKDIR/.env" || true
   fi
 }
 
@@ -294,6 +328,7 @@ echo "Deploying target: $DEPLOY_LABEL"
 DID_DEPLOY=1
 notify_pushover "Deploy starting: $DEPLOY_LABEL"
 check_runtime_tools
+ensure_tool_caches
 
 # Put app into maintenance mode before mutating the checked-out code or built assets.
 run_app "cd $WORKDIR && php artisan down || true"
