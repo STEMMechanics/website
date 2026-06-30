@@ -18,7 +18,10 @@ class MediaXSendfileDownloadTest extends TestCase
     {
         Storage::fake('media');
 
-        config(['media.use_x_sendfile' => true]);
+        config([
+            'media.use_x_sendfile' => true,
+            'media.use_x_accel' => false,
+        ]);
 
         $owner = User::factory()->create();
         $media = Media::query()->create([
@@ -40,6 +43,68 @@ class MediaXSendfileDownloadTest extends TestCase
             'private-archive.zip',
             (string) $response->headers->get('Content-Disposition')
         );
+    }
+
+    public function test_private_media_download_uses_x_accel_when_enabled(): void
+    {
+        Storage::fake('media');
+
+        config([
+            'media.use_x_sendfile' => false,
+            'media.use_x_accel' => true,
+            'media.x_accel_prefix' => '/protected/',
+        ]);
+
+        $owner = User::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'private-archive.zip',
+            'title' => 'Private Archive',
+            'hash' => str_repeat('b', 64),
+            'mime_type' => 'application/zip',
+            'size' => 13,
+            'user_id' => $owner->id,
+        ]);
+
+        Storage::disk('media')->put($media->hash, 'archive-bytes');
+
+        $response = $this->actingAs($owner)->get(route('media.download', $media));
+
+        $response->assertOk();
+        $response->assertHeader('X-Accel-Redirect', '/protected/'.$media->hash);
+        $response->assertHeaderMissing('X-Sendfile');
+        self::assertStringContainsString(
+            'private-archive.zip',
+            (string) $response->headers->get('Content-Disposition')
+        );
+    }
+
+    public function test_x_accel_takes_precedence_when_both_offload_modes_are_enabled(): void
+    {
+        Storage::fake('media');
+
+        config([
+            'media.use_x_sendfile' => true,
+            'media.use_x_accel' => true,
+            'media.x_accel_prefix' => 'protected-media',
+        ]);
+
+        $owner = User::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'private-archive.zip',
+            'title' => 'Private Archive',
+            'hash' => str_repeat('c', 64),
+            'mime_type' => 'application/zip',
+            'size' => 13,
+            'user_id' => $owner->id,
+        ]);
+
+        Storage::disk('media')->put($media->hash, 'archive-bytes');
+
+        $response = $this->actingAs($owner)->get(route('media.download', $media));
+
+        $response->assertOk();
+        $response->assertHeader('X-Accel-Redirect', '/protected-media/'.$media->hash);
+        $response->assertHeaderMissing('X-Sendfile');
     }
 
     public function test_admin_upload_cap_uses_configured_limit(): void

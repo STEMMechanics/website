@@ -65,4 +65,37 @@ class FileBackupServiceTest extends TestCase
         Storage::disk('local')->assertExists($summary['run_path'].'/files/media/gallery/new.jpg');
         Storage::disk('local')->assertMissing($summary['run_path'].'/files/media/gallery/old.jpg');
     }
+
+    public function test_it_lists_readable_backups_when_one_run_directory_is_not_readable(): void
+    {
+        Storage::fake('local');
+
+        $readableRunPath = 'backups/files/full/20260630_010000_full';
+        $unreadableRunPath = 'backups/files/incremental/20260630_011524_incremental_24h';
+
+        Storage::disk('local')->put($readableRunPath.'/files/media/photo.jpg', 'image-data');
+        Storage::disk('local')->put($readableRunPath.'/manifest.json', json_encode([
+            'mode' => 'full',
+            'created_at' => '2026-06-30T01:00:00+10:00',
+            'uploaded_files' => 1,
+            'deleted_files' => 0,
+        ], JSON_THROW_ON_ERROR));
+
+        Storage::disk('local')->makeDirectory($unreadableRunPath);
+        $unreadableAbsolutePath = Storage::disk('local')->path($unreadableRunPath);
+        chmod($unreadableAbsolutePath, 0000);
+
+        try {
+            $backups = $this->app->make(FileBackupService::class)->listBackups();
+        } finally {
+            chmod($unreadableAbsolutePath, 0775);
+        }
+
+        $backupsByName = collect($backups)->keyBy('filename');
+
+        $this->assertCount(2, $backups);
+        $this->assertTrue($backupsByName['20260630_010000_full']['is_readable']);
+        $this->assertFalse($backupsByName['20260630_011524_incremental_24h']['is_readable']);
+        $this->assertNotEmpty($backupsByName['20260630_011524_incremental_24h']['error']);
+    }
 }

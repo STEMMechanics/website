@@ -124,11 +124,17 @@
                         </thead>
                         <tbody>
                         @foreach($fileBackups as $backup)
+                            @php($fileBackupReadable = (bool) ($backup['is_readable'] ?? true))
                             <tr class="border-t border-gray-100">
                                 <td class="px-3 py-2 font-mono text-xs break-all" data-label="Run">
+                                    @if($fileBackupReadable)
                                     <a class="text-primary-color hover:underline" href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}">
                                         {{ $backup['filename'] }}
                                     </a>
+                                    @else
+                                    <span class="text-gray-700">{{ $backup['filename'] }}</span>
+                                    <div class="mt-1 text-xs text-red-700">Unreadable by the web user. Check storage permissions.</div>
+                                    @endif
                                 </td>
                                 <td class="px-3 py-2 text-center" data-label="Mode">
                                     <x-ui.badge :color="(string) $backup['mode'] === \App\Services\FileBackupService::MODE_INCREMENTAL ? 'warning' : 'sky'">
@@ -145,9 +151,15 @@
                                 <td class="px-3 py-2 text-center" data-label="Deleted">{{ number_format((int) $backup['deleted_files']) }}</td>
                                 <td class="px-3 py-2" data-label="Size">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
                                 <td class="px-3 py-2" data-label="Action">
+                                    @if($fileBackupReadable)
                                     <a href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="View files">
                                         <i class="fa-solid fa-folder-open"></i>
                                     </a>
+                                    @else
+                                    <span class="text-gray-400" title="Backup run is not readable">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                    </span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

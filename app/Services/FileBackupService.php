@@ -63,6 +63,7 @@ class FileBackupService
 
         $target = Storage::disk('local');
         $target->makeDirectory($runPath);
+        $this->normalizeLocalBackupPermissions($runPath);
 
         $uploadedFiles = 0;
         $uploadedPaths = [];
@@ -110,6 +111,7 @@ class FileBackupService
 
         $this->writeJson($this->joinPath($runPath, 'manifest.json'), $manifest);
         $this->writeJson(self::STATE_MANIFEST_PATH, $this->buildStateManifest($currentManifest));
+        $this->normalizeLocalBackupPermissions($runPath);
 
         $keep = $this->resolvedKeepCount($mode, $keepCount);
         $pruned = $this->pruneOldBackups($mode, $keep);
@@ -192,7 +194,7 @@ class FileBackupService
     }
 
     /**
-     * @return array<int, array{filename: string, size: int, modified_at: string, file_count: int, mode: string}>
+     * @return array<int, array{filename: string, size: int, modified_at: string, file_count: int, mode: string, is_readable: bool, error: string|null}>
      */
     public function listBackups(?string $mode = null): array
     {
@@ -208,23 +210,53 @@ class FileBackupService
                 continue;
             }
 
-            foreach ($target->directories($baseDirectory) as $directory) {
+            try {
+                $directories = $target->directories($baseDirectory);
+            } catch (Throwable) {
+                continue;
+            }
+
+            foreach ($directories as $directory) {
                 $runName = basename($directory);
                 if ($runName === 'state') {
                     continue;
                 }
 
-                $files = $target->allFiles($directory);
+                $files = [];
                 $size = 0;
-                foreach ($files as $path) {
-                    $size += (int) ($target->size($path) ?: 0);
+                $isReadable = true;
+                $error = null;
+                $lastModified = 0;
+
+                try {
+                    $files = $target->allFiles($directory);
+                    foreach ($files as $path) {
+                        $size += (int) ($target->size($path) ?: 0);
+                    }
+                } catch (Throwable $e) {
+                    $isReadable = false;
+                    $error = $e->getMessage();
                 }
 
-                $manifest = $this->readRunManifest(basename(dirname($directory)), $runName);
+                try {
+                    $manifest = $this->readRunManifest(basename(dirname($directory)), $runName);
+                } catch (Throwable $e) {
+                    $manifest = [];
+                    $isReadable = false;
+                    $error ??= $e->getMessage();
+                }
+
+                try {
+                    $lastModified = (int) ($target->lastModified($directory) ?: 0);
+                } catch (Throwable $e) {
+                    $isReadable = false;
+                    $error ??= $e->getMessage();
+                }
+
                 $createdAt = isset($manifest['created_at'])
                     ? (string) $manifest['created_at']
-                    : date('c', (int) ($target->lastModified($directory) ?: 0));
-                $modifiedAt = date('Y-m-d H:i:s', (int) ($target->lastModified($directory) ?: 0));
+                    : date('c', $lastModified);
+                $modifiedAt = date('Y-m-d H:i:s', $lastModified);
 
                 $backups[] = [
                     'filename' => $runName,
@@ -238,6 +270,8 @@ class FileBackupService
                     'file_count' => count($files),
                     'uploaded_files' => isset($manifest['uploaded_files']) ? (int) $manifest['uploaded_files'] : count($files),
                     'deleted_files' => isset($manifest['deleted_files']) ? (int) $manifest['deleted_files'] : 0,
+                    'is_readable' => $isReadable,
+                    'error' => $error,
                 ];
             }
         }
@@ -1177,6 +1211,34 @@ class FileBackupService
 
         if (! Storage::disk('local')->put($path, $encoded)) {
             throw new RuntimeException('Could not write file backup metadata: '.$path);
+        }
+    }
+
+    private function normalizeLocalBackupPermissions(string $path): void
+    {
+        $absolutePath = Storage::disk('local')->path($path);
+        if (! file_exists($absolutePath)) {
+            return;
+        }
+
+        try {
+            if (is_dir($absolutePath)) {
+                @chmod($absolutePath, 0775);
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($absolutePath, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::SELF_FIRST
+                );
+
+                foreach ($iterator as $item) {
+                    @chmod($item->getPathname(), $item->isDir() ? 0775 : 0664);
+                }
+
+                return;
+            }
+
+            @chmod($absolutePath, 0664);
+        } catch (Throwable) {
+            // Best-effort only; listing code still handles unreadable backup runs gracefully.
         }
     }
 
