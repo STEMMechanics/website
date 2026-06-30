@@ -45,6 +45,22 @@ class Helpers
 
         return in_array('xsendfile_module', apache_get_modules(), true);
     }
+
+    public static function isNginxXAccelEnabled(): bool
+    {
+        return (bool) config('media.use_x_accel', false);
+    }
+
+    public static function mediaXAccelPrefix(): string
+    {
+        $prefix = trim((string) config('media.x_accel_prefix', '/protected/'));
+        if ($prefix === '') {
+            return '/protected/';
+        }
+
+        return '/'.trim($prefix, '/').'/';
+    }
+
     public static function stringToBytes(string $val): int
     {
         if (empty($val)) {

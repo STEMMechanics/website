@@ -1136,6 +1136,13 @@ class MediaController extends Controller
             'Content-Disposition' => ($download ? 'attachment; ' : '') . 'filename="' . $name . '"',
         ];
 
+        if (Helpers::isNginxXAccelEnabled()) {
+            $headers['X-Accel-Redirect'] = $this->mediaXAccelRedirectPath($file);
+            $headers['Content-Length'] = (string) filesize($file);
+
+            return response('', 200, $headers);
+        }
+
         if (Helpers::isApacheXSendfileAvailable()) {
             $headers['X-Sendfile'] = $file;
             $headers['Content-Length'] = (string) filesize($file);
@@ -1144,6 +1151,25 @@ class MediaController extends Controller
         }
 
         return response()->file($file, $headers);
+    }
+
+    private function mediaXAccelRedirectPath(string $file): string
+    {
+        $realFile = realpath($file);
+        $mediaRoot = realpath(Storage::disk('media')->path('/'));
+        if ($realFile === false || $mediaRoot === false) {
+            abort(404, 'File not found');
+        }
+
+        $mediaRoot = rtrim($mediaRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+        if (! str_starts_with($realFile, $mediaRoot)) {
+            abort(403, 'File is outside the protected media directory.');
+        }
+
+        $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', substr($realFile, strlen($mediaRoot)));
+        $encodedPath = implode('/', array_map('rawurlencode', explode('/', $relativePath)));
+
+        return Helpers::mediaXAccelPrefix().$encodedPath;
     }
 
     public function unlock(Request $request, Media $media)
