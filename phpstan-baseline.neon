@@ -1,19 +1,2 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#^Access to an undefined property Laravel\\Passport\\Client\:\:\$grant_types\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Admin/OAuthClientController.php
-
-		-
-			message: '#^Access to an undefined property Laravel\\Passport\\Client\:\:\$redirect_uris\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Middleware/SecurityHeaders.php
-
-		-
-			message: '#^Return type \(Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Token, \$this\(App\\Models\\User\)\>\) of method App\\Models\\User\:\:tokens\(\) should be compatible with return type \(Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Laravel\\Passport\\Token, Illuminate\\Foundation\\Auth\\User\>\) of method Laravel\\Passport\\Contracts\\OAuthenticatable\:\:tokens\(\)$#'
-			identifier: method.childReturnType
-			count: 1
-			path: app/Models/User.php
+	ignoreErrors: []

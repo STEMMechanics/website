@@ -13,12 +13,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Laravel\Passport\Contracts\OAuthenticatable;
-use Laravel\Passport\HasApiTokens;
+use Illuminate\Support\Str;
 
-class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, UUID;
+    use HasFactory, Notifiable, UUID;
 
     /**
      * @var array<string, bool>

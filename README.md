@@ -34,7 +34,7 @@ php artisan serve
 
 ## Keys And Secrets
 
-The site uses a mix of environment variables, database-stored options, and Passport key files. The most important values are:
+The site uses a mix of environment variables and database-stored options. The most important values are:
 
 | Key or secret | Where it lives | Notes |
 | --- | --- | --- |
@@ -51,8 +51,6 @@ The site uses a mix of environment variables, database-stored options, and Passp
 | `PUSHER_APP_SECRET` | `.env` | Pusher auth secret if broadcasting is enabled. |
 | `SLACK_BOT_USER_OAUTH_TOKEN` | `.env` | Slack notifications token if configured. |
 | `minecraft.webhook-secret` | Database site option | Managed in the admin Site Options screen. Used to sign STEMCraft webhook traffic. |
-| OAuth client secrets | Database (`oauth_clients`) | Managed in Admin -> OAuth Clients. Secrets are shown once on creation or rotation. |
-| Passport signing keys | `storage/oauth-private.key` and `storage/oauth-public.key` | Generated automatically by the app, or manually with `php artisan passport:keys --force`. |
 
 If you suspect a leak, rotate the affected credential at the provider, update the matching value here, and then clear any cached config if needed.
 

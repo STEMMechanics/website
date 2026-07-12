@@ -9,7 +9,6 @@ use App\Models\Payment;
 use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Support\PassportKeyManager;
 use App\Observers\AuditLogObserver;
 use App\Policies\AuditLogPolicy;
 use App\Policies\InvoicePolicy;
@@ -30,7 +29,6 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Passport\Passport;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,9 +47,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->ensurePdfArtifactDirectoriesExist();
-        app(PassportKeyManager::class)->ensureKeysExist();
-        Passport::tokensCan(config('openid.passport.tokens_can'));
-        Passport::authorizationView('auth.oauth.authorize');
 
         if ($this->app->environment('local')) {
             Vite::useHotFile(storage_path('framework/vite.hot'));
