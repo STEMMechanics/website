@@ -436,13 +436,6 @@ class UserController extends Controller
         }
     }
 
-    private function groupsContainAdmin(string $raw): bool
-    {
-        return collect(preg_split('/[\s,]+/', $raw) ?: [])
-            ->map(fn ($value) => UserGroup::normalizeSlug((string) $value))
-            ->contains('admin');
-    }
-
     private function accountCreditForUser(User $user): float
     {
         $creditPayments = Payment::query()
