@@ -74,7 +74,7 @@
                             <div class="mt-2 text-sm font-semibold text-gray-900">{{ $selectedPlayer?->captured_at?->format('j M Y g:i a') ?? '-' }}</div>
                             @if($account)
                                 <div class="mt-2 text-sm text-gray-600">
-                                    Linked account: <span class="font-semibold text-gray-900">{{ $account->user?->username ?: $account->user?->getName() ?: 'Linked profile' }}</span>
+                                    Linked account: <span class="font-semibold text-gray-900">{{ $account->user?->getName() ?: 'Linked profile' }}</span>
                                 </div>
                             @endif
                         </div>

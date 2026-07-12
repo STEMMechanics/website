@@ -25,7 +25,7 @@
             'title' => 'Instant approval',
             'image' => '/stemcraft-instance-approval.webp',
             'alt' => 'A STEMCraft approval scene showing that access is granted instantly after setup.',
-            'text' => 'Once the parent adds a child’s Minecraft username, access is granted straight away.',
+            'text' => 'Once the Minecraft username is added, access is granted straight away.',
         ],
     ];
 @endphp

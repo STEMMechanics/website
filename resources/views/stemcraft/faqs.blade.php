@@ -31,7 +31,7 @@
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
                         <h3 class="text-base font-semibold text-gray-900">How do I set up access?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">A parent creates the website account using the workshop email, adds the child’s Minecraft username, and the access is granted straight away.</p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Create a website account using the workshop email, add the Minecraft username, and access is granted straight away.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
                         <h3 class="text-base font-semibold text-gray-900">What happens if my child tries to join before approval?</h3>

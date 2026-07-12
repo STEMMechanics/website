@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\MinecraftAccount;
 use App\Models\MinecraftPenalty;
 use App\Models\MinecraftPlayerStat;
-use App\Models\SiteOption;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -160,74 +159,8 @@ class AccountStemcraftPageTest extends TestCase
         $response->assertDontSeeText('Play Time');
     }
 
-    public function test_child_account_with_linked_minecraft_profile_can_view_read_only_stemcraft_page(): void
-    {
-        $parent = User::factory()->create();
-        $child = User::factory()->create([
-            'parent_user_id' => $parent->id,
-            'username' => 'kid-player',
-            'email' => null,
-            'email_verified_at' => null,
-        ]);
-
-        $account = MinecraftAccount::query()->create([
-            'user_id' => $child->id,
-            'platform' => 'java',
-            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
-            'username' => 'KidPlayer',
-            'is_whitelisted' => true,
-        ]);
-
-        $response = $this->actingAs($child)->get(route('account.stemcraft.index'));
-
-        $response->assertOk();
-        $response->assertSeeText('Read-only access');
-        $response->assertSeeText('View your linked STEMCraft accounts and whitelist status.');
-        $response->assertSeeText('KidPlayer');
-        $response->assertSeeText('View player stats');
-        $response->assertDontSeeText('Add Minecraft Account');
-        $response->assertDontSeeText('Remove account');
-        $this->assertSame((string) $child->id, (string) $account->user_id);
-    }
-
-    public function test_stemcraft_page_uses_generic_copy_when_child_accounts_are_disabled(): void
-    {
-        SiteOption::query()->updateOrCreate(
-            ['name' => 'users.child-accounts-enabled'],
-            ['value' => '0']
-        );
-
-        $parent = User::factory()->create();
-        $child = User::factory()->create([
-            'parent_user_id' => $parent->id,
-            'username' => 'kid-player',
-            'email' => null,
-            'email_verified_at' => null,
-        ]);
-
-        MinecraftAccount::query()->create([
-            'user_id' => $child->id,
-            'platform' => 'java',
-            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
-            'username' => 'KidPlayer',
-            'is_whitelisted' => true,
-        ]);
-
-        $response = $this->actingAs($child)->get(route('account.stemcraft.index'));
-
-        $response->assertOk();
-        $response->assertSeeText('This is a read-only linked-account view.');
-        $response->assertDontSeeText('This is a read-only view for child accounts.');
-        $response->assertDontSeeText('child accounts');
-    }
-
     public function test_stemcraft_page_hides_linked_to_row_when_child_accounts_are_disabled_and_none_exist(): void
     {
-        SiteOption::query()->updateOrCreate(
-            ['name' => 'users.child-accounts-enabled'],
-            ['value' => '0']
-        );
-
         $user = User::factory()->create([
             'firstname' => 'Minecraft',
             'surname' => 'Member',
@@ -248,46 +181,6 @@ class AccountStemcraftPageTest extends TestCase
         $response->assertDontSeeText('Linked to');
         $response->assertDontSeeText('[Change]');
         $this->assertSame((string) $user->id, (string) $account->user_id);
-    }
-
-    public function test_parent_can_reassign_minecraft_account_to_a_child_without_needing_minecraft_group_access(): void
-    {
-        $parent = User::factory()->create();
-        $child = User::factory()->create([
-            'parent_user_id' => $parent->id,
-            'username' => 'kid-owner',
-            'email' => null,
-            'email_verified_at' => null,
-        ]);
-
-        $account = MinecraftAccount::query()->create([
-            'user_id' => $parent->id,
-            'platform' => 'java',
-            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
-            'username' => 'FamilyPlayer',
-            'is_whitelisted' => true,
-        ]);
-
-        $this->actingAs($parent)
-            ->patch(route('account.stemcraft.owner.update', $account), [
-                'user_id' => (string) $child->id,
-            ])
-            ->assertRedirect(route('account.stemcraft.index'));
-
-        $account->refresh();
-        $this->assertSame((string) $child->id, (string) $account->user_id);
-
-        $this->actingAs($parent)
-            ->get(route('account.stemcraft.index'))
-            ->assertOk()
-            ->assertSeeText('FamilyPlayer');
-
-        $this->actingAs($child)
-            ->get(route('account.stemcraft.index'))
-            ->assertOk()
-            ->assertSeeText('Read-only access')
-            ->assertSeeText('FamilyPlayer')
-            ->assertDontSeeText('Add Minecraft Account');
     }
 
     public function test_parent_without_minecraft_group_can_view_stemcraft_but_cannot_add_accounts(): void

@@ -44,14 +44,7 @@
                     'rows' => $summaryRows,
                 ])
 
-                @if($checkoutUser?->isChildAccount())
-                    <div class="text-sm bg-amber-50 border border-amber-200 rounded p-3 mb-4">
-                        <p>
-                            You are logged in as a child account. The details from this account will not be used for this ticket purchase.
-                            <a href="{{ route('logout.show') }}" class="link">Log out</a>
-                        </p>
-                    </div>
-                @elseif(auth()->guest())
+                @if(auth()->guest())
                     <div class="text-sm bg-blue-50 border border-blue-200 rounded p-3 mb-4">
                         Already have an account?
                         <a href="{{ route('workshop.ticket.flow.login', $workshop) }}" class="link">Log in and continue</a>

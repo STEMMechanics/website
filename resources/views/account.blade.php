@@ -17,7 +17,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
 @endphp
 
 <x-layout>
-    <x-mast description="Manage your public profile, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
+    <x-mast description="Manage your account details, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
 
     <x-container inner-class="max-w-6xl">
         <form
@@ -46,7 +46,6 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
                             <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
                             <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
-                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site. Don't use your real name!" />
                             <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
                         </div>
@@ -114,8 +113,6 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                 </div>
 
                 <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
-                    @include('account.partials.avatar-card')
-
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>

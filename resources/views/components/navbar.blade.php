@@ -18,15 +18,6 @@
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
         $canViewMinecraftPage = (bool) ($navUser?->canViewMinecraftPage() ?? false);
-        $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
-        $managedChildAccountCount = 0;
-        $hasManagedChildAccounts = false;
-        if ($navUser?->isFullAccount()) {
-            $managedChildAccountCount = (int) $navUser->children()
-                ->whereNull('anonymized_at')
-                ->count();
-            $hasManagedChildAccounts = $managedChildAccountCount > 0;
-        }
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -267,9 +258,6 @@
                 @endif
                 @if($canViewMinecraftPage)
                     <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
-                @endif
-                @if(($childAccountsEnabled || $hasManagedChildAccounts) && $navUser?->isFullAccount())
-                    <a href="{{ route('account.children.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Child Accounts</a>
                 @endif
                 <a href="{{ route('account.oauth-apps.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-plug w-4 mr-2"></i>Connected Apps</a>
                 <div class="border-t border-gray-200 my-2"></div>

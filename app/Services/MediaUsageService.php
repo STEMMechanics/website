@@ -52,7 +52,6 @@ class MediaUsageService
         $this->markColumnValues($usedMediaNames, 'posts', 'hero_media_name');
         $this->markColumnValues($usedMediaNames, 'custom_pages', 'hero_media_name');
         $this->markColumnValues($usedMediaNames, 'products', 'hero_media_name');
-        $this->markColumnValues($usedMediaNames, 'users', 'avatar_media_name');
         $this->markColumnValues($usedMediaNames, 'store_order_item_downloads', 'media_name');
     }
 

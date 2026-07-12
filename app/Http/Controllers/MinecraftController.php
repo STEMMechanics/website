@@ -40,7 +40,6 @@ class MinecraftController extends Controller
             'accounts' => $accounts,
             'canManageAccounts' => $user->canManageMinecraftAccounts(),
             'canCreateAccounts' => $user->canCreateMinecraftAccounts(),
-            'ownerOptions' => $user->canManageMinecraftAccounts() ? $this->minecraftAccountOwnerOptions($user) : collect(),
         ]);
     }
 
@@ -53,21 +52,12 @@ class MinecraftController extends Controller
         $validated = $request->validate([
             'platform' => ['required', Rule::in(MinecraftAccount::PLATFORMS)],
             'username' => ['required', 'string', 'max:80'],
-            'user_id' => ['nullable', 'string', 'max:36'],
         ]);
 
-        $requestedOwnerId = trim((string) ($validated['user_id'] ?? ''));
-        $owner = $this->resolveMinecraftAccountOwner($user, $requestedOwnerId);
-        if ($requestedOwnerId !== '' && (string) $owner->id !== $requestedOwnerId) {
-            return back()
-                ->withErrors(['user_id' => 'Select yourself or one of your child accounts.'])
-                ->withInput();
-        }
-
-        $this->enforceLinkedAccountLimit($owner, $validated);
+        $this->enforceLinkedAccountLimit($user, $validated);
 
         $account = $this->saveMinecraftAccount(
-            owner: $owner,
+            owner: $user,
             attributes: $validated,
             account: null,
             forceWhitelist: true,
@@ -99,44 +89,6 @@ class MinecraftController extends Controller
 
         session()->flash('message', 'STEMCraft account removed from your profile and de-whitelisted.');
         session()->flash('message-title', 'STEMCraft account removed');
-        session()->flash('message-type', 'success');
-
-        return redirect()->route('account.stemcraft.index');
-    }
-
-    public function accountUpdateOwner(Request $request, MinecraftAccount $minecraftAccount): RedirectResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-        abort_unless($user->canManageMinecraftAccounts(), 403);
-        abort_unless($this->canManageMinecraftAccountRecord($user, $minecraftAccount), 403);
-
-        $validated = $request->validate([
-            'user_id' => ['nullable', 'string', 'max:36'],
-        ]);
-
-        $targetUserId = trim((string) ($validated['user_id'] ?? ''));
-        $allowedUserIds = $this->managedMinecraftAccountOwnerIds($user);
-
-        if ($targetUserId !== '' && ! in_array($targetUserId, $allowedUserIds, true)) {
-            return back()
-                ->withErrors(['user_id' => 'Select yourself or one of your child accounts.'])
-                ->withInput();
-        }
-
-        if ($targetUserId === (string) $minecraftAccount->user_id) {
-            session()->flash('message', 'Minecraft account ownership is already set.');
-            session()->flash('message-title', 'No changes made');
-            session()->flash('message-type', 'info');
-
-            return redirect()->route('account.stemcraft.index');
-        }
-
-        $minecraftAccount->user_id = $targetUserId !== '' ? $targetUserId : null;
-        $minecraftAccount->save();
-
-        session()->flash('message', 'Minecraft account ownership updated.');
-        session()->flash('message-title', 'STEMCraft account updated');
         session()->flash('message-type', 'success');
 
         return redirect()->route('account.stemcraft.index');
@@ -973,14 +925,7 @@ class MinecraftController extends Controller
             ->with(['sessions', 'penalties', 'blacklistEntries', 'user'])
             ->orderBy('username');
 
-        if ($user->canManageMinecraftAccounts()) {
-            $ownerIds = $this->managedMinecraftAccountOwnerIds($user);
-            if ($ownerIds !== []) {
-                $query->whereIn('user_id', $ownerIds);
-            }
-        } else {
-            $query->where('user_id', (string) $user->id);
-        }
+        $query->where('user_id', (string) $user->id);
 
         return $query->get();
     }
@@ -990,62 +935,7 @@ class MinecraftController extends Controller
      */
     private function managedMinecraftAccountOwnerIds(User $user): array
     {
-        if (! $user->canManageMinecraftAccounts()) {
-            return [(string) $user->id];
-        }
-
-        $childIds = $user->children()
-            ->whereNull('anonymized_at')
-            ->pluck('id')
-            ->map(fn ($id) => (string) $id)
-            ->values()
-            ->all();
-
-        return array_values(array_unique(array_merge([(string) $user->id], $childIds)));
-    }
-
-    private function minecraftAccountOwnerOptions(User $user): Collection
-    {
-        $options = collect([
-            [
-                'id' => (string) $user->id,
-                'label' => 'You',
-            ],
-        ]);
-
-        return $options->concat(
-            $user->children()
-                ->whereNull('anonymized_at')
-                ->orderBy('username')
-                ->get()
-                ->map(fn (User $child): array => [
-                    'id' => (string) $child->id,
-                    'label' => $child->username ?: $child->getName() ?: 'Child account',
-                ])
-        )->values();
-    }
-
-    private function resolveMinecraftAccountOwner(User $user, string $ownerId): User
-    {
-        $ownerId = trim($ownerId);
-        if ($ownerId === '') {
-            return $user;
-        }
-
-        if ((string) $user->id === $ownerId) {
-            return $user;
-        }
-
-        $child = $user->children()
-            ->whereNull('anonymized_at')
-            ->whereKey($ownerId)
-            ->first();
-
-        if ($child instanceof User) {
-            return $child;
-        }
-
-        return $user;
+        return [(string) $user->id];
     }
 
     private function canManageMinecraftAccountRecord(User $user, MinecraftAccount $minecraftAccount): bool

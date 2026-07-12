@@ -20,7 +20,7 @@
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 class="text-lg font-bold text-gray-900">Interest Registrations</h2>
-                    <p class="mt-1 text-sm text-gray-600">Includes direct registrations and child-account registrations with parent fallback details.</p>
+                    <p class="mt-1 text-sm text-gray-600">Includes direct registrations and linked account details.</p>
                 </div>
                 <x-ui.badge color="warning">
                     {{ number_format((int) ($workshop->interests_count ?? $interestRegistrations->count())) }}
@@ -45,30 +45,23 @@
                             @foreach($interestRegistrations as $interest)
                                 @php
                                     $linkedUser = $interest->user;
-                                    $parentUser = $linkedUser?->parent;
-                                    $isChildAccount = (bool) ($linkedUser?->isChildAccount() ?? false);
                                     $resolvedName = trim((string) ($interest->name ?? '')) ?: trim((string) ($linkedUser?->getName() ?? '')) ?: '-';
                                     $resolvedEmail = trim((string) ($interest->email ?? ''));
                                     if ($resolvedEmail === '') {
-                                        $resolvedEmail = trim((string) ($isChildAccount ? ($parentUser?->email ?? '') : ($linkedUser?->email ?? '')));
+                                        $resolvedEmail = trim((string) ($linkedUser?->email ?? ''));
                                     }
                                     $resolvedPhone = trim((string) ($interest->phone ?? ''));
                                     if ($resolvedPhone === '') {
-                                        $resolvedPhone = trim((string) ($isChildAccount ? ($parentUser?->phone ?? '') : ($linkedUser?->phone ?? '')));
+                                        $resolvedPhone = trim((string) ($linkedUser?->phone ?? ''));
                                     }
                                     $accountLabel = match (true) {
-                                        $isChildAccount => 'Child account',
                                         $linkedUser !== null => 'Linked account',
                                         default => 'No linked account',
                                     };
-                                    $parentName = trim((string) ($parentUser?->getName() ?? ''));
                                 @endphp
                                 <tr class="border-t border-gray-100 align-top">
                                     <td class="px-4 py-3">
                                         <div class="font-semibold text-gray-900">{{ $resolvedName }}</div>
-                                        @if($isChildAccount && $parentName !== '')
-                                            <div class="mt-1 text-xs text-gray-500">Parent contact: {{ $parentName }}</div>
-                                        @endif
                                     </td>
                                     <td class="px-4 py-3">
                                         <div>{{ $resolvedEmail !== '' ? $resolvedEmail : '-' }}</div>

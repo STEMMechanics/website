@@ -51,8 +51,6 @@ class OpenIdConnectTest extends TestCase
         $this->assertSame('Jane Doe', $response->json('name'));
         $this->assertSame('Jane', $response->json('given_name'));
         $this->assertSame('Doe', $response->json('family_name'));
-        $this->assertSame($user->username, $response->json('nickname'));
-        $this->assertSame($user->username, $response->json('preferred_username'));
         $this->assertSame(route('account.show'), $response->json('profile'));
         $this->assertSame('jane@example.com', $response->json('email'));
         $this->assertTrue($response->json('email_verified'));

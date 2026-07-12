@@ -2,7 +2,7 @@
 if(!isset($login)) {
 $login = '';
 if(isset($user)) {
-$login = $user->username ?: $user->email;
+$login = $user->email;
 }
 }
 $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
@@ -17,7 +17,7 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
             <x-slot:header>
                 <p class="text-sm">Two-factor authentication (2FA) is enabled for your account. Please enter a code to log in.</p>
             </x-slot:header>
-            <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+            <input type="hidden" name="login" value="{{ $login }}" autocomplete="email" />
             <x-altcha-proof />
             <x-ui.input
                 type="tel"
@@ -53,7 +53,7 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
                     <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
                         @csrf
                         <x-altcha-proof />
-                        <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+                        <input type="hidden" name="login" value="{{ $login }}" autocomplete="email" />
                         <input type="hidden" name="method" value="email" />
                         <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>
                     </form>
@@ -74,7 +74,7 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
                 <p class="text-sm">Enter one of your backup codes below to log in. Once a backup codes are a 1 time use only.</p>
             </x-slot:header>
             <x-altcha-proof />
-            <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+            <input type="hidden" name="login" value="{{ $login }}" autocomplete="email" />
             <x-ui.input
                 type="text"
                 name="backup_code"

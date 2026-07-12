@@ -9,7 +9,7 @@
         @endphp
         @if(isset($filteredOwner) && $filteredOwner)
             <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                Showing media for <strong>{{ $filteredOwner->username ?: $filteredOwner->email ?: $filteredOwner->getName() }}</strong>.
+                Showing media for <strong>{{ $filteredOwner->getName() ?: $filteredOwner->email }}</strong>.
                 <a href="{{ route('admin.media.index') }}" class="ml-2 text-primary-color hover:underline">Clear filter</a>
             </div>
         @endif
@@ -106,12 +106,12 @@
                                             {{ $medium->title }}
                                         </a>{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}
                                         <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
-                                        <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->username ?: $medium->user?->email ?: 'Unassigned' }}</div>
+                                        <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ $medium->user?->username ?: $medium->user?->email ?: 'Unassigned' }}</td>
+                            <td class="hidden lg:table-cell">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</td>
                             <td class="hidden md:table-cell">{{ $medium->file_type }}</td>
                             <td class="hidden md:table-cell">{{ \App\Helpers::bytesToString($medium->size) }}</td>
                             <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</td>

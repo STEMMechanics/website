@@ -789,7 +789,7 @@ class WorkshopController extends Controller
     {
         $workshop->load([
             'interests' => fn ($query) => $query
-                ->with('user.parent')
+                ->with('user')
                 ->orderByDesc('created_at')
                 ->orderByDesc('id'),
         ])->loadCount('interests');

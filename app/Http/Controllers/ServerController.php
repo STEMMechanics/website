@@ -1121,7 +1121,7 @@ class ServerController extends Controller
         $lookup = [];
 
         User::query()
-            ->select(['id', 'firstname', 'surname', 'username', 'email', 'phone', 'anonymized_at'])
+            ->select(['id', 'firstname', 'surname', 'email', 'phone', 'anonymized_at'])
             ->whereNotNull('phone')
             ->where('phone', '!=', '')
             ->get()

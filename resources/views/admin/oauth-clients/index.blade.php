@@ -92,7 +92,6 @@
                     <div class="mt-2 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
                         <div><span class="font-semibold text-gray-900">Name:</span> name</div>
                         <div><span class="font-semibold text-gray-900">Email:</span> email</div>
-                        <div><span class="font-semibold text-gray-900">Username:</span> preferred_username</div>
                         <div><span class="font-semibold text-gray-900">Profile:</span> profile</div>
                     </div>
                 </div>

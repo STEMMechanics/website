@@ -12,20 +12,21 @@
         @if(session('status') == 'not-found')
             <x-slot:title>Sorry, we didn't recognize that login</x-slot:title>
             <x-slot:header>
-                <p>Would you like to sign in with a different email or username?</p>
+                <p>Would you like to sign in with a different email?</p>
             </x-slot:header>
         @else
             <x-slot:title>Sign in</x-slot:title>
             <x-slot:header>
-                <p>Enter the email address or username associated with your account</p>
+                <p>Enter the email address associated with your account</p>
             </x-slot:header>
         @endif
         <x-ui.input
-            type="text"
+            type="email"
             name="login"
             id="login_identifier"
-            label="Email or Username"
+            label="Email"
             value="{{ old('login', old('email', $rememberedLoginValue)) }}"
+            autocomplete="email"
             floating
             data-remembered-login="{{ $rememberedLoginValue }}"
             autofocus

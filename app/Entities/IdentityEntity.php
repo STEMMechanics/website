@@ -29,18 +29,13 @@ class IdentityEntity implements IdentityEntityInterface
     public function getClaims(array $scopes = []): array
     {
         $name = trim((string) $this->user->getName());
-        $username = trim((string) ($this->user->username ?? ''));
-        $avatarUrl = $this->user->avatarImageUrl();
 
         return array_filter([
             'name' => $name !== '' ? $name : null,
             'family_name' => trim((string) ($this->user->surname ?? '')) !== '' ? trim((string) $this->user->surname) : null,
             'given_name' => trim((string) ($this->user->firstname ?? '')) !== '' ? trim((string) $this->user->firstname) : null,
-            'nickname' => $username !== '' ? $username : null,
-            'preferred_username' => $username !== '' ? $username : null,
             'profile' => route('account.show'),
             'groups' => $this->user->groupSlugs(),
-            'picture' => is_string($avatarUrl) && $avatarUrl !== '' ? url($avatarUrl) : null,
             'updated_at' => $this->user->updated_at?->timestamp,
             'email' => trim((string) $this->user->email),
             'email_verified' => $this->user->hasVerifiedEmail(),

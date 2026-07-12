@@ -105,7 +105,7 @@
                     <div class="mt-5 space-y-3 text-sm text-gray-700">
                         <div><span class="font-semibold text-gray-900">Full name claim:</span> name</div>
                         <div><span class="font-semibold text-gray-900">Email claim:</span> email</div>
-                        <div><span class="font-semibold text-gray-900">Username claim:</span> preferred_username</div>
+                        <div><span class="font-semibold text-gray-900">Profile claim:</span> profile</div>
                         <div><span class="font-semibold text-gray-900">SSH public key claim:</span> Not currently exposed by this site</div>
                         <div><span class="font-semibold text-gray-900">Group claim:</span> Not currently exposed by this site</div>
                     </div>

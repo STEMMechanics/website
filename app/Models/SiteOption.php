@@ -160,15 +160,6 @@ class SiteOption extends Model
                 'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
                 'input_type' => 'number',
             ],
-            'users.restricted-usernames' => [
-                'value' => 'stemcraft, stemmechanics, stemmech, admin, administrator, staff, mod, moderator, owner, support',
-                'description' => 'Comma-separated username words blocked for non-admin accounts. Matching is done on whole username parts separated by dots, underscores, or hyphens.',
-            ],
-            'users.child-accounts-enabled' => [
-                'value' => '1',
-                'description' => 'Master switch for child account creation and child-account navigation links. Existing child accounts remain usable when disabled.',
-                'input_type' => 'boolean',
-            ],
             'moderation.content-filter.enabled' => [
                 'value' => '1',
                 'description' => 'Master switch for configurable content filtering.',

@@ -5,7 +5,6 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\ChildAccountController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Account\ConnectedAppController;
 use App\Http\Controllers\CustomPageController;
@@ -146,14 +145,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
-    Route::get('/account/children', [ChildAccountController::class, 'index'])->name('account.children.index');
-    Route::get('/account/children/create', [ChildAccountController::class, 'create'])->name('account.children.create');
-    Route::post('/account/children', [ChildAccountController::class, 'store'])->name('account.children.store');
-    Route::get('/account/children/{child}', [ChildAccountController::class, 'edit'])->name('account.children.edit');
-    Route::put('/account/children/{child}', [ChildAccountController::class, 'update'])->name('account.children.update');
-    Route::delete('/account/children/{child}', [ChildAccountController::class, 'destroy'])->name('account.children.destroy');
     Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
-    Route::patch('/account/stemcraft/accounts/{minecraftAccount}/owner', [MinecraftController::class, 'accountUpdateOwner'])->name('account.stemcraft.owner.update');
 
     Route::middleware('full-account')->group(function () {
         Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
