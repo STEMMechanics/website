@@ -12,7 +12,6 @@
     $ticketSubtotal = round((float) ($ticketPricing['subtotal_amount'] ?? ((float) $ticketPriceAmount * (int) ($holdCount ?? 0))), 2);
     $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount), 2);
     $hasAmountDue = $ticketTotal > 0.0001;
-    $isClassroomAccess = (bool) ($isClassroomAccess ?? $workshop->usesClassroomRegistration());
     $earlyBirdSummary = $workshop->earlyBirdSummaryLabel();
     $summaryRows = [];
     if ($pricingItems !== []) {
@@ -20,7 +19,7 @@
             $count = (int) ($item['count'] ?? 0);
             $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
             $label = trim((string) ($item['label'] ?? 'Tickets'));
-            $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free');
+            $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per ticket' : 'Free');
 
             if (! empty($item['is_early_bird'])) {
                 $value .= ' (Early bird)';
@@ -32,7 +31,7 @@
             ];
         }
     } else {
-        $summaryRows[] = ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')];
+        $summaryRows[] = ['label' => 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per ticket' : 'Free')];
     }
     if ($earlyBirdSummary && count($pricingItems) <= 1) {
         $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdSummary];
@@ -53,10 +52,9 @@
 @endphp
 
 <x-layout>
-    <x-mast>{{ $workshop->usesClassroomRegistration() ? 'Course Checkout' : 'Ticket Checkout' }}</x-mast>
+    <x-mast>Ticket Checkout</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
-        @php($isClassroomAccess = $workshop->usesClassroomRegistration())
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6 relative"
             x-data="ticketPaymentPage({
                         squareEnabled: @js($squareEnabled),
@@ -69,7 +67,6 @@
                     canUseAccountTerms: @js($canUseAccountTerms),
                     totalAmount: @js($ticketTotal),
                     useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
-                    isClassroomAccess: @js($isClassroomAccess),
                     paymentMethod: @js($ticketTotal > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
                     voucherCode: @js($voucherCode),
                     voucherDraft: @js(old('voucher_code', $voucherCode)),
@@ -78,7 +75,7 @@
                 })"
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Course Payment' : 'Payment' }}</h2>
+                <h2 class="text-2xl font-bold mb-3">Payment</h2>
 
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,
@@ -136,7 +133,7 @@
                     @endif
 
                     <div class="my-12 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-center" x-show="expired" x-cloak>
-                        {{ $isClassroomAccess ? 'Your course registration hold has now expired.' : 'Your ticket hold has now expired.' }}
+                        Your ticket hold has now expired.
                     </div>
                     <input
                         type="hidden"
@@ -399,20 +396,20 @@
 
             submitButtonLabel() {
                 if (this.totalAmount <= 0.0001) {
-                    return this.isClassroomAccess ? 'Enrol Now' : 'Complete Order';
+                    return 'Complete Order';
                 }
 
                 if (this.paymentMethod === 'account_terms') {
-                    return this.isClassroomAccess ? 'Enrol on Account' : 'Place on Account';
+                    return 'Place on Account';
                 }
 
                 if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
-                    return this.isClassroomAccess ? 'Confirm Registration' : 'Complete Purchase';
+                    return 'Complete Purchase';
                 }
                 if (this.paymentMethod === 'credit_card') {
-                    return this.isClassroomAccess ? 'Confirm Registration' : 'Purchase Tickets';
+                    return 'Purchase Tickets';
                 }
-                return this.isClassroomAccess ? 'Enrol Now' : 'Reserve Tickets';
+                return 'Reserve Tickets';
             },
 
             onPaymentMethodChange() {
@@ -509,7 +506,7 @@
                 }
                 this.errorMessage = '';
                 if (this.expired) {
-                    this.errorMessage = this.isClassroomAccess ? 'Your course registration hold has expired.' : 'Your ticket hold has expired.';
+                    this.errorMessage = 'Your ticket hold has expired.';
                     return;
                 }
 

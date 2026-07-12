@@ -14,11 +14,10 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
-$discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
 @endphp
 
 <x-layout>
-    <x-mast description="Manage your public profile, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
+    <x-mast description="Manage your account details, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
 
     <x-container inner-class="max-w-6xl">
         <form
@@ -47,7 +46,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                             <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
                             <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
                             <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
-                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site. Don't use your real name!" />
                             <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
                         </div>
@@ -115,8 +113,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                 </div>
 
                 <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
-                    @include('account.partials.avatar-card')
-
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
@@ -129,18 +125,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                                 <h3 class="text-sm font-semibold text-gray-900">Receive Email subscriptions</h3>
                                 <div class="mt-4">
                                     <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
-                                </div>
-                            </div>
-
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
-                                <p class="mt-1 text-sm text-gray-600">
-                                    You are subscribed to
-                                    <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
-                                    {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
-                                </p>
-                                <div class="mt-4 text-center">
-                                    <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all</x-ui.button>
                                 </div>
                             </div>
                         </div>
@@ -226,10 +210,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
             </div>
         </form>
 
-        <form id="discussion-unsubscribe-form" method="POST" action="{{ route('account.discussions.unsubscribe-all') }}" class="hidden">
-            @csrf
-        </form>
-
         <div class="mb-8 space-y-6">
             @include('account.partials.two-factor-card')
 
@@ -238,7 +218,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                     <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmAccountDelete($el)">
                         @csrf
                         @method('DELETE')
-                        <input type="hidden" name="delete_discussion_threads" value="0" />
                         <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
                     </form>
                 @else

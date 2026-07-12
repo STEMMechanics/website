@@ -25,10 +25,6 @@ class AdminMediaUnusedTest extends TestCase
             'user_id' => $admin->id,
             'slug' => 'admin',
         ]);
-        $adminAvatar = $this->createMedia('admin-avatar.png', 'Admin Avatar', 'image/png', $admin->id);
-        $admin->avatar_media_name = $adminAvatar->name;
-        $admin->save();
-
         $location = Location::factory()->create();
 
         $heroMedia = $this->createMedia('workshop-hero.png', 'Workshop Hero', 'image/png', $admin->id);
@@ -60,7 +56,6 @@ class AdminMediaUnusedTest extends TestCase
         $response->assertDontSeeText('Workshop Hero');
         $response->assertDontSeeText('Content Image');
         $response->assertDontSeeText('Attached File');
-        $response->assertDontSeeText('Admin Avatar');
     }
 
     private function createMedia(string $name, string $title, string $mimeType, string|int $userId): Media

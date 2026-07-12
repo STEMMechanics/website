@@ -7,7 +7,6 @@ use App\Models\Payment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
-use App\Rules\UsernameRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,10 +25,7 @@ class UserController extends Controller
         $query = User::query();
 
         if (! $showGhostUsers) {
-            $query->where(function ($builder): void {
-                $builder->whereNotNull('email_verified_at')
-                    ->orWhereNotNull('parent_user_id');
-            });
+            $query->whereNotNull('email_verified_at');
         }
 
         if ($request->has('search')) {
@@ -40,8 +36,7 @@ class UserController extends Controller
                         ->orWhere('surname', 'like', '%'.$search.'%')
                         ->orWhere('company', 'like', '%'.$search.'%')
                         ->orWhere('phone', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%')
-                        ->orWhere('username', 'like', '%'.$search.'%');
+                        ->orWhere('email', 'like', '%'.$search.'%');
                 });
             }
         }
@@ -51,7 +46,6 @@ class UserController extends Controller
                 'groups' => function ($groupQuery): void {
                     $groupQuery->orderBy('slug');
                 },
-                'parent',
             ])
             ->withCount('media')
             ->withSum('media', 'size')
@@ -59,40 +53,11 @@ class UserController extends Controller
             ->paginate(12)
             ->onEachSide(1);
 
-        $pageUsers = collect($users->items());
-        $childrenByParent = $pageUsers
-            ->filter(fn (User $listedUser): bool => $listedUser->isChildAccount())
-            ->groupBy(fn (User $listedUser): string => (string) ($listedUser->parent_user_id ?? ''));
-        $orderedUsers = collect();
-        $seen = [];
-
-        foreach ($pageUsers as $listedUser) {
-            if ($listedUser->isChildAccount()) {
-                continue;
-            }
-
-            $orderedUsers->push($listedUser);
-            $seen[(string) $listedUser->id] = true;
-
-            foreach ($childrenByParent[(string) $listedUser->id] ?? collect() as $childUser) {
-                $orderedUsers->push($childUser);
-                $seen[(string) $childUser->id] = true;
-            }
-        }
-
-        foreach ($pageUsers as $listedUser) {
-            if (isset($seen[(string) $listedUser->id])) {
-                continue;
-            }
-
-            $orderedUsers->push($listedUser);
-        }
-
-        $users->setCollection($orderedUsers->values()->transform(function (User $listedUser): User {
+        $users->getCollection()->transform(function (User $listedUser): User {
             $listedUser->setAttribute('account_credit_amount', $this->accountCreditForUser($listedUser));
 
             return $listedUser;
-        }));
+        });
 
         return view('admin.user.index', [
             'users' => $users,
@@ -120,7 +85,6 @@ class UserController extends Controller
             'surname' => '',
             'company' => 'nullable|string|max:255',
             'email' => 'email|unique:users',
-            'username' => ['nullable', 'string', 'max:32', 'unique:users,username', new UsernameRule($this->groupsContainAdmin((string) $request->input('groups', '')))],
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
@@ -161,11 +125,6 @@ class UserController extends Controller
 
         $payload = $this->userPayloadFromValidated($validated);
         $email = trim((string) ($payload['email'] ?? ''));
-        $payload['username'] = User::ensureUniqueUsername(
-            (string) ($validated['username'] ?? ''),
-            $email,
-            $this->groupsContainAdmin((string) ($validated['groups'] ?? ''))
-        );
         $payload['email_verified_at'] = $email !== '' ? now() : null;
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
@@ -245,7 +204,6 @@ class UserController extends Controller
             'surname' => '',
             'company' => 'nullable|string|max:255',
             'email' => ['email', Rule::unique('users')->ignore($user->id)],
-            'username' => ['required', 'string', 'max:32', Rule::unique('users', 'username')->ignore($user->id), new UsernameRule($this->groupsContainAdmin((string) $request->input('groups', '')))],
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
@@ -286,12 +244,6 @@ class UserController extends Controller
 
         $payload = $this->userPayloadFromValidated($validated);
         $email = trim((string) ($payload['email'] ?? ''));
-        $payload['username'] = User::ensureUniqueUsername(
-            (string) ($validated['username'] ?? ''),
-            $email,
-            $this->groupsContainAdmin((string) ($validated['groups'] ?? '')),
-            (string) $user->id
-        );
         $payload['email_verified_at'] = $email !== '' ? now() : null;
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
@@ -375,7 +327,6 @@ class UserController extends Controller
             'surname' => ['nullable', 'string', 'max:120'],
             'company' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'username' => ['nullable', 'string', 'max:32', 'unique:users,username', new UsernameRule(false)],
             'phone' => ['nullable', 'string', 'max:120'],
             'shipping_address' => ['nullable', 'string', 'max:255', 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state'],
             'shipping_address2' => ['nullable', 'string', 'max:255'],
@@ -396,11 +347,6 @@ class UserController extends Controller
             'surname' => trim((string) ($validated['surname'] ?? '')),
             'company' => trim((string) ($validated['company'] ?? '')),
             'email' => trim((string) ($validated['email'] ?? '')),
-            'username' => User::ensureUniqueUsername(
-                (string) ($validated['username'] ?? ''),
-                trim((string) ($validated['email'] ?? '')),
-                false
-            ),
             'phone' => trim((string) ($validated['phone'] ?? '')),
             'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
             'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
@@ -442,7 +388,6 @@ class UserController extends Controller
             'surname' => trim((string) ($validated['surname'] ?? '')),
             'company' => trim((string) ($validated['company'] ?? '')),
             'email' => trim((string) ($validated['email'] ?? '')),
-            'username' => trim((string) ($validated['username'] ?? '')),
             'phone' => trim((string) ($validated['phone'] ?? '')),
             'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
             'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
@@ -489,13 +434,6 @@ class UserController extends Controller
                 'slug' => $slug,
             ]);
         }
-    }
-
-    private function groupsContainAdmin(string $raw): bool
-    {
-        return collect(preg_split('/[\s,]+/', $raw) ?: [])
-            ->map(fn ($value) => UserGroup::normalizeSlug((string) $value))
-            ->contains('admin');
     }
 
     private function accountCreditForUser(User $user): float

@@ -19,7 +19,7 @@ export default defineConfig({
     plugins: [
         laravel({
             hotFile: 'storage/framework/vite.hot',
-            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/classroom.jsx'],
+            input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
         }),
         react(),

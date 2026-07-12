@@ -12,13 +12,13 @@ class UserLogin extends Mailable
     use Queueable, SerializesModels;
 
     public $token;
-    public $username;
+    public $name;
     public $email;
 
-    public function __construct($token, $username, $email)
+    public function __construct($token, $name, $email)
     {
         $this->token = $token;
-        $this->username = $username;
+        $this->name = $name;
         $this->email = $email;
     }
 
@@ -29,7 +29,7 @@ class UserLogin extends Mailable
             ->markdown('emails.login')
             ->with([
                 'login_url' => route('login', ['token' => $this->token]),
-                'username' => $this->username,
+                'name' => $this->name,
                 'email' => $this->email,
             ]);
     }

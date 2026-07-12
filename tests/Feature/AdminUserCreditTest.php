@@ -103,7 +103,6 @@ class AdminUserCreditTest extends TestCase
             'firstname' => 'Terms',
             'surname' => 'Customer',
             'email' => 'terms-customer@example.com',
-            'username' => 'termscustomer',
             'phone' => '0400111222',
         ]);
 
@@ -112,7 +111,6 @@ class AdminUserCreditTest extends TestCase
             'surname' => 'Customer',
             'company' => '',
             'email' => 'terms-customer@example.com',
-            'username' => 'termscustomer',
             'phone' => '0400111222',
             'account_terms_days' => 21,
             'groups' => '',
@@ -653,32 +651,26 @@ class AdminUserCreditTest extends TestCase
         Queue::assertNotPushed(SendEmail::class);
     }
 
-    public function test_admin_user_index_merges_user_data_and_indents_child_accounts(): void
+    public function test_admin_user_index_merges_user_data(): void
     {
         $admin = $this->createAdminUser();
-        $parent = User::factory()->create([
+        $user = User::factory()->create([
             'firstname' => 'Parent',
             'surname' => 'Account',
             'email' => 'parent@example.com',
         ]);
-        $child = User::factory()->create([
-            'firstname' => 'Child',
-            'surname' => 'Account',
-            'email' => 'child@example.com',
-            'parent_user_id' => $parent->id,
-        ]);
 
         UserGroup::query()->create([
-            'user_id' => $parent->id,
+            'user_id' => $user->id,
             'slug' => 'mentor',
         ]);
         Media::factory()->create([
-            'user_id' => $parent->id,
+            'user_id' => $user->id,
             'size' => 2048,
         ]);
 
         $invoice = Invoice::factory()->create([
-            'user_id' => $parent->id,
+            'user_id' => $user->id,
             'billing_name' => 'Parent Account',
             'billing_email' => 'parent@example.com',
             'total_amount' => 20.00,
@@ -687,7 +679,7 @@ class AdminUserCreditTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
-            'user_id' => $parent->id,
+            'user_id' => $user->id,
             'created_by' => $admin->id,
             'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
             'total_amount' => 20.00,
@@ -708,15 +700,12 @@ class AdminUserCreditTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('User data');
-        $response->assertSee($parent->email);
+        $response->assertSee($user->email);
         $response->assertSee('$15.00');
-        $response->assertSee(route('admin.user.payments', $parent), false);
-        $response->assertSee('Child account');
-        $response->assertSee('Parent:');
+        $response->assertSee(route('admin.user.payments', $user), false);
         $response->assertSee('mentor');
         $response->assertSee('1 file');
         $response->assertSee('2 KB');
-        $response->assertSee($child->email);
     }
 
     private function createAdminUser(): User

@@ -87,7 +87,7 @@ class AuthController extends Controller
         }
 
         $request->validate($rules, [
-            'login.required' => 'Email or username is required.',
+            'login.required' => 'Email is required.',
         ]);
         if (array_key_exists('altcha', $rules)) {
             AltchaTrust::markVerified($request);
@@ -434,7 +434,6 @@ class AuthController extends Controller
         } else {
             $user = User::create([
                 'email' => $request->email,
-                'username' => User::generateUniqueUsernameFromEmail((string) $request->email),
             ]);
         }
 
@@ -514,7 +513,7 @@ class AuthController extends Controller
             return $query->where('email', strtolower($identifier))->first();
         }
 
-        return $query->where('username', User::normalizeUsername($identifier))->first();
+        return null;
     }
 
     private function storePendingPasswordLogin(Request $request, User $user, array $data): void

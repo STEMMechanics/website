@@ -34,9 +34,6 @@ class Workshop extends Model
         'ages',
         'registration',
         'registration_data',
-        'class_session_id',
-        'classroom_forum_category_id',
-        'classroom_sessions_json',
         'private_code',
         'hosted_for',
         'is_private',
@@ -71,7 +68,6 @@ class Workshop extends Model
         'pick_list_checked_item_ids' => 'array',
         'pick_list_custom_items' => 'array',
         'pick_list_is_customized' => 'boolean',
-        'classroom_sessions_json' => 'array',
     ];
 
     /**
@@ -104,22 +100,6 @@ class Workshop extends Model
     public function pickListTemplate(): BelongsTo
     {
         return $this->belongsTo(PickListTemplate::class, 'pick_list_template_id');
-    }
-
-    /**
-     * @return BelongsTo<ClassSession, $this>
-     */
-    public function classSession(): BelongsTo
-    {
-        return $this->belongsTo(ClassSession::class, 'class_session_id');
-    }
-
-    /**
-     * @return BelongsTo<ForumCategory, $this>
-     */
-    public function classroomForumCategory(): BelongsTo
-    {
-        return $this->belongsTo(ForumCategory::class, 'classroom_forum_category_id');
     }
 
     /**
@@ -489,7 +469,7 @@ class Workshop extends Model
 
     public function usesClassroomRegistration(): bool
     {
-        return (string) $this->registration === 'classroom';
+        return false;
     }
 
     /**
@@ -497,52 +477,16 @@ class Workshop extends Model
      */
     public function effectiveScheduleEntries(): array
     {
-        return $this->usesClassroomRegistration()
-            ? $this->classroomSchedule()
-            : [];
+        return [];
     }
 
     public function effectiveStartsAt(): ?CarbonInterface
     {
-        $entries = $this->effectiveScheduleEntries();
-        if ($entries !== []) {
-            $firstStartsAt = trim((string) ($entries[0]['starts_at'] ?? ''));
-            if ($firstStartsAt !== '') {
-                try {
-                    return Carbon::parse($firstStartsAt);
-                } catch (\Throwable) {
-                    return null;
-                }
-            }
-        }
-
         return $this->starts_at;
     }
 
     public function effectiveEndsAt(): ?CarbonInterface
     {
-        $entries = $this->effectiveScheduleEntries();
-        if ($entries !== []) {
-            $lastEntry = $entries[array_key_last($entries)] ?? [];
-            $lastEndsAt = trim((string) ($lastEntry['ends_at'] ?? ''));
-            if ($lastEndsAt !== '') {
-                try {
-                    return Carbon::parse($lastEndsAt);
-                } catch (\Throwable) {
-                    return null;
-                }
-            }
-
-            $lastStartsAt = trim((string) ($lastEntry['starts_at'] ?? ''));
-            if ($lastStartsAt !== '') {
-                try {
-                    return Carbon::parse($lastStartsAt);
-                } catch (\Throwable) {
-                    return null;
-                }
-            }
-        }
-
         return $this->ends_at;
     }
 
@@ -562,36 +506,6 @@ class Workshop extends Model
 
     public function courseScheduleCadenceLabel(): ?string
     {
-        $entries = $this->effectiveScheduleEntries();
-        $starts = collect($entries)
-            ->pluck('starts_at')
-            ->filter()
-            ->values();
-
-        if ($starts->count() < 2) {
-            return null;
-        }
-
-        try {
-            $first = Carbon::parse((string) $starts[0]);
-            $second = Carbon::parse((string) $starts[1]);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        $days = abs($first->diffInDays($second));
-        if ($days >= 6 && $days <= 8) {
-            return 'weekly';
-        }
-
-        if ($days >= 13 && $days <= 15) {
-            return 'fortnightly';
-        }
-
-        if ($days >= 27 && $days <= 32) {
-            return 'monthly';
-        }
-
         return null;
     }
 
@@ -633,141 +547,13 @@ class Workshop extends Model
      */
     public function courseScheduleDisplayLines(): array
     {
-        $entries = $this->effectiveScheduleEntries();
-        if ($entries === []) {
+        if (! $this->starts_at || ! $this->ends_at) {
             return ['Anytime'];
         }
 
-        return collect($entries)
-            ->map(function (array $entry): string {
-                $startsAt = trim((string) ($entry['starts_at'] ?? ''));
-                $endsAt = trim((string) ($entry['ends_at'] ?? ''));
-                $label = trim((string) $entry['label']);
-
-                if ($startsAt === '') {
-                    return $label !== '' ? $label : 'Anytime';
-                }
-
-                try {
-                    $start = Carbon::parse($startsAt);
-                } catch (\Throwable) {
-                    return $label !== '' ? $label : $startsAt;
-                }
-
-                $line = $start->format('D j M Y g:ia');
-                if ($endsAt !== '') {
-                    try {
-                        $end = Carbon::parse($endsAt);
-                        $line .= ' - '.$end->format('g:ia');
-                    } catch (\Throwable) {
-                        // Ignore malformed end dates and keep the start time.
-                    }
-                }
-
-                if ($label !== '') {
-                    $line .= ' - '.$label;
-                }
-
-                return $line;
-            })
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array{starts_at: ?string, ends_at: ?string, label: string}>
-     */
-    public function classroomSchedule(): array
-    {
-        if ($this->relationLoaded('classSession') && $this->classSession instanceof ClassSession) {
-            $schedule = $this->classSession->broadcastSchedule();
-            if ($schedule !== []) {
-                return $schedule;
-            }
-
-            $classSessionStartsAt = trim((string) ($this->classSession->starts_at?->toDateTimeString() ?? ''));
-            $classSessionEndsAt = trim((string) ($this->classSession->ends_at?->toDateTimeString() ?? ''));
-            if ($classSessionStartsAt !== '' || $classSessionEndsAt !== '') {
-                return [[
-                    'starts_at' => $classSessionStartsAt !== '' ? Carbon::parse($classSessionStartsAt)->format('Y-m-d\TH:i') : null,
-                    'ends_at' => $classSessionEndsAt !== '' ? Carbon::parse($classSessionEndsAt)->format('Y-m-d\TH:i') : null,
-                    'label' => '',
-                ]];
-            }
-        }
-
-        if ($this->classSession instanceof ClassSession) {
-            $schedule = $this->classSession->broadcastSchedule();
-            if ($schedule !== []) {
-                return $schedule;
-            }
-
-            $classSessionStartsAt = trim((string) ($this->classSession->starts_at?->toDateTimeString() ?? ''));
-            $classSessionEndsAt = trim((string) ($this->classSession->ends_at?->toDateTimeString() ?? ''));
-            if ($classSessionStartsAt !== '' || $classSessionEndsAt !== '') {
-                return [[
-                    'starts_at' => $classSessionStartsAt !== '' ? Carbon::parse($classSessionStartsAt)->format('Y-m-d\TH:i') : null,
-                    'ends_at' => $classSessionEndsAt !== '' ? Carbon::parse($classSessionEndsAt)->format('Y-m-d\TH:i') : null,
-                    'label' => '',
-                ]];
-            }
-        }
-
-        $schedule = $this->classroom_sessions_json;
-        if (! is_array($schedule)) {
-            return [];
-        }
-
-        return collect($schedule)
-            ->map(function ($entry): array {
-                $startsAt = self::normalizeDateTimeLocalValue(data_get($entry, 'starts_at', null));
-                $endsAt = self::normalizeDateTimeLocalValue(data_get($entry, 'ends_at', null));
-                $label = trim((string) data_get($entry, 'label', ''));
-
-                return [
-                    'starts_at' => $startsAt,
-                    'ends_at' => $endsAt,
-                    'label' => $label,
-                ];
-            })
-            ->filter(fn (array $entry): bool => $entry['starts_at'] !== null || $entry['ends_at'] !== null || $entry['label'] !== '')
-            ->values()
-            ->all();
-    }
-
-    private static function normalizeDateTimeLocalValue(mixed $value): ?string
-    {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $value) === 1) {
-            return $value;
-        }
-
-        foreach ([
-            'd/m/Y, H:i',
-            'd/m/Y, h:i a',
-            'd/m/Y, g:i a',
-            'j/m/Y, H:i',
-            'j/m/Y, h:i a',
-            'j/m/Y, g:i a',
-            'd/m/Y H:i',
-            'j/m/Y H:i',
-        ] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value)->format('Y-m-d\TH:i');
-            } catch (\Throwable) {
-                // Try the next known classroom format.
-            }
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d\TH:i');
-        } catch (\Throwable) {
-            return $value;
-        }
+        return [
+            $this->starts_at->format('D j M Y g:ia').' - '.$this->ends_at->format('g:ia'),
+        ];
     }
 
     public function isPrivate(): bool

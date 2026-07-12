@@ -23,7 +23,6 @@ class UpcomingWorkshops extends Mailable
     public $heroButtonLabel;
     public $heroSubject;
     public $onlineWorkshops;
-    public $courses;
     public $workshops;
 
     public function __construct($email, $subject = 'Upcoming Workshops 🌟')
@@ -34,7 +33,6 @@ class UpcomingWorkshops extends Mailable
         $this->heroButtonLabel = trim((string) config('newsletter.upcoming_workshops.button_label', 'View All Workshops')) ?: 'View All Workshops';
         $this->workshops = $this->getUpcomingWorkshops();
         $this->onlineWorkshops = $this->getUpcomingOnlineWorkshops();
-        $this->courses = $this->getUpcomingCourses();
     }
 
     /**
@@ -93,10 +91,6 @@ class UpcomingWorkshops extends Mailable
         return $this->baseUpcomingWorkshopsQuery()
             ->with('location')
             ->whereNotNull('workshops.location_id')
-            ->where(function ($builder) {
-                $builder->whereNull('workshops.registration')
-                    ->orWhere('workshops.registration', '!=', 'classroom');
-            })
             ->orderBy('workshops.starts_at')
             ->get()
             ->values();
@@ -106,26 +100,13 @@ class UpcomingWorkshops extends Mailable
     {
         return $this->baseUpcomingWorkshopsQuery()
             ->whereNull('workshops.location_id')
-            ->where(function ($builder) {
-                $builder->whereNull('workshops.registration')
-                    ->orWhere('workshops.registration', '!=', 'classroom');
-            })
-            ->orderBy('workshops.starts_at')
-            ->get();
-    }
-
-    private function getUpcomingCourses(): Collection
-    {
-        return $this->baseUpcomingWorkshopsQuery()
-            ->where('workshops.registration', 'classroom')
             ->orderBy('workshops.starts_at')
             ->get();
     }
 
     public function build()
     {
-        // Bail if there are no upcoming workshops or courses.
-        if ($this->workshops->isEmpty() && $this->onlineWorkshops->isEmpty() && $this->courses->isEmpty()) {
+        if ($this->workshops->isEmpty() && $this->onlineWorkshops->isEmpty()) {
             return false;
         }
 
@@ -140,7 +121,6 @@ class UpcomingWorkshops extends Mailable
                 'heroHeader' => $this->heroHeader,
                 'heroSubject' => $this->heroSubject,
                 'onlineWorkshops' => $this->onlineWorkshops,
-                'courses' => $this->courses,
                 'workshops' => $this->workshops,
                 'unsubscribeLink' => $this->unsubscribeLink,
             ]);

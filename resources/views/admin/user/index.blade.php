@@ -40,7 +40,6 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>Name</th>
-                    <th class="hidden md:table-cell">Username</th>
                     <th>Email</th>
                     <th>User data</th>
                     <th>Actions</th>
@@ -49,29 +48,17 @@
                 @foreach ($users as $user)
                 @php
                     $groupSlugs = $user->groupSlugs();
-                    $isGhostUser = is_null($user->email_verified_at) && ! $user->isChildAccount() && ! $user->isAnonymized();
+                    $isGhostUser = is_null($user->email_verified_at) && ! $user->isAnonymized();
                     $accountCredit = (float) ($user->account_credit_amount ?? 0);
                 @endphp
                 <tr class="{{ $isGhostUser ? 'italic text-gray-700' : '' }}">
                     <td>
-                        <div class="{{ $user->isChildAccount() ? 'pl-5 border-l-2 border-amber-300' : '' }}">
+                        <div>
                             <a href="{{ route('admin.user.edit', $user) }}" class="font-semibold text-gray-900 hover:text-primary-color">
                             {{ trim(($user->firstname ?? '').' '.($user->surname ?? '')) ?: '-' }}
                             </a>
-                            @if($user->isChildAccount())
-                                <div class="mt-1 text-xs text-amber-700">Child account</div>
-                                <div class="text-xs text-gray-500">
-                                    Parent:
-                                    @if($user->parent)
-                                        <a href="{{ route('admin.user.edit', $user->parent) }}" class="hover:text-primary-color">{{ $user->parent->getName() ?: ('#'.$user->parent->id) }}</a>
-                                    @else
-                                        -
-                                    @endif
-                                </div>
-                            @endif
                         </div>
                     </td>
-                    <td class="hidden md:table-cell">{{ $user->username ?: '-' }}</td>
                     <td>
                         <div class="text-sm text-gray-700">{{ $user->email ?: '-' }}</div>
                     </td>

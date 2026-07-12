@@ -315,7 +315,7 @@ class WorkshopTypeNormalizationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee("registration: 'link'", false);
-        $response->assertSee("['tickets', 'classroom'].includes(String(this.registration || ''))", false);
+        $response->assertSee("['tickets'].includes(String(this.registration || ''))", false);
     }
 
     public function test_cancelling_external_link_workshops_does_not_cancel_internal_tickets(): void

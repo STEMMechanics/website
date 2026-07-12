@@ -17,31 +17,7 @@
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
-        $forumUnreadCount = $navUser ? \App\Models\ForumTopic::unreadCountForUser($navUser) : 0;
         $canViewMinecraftPage = (bool) ($navUser?->canViewMinecraftPage() ?? false);
-        $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
-        $managedChildAccountCount = 0;
-        $hasManagedChildAccounts = false;
-        $pendingChildApprovalCount = 0;
-        if ($navUser?->isFullAccount()) {
-            $managedChildAccountCount = (int) $navUser->children()
-                ->whereNull('anonymized_at')
-                ->count();
-            $hasManagedChildAccounts = $managedChildAccountCount > 0;
-
-            if ($childAccountsEnabled || $hasManagedChildAccounts) {
-                $pendingChildApprovalCount = (int) $navUser->children()
-                    ->whereNull('anonymized_at')
-                    ->withCount([
-                        'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
-                        'forumPosts as pending_reply_count' => fn ($query) => $query
-                            ->where('is_approved', false)
-                            ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
-                    ])
-                    ->get()
-                    ->sum(fn ($child) => (int) ($child->pending_topic_count ?? 0) + (int) ($child->pending_reply_count ?? 0));
-            }
-        }
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -89,11 +65,8 @@
                 [
                     'title' => 'Workshops & Community',
                     'items' => [
-                    ['label' => 'Courses', 'route' => route('admin.course.index'), 'icon' => 'fa-solid fa-chalkboard-user', 'active' => ['admin.course.*']],
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],
-                    ['label' => 'Discussion Categories', 'route' => route('admin.forum.category.index'), 'icon' => 'fa-regular fa-comments', 'active' => ['admin.forum.category.*']],
-                    ['label' => 'Moderation', 'route' => route('admin.forum.moderation.show'), 'icon' => 'fa-solid fa-shield-halved', 'active' => ['admin.forum.moderation.*']],
                     ['label' => 'Pick Lists', 'route' => route('admin.pick-list-template.index'), 'icon' => 'fa-solid fa-list-check', 'active' => ['admin.pick-list-template.*']],
                     ['label' => 'STEMCraft', 'route' => route('admin.stemcraft.index'), 'icon' => 'fa-solid fa-cube', 'active' => ['admin.stemcraft.*']],
                 ],
@@ -160,29 +133,9 @@
                 <a href="{{ route('workshop.index') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
                 <a href="{{ route('contact') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
                 <a href="{{ route('stemcraft.index') }}" class="hidden lg:block" title="STEMCraft"><img class="min-w-6 w-6 h-auto" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft"></a>
-                <a
-                        href="{{ route('forum.index') }}"
-                        class="hidden lg:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out relative"
-                        title="Discussions"
-                        aria-label="Discussions"
-                >
-                    <i class="fa-regular fa-comments text-base"></i>
-                    <span
-                        x-cloak
-                        x-show="forumUnreadCount > 0"
-                        x-text="forumUnreadCount"
-                        class="bg-green-700 text-green-100 text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full"
-                    ></span>
-                </a>
                 <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open user menu</span>
-                    @if($childAccountsEnabled && $pendingChildApprovalCount > 0)
-                        <span class="sr-only">{{ $pendingChildApprovalCount }} child {{ \Illuminate\Support\Str::plural('approval', $pendingChildApprovalCount) }} pending</span>
-                    @endif
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
-                    @if($childAccountsEnabled && $pendingChildApprovalCount > 0)
-                        <span class="bg-orange-500 text-white text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pendingChildApprovalCount }}</span>
-                    @endif
                 </button>
                 @if($publicShopAvailable)
                     <button
@@ -230,7 +183,6 @@
                 @if($publicShopAvailable)
                     <a href="{{ route('shop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bag-shopping w-4 mr-2"></i>Store</a>
                 @endif
-                <a href="{{ route('forum.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="ml-2 rounded-full bg-green-700 px-2 py-0.5 text-xs font-semibold text-green-100"></span></a>
                 <a href="{{ route('workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
                 <a href="{{ route('stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft">STEMCraft</a>
                 <a href="{{ route('contact') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
@@ -287,7 +239,6 @@
                 <div class="border-t border-gray-200 my-2"></div>
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <div class="border-t border-gray-200 my-2"></div>
-                <a href="{{ route('account.course.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chalkboard-user w-4 mr-2"></i>Courses</a>
                 <a href="{{ route('account.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
                 @if($hasMyOrders)
                 <a href="{{ route('account.order.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-box-open w-4 mr-2"></i>Orders</a>
@@ -306,15 +257,6 @@
                 @endif
                 @if($canViewMinecraftPage)
                     <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
-                @endif
-                @if(($childAccountsEnabled || $hasManagedChildAccounts) && $navUser?->isFullAccount())
-                    <a href="{{ route('account.children.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Child Accounts</a>
-                @endif
-                @if(($childAccountsEnabled || $hasManagedChildAccounts) && $pendingChildApprovalCount > 0)
-                    <a href="{{ route('account.children.approvals') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1">
-                        <i class="fa-solid fa-user-shield w-4 mr-2"></i>Child approvals
-                        <span class="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">{{ $pendingChildApprovalCount }}</span>
-                    </a>
                 @endif
                 <div class="border-t border-gray-200 my-2"></div>
                 <form method="POST" action="{{ route('logout') }}">
@@ -491,8 +433,6 @@
         publicShopAvailable: {{ $publicShopAvailable ? 'true' : 'false' }},
         cartOpen: {{ (session('store-cart-open') || session('shop-cart-open')) && $publicShopAvailable ? 'true' : 'false' }},
         cartState: @js($shopCartPayload),
-        forumUnreadCount: {{ $forumUnreadCount }},
-        forumSummaryUrl: @js(auth()->check() ? route('forum.notifications.summary') : null),
         routes: {
             show: @js(route('shop.cart.show')),
             update: @js(route('shop.cart.update')),
@@ -518,9 +458,6 @@
             consolidateShipments: Boolean(config.cartState?.summary?.consolidate_shipments ?? config.cartState?.consolidate_shipments ?? false),
             drawerDeliveryUpdateBusy: false,
             drawerDeliveryUpdateError: '',
-            forumUnreadCount: Number(config.forumUnreadCount || 0),
-            forumSummaryUrl: config.forumSummaryUrl || null,
-            forumPollHandle: null,
             scrollLockY: 0,
             keyboardShortcutHandler: null,
 
@@ -873,30 +810,6 @@
                 }
             },
 
-            async refreshForumNotifications() {
-                if (!this.forumSummaryUrl) {
-                    return;
-                }
-
-                try {
-                    const response = await fetch(this.forumSummaryUrl, {
-                        headers: {
-                            Accept: 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        credentials: 'same-origin',
-                    });
-
-                    if (!response.ok) {
-                        return;
-                    }
-
-                    const payload = await response.json();
-                    this.forumUnreadCount = Number(payload?.count || 0);
-                } catch (_error) {
-                }
-            },
-
             init() {
                 this.$watch('showSearch', () => this.syncScrollLock());
                 this.$watch('pageMenuOpen', () => this.syncScrollLock());
@@ -919,18 +832,6 @@
                     this.openCartDrawer();
                 });
 
-                if (!this.forumSummaryUrl) {
-                    return;
-                }
-
-                this.refreshForumNotifications();
-                this.forumPollHandle = window.setInterval(() => this.refreshForumNotifications(), 30000);
-                window.addEventListener('forum-notifications-refresh', () => this.refreshForumNotifications());
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible') {
-                        this.refreshForumNotifications();
-                    }
-                });
             },
         };
     }

@@ -8,11 +8,11 @@
     $showLocationFooter = (bool) ($showLocationFooter ?? true);
     $heroUrl = $showImage && $workshop->hero?->url ? url((string) $workshop->hero->url) : null;
     $locationName = $workshop->getLocationName();
-    $scheduleLabel = $workshop->courseScheduleFirstStartLabel();
+    $scheduleLabel = $workshop->starts_at?->format('j/m/Y @ g:i a') ?? 'Anytime';
     $durationLabel = $workshop->workshopDurationLabel();
-    $cadenceLabel = $workshop->courseScheduleCadenceLabel();
+    $cadenceLabel = null;
     $description = $workshop->newsletterSummary($compact ? 120 : 180);
-    $scheduleLines = collect($workshop->usesClassroomRegistration() ? $workshop->courseScheduleDisplayLines() : [])
+    $scheduleLines = collect()
         ->filter(fn ($line) => trim((string) $line) !== '')
         ->take($compact ? 2 : 3)
         ->values();
@@ -29,9 +29,6 @@
     if ($workshop->registration === 'tickets') {
 //        $ctaUrl = route('workshop.ticket.flow.start', $workshop);
         $ctaLabel = 'Get Tickets';
-    } elseif ($workshop->registration === 'classroom') {
-//        $ctaUrl = route('workshop.ticket.flow.start', $workshop);
-        $ctaLabel = 'Enrol Now';
     } elseif ($workshop->registration === 'link' && filter_var(trim((string) ($workshop->registration_data ?? '')), FILTER_VALIDATE_URL)) {
 //        $ctaUrl = trim((string) $workshop->registration_data);
         $ctaLabel = 'Register Now';

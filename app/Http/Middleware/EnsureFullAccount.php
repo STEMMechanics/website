@@ -15,7 +15,7 @@ class EnsureFullAccount
             return $next($request);
         }
 
-        $message = 'Child accounts can use discussions only. Purchases, tickets, invoices, and order features require a full account.';
+        $message = 'Purchases, tickets, invoices, and order features require a full account.';
 
         if ($request->expectsJson() || $request->wantsJson()) {
             return response()->json([

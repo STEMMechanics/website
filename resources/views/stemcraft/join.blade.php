@@ -63,7 +63,7 @@
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-color text-sm font-semibold text-white">3</div>
                             <div>
                                 <h3 class="font-semibold text-gray-900">Add your Minecraft Username</h3>
-                                <p class="mt-1 text-sm leading-6 text-gray-600">Add your child's Minecraft username to your account.</p>
+                                <p class="mt-1 text-sm leading-6 text-gray-600">Add your Minecraft username to your account.</p>
                             </div>
                         </div>
                         <div class="flex gap-4 rounded-3xl bg-gray-50 p-4">

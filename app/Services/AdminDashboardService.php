@@ -24,7 +24,7 @@ class AdminDashboardService
         'year' => ['label' => 'This year'],
     ];
 
-    private const INTERNAL_WORKSHOP_REGISTRATIONS = ['tickets', 'classroom'];
+    private const INTERNAL_WORKSHOP_REGISTRATIONS = ['tickets'];
 
     public function build(string $period = 'week'): array
     {

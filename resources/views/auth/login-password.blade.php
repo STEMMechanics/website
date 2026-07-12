@@ -2,7 +2,7 @@
     if (! isset($login)) {
         $login = '';
         if (isset($user)) {
-            $login = $user->username ?: $user->email;
+            $login = $user->email;
         }
     }
 
@@ -20,7 +20,7 @@
                 <p>Enter the password for this account to continue</p>
             </x-slot:header>
             <x-altcha-proof />
-            <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+            <input type="hidden" name="login" value="{{ $login }}" autocomplete="email" />
             <input type="hidden" name="remember_email" value="{{ $rememberEmailValue }}" />
             <x-ui.input
                 type="password"
@@ -55,7 +55,7 @@
                     <form method="post" action="{{ route('login.store') }}" id="login-password-email-form">
                         @csrf
                         <x-altcha-proof />
-                        <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+                        <input type="hidden" name="login" value="{{ $login }}" autocomplete="email" />
                         <input type="hidden" name="remember_email" value="{{ $rememberEmailValue }}" />
                         <input type="hidden" name="method" value="email" />
                         <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>

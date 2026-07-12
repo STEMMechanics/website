@@ -172,50 +172,6 @@ class WorkshopInterestRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_child_account_interest_email_includes_parent_contact_details(): void
-    {
-        Queue::fake();
-        config()->set('mail.admin_bcc', 'ops@example.com');
-
-        $parent = User::factory()->create([
-            'firstname' => 'Pat',
-            'surname' => 'Parent',
-            'email' => 'parent@example.com',
-            'phone' => '0411000000',
-        ]);
-        $child = User::factory()->create([
-            'parent_user_id' => $parent->id,
-            'firstname' => 'Charlie',
-            'surname' => 'Child',
-            'email' => null,
-            'email_verified_at' => null,
-            'phone' => '',
-        ]);
-        $workshop = $this->createInterestWorkshop();
-
-        $this->actingAs($child)
-            ->post(route('workshop.interest', $workshop), [
-                'action' => 'add',
-            ])
-            ->assertRedirect(route('workshop.show', $workshop))
-            ->assertSessionHas('message', 'Thanks, your interest has been recorded.');
-
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($workshop): bool {
-            if ($job->to !== 'ops@example.com'
-                || ! $job->mailable instanceof WorkshopInterestAdminNotification
-                || (string) $job->mailable->workshop->id !== (string) $workshop->id) {
-                return false;
-            }
-
-            $rendered = html_entity_decode(strip_tags($job->mailable->render()));
-
-            return str_contains($rendered, 'Charlie Child (Child Account)')
-                && str_contains($rendered, 'Parent name: Pat Parent')
-                && str_contains($rendered, 'Parent email: parent@example.com')
-                && str_contains($rendered, 'Parent phone: 0411000000');
-        });
-    }
-
     public function test_guest_cannot_register_interest_twice_for_same_workshop(): void
     {
         Queue::fake();
@@ -251,19 +207,11 @@ class WorkshopInterestRegistrationTest extends TestCase
     public function test_admin_can_view_interest_registrations_on_workshop_interest_page(): void
     {
         $admin = $this->createAdminUser();
-        $parent = User::factory()->create([
-            'firstname' => 'Pat',
-            'surname' => 'Parent',
-            'email' => 'parent@example.com',
-            'phone' => '0411000000',
-        ]);
-        $child = User::factory()->create([
-            'parent_user_id' => $parent->id,
+        $linkedUser = User::factory()->create([
             'firstname' => 'Charlie',
-            'surname' => 'Child',
-            'email' => null,
-            'email_verified_at' => null,
-            'phone' => '',
+            'surname' => 'Member',
+            'email' => 'charlie@example.com',
+            'phone' => '0411000000',
         ]);
         $guestUser = User::factory()->unverified()->create([
             'firstname' => 'Guest',
@@ -275,8 +223,8 @@ class WorkshopInterestRegistrationTest extends TestCase
 
         WorkshopInterest::query()->forceCreate([
             'workshop_id' => $workshop->id,
-            'user_id' => $child->id,
-            'name' => 'Charlie Child',
+            'user_id' => $linkedUser->id,
+            'name' => 'Charlie Member',
             'email' => '',
             'phone' => '',
             'created_at' => now()->subDay(),
@@ -296,9 +244,8 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->get(route('admin.workshop.interests', $workshop))
             ->assertOk()
             ->assertSeeText('Interest Registrations')
-            ->assertSeeText('Charlie Child')
-            ->assertSeeText('Parent contact: Pat Parent')
-            ->assertSeeText('parent@example.com')
+            ->assertSeeText('Charlie Member')
+            ->assertSeeText('charlie@example.com')
             ->assertSeeText('0411000000')
             ->assertSeeText('Guest Example')
             ->assertSeeText('guest@example.com')

@@ -2,28 +2,8 @@
 $workshopModel = $workshop ?? null;
 $workshopContent = isset($workshop) ? $workshop->content : '';
 $workshopStatusForForm = old('status', $workshopModel?->status ?? 'draft');
-$selectedClassSessionId = old('class_session_id', $workshopModel?->class_session_id ?? '');
 $workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshopModel?->starts_at ?? ''));
 $workshopEndValue = old('ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->ends_at ?? ''));
-$managedClassSessions = collect(($classSessions ?? collect())->all())
-    ->map(function ($classSession): array {
-        $schedule = $classSession->broadcastSchedule();
-        $firstEntry = $schedule[0] ?? null;
-        $lastEntry = $schedule !== [] ? $schedule[array_key_last($schedule)] : null;
-
-        return [
-            'id' => (string) $classSession->id,
-            'title' => (string) $classSession->title,
-            'slug' => (string) $classSession->slug,
-            'has_schedule' => $schedule !== [],
-            'course_starts_at' => (string) \App\Helpers::timestampNoSeconds($classSession->starts_at ?? ''),
-            'course_ends_at' => (string) \App\Helpers::timestampNoSeconds($classSession->ends_at ?? ''),
-            'starts_at' => (string) ($firstEntry['starts_at'] ?? ''),
-            'ends_at' => (string) ($lastEntry['ends_at'] ?? ($lastEntry['starts_at'] ?? '')),
-        ];
-    })
-    ->values()
-    ->all();
 if (in_array($workshopStatusForForm, ['private', 'hidden'], true)) {
     $workshopStatusForForm = 'open';
 }
@@ -81,7 +61,7 @@ $earlyBirdSectionOpen = $errors->hasAny(['early_bird_price', 'early_bird_ends_at
     || trim((string) $earlyBirdPriceValue) !== ''
     || trim((string) $earlyBirdEndsAtValue) !== ''
     || trim((string) $earlyBirdTicketLimitValue) !== '';
-if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], true)) {
     if ($maxTicketsTotal !== null) {
         if ($soldTicketCount >= $maxTicketsTotal) {
             $maxTicketsInfo = 'All '.$maxTicketsTotal.' ticket'.($maxTicketsTotal === 1 ? '' : 's').' are currently sold.';
@@ -124,10 +104,6 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
             soldTicketCount: @js((int) ($soldTicketCount ?? 0)),
             soldEarlyBirdTicketCount: @js((int) ($soldEarlyBirdTicketCount ?? 0)),
             ticketGroupRaw: @js(old('ticket_group_slug', $workshopModel?->ticket_group_slug ?? '')),
-            selectedClassSessionId: @js($selectedClassSessionId),
-            classSessions: @js($managedClassSessions),
-            managedStartFallback: @js($workshopStartValue),
-            managedEndFallback: @js($workshopEndValue),
             manualStartsAt: @js($workshopStartValue),
             manualEndsAt: @js($workshopEndValue),
             originalStartsAt: @js(isset($workshopModel) ? $workshopStartValue : ''),
@@ -298,40 +274,6 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
             currentEndsAt() {
             return String(this.$refs.endsAt?.value || '').trim();
             },
-            selectedCourseSession() {
-            return this.classSessions.find((session) => String(session.id) === String(this.selectedClassSessionId || '')) || null;
-            },
-            isCourseManaged() {
-            return this.registration === 'classroom' && String(this.selectedClassSessionId || '').trim() !== '';
-            },
-            courseManagedStartValue() {
-            const session = this.selectedCourseSession();
-            if (this.isCourseManaged() && session) {
-                if (String(session.starts_at || '').trim() !== '') {
-                    return String(session.starts_at || '').trim();
-                }
-
-                if (String(session.course_starts_at || '').trim() !== '') {
-                    return String(session.course_starts_at || '').trim();
-                }
-            }
-
-            return String(this.managedStartFallback || '').trim();
-            },
-            courseManagedEndValue() {
-            const session = this.selectedCourseSession();
-            if (this.isCourseManaged() && session) {
-                if (String(session.ends_at || '').trim() !== '') {
-                    return String(session.ends_at || '').trim();
-                }
-
-                if (String(session.course_ends_at || '').trim() !== '') {
-                    return String(session.course_ends_at || '').trim();
-                }
-            }
-
-            return String(this.managedEndFallback || '').trim();
-            },
             normalizedCurrentLocationId() {
             if (this.type !== 'physical') {
             return '';
@@ -444,7 +386,7 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
             form.submit();
             },
             async handleSubmit() {
-            if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets', 'classroom'].includes(String(this.registration || ''))) {
+            if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets'].includes(String(this.registration || ''))) {
             this.openCancelWorkshopModal();
             return;
             }
@@ -674,10 +616,8 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                             x-ref="startsAt"
                             x-on:input="manualStartsAt = $event.target.value"
                             x-on:change="manualStartsAt = $event.target.value"
-                            x-bind:disabled="isCourseManaged()"
-                            x-bind:value="isCourseManaged() ? courseManagedStartValue() : manualStartsAt"
+                            x-bind:value="manualStartsAt"
                         />
-                        <input type="hidden" name="starts_at" x-bind:disabled="!isCourseManaged()" x-bind:value="isCourseManaged() ? courseManagedStartValue() : manualStartsAt">
                     </div>
                     <div class="flex-1">
                         <x-ui.input
@@ -688,10 +628,8 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                             x-ref="endsAt"
                             x-on:input="manualEndsAt = $event.target.value"
                             x-on:change="manualEndsAt = $event.target.value"
-                            x-bind:disabled="isCourseManaged()"
-                            x-bind:value="isCourseManaged() ? courseManagedEndValue() : manualEndsAt"
+                            x-bind:value="manualEndsAt"
                         />
-                        <input type="hidden" name="ends_at" x-bind:disabled="!isCourseManaged()" x-bind:value="isCourseManaged() ? courseManagedEndValue() : manualEndsAt">
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
@@ -795,7 +733,7 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                 <x-ui.collapsible-section
                     :open="$earlyBirdSectionOpen"
                     title="Early Bird"
-                    x-show="registration==='tickets' || registration==='classroom'"
+                    x-show="registration==='tickets'"
                 >
                     <x-slot:summary>
                         <span x-text="earlyBirdSummaryText()">{{ $earlyBirdSectionSummary }}</span>
@@ -820,7 +758,6 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                         <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
                             <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
                             <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
-                            <option value="classroom" {{ (old('registration', $workshop->registration ?? '')) === 'classroom' ? 'selected' : '' }}>Course</option>
                             <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
                             <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
                             <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
@@ -828,7 +765,7 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                         </x-ui.select>
                     </div>
                     <div class="flex-1">
-                        <span x-show="registration==='tickets' || registration==='classroom'">
+                        <span x-show="registration==='tickets'">
                             <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
                         </span>
                         <span x-show="registration==='link'">
@@ -856,21 +793,6 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets', '
                         />
                     </div>
                     <div class="flex-1"></div>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='classroom'">
-                    <div class="flex-1">
-                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId" x-model="selectedClassSessionId" info="Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.">
-                            <x-slot name="labelRight">
-                                <a href="{{ route('admin.course.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage courses</a>
-                            </x-slot>
-                            <option value="">Create a new course automatically</option>
-                            @foreach(($classSessions ?? collect()) as $linkedClassSession)
-                                <option value="{{ $linkedClassSession->id }}" @selected((string) $selectedClassSessionId === (string) $linkedClassSession->id)>
-                                    {{ $linkedClassSession->title }} — {{ $linkedClassSession->slug }}
-                                </option>
-                            @endforeach
-                        </x-ui.select>
-                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">

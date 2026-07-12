@@ -2,10 +2,8 @@
 @php
     $workshops = collect($workshops ?? []);
     $onlineWorkshops = collect($onlineWorkshops ?? []);
-    $courses = collect($courses ?? []);
     $allItems = $workshops
         ->merge($onlineWorkshops)
-        ->merge($courses)
         ->sortBy(fn ($workshop) => $workshop->starts_at?->timestamp ?? PHP_INT_MAX)
         ->values();
     $heroImageCandidates = $allItems->filter(fn ($workshop) => filled($workshop->hero?->url))->values();
@@ -53,23 +51,18 @@
 @if($allItems->isNotEmpty())
 @foreach($allItems as $workshop)
 @php
-    $accent = match ((string) $workshop->registration) {
-        'classroom' => '#f97316',
-        default => $workshop->getLocationName() === 'Online' ? '#16a34a' : '#2563eb',
-    };
-    $badgeText = $workshop->usesClassroomRegistration()
-        ? 'Online Course'
-        : $workshop->getLocationName();
+    $accent = $workshop->getLocationName() === 'Online' ? '#16a34a' : '#2563eb';
+    $badgeText = $workshop->getLocationName();
 @endphp
 @include('emails.partials.upcoming-workshop-card', [
     'workshop' => $workshop,
     'accent' => $accent,
     'badgeText' => $badgeText,
     'showSummary' => true,
-    'showScheduleLines' => $workshop->usesClassroomRegistration(),
+    'showScheduleLines' => false,
     'showImage' => true,
     'compact' => false,
-    'showLocationFooter' => $workshop->usesClassroomRegistration(),
+    'showLocationFooter' => false,
 ])
 @endforeach
 @endif

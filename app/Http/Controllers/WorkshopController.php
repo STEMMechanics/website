@@ -8,7 +8,6 @@ use App\Mail\PaymentReceiptPdf;
 use App\Mail\WorkshopInterestAdminNotification;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
-use App\Models\ClassSession;
 use App\Models\Payment;
 use App\Models\InvoiceLine;
 use App\Models\PickListTemplate;
@@ -577,7 +576,6 @@ class WorkshopController extends Controller
         return view('admin.workshop.edit', [
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
-            'classSessions' => $this->availableClassSessions(),
         ]);
     }
 
@@ -601,7 +599,6 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
-            'class_session_id' => 'nullable|uuid|exists:class_sessions,id',
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
@@ -640,17 +637,13 @@ class WorkshopController extends Controller
             $workshopData['status'] = 'open';
             $workshopData['is_private'] = true;
         }
-        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['max_tickets'] = null;
             $workshopData['ticket_group_slug'] = null;
-            $workshopData['class_session_id'] = null;
         } else {
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
-            $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
-            $workshopData['class_session_id'] = $classSessionId !== '' ? $classSessionId : null;
         }
-        $this->applyWorkshopClassroomSchedule($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -688,7 +681,7 @@ class WorkshopController extends Controller
             $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
             $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
         }
-        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['early_bird_price'] = null;
             $workshopData['early_bird_ends_at'] = null;
             $workshopData['early_bird_ticket_limit'] = null;
@@ -701,7 +694,6 @@ class WorkshopController extends Controller
         $workshop = Workshop::create($workshopData);
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles($request->input('private_files'), 'private');
-        $this->syncWorkshopClassroom($workshop, $request);
 
         session()->flash('message', 'Workshop has been created');
         session()->flash('message-title', 'Workshop created');
@@ -724,7 +716,6 @@ class WorkshopController extends Controller
             abort(404);
         }
 
-        $workshop->loadMissing(['classSession.forumCategory', 'classroomForumCategory']);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
         ]);
@@ -750,8 +741,7 @@ class WorkshopController extends Controller
             'currentUserInterest' => $currentUserInterest,
             'ticketPriceAmount' => $ticketPriceAmount,
             'ticketHoldMinutes' => $ticketService->holdWindowMinutes(),
-            'adminCanViewTickets' => (bool) (auth()->user()?->isAdmin() ?? false) && in_array((string) $workshop->registration, ['tickets', 'classroom'], true),
-            'classroomUrl' => $workshop->classSession ? route('class.show', $workshop->classSession) : null,
+            'adminCanViewTickets' => (bool) (auth()->user()?->isAdmin() ?? false) && in_array((string) $workshop->registration, ['tickets'], true),
             'requiresPrivateAccessCode' => $requiresPrivateAccessCode,
             'hasPrivateAccess' => $hasPrivateAccess,
             'privateLockedNoCode' => $privateLockedNoCode,
@@ -764,7 +754,7 @@ class WorkshopController extends Controller
     public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
         $workshop->loadCount('interests');
-        $workshop->loadMissing('classSession.forumCategory', 'pickListTemplate');
+        $workshop->loadMissing('pickListTemplate');
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
         ]);
@@ -784,7 +774,6 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
-            'classSessions' => $this->availableClassSessions($workshop),
             'activeTicketCount' => $workshop->activeTicketCount(),
             'soldTicketCount' => $soldTicketCount,
             'soldEarlyBirdTicketCount' => $soldEarlyBirdTicketCount,
@@ -800,7 +789,7 @@ class WorkshopController extends Controller
     {
         $workshop->load([
             'interests' => fn ($query) => $query
-                ->with('user.parent')
+                ->with('user')
                 ->orderByDesc('created_at')
                 ->orderByDesc('id'),
         ])->loadCount('interests');
@@ -831,7 +820,6 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
-            'class_session_id' => 'nullable|uuid|exists:class_sessions,id',
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
@@ -880,17 +868,13 @@ class WorkshopController extends Controller
         if (($workshopData['status'] ?? '') === 'cancelled') {
             $shouldNotifyTicketHolders = false;
         }
-        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['max_tickets'] = null;
             $workshopData['ticket_group_slug'] = null;
-            $workshopData['class_session_id'] = null;
         } else {
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
-            $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
-            $workshopData['class_session_id'] = $classSessionId !== '' ? $classSessionId : null;
         }
-        $this->applyWorkshopClassroomSchedule($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -949,13 +933,13 @@ class WorkshopController extends Controller
             $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
             $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
         }
-        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+        if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['early_bird_price'] = null;
             $workshopData['early_bird_ends_at'] = null;
             $workshopData['early_bird_ticket_limit'] = null;
         }
 
-        if (in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true)) {
+        if (in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $reservedTicketCount = $ticketService->countReservedTickets($workshop);
             $earlyBirdTicketCount = $this->countReservedEarlyBirdTickets($workshop, $ticketService);
 
@@ -992,7 +976,7 @@ class WorkshopController extends Controller
         $previousStatus = (string) $workshop->status;
 
         $changingAwayFromManagedTickets = $workshop->registration === 'tickets'
-            && ! in_array(($workshopData['registration'] ?? 'none'), ['tickets', 'classroom'], true);
+            && ! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true);
         if ($changingAwayFromManagedTickets) {
             $hasActiveTickets = Ticket::query()
                 ->where('workshop_id', $workshop->id)
@@ -1014,11 +998,10 @@ class WorkshopController extends Controller
         }
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles($request->input('private_files'), 'private');
-        $this->syncWorkshopClassroom($workshop, $request);
 
         $cancelSummary = null;
         $workshopCancelled = $previousStatus !== 'cancelled' && ($workshopData['status'] ?? '') === 'cancelled';
-        $usesManagedTickets = in_array((string) ($workshopData['registration'] ?? $workshop->registration), ['tickets', 'classroom'], true);
+        $usesManagedTickets = in_array((string) ($workshopData['registration'] ?? $workshop->registration), ['tickets'], true);
         if ($workshopCancelled && $usesManagedTickets) {
             $activeTicketIds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
@@ -1670,7 +1653,7 @@ class WorkshopController extends Controller
 
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
-        $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets', 'classroom'], true);
+        $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
 
@@ -1683,7 +1666,7 @@ class WorkshopController extends Controller
             ->put(self::ATTENDANCE_PAYMENT_METHOD_COMP, 'Waived')
             ->all();
         $ticketPaymentRows = [];
-        if (in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+        if (in_array((string) $workshop->registration, ['tickets'], true)) {
             $applyTicketSearch = function ($builder) use ($search): void {
                 if ($search === '') {
                     return;
@@ -1776,7 +1759,7 @@ class WorkshopController extends Controller
 
     public function admin_attendance_eftpos_payments(Request $request, Workshop $workshop): JsonResponse
     {
-        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+        if (! in_array((string) $workshop->registration, ['tickets'], true)) {
             return response()->json([
                 'message' => 'This workshop does not use managed tickets.',
             ], 422)->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -1889,7 +1872,7 @@ class WorkshopController extends Controller
             'attended_ticket_ids.*' => ['integer'],
         ]);
 
-        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+        if (! in_array((string) $workshop->registration, ['tickets'], true)) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'This workshop does not use managed tickets.',
@@ -1964,7 +1947,7 @@ class WorkshopController extends Controller
 
     public function admin_attendance_payments(Request $request, Workshop $workshop): RedirectResponse
     {
-        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+        if (! in_array((string) $workshop->registration, ['tickets'], true)) {
             session()->flash('message', 'This workshop does not use managed tickets.');
             session()->flash('message-title', 'Payment not recorded');
             session()->flash('message-type', 'warning');
@@ -2549,7 +2532,7 @@ class WorkshopController extends Controller
         session()->flash('message-type', 'success');
 
         $routeParams = ['workshop' => $workshop];
-        $isKiosk = $request->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets', 'classroom'], true);
+        $isKiosk = $request->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         if ($isKiosk) {
             $routeParams['kiosk'] = 1;
         }
@@ -2705,7 +2688,7 @@ class WorkshopController extends Controller
             ];
         }
 
-        if (in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+        if (in_array((string) $workshop->registration, ['tickets'], true)) {
             $tickets = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('status', Ticket::activePurchasedStatuses())
@@ -3572,99 +3555,6 @@ class WorkshopController extends Controller
         return [$firstname, $surname];
     }
 
-    private function syncWorkshopClassroom(Workshop $workshop, Request $request): void
-    {
-        if ((string) $workshop->registration !== 'classroom') {
-            return;
-        }
-
-        $selectedClassSessionId = trim((string) ($workshop->class_session_id ?? ''));
-        $classSession = $selectedClassSessionId !== ''
-            ? ClassSession::query()->whereKey($selectedClassSessionId)->first()
-            : $workshop->classSession;
-
-        if (! $classSession instanceof ClassSession) {
-            $classSession = new ClassSession();
-        }
-
-        $isNewClassSession = ! $classSession->exists;
-
-        if ($isNewClassSession) {
-            $classSession->title = (string) $workshop->title;
-            $classSessionSummary = $workshop->newsletterSummary(220);
-            $classSession->summary = $classSessionSummary !== '' ? $classSessionSummary : null;
-            $classSession->hero_media_name = trim((string) ($workshop->hero_media_name ?? '')) !== ''
-                ? (string) $workshop->hero_media_name
-                : null;
-            $classSession->instructions_html = null;
-            $classSession->live_chat_enabled = true;
-            $classSession->starts_at = $workshop->starts_at;
-            $classSession->ends_at = $workshop->ends_at;
-            $classSession->forum_category_id = $workshop->classroom_forum_category_id ?: $classSession->forum_category_id;
-            $classSession->broadcast_sessions_json = is_array($workshop->classroom_sessions_json ?? null)
-                ? $workshop->classroom_sessions_json
-                : [];
-            $classSession->created_by_user_id = $classSession->created_by_user_id ?: (string) auth()->id();
-            $classSession->save();
-        } elseif (trim((string) $classSession->room_name) === '') {
-            $classSession->room_name = $classSession->slug;
-            $classSession->save();
-        }
-
-        $classSession->workshop_id = (string) $workshop->id;
-        $classSession->saveQuietly();
-
-        $workshop->class_session_id = (string) $classSession->id;
-        $workshop->ticket_group_slug = (string) $classSession->slug;
-        $workshop->saveQuietly();
-    }
-
-    /**
-     * @param  array<string, mixed>  $workshopData
-     */
-    private function applyWorkshopClassroomSchedule(array &$workshopData): void
-    {
-        if ((string) ($workshopData['registration'] ?? 'none') !== 'classroom') {
-            return;
-        }
-
-        $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
-        if ($classSessionId === '') {
-            return;
-        }
-
-        $classSession = ClassSession::query()->find($classSessionId);
-        if (! $classSession instanceof ClassSession) {
-            return;
-        }
-
-        $schedule = $classSession->broadcastSchedule();
-        if ($schedule !== []) {
-            $firstEntry = $schedule[0] ?? [];
-            $lastEntry = $schedule[array_key_last($schedule)] ?? [];
-            $firstStartsAt = trim((string) ($firstEntry['starts_at'] ?? ''));
-            $lastEndsAt = trim((string) ($lastEntry['ends_at'] ?? ($lastEntry['starts_at'] ?? '')));
-
-            if ($firstStartsAt !== '') {
-                $workshopData['starts_at'] = Carbon::parse($firstStartsAt)->format('Y-m-d H:i');
-            }
-
-            if ($lastEndsAt !== '') {
-                $workshopData['ends_at'] = Carbon::parse($lastEndsAt)->format('Y-m-d H:i');
-            }
-
-            return;
-        }
-
-        if ($classSession->starts_at) {
-            $workshopData['starts_at'] = Carbon::parse($classSession->starts_at)->format('Y-m-d H:i');
-        }
-
-        if ($classSession->ends_at) {
-            $workshopData['ends_at'] = Carbon::parse($classSession->ends_at)->format('Y-m-d H:i');
-        }
-    }
-
     private function privateAccessSessionKey(Workshop $workshop): string
     {
         return 'workshop.private_access.'.$workshop->id;
@@ -4048,25 +3938,6 @@ class WorkshopController extends Controller
             ->filter(fn ($slug) => $slug !== '')
             ->values()
             ->all();
-    }
-
-    /**
-     * @return Collection<int, ClassSession>
-     */
-    private function availableClassSessions(?Workshop $workshop = null): Collection
-    {
-        return ClassSession::query()
-            ->with('workshop')
-            ->where(function ($builder) use ($workshop): void {
-                $builder->whereNull('workshop_id');
-
-                if ($workshop instanceof Workshop && $workshop->class_session_id) {
-                    $builder->orWhere('id', $workshop->class_session_id);
-                }
-            })
-            ->orderByDesc('starts_at')
-            ->orderBy('title')
-            ->get();
     }
 
     private function isSafeHttpUrl(string $url): bool

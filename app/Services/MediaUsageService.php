@@ -49,11 +49,9 @@ class MediaUsageService
     private function collectDirectReferences(array &$usedMediaNames): void
     {
         $this->markColumnValues($usedMediaNames, 'workshops', 'hero_media_name');
-        $this->markColumnValues($usedMediaNames, 'class_sessions', 'hero_media_name');
         $this->markColumnValues($usedMediaNames, 'posts', 'hero_media_name');
         $this->markColumnValues($usedMediaNames, 'custom_pages', 'hero_media_name');
         $this->markColumnValues($usedMediaNames, 'products', 'hero_media_name');
-        $this->markColumnValues($usedMediaNames, 'users', 'avatar_media_name');
         $this->markColumnValues($usedMediaNames, 'store_order_item_downloads', 'media_name');
     }
 
@@ -65,8 +63,6 @@ class MediaUsageService
         $this->markContentMatches($usedMediaNames, 'workshops', 'content');
         $this->markContentMatches($usedMediaNames, 'posts', 'content');
         $this->markContentMatches($usedMediaNames, 'custom_pages', 'content');
-        $this->markContentMatches($usedMediaNames, 'class_sessions', 'instructions_html');
-        $this->markContentMatches($usedMediaNames, 'forum_posts', 'body');
     }
 
     /**

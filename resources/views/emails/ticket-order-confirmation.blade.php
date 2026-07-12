@@ -20,27 +20,12 @@ if ($ticketAttachmentCount > 0) {
 @endphp
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
-@if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your course registration is confirmed.
-@else
 Your ticket order is confirmed.
-@endif
 
 **Workshop:** {{ (string) ($workshop['title'] ?? '-') }}<br>
 **Time:** {{ (string) ($workshop['time'] ?? $workshop['starts_at'] ?? '-') }}<br>
 **Location:** {{ (string) ($workshop['location'] ?? '-') }}<br>
 **Payment Method:** {{ $paymentMethodLabel }}<br>
-@if((string) ($workshop['registration'] ?? '') === 'classroom')
-@if(!empty($workshop['courseUrl'] ?? ''))
-**Course:** {{ (string) $workshop['courseUrl'] }}<br>
-@endif
-@if(!empty($workshop['classroomUrl'] ?? ''))
-**Course:** {{ (string) $workshop['classroomUrl'] }}<br>
-@endif
-@if(!empty($workshop['forumUrl'] ?? ''))
-**Forum:** {{ (string) $workshop['forumUrl'] }}<br>
-@endif
-@endif
 @if((float) $amount > 0)
 @php
 $creditAppliedAmount = round((float) ($creditAppliedAmount ?? 0), 2);
@@ -63,18 +48,14 @@ $paymentAmount = round((float) ($paymentAmount ?? 0), 2);
 **Order Amount:** ${{ number_format((float) $amount, 2) }}<br>
 @endif
 @endif
-@if((string) ($workshop['registration'] ?? '') === 'classroom')
-**Registration holders:** {{ (int) ($ticketCount ?? count($tickets)) }}
-@else
 **Number of Tickets:** {{ (int) ($ticketCount ?? count($tickets)) }}
-@endif
 
 @if($invoice)
 **Invoice #:** {{ (string) ($invoice['number'] ?? '-') }}<br>
 **Invoice Status:** {{ ucfirst((string) ($invoice['status'] ?? '-')) }}
 @endif
 
-@if(count($tickets) > 0 && (string) ($workshop['registration'] ?? '') !== 'classroom')
+@if(count($tickets) > 0)
 ### Ticket Details
 @foreach($tickets as $ticket)
 - `{{ (string) ($ticket['reference'] ?? '-') }}` | {{ (string) ($ticket['name'] ?? '-') }} | {{ (string) ($ticket['email'] ?? '-') }}@if(!empty($ticket['earlyBird'] ?? false)) | Early bird @endif
@@ -88,18 +69,10 @@ Your {{ $attachmentLabels[0] }} and {{ $attachmentLabels[1] }} are attached.
 @elseif(count($attachmentLabels) > 2)
 Your {{ implode(', ', array_slice($attachmentLabels, 0, -1)) }}, and {{ $attachmentLabels[count($attachmentLabels) - 1] }} are attached.
 @else
-@if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your course registration details are included in this email and will also be available from your account dashboard once you sign in.
-@else
 Tickets will be emailed after ticket holder details are confirmed.
 @endif
-@endif
 
-@if((string) ($workshop['registration'] ?? '') === 'classroom')
-If you have a STEMMechanics account, open your courses from the [Courses]({{ url('/account/courses') }}) page when logged in. If you do not have an account yet, use the registration email we sent to finish creating one.
-@else
 If you have a STEMMechanics account, you can manage your tickets and invoices from your account dashboard when logged in. You can also manage your tickets using the [My Tickets]({{ url('/tickets') }}) link.
-@endif
 
 Thanks,<br>
 {{ config('app.name') }}
