@@ -51,6 +51,19 @@ class Helpers
         return (bool) config('media.use_x_accel', false);
     }
 
+    public static function mediaDownloadOffloadStatus(): string
+    {
+        if (self::isNginxXAccelEnabled()) {
+            return 'Nginx X-Accel-Redirect enabled ('.self::mediaXAccelPrefix().')';
+        }
+
+        if (self::isApacheXSendfileAvailable()) {
+            return 'Apache X-Sendfile enabled';
+        }
+
+        return 'Disabled; Laravel will serve files directly';
+    }
+
     public static function mediaXAccelPrefix(): string
     {
         $prefix = trim((string) config('media.x_accel_prefix', '/protected/'));
