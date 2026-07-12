@@ -4,10 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
-use Laravel\Passport\Client as PassportClient;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 class SecurityHeaders
 {
@@ -15,7 +12,6 @@ class SecurityHeaders
     {
         /** @var Response $response */
         $response = $next($request);
-        $oauthOrigins = $this->oauthCallbackOrigins();
 
         // Hide PHP runtime/version details from response headers.
         $response->headers->remove('X-Powered-By');
@@ -33,7 +29,7 @@ class SecurityHeaders
             "object-src 'none'",
         ];
         if ($csp === '') {
-            $requiredDirectives[] = $this->formActionDirective($oauthOrigins);
+            $requiredDirectives[] = $this->formActionDirective();
             $response->headers->set('Content-Security-Policy', implode('; ', $requiredDirectives));
         } else {
             $cspLower = strtolower($csp);
@@ -43,7 +39,7 @@ class SecurityHeaders
                     $csp .= '; '.$directive;
                 }
             }
-            $response->headers->set('Content-Security-Policy', $this->replaceFormActionDirective($csp, $oauthOrigins));
+            $response->headers->set('Content-Security-Policy', $this->replaceFormActionDirective($csp));
         }
 
         // Stop MIME sniffing and enforce declared Content-Type.
@@ -72,70 +68,14 @@ class SecurityHeaders
         return $response;
     }
 
-    private function normalizeOrigin(string $url): string
+    private function formActionDirective(): string
     {
-        $trimmed = trim($url);
-        if ($trimmed === '') {
-            return '';
-        }
-
-        $parts = parse_url($trimmed);
-        if (! is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
-            return '';
-        }
-
-        $origin = $parts['scheme'].'://'.$parts['host'];
-        if (isset($parts['port'])) {
-            $origin .= ':'.$parts['port'];
-        }
-
-        return $origin;
+        return "form-action 'self'";
     }
 
-    /**
-     * @return list<string>
-     */
-    private function oauthCallbackOrigins(): array
+    private function replaceFormActionDirective(string $csp): string
     {
-        try {
-            if (! Schema::hasTable('oauth_clients')) {
-                return [];
-            }
-        } catch (Throwable) {
-            return [];
-        }
-
-        return PassportClient::query()
-            ->where('revoked', false)
-            ->get()
-            ->flatMap(function (PassportClient $client): array {
-                return array_map(
-                    fn (mixed $redirectUri): string => $this->normalizeOrigin((string) $redirectUri),
-                    is_array($client->redirect_uris) ? $client->redirect_uris : []
-                );
-            })
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  list<string>  $origins
-     */
-    private function formActionDirective(array $origins): string
-    {
-        $sources = array_merge(["'self'"], $origins);
-
-        return 'form-action '.implode(' ', array_values(array_unique($sources)));
-    }
-
-    /**
-     * @param  list<string>  $origins
-     */
-    private function replaceFormActionDirective(string $csp, array $origins): string
-    {
-        $directive = $this->formActionDirective($origins);
+        $directive = $this->formActionDirective();
         if (preg_match('/(?:^|;\s*)form-action\b[^;]*/i', $csp) === 1) {
             return (string) preg_replace('/(?:^|;\s*)form-action\b[^;]*/i', '; '.$directive, $csp, 1);
         }

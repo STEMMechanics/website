@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
-use Laravel\Passport\Token as PassportToken;
 
-class Token extends PassportToken
+class Token extends Model
 {
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
@@ -20,16 +18,13 @@ class Token extends PassportToken
         'expires_at',
     ];
 
-    /**
-     * The database table used by the model.
-     *
-     * @var string
-     */
     protected $table = 'tokens';
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     /**
-     * The attributes that should be cast.
-     *
      * @var array<string, string>
      */
     protected $casts = [
@@ -37,50 +32,30 @@ class Token extends PassportToken
         'data' => 'array',
     ];
 
-    /**
-     * Indicates if the model should be timestamped.
-     *
-     * @var bool
-     */
     public $timestamps = false;
 
     /**
-     * Get the user that owns the token.
-     *
-     * @return BelongsTo<\Illuminate\Foundation\Auth\User, $this>
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {
-        /** @var class-string<\Illuminate\Foundation\Auth\User> $userModel */
-        $userModel = User::class;
-
-        return $this->belongsTo($userModel, 'user_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * The "booted" method of the model.
-     *
-     * @return void
-     */
-    public static function boot()
+    protected static function booted(): void
     {
-        parent::boot();
-
-        static::creating(function ($model) {
-            if (empty($model->{$model->getKeyName()}) === true) {
+        static::creating(function (self $model): void {
+            if (empty($model->{$model->getKeyName()})) {
                 do {
                     $newToken = Str::random(48);
-                } while (self::where($model->getKeyName(), $newToken)->exists());
+                } while (self::query()->where($model->getKeyName(), $newToken)->exists());
 
                 $model->{$model->getKeyName()} = $newToken;
             }
 
-            if (empty($model->expires_at) === true) {
-                if ((string) $model->type !== 'remember-device') {
-                    $model->expires_at = now()->addMinutes(10);
-                }
+            if (empty($model->expires_at) && (string) $model->type !== 'remember-device') {
+                $model->expires_at = now()->addMinutes(10);
             }
         });
     }
-
 }

@@ -16,9 +16,7 @@
         "chillerlan/php-qrcode": "^5.0",
         "grantholle/laravel-altcha": "^2.1",
         "intervention/image": "^3.5",
-        "jeremy379/laravel-openid-connect": "^3.2",
         "laravel/framework": "^12.0",
-        "laravel/passport": "^13.0",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.1",
         "php-ffmpeg/php-ffmpeg": "^1.2",
@@ -76,13 +74,6 @@
         "pint-test": [
             "./vendor/bin/pint --test"
         ]
-    },
-    "extra": {
-        "laravel": {
-            "dont-discover": [
-                "laravel/passport"
-            ]
-        }
     },
     "config": {
         "platform": {

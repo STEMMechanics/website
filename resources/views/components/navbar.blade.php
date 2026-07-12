@@ -119,7 +119,6 @@
                     ['label' => 'Sent SMS', 'route' => route('admin.server.sent-sms'), 'icon' => 'fa-solid fa-comment-sms', 'active' => ['admin.server.sent-sms*'], 'badge' => $unacknowledgedSmsReplyCount],
                     ['label' => 'Orphaned Files', 'route' => route('admin.server.orphans'), 'icon' => 'fa-solid fa-link-slash', 'active' => ['admin.server.orphans*']],
                     ['label' => 'Site Options', 'route' => route('admin.site_option.index'), 'icon' => 'fa-solid fa-sliders', 'active' => ['admin.site_option.*']],
-                    ['label' => 'OAuth Clients', 'route' => route('admin.oauth-clients.index'), 'icon' => 'fa-solid fa-key', 'active' => ['admin.oauth-clients.*']],
                     ['label' => 'Backups & Downloads', 'route' => route('admin.server.backups'), 'icon' => 'fa-solid fa-box-archive', 'active' => ['admin.server.backups']],
                     ['label' => 'Server Info', 'route' => route('admin.server.index'), 'icon' => 'fa-solid fa-server', 'active' => ['admin.server.index']],
                 ],
@@ -311,7 +310,6 @@
                 @if(($childAccountsEnabled || $hasManagedChildAccounts) && $navUser?->isFullAccount())
                     <a href="{{ route('account.children.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Child Accounts</a>
                 @endif
-                <a href="{{ route('account.oauth-apps.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-plug w-4 mr-2"></i>Connected Apps</a>
                 @if(($childAccountsEnabled || $hasManagedChildAccounts) && $pendingChildApprovalCount > 0)
                     <a href="{{ route('account.children.approvals') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1">
                         <i class="fa-solid fa-user-shield w-4 mr-2"></i>Child approvals
