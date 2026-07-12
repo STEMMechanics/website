@@ -46,7 +46,7 @@
                         <span class="inline-flex items-center gap-2">
                             <span>{{ $tab['title'] }}</span>
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
-                                <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-green-700" aria-label="{{ (int) $tab['badge'] }} unread discussions">{{ number_format((int) $tab['badge']) }}</span>
+                                <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-green-700" aria-label="{{ (int) $tab['badge'] }} unread items">{{ number_format((int) $tab['badge']) }}</span>
                             @endif
                         </span>
                     </a>

@@ -17,7 +17,7 @@ class MinecraftMessageModerationService
 
     public function inspect(string $content): MinecraftMessageModerationResult
     {
-        $result = $this->contentFilter->inspect($content, 'forum');
+        $result = $this->contentFilter->inspect($content, 'minecraft');
         if (! $result->blocked) {
             return MinecraftMessageModerationResult::allow();
         }

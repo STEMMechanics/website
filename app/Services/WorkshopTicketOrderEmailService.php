@@ -128,7 +128,6 @@ class WorkshopTicketOrderEmailService
 
         $attachments = [];
         $workshop = $firstTicket->workshop instanceof Workshop ? $firstTicket->workshop : null;
-        $isClassroomAccess = $workshop instanceof Workshop && $workshop->usesClassroomRegistration();
 
         if ($invoice instanceof Invoice) {
             $invoicePdf = $this->buildInvoicePdfBinary($invoice);
@@ -166,24 +165,22 @@ class WorkshopTicketOrderEmailService
             }
         }
 
-        if (! $isClassroomAccess) {
-            foreach ($tickets as $ticket) {
-                if (! $ticket instanceof Ticket) {
-                    continue;
-                }
-
-                $ticketPdf = $this->buildTicketPdfBinary($ticket);
-                if ($ticketPdf === null) {
-                    continue;
-                }
-
-                $attachments[] = [
-                    'type' => 'ticket',
-                    'content' => $ticketPdf,
-                    'filename' => $this->ticketPdfFilename($ticket),
-                    'mime' => 'application/pdf',
-                ];
+        foreach ($tickets as $ticket) {
+            if (! $ticket instanceof Ticket) {
+                continue;
             }
+
+            $ticketPdf = $this->buildTicketPdfBinary($ticket);
+            if ($ticketPdf === null) {
+                continue;
+            }
+
+            $attachments[] = [
+                'type' => 'ticket',
+                'content' => $ticketPdf,
+                'filename' => $this->ticketPdfFilename($ticket),
+                'mime' => 'application/pdf',
+            ];
         }
 
         $ticketRows = $tickets->map(function (Ticket $ticket): array {
@@ -203,12 +200,8 @@ class WorkshopTicketOrderEmailService
                 'title' => $workshop instanceof Workshop ? (string) $workshop->title : '',
                 'time' => $workshop instanceof Workshop ? (string) $workshop->getTicketTimeRangeLabel() : '-',
                 'location' => $workshop instanceof Workshop ? (string) $workshop->getLocationDisplay(true) : '-',
-                'registration' => $isClassroomAccess ? 'classroom' : 'tickets',
+                'registration' => 'tickets',
                 'courseUrl' => $workshop instanceof Workshop ? route('workshop.show', $workshop) : null,
-                'classroomUrl' => $workshop instanceof Workshop && $workshop->classSession ? route('class.show', $workshop->classSession) : null,
-                'forumUrl' => $workshop instanceof Workshop && $workshop->classSession?->forumCategory
-                    ? route('forum.category.show', $workshop->classSession->forumCategory->slug)
-                    : ($workshop instanceof Workshop && $workshop->classroomForumCategory ? route('forum.category.show', $workshop->classroomForumCategory->slug) : null),
             ],
             tickets: $ticketRows,
             paymentMethodLabel: $paymentBreakdown['payment_method_label'],
@@ -250,7 +243,7 @@ class WorkshopTicketOrderEmailService
                 }
 
                 $ticketPdf = $this->buildTicketPdfBinary($ticket);
-                $ticketAttachment = $ticketPdf !== null && ! ($ticket->workshop?->usesClassroomRegistration() ?? false) ? [
+                $ticketAttachment = $ticketPdf !== null ? [
                     'content' => $ticketPdf,
                     'filename' => $this->ticketPdfFilename($ticket),
                     'mime' => 'application/pdf',
@@ -260,10 +253,8 @@ class WorkshopTicketOrderEmailService
                     'title' => (string) ($ticket->workshop->title ?? ''),
                     'time' => (string) ($ticket->workshop?->getTicketTimeRangeLabel() ?? '-'),
                     'location' => (string) ($ticket->workshop?->getLocationDisplay(true) ?? '-'),
-                    'registration' => (string) ($ticket->workshop?->registration ?? ''),
+                    'registration' => 'tickets',
                     'courseUrl' => $ticket->workshop instanceof Workshop ? route('workshop.show', $ticket->workshop) : null,
-                    'classroomUrl' => $ticket->workshop instanceof Workshop && $ticket->workshop->classSession ? route('class.show', $ticket->workshop->classSession) : null,
-                    'forumUrl' => $ticket->workshop instanceof Workshop && $ticket->workshop->classroomForumCategory ? route('forum.category.show', $ticket->workshop->classroomForumCategory->slug) : null,
                 ];
                 $ticketInfo = [
                     'reference' => $ticket->ensureReferenceCode(),

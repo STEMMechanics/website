@@ -1,11 +1,10 @@
 @php
     $childAccounts = collect($childAccounts ?? []);
-    $totalPendingChildApprovals = (int) ($totalPendingChildApprovals ?? 0);
     $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
 @endphp
 
 <x-layout>
-    <x-mast description="{{ $childAccountsEnabled ? 'Create, edit, and review child accounts without leaving the user menu.' : 'Create, edit, and review linked accounts without leaving the user menu.' }}">{{ $childAccountsEnabled ? 'Child Accounts' : 'Linked Accounts' }}</x-mast>
+    <x-mast description="{{ $childAccountsEnabled ? 'Create and edit child accounts without leaving the user menu.' : 'Create and edit linked accounts without leaving the user menu.' }}">{{ $childAccountsEnabled ? 'Child Accounts' : 'Linked Accounts' }}</x-mast>
 
     <x-container inner-class="max-w-6xl">
         <div class="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -15,8 +14,8 @@
                         <h2 class="text-lg font-semibold text-gray-900">{{ $childAccountsEnabled ? 'Managed child accounts' : 'Managed linked accounts' }}</h2>
                         <p class="mt-1 text-sm text-gray-600">
                             {{ $childAccountsEnabled
-                                ? 'Create child accounts for discussion access, workshop access, and parental approval controls.'
-                                : 'Review linked accounts and manage their discussion access controls.' }}
+                                ? 'Create child accounts with their own username, password, and avatar settings.'
+                                : 'Review linked accounts and manage their username, password, and avatar settings.' }}
                         </p>
                     </div>
 
@@ -24,18 +23,6 @@
                         <x-ui.button href="{{ route('account.children.create') }}">Create child account</x-ui.button>
                     @endif
                 </div>
-
-                @if($totalPendingChildApprovals > 0)
-                    <div class="mt-5 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-900">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <div class="font-semibold">{{ $childAccountsEnabled ? 'Pending child approvals' : 'Pending approvals' }}</div>
-                                <div class="mt-1">{{ $totalPendingChildApprovals }} discussion {{ \Illuminate\Support\Str::plural('submission', $totalPendingChildApprovals) }} {{ $totalPendingChildApprovals === 1 ? 'is' : 'are' }} waiting for review.</div>
-                            </div>
-                            <x-ui.button href="{{ route('account.children.approvals') }}" class="px-4! py-1.5!">Open approvals queue</x-ui.button>
-                        </div>
-                    </div>
-                @endif
 
                 @if($childAccounts->isEmpty())
                     <div class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-sm text-gray-500">
@@ -54,10 +41,6 @@
                                         class="text-xs"
                                     >Manage</x-ui.button>
                                 </div>
-                                <div class="mt-4 grid gap-2 text-sm text-gray-600">
-                                    <div><span class="font-semibold">Can create new threads</span>: {{ $childAccount->child_can_create_forum_topics ? ($childAccount->child_forum_topic_requires_approval ? 'Approval required' : 'Yes') : 'No' }} {!! ($count = (int) ($childAccount->pending_topic_count ?? 0)) > 0 ? ' - <a href="'.route('account.children.approvals').'#child-'.$childAccount->id.'" class="text-sky-700 hover:text-sky-900">'.$count.' Pending</a>' : '' !!}</div>
-                                    <div><span class="font-semibold">Can reply to posts</span>: {{ $childAccount->child_can_reply_in_forum ? ($childAccount->child_forum_reply_requires_approval ? 'Approval required' : 'Yes') : 'No' }} {!! ($count = (int) ($childAccount->pending_reply_count ?? 0)) > 0 ? ' - <a href="'.route('account.children.approvals').'#child-'.$childAccount->id.'" class="text-sky-700 hover:text-sky-900">'.$count.' Pending</a>' : '' !!}</div>
-                                </div>
                             </div>
                         @endforeach
                     </div>
@@ -70,20 +53,9 @@
                     <h2 class="mt-2 text-lg font-semibold text-gray-900">What this page controls</h2>
                     <p class="mt-3 text-sm leading-6 text-gray-600">
                         {{ $childAccountsEnabled
-                            ? 'Child accounts can sign in separately, but you keep control over approval queues and discussion permissions.'
-                            : 'Linked accounts can sign in separately, but you keep control over approval queues and discussion permissions.' }}
+                            ? 'Child accounts can sign in separately while you keep control over account access.'
+                            : 'Linked accounts can sign in separately while you keep control over account access.' }}
                     </p>
-                </div>
-
-                <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-primary-color">Approvals</div>
-                    <h2 class="mt-2 text-lg font-semibold text-gray-900">Review queued posts</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">
-                        Open the approvals queue to review pending threads and replies from your linked accounts.
-                    </p>
-                    <div class="mt-4">
-                        <x-ui.button href="{{ route('account.children.approvals') }}" color="primary-outline">Open approvals queue</x-ui.button>
-                    </div>
                 </div>
 
                 <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">

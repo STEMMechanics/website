@@ -25,7 +25,7 @@ class SiteOptionContentFilter implements ContentFilter
             return ContentFilterResult::allow();
         }
 
-        $plainText = ForumContent::plainText($content);
+        $plainText = $this->plainText($content);
         if ($plainText === '') {
             return ContentFilterResult::allow();
         }
@@ -33,7 +33,7 @@ class SiteOptionContentFilter implements ContentFilter
         if ($this->containsProfanity($plainText, $settings)) {
             return ContentFilterResult::block(
                 'profanity',
-                'Your post includes language that is not allowed in this discussion space. Please revise it and try again.'
+                'Your message includes language that is not allowed. Please revise it and try again.'
             );
         }
 
@@ -41,7 +41,7 @@ class SiteOptionContentFilter implements ContentFilter
         if ($matchingCustomPattern !== null) {
             return ContentFilterResult::block(
                 'custom_pattern',
-                'Your post includes language or patterns that are not allowed in this discussion space. Please revise it and try again.',
+                'Your message includes language or patterns that are not allowed. Please revise it and try again.',
                 $matchingCustomPattern,
             );
         }
@@ -49,21 +49,21 @@ class SiteOptionContentFilter implements ContentFilter
         if ($this->containsAllCaps($plainText, $settings)) {
             return ContentFilterResult::block(
                 'all_caps',
-                'Your post looks like it is written in all caps. Please revise it and try again.'
+                'Your message looks like it is written in all caps. Please revise it and try again.'
             );
         }
 
         if ($this->containsRepeatedCharacters($plainText, $settings)) {
             return ContentFilterResult::block(
                 'repeated_characters',
-                'Your post includes repeated character patterns that are not allowed. Please revise it and try again.'
+                'Your message includes repeated character patterns that are not allowed. Please revise it and try again.'
             );
         }
 
         if ($this->containsRepeatedWords($plainText, $settings)) {
             return ContentFilterResult::block(
                 'repeated_words',
-                'Your post includes repeated word patterns that are not allowed. Please revise it and try again.'
+                'Your message includes repeated word patterns that are not allowed. Please revise it and try again.'
             );
         }
 
@@ -75,7 +75,7 @@ class SiteOptionContentFilter implements ContentFilter
      */
     public function profanityResult(string $content, array $settings = []): ?Result
     {
-        $plainText = ForumContent::plainText($content);
+        $plainText = $this->plainText($content);
         if ($plainText === '') {
             return null;
         }
@@ -89,7 +89,7 @@ class SiteOptionContentFilter implements ContentFilter
      */
     public function maskedProfanity(string $content, array $settings = []): ?string
     {
-        $plainText = ForumContent::plainText($content);
+        $plainText = $this->plainText($content);
         if ($plainText === '') {
             return null;
         }
@@ -323,5 +323,13 @@ class SiteOptionContentFilter implements ContentFilter
             ])
             ->values()
             ->all();
+    }
+
+    private function plainText(string $content): string
+    {
+        $text = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 }

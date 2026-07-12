@@ -37,7 +37,6 @@
             </li>
             <li><a href="{{ route('about') }}" class="text-sm hover:text-primary-color">About</a></li>
             <li><a href="{{ route('contact') }}" class="text-sm hover:text-primary-color">Contact Us</a></li>
-            <li><a href="{{ route('forum.index') }}" class="text-sm hover:text-primary-color">Discussions</a></li>
             <li><a href="{{ route('tickets.request') }}" class="text-sm hover:text-primary-color">My Tickets</a></li>
             <li><a href="{{ route('code-of-conduct') }}" class="text-sm hover:text-primary-color">Code of Conduct</a></li>
             <li><a href="{{ route('terms-conditions') }}" class="text-sm hover:text-primary-color">Terms & Conditions</a></li>

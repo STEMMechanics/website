@@ -396,7 +396,7 @@
     <div class="flex items-start justify-between gap-4">
         <div>
             <h2 class="text-lg font-semibold text-gray-900">Avatar</h2>
-            <p class="mt-1 text-sm text-gray-600">{{ $avatarEditable ? ($avatarPresetSelectionEnabled ? 'Choose an image, letters, or an icon for your avatar.' : 'Choose an image for your avatar.') : 'Your current avatar appears across discussions and workshop areas.' }}</p>
+            <p class="mt-1 text-sm text-gray-600">{{ $avatarEditable ? ($avatarPresetSelectionEnabled ? 'Choose an image, letters, or an icon for your avatar.' : 'Choose an image for your avatar.') : 'Your current avatar appears across workshop areas.' }}</p>
         </div>
     </div>
 

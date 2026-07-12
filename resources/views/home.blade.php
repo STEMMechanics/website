@@ -203,7 +203,7 @@
 
                     <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
                         <x-ui.button color="purple" href="https://discord.gg/yNzk4x7mpD" class="font-normal py-4">Join Discord</x-ui.button>
-                        <x-ui.button color="purple-outline" href="{{ route('forum.index') }}" class="font-normal py-4">View Discussions</x-ui.button>
+                        <x-ui.button color="purple-outline" href="{{ route('contact') }}" class="font-normal py-4">Contact Us</x-ui.button>
                     </div>
                 </div>
 

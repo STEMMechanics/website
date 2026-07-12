@@ -1,6 +1,5 @@
 <?php
 
-use App\Jobs\SendForumUnreadNotification;
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
 use App\Models\Invoice;
@@ -67,20 +66,6 @@ Artisan::command('cleanup', function() {
         ->delete();
 
 })->purpose('Clean up expired data')->everyMinute();
-
-Artisan::command('forum:send-unread-digest', function () {
-    $userIds = DB::table('forum_topic_user_states')
-        ->where('notifications_enabled', true)
-        ->select('user_id')
-        ->distinct()
-        ->pluck('user_id');
-
-    foreach ($userIds as $userId) {
-        dispatch(new SendForumUnreadNotification((string) $userId))->onQueue('mail');
-    }
-})->purpose('Send unread discussion digest emails')
-    ->dailyAt('16:00')
-    ->withoutOverlapping();
 
 Artisan::command('regenerate-thumbnails', function() {
     $media = Media::all();
@@ -198,10 +183,6 @@ Schedule::command('minecraft:messages:send-failure-alerts')
 
 Schedule::command('minecraft:player-stats:sync')
     ->everyFourHours()
-    ->withoutOverlapping();
-
-Schedule::command('classroom:broadcasts:auto-end-stale')
-    ->everyMinute()
     ->withoutOverlapping();
 
 Schedule::command('payments:send-pending-bank-transfer-reminders')

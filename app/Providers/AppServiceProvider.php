@@ -3,8 +3,6 @@
 namespace App\Providers;
 
 use App\Contracts\ContentFilter;
-use App\Models\ClassSession;
-use App\Models\ClassHelpRequest;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -14,7 +12,6 @@ use App\Models\User;
 use App\Support\PassportKeyManager;
 use App\Observers\AuditLogObserver;
 use App\Policies\AuditLogPolicy;
-use App\Policies\ClassSessionPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\TicketPolicy;
@@ -89,12 +86,6 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute($maxAttempts)->by($request->ip().'|'.$routeKey)];
         });
 
-        RateLimiter::for('forum-report', function (Request $request): array {
-            $userKey = $request->user()?->id ? (string) $request->user()->id : 'guest';
-
-            return [Limit::perMinute(8)->by($request->ip().'|'.$userKey)];
-        });
-
         $appUrl = (string) config('app.url');
         $shouldForceHttps = str_starts_with($appUrl, 'https://') || $this->app->environment('production');
 
@@ -111,8 +102,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(AuditLog::class, AuditLogPolicy::class);
-        Gate::policy(ClassSession::class, ClassSessionPolicy::class);
-        Gate::policy(ClassHelpRequest::class, ClassSessionPolicy::class);
 
         Event::listen(Login::class, function (Login $event): void {
             $request = app()->bound('request') ? request() : null;

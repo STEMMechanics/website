@@ -200,7 +200,7 @@ class WorkshopTicketFlowController extends Controller
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
             session()->flash('message', $workshop->usesClassroomRegistration()
-                ? 'Your classroom access hold expired. Please start again.'
+                ? 'Your ticket hold expired. Please start again.'
                 : 'Your ticket hold expired. Please start again.');
             session()->flash('message-title', 'Hold expired');
             session()->flash('message-type', 'warning');
@@ -258,7 +258,7 @@ class WorkshopTicketFlowController extends Controller
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
             session()->flash('message', $workshop->usesClassroomRegistration()
-                ? 'Your classroom access hold expired. Please start again.'
+                ? 'Your ticket hold expired. Please start again.'
                 : 'Your ticket hold expired. Please start again.');
             session()->flash('message-title', 'Hold expired');
             session()->flash('message-type', 'warning');
@@ -405,7 +405,7 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->reference = 'Workshop '.$workshop->title.' ticket' . (count($ticketReferences) > 1 ? 's' : '') . ' ['.implode(',', $ticketReferences).']';
                 $customerPayment->total_amount = $remainingAmount;
                 $customerPayment->gst_amount = 0;
-                $customerPayment->notes = 'Workshop "'.$workshop->title.'" '.($workshop->usesClassroomRegistration() ? 'classroom access' : 'ticket').' purchase';
+                $customerPayment->notes = 'Workshop "'.$workshop->title.'" '.($workshop->usesClassroomRegistration() ? 'ticket' : 'ticket').' purchase';
                 $customerPayment->save();
                 $amountCents = (int) round($remainingAmount * 100);
 
@@ -563,7 +563,7 @@ class WorkshopTicketFlowController extends Controller
             $this->clearFlowSession($workshop);
 
             return $this->voucherSessionExpiredResponse($request, $workshop, $workshop->usesClassroomRegistration()
-                ? 'Your classroom access hold expired. Please start again.'
+                ? 'Your ticket hold expired. Please start again.'
                 : 'Your ticket hold expired. Please start again.');
         }
 
@@ -980,7 +980,7 @@ class WorkshopTicketFlowController extends Controller
         ?string $message = null
     ): JsonResponse|RedirectResponse {
         $message ??= $workshop->usesClassroomRegistration()
-            ? 'Your classroom access hold expired. Please start again.'
+            ? 'Your ticket hold expired. Please start again.'
             : 'Your ticket hold expired. Please start again.';
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
@@ -1714,7 +1714,7 @@ class WorkshopTicketFlowController extends Controller
     private function redirectToWorkshopWithCheckoutExpiredToast(Workshop $workshop): RedirectResponse
     {
         session()->flash('message', $workshop->usesClassroomRegistration()
-            ? 'Your classroom checkout session expired while this page was open. Reload this page or restart checkout before saving access details.'
+            ? 'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.'
             : 'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.');
         session()->flash('message-title', 'Session expired');
         session()->flash('message-type', 'warning');

@@ -14,7 +14,6 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
-$discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
 @endphp
 
 <x-layout>
@@ -131,18 +130,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                                     <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
                                 </div>
                             </div>
-
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
-                                <p class="mt-1 text-sm text-gray-600">
-                                    You are subscribed to
-                                    <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
-                                    {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
-                                </p>
-                                <div class="mt-4 text-center">
-                                    <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all</x-ui.button>
-                                </div>
-                            </div>
                         </div>
                     </section>
                 </div>
@@ -226,10 +213,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
             </div>
         </form>
 
-        <form id="discussion-unsubscribe-form" method="POST" action="{{ route('account.discussions.unsubscribe-all') }}" class="hidden">
-            @csrf
-        </form>
-
         <div class="mb-8 space-y-6">
             @include('account.partials.two-factor-card')
 
@@ -238,7 +221,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                     <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmAccountDelete($el)">
                         @csrf
                         @method('DELETE')
-                        <input type="hidden" name="delete_discussion_threads" value="0" />
                         <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
                     </form>
                 @else

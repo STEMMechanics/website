@@ -7,7 +7,7 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
-$parentDisplayName = $user->parent?->forumDisplayName() ?: '-';
+$parentDisplayName = $user->parent?->getName() ?: '-';
 $passwordLoginAvailable = $user->canUsePasswordLogin();
 @endphp
 
@@ -31,7 +31,7 @@ $passwordLoginAvailable = $user->canUsePasswordLogin();
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <h2 class="text-lg font-semibold text-gray-900">Profile Details</h2>
-                                <p class="mt-1 text-sm text-gray-600">Update the public details used for your child account across discussions and workshop areas.</p>
+                                <p class="mt-1 text-sm text-gray-600">Update the public details used for your child account across workshop areas.</p>
                             </div>
                         </div>
 

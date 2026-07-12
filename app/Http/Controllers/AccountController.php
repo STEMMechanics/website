@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UserDelete;
 use App\Mail\UserEmailUpdateRequest;
-use App\Models\ForumTopicUserState;
 use App\Models\Media;
 use App\Models\Token;
 use App\Models\User;
@@ -44,16 +43,10 @@ class AccountController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $discussionNotificationCount = ForumTopicUserState::query()
-            ->where('user_id', (string) $user->id)
-            ->where('notifications_enabled', true)
-            ->count();
-
         $baseViewData = [
             'user' => $user,
             'rememberedDevices' => $this->rememberedDeviceManager->listRememberedDevices($user, $request),
             'currentRememberedTokenId' => $this->rememberedDeviceManager->currentTokenId($request),
-            'discussionNotificationCount' => $discussionNotificationCount,
         ];
 
         if ($user->isChildAccount()) {
@@ -193,31 +186,6 @@ class AccountController extends Controller
         return redirect()->route('account.show');
     }
 
-    public function unsubscribeAllDiscussionNotifications(): RedirectResponse
-    {
-        /** @var User $user */
-        $user = auth()->user();
-
-        $updated = ForumTopicUserState::query()
-            ->where('user_id', (string) $user->id)
-            ->where('notifications_enabled', true)
-            ->update([
-                'notifications_enabled' => false,
-            ]);
-
-        if ($updated > 0) {
-            session()->flash('message', 'All discussion notifications have been unsubscribed.');
-            session()->flash('message-title', 'Preferences updated');
-            session()->flash('message-type', 'success');
-        } else {
-            session()->flash('message', 'You are already unsubscribed from discussion notifications.');
-            session()->flash('message-title', 'No changes made');
-            session()->flash('message-type', 'info');
-        }
-
-        return redirect()->route('account.show');
-    }
-
     public function destroyRememberedDevice(Request $request, Token $token): RedirectResponse|JsonResponse
     {
         /** @var User $user */
@@ -288,7 +256,7 @@ class AccountController extends Controller
         $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
         auth()->logout();
 
-        $this->userAnonymizer->anonymize($user, $request->boolean('delete_discussion_threads'));
+        $this->userAnonymizer->anonymize($user);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

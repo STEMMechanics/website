@@ -78,12 +78,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         'account_terms_days',
         'subscribed',
         'agree_tos',
-        'child_can_create_forum_topics',
-        'child_can_reply_in_forum',
-        'child_forum_topic_requires_approval',
-        'child_forum_reply_requires_approval',
-        'child_parent_notified_on_forum_topics',
-        'child_parent_notified_on_forum_replies',
         'child_can_select_avatar_media',
         'child_can_use_avatar_camera',
         'anonymized_at',
@@ -101,12 +95,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
     ];
 
     protected $attributes = [
-        'child_can_create_forum_topics' => true,
-        'child_can_reply_in_forum' => true,
-        'child_forum_topic_requires_approval' => false,
-        'child_forum_reply_requires_approval' => false,
-        'child_parent_notified_on_forum_topics' => false,
-        'child_parent_notified_on_forum_replies' => false,
         'child_can_select_avatar_media' => true,
         'child_can_use_avatar_camera' => true,
         'account_terms_days' => 0,
@@ -123,12 +111,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         'avatar_zoom' => 'integer',
         'avatar_offset_x' => 'integer',
         'avatar_offset_y' => 'integer',
-        'child_can_create_forum_topics' => 'boolean',
-        'child_can_reply_in_forum' => 'boolean',
-        'child_forum_topic_requires_approval' => 'boolean',
-        'child_forum_reply_requires_approval' => 'boolean',
-        'child_parent_notified_on_forum_topics' => 'boolean',
-        'child_parent_notified_on_forum_replies' => 'boolean',
         'child_can_select_avatar_media' => 'boolean',
         'child_can_use_avatar_camera' => 'boolean',
         'account_terms_days' => 'integer',
@@ -337,20 +319,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         return $name;
     }
 
-    public function forumDisplayName(): string
-    {
-        if ($this->isAnonymized()) {
-            return 'deleted';
-        }
-
-        $username = trim((string) ($this->username ?? ''));
-        if ($username !== '') {
-            return $username;
-        }
-
-        return $this->getName();
-    }
-
     /**
      * @return HasMany<Ticket, $this>
      */
@@ -402,37 +370,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
     public function minecraftAccounts(): HasMany
     {
         return $this->hasMany(MinecraftAccount::class);
-    }
-
-    /**
-     * @return HasMany<ClassEnrolment, $this>
-     */
-    public function classEnrolments(): HasMany
-    {
-        return $this->hasMany(ClassEnrolment::class);
-    }
-
-    /**
-     * @return HasMany<ClassHelpRequest, $this>
-     */
-    public function classHelpRequests(): HasMany
-    {
-        return $this->hasMany(ClassHelpRequest::class);
-    }
-
-    public function forumTopics(): HasMany
-    {
-        return $this->hasMany(ForumTopic::class);
-    }
-
-    public function forumPosts(): HasMany
-    {
-        return $this->hasMany(ForumPost::class);
-    }
-
-    public function forumTopicStates(): HasMany
-    {
-        return $this->hasMany(ForumTopicUserState::class);
     }
 
     public function media(): HasMany
@@ -536,7 +473,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
             'fa-solid fa-image', 'fa-solid fa-video', 'fa-solid fa-headset',
             'fa-solid fa-laptop', 'fa-solid fa-tablet-screen-button', 'fa-solid fa-mobile-screen-button',
             'fa-solid fa-shop', 'fa-solid fa-cart-shopping', 'fa-solid fa-gift',
-            'forum-icon-stemcraft',
+            'sm-icon-stemcraft',
         ];
     }
 
@@ -606,7 +543,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
             return $customLetters;
         }
 
-        $tokens = collect(preg_split('/[^A-Za-z0-9]+/u', (string) Str::of($this->forumDisplayName())->ascii()) ?: [])
+        $tokens = collect(preg_split('/[^A-Za-z0-9]+/u', (string) Str::of($this->getName())->ascii()) ?: [])
             ->map(fn ($token) => trim((string) $token))
             ->filter(fn ($token) => $token !== '')
             ->values();
@@ -764,36 +701,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
             && (string) $child->parent_user_id === (string) $this->id;
     }
 
-    public function canCreateForumTopics(): bool
-    {
-        return ! $this->isChildAccount() || (bool) $this->child_can_create_forum_topics;
-    }
-
-    public function canReplyInForum(): bool
-    {
-        return ! $this->isChildAccount() || (bool) $this->child_can_reply_in_forum;
-    }
-
-    public function childForumTopicRequiresApproval(): bool
-    {
-        return $this->isChildAccount() && (bool) $this->child_forum_topic_requires_approval;
-    }
-
-    public function childForumReplyRequiresApproval(): bool
-    {
-        return $this->isChildAccount() && (bool) $this->child_forum_reply_requires_approval;
-    }
-
-    public function parentShouldBeNotifiedOnForumTopics(): bool
-    {
-        return $this->isChildAccount() && (bool) $this->child_parent_notified_on_forum_topics;
-    }
-
-    public function parentShouldBeNotifiedOnForumReplies(): bool
-    {
-        return $this->isChildAccount() && (bool) $this->child_parent_notified_on_forum_replies;
-    }
-
     public function canEditAvatar(): bool
     {
         return ! $this->isChildAccount() || (bool) $this->child_can_select_avatar_media;
@@ -837,23 +744,6 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
     public function canAccessMinecraftPage(): bool
     {
         return $this->canManageMinecraftAccounts() || $this->canViewMinecraftPage();
-    }
-
-    public function canJoinClassSession(ClassSession $classSession): bool
-    {
-        return $this->isAdmin()
-            || $classSession->canJoin($this);
-    }
-
-    public function canManageClassSession(ClassSession $classSession): bool
-    {
-        return $this->isAdmin()
-            || $classSession->canManage($this);
-    }
-
-    public function classroomParticipantIdentity(ClassSession $classSession): string
-    {
-        return 'class-'.$classSession->id.'-user-'.$this->id;
     }
 
     public static function normalizeUsername(string $value): string

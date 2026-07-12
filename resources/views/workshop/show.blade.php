@@ -29,12 +29,8 @@
         '@type' => 'Event',
         'name' => (string) ($workshop->title ?? 'Workshop'),
         'description' => $seoDescription,
-        'startDate' => $workshop->usesClassroomRegistration() && $workshop->courseScheduleDisplayLines() === ['Anytime']
-            ? null
-            : ($workshop->effectiveStartsAt()?->toIso8601String() ?? $workshop->starts_at?->toIso8601String()),
-        'endDate' => $workshop->usesClassroomRegistration() && $workshop->courseScheduleDisplayLines() === ['Anytime']
-            ? null
-            : ($workshop->effectiveEndsAt()?->toIso8601String() ?? $workshop->ends_at?->toIso8601String()),
+        'startDate' => $workshop->effectiveStartsAt()?->toIso8601String() ?? $workshop->starts_at?->toIso8601String(),
+        'endDate' => $workshop->effectiveEndsAt()?->toIso8601String() ?? $workshop->ends_at?->toIso8601String(),
         'eventStatus' => $eventStatus,
         'eventAttendanceMode' => $workshop->location_id
             ? 'https://schema.org/OfflineEventAttendanceMode'
@@ -59,10 +55,10 @@
 
     $registrationType = (string) ($workshop->registration ?? '');
     $hasBookableOffer = ! $workshop->isPrivate()
-        && in_array($registrationType, ['tickets', 'classroom', 'link', 'email', 'message'], true);
+        && in_array($registrationType, ['tickets', 'link', 'email', 'message'], true);
     if ($hasBookableOffer) {
         $offerUrl = match ($registrationType) {
-            'tickets', 'classroom' => route('workshop.ticket.flow.start', $workshop),
+            'tickets' => route('workshop.ticket.flow.start', $workshop),
             'link' => filter_var(trim((string) ($workshop->registration_data ?? '')), FILTER_VALIDATE_URL)
                 ? trim((string) $workshop->registration_data)
                 : route('workshop.show', $workshop),
@@ -85,8 +81,6 @@
 @endphp
 @php
     $workshopContent = \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($workshop->content ?? ''));
-    $courseScheduleLines = $workshop->courseScheduleDisplayLines();
-    $courseScheduleCadence = $workshop->courseScheduleCadenceLabel();
     $ticketPricing = $workshop->ticketPricing();
     $ticketPriceAmount = (float) ($ticketPricing['ticketPriceAmount'] ?? 0);
     $nonDiscountAmount = (float) ($ticketPricing['nonDiscountAmount'] ?? $ticketPriceAmount);
@@ -138,19 +132,6 @@
                             </p>
                         @else
                             <div class="sm-registration-full">This workshop is currently full.</div>
-                        @endif
-                    @elseif($workshop->registration === 'classroom')
-                        @if($availableTickets === null || (int) $availableTickets > 0)
-                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Enrol Now</x-ui.button>
-                            <p class="text-xs text-gray-600 text-center mb-2">
-                                @if($availableTickets === null)
-                                    Course access available now.
-                                @else
-                                    {{ $availableTickets }} space{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
-                                @endif
-                            </p>
-                        @else
-                            <div class="sm-registration-full">This course is currently full.</div>
                         @endif
                     @elseif($workshop->registration === 'link')
                         @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
@@ -241,23 +222,10 @@
                         </div>
                     @elseif($workshop->registration === 'message')
                         <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
-                    @elseif($workshop->registration === 'classroom')
-                        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                            <div class="font-semibold">Course registration</div>
-                            <p class="mt-2 leading-6">
-                                This workshop includes course registration. Sign in with the account linked to your registration group to open the course and join the live sessions.
-                            </p>
-                            @if($workshop->classSession)
-                                <x-ui.button class="mt-4" href="{{ route('class.show', $workshop->classSession) }}">Open Course</x-ui.button>
-                            @endif
-                        </div>
                     @endif
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                    @if($workshop->usesClassroomRegistration() && $workshop->classSession)
-                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('class.show', $workshop->classSession) }}">View Course</x-ui.button>
-                    @endif
                     @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
                         <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif
@@ -268,24 +236,7 @@
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
-                @if($workshop->usesClassroomRegistration())
-                    @if($courseScheduleCadence)
-                        <p class="text-gray-600 text-sm pl-6 mb-2">This course streams {{ $courseScheduleCadence }}.</p>
-                    @endif
-                    <div class="text-gray-600 text-xs pl-6 mb-6">
-                        @if($courseScheduleLines === ['Anytime'])
-                            <p>Anytime</p>
-                        @else
-                            <ul class="list-disc list-outside pl-5 space-y-1 marker:text-gray-900">
-                                @foreach($courseScheduleLines as $line)
-                                    <li>{{ $line }}</li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
-                @else
-                    <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
-                @endif
+                <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
                 @php($hostedFor = $workshop->hosted_for)
                 @if(!empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">

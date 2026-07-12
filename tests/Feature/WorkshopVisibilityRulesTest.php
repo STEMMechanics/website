@@ -326,7 +326,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         );
     }
 
-    public function test_upcoming_workshops_mailable_splits_online_workshops_and_courses(): void
+    public function test_upcoming_workshops_mailable_splits_online_and_physical_workshops(): void
     {
         config()->set('newsletter.upcoming_workshops.hero_messages', [[
             'header' => 'Test header copy',
@@ -392,7 +392,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             'hero_media_name' => $heroName,
         ]);
 
-        $courseWorkshop = Workshop::query()->create([
+        $laterOnlineWorkshop = Workshop::query()->create([
             'title' => 'Weekly Online Course',
             'content' => '<p>Course content</p>',
             'starts_at' => now()->addDays(12)->setTime(17, 30),
@@ -401,20 +401,8 @@ class WorkshopVisibilityRulesTest extends TestCase
             'closes_at' => now()->addDays(11),
             'status' => 'open',
             'price' => 'Free',
-            'registration' => 'classroom',
+            'registration' => 'tickets',
             'location_id' => null,
-            'classroom_sessions_json' => [
-                [
-                    'starts_at' => now()->addDays(12)->setTime(17, 30)->toDateTimeString(),
-                    'ends_at' => now()->addDays(12)->setTime(18, 30)->toDateTimeString(),
-                    'label' => 'Week 1',
-                ],
-                [
-                    'starts_at' => now()->addDays(19)->setTime(17, 30)->toDateTimeString(),
-                    'ends_at' => now()->addDays(19)->setTime(18, 30)->toDateTimeString(),
-                    'label' => 'Week 2',
-                ],
-            ],
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
         ]);
@@ -432,7 +420,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             $mailable->workshops->contains(fn (Workshop $workshop) => $workshop->id === $earlierWorkshop->id)
         );
         $this->assertTrue(
-            $mailable->courses->contains(fn (Workshop $workshop) => $workshop->id === $courseWorkshop->id)
+            $mailable->onlineWorkshops->contains(fn (Workshop $workshop) => $workshop->id === $laterOnlineWorkshop->id)
         );
         $this->assertStringNotContainsString('&lt;h2', $rendered);
         $this->assertStringNotContainsString('&lt;p', $rendered);
@@ -445,10 +433,8 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertStringContainsString('City Lab Robotics Workshop', $rendered);
         $this->assertStringContainsString('North Hall Robotics Workshop', $rendered);
         $this->assertStringContainsString('Weekly Online Course', $rendered);
-        $this->assertStringContainsString('Online - weekly', $rendered);
         $this->assertSame(3, substr_count($rendered, '(2 hours)'));
         $this->assertStringContainsString('Get Tickets', $rendered);
-        $this->assertStringContainsString('Enrol Now', $rendered);
         $this->assertGreaterThanOrEqual(5, substr_count($rendered, '?md'));
     }
 

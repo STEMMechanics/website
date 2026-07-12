@@ -224,7 +224,6 @@ class CustomPageController extends Controller
             ['title' => 'Privacy', 'path' => '/privacy'],
             ['title' => 'Terms & Conditions', 'path' => '/terms-conditions'],
             ['title' => 'Workshops', 'path' => '/workshops'],
-            ['title' => 'Forum', 'path' => '/forum'],
             ['title' => 'STEMCraft', 'path' => '/stemcraft'],
             ['title' => 'Join STEMCraft', 'path' => '/stemcraft/join'],
             ['title' => 'STEMCraft Rules', 'path' => '/stemcraft/rules'],

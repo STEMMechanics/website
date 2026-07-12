@@ -87,17 +87,14 @@ class TicketOrderConfirmation extends Mailable
 
     public function build(): static
     {
-        $isClassroomAccess = (string) ($this->workshop['registration'] ?? '') === 'classroom';
-        $hasTicketContent = ! $isClassroomAccess && (count($this->tickets) > 0 || $this->ticketAttachmentCount > 0);
+        $hasTicketContent = count($this->tickets) > 0 || $this->ticketAttachmentCount > 0;
         $workshopTitle = (string) ($this->workshop['title'] ?? 'your STEMMechanics order');
         $receiptAttachmentCount = $this->receiptAttachmentCount + $this->creditReceiptAttachmentCount;
-        $subject = $isClassroomAccess
-            ? 'Your classroom access for '.$workshopTitle
-            : ($hasTicketContent
+        $subject = $hasTicketContent
             ? 'Your ticket' . ($this->ticketCount > 1 ? 's' : '') . ($receiptAttachmentCount > 0 ? ' and receipt'.($receiptAttachmentCount > 1 ? 's' : '') : '') . ' for '.$workshopTitle
-            : 'Your order details for '.$workshopTitle);
+            : 'Your order details for '.$workshopTitle;
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
-        $fromKey = $isClassroomAccess ? 'order_from' : ($hasTicketContent ? 'ticket_from' : 'order_from');
+        $fromKey = $hasTicketContent ? 'ticket_from' : 'order_from';
         $fromAddress = trim((string) config('mail.'.$fromKey.'.address', (string) config('mail.from.address', '')));
         $fromName = trim((string) config('mail.'.$fromKey.'.name', (string) config('mail.from.name', '')));
 

@@ -116,7 +116,7 @@
         </p>
         <x-heading class="mt-8">4. User content</x-heading>
         <p class="mb-2">
-            The Sites may include discussion blogs, profiles, product reviews or
+            The Sites may include profiles, product reviews or
             other interactive features or areas (collectively, "Interactive
             Areas"), in which you or other users create, post, transmit or store
             any content, such as text, photos, video, graphics or code on the
@@ -329,8 +329,8 @@
         </ul>
         <p class="mb-2">
             In addition to the above rules, you also agree to abide by any
-            additional STEMMechanics rules in relation to any organised Forum,
-            Chat, Game and/or Realm Servers.
+            additional STEMMechanics rules in relation to any organised Chat,
+            Game and/or Realm Servers.
         </p>
         <p class="mb-2">
             STEMMechanics has no obligation to monitor any user conduct on the
