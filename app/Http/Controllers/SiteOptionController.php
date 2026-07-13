@@ -43,6 +43,9 @@ class SiteOptionController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $this->validateRequest($request);
+        if (SiteOption::isSecret((string) $validated['name']) && trim((string) ($validated['value'] ?? '')) !== '') {
+            $validated['value'] = SiteOption::encryptSecretValue($validated['value']);
+        }
 
         $siteOption = SiteOption::query()->create($validated);
 
@@ -71,7 +74,12 @@ class SiteOptionController extends Controller
     {
         $validated = $this->validateValueRequest($request, (string) $siteOption->name);
 
-        $siteOption->value = $validated['value'] ?? null;
+        if (! (SiteOption::isSecret((string) $siteOption->name) && trim((string) ($validated['value'] ?? '')) === '')) {
+            $siteOption->value = SiteOption::isSecret((string) $siteOption->name)
+                ? SiteOption::encryptSecretValue($validated['value'] ?? '')
+                : ($validated['value'] ?? null);
+        }
+
         $siteOption->save();
 
         if ($request->expectsJson()) {
@@ -145,27 +153,6 @@ class SiteOptionController extends Controller
         return redirect()->route('admin.site_option.index');
     }
 
-    public function generateSecret(SiteOption $siteOption): RedirectResponse|JsonResponse
-    {
-        abort_unless((string) $siteOption->name === 'minecraft.webhook-secret', 404);
-
-        $siteOption->value = bin2hex(random_bytes(32));
-        $siteOption->save();
-
-        if (request()->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'option' => $this->siteOptionPayload($siteOption),
-            ]);
-        }
-
-        session()->flash('message', 'A new STEMCraft webhook secret has been generated.');
-        session()->flash('message-title', 'Secret regenerated');
-        session()->flash('message-type', 'success');
-
-        return redirect()->back();
-    }
-
     private function validateRequest(Request $request, ?SiteOption $siteOption = null): array
     {
         return $request->validate([
@@ -208,6 +195,7 @@ class SiteOptionController extends Controller
         if (in_array($optionName, [
             'backup.remote.include-database',
             'backup.remote.include-files',
+            'stemcraft.server-status.enabled',
         ], true)) {
             $rules['value'] = ['required', Rule::in(['0', '1'])];
         }
@@ -247,17 +235,51 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', Rule::in(['0', '1'])];
         }
 
+        if ($optionName === 'stemcraft.server-status.endpoint-url') {
+            $rules['value'] = ['nullable', 'url', 'max:2048'];
+        }
+
+        if ($optionName === 'stemcraft.server-status.api-key') {
+            $rules['value'] = ['nullable', 'string', 'max:2048'];
+        }
+
+        if ($optionName === 'stemcraft.server-status.server-address') {
+            $rules['value'] = ['nullable', 'string', 'max:255'];
+        }
+
+        if (in_array($optionName, [
+            'stemcraft.server-status.cache-seconds',
+            'stemcraft.server-status.timeout-seconds',
+        ], true)) {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:3600'];
+        }
+
+        if ($optionName === 'stemcraft.server-status.maintenance-message') {
+            $rules['value'] = ['nullable', 'string', 'max:500'];
+        }
+
+        if (str_starts_with($optionName, 'stemcraft.monthly-challenge.')
+            || str_starts_with($optionName, 'stemcraft.community-builds.')) {
+            $rules['value'] = ['nullable', 'string', 'max:2048'];
+        }
+
         return $request->validate($rules);
     }
 
     private function siteOptionPayload(SiteOption $siteOption): array
     {
+        $name = (string) $siteOption->name;
+        $isSecret = SiteOption::isSecret($name);
+        $value = (string) ($siteOption->value ?? '');
+
         return [
             'id' => (int) $siteOption->id,
-            'name' => (string) $siteOption->name,
-            'value' => (string) ($siteOption->value ?? ''),
-            'has_default' => SiteOption::hasDefault((string) $siteOption->name),
-            'input_type' => SiteOption::inputType((string) $siteOption->name),
+            'name' => $name,
+            'value' => $isSecret ? '' : $value,
+            'has_value' => $value !== '',
+            'is_secret' => $isSecret,
+            'has_default' => SiteOption::hasDefault($name),
+            'input_type' => SiteOption::inputType($name),
         ];
     }
 }

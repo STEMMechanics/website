@@ -14,8 +14,7 @@ use Illuminate\Support\Facades\Schedule;
  * To access the cronjob, run `crontab -u www-data -e` and add the following line:
  * * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
  */
-
-Artisan::command('email:send', function() {
+Artisan::command('email:send', function () {
     $subjects = [
         '🚀 Your STEM Adventure Awaits!',
         '⚡ Spark Your STEM Skills in a Workshop',
@@ -40,7 +39,7 @@ Artisan::command('email:send', function() {
     }
 })->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, '16:00');
 
-Artisan::command('cleanup', function() {
+Artisan::command('cleanup', function () {
 
     // Clean up expired tokens
     DB::table('tokens')
@@ -67,7 +66,7 @@ Artisan::command('cleanup', function() {
 
 })->purpose('Clean up expired data')->everyMinute();
 
-Artisan::command('regenerate-thumbnails', function() {
+Artisan::command('regenerate-thumbnails', function () {
     $media = Media::all();
 
     foreach ($media as $m) {
@@ -92,7 +91,7 @@ Artisan::command('invoices:mark-overdue', function () {
     ->hourly()
     ->withoutOverlapping();
 
-Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}', function() {
+Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}', function () {
     $minutes = max(1, (int) $this->option('minutes'));
     $limit = max(1, (int) $this->option('limit'));
     $dryRun = (bool) $this->option('dry-run');
@@ -117,12 +116,13 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
         $variantTypes = $media->getVariantTypes();
         if ($variantTypes === []) {
             $skipped++;
+
             continue;
         }
 
         $missing = false;
         foreach (array_keys($variantTypes) as $variantName) {
-            if (!$media->hasVariant($variantName)) {
+            if (! $media->hasVariant($variantName)) {
                 $missing = true;
                 break;
             }
@@ -130,23 +130,24 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
 
         if ($missing) {
             $queued++;
-            if (!$dryRun) {
+            if (! $dryRun) {
                 $media->generateVariants(false);
             }
+
             continue;
         }
 
         $ready++;
-        if (!$dryRun) {
+        if (! $dryRun) {
             $media->status = 'ready';
             $media->save();
         }
     }
 
-    $this->info('Checked: ' . $checked);
-    $this->info('Queued for regeneration: ' . $queued);
-    $this->info('Marked ready (already complete): ' . $ready);
-    $this->info('Skipped (unsupported type): ' . $skipped);
+    $this->info('Checked: '.$checked);
+    $this->info('Queued for regeneration: '.$queued);
+    $this->info('Marked ready (already complete): '.$ready);
+    $this->info('Skipped (unsupported type): '.$skipped);
     if ($dryRun) {
         $this->comment('Dry run mode: no records were modified.');
     }
@@ -175,14 +176,6 @@ Schedule::command('store:orders:send-update-digests')
 
 Schedule::command('store:products:send-low-stock-alerts')
     ->hourly()
-    ->withoutOverlapping();
-
-Schedule::command('minecraft:messages:send-failure-alerts')
-    ->everyMinute()
-    ->withoutOverlapping();
-
-Schedule::command('minecraft:player-stats:sync')
-    ->everyFourHours()
     ->withoutOverlapping();
 
 Schedule::command('payments:send-pending-bank-transfer-reminders')

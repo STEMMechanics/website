@@ -26,8 +26,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
 
@@ -48,14 +48,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->ensurePdfArtifactDirectoriesExist();
 
-        if ($this->app->environment('local')) {
-            Vite::useHotFile(storage_path('framework/vite.hot'));
+        $viteHotFile = storage_path('framework/vite.hot');
+        if ($this->shouldUseViteHotFile($viteHotFile)) {
+            Vite::useHotFile($viteHotFile);
         } else {
             // Non-local environments must never fall back into Vite hot mode, even
             // if a stale hot file was left behind by a previous deploy.
             Vite::useHotFile(storage_path('framework/vite.disabled'));
-            File::delete(public_path('hot'));
-            File::delete(storage_path('framework/vite.hot'));
+
+            if (! $this->app->environment('local')) {
+                File::delete(public_path('hot'));
+                File::delete($viteHotFile);
+            }
         }
 
         RateLimiter::for('login', function (Request $request): array {
@@ -127,7 +131,7 @@ class AppServiceProvider extends ServiceProvider
         Ticket::observe(AuditLogObserver::class);
 
         Blade::directive('includeSVG', function ($arguments) {
-            list($path, $styles) = array_pad(explode(',', str_replace(['(', ')', ' ', "'"], '', $arguments), 2), 2, '');
+            [$path, $styles] = array_pad(explode(',', str_replace(['(', ')', ' ', "'"], '', $arguments), 2), 2, '');
             $svgContent = file_get_contents(public_path($path));
 
             if ($svgContent === false) {
@@ -168,6 +172,26 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('publicShopAvailable', $shopAvailability->isPubliclyAvailable());
         });
+    }
+
+    private function shouldUseViteHotFile(string $hotFile): bool
+    {
+        if (! $this->app->environment('local') || ! File::exists($hotFile)) {
+            return false;
+        }
+
+        if ((bool) config('app.vite_hot_enabled', false)) {
+            return true;
+        }
+
+        if ($this->app->runningInConsole()) {
+            return false;
+        }
+
+        $requestHost = request()->getHost();
+
+        return in_array($requestHost, ['localhost', '127.0.0.1', '::1'], true)
+            || str_ends_with($requestHost, '.test');
     }
 
     private function ensurePdfArtifactDirectoriesExist(): void

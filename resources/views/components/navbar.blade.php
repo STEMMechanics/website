@@ -17,7 +17,6 @@
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
-        $canViewMinecraftPage = (bool) ($navUser?->canViewMinecraftPage() ?? false);
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -66,9 +65,9 @@
                     'title' => 'Workshops & Community',
                     'items' => [
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
+                    ['label' => 'STEMCraft Content', 'route' => route('admin.stemcraft-content.edit'), 'icon' => 'fa-solid fa-cubes', 'active' => ['admin.stemcraft-content.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],
                     ['label' => 'Pick Lists', 'route' => route('admin.pick-list-template.index'), 'icon' => 'fa-solid fa-list-check', 'active' => ['admin.pick-list-template.*']],
-                    ['label' => 'STEMCraft', 'route' => route('admin.stemcraft.index'), 'icon' => 'fa-solid fa-cube', 'active' => ['admin.stemcraft.*']],
                 ],
             ],
                 [
@@ -132,7 +131,6 @@
                 @endif
                 <a href="{{ route('workshop.index') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
                 <a href="{{ route('contact') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
-                <a href="{{ route('stemcraft.index') }}" class="hidden lg:block" title="STEMCraft"><img class="min-w-6 w-6 h-auto" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft"></a>
                 <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open user menu</span>
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
@@ -184,7 +182,6 @@
                     <a href="{{ route('shop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bag-shopping w-4 mr-2"></i>Store</a>
                 @endif
                 <a href="{{ route('workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
-                <a href="{{ route('stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft">STEMCraft</a>
                 <a href="{{ route('contact') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if($isAdmin)
                     <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
@@ -254,9 +251,6 @@
                 @endif
                 @if($hasMyMedia)
                     <a href="{{ route('account.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>Media</a>
-                @endif
-                @if($canViewMinecraftPage)
-                    <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
                 @endif
                 <div class="border-t border-gray-200 my-2"></div>
                 <form method="POST" action="{{ route('logout') }}">

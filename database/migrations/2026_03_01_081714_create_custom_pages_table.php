@@ -1,13 +1,12 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use App\Traits\UUID;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {
@@ -36,7 +35,7 @@ return new class extends Migration
                 'title' => 'STEMCraft',
                 'path' => '/stemcraft',
                 'aliases' => json_encode(['/minecraft']),
-                'content' => '<p>Welcome to <strong>STEMCraft</strong>, our family-friendly Minecraft space for creative play, collaborative builds, and STEM-focused challenges.</p><p>Use the links below to learn how to join, read the rules, and manage your linked account.</p><ul><li><a href="/stemcraft/join">How to Join</a></li><li><a href="/stemcraft/rules">Rules</a></li><li><a href="/stemcraft/punishments">Punishments</a></li></ul>',
+                'content' => '<p>Welcome to <strong>STEMCraft</strong>, the online extension of STEMMechanics for creative building, experimenting, and learning between workshops.</p><p>Use the links below to learn how to join, read the rules, and manage your linked account.</p><ul><li><a href="/stemcraft/join">How to Join</a></li><li><a href="/stemcraft/rules">Rules</a></li><li><a href="/stemcraft/faqs">FAQs</a></li></ul>',
                 'show_mast' => true,
                 'seo_title' => 'STEMCraft',
                 'seo_description' => 'STEMCraft is our family-friendly Minecraft space for creative play, collaborative builds, and STEM-focused challenges.',
@@ -49,7 +48,7 @@ return new class extends Migration
                 'title' => 'Join STEMCraft',
                 'path' => '/stemcraft/join',
                 'aliases' => json_encode(['/minecraft/join']),
-                'content' => '<p>Link your Minecraft account through your website account, wait for whitelist approval if needed, then connect using the server details provided by the STEMCraft team.</p><p>If you are new, contact us if you need help linking a Java or Bedrock account.</p>',
+                'content' => '<p>Link your Minecraft account through your website account, then connect using the details provided by the STEMCraft team.</p><p>If you are new, contact us if you need help linking a Java or Bedrock account.</p>',
                 'show_mast' => true,
                 'seo_title' => 'Join STEMCraft',
                 'seo_description' => 'Learn how to link your account and join the STEMCraft server.',

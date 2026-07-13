@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {
@@ -14,7 +14,6 @@ return new class extends Migration
             $table->string('platform', 20);
             $table->string('uuid', 64)->nullable()->unique();
             $table->string('username', 80);
-            $table->boolean('is_whitelisted')->default(true);
             $table->timestamp('last_login_at')->nullable();
             $table->timestamp('last_logout_at')->nullable();
             $table->timestamp('last_seen_at')->nullable();
