@@ -715,7 +715,7 @@ class StemcraftController extends Controller
                 'summary' => $this->formatPublicWorldGroupSummary(
                     (string) $group['name'],
                     count($children),
-                    (string) ($group['item_label'] ?? 'world'),
+                    (string) $group['item_label'],
                 ),
                 'children' => $children,
             ];
