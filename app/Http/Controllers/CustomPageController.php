@@ -228,7 +228,6 @@ class CustomPageController extends Controller
             ['title' => 'Join STEMCraft', 'path' => '/stemcraft/join'],
             ['title' => 'STEMCraft Rules', 'path' => '/stemcraft/rules'],
             ['title' => 'STEMCraft FAQs', 'path' => '/stemcraft/faqs'],
-            ['title' => 'STEMCraft Punishments', 'path' => '/stemcraft/punishments'],
         ]);
     }
 }

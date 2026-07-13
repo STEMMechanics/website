@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'vite_hot_enabled' => (bool) env('VITE_HOT_ENABLED', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

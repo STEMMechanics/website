@@ -21,15 +21,10 @@
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
-                <h3 class="font-bold mb-2">STEMCraft</h3>
+                <h3 class="font-bold mb-2">Programs</h3>
             </li>
-            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">Overview</a></li>
-            <li><a href="{{ route('stemcraft.join') }}" class="text-sm hover:text-primary-color">Join</a></li>
-            <li><a href="{{ route('stemcraft.rules') }}" class="text-sm hover:text-primary-color">Rules</a></li>
-            <li><a href="{{ route('stemcraft.faqs') }}" class="text-sm hover:text-primary-color">FAQs</a></li>
-            <li><a href="{{ route('stemcraft.leaderboards') }}" class="text-sm hover:text-primary-color">Leaderboards</a></li>
-            <li><a href="{{ route('stemcraft.punishments') }}" class="text-sm hover:text-primary-color">Punishments</a></li>
-            <li><a href="https://map.stemcraft.com.au/" class="text-sm hover:text-primary-color" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Server Map</a></li>
+            <li><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">Workshops</a></li>
+            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">STEMCraft</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>

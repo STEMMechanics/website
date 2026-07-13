@@ -2,8 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\ExternalBackupService;
+use App\Support\StemcraftFaqs;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\HtmlString;
 
 class SiteOption extends Model
@@ -68,7 +72,7 @@ class SiteOption extends Model
                 'description' => 'File backup mode for offsite backups. Use full to upload every selected file each run, or incremental to upload only changed/new files while still taking a full database backup.',
             ],
             'backup.remote.file-sources' => [
-                'value' => json_encode(\App\Services\ExternalBackupService::defaultFileSources(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]',
+                'value' => json_encode(ExternalBackupService::defaultFileSources(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]',
                 'description' => 'JSON array of file sources for offsite backups. Each item should define key, disk, path, and label.',
             ],
             'document.business-info' => [
@@ -160,6 +164,114 @@ class SiteOption extends Model
                 'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
                 'input_type' => 'number',
             ],
+            'stemcraft.server-status.enabled' => [
+                'value' => '0',
+                'description' => 'Enable the read-only STEMCraft server status card and internal status endpoint.',
+                'input_type' => 'boolean',
+            ],
+            'stemcraft.server-status.endpoint-url' => [
+                'value' => '',
+                'description' => 'Server-side endpoint used to fetch basic STEMCraft server status JSON.',
+            ],
+            'stemcraft.server-status.api-key' => [
+                'value' => '',
+                'description' => 'Secret API key sent server-side when requesting STEMCraft server status. This value is masked in the admin interface.',
+                'input_type' => 'secret',
+            ],
+            'stemcraft.server-status.server-address' => [
+                'value' => 'play.stemcraft.com.au',
+                'description' => 'Public server address shown to STEMCraft participants.',
+            ],
+            'stemcraft.server-status.cache-seconds' => [
+                'value' => '60',
+                'description' => 'Number of seconds to cache a successful STEMCraft server status response.',
+                'input_type' => 'number',
+            ],
+            'stemcraft.server-status.timeout-seconds' => [
+                'value' => '3',
+                'description' => 'Number of seconds before the STEMCraft server status request times out.',
+                'input_type' => 'number',
+            ],
+            'stemcraft.server-status.maintenance-message' => [
+                'value' => '',
+                'description' => 'Optional public maintenance message shown on the STEMCraft server status card.',
+            ],
+            'stemcraft.monthly-challenge.title' => [
+                'value' => 'Build your dream treehouse',
+                'description' => 'Heading shown in the monthly STEMCraft challenge section.',
+            ],
+            'stemcraft.monthly-challenge.description' => [
+                'value' => 'Create a treehouse with at least two levels and use redstone to add one moving or interactive feature.',
+                'description' => 'Main copy shown in the monthly STEMCraft challenge section. Supports basic Markdown.',
+            ],
+            'stemcraft.monthly-challenge.prompt' => [
+                'value' => 'Think about access, storage, lighting and what would make your treehouse unique.',
+                'description' => 'Short prompt shown in the monthly STEMCraft challenge callout. Supports basic Markdown.',
+            ],
+            'stemcraft.monthly-challenge.image' => [
+                'value' => '/stemcraft-technical-build.webp',
+                'description' => 'Image shown beside the monthly STEMCraft challenge. Select uploaded media or use a public path/URL.',
+                'input_type' => 'media',
+            ],
+            'stemcraft.monthly-challenge.image-alt' => [
+                'value' => 'A STEMCraft build showing a creative engineering challenge',
+                'description' => 'Accessible alt text for the monthly challenge image.',
+            ],
+            'stemcraft.community-builds.1.title' => [
+                'value' => 'Castle Build',
+                'description' => 'Title for the first STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.1.description' => [
+                'value' => 'A detailed medieval castle designed with towers, bridges and spaces to explore.',
+                'description' => 'Description for the first STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.1.image' => [
+                'value' => '/stemcraft-calm-build.webp',
+                'description' => 'Image for the first STEMCraft community build card. Select uploaded media or use a public path/URL.',
+                'input_type' => 'media',
+            ],
+            'stemcraft.community-builds.1.image-alt' => [
+                'value' => 'A detailed castle-style build in STEMCraft',
+                'description' => 'Accessible alt text for the first STEMCraft community build image.',
+            ],
+            'stemcraft.community-builds.2.title' => [
+                'value' => 'Creative City',
+                'description' => 'Title for the second STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.2.description' => [
+                'value' => 'A growing shared city filled with streets, homes, public spaces and imaginative details.',
+                'description' => 'Description for the second STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.2.image' => [
+                'value' => '/community-minecraft.webp',
+                'description' => 'Image for the second STEMCraft community build card. Select uploaded media or use a public path/URL.',
+                'input_type' => 'media',
+            ],
+            'stemcraft.community-builds.2.image-alt' => [
+                'value' => 'A creative city build made by STEMCraft participants',
+                'description' => 'Accessible alt text for the second STEMCraft community build image.',
+            ],
+            'stemcraft.community-builds.3.title' => [
+                'value' => 'Working Machine',
+                'description' => 'Title for the third STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.3.description' => [
+                'value' => 'A redstone-powered creation that combines engineering, experimentation and problem-solving.',
+                'description' => 'Description for the third STEMCraft community build card.',
+            ],
+            'stemcraft.community-builds.3.image' => [
+                'value' => '/stemcraft-workshop-map.webp',
+                'description' => 'Image for the third STEMCraft community build card. Select uploaded media or use a public path/URL.',
+                'input_type' => 'media',
+            ],
+            'stemcraft.community-builds.3.image-alt' => [
+                'value' => 'A working STEMCraft mechanism and build area',
+                'description' => 'Accessible alt text for the third STEMCraft community build image.',
+            ],
+            StemcraftFaqs::OPTION => [
+                'value' => StemcraftFaqs::defaultJson(),
+                'description' => 'Ordered STEMCraft FAQ items. Managed through the dedicated STEMCraft Content admin screen.',
+            ],
             'moderation.content-filter.enabled' => [
                 'value' => '1',
                 'description' => 'Master switch for configurable content filtering.',
@@ -205,23 +317,6 @@ class SiteOption extends Model
                 'description' => 'Maximum allowed run of the same repeated word before content is blocked.',
                 'input_type' => 'number',
             ],
-            'minecraft.server-webhook-url' => [
-                'value' => '',
-                'description' => 'Outbound webhook URL used to sync STEMCraft whitelist and punishment changes to the server plugin. Example: http://play.example.com:8125/stemcraft/webhook. Prefer a private/internal HTTP address when Laravel can reach the plugin directly on the same host or network.',
-            ],
-            'minecraft.webhook-secret' => [
-                'value' => '',
-                'description' => 'Shared secret used to sign outbound STEMCraft sync requests and verify inbound server webhook calls. Use a long random value, for example from `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`.',
-            ],
-            'minecraft.message-failure-notification-delay-minutes' => [
-                'value' => '20',
-                'description' => 'Quiet period in minutes before blocked Minecraft messages are grouped into an admin email alert.',
-                'input_type' => 'number',
-            ],
-            'minecraft.public-status-arena-groups' => [
-                'value' => 'bridge, parkour, bedwars',
-                'description' => 'Comma-separated STEMCraft public-status world group prefixes that should be labelled as arenas instead of worlds. Prefix matching normalizes spaces, hyphens, and underscores.',
-            ],
         ];
     }
 
@@ -243,6 +338,32 @@ class SiteOption extends Model
     public static function inputType(string $name): string
     {
         return static::defaultDefinitions()[$name]['input_type'] ?? 'textarea';
+    }
+
+    public static function isSecret(string $name): bool
+    {
+        return static::inputType($name) === 'secret';
+    }
+
+    public static function encryptSecretValue(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? '' : Crypt::encryptString($value);
+    }
+
+    public static function decryptSecretValue(?string $value): string
+    {
+        $value = (string) ($value ?? '');
+        if ($value === '') {
+            return '';
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (DecryptException) {
+            return $value;
+        }
     }
 
     public static function resetToDefault(string $name): ?self
@@ -300,9 +421,39 @@ class SiteOption extends Model
         return $value ?? $default;
     }
 
+    public static function secretValue(string $name, ?string $default = null): ?string
+    {
+        $value = static::value($name, $default);
+
+        return static::decryptSecretValue($value);
+    }
+
     public static function valueToHtml(string $name, ?string $default = null): HtmlString
     {
         return new HtmlString(nl2br(e((string) static::value($name, $default))));
+    }
+
+    public static function mediaUrl(string $name, ?string $default = null, string $variant = 'md'): string
+    {
+        $value = trim((string) (static::value($name, static::defaultValue($name) ?? $default) ?? $default ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $value) === 1) {
+            return $value;
+        }
+
+        if (str_starts_with($value, '/')) {
+            return asset(ltrim($value, '/'));
+        }
+
+        $media = Media::query()->find($value);
+        if ($media instanceof Media) {
+            return $media->url($variant);
+        }
+
+        return asset(ltrim($value, '/'));
     }
 
     public static function booleanValue(string $name, bool $default = false): bool

@@ -161,11 +161,11 @@
                 </svg>
             </div>
 
-            <p class="text-sm font-semibold uppercase tracking-[0.22em] text-amber-100">Minecraft</p>
-            <h2 class="my-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl flex items-center gap-2"><img src="{{ asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12 shrink-0" />Play on STEMCraft.</h2>
+            <p class="text-sm font-semibold uppercase tracking-[0.22em] text-amber-100">STEMCraft</p>
+            <h2 class="my-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl flex items-center gap-2"><img src="{{ asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12 shrink-0" />Keep building between workshops.</h2>
             <div class="min-w-0">
-                <p class="max-w-none text-base leading-7 text-amber-50">STEMCraft is our Minecraft space for collaborative builds, weekly challenges, and family-friendly play. Start with the <a href="{{ route('stemcraft.join') }}" class="link text-amber-500! hover:text-white">join guide</a>, read the <a href="{{ route('stemcraft.rules') }}" class="link text-amber-500! hover:text-white">rules</a>, or browse the <a href="{{ route('stemcraft.punishments') }}" class="link text-amber-500! hover:text-white">public punishments log</a>.</p>
-                <p class="mt-4 max-w-none text-base leading-7 text-amber-50">We also run workshops on the server, both online and offline, where players experiment, build together, and learn playful mechanics beyond vanilla Minecraft.</p>
+                <p class="max-w-none text-base leading-7 text-amber-50">STEMCraft is the online extension of STEMMechanics, giving young makers a place to continue creative building between workshops. Start with the <a href="{{ route('stemcraft.join') }}" class="link text-amber-500! hover:text-white">join guide</a>, read the <a href="{{ route('stemcraft.rules') }}" class="link text-amber-500! hover:text-white">community expectations</a>, or browse the <a href="{{ route('stemcraft.faqs') }}" class="link text-amber-500! hover:text-white">FAQs</a>.</p>
+                <p class="mt-4 max-w-none text-base leading-7 text-amber-50">Participants can experiment, create and keep learning with support from the STEMMechanics team.</p>
             </div>
 
             <div class="flex flex-col items-center mt-3">

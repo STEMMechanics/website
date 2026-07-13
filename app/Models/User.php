@@ -13,7 +13,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -297,14 +296,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(StoreOrder::class);
     }
 
-    /**
-     * @return HasMany<MinecraftAccount, $this>
-     */
-    public function minecraftAccounts(): HasMany
-    {
-        return $this->hasMany(MinecraftAccount::class);
-    }
-
     public function media(): HasMany
     {
         return $this->hasMany(Media::class);
@@ -399,36 +390,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function canPurchaseOrBook(): bool
     {
         return $this->isFullAccount();
-    }
-
-    public function hasMinecraftAccess(): bool
-    {
-        return $this->hasGroup('minecraft');
-    }
-
-    public function hasLinkedMinecraftAccounts(): bool
-    {
-        return $this->minecraftAccounts()->exists();
-    }
-
-    public function canViewMinecraftPage(): bool
-    {
-        return $this->hasMinecraftAccess() || $this->hasLinkedMinecraftAccounts();
-    }
-
-    public function canManageMinecraftAccounts(): bool
-    {
-        return true;
-    }
-
-    public function canCreateMinecraftAccounts(): bool
-    {
-        return $this->hasMinecraftAccess() || $this->hasGroup('admin') || $this->hasGroup('minecraft-org');
-    }
-
-    public function canAccessMinecraftPage(): bool
-    {
-        return $this->canManageMinecraftAccounts() || $this->canViewMinecraftPage();
     }
 
     /**

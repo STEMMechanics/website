@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\AdminStemcraftContentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\CairnsMinecraftController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\EmailSubscriptionController;
@@ -14,8 +16,6 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
-use App\Http\Controllers\MinecraftController;
-use App\Http\Controllers\MinecraftWebhookController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PickListTemplateController;
 use App\Http\Controllers\PostController;
@@ -24,19 +24,19 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\ShopAdminOrderController;
 use App\Http\Controllers\ShopController;
-use App\Http\Controllers\ShopProductCategoryController;
 use App\Http\Controllers\ShopCouponController;
+use App\Http\Controllers\ShopProductCategoryController;
 use App\Http\Controllers\ShopProductController;
 use App\Http\Controllers\ShopSettingsController;
-use App\Http\Controllers\SmsFlowWebhookController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteOptionController;
+use App\Http\Controllers\SmsFlowWebhookController;
 use App\Http\Controllers\SquareWebhookController;
 use App\Http\Controllers\StemcraftController;
+use App\Http\Controllers\StemcraftStatusController;
 use App\Http\Controllers\StoreOrderController;
 use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\TaxAdjustmentController;
-use App\Http\Controllers\CairnsMinecraftController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
@@ -100,8 +100,10 @@ Route::get('/stemcraft', [StemcraftController::class, 'index'])->name('stemcraft
 Route::get('/stemcraft/join', [StemcraftController::class, 'join'])->name('stemcraft.join');
 Route::get('/stemcraft/rules', [StemcraftController::class, 'rules'])->name('stemcraft.rules');
 Route::get('/stemcraft/faqs', [StemcraftController::class, 'faqs'])->name('stemcraft.faqs');
-Route::get('/stemcraft/leaderboards', [StemcraftController::class, 'stats'])->name('stemcraft.leaderboards');
-Route::get('/stemcraft/punishments', [StemcraftController::class, 'punishments'])->name('stemcraft.punishments');
+Route::get('/api/stemcraft/status', [StemcraftStatusController::class, 'show'])->name('api.stemcraft.status');
+Route::redirect('/stemcraft/leaderboards', '/stemcraft', 301)->name('stemcraft.leaderboards');
+Route::redirect('/stemcraft/punishments', '/stemcraft', 301)->name('stemcraft.punishments');
+Route::redirect('/account/stemcraft', '/stemcraft/join', 301);
 Route::get('/cairns-minecraft', [CairnsMinecraftController::class, 'index'])->name('cairns.minecraft');
 Route::match(['GET', 'POST'], 'unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
 Route::get('/tickets', [TicketController::class, 'showRequest'])->name('tickets.request');
@@ -123,11 +125,9 @@ Route::get('/invoices/{invoice}/receipts/{payment}/pdf', [InvoiceController::cla
 Route::get('/pay/{invoice}', [InvoiceController::class, 'publicPayShow'])->name('invoice.public.pay.show');
 Route::post('/pay/{invoice}', [InvoiceController::class, 'publicPayProcess'])->middleware('throttle:invoice-public')->name('invoice.public.pay.process');
 Route::post('/pay/{invoice}/email-documents', [InvoiceController::class, 'publicEmailDocuments'])->middleware('throttle:invoice-public')->name('invoice.public.email-documents');
-    Route::post('/webhooks/square', [SquareWebhookController::class, 'handle'])->name('webhook.square');
-    Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.stemcraft.server');
-    Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
-    Route::post('/webhooks/smsflow', [SmsFlowWebhookController::class, 'handle'])->name('webhook.smsflow');
-    Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
+Route::post('/webhooks/square', [SquareWebhookController::class, 'handle'])->name('webhook.square');
+Route::post('/webhooks/smsflow', [SmsFlowWebhookController::class, 'handle'])->name('webhook.smsflow');
+Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
 Route::middleware('auth')->group(function () {
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
@@ -139,8 +139,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
-    Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
-
     Route::middleware('full-account')->group(function () {
         Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
         Route::get('/account/invoices/{invoice}', [InvoiceController::class, 'accountShow'])->name('account.invoice.show');
@@ -165,8 +163,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/account/orders/{storeOrder}', [StoreOrderController::class, 'accountShow'])->name('account.order.show');
         Route::post('/account/orders/{storeOrder}/pay', [StoreOrderController::class, 'accountPay'])->name('account.order.pay');
         Route::get('/account/orders/{storeOrder}/downloads/{storeOrderItemDownload}', [StoreOrderController::class, 'accountDownload'])->name('account.order.download');
-        Route::post('/account/stemcraft/accounts', [MinecraftController::class, 'accountStore'])->name('account.stemcraft.store');
-        Route::delete('/account/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'accountDestroy'])->name('account.stemcraft.destroy');
     });
     Route::get('/account/2fa', [AccountController::class, 'show_tfa'])->name('account.show.tfa');
     Route::get('/account/2fa/image', [AccountController::class, 'show_tfa_image'])->name('account.show.tfa.image');
@@ -245,24 +241,6 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/users/{user}/payments', [UserController::class, 'payments'])->name('admin.user.payments');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
-    Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
-    Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
-    Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');
-    Route::get('/admin/stemcraft/messages/snapshot', [MinecraftController::class, 'adminMessagesSnapshot'])->name('admin.stemcraft.messages.snapshot');
-    Route::get('/admin/stemcraft/webhook-logs', [MinecraftController::class, 'adminWebhooksIndex'])->name('admin.stemcraft.webhook-logs.index');
-    Route::get('/admin/stemcraft/webhook-logs/snapshot', [MinecraftController::class, 'adminWebhooksSnapshot'])->name('admin.stemcraft.webhook-logs.snapshot');
-    Route::get('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementIndex'])->name('admin.stemcraft.management.index');
-    Route::get('/admin/stemcraft/management/snapshot', [MinecraftController::class, 'adminManagementSnapshot'])->name('admin.stemcraft.management.snapshot');
-    Route::post('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementExecute'])->name('admin.stemcraft.management.execute');
-    Route::get('/admin/stemcraft/accounts/create', [MinecraftController::class, 'adminCreate'])->name('admin.stemcraft.create');
-    Route::post('/admin/stemcraft/accounts', [MinecraftController::class, 'adminStore'])->name('admin.stemcraft.store');
-    Route::get('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminEdit'])->name('admin.stemcraft.edit');
-    Route::put('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminUpdate'])->name('admin.stemcraft.update');
-    Route::post('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentStore'])->name('admin.stemcraft.punishments.store');
-    Route::delete('/admin/stemcraft/punishments/{minecraftPenalty}', [MinecraftController::class, 'adminPunishmentLift'])->name('admin.stemcraft.punishments.destroy');
-    Route::post('/admin/stemcraft/webhook-logs/{minecraftWebhookLog}/retry', [MinecraftController::class, 'adminWebhookRetry'])->name('admin.stemcraft.webhook-logs.retry');
-    Route::post('/admin/stemcraft/blacklist', [MinecraftController::class, 'adminBlacklistStore'])->name('admin.stemcraft.blacklist.store');
-    Route::delete('/admin/stemcraft/blacklist/{minecraftBlacklistEntry}', [MinecraftController::class, 'adminBlacklistLift'])->name('admin.stemcraft.blacklist.destroy');
 
     Route::get('/admin/subscriptions', [EmailSubscriptionController::class, 'index'])->name('admin.subscription.index');
     Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
@@ -284,7 +262,6 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
-    Route::post('/admin/server/options/{siteOption}/generate-secret', [SiteOptionController::class, 'generateSecret'])->name('admin.site_option.generate-secret');
     Route::get('/admin/pages', [CustomPageController::class, 'adminIndex'])->name('admin.custom-page.index');
     Route::get('/admin/pages/create', [CustomPageController::class, 'adminCreate'])->name('admin.custom-page.create');
     Route::post('/admin/pages', [CustomPageController::class, 'adminStore'])->name('admin.custom-page.store');
@@ -359,6 +336,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'show'])->name('admin.workshop.pick-list');
     Route::post('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'save'])->name('admin.workshop.pick-list.save');
     Route::get('/admin/workshops/{workshop}/pick-list/pdf', [WorkshopPickListController::class, 'pdf'])->name('admin.workshop.pick-list.pdf');
+    Route::get('/admin/stemcraft/content', [AdminStemcraftContentController::class, 'edit'])->name('admin.stemcraft-content.edit');
+    Route::put('/admin/stemcraft/content', [AdminStemcraftContentController::class, 'update'])->name('admin.stemcraft-content.update');
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex'])->name('admin.ticket.index');
     Route::post('/admin/tickets/cancel/bulk', [TicketController::class, 'adminBulkCancel'])->name('admin.ticket.cancel.bulk');
     Route::post('/admin/tickets/{ticket}/cancel', [TicketController::class, 'adminCancel'])->name('admin.ticket.cancel');

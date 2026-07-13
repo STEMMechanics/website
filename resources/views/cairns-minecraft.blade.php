@@ -21,7 +21,7 @@
                     Cairns Minecraft closed in May 2022. It was a place for Minecrafters from Far North Queensland to get together, create, share and compete.
                 </p>
                 <p>
-                    Cairns Minecraft was developed to stimulate ideas and discussion with young people about urban design; architecture; public art and space. The initial creative server was launched at the 2016 Cairns Children’s Festival and had over 700 members on the server whitelist.
+                    Cairns Minecraft was developed to stimulate ideas and discussion with young people about urban design; architecture; public art and space. The initial creative server was launched at the 2016 Cairns Children’s Festival and had over 700 registered members.
                 </p>
                 <p>
                     STEMCraft started in July 2023, and many players moved across to the new server. Workshops, builds, and community activity continued there, giving the same group a place to keep learning, creating, and connecting after Cairns Minecraft closed.

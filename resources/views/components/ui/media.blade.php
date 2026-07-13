@@ -363,7 +363,14 @@
         @endif
 
         const currentValue = @js((string) $selectedValue);
-        if (currentValue !== '') {
+        if (currentValue !== '' && (/^https?:\/\//i.test(currentValue) || currentValue.startsWith('/'))) {
+            setMediaPreviewSource(@js($name), currentValue);
+            const nameEl = document.getElementById(@js($nameId));
+            if (nameEl) {
+                nameEl.textContent = currentValue;
+            }
+            syncMediaClearButton(@js($name));
+        } else if (currentValue !== '') {
             updateMedia(@js($name), currentValue);
         } else {
             syncMediaClearButton(@js($name));

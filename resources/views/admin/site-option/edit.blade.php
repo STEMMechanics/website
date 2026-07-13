@@ -36,6 +36,23 @@
                     value="{{ $siteOption->value ?? '' }}"
                     info="Numeric value for this option."
                 />
+            @elseif($inputType === 'secret')
+                <x-ui.input
+                    type="password"
+                    label="Value"
+                    name="value"
+                    value=""
+                    autocomplete="new-password"
+                    info="{{ isset($siteOption) ? 'Secret values are not displayed. Leave blank to keep the stored value, or enter a new value to replace it.' : 'Secret values are stored but not displayed after saving.' }}"
+                />
+            @elseif($inputType === 'media')
+                <x-ui.media
+                    label="Value"
+                    name="value"
+                    value="{{ $siteOption->value ?? '' }}"
+                    allow_uploads="true"
+                    info="Select or upload an image. Existing public paths and full URLs can still be entered from the Site Options table."
+                />
             @else
                 <x-ui.input
                     type="textarea"
@@ -48,16 +65,6 @@
             @endif
 
             <div class="flex justify-end mt-8 gap-4">
-                @if(isset($siteOption) && (string) $siteOption->name === 'minecraft.webhook-secret')
-                    <x-ui.button
-                        type="submit"
-                        color="outline"
-                        formaction="{{ route('admin.site_option.generate-secret', $siteOption) }}"
-                        formmethod="POST"
-                    >
-                        Generate New Secret
-                    </x-ui.button>
-                @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </div>
         </form>
