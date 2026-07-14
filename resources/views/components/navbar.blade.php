@@ -65,6 +65,7 @@
                     'title' => 'Workshops & Community',
                     'items' => [
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
+                    ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],
                     ['label' => 'STEMCraft Content', 'route' => route('admin.stemcraft-content.edit'), 'icon' => 'fa-solid fa-cubes', 'active' => ['admin.stemcraft-content.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],
                     ['label' => 'Pick Lists', 'route' => route('admin.pick-list-template.index'), 'icon' => 'fa-solid fa-list-check', 'active' => ['admin.pick-list-template.*']],

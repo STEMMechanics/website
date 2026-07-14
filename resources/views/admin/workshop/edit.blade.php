@@ -61,6 +61,9 @@ $earlyBirdSectionOpen = $errors->hasAny(['early_bird_price', 'early_bird_ends_at
     || trim((string) $earlyBirdPriceValue) !== ''
     || trim((string) $earlyBirdEndsAtValue) !== ''
     || trim((string) $earlyBirdTicketLimitValue) !== '';
+$selectedCategoryIds = collect(old('category_ids', $workshopModel?->categories?->pluck('id')->all() ?? []))
+    ->map(fn ($id) => (string) $id)
+    ->all();
 if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], true)) {
     if ($maxTicketsTotal !== null) {
         if ($soldTicketCount >= $maxTicketsTotal) {
@@ -547,6 +550,38 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                 </div>
                 <div class="mb-4">
                     <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
+                </div>
+                <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">Optional public workshop filters. A workshop can have more than one category.</p>
+                        </div>
+                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
+                    </div>
+
+                    @if(($workshopCategories ?? collect())->isEmpty())
+                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
+                    @else
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach($workshopCategories as $category)
+                                <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                    <x-ui.checkbox
+                                        name="category_ids[]"
+                                        value="{{ $category->id }}"
+                                        :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
+                                        label="{{ $category->name }}"
+                                        label-hidden
+                                        no-wrapper
+                                    />
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="font-medium">{{ $category->name }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">

@@ -99,6 +99,16 @@
         <x-ui.image-hero :image="$workshop->hero?->url" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
             <div class="flex flex-col flex-1">
+                @if($workshop->relationLoaded('categories') && $workshop->categories->isNotEmpty())
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @foreach($workshop->categories as $category)
+                            <a href="{{ route('workshop.index', ['category' => $category->slug]) }}" class="inline-flex items-center gap-1.5 rounded-full bg-primary-color-light/20 px-3 py-1 text-xs font-semibold text-primary-color-dark transition hover:bg-primary-color-light/40 hover:text-primary-color">
+                                <i class="{{ $category->iconClass() }}"></i>
+                                {{ $category->name }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
                 <article class="content my-4">{!! $workshopContent !!}</article>
                 <x-ui.filelist class="mt-16" value="{!! $workshop->files()->orderBy('name')->get() !!}" />
             </div>

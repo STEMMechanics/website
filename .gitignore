@@ -264,3 +264,4 @@ phpcbf.phar
 ### Deployment ###
 /deploy.sh
 /docs/
+/storage/framework/vite.hot
