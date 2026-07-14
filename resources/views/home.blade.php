@@ -30,7 +30,7 @@
     </style>
     <section id="banner" class="relative isolate overflow-hidden bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.72),rgba(0,0,0,.18)),url({{asset('home-hero.webp')}})">
         <x-container class="py-24 sm:py-28 lg:py-32 relative">
-            <div class="absolute right-4 bottom-4 rounded-full bg-black/65 px-3 py-1 text-xs text-white shadow-lg">Steady Hand Game in Ravenshoe</div>
+            <div class="z-10 absolute right-4 bottom-4 rounded-full bg-black/65 px-3 py-1 text-xs text-white shadow-lg">Steady Hand Game in Ravenshoe</div>
             <div class="relative max-w-4xl">
                 <div class="absolute -left-4 top-4 -z-10 h-72 w-[20rem] rounded-[52%_48%_58%_42%/43%_55%_45%_57%] bg-amber-300/16 blur-3xl sm:-left-10 sm:h-120 sm:w-120"></div>
                 <div class="relative inline-block w-full max-w-3xl min-h-88 sm:min-h-96 lg:min-h-104">
@@ -50,7 +50,7 @@
         <x-container class="relative py-16">
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <h2 class="-ml-2 text-xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
-                <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start">View all workshops</x-ui.button>
+                <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start hidden sm:block">View all workshops</x-ui.button>
             </div>
             @if($workshops->isEmpty())
                 <x-on-holiday />
@@ -61,6 +61,16 @@
                     @endforeach
                 </div>
             @endif
+
+            <div class="sm:hidden text-center">
+                <a
+                        href="{{ route('workshop.index') }}"
+                        class="mt-4 ml-2 inline-flex items-center gap-2 font-semibold text-primary-color transition"
+                >
+                    View all workshops
+                    <i class="fa-solid fa-arrow-right text-sm" aria-hidden="true"></i>
+                </a>
+            </div>
 
             <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
                 <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
@@ -92,7 +102,7 @@
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Tell us what you are looking for and we can shape the session around your group, from hands-on creative tech to STEM activities that are practical, engaging, and easy to run.</p>
                     </div>
 
-                    <div class="mt-8 mx-auto">
+                    <div class="mt-8 mx-auto flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
                         <x-ui.button href="{{ route('contact') }}" class="font-normal py-4" color="rose">Enquire about a workshop</x-ui.button>
                     </div>
                 </div>
@@ -141,7 +151,7 @@
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">We keep the pace friendly and hands-on, with room for curiosity, teamwork, and the kind of experimentation that helps ideas stick. That usually means plenty of trying, tweaking, and celebrating the small wins along the way.</p>
                     </div>
 
-                    <div class="mt-8 mx-auto">
+                    <div class="mt-8 mx-auto flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
                         <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal py-4">Explore Workshops</x-ui.button>
                     </div>
                 </div>
