@@ -35,15 +35,13 @@
                 <h3 class="font-bold mb-2">Workshops</h3>
             </li>
             <li class="mb-3"><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">All Workshops</a></li>
-            @forelse($footerWorkshopCategories as $category)
+            @for($footerWorkshopCategories as $category)
                 <li>
                     <a href="{{ route('workshop.index', ['category' => $category->slug]) }}" class="inline-flex items-center justify-center gap-1.5 text-sm hover:text-primary-color md:justify-start">
                         {{ $category->name }}
                     </a>
                 </li>
-            @empty
-                <li><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">All Workshops</a></li>
-            @endforelse
+            @endfor
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
