@@ -1,4 +1,4 @@
-@props(['innerClass' => '', 'selectClass' => '', 'name' => null, 'label', 'value' => '', 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'noLabel' => false, 'inlineLabel' => false])
+@props(['innerClass' => '', 'selectClass' => '', 'labelClass' => '', 'name' => null, 'label', 'value' => '', 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'noLabel' => false, 'inlineLabel' => false])
 
 @php
     $name = is_string($name) ? trim($name) : $name;
@@ -16,11 +16,11 @@
 <div class="{{ twMerge(['mb-4'], $inlineLabel ? ['flex', 'items-center'] : '', $attributes->get('class')) }} {{ $attributes->only('x-show') }}">
     @if(!$noLabel && !$inlineLabel)
         <div class="flex items-center justify-between mb-1">
-                <label @if($name !== null && $name !== '') for="{{ $name }}" @endif class="block text-sm pl-1">{{ $label }}</label>
+                <label @if($name !== null && $name !== '') for="{{ $name }}" @endif class="{{ twMerge('block text-sm pl-1', $labelClass) }}">{{ $label }}</label>
                 <div class="text-xs text-gray-500">{{ $labelRight ?? '' }}</div>
         </div>
     @elseif($inlineLabel)
-        <label @if($name !== null && $name !== '') for="{{ $name }}" @endif class="inline-block text-sm mr-3">{{ $label }}</label>
+        <label @if($name !== null && $name !== '') for="{{ $name }}" @endif class="{{ twMerge('inline-block text-sm mr-3', $labelClass) }}">{{ $label }}</label>
     @endif
     <div class="{{ twMerge(['relative'], $inlineLabel ? 'inline-block flex-1' : '', $innerClass) }}">
         <select class="{{ twMerge(['pt-2.5'], $classes, $selectClass) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['x-show','style']) }}>

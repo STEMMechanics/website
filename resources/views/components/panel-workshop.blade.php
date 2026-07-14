@@ -27,7 +27,7 @@
 
 <a href="{{ route('workshop.show', $workshop) }}" class="relative overflow-hidden p-0.5 hover:scale-[101%] transition-all">
     <div class="flex flex-col bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all {{ $attributes->get('class') }}">
-        <div class="shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white {{ $cardStartLabel === 'Anytime' ? 'w-auto min-w-20' : 'w-14' }}">
+        <div class="z-10 shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white {{ $cardStartLabel === 'Anytime' ? 'w-auto min-w-20' : 'w-14' }}">
             @if($cardStartLabel === 'Anytime')
                 <div class="text-gray-600 text-sm font-bold leading-none whitespace-nowrap">Anytime</div>
             @else
@@ -35,8 +35,22 @@
                 <div class="text-gray-600 text-xs uppercase">{{ $workshop->effectiveStartsAt()?->format('M') ?? $workshop->starts_at?->format('M') }}</div>
             @endif
         </div>
-        <div class="shadow-lg border border-white/50 absolute flex items-center justify-center top-5 -right-9 bg-gray-500 w-36 text-sm text-white font-bold uppercase py-1 rotate-45 h-8 sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
-        <img src="{{ $workshop->hero?->url }}?md" alt="{{ $workshop->title }}" class="w-full h-64 object-cover object-center">
+        <div class="z-10 shadow-lg border border-white/50 absolute flex items-center justify-center top-5 -right-9 bg-gray-500 w-36 text-sm text-white font-bold uppercase py-1 rotate-45 h-8 sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
+        <div class="relative z-5">
+            <img src="{{ $workshop->hero?->url }}?md" alt="{{ $workshop->title }}" class="w-full h-64 object-cover object-center">
+            @if($workshop->relationLoaded('categories') && $workshop->categories->isNotEmpty())
+                <div class="absolute bottom-0 right-0">
+                    <div class="mb-2 mr-2 flex flex-wrap gap-1.5">
+                        @foreach($workshop->categories as $category)
+                            <span class="inline-flex items-center gap-1 rounded-full border border-gray-400 bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600">
+                                    <i class="{{ $category->iconClass() }}"></i>
+                                    {{ $category->name }}
+                                </span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
         <div class="grow p-4 flex flex-col">
             <h2 class="grow {{ strlen($workshop->title) > 25 ? 'text-lg' : 'text-xl' }} font-bold mb-2 whitespace-nowrap overflow-hidden text-ellipsis">{{ $workshop->title }}</h2>
             <div class="text-gray-600 text-sm mb-1 flex gap-2">

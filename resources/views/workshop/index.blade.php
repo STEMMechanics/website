@@ -3,6 +3,7 @@
     $view = (string) ($selectedView ?? 'cards');
     $isCalendarView = $view === 'calendar';
     $monthLabel = (string) ($currentMonthLabel ?? now()->format('F Y'));
+    $selectedCategorySlug = (string) ($selectedCategorySlug ?? '');
 @endphp
 
 @push('head')
@@ -19,27 +20,51 @@
     <x-mast title="Workshops" :tabs="$tabs" />
     <section class="bg-gray-100">
         <x-container class="pt-4">
-            <div class="flex items-center justify-end gap-2">
-                <x-ui.button
-                    href="{{ $toggleViewRoute }}"
-                    color="outline"
-                    class="px-3 rounded-full"
-                    title="{{ $toggleViewTitle }}"
-                    aria-label="{{ $toggleViewTitle }}"
-                >
-                    <i class="{{ $toggleViewIcon }}"></i>
-                    <span class="sr-only">{{ $toggleViewTitle }}</span>
-                </x-ui.button>
-                <x-ui.button
-                    href="{{ route('workshop.feed') }}"
-                    color="outline"
-                    class="px-3 rounded-full"
-                    title="RSS feed"
-                    aria-label="RSS feed"
-                >
-                    <i class="fa-solid fa-rss"></i>
-                    <span class="sr-only">RSS feed</span>
-                </x-ui.button>
+            <div class="flex gap-3 justify-between">
+                @if(! $isCalendarView && ($workshopCategories ?? collect())->isNotEmpty())
+                    <form method="GET" action="{{ $isPast ? route('workshop.past.index') : route('workshop.index') }}" class="flex items-center gap-2">
+                        <input type="hidden" name="view" value="cards">
+                        <x-ui.select
+                            id="workshop-category-filter"
+                            label="Category"
+                            name="category"
+                            class="mb-0 w-64"
+                            label-class="hidden sm:inline-block"
+                            inline-label
+                            onchange="this.form.submit()"
+                        >
+                            <option value="">All workshops</option>
+                            @foreach($workshopCategories as $category)
+                                <option value="{{ $category->slug }}" @selected($selectedCategorySlug === (string) $category->slug)>{{ $category->name }}</option>
+                            @endforeach
+                        </x-ui.select>
+                    </form>
+                @else
+                    <div></div>
+                @endif
+
+                <div class="flex items-center justify-end gap-2">
+                    <x-ui.button
+                        href="{{ $toggleViewRoute }}"
+                        color="outline"
+                        class="px-3"
+                        title="{{ $toggleViewTitle }}"
+                        aria-label="{{ $toggleViewTitle }}"
+                    >
+                        <i class="{{ $toggleViewIcon }}"></i>
+                        <span class="sr-only">{{ $toggleViewTitle }}</span>
+                    </x-ui.button>
+                    <x-ui.button
+                        href="{{ route('workshop.feed') }}"
+                        color="outline"
+                        class="px-3"
+                        title="RSS feed"
+                        aria-label="RSS feed"
+                    >
+                        <i class="fa-solid fa-rss"></i>
+                        <span class="sr-only">RSS feed</span>
+                    </x-ui.button>
+                </div>
             </div>
         </x-container>
         @if($isCalendarView)
@@ -181,7 +206,15 @@
         @else
             @if($workshops->isEmpty())
                 <x-container class="mt-8">
-                    <x-none-found item="workshops" />
+                    @if($selectedCategory ?? null)
+                        <div class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+                            <p class="text-lg font-semibold text-gray-900">No {{ $selectedCategory->name }} workshops found.</p>
+                            <p class="mt-1 text-sm text-gray-500">Try another category or view all workshops.</p>
+                            <x-ui.button href="{{ $isPast ? route('workshop.past.index') : route('workshop.index') }}" class="mt-4">View all workshops</x-ui.button>
+                        </div>
+                    @else
+                        <x-none-found item="workshops" />
+                    @endif
                 </x-container>
             @else
                 <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">

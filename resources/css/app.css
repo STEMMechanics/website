@@ -1376,7 +1376,7 @@ table tr.highlight-row {
 }
 
 .sm-banner-soon {
-    @apply bg-purple-600;
+    @apply bg-purple-600 text-xs;
 }
 
 .sm-banner-private {

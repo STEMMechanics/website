@@ -1,3 +1,10 @@
+@php
+    $footerWorkshopCategories = \App\Models\WorkshopCategory::query()
+        ->where('hide_in_footer', false)
+        ->orderBy('name')
+        ->get();
+@endphp
+
 <footer class="flex flex-col bg-gray-950 text-gray-400 px-4 py-8 sm:px-12 sm:py-16 mt-12 relative">
     <div class="absolute -top-4 left-0 w-full overflow-hidden leading-none">
         <svg viewBox="0 0 1440 120" class="block w-full h-4" preserveAspectRatio="none">
@@ -7,12 +14,13 @@
             />
         </svg>
     </div>
-    <section class="grid gap-8 mb-12 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+    <section class="grid gap-8 mb-12 md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
         <div class="text-center md:text-left text-sm self-center md:pr-8">STEMMechanics Australia acknowledges the Traditional Owners of Country throughout Australia and the continuing connection to land, cultures and communities. We pay our respect to Aboriginal and Torres Strait Islander cultures; and to Elders both past, present and emerging.</div>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
+            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">STEMCraft</a></li>
             <li><a href="https://git.stemmechanics.com.au/" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Gitea</a></li>
             <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li> -->
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
@@ -21,10 +29,18 @@
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
-                <h3 class="font-bold mb-2">Programs</h3>
+                <h3 class="font-bold mb-2">Workshops</h3>
             </li>
-            <li><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">Workshops</a></li>
-            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">STEMCraft</a></li>
+            <li><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">All Workshops</a></li>
+            @forelse($footerWorkshopCategories as $category)
+                <li>
+                    <a href="{{ route('workshop.index', ['category' => $category->slug]) }}" class="inline-flex items-center justify-center gap-1.5 text-sm hover:text-primary-color md:justify-start">
+                        {{ $category->name }}
+                    </a>
+                </li>
+            @empty
+                <li><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">All Workshops</a></li>
+            @endforelse
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
