@@ -14,12 +14,12 @@
             />
         </svg>
     </div>
-    <section class="grid gap-8 mb-12 md:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
-        <div class="text-center md:text-left text-sm self-center md:pr-8 flex flex-col gap-3">
+    <section class="grid gap-8 mb-12 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
+        <div class="text-center lg:text-left text-sm self-center lg:pr-8 flex flex-col gap-3 sm:col-span-3 lg:col-span-1">
             <p class="font-semibold">Build • Experiment • Create.</p>
             <p>STEMMechanics delivers hands-on STEM experiences that inspire curiosity through engineering, coding and creative technology. Based in Cairns, Queensland.</p>
         </div>
-        <ul class="flex flex-col gap-0.5 text-center md:text-left">
+        <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
@@ -30,7 +30,7 @@
             <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">YouTube</a></li>
             <li class="mb-3"><a href="https://linkedin.com/company/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Linked-In</a></li>
         </ul>
-        <ul class="flex flex-col gap-0.5 text-center md:text-left">
+        <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>
                 <h3 class="font-bold mb-2">Workshops</h3>
             </li>
@@ -43,7 +43,7 @@
                 </li>
             @endforeach
         </ul>
-        <ul class="flex flex-col gap-0.5 text-center md:text-left">
+        <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>
                 <h3 class="font-bold mb-2">STEMMechanics</h3>
             </li>
