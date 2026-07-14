@@ -148,6 +148,13 @@ class Workshop extends Model
         return trim((string) ($this->location->name ?? '')) ?: '-';
     }
 
+    public function isStemcraftLocation(): bool
+    {
+        $this->loadMissing('location');
+
+        return (bool) $this->location?->isStemcraft();
+    }
+
     public function getLocationDisplay(bool $includeAddress = true): string
     {
         $locationName = $this->getLocationName();
