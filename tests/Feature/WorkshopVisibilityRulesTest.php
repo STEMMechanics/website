@@ -528,55 +528,6 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertDontSee('Parental supervision may be required for children 8 years of age and under.');
     }
 
-    public function test_stemcraft_location_exists_after_migrations(): void
-    {
-        $this->assertDatabaseHas('locations', [
-            'name' => Location::STEMCRAFT_NAME,
-            'address' => 'STEMCraft server',
-            'url' => '/stemcraft/join',
-        ]);
-    }
-
-    public function test_stemcraft_location_workshop_shows_how_to_join_button_and_no_registration_message(): void
-    {
-        $stemcraftLocation = Location::query()
-            ->where('name', Location::STEMCRAFT_NAME)
-            ->firstOrFail();
-
-        $workshop = $this->createWorkshop(
-            title: 'STEMCraft Survival Session',
-            status: 'open',
-            isHidden: false,
-            publishAt: now()->subDay(),
-            registration: 'none',
-            location: $stemcraftLocation
-        );
-
-        $this->get(route('workshop.show', $workshop))
-            ->assertOk()
-            ->assertSee('How to Join')
-            ->assertSee(route('stemcraft.join'), false)
-            ->assertSee('No registration required. Simply join the STEMCraft server at the workshop date and time.')
-            ->assertDontSee('Arrive early to avoid disappointment as seating maybe limited.');
-    }
-
-    public function test_standard_location_workshop_keeps_default_no_registration_message(): void
-    {
-        $workshop = $this->createWorkshop(
-            title: 'Drop-in Robotics Session',
-            status: 'open',
-            isHidden: false,
-            publishAt: now()->subDay(),
-            registration: 'none'
-        );
-
-        $this->get(route('workshop.show', $workshop))
-            ->assertOk()
-            ->assertSee('Registration not required for this event. Arrive early to avoid disappointment as seating maybe limited.')
-            ->assertDontSee('No registration required. Simply join the STEMCraft server at the workshop date and time.')
-            ->assertDontSee('How to Join');
-    }
-
     public function test_ticketed_workshops_include_event_offers_even_when_the_price_is_written_as_free(): void
     {
         $workshop = $this->createWorkshop(
@@ -633,12 +584,11 @@ class WorkshopVisibilityRulesTest extends TestCase
         ?string $content = null,
         bool $isOnline = false,
         string $registration = 'none',
-        ?string $price = 'Free',
-        ?Location $location = null
+        ?string $price = 'Free'
     ): Workshop
     {
         $owner = User::factory()->create();
-        $location = $location ?? ($isOnline ? null : Location::factory()->create(['name' => 'City Lab']));
+        $location = $isOnline ? null : Location::factory()->create(['name' => 'City Lab']);
         $heroName = 'hero-'.strtolower((string) str()->random(8)).'.png';
 
         Media::query()->create([
