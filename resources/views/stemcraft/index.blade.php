@@ -57,23 +57,24 @@
 
     <x-container class="pt-12">
         <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_32rem] lg:items-center">
-            <div class="flex h-full flex-col">
+            <div class="order-2 flex h-full flex-col lg:order-1">
                 <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Continue Building Beyond the Workshop</h1>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">STEMCraft is the online world of STEMMechanics, giving young makers a place to continue building, experimenting and creating long after a workshop ends.</p>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">Built around Minecraft, STEMCraft lets young makers explore engineering ideas, solve design challenges and create imaginative projects together in a safe, respectful environment.</p>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">Rather than focusing on competition or rankings, STEMCraft encourages creativity, curiosity and practical problem-solving through play.</p>
-                <div class="mt-8 flex justify-center">
+                <div class="mt-8 flex justify-center gap-8">
                     <x-ui.button href="{{ route('stemcraft.join') }}">Join STEMCraft</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('workshop.index', ['category' => 'minecraft']) }}">View Workshops</x-ui.button>
                 </div>
             </div>
-            <img src="{{ asset('stemcraft-hero.webp') }}" alt="A creative Minecraft-style STEMCraft build" class="h-full min-h-72 w-full rounded-lg object-cover shadow-sm">
+            <img src="{{ asset('stemcraft-hero.webp') }}" alt="A creative Minecraft-style STEMCraft build" class="order-1 h-full min-h-72 w-full rounded-lg object-cover shadow-sm lg:order-2">
         </section>
     </x-container>
 
     <section id="what-you-can-do">
         <div class="mt-14 h-4 bg-[linear-gradient(to_bottom_right,transparent_50%,var(--color-amber-200)_50%)]"></div>
         <div class="bg-amber-200">
-            <div class="flex gap-16 mx-auto max-w-6xl py-18">
+            <div class="grid lg:grid-cols-[minmax(0,1fr)_24rem] gap-16 mx-auto max-w-6xl py-18 px-4">
                 <div>
                     <div class="max-w-2xl">
                         <h2 class="mt-4 text-3xl font-semibold tracking-tight text-black sm:text-4xl">Build, explore and keep learning</h2>
@@ -126,7 +127,7 @@
                 </div>
 
                 <div>
-                    <x-stemcraft.server-status-card class="max-w-96" />
+                    <x-stemcraft.server-status-card />
                 </div>
             </div>
         </div>

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Tests\TestCase;
@@ -27,6 +29,19 @@ class NavbarThemeTest extends TestCase
         $this->assertStringNotContainsString('repeating-linear-gradient(45deg', $html);
     }
 
+    public function test_admin_nav_uses_categories_label_for_workshop_categories(): void
+    {
+        $this->actingAs($this->createAdminUser());
+
+        $html = $this->renderNavbarForHost('localhost');
+
+        $this->assertStringContainsString('Workshops &amp; Community', $html);
+        $this->assertMatchesRegularExpression(
+            '/href="'.preg_quote(route('admin.workshop-category.index'), '/').'".*?>\s*<i[^>]*><\/i>Categories/s',
+            $html,
+        );
+    }
+
     private function renderNavbarForHost(string $host): string
     {
         $request = Request::create('https://'.$host.'/', 'GET');
@@ -36,5 +51,16 @@ class NavbarThemeTest extends TestCase
         $this->app->instance('request', $request);
 
         return view('components.navbar')->render();
+    }
+
+    private function createAdminUser(): User
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        return $admin;
     }
 }
