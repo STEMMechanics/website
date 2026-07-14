@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\WorkshopCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -77,19 +78,33 @@ class WorkshopCategoryController extends Controller
         return redirect()->route('admin.workshop-category.index');
     }
 
-    public function destroy(WorkshopCategory $category): RedirectResponse
+    public function destroy(Request $request, WorkshopCategory $category): RedirectResponse
     {
-        if ($category->workshops()->exists()) {
-            session()->flash('message', 'This category is assigned to workshops and cannot be deleted yet.');
-            session()->flash('message-title', 'Delete blocked');
-            session()->flash('message-type', 'danger');
+        $validated = $request->validate([
+            'reassign_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('workshop_categories', 'id')->where(fn ($query) => $query->where('id', '!=', $category->id)),
+            ],
+        ]);
 
-            return redirect()->route('admin.workshop-category.edit', $category);
-        }
+        $reassignCategoryId = (int) ($validated['reassign_category_id'] ?? 0);
 
-        $category->delete();
+        DB::transaction(function () use ($category, $reassignCategoryId): void {
+            if ($reassignCategoryId > 0) {
+                $workshopIds = $category->workshops()->pluck('workshops.id')->all();
+                $targetCategory = WorkshopCategory::query()->findOrFail($reassignCategoryId);
 
-        session()->flash('message', 'Workshop category deleted.');
+                $targetCategory->workshops()->syncWithoutDetaching($workshopIds);
+            }
+
+            $category->workshops()->detach();
+            $category->delete();
+        });
+
+        session()->flash('message', $reassignCategoryId > 0
+            ? 'Workshop category deleted and assigned workshops were moved.'
+            : 'Workshop category deleted.');
         session()->flash('message-title', 'Category deleted');
         session()->flash('message-type', 'success');
 

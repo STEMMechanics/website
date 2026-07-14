@@ -130,6 +130,60 @@ class WorkshopCategoryTest extends TestCase
             ->assertSeeInOrder(['Robotics', 'Workshop content.']);
     }
 
+    public function test_admin_can_delete_a_category_and_remove_it_from_workshops(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $category = WorkshopCategory::factory()->create(['name' => 'Building', 'slug' => 'building']);
+        $workshop = $this->createPublicWorkshop($admin, $location, 'Pinball Machines');
+        $workshop->categories()->attach($category);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.workshop-category.destroy', $category))
+            ->assertRedirect(route('admin.workshop-category.index'));
+
+        $this->assertDatabaseMissing('workshop_categories', [
+            'id' => $category->id,
+        ]);
+        $this->assertDatabaseMissing('workshop_category_workshop', [
+            'workshop_id' => $workshop->id,
+            'workshop_category_id' => $category->id,
+        ]);
+        $this->assertTrue($workshop->fresh()->categories()->doesntExist());
+    }
+
+    public function test_admin_can_delete_a_category_and_reassign_workshops_to_another_category(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $building = WorkshopCategory::factory()->create(['name' => 'Building', 'slug' => 'building']);
+        $maker = WorkshopCategory::factory()->create(['name' => 'Maker', 'slug' => 'maker']);
+        $workshop = $this->createPublicWorkshop($admin, $location, 'Pinball Machines');
+        $workshop->categories()->attach($building);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.workshop-category.destroy', $building), [
+                'reassign_category_id' => $maker->id,
+            ])
+            ->assertRedirect(route('admin.workshop-category.index'));
+
+        $this->assertDatabaseMissing('workshop_categories', [
+            'id' => $building->id,
+        ]);
+        $this->assertDatabaseMissing('workshop_category_workshop', [
+            'workshop_id' => $workshop->id,
+            'workshop_category_id' => $building->id,
+        ]);
+        $this->assertDatabaseHas('workshop_category_workshop', [
+            'workshop_id' => $workshop->id,
+            'workshop_category_id' => $maker->id,
+        ]);
+        $this->assertEqualsCanonicalizing(
+            [$maker->id],
+            $workshop->fresh()->categories()->pluck('workshop_categories.id')->all()
+        );
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();
