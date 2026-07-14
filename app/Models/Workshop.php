@@ -172,6 +172,12 @@ class Workshop extends Model
     public function getLocationDisplay(bool $includeAddress = true): string
     {
         $locationName = $this->getLocationName();
+        if ($this->isStemcraftWorkshop()) {
+            return $includeAddress
+                ? 'STEMCraft - STEMMechanics Minecraft Server'
+                : $locationName;
+        }
+
         if (! $includeAddress || $locationName === 'Online') {
             return $locationName;
         }

@@ -6,8 +6,9 @@
     $interestPrefillPhone = old('interest_phone', trim((string) (auth()->user()?->phone ?? '')));
     $interestModalOpen = $errors->has('interest_name') || $errors->has('interest_email') || $errors->has('interest_phone');
     $userHasInterest = $currentUserInterest !== null;
+    $isStemcraftWorkshop = $workshop->isStemcraftWorkshop();
 
-    $eventLocation = $workshop->location_id
+    $eventLocation = $workshop->isPhysicalWorkshop() && $workshop->location_id
         ? [
             '@type' => 'Place',
             'name' => (string) $workshop->getLocationName(),
@@ -15,7 +16,8 @@
         ]
         : [
             '@type' => 'VirtualLocation',
-            'url' => route('workshop.show', $workshop),
+            'name' => (string) $workshop->getLocationDisplay(true),
+            'url' => $isStemcraftWorkshop ? route('stemcraft.join') : route('workshop.show', $workshop),
         ];
 
     $eventStatus = match ((string) ($workshop->status ?? '')) {
@@ -32,7 +34,7 @@
         'startDate' => $workshop->effectiveStartsAt()?->toIso8601String() ?? $workshop->starts_at?->toIso8601String(),
         'endDate' => $workshop->effectiveEndsAt()?->toIso8601String() ?? $workshop->ends_at?->toIso8601String(),
         'eventStatus' => $eventStatus,
-        'eventAttendanceMode' => $workshop->location_id
+        'eventAttendanceMode' => $workshop->isPhysicalWorkshop() && $workshop->location_id
             ? 'https://schema.org/OfflineEventAttendanceMode'
             : 'https://schema.org/OnlineEventAttendanceMode',
         'location' => $eventLocation,
@@ -122,7 +124,11 @@
                 @elseif($workshop->status === 'cancelled')
                     <div class="sm-registration-cancelled">This workshop has been cancelled.</div>
                 @elseif($workshop->registration === 'none')
-                    <div class="sm-registration-none">Registration not required for this event. Arrive early to avoid disappointment as seating maybe limited.</div>
+                    @if($isStemcraftWorkshop)
+                        <div class="sm-registration-none">No registration required. Simply join the STEMCraft server at the workshop date and time.</div>
+                    @else
+                        <div class="sm-registration-none">Registration not required for this event. Arrive early to avoid disappointment as seating maybe limited.</div>
+                    @endif
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
@@ -234,6 +240,9 @@
                         <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
                     @endif
                 @endif
+                @if($isStemcraftWorkshop)
+                    <x-ui.button href="{{ route('stemcraft.join') }}" class="mb-4">How to Join</x-ui.button>
+                @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                     @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
@@ -266,7 +275,7 @@
                     @if($workshop->location?->url)
                         <a href="{{ $workshop->location->url }}" class="link">
                             @endif
-                            <p>{{ $workshop->getLocationName() }}</p>
+                            <p>{{ $isStemcraftWorkshop ? $workshop->getLocationDisplay(true) : $workshop->getLocationName() }}</p>
                             @if($workshop->location?->url)
                         </a>
                     @endif
