@@ -77,6 +77,23 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertSame('Online workshop summary', (string) $workshop->fresh()->summary);
     }
 
+    public function test_admin_can_change_a_workshop_from_stemcraft_location_to_another_location(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $stemcraftLocation = Location::factory()->create(['name' => 'STEMCraft']);
+        $newLocation = Location::factory()->create(['name' => 'Maker Lab']);
+        $heroName = $this->createHeroMedia($owner);
+        $workshop = $this->createWorkshop($owner, $stemcraftLocation, $heroName, 'none');
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $newLocation, $heroName));
+
+        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertSessionHasNoErrors();
+        $this->assertSame((string) $newLocation->id, (string) $workshop->fresh()->location_id);
+    }
+
     public function test_admin_workshop_edit_hides_unused_summary_and_early_bird_note_fields(): void
     {
         $admin = $this->createAdminUser();

@@ -592,7 +592,8 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                     </div>
                     <div class="flex-1">
                         <span x-show="type==='physical'">
-                            <x-ui.select label="Location" name="location_id" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
+                            <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
+                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
                                 <x-slot name="labelRight">
                                     <button type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</button>
                                 </x-slot>
