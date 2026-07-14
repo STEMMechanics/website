@@ -623,7 +623,7 @@ class WorkshopController extends Controller
             'title' => 'required',
             'content' => 'required',
             'summary' => 'nullable|string|max:1000',
-            'type' => 'required|in:physical,online',
+            'type' => ['required', Rule::in(Workshop::TYPES)],
             'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
@@ -851,7 +851,7 @@ class WorkshopController extends Controller
             'title' => 'required',
             'content' => 'required',
             'summary' => 'nullable|string|max:1000',
-            'type' => 'required|in:physical,online',
+            'type' => ['required', Rule::in(Workshop::TYPES)],
             'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
@@ -3628,7 +3628,13 @@ class WorkshopController extends Controller
     private function normalizeWorkshopTypeData(array &$workshopData): void
     {
         $type = (string) ($workshopData['type'] ?? 'online');
-        if ($type !== 'physical') {
+        if (! in_array($type, Workshop::TYPES, true)) {
+            $type = Workshop::TYPE_ONLINE;
+        }
+
+        $workshopData['type'] = $type;
+
+        if ($type !== Workshop::TYPE_PHYSICAL) {
             $workshopData['location_id'] = null;
 
             return;
@@ -3835,13 +3841,15 @@ class WorkshopController extends Controller
         $updatedEndsAt = isset($workshopData['ends_at']) ? Carbon::parse((string) $workshopData['ends_at'])->format('Y-m-d H:i') : $originalEndsAt;
         $originalLocationId = trim((string) ($workshop->location_id ?? ''));
         $updatedLocationId = trim((string) ($workshopData['location_id'] ?? ''));
+        $originalLocationType = $workshop->locationType();
+        $updatedLocationType = (string) ($workshopData['type'] ?? $originalLocationType);
         $changedFields = [];
 
         if ($originalStartsAt !== $updatedStartsAt || $originalEndsAt !== $updatedEndsAt) {
             $changedFields[] = 'schedule';
         }
 
-        if ($originalLocationId !== $updatedLocationId) {
+        if ($originalLocationType !== $updatedLocationType || $originalLocationId !== $updatedLocationId) {
             $changedFields[] = 'location';
         }
 
@@ -3856,8 +3864,8 @@ class WorkshopController extends Controller
                 $workshopData['starts_at'] ?? $workshop->starts_at,
                 $workshopData['ends_at'] ?? $workshop->ends_at
             ),
-            'old_location' => $this->resolveWorkshopLocationLabel($originalLocationId),
-            'new_location' => $this->resolveWorkshopLocationLabel($updatedLocationId),
+            'old_location' => $this->resolveWorkshopLocationLabel($originalLocationId, $originalLocationType),
+            'new_location' => $this->resolveWorkshopLocationLabel($updatedLocationId, $updatedLocationType),
         ];
     }
 
@@ -3873,8 +3881,16 @@ class WorkshopController extends Controller
         );
     }
 
-    private function resolveWorkshopLocationLabel(?string $locationId): string
+    private function resolveWorkshopLocationLabel(?string $locationId, string $type = Workshop::TYPE_ONLINE): string
     {
+        if ($type === Workshop::TYPE_STEMCRAFT) {
+            return 'STEMCraft';
+        }
+
+        if ($type === Workshop::TYPE_ONLINE) {
+            return 'Online';
+        }
+
         $normalizedLocationId = trim((string) ($locationId ?? ''));
         if ($normalizedLocationId === '') {
             return 'Online';

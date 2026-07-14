@@ -547,6 +547,27 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertSee(route('workshop.ticket.flow.start', $workshop), false);
     }
 
+    public function test_stemcraft_workshop_show_page_uses_stemcraft_registration_and_location_copy(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'STEMCraft Build Night',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            isOnline: true,
+            registration: 'none',
+            type: Workshop::TYPE_STEMCRAFT
+        );
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee('No registration required. Simply join the STEMCraft server at the workshop date and time.', false)
+            ->assertSee('How to Join', false)
+            ->assertSee(route('stemcraft.join'), false)
+            ->assertSee('<a href="'.route('stemcraft.join').'" class="link">STEMCraft</a>', false)
+            ->assertSee('STEMMechanics Minecraft Server', false);
+    }
+
     public function test_admin_workshop_index_shows_copy_public_page_link_for_non_draft_workshops(): void
     {
         $admin = $this->createAdminUser();
@@ -584,9 +605,9 @@ class WorkshopVisibilityRulesTest extends TestCase
         ?string $content = null,
         bool $isOnline = false,
         string $registration = 'none',
-        ?string $price = 'Free'
-    ): Workshop
-    {
+        ?string $price = 'Free',
+        string $type = Workshop::TYPE_PHYSICAL
+    ): Workshop {
         $owner = User::factory()->create();
         $location = $isOnline ? null : Location::factory()->create(['name' => 'City Lab']);
         $heroName = 'hero-'.strtolower((string) str()->random(8)).'.png';
@@ -610,6 +631,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             'publish_at' => $publishAt,
             'closes_at' => now()->addDays(9),
             'status' => $status,
+            'type' => $type,
             'price' => $price,
             'is_private' => $isPrivate,
             'is_hidden' => $isHidden,

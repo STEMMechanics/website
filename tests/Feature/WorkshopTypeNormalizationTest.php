@@ -74,7 +74,54 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertRedirect(route('admin.workshop.index'));
         $response->assertSessionHasNoErrors();
         $this->assertNull($workshop->fresh()->location_id);
+        $this->assertSame(Workshop::TYPE_ONLINE, (string) $workshop->fresh()->type);
         $this->assertSame('Online workshop summary', (string) $workshop->fresh()->summary);
+    }
+
+    public function test_changing_workshop_to_stemcraft_clears_location_id_and_sets_type(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName);
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'type' => Workshop::TYPE_STEMCRAFT,
+                'location_id' => $location->id,
+            ]));
+
+        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertSessionHasNoErrors();
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertSame(Workshop::TYPE_STEMCRAFT, (string) $freshWorkshop->type);
+        $this->assertNull($freshWorkshop->location_id);
+        $this->assertSame('STEMCraft', $freshWorkshop->getLocationName());
+    }
+
+    public function test_admin_workshop_edit_supports_stemcraft_as_a_location_type(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName);
+        $workshop->forceFill([
+            'type' => Workshop::TYPE_STEMCRAFT,
+            'location_id' => null,
+        ])->save();
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('<option value="stemcraft">STEMCraft</option>', false);
+        $response->assertSee("x-show=\"type==='physical'\"", false);
+        $response->assertSee('name="location_id"', false);
+        $response->assertSee('normalizedCurrentLocationId()', false);
     }
 
     public function test_admin_can_change_a_workshop_from_stemcraft_location_to_another_location(): void
@@ -514,8 +561,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         ?string $summary = null,
         ?string $content = null,
         ?string $registrationData = null
-    ): Workshop
-    {
+    ): Workshop {
         $payload = [
             'title' => 'Physical Workshop',
             'content' => $content ?? '<p>Workshop content</p>',
@@ -525,6 +571,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             'publish_at' => now()->subDay(),
             'closes_at' => now()->addDays(4),
             'status' => 'open',
+            'type' => Workshop::TYPE_PHYSICAL,
             'registration' => $registration,
             'registration_data' => $registrationData,
             'location_id' => $location->id,
@@ -536,7 +583,7 @@ class WorkshopTypeNormalizationTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function workshopUpdatePayload(Workshop $workshop, Location $location, string $heroName, array $overrides = []): array
