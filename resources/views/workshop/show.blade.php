@@ -272,12 +272,17 @@
                     Location
                 </h2>
                 <div class="text-gray-600 text-sm pl-6 mb-6">
-                    @if($workshop->location?->url)
-                        <a href="{{ $workshop->location->url }}" class="link">
-                            @endif
-                            <p>{{ $isStemcraftWorkshop ? $workshop->getLocationDisplay(true) : $workshop->getLocationName() }}</p>
-                            @if($workshop->location?->url)
-                        </a>
+                    @if($isStemcraftWorkshop)
+                        <p><a href="{{ route('stemcraft.join') }}" class="link">STEMCraft</a></p>
+                        <p class="text-xs">STEMMechanics Minecraft Server</p>
+                    @else
+                        @if($workshop->location?->url)
+                            <a href="{{ $workshop->location->url }}" class="link">
+                        @endif
+                            <p>{{ $workshop->getLocationName() }}</p>
+                        @if($workshop->location?->url)
+                            </a>
+                        @endif
                     @endif
 
                     @if($workshop->location?->address)

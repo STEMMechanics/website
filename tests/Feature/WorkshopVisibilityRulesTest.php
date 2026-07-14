@@ -564,7 +564,8 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertSee('No registration required. Simply join the STEMCraft server at the workshop date and time.', false)
             ->assertSee('How to Join', false)
             ->assertSee(route('stemcraft.join'), false)
-            ->assertSee('STEMCraft - STEMMechanics Minecraft Server', false);
+            ->assertSee('<a href="'.route('stemcraft.join').'" class="link">STEMCraft</a>', false)
+            ->assertSee('STEMMechanics Minecraft Server', false);
     }
 
     public function test_admin_workshop_index_shows_copy_public_page_link_for_non_draft_workshops(): void
