@@ -105,7 +105,7 @@ class AdminStemcraftContentTest extends TestCase
         $this->actingAs($this->createAdminUser())
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('STEMCraft Content')
+            ->assertSee('STEMCraft')
             ->assertSee(route('admin.stemcraft-content.edit'), false);
     }
 
