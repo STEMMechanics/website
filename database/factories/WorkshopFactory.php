@@ -17,16 +17,17 @@ class WorkshopFactory extends Factory
 
         return [
             'title' => fake()->sentence(),
-            'content' => '<p>' . implode('</p><p>', fake()->paragraphs()) . '</p>',
+            'content' => '<p>'.implode('</p><p>', fake()->paragraphs()).'</p>',
             'starts_at' => $startsAt,
             'ends_at' => $startsAt->add(DateInterval::createFromDateString('2 hours')),
             'publish_at' => now(),
             'closes_at' => $startsAt->sub(DateInterval::createFromDateString('2 hours')),
             'status' => 'open',
+            'type' => Workshop::TYPE_PHYSICAL,
             'registration' => 'none',
             'location_id' => Location::all()->random()->id,
             'user_id' => 1,
-            'hero_media_name' => 'stemmechanics-logo.png'
+            'hero_media_name' => 'stemmechanics-logo.png',
         ];
     }
 }

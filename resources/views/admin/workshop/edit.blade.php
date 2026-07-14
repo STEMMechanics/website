@@ -64,6 +64,7 @@ $earlyBirdSectionOpen = $errors->hasAny(['early_bird_price', 'early_bird_ends_at
 $selectedCategoryIds = collect(old('category_ids', $workshopModel?->categories?->pluck('id')->all() ?? []))
     ->map(fn ($id) => (string) $id)
     ->all();
+$workshopTypeForForm = old('type', $workshopModel instanceof \App\Models\Workshop ? $workshopModel->locationType() : \App\Models\Workshop::TYPE_ONLINE);
 if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], true)) {
     if ($maxTicketsTotal !== null) {
         if ($soldTicketCount >= $maxTicketsTotal) {
@@ -93,9 +94,10 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
 
     <x-container class="mt-4">
         <form x-data="{
-            type: @js(old('type', isset($workshopModel) && $workshopModel->location_id ? 'physical' : 'online')),
+            type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),
             originalStatus: @js(isset($workshopModel) ? (string) $workshopModel->status : $workshopStatusForForm),
+            originalType: @js($workshopTypeForForm),
             isPrivate: @js((bool) old('is_private', isset($workshopModel) ? $workshopModel->isPrivate() : false)),
             isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
             registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
@@ -378,6 +380,7 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
 
             return this.currentStartsAt() !== this.originalStartsAt
             || this.currentEndsAt() !== this.originalEndsAt
+            || String(this.type || '') !== String(this.originalType || '')
             || this.normalizedCurrentLocationId() !== this.originalLocationId;
             },
             submitForm() {
@@ -585,14 +588,16 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
-                            <option value="physical">Physical</option>
-                            <option value="online">Online</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="flex-1">
-                        <span x-show="type==='physical'">
-                            <x-ui.select label="Location" name="location_id" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
+                    <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
+                        <option value="physical">Physical</option>
+                        <option value="online">Online</option>
+                        <option value="stemcraft">STEMCraft</option>
+                    </x-ui.select>
+                </div>
+                <div class="flex-1">
+                    <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
+                    <span x-show="type==='physical'">
+                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
                                 <x-slot name="labelRight">
                                     <button type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</button>
                                 </x-slot>

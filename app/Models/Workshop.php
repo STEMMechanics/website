@@ -19,10 +19,23 @@ class Workshop extends Model
 {
     use HasFactory, HasFiles, Slug;
 
+    public const TYPE_PHYSICAL = 'physical';
+
+    public const TYPE_ONLINE = 'online';
+
+    public const TYPE_STEMCRAFT = 'stemcraft';
+
+    public const TYPES = [
+        self::TYPE_PHYSICAL,
+        self::TYPE_ONLINE,
+        self::TYPE_STEMCRAFT,
+    ];
+
     protected $fillable = [
         'title',
         'content',
         'summary',
+        'type',
         'starts_at',
         'ends_at',
         'publish_at',
@@ -139,6 +152,14 @@ class Workshop extends Model
 
     public function getLocationName(): string
     {
+        if ($this->isStemcraftWorkshop()) {
+            return 'STEMCraft';
+        }
+
+        if ($this->isOnlineWorkshop()) {
+            return 'Online';
+        }
+
         $locationId = trim((string) ($this->location_id ?? ''));
 
         if ($locationId === '') {
@@ -176,6 +197,33 @@ class Workshop extends Model
         $hostedFor = trim((string) ($this->hosted_for ?? ''));
 
         return $hostedFor !== '' ? $hostedFor : 'Private Location';
+    }
+
+    public function locationType(): string
+    {
+        $type = trim((string) ($this->type ?? ''));
+        if (in_array($type, self::TYPES, true)) {
+            return $type;
+        }
+
+        return trim((string) ($this->location_id ?? '')) !== ''
+            ? self::TYPE_PHYSICAL
+            : self::TYPE_ONLINE;
+    }
+
+    public function isPhysicalWorkshop(): bool
+    {
+        return $this->locationType() === self::TYPE_PHYSICAL;
+    }
+
+    public function isOnlineWorkshop(): bool
+    {
+        return $this->locationType() === self::TYPE_ONLINE;
+    }
+
+    public function isStemcraftWorkshop(): bool
+    {
+        return $this->locationType() === self::TYPE_STEMCRAFT;
     }
 
     public function newsletterSummary(int $limit = 180): string
