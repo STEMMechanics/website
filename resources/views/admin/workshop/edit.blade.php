@@ -588,15 +588,15 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                    <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
-                        <option value="physical">Physical</option>
-                        <option value="online">Online</option>
-                        <option value="stemcraft">STEMCraft</option>
-                    </x-ui.select>
-                </div>
-                <div class="flex-1">
-                    <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
-                    <span x-show="type==='physical'">
+                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
+                            <option value="physical">Physical</option>
+                            <option value="online">Online</option>
+                            <option value="stemcraft">STEMCraft</option>
+                        </x-ui.select>
+                    </div>
+                    <div class="flex-1">
+                        <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
+                        <span x-show="type==='physical'">
                             <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
                                 <x-slot name="labelRight">
                                     <button type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</button>
