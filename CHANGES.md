@@ -2,6 +2,7 @@
 
 ## Current
 
+- Update TipTap packages to `3.28.0` together so `@tiptap/react` peer dependencies stay aligned.
 - Restrict SAST push workflow runs to `main` to avoid duplicate PR checks.
 - Update Guzzle dependencies to clear the `GHSA-94pj-82f3-465w` Composer audit advisory.
 - Improved admin workshop calendar status badges, cancellation toggles, draft visibility, delete redirects, and category selection.
