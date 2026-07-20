@@ -89,7 +89,7 @@
                     <x-none-found item="workshops" />
                 </x-container>
             @else
-                <x-container class="mt-6">
+                <x-container class="mt-6 sm-view-calendar">
                     <div class="mx-auto w-full max-w-6xl space-y-4 lg:hidden">
                         <div class="overflow-hidden border border-gray-200 bg-white">
                             <div class="divide-y divide-gray-200">
@@ -217,7 +217,7 @@
                     @endif
                 </x-container>
             @else
-                <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+                <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full sm-view-panels">
                     @foreach ($workshops as $workshop)
                         <x-panel-workshop :workshop="$workshop" data-early-bird-display="badge" />
                     @endforeach
