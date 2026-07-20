@@ -568,20 +568,18 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                     @else
                         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             @foreach($workshopCategories as $category)
-                                <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
                                     <x-ui.checkbox
                                         name="category_ids[]"
                                         value="{{ $category->id }}"
                                         :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
-                                        label="{{ $category->name }}"
-                                        label-hidden
-                                        no-wrapper
+                                        :noWrapper="true"
                                     />
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
                                         <i class="{{ $category->iconClass() }}"></i>
                                     </span>
                                     <span class="font-medium">{{ $category->name }}</span>
-                                </div>
+                                </label>
                             @endforeach
                         </div>
                     @endif

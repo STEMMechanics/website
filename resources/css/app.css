@@ -1395,11 +1395,19 @@ table tr.highlight-row {
 }
 
 .sm-banner-soon {
-    @apply bg-purple-600 text-xs;
+    @apply bg-purple-600;
+}
+
+.sm-view-panels .sm-banner-soon {
+    @apply text-xs;
 }
 
 .sm-banner-private {
     @apply bg-orange-500;
+}
+
+.sm-banner-hidden {
+    @apply bg-gray-600;
 }
 
 .sm-registration-none, .sm-registration-email, .sm-registration-message, .sm-registration-scheduled, .sm-registration-draft {

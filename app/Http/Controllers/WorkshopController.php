@@ -117,7 +117,7 @@ class WorkshopController extends Controller
             $selectedMonth = now()->format('Y-m');
         }
 
-        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search, true);
+        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
 
         $workshops = $this->buildWorkshopAdminQuery($search)
             ->orderBy('starts_at', 'desc')
@@ -1662,7 +1662,7 @@ class WorkshopController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function admin_destroy(Workshop $workshop)
+    public function admin_destroy(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
         $hasActiveTickets = Ticket::query()
             ->where('workshop_id', $workshop->id)
@@ -1692,6 +1692,13 @@ class WorkshopController extends Controller
         session()->flash('message', 'Workshop has been deleted');
         session()->flash('message-title', 'Workshop deleted');
         session()->flash('message-type', 'danger');
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.workshop.index'),
+            ]);
+        }
 
         return redirect()->route('admin.workshop.index');
     }

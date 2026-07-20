@@ -2,6 +2,7 @@
 
 ## Current
 
+- Improved admin workshop calendar status badges, cancellation toggles, draft visibility, delete redirects, and category selection.
 - Added select all checkbox in pick lists
 - Added support for mixed checkboxes
 - Updated Tiptap dependencies to `3.27.1` so `highlight` and `typography` stay aligned with `core`, `pm`, `react`, and `starter-kit`

@@ -89,11 +89,35 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertSee('All monthly workshops');
         $response->assertSee('Upcoming workshops');
         $response->assertSee('Workshop this month');
+        $response->assertSee('Draft workshop');
         $response->assertDontSee('Workshop next month');
         $response->assertSee('Previous month');
         $response->assertSee('Next month');
         $response->assertSee('List');
         $response->assertSee('Month');
+    }
+
+    public function test_admin_workshop_index_month_view_renders_cancelled_workshops_behind_a_dynamic_toggle(): void
+    {
+        $admin = $this->createAdminUser();
+        $monthStart = now()->startOfMonth()->addDays(10);
+
+        $this->createWorkshop('Visible workshop', $monthStart);
+        $cancelledWorkshop = $this->createWorkshop('Cancelled workshop', $monthStart->copy()->addDay());
+        $cancelledWorkshop->update(['status' => 'cancelled']);
+
+        $defaultResponse = $this->actingAs($admin)->get(route('admin.workshop.index', [
+            'view' => 'month',
+            'month' => $monthStart->format('Y-m'),
+        ]));
+
+        $defaultResponse->assertOk();
+        $defaultResponse->assertSee('Show cancelled');
+        $defaultResponse->assertSee('Visible workshop');
+        $defaultResponse->assertSee('Cancelled workshop');
+        $defaultResponse->assertSee('x-model="showCancelled"', false);
+        $defaultResponse->assertSee('x-show="showCancelled"', false);
+        $defaultResponse->assertDontSee('show_cancelled=1', false);
     }
 
     public function test_admin_workshop_month_pdf_route_streams_a_pdf(): void
@@ -124,6 +148,26 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertIsString($pdfInfo);
         $this->assertMatchesRegularExpression('/^Pages:\s+1$/m', $pdfInfo);
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
+    }
+
+    public function test_admin_workshop_ajax_delete_returns_list_redirect(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('Workshop to delete', now()->addDays(10));
+
+        $response = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->delete(route('admin.workshop.destroy', $workshop));
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'redirect' => route('admin.workshop.index'),
+        ]);
+
+        $this->assertDatabaseMissing('workshops', [
+            'id' => $workshop->id,
+        ]);
     }
 
     public function test_admin_workshop_month_pick_lists_pdf_route_streams_a_multipage_pdf(): void

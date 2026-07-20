@@ -6,7 +6,7 @@
     <x-mast title="Workshops" :tabs="$tabs" />
 
     <x-container>
-        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
+        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: false, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
             <x-ui.toolbar break="lg">
                 <x-slot:left>
                     <div class="flex justify-between w-full items-center gap-2">
@@ -59,6 +59,15 @@
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </x-ui.button>
                             </div>
+                            <x-ui.checkbox
+                                name="show_cancelled"
+                                value="1"
+                                label="Show cancelled"
+                                label-class="whitespace-nowrap"
+                                :noWrapper="true"
+                                :inline="true"
+                                x-model="showCancelled"
+                            />
                         @endif
                         <x-ui.search name="search" label="Search" />
                     </div>
@@ -128,11 +137,38 @@
                     </div>
                 </div>
             </template>
-        </div>
 
         @if($view === 'month')
             @php
                 $calendarDays = collect($calendarWeeks)->flatten(1)->filter(fn (array $day): bool => (bool) ($day['in_month'] ?? false))->values();
+                $adminCalendarStatus = function ($workshop): array {
+                    $statusClass = (string) $workshop->status;
+                    $statusTitle = $workshop->adminStatusLabel();
+                    $statusShortTitle = match ($statusClass) {
+                        'scheduled' => 'Soon',
+                        'cancelled' => 'Canc.',
+                        default => $statusTitle,
+                    };
+
+                    if ($statusClass === 'scheduled') {
+                        $statusClass = 'soon';
+                        $statusTitle = 'Opens Soon';
+                    } elseif ($workshop->isPrivate() && $statusClass === 'open') {
+                        $statusClass = 'private';
+                        $statusTitle = 'Private';
+                        $statusShortTitle = 'Priv.';
+                    } elseif ((bool) ($workshop->is_hidden ?? false) && ! in_array($statusClass, ['cancelled', 'draft'], true)) {
+                        $statusClass = 'hidden';
+                        $statusTitle = 'Hidden';
+                        $statusShortTitle = 'Hid.';
+                    }
+
+                    return [
+                        'class' => $statusClass,
+                        'title' => $statusTitle,
+                        'short_title' => $statusShortTitle,
+                    ];
+                };
             @endphp
 
             <div class="mt-6 space-y-4 lg:hidden">
@@ -148,10 +184,22 @@
 
                                 <div class="mt-2 space-y-2">
                                     @forelse($day['workshops'] as $workshop)
-                                        <a href="{{ route('admin.workshop.edit', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
-                                            <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                            <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getLocationName() }}</div>
+                                        @php
+                                            $status = $adminCalendarStatus($workshop);
+                                        @endphp
+                                        <a
+                                            href="{{ route('admin.workshop.edit', $workshop) }}"
+                                            @if((string) $workshop->status === 'cancelled') x-show="showCancelled" x-cloak @endif
+                                            class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark"
+                                        >
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="min-w-0">
+                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                    <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                    <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                </div>
+                                                <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                            </div>
                                         </a>
                                     @empty
                                         <div class="text-sm text-gray-500">--</div>
@@ -184,10 +232,24 @@
                                         </div>
                                         <div class="mt-2 space-y-2">
                                             @forelse($day['workshops'] as $workshop)
-                                                <a href="{{ route('admin.workshop.edit', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
-                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                                    <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                    <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getLocationName() }}</div>
+                                                @php
+                                                    $status = $adminCalendarStatus($workshop);
+                                                @endphp
+                                                <a
+                                                    href="{{ route('admin.workshop.edit', $workshop) }}"
+                                                    @if((string) $workshop->status === 'cancelled') x-show="showCancelled" x-cloak @endif
+                                                    class="block rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark"
+                                                >
+                                                    <div class="flex items-start justify-between gap-2">
+                                                        <div class="w-full">
+                                                            <div class="flex justify-between items-center">
+                                                                <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                                <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                                            </div>
+                                                            <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                        </div>
+                                                    </div>
                                                 </a>
                                             @empty
                                                 <div class="min-h-16"></div>
@@ -271,5 +333,6 @@
                 {{ $workshops->appends(request()->query())->links() }}
             @endif
         @endif
+        </div>
     </x-container>
 </x-layout>
