@@ -1104,10 +1104,29 @@ body.image-resize-active {
     border-color: #9CA3AF;
 }
 
+.sm-ui-checkbox input[type="checkbox"]:indeterminate::after {
+    content: '';
+    display: block;
+    height: 0.25rem;
+    width: 1.1rem;
+    border-radius: 9999px;
+    background-color: #0370A1;
+    transform: translateX(0.42rem) translateY(0.85rem);
+}
+
+.sm-ui-checkbox input[type="checkbox"]:indeterminate:disabled::after {
+    background-color: #9CA3AF;
+}
+
 .sm-ui-checkbox.small input[type="checkbox"]:checked::after {
     height: 1rem;
     width: 0.6rem;
     transform: rotate(40deg) translateY(-0.2rem) translateX(0.35rem);
+}
+
+.sm-ui-checkbox.small input[type="checkbox"]:indeterminate::after {
+    width: 0.9rem;
+    transform: translateX(0.3rem) translateY(0.65rem);
 }
 
 /* resources/views/components/ui/toolbar.blade.php */

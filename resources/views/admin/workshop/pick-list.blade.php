@@ -38,7 +38,7 @@
             method="POST"
             action="{{ route('admin.workshop.pick-list.save', $workshop) }}"
             class="rounded-lg border border-gray-200 p-4 mb-6 bg-white"
-            x-data="SM.workshopPickListPage({
+            x-data="workshopPickListPage({
                 saveUrl: @js(route('admin.workshop.pick-list.save', $workshop)),
                 csrfToken: @js(csrf_token()),
                 templateItems: @js($templateItems ?? []),
@@ -72,7 +72,19 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
 
-                <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <div class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                        <x-ui.checkbox
+                                label="All selected"
+                                :noWrapper="true"
+                                :inline="true"
+                                x-bind:checked="allItemsChecked()"
+                                x-bind:aria-checked="allItemsCheckState() === 'mixed' ? 'mixed' : String(allItemsChecked())"
+                                x-effect="$el.indeterminate = allItemsCheckState() === 'mixed'"
+                                x-on:change="setAllItemsChecked($event.target.checked)"
+                        />
+                    </div>
+
                     @if($workshop->registration !== 'tickets')
                         <div class="flex gap-3 items-center">
                             <span class="text-sm font-medium text-gray-700">Participants</span>
@@ -107,11 +119,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         <template x-for="item in currentItems()" :key="item.id">
                             <label class="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 select-none">
-                                <input
-                                    type="checkbox"
-                                    class="h-7 w-7 rounded border-gray-300"
+                                <x-ui.checkbox
+                                    :noWrapper="true"
+                                    :inline="true"
                                     x-model="checkedIds"
-                                    :value="String(item.id)"
+                                    x-bind:value="String(item.id)"
                                     x-on:change="scheduleAutosave()"
                                 />
                                 <div class="min-w-0">
@@ -195,16 +207,15 @@
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Checked</div>
-                                        <label class="flex items-center gap-3">
-                                            <input
-                                                type="checkbox"
-                                                class="h-6 w-6 rounded border-gray-300"
-                                                x-model="checkedIds"
-                                                :value="String(item.id)"
-                                                x-on:change="scheduleAutosave()"
-                                            >
-                                            <span class="text-sm text-gray-700">Include on list</span>
-                                        </label>
+                                        <x-ui.checkbox
+                                            label="Include on list"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-model="checkedIds"
+                                            x-bind:value="String(item.id)"
+                                            x-on:change="scheduleAutosave()"
+                                        />
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Actions</div>
