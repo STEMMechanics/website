@@ -2,6 +2,7 @@
 
 ## Current
 
+- Update Guzzle dependencies to clear the `GHSA-94pj-82f3-465w` Composer audit advisory.
 - Improved admin workshop calendar status badges, cancellation toggles, draft visibility, delete redirects, and category selection.
 - Added select all checkbox in pick lists
 - Added support for mixed checkboxes
