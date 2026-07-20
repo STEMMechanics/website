@@ -901,6 +901,36 @@ const registerWorkshopPickListPage = () => {
 
             return this.isCustomized ? this.customItems : this.templateItems;
         },
+        currentItemIds() {
+            return this.currentItems()
+                .map((item) => String(item?.id ?? ''))
+                .filter((id) => id !== '');
+        },
+        allItemsChecked() {
+            const itemIds = this.currentItemIds();
+
+            return itemIds.length > 0 && itemIds.every((id) => this.checkedIds.includes(id));
+        },
+        someItemsChecked() {
+            const itemIds = this.currentItemIds();
+
+            return itemIds.some((id) => this.checkedIds.includes(id));
+        },
+        allItemsCheckState() {
+            if (this.allItemsChecked()) {
+                return 'checked';
+            }
+
+            if (this.someItemsChecked()) {
+                return 'mixed';
+            }
+
+            return 'unchecked';
+        },
+        setAllItemsChecked(checked) {
+            this.checkedIds = checked ? this.currentItemIds() : [];
+            this.scheduleAutosave();
+        },
         customItemsEnabled() {
             return this.isCustomized || this.customItemsDirty;
         },
@@ -1139,12 +1169,10 @@ const registerWorkshopPickListPage = () => {
             return `(${quantityValue} per participant)`;
         },
         clearAllChecks() {
-            this.checkedIds = [];
-            this.scheduleAutosave();
+            this.setAllItemsChecked(false);
         },
         checkAllItems() {
-            this.checkedIds = this.currentItems().map((item) => String(item.id));
-            this.scheduleAutosave();
+            this.setAllItemsChecked(true);
         },
         resizeNotesField() {
             const textarea = this.$refs.pickListNotes;
@@ -1331,6 +1359,11 @@ const registerWorkshopPickListPage = () => {
             }
         },
     });
+
+    if (window.Alpine?.data) {
+        window.Alpine.data('workshopPickListPage', window.SM.workshopPickListPage);
+    }
 };
 
 registerWorkshopPickListPage();
+document.addEventListener('alpine:init', registerWorkshopPickListPage);
