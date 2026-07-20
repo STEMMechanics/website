@@ -16,7 +16,7 @@
         "axios": "^1.13.4",
         "laravel-vite-plugin": "^3.1.0",
         "postcss": "^8.5.19",
-        "vite": "^8.1.4"
+        "vite": "^8.1.5"
     },
     "dependencies": {
         "@tiptap/core": "^3.27.1",
