@@ -141,6 +141,7 @@
         @if($view === 'month')
             @php
                 $calendarDays = collect($calendarWeeks)->flatten(1)->filter(fn (array $day): bool => (bool) ($day['in_month'] ?? false))->values();
+                $hasSchoolHolidayDays = $calendarDays->contains(fn (array $day): bool => (bool) ($day['is_school_holiday'] ?? false));
                 $adminCalendarStatus = function ($workshop): array {
                     $statusClass = (string) $workshop->status;
                     $statusTitle = $workshop->adminStatusLabel();
@@ -171,11 +172,26 @@
                 };
             @endphp
 
+            @if($hasSchoolHolidayDays)
+                <div class="mt-4 flex items-center gap-2 text-sm text-gray-600">
+                    <span class="inline-block h-5 w-5 rounded border border-amber-400 bg-amber-50"></span>
+                    <span class="italic text-xs font-semibold">{{ $schoolHolidayLabel ?? 'School holidays' }}</span>
+                </div>
+            @endif
+
             <div class="mt-6 space-y-4 lg:hidden">
                 <div class="overflow-hidden border border-gray-200 bg-white">
                     <div class="divide-y divide-gray-200">
                         @foreach($calendarDays as $day)
-                            <div class="px-4 py-3 {{ $day['is_today'] ? 'bg-primary-color/5' : '' }}">
+                            @php
+                                $mobileDayClasses = ['px-4 py-3'];
+                                if ((bool) ($day['is_school_holiday'] ?? false)) {
+                                    $mobileDayClasses[] = 'bg-amber-50';
+                                } elseif ($day['is_today']) {
+                                    $mobileDayClasses[] = 'bg-primary-color/5';
+                                }
+                            @endphp
+                            <div class="{{ implode(' ', $mobileDayClasses) }}">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="text-sm font-semibold {{ $day['is_today'] ? 'text-primary-color' : 'text-gray-900' }}">
                                         {{ \Illuminate\Support\Carbon::parse($day['date'])->format('D j M') }}
@@ -224,9 +240,18 @@
                         @foreach($calendarWeeks as $week)
                             <tr>
                                 @foreach($week as $day)
-                                    <td class="align-top p-2 {{ $day['in_month'] ? ($day['is_today'] ? 'bg-primary-color' : 'bg-white') : 'bg-gray-50 text-gray-400' }}">
+                                    @php
+                                        $isSchoolHoliday = (bool) ($day['is_school_holiday'] ?? false);
+                                        $dayCellClass = $day['in_month']
+                                            ? ($isSchoolHoliday ? 'bg-amber-50' : ($day['is_today'] ? 'bg-primary-color' : 'bg-white'))
+                                            : 'bg-gray-50 text-gray-400';
+                                        $dayLabelClass = $day['is_today'] && ! $isSchoolHoliday
+                                            ? 'text-white'
+                                            : ($day['in_month'] ? ($day['is_today'] ? 'text-primary-color' : 'text-gray-900') : 'text-gray-400');
+                                    @endphp
+                                    <td class="align-top p-2 {{ $dayCellClass }}">
                                         <div class="flex items-start justify-between gap-2">
-                                            <div class="inline-flex h-8 w-8 items-center justify-center text-sm font-semibold {{ $day['is_today'] ? 'text-white' : ($day['in_month'] ? 'text-gray-900' : 'text-gray-400') }}">
+                                            <div class="inline-flex h-8 w-8 items-center justify-center text-sm font-semibold {{ $dayLabelClass }}">
                                                 {{ $day['label'] }}
                                             </div>
                                         </div>

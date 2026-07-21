@@ -164,6 +164,14 @@ class SiteOption extends Model
                 'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
                 'input_type' => 'number',
             ],
+            'workshops.school-holidays' => [
+                'value' => '',
+                'description' => 'School holiday dates shaded on workshop calendars. Enter one date or date range per line, for example 2026-06-27 to 2026-07-12.',
+            ],
+            'workshops.school-holidays-label' => [
+                'value' => 'School holidays',
+                'description' => 'Label shown in the workshop calendar key for shaded school holiday dates.',
+            ],
             'stemcraft.server-status.enabled' => [
                 'value' => '0',
                 'description' => 'Enable the read-only STEMCraft server status card and internal status endpoint.',

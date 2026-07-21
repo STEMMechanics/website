@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Payment;
 use App\Models\PickListTemplate;
+use App\Models\SiteOption;
 use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\User;
@@ -49,6 +50,10 @@ use Throwable;
 class WorkshopController extends Controller
 {
     private const ATTENDANCE_PAYMENT_METHOD_COMP = 'comp';
+
+    private const SCHOOL_HOLIDAYS_OPTION = 'workshops.school-holidays';
+
+    private const SCHOOL_HOLIDAYS_LABEL_OPTION = 'workshops.school-holidays-label';
 
     /**
      * Display a listing of the resource.
@@ -155,6 +160,7 @@ class WorkshopController extends Controller
                 'month' => $monthData['previousMonth'],
             ])),
             'search' => $search,
+            'schoolHolidayLabel' => $monthData['schoolHolidayLabel'],
             'tabs' => [
                 [
                     'title' => 'List',
@@ -317,7 +323,8 @@ class WorkshopController extends Controller
      *     currentMonthLabel: string,
      *     hasMonthWorkshops: bool,
      *     nextMonth: string,
-     *     previousMonth: string
+     *     previousMonth: string,
+     *     schoolHolidayLabel: string
      * }
      */
     private function buildWorkshopMonthData(string $selectedMonth, string $search, bool $excludeDrafts = false): array
@@ -335,6 +342,7 @@ class WorkshopController extends Controller
             ->get();
 
         $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+        $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
         $calendarDays = collect();
@@ -343,6 +351,7 @@ class WorkshopController extends Controller
             $calendarDays->push([
                 'date' => $dateKey,
                 'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
+                'is_school_holiday' => isset($schoolHolidayDates[$dateKey]),
                 'is_today' => $cursor->isSameDay(now()),
                 'label' => $cursor->format('j'),
                 'full_label' => $cursor->format('D j M Y'),
@@ -361,6 +370,7 @@ class WorkshopController extends Controller
             'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
             'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+            'schoolHolidayLabel' => $this->schoolHolidayLabel(),
         ];
     }
 
@@ -370,7 +380,8 @@ class WorkshopController extends Controller
      *     currentMonthLabel: string,
      *     hasMonthWorkshops: bool,
      *     nextMonth: string,
-     *     previousMonth: string
+     *     previousMonth: string,
+     *     schoolHolidayLabel: string
      * }
      */
     private function buildPublicWorkshopMonthData(string $selectedMonth): array
@@ -389,6 +400,7 @@ class WorkshopController extends Controller
             ->get();
 
         $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+        $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
         $calendarDays = collect();
@@ -397,6 +409,7 @@ class WorkshopController extends Controller
             $calendarDays->push([
                 'date' => $dateKey,
                 'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
+                'is_school_holiday' => isset($schoolHolidayDates[$dateKey]),
                 'is_today' => $cursor->isSameDay(now()),
                 'label' => $cursor->format('j'),
                 'full_label' => $cursor->format('D j M Y'),
@@ -415,7 +428,73 @@ class WorkshopController extends Controller
             'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
             'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+            'schoolHolidayLabel' => $this->schoolHolidayLabel(),
         ];
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function schoolHolidayDateLookup(Carbon $calendarStart, Carbon $calendarEnd): array
+    {
+        $configured = (string) SiteOption::value(
+            self::SCHOOL_HOLIDAYS_OPTION,
+            SiteOption::defaultValue(self::SCHOOL_HOLIDAYS_OPTION) ?? ''
+        );
+
+        $dates = [];
+        foreach (preg_split('/\R/', $configured) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            if (! preg_match('/^(\d{4}-\d{2}-\d{2})(?:\s*(?:to|-)\s*(\d{4}-\d{2}-\d{2}))?$/', $line, $matches)) {
+                continue;
+            }
+
+            $start = $this->parseConfiguredDate($matches[1]);
+            $end = $this->parseConfiguredDate($matches[2] ?? $matches[1]);
+            if (! $start || ! $end) {
+                continue;
+            }
+
+            if ($end->lessThan($start)) {
+                [$start, $end] = [$end, $start];
+            }
+
+            if ($end->lessThan($calendarStart) || $start->greaterThan($calendarEnd)) {
+                continue;
+            }
+
+            $rangeStart = $start->greaterThan($calendarStart) ? $start->copy() : $calendarStart->copy();
+            $rangeEnd = $end->lessThan($calendarEnd) ? $end->copy() : $calendarEnd->copy();
+
+            for ($cursor = $rangeStart; $cursor->lessThanOrEqualTo($rangeEnd); $cursor->addDay()) {
+                $dates[$cursor->toDateString()] = true;
+            }
+        }
+
+        return $dates;
+    }
+
+    private function parseConfiguredDate(string $date): ?Carbon
+    {
+        try {
+            $parsed = Carbon::createFromFormat('Y-m-d', $date, config('app.timezone'))->startOfDay();
+
+            return $parsed->format('Y-m-d') === $date ? $parsed : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function schoolHolidayLabel(): string
+    {
+        $default = SiteOption::defaultValue(self::SCHOOL_HOLIDAYS_LABEL_OPTION) ?? 'School holidays';
+        $configured = trim((string) SiteOption::value(self::SCHOOL_HOLIDAYS_LABEL_OPTION, $default));
+
+        return $configured !== '' ? $configured : $default;
     }
 
     private function renderPublicWorkshopIndex(Request $request, bool $past): View
@@ -464,6 +543,7 @@ class WorkshopController extends Controller
                 'view' => 'calendar',
                 'month' => $monthData['previousMonth'],
             ])),
+            'schoolHolidayLabel' => $monthData['schoolHolidayLabel'],
             'selectedMonth' => $selectedMonth,
             'selectedCategory' => $selectedCategory,
             'selectedCategorySlug' => $selectedCategory instanceof WorkshopCategory ? (string) $selectedCategory->slug : '',
