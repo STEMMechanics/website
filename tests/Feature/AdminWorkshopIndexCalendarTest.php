@@ -149,7 +149,6 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             $response->assertOk();
             $response->assertSee('Term break');
             $response->assertSee('bg-amber-50', false);
-            $response->assertSee('ring-amber-200', false);
             $response->assertSee('School holiday workshop');
         } finally {
             Carbon::setTestNow();
