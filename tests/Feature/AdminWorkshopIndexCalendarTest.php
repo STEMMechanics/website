@@ -6,6 +6,7 @@ use App\Models\Location;
 use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
@@ -118,6 +119,41 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $defaultResponse->assertSee('x-model="showCancelled"', false);
         $defaultResponse->assertSee('x-show="showCancelled"', false);
         $defaultResponse->assertDontSee('show_cancelled=1', false);
+    }
+
+    public function test_admin_workshop_month_view_shades_configured_school_holiday_days(): void
+    {
+        $admin = $this->createAdminUser();
+        $fixedNow = Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone'));
+        Carbon::setTestNow($fixedNow);
+
+        try {
+            $holidayStart = Carbon::create(2026, 6, 27, 0, 0, 0, config('app.timezone'));
+            $holidayEnd = Carbon::create(2026, 7, 12, 0, 0, 0, config('app.timezone'));
+            SiteOption::query()->updateOrCreate(
+                ['name' => 'workshops.school-holidays'],
+                ['value' => $holidayStart->format('Y-m-d').' to '.$holidayEnd->format('Y-m-d')]
+            );
+            SiteOption::query()->updateOrCreate(
+                ['name' => 'workshops.school-holidays-label'],
+                ['value' => 'Term break']
+            );
+
+            $this->createWorkshop('School holiday workshop', $holidayStart->copy()->addDays(2)->setTime(10, 0));
+
+            $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
+                'view' => 'month',
+                'month' => $holidayStart->format('Y-m'),
+            ]));
+
+            $response->assertOk();
+            $response->assertSee('Term break');
+            $response->assertSee('bg-amber-50', false);
+            $response->assertSee('ring-amber-200', false);
+            $response->assertSee('School holiday workshop');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_admin_workshop_month_pdf_route_streams_a_pdf(): void

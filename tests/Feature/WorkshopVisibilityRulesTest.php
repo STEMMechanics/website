@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\UpcomingWorkshops;
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
@@ -263,6 +264,48 @@ class WorkshopVisibilityRulesTest extends TestCase
                 'view' => 'calendar',
                 'month' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             ]));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_public_workshop_index_calendar_view_shades_configured_school_holiday_days(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));
+
+        try {
+            $holidayStart = Carbon::create(2026, 6, 27, 0, 0, 0, config('app.timezone'));
+            $holidayEnd = Carbon::create(2026, 7, 12, 0, 0, 0, config('app.timezone'));
+            SiteOption::query()->updateOrCreate(
+                ['name' => 'workshops.school-holidays'],
+                ['value' => $holidayStart->format('Y-m-d').' to '.$holidayEnd->format('Y-m-d')]
+            );
+            SiteOption::query()->updateOrCreate(
+                ['name' => 'workshops.school-holidays-label'],
+                ['value' => 'Term break']
+            );
+
+            $workshopStart = $holidayStart->copy()->addDays(3)->setTime(9, 30);
+            $this->createWorkshop(
+                title: 'Public holiday workshop',
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $workshopStart,
+                'ends_at' => $workshopStart->copy()->addHours(2),
+            ]);
+
+            $response = $this->get(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $holidayStart->format('Y-m'),
+            ]));
+
+            $response->assertOk();
+            $response->assertSee('Term break');
+            $response->assertSee('bg-amber-50', false);
+            $response->assertSee('ring-amber-200', false);
+            $response->assertSee('Public holiday workshop');
         } finally {
             Carbon::setTestNow();
         }
