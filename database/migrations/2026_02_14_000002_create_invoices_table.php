@@ -26,7 +26,7 @@ return new class() extends Migration
             $table->string('billing_name')->nullable();
             $table->string('billing_email')->nullable();
             $table->string('billing_phone')->nullable();
-            $table->enum('status', ['draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled'])->default('draft');
+            $table->enum('status', ['draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled', 'written_off'])->default('draft');
             $table->date('issue_date');
             $table->timestamp('issued_at')->nullable();
             $table->date('due_date')->nullable();
