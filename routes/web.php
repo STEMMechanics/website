@@ -388,6 +388,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/invoices/{invoice}', [InvoiceController::class, 'edit'])->name('admin.invoice.edit');
     Route::put('/admin/invoices/{invoice}', [InvoiceController::class, 'update'])->name('admin.invoice.update');
     Route::delete('/admin/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('admin.invoice.destroy');
+    Route::post('/admin/invoices/{invoice}/write-off', [InvoiceController::class, 'writeOff'])->name('admin.invoice.write-off');
     Route::get('/admin/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('admin.invoice.pdf');
     Route::post('/admin/invoices/{invoice}/email', [InvoiceController::class, 'emailPdf'])->name('admin.invoice.email');
     Route::post('/admin/invoices/{invoice}/email-payment-link', [InvoiceController::class, 'emailPaymentLink'])->name('admin.invoice.email-payment-link');

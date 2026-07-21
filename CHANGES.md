@@ -2,6 +2,7 @@
 
 ## Current
 
+- Added an invoice write-off flow for uncollectable invoices without cancelling linked tickets or attendance records.
 - Added configurable school holiday shading and calendar keys to public and admin workshop month views.
 - Updated Axios to clear the high-severity npm audit advisory.
 - Update TipTap packages to `3.28.0` together so `@tiptap/react` peer dependencies stay aligned.
