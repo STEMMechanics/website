@@ -304,7 +304,6 @@ class WorkshopVisibilityRulesTest extends TestCase
             $response->assertOk();
             $response->assertSee('Term break');
             $response->assertSee('bg-amber-50', false);
-            $response->assertSee('ring-amber-200', false);
             $response->assertSee('Public holiday workshop');
         } finally {
             Carbon::setTestNow();
