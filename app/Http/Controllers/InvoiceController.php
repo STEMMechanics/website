@@ -12,14 +12,15 @@ use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Quote;
+use App\Models\StoreOrder;
 use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\Token;
-use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
 use App\Services\StoreOrderService;
+use App\Support\EmailSignatureFormatter;
 use App\Support\InvoiceDueDate;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\JsonResponse;
@@ -344,6 +345,61 @@ class InvoiceController extends Controller
         return redirect()->route('admin.invoice.index');
     }
 
+    public function writeOff(Request $request, Invoice $invoice): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($invoice, $validated): void {
+                $lockedInvoice = Invoice::query()
+                    ->whereKey($invoice->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $blockReason = $lockedInvoice->writeOffBlockedReason();
+                if ($blockReason !== null) {
+                    throw ValidationException::withMessages([
+                        'invoice' => $blockReason,
+                    ]);
+                }
+
+                $lockedInvoice->status = Invoice::STATUS_WRITTEN_OFF;
+                $lockedInvoice->written_off_at = now();
+                $lockedInvoice->written_off_reason = trim((string) $validated['reason']);
+                if (! $lockedInvoice->issued_at) {
+                    $lockedInvoice->issued_at = now();
+                }
+                $lockedInvoice->save();
+            });
+        } catch (ValidationException $e) {
+            $message = (string) collect($e->errors())->flatten()->first();
+            if ($message === '') {
+                $message = 'Unable to write off invoice.';
+            }
+
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Write-off blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.invoice.edit', $invoice);
+        }
+
+        session()->flash('message', 'Invoice has been written off.');
+        session()->flash('message-title', 'Invoice written off');
+        session()->flash('message-type', 'warning');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.invoice.edit', $invoice),
+            ]);
+        }
+
+        return redirect()->route('admin.invoice.edit', $invoice);
+    }
+
     public function pdf(Invoice $invoice)
     {
         return $this->buildInvoicePdf($invoice)->stream($this->getInvoicePdfFilename($invoice));
@@ -448,7 +504,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
         $this->abortIfInvoiceNotAccessibleForRequest($request, $invoice);
-        if ((float) $invoice->total_amount <= 0) {
+        if (! $this->invoiceCanAcceptPublicPayment($invoice)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
@@ -457,7 +513,7 @@ class InvoiceController extends Controller
 
     public function publicPayShow(Invoice $invoice): View
     {
-        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true) || (float) $invoice->total_amount <= 0) {
+        if (! $this->invoiceCanAcceptPublicPayment($invoice)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
@@ -466,7 +522,7 @@ class InvoiceController extends Controller
 
     public function publicPayProcess(Request $request, Invoice $invoice, SquareApiService $squareApi): RedirectResponse
     {
-        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true) || (float) $invoice->total_amount <= 0) {
+        if (! $this->invoiceCanAcceptPublicPayment($invoice)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
@@ -480,7 +536,7 @@ class InvoiceController extends Controller
             route('invoice.public.pay.show', $invoice)
         );
 
-        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true)) {
+        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
@@ -542,7 +598,7 @@ class InvoiceController extends Controller
                 orderNumber: $linkedStoreOrder instanceof StoreOrder ? (string) $linkedStoreOrder->order_number : null,
                 attachments: $attachments,
                 outstandingAmount: $invoice->displayOutstandingAmount(),
-                payUrl: $invoice->displayOutstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
+                payUrl: $this->invoiceCanAcceptPublicPayment($invoice) ? route('invoice.public.pay.show', $invoice) : null,
                 initiatedByEmail: $initiatedByEmail,
                 initiatedByName: $initiatedByName,
             )))->onQueue('mail');
@@ -699,7 +755,7 @@ class InvoiceController extends Controller
 
         try {
             foreach ($recipients as $recipient) {
-                $invoicePayUrl = $invoice->displayOutstandingAmount() > 0.0001
+                $invoicePayUrl = $this->invoiceCanAcceptPublicPayment($invoice)
                     ? route('invoice.public.pay.show', $invoice)
                     : null;
 
@@ -827,10 +883,33 @@ class InvoiceController extends Controller
             ], 422);
         }
 
+        if ((string) $invoice->status === Invoice::STATUS_WRITTEN_OFF) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice has been written off.',
+            ], 422);
+        }
+
+        if ($invoice->displayOutstandingAmount() <= 0.0001) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice has no outstanding balance.',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'url' => route('invoice.public.pay.show', $invoice),
         ]);
+    }
+
+    private function invoiceCanAcceptPublicPayment(Invoice $invoice): bool
+    {
+        if (in_array((string) $invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true)) {
+            return false;
+        }
+
+        return (float) $invoice->total_amount > 0 && $invoice->displayOutstandingAmount() > 0.0001;
     }
 
     private function renderInvoicePortal(Invoice $invoice, ?string $accessToken, bool $isAccountView, bool $isPublic = false): View
@@ -970,7 +1049,13 @@ class InvoiceController extends Controller
                     ]);
                 }
 
-                $outstandingAmount = $lockedInvoice->outstandingAmount();
+                if ((string) $lockedInvoice->status === Invoice::STATUS_WRITTEN_OFF) {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'This invoice has been written off.',
+                    ]);
+                }
+
+                $outstandingAmount = $lockedInvoice->displayOutstandingAmount();
 
                 if ($outstandingAmount <= 0) {
                     throw ValidationException::withMessages([
@@ -1243,6 +1328,9 @@ class InvoiceController extends Controller
         if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
             return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. This invoice has been cancelled and no amount is owing.\n\nPlease don't hesitate to reach out if you have any questions.";
         }
+        if ((string) $invoice->status === Invoice::STATUS_WRITTEN_OFF) {
+            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. This invoice has been written off and no amount is owing.\n\nPlease don't hesitate to reach out if you have any questions.";
+        }
 
         $outstanding = (float) $invoice->displayOutstandingAmount();
         $isPaidInFull = $outstanding <= 0.0001;
@@ -1295,7 +1383,7 @@ class InvoiceController extends Controller
             return;
         }
 
-        $senderLabel = \App\Support\EmailSignatureFormatter::resolve($initiatedByName);
+        $senderLabel = EmailSignatureFormatter::resolve($initiatedByName);
         $timestamp = now()->format('Y-m-d g:i a');
         $line = $timestamp.' - Invoice emailed to '.$recipientsList.' by '.$senderLabel;
 
@@ -1604,6 +1692,9 @@ class InvoiceController extends Controller
         if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
             return 'This invoice has been cancelled.';
         }
+        if ((string) $invoice->status === Invoice::STATUS_WRITTEN_OFF) {
+            return 'This invoice has been written off.';
+        }
 
         $outstanding = $invoice->displayOutstandingAmount();
 
@@ -1833,10 +1924,10 @@ class InvoiceController extends Controller
         $becamePaid = $invoice->syncPaidState();
 
         if ($becamePaid && $this->invoiceHasTicketContent($invoice)) {
-                Ticket::query()
-                    ->where('invoice_id', $invoice->id)
-                    ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
-                    ->update(['status' => Ticket::STATUS_DONE]);
+            Ticket::query()
+                ->where('invoice_id', $invoice->id)
+                ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
+                ->update(['status' => Ticket::STATUS_DONE]);
         }
     }
 
@@ -2101,7 +2192,7 @@ class InvoiceController extends Controller
             'adjustments' => $includeAdjustments
                 ? $invoice->taxAdjustments()->orderBy('issue_date')->orderBy('id')->get()
                 : collect(),
-            'publicPayUrl' => (string) $invoice->status !== Invoice::STATUS_CANCELLED && $invoice->displayOutstandingAmount() > 0.0001
+            'publicPayUrl' => $this->invoiceCanAcceptPublicPayment($invoice)
                 ? route('invoice.public.pay.show', $invoice)
                 : null,
         ])->setOption([

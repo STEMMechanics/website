@@ -1,9 +1,9 @@
 <x-layout>
     <x-mast>Invoices</x-mast>
 
-    <x-container
-        class="mt-4"
-        x-data="{
+    <x-container class="mt-4">
+        <div
+            x-data="{
             invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
             invoiceEmailAction: {{ json_encode((string) session('invoice-email-action', '')) }},
             invoiceEmailInvoiceNumber: {{ json_encode((string) session('invoice-email-invoice-number', '')) }},
@@ -14,6 +14,51 @@
             invoiceEmailSubjectOpen: false,
             invoiceEmailCcOpen: false,
             invoiceEmailHelpOpen: false,
+            submitInvoiceWriteOff(action) {
+                if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+                    return;
+                }
+
+                Swal.fire({
+                    position: 'top',
+                    icon: 'warning',
+                    iconColor: '#b91c1c',
+                    title: 'Write off invoice?',
+                    html: 'This clears the outstanding balance without cancelling linked tickets, orders, or attendance records. The invoice will no longer accept payments.',
+                    input: 'textarea',
+                    inputLabel: 'Write-off reason',
+                    inputPlaceholder: 'Reason this invoice is being written off',
+                    inputAttributes: {
+                        maxlength: 1000
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Write Off Invoice',
+                    confirmButtonColor: '#b91c1c',
+                    cancelButtonText: 'Keep Invoice',
+                    reverseButtons: true,
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return 'Enter a write-off reason.';
+                        }
+                        return undefined;
+                    }
+                }).then((result) => {
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = action;
+                    form.innerHTML = `
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="reason" value="">
+                    `;
+                    form.querySelector('input[name=reason]').value = result.value || '';
+                    document.body.appendChild(form);
+                    form.submit();
+                });
+            },
             openInvoiceEmailModal(payload) {
                 this.invoiceEmailAction = payload?.action || '';
                 this.invoiceEmailInvoiceNumber = payload?.invoice_number || '';
@@ -31,7 +76,7 @@
                 this.invoiceEmailHelpOpen = false;
             },
         }"
-    >
+        >
         <x-ui.toolbar break="md">
             <x-slot:left class="flex-0">
                 <x-ui.button href="{{ route('admin.invoice.create') }}" class="w-full md:w-auto">Create</x-ui.button>
@@ -85,13 +130,16 @@
                         $settlementKind = $invoice->expectedSettlementKind();
                         $cancelBlockReason = $invoice->cancellationBlockedReason();
                         $canCancelInvoice = $cancelBlockReason === null;
+                        $writeOffBlockReason = $invoice->writeOffBlockedReason();
+                        $canWriteOffInvoice = $writeOffBlockReason === null;
                         $allocated = (float) $invoice->allocations
                             ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
                             ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $settlementKind)
                             ->sum('allocated_amount');
-                        $balance = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED
-                            ? 0.0
-                            : (float) $invoice->outstandingAmount();
+                        $balance = (float) $invoice->displayOutstandingAmount();
+                        $canAcceptPayment = ! in_array((string) $invoice->status, [\App\Models\Invoice::STATUS_DRAFT, \App\Models\Invoice::STATUS_CANCELLED, \App\Models\Invoice::STATUS_WRITTEN_OFF], true)
+                            && $balance > 0.0001
+                            && (float) $invoice->total_amount > 0;
                         $isCreditDocument = ((float) $invoice->total_amount) < 0;
                         $invoiceEmailPayload = $invoiceEmailDefaults[(string) $invoice->id] ?? [];
                     @endphp
@@ -150,34 +198,36 @@
                                     <i class="fa-regular fa-envelope"></i>
                                     <span class="sr-only">Email Invoice PDF</span>
                                 </button>
-                                <a href="#"
-                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                    title="Copy Payment Link"
-                                    x-data
-                                    x-on:click.prevent="
-                                        fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                'Accept': 'application/json'
-                                            }
-                                        })
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            if (!data || !data.url) {
-                                                throw new Error('Unable to generate payment link.');
-                                            }
-                                            SM.copyToClipboard(data.url);
-                                            SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                        })
-                                        .catch((error) => {
-                                            SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                        });
-                                    "
-                                >
-                                    <i class="fa-solid fa-link"></i>
-                                    <span class="sr-only">Copy Payment Link</span>
-                                </a>
+                                @if($canAcceptPayment)
+                                    <a href="#"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                        title="Copy Payment Link"
+                                        x-data
+                                        x-on:click.prevent="
+                                            fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                    'Accept': 'application/json'
+                                                }
+                                            })
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                if (!data || !data.url) {
+                                                    throw new Error('Unable to generate payment link.');
+                                                }
+                                                SM.copyToClipboard(data.url);
+                                                SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                            })
+                                            .catch((error) => {
+                                                SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                            });
+                                        "
+                                    >
+                                        <i class="fa-solid fa-link"></i>
+                                        <span class="sr-only">Copy Payment Link</span>
+                                    </a>
+                                @endif
                             @endif
                             @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
                                 <button
@@ -208,6 +258,23 @@
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}">
                                         <i class="fa-solid fa-ban"></i>
+                                    </span>
+                                @endif
+                            @endif
+                            @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
+                                @if($canWriteOffInvoice)
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-amber-50 hover:text-amber-700"
+                                        title="Write Off Invoice"
+                                        x-on:click.prevent="submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}')"
+                                    >
+                                        <i class="fa-solid fa-file-circle-minus"></i>
+                                        <span class="sr-only">Write Off Invoice</span>
+                                    </button>
+                                @else
+                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}">
+                                        <i class="fa-solid fa-file-circle-minus"></i>
                                     </span>
                                 @endif
                             @endif
@@ -273,13 +340,16 @@
                                 $settlementKind = $invoice->expectedSettlementKind();
                                 $cancelBlockReason = $invoice->cancellationBlockedReason();
                                 $canCancelInvoice = $cancelBlockReason === null;
+                                $writeOffBlockReason = $invoice->writeOffBlockedReason();
+                                $canWriteOffInvoice = $writeOffBlockReason === null;
                                 $allocated = (float) $invoice->allocations
                                     ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
                                     ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $settlementKind)
                                     ->sum('allocated_amount');
-                                $balance = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED
-                                    ? 0.0
-                                    : (float) $invoice->outstandingAmount();
+                                $balance = (float) $invoice->displayOutstandingAmount();
+                                $canAcceptPayment = ! in_array((string) $invoice->status, [\App\Models\Invoice::STATUS_DRAFT, \App\Models\Invoice::STATUS_CANCELLED, \App\Models\Invoice::STATUS_WRITTEN_OFF], true)
+                                    && $balance > 0.0001
+                                    && (float) $invoice->total_amount > 0;
                                 $isCreditDocument = ((float) $invoice->total_amount) < 0;
                             @endphp
                             <tr>
@@ -326,30 +396,32 @@
                                                 x-data
                                                 x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailPayload) }})"
                                             ><i class="fa-regular fa-envelope"></i></button>
-                                            <a href="#"
-                                                class="hover:text-primary-color"
-                                                title="Copy Payment Link"
-                                                x-data
-                                                x-on:click.prevent="
-                                                fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                        'Accept': 'application/json'
-                                                    }
-                                                })
-                                                .then(response => response.json())
-                                                .then(data => {
-                                                    if (!data || !data.url) {
-                                                        throw new Error('Unable to generate payment link.');
-                                                    }
-                                                    SM.copyToClipboard(data.url);
-                                                    SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                                })
-                                                .catch((error) => {
-                                                    SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                                });
-                                        "><i class="fa-solid fa-link"></i></a>
+                                            @if($canAcceptPayment)
+                                                <a href="#"
+                                                    class="hover:text-primary-color"
+                                                    title="Copy Payment Link"
+                                                    x-data
+                                                    x-on:click.prevent="
+                                                    fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                            'Accept': 'application/json'
+                                                        }
+                                                    })
+                                                    .then(response => response.json())
+                                                    .then(data => {
+                                                        if (!data || !data.url) {
+                                                            throw new Error('Unable to generate payment link.');
+                                                        }
+                                                        SM.copyToClipboard(data.url);
+                                                        SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                                    })
+                                                    .catch((error) => {
+                                                        SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                                    });
+                                            "><i class="fa-solid fa-link"></i></a>
+                                            @endif
                                         @endif
                                         @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
                                             <button
@@ -378,6 +450,23 @@
                                                     title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}"
                                                     disabled
                                                 ><i class="fa-solid fa-ban"></i></button>
+                                            @endif
+                                        @endif
+                                        @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
+                                            @if($canWriteOffInvoice)
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex items-center justify-center text-gray-500 transition hover:text-amber-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                                                    title="Write Off Invoice"
+                                                    x-on:click.prevent="submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}')"
+                                                ><i class="fa-solid fa-file-circle-minus"></i></button>
+                                            @else
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
+                                                    title="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}"
+                                                    disabled
+                                                ><i class="fa-solid fa-file-circle-minus"></i></button>
                                             @endif
                                         @endif
                                     </div>
@@ -423,5 +512,6 @@
         @endif
 
         <x-admin.invoice-email-modal />
+        </div>
     </x-container>
 </x-layout>

@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
 use App\Models\Product;
-use App\Models\TaxAdjustment;
-use App\Models\Ticket;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use App\Models\StoreOrderItemTracking;
+use App\Models\TaxAdjustment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +42,115 @@ class AdminInvoiceEditTest extends TestCase
             ->assertSee('Remaining:</strong> $0.00', false);
     }
 
+    public function test_admin_can_write_off_ticket_invoice_without_cancelling_ticket(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'line_number' => 1,
+            'kind' => 'ticket',
+            'description' => 'Workshop Ticket',
+            'quantity' => 1,
+            'unit_price_ex_tax' => 25.00,
+            'line_total_ex_tax' => 25.00,
+            'tax_amount' => 2.50,
+            'line_total_inc_tax' => 27.50,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'user_id' => $customer->id,
+            'invoice_id' => $invoice->id,
+            'status' => Ticket::STATUS_DONE,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.invoice.write-off', $invoice), [
+                'reason' => 'Customer attended, but payment will not be recovered.',
+            ])
+            ->assertRedirect(route('admin.invoice.edit', $invoice))
+            ->assertSessionHas('message', 'Invoice has been written off.');
+
+        $invoice->refresh();
+        $ticket->refresh();
+
+        $this->assertSame(Invoice::STATUS_WRITTEN_OFF, (string) $invoice->status);
+        $this->assertSame('Customer attended, but payment will not be recovered.', (string) $invoice->written_off_reason);
+        $this->assertNotNull($invoice->written_off_at);
+        $this->assertSame(0.0, (float) $invoice->displayOutstandingAmount());
+        $this->assertSame(Ticket::STATUS_DONE, (int) $ticket->status);
+        $this->assertSame((string) $invoice->id, (string) $ticket->invoice_id);
+
+        $this->actingAs($admin)
+            ->get(route('admin.invoice.edit', $invoice))
+            ->assertOk()
+            ->assertSeeText('Written off')
+            ->assertSeeText('Customer attended, but payment will not be recovered.')
+            ->assertSeeText('Due (after adjustments): $0.00')
+            ->assertSee('Remaining:</strong> $0.00', false)
+            ->assertDontSeeText('Copy Payment Link')
+            ->assertDontSeeText('Record Payment');
+    }
+
+    public function test_admin_invoice_write_off_requires_a_reason(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->post(route('admin.invoice.write-off', $invoice), [
+                'reason' => '',
+            ])
+            ->assertRedirect(route('admin.invoice.edit', $invoice))
+            ->assertSessionHasErrors('reason');
+
+        $this->assertSame(Invoice::STATUS_ISSUED, (string) $invoice->fresh()->status);
+        $this->assertNull($invoice->fresh()->written_off_at);
+    }
+
+    public function test_written_off_invoice_cannot_generate_payment_link_or_accept_public_payment(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_WRITTEN_OFF,
+            'written_off_at' => now(),
+            'written_off_reason' => 'Uncollectable workshop ticket.',
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.invoice.payment-link', $invoice))
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'This invoice has been written off.',
+            ]);
+
+        $this->get(route('invoice.public.pay.show', $invoice))
+            ->assertNotFound();
+    }
+
     public function test_admin_invoice_edit_disables_cancel_action_when_payments_are_allocated(): void
     {
         $admin = $this->createAdminUser();
@@ -53,16 +164,16 @@ class AdminInvoiceEditTest extends TestCase
             'gst_amount' => 2.50,
         ]);
 
-        $payment = \App\Models\Payment::factory()->create([
+        $payment = Payment::factory()->create([
             'user_id' => $customer->id,
             'created_by' => $admin->id,
-            'kind' => \App\Models\Payment::KIND_PAYMENT,
-            'payment_method' => \App\Models\Payment::PAYMENT_METHOD_CASH,
+            'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 27.50,
             'gst_amount' => 2.50,
         ]);
 
-        \App\Models\InvoicePaymentAllocation::query()->create([
+        InvoicePaymentAllocation::query()->create([
             'invoice_id' => $invoice->id,
             'payment_id' => $payment->id,
             'allocated_amount' => 27.50,

@@ -54,10 +54,15 @@
         : 0.0;
     $invoiceNetAllocatedAmount = round(max(0, $invoiceGrossAllocatedAmount - $invoiceRefundedAmount), 2);
     $invoiceDueAmount = isset($invoice) ? (float) $invoice->displayDueAmount() : 0.0;
-    $invoiceRemainingAmount = isset($invoice) && (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED
+    $invoiceIsClosed = isset($invoice) && in_array((string) $invoice->status, [\App\Models\Invoice::STATUS_CANCELLED, \App\Models\Invoice::STATUS_WRITTEN_OFF], true);
+    $invoiceRemainingAmount = $invoiceIsClosed
         ? 0.0
         : round(max(0, $invoiceDueAmount - $invoiceNetAllocatedAmount), 2);
-    $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0 && (string) $invoice->status !== \App\Models\Invoice::STATUS_CANCELLED
+    $invoiceCanAcceptPayment = isset($invoice)
+        && ! in_array((string) $invoice->status, [\App\Models\Invoice::STATUS_DRAFT, \App\Models\Invoice::STATUS_CANCELLED, \App\Models\Invoice::STATUS_WRITTEN_OFF], true)
+        && (float) $invoice->total_amount > 0
+        && $invoiceRemainingAmount > 0.0001;
+    $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0 && ! $invoiceIsClosed
         ? max(0, min(100, round(($invoiceNetAllocatedAmount / $invoiceDueAmount) * 100, 1)))
         : 0.0;
     $invoicePaymentRows = isset($invoice)
@@ -109,9 +114,9 @@
 <x-layout>
     <x-mast backRoute="admin.invoice.index" backTitle="Invoices">{{ isset($invoice) ? 'Edit' : 'Create' }} Invoice</x-mast>
 
-<x-container
-    class="mt-4"
-    x-data="{
+<x-container class="mt-4">
+    <div
+        x-data="{
         invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
         invoiceEmailAction: {{ json_encode((string) ($invoiceEmailDefaultPayload['action'] ?? '')) }},
         invoiceEmailInvoiceNumber: {{ json_encode((string) ($invoiceEmailDefaultPayload['invoice_number'] ?? ($invoice->invoice_number ?? ''))) }},
@@ -122,6 +127,51 @@
         invoiceEmailSubjectOpen: false,
         invoiceEmailCcOpen: false,
         invoiceEmailHelpOpen: false,
+        submitInvoiceWriteOff(action) {
+            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+                return;
+            }
+
+            Swal.fire({
+                position: 'top',
+                icon: 'warning',
+                iconColor: '#b91c1c',
+                title: 'Write off invoice?',
+                html: 'This clears the outstanding balance without cancelling linked tickets, orders, or attendance records. The invoice will no longer accept payments.',
+                input: 'textarea',
+                inputLabel: 'Write-off reason',
+                inputPlaceholder: 'Reason this invoice is being written off',
+                inputAttributes: {
+                    maxlength: 1000
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Write Off Invoice',
+                confirmButtonColor: '#b91c1c',
+                cancelButtonText: 'Keep Invoice',
+                reverseButtons: true,
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Enter a write-off reason.';
+                    }
+                    return undefined;
+                }
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = action;
+                form.innerHTML = `
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="reason" value="">
+                `;
+                form.querySelector('input[name=reason]').value = result.value || '';
+                document.body.appendChild(form);
+                form.submit();
+            });
+        },
         openInvoiceEmailModal(payload) {
             this.invoiceEmailAction = payload?.action || this.invoiceEmailAction || '';
             this.invoiceEmailInvoiceNumber = payload?.invoice_number || this.invoiceEmailInvoiceNumber || '';
@@ -139,7 +189,7 @@
             this.invoiceEmailHelpOpen = false;
         },
         }"
->
+    >
         @isset($invoice)
             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                 <x-ui.toolbar break="md" class="mb-4">
@@ -148,33 +198,35 @@
                             <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
                             <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
                             <x-admin.invoice-email-modal />
-                            <x-ui.button
-                                type="button"
-                                color="secondary"
-                                x-data
-                                x-on:click.prevent="
-                                    fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                            'Accept': 'application/json'
-                                        }
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (!data || !data.url) {
-                                            throw new Error('Unable to generate payment link.');
-                                        }
-                                        SM.copyToClipboard(data.url);
-                                        SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                    })
-                                    .catch((error) => {
-                                        SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                    });
-                                "
-                                class="w-full sm:w-auto"
-                            >Copy Payment Link</x-ui.button>
-                            <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                            @if($invoiceCanAcceptPayment)
+                                <x-ui.button
+                                    type="button"
+                                    color="secondary"
+                                    x-data
+                                    x-on:click.prevent="
+                                        fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                'Accept': 'application/json'
+                                            }
+                                        })
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if (!data || !data.url) {
+                                                throw new Error('Unable to generate payment link.');
+                                            }
+                                            SM.copyToClipboard(data.url);
+                                            SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                        })
+                                        .catch((error) => {
+                                            SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                        });
+                                    "
+                                    class="w-full sm:w-auto"
+                                >Copy Payment Link</x-ui.button>
+                                <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                            @endif
                         </div>
                     </x-slot:right>
                 </x-ui.toolbar>
@@ -189,6 +241,12 @@
                     <div><strong>Net Allocated:</strong> ${{ number_format($invoiceNetAllocatedAmount, 2) }}</div>
                     <div><strong>Remaining:</strong> ${{ number_format($invoiceRemainingAmount, 2) }}</div>
                 </div>
+                @if((string) $invoice->status === \App\Models\Invoice::STATUS_WRITTEN_OFF)
+                    <div class="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800">
+                        <div><strong>Written off:</strong> {{ $invoice->written_off_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                        <div class="mt-1 whitespace-pre-line"><strong>Reason:</strong> {{ $invoice->written_off_reason }}</div>
+                    </div>
+                @endif
                 <div class="mt-3">
                     <div class="h-2 w-full rounded bg-gray-100 overflow-hidden">
                         <div class="h-2 bg-primary-color" style="width: {{ $invoiceProgressPercent }}%"></div>
@@ -929,6 +987,8 @@
                         $isDraftInvoice = (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
                         $cancelBlockReason = ! $isDraftInvoice ? $invoice->cancellationBlockedReason() : null;
                         $canCancelInvoice = $cancelBlockReason === null;
+                        $writeOffBlockReason = ! $isDraftInvoice ? $invoice->writeOffBlockedReason() : null;
+                        $canWriteOffInvoice = $writeOffBlockReason === null;
                         $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
                         $invoiceConfirmMessage = $isDraftInvoice
                             ? 'This will permanently delete this draft invoice. Continue?'
@@ -960,6 +1020,23 @@
                             disabled
                         ><i class="fa-solid fa-ban"></i></button>
                     @endif
+                    @if(! $isDraftInvoice)
+                        @if($canWriteOffInvoice)
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center text-gray-500 transition hover:text-amber-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                                title="Write Off Invoice"
+                                x-on:click.prevent="submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}')"
+                            ><i class="fa-solid fa-file-circle-minus"></i></button>
+                        @else
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
+                                title="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}"
+                                disabled
+                            ><i class="fa-solid fa-file-circle-minus"></i></button>
+                        @endif
+                    @endif
                     <x-ui.button
                         type="submit"
                         color="primary-outline"
@@ -978,5 +1055,6 @@
             @endif
 
         </form>
+    </div>
     </x-container>
 </x-layout>

@@ -254,6 +254,47 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSeeText('Balance: $0.00');
     }
 
+    public function test_admin_invoice_index_does_not_count_written_off_invoices_in_outstanding_total(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-ACTIVE-1101',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'total_amount' => 75.00,
+            'subtotal_amount' => 68.18,
+            'gst_amount' => 6.82,
+        ]);
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-WRITTEN-OFF-1102',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_WRITTEN_OFF,
+            'written_off_at' => now(),
+            'written_off_reason' => 'Uncollectable workshop ticket.',
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('$75.00');
+        $response->assertDontSeeText('$195.00');
+        $response->assertSeeText('INV-WRITTEN-OFF-1102');
+        $response->assertSeeText('Written off');
+        $response->assertSeeText('Balance: $0.00');
+        $response->assertSee('title="Invoice is already written off."', false);
+    }
+
     public function test_admin_invoice_index_disables_cancel_action_for_cancelled_invoices(): void
     {
         $admin = $this->createAdminUser();

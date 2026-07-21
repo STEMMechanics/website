@@ -17,11 +17,18 @@ class Invoice extends Model
     use HasFactory, HasFiles;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ISSUED = 'issued';
+
     public const STATUS_SENT = 'sent';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_OVERDUE = 'overdue';
+
     public const STATUS_CANCELLED = 'cancelled';
+
+    public const STATUS_WRITTEN_OFF = 'written_off';
 
     public const STATUSES = [
         self::STATUS_DRAFT,
@@ -30,6 +37,7 @@ class Invoice extends Model
         self::STATUS_PAID,
         self::STATUS_OVERDUE,
         self::STATUS_CANCELLED,
+        self::STATUS_WRITTEN_OFF,
     ];
 
     protected $fillable = [
@@ -42,6 +50,8 @@ class Invoice extends Model
         'status',
         'issue_date',
         'issued_at',
+        'written_off_at',
+        'written_off_reason',
         'due_date',
         'purchase_order_number',
         'subtotal_amount',
@@ -53,6 +63,7 @@ class Invoice extends Model
     protected $casts = [
         'issue_date' => 'date',
         'issued_at' => 'datetime',
+        'written_off_at' => 'datetime',
         'due_date' => 'date',
         'subtotal_amount' => 'decimal:2',
         'gst_amount' => 'decimal:2',
@@ -202,6 +213,32 @@ class Invoice extends Model
         return $this->cancellationBlockedReason() === null;
     }
 
+    public function canWriteOff(): bool
+    {
+        return $this->writeOffBlockedReason() === null;
+    }
+
+    public function writeOffBlockedReason(): ?string
+    {
+        if ((string) $this->status === self::STATUS_WRITTEN_OFF) {
+            return 'Invoice is already written off.';
+        }
+
+        if (in_array((string) $this->status, [self::STATUS_DRAFT, self::STATUS_CANCELLED], true)) {
+            return 'Only issued invoices with an outstanding balance can be written off.';
+        }
+
+        if ((string) $this->status === self::STATUS_PAID) {
+            return 'Paid invoices cannot be written off.';
+        }
+
+        if ($this->displayOutstandingAmount() <= 0.0001) {
+            return 'Only invoices with an outstanding balance can be written off.';
+        }
+
+        return null;
+    }
+
     public function cancellationBlockedReason(): ?string
     {
         if ((string) $this->status === self::STATUS_CANCELLED) {
@@ -291,6 +328,7 @@ class Invoice extends Model
             self::STATUS_OVERDUE => [self::STATUS_PAID, self::STATUS_CANCELLED],
             self::STATUS_PAID => [self::STATUS_CANCELLED],
             self::STATUS_CANCELLED => [],
+            self::STATUS_WRITTEN_OFF => [],
         ];
 
         return in_array($nextStatus, $allowed[$current], true);
@@ -305,6 +343,7 @@ class Invoice extends Model
             self::STATUS_PAID => 'Paid',
             self::STATUS_OVERDUE => 'Overdue',
             self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_WRITTEN_OFF => 'Written off',
             default => ucfirst(str_replace('_', ' ', $status)),
         };
     }
@@ -318,6 +357,7 @@ class Invoice extends Model
             self::STATUS_PAID => 'border-emerald-200 bg-emerald-50 text-emerald-800',
             self::STATUS_OVERDUE => 'border-rose-300 bg-rose-100 text-rose-900 ring-1 ring-rose-200 shadow-sm',
             self::STATUS_CANCELLED => 'border-slate-200 bg-slate-50 text-slate-700',
+            self::STATUS_WRITTEN_OFF => 'border-zinc-300 bg-zinc-100 text-zinc-800',
             default => 'border-gray-200 bg-gray-50 text-gray-700',
         };
     }
@@ -331,6 +371,7 @@ class Invoice extends Model
             self::STATUS_PAID => 'success',
             self::STATUS_OVERDUE => 'danger',
             self::STATUS_CANCELLED => 'slate',
+            self::STATUS_WRITTEN_OFF => 'slate',
             default => 'gray',
         };
     }
@@ -400,6 +441,10 @@ class Invoice extends Model
 
     public function syncPaidState(): bool
     {
+        if (in_array((string) $this->status, [self::STATUS_CANCELLED, self::STATUS_WRITTEN_OFF], true)) {
+            return false;
+        }
+
         $freshInvoice = $this->fresh();
         $referenceInvoice = $freshInvoice instanceof self ? $freshInvoice : $this;
         $shouldBePaid = $referenceInvoice->outstandingAmount() <= 0.0001;
@@ -574,7 +619,7 @@ class Invoice extends Model
 
     public function displayOutstandingAmount(?int $excludingCustomerPaymentId = null): float
     {
-        if ((string) $this->status === self::STATUS_CANCELLED) {
+        if (in_array((string) $this->status, [self::STATUS_CANCELLED, self::STATUS_WRITTEN_OFF], true)) {
             return 0.0;
         }
 
@@ -583,7 +628,7 @@ class Invoice extends Model
 
     public function displayDueAmount(): float
     {
-        if ((string) $this->status === self::STATUS_CANCELLED) {
+        if (in_array((string) $this->status, [self::STATUS_CANCELLED, self::STATUS_WRITTEN_OFF], true)) {
             return 0.0;
         }
 
