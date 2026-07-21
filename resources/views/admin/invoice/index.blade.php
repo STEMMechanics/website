@@ -14,51 +14,6 @@
             invoiceEmailSubjectOpen: false,
             invoiceEmailCcOpen: false,
             invoiceEmailHelpOpen: false,
-            submitInvoiceWriteOff(action) {
-                if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
-                    return;
-                }
-
-                Swal.fire({
-                    position: 'top',
-                    icon: 'warning',
-                    iconColor: '#b91c1c',
-                    title: 'Write off invoice?',
-                    html: 'This clears the outstanding balance without cancelling linked tickets, orders, or attendance records. The invoice will no longer accept payments.',
-                    input: 'textarea',
-                    inputLabel: 'Write-off reason',
-                    inputPlaceholder: 'Reason this invoice is being written off',
-                    inputAttributes: {
-                        maxlength: 1000
-                    },
-                    showCancelButton: true,
-                    confirmButtonText: 'Write Off Invoice',
-                    confirmButtonColor: '#b91c1c',
-                    cancelButtonText: 'Keep Invoice',
-                    reverseButtons: true,
-                    inputValidator: (value) => {
-                        if (!value || !value.trim()) {
-                            return 'Enter a write-off reason.';
-                        }
-                        return undefined;
-                    }
-                }).then((result) => {
-                    if (!result.isConfirmed) {
-                        return;
-                    }
-
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = action;
-                    form.innerHTML = `
-                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="reason" value="">
-                    `;
-                    form.querySelector('input[name=reason]').value = result.value || '';
-                    document.body.appendChild(form);
-                    form.submit();
-                });
-            },
             openInvoiceEmailModal(payload) {
                 this.invoiceEmailAction = payload?.action || '';
                 this.invoiceEmailInvoiceNumber = payload?.invoice_number || '';
@@ -267,7 +222,7 @@
                                         type="button"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-amber-50 hover:text-amber-700"
                                         title="Write Off Invoice"
-                                        x-on:click.prevent="submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}')"
+                                        x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                     >
                                         <i class="fa-solid fa-file-circle-minus"></i>
                                         <span class="sr-only">Write Off Invoice</span>
@@ -456,9 +411,9 @@
                                             @if($canWriteOffInvoice)
                                                 <button
                                                     type="button"
-                                                    class="inline-flex items-center justify-center text-gray-500 transition hover:text-amber-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                                                    class="inline-flex items-center justify-center transition hover:text-red-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
                                                     title="Write Off Invoice"
-                                                    x-on:click.prevent="submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}')"
+                                                    x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                                 ><i class="fa-solid fa-file-circle-minus"></i></button>
                                             @else
                                                 <button
@@ -514,4 +469,62 @@
         <x-admin.invoice-email-modal />
         </div>
     </x-container>
+    <script>
+        window.SM = window.SM || {};
+        window.SM.submitInvoiceWriteOff = function (action, csrfToken) {
+            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+                return;
+            }
+
+            Swal.fire({
+                position: 'top',
+                icon: 'warning',
+                iconColor: '#b91c1c',
+                title: 'Write off invoice?',
+                html: 'This clears the outstanding balance without cancelling linked tickets, orders, or attendance records. The invoice will no longer accept payments.',
+                input: 'textarea',
+                inputLabel: 'Write-off reason',
+                inputPlaceholder: 'Reason this invoice is being written off',
+                inputAttributes: {
+                    maxlength: 1000
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Write Off Invoice',
+                confirmButtonColor: '#b91c1c',
+                cancelButtonText: 'Keep Invoice',
+                reverseButtons: true,
+                inputValidator: (value) => {
+                    if (!value || !value.trim()) {
+                        return 'Enter a write-off reason.';
+                    }
+
+                    return undefined;
+                }
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                const form = document.createElement('form');
+                const tokenInput = document.createElement('input');
+                const reasonInput = document.createElement('input');
+
+                form.method = 'POST';
+                form.action = action;
+
+                tokenInput.type = 'hidden';
+                tokenInput.name = '_token';
+                tokenInput.value = csrfToken;
+
+                reasonInput.type = 'hidden';
+                reasonInput.name = 'reason';
+                reasonInput.value = result.value || '';
+
+                form.appendChild(tokenInput);
+                form.appendChild(reasonInput);
+                document.body.appendChild(form);
+                form.submit();
+            });
+        };
+    </script>
 </x-layout>
