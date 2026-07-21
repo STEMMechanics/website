@@ -993,7 +993,7 @@
                         @endif
                     @endif
                     <x-ui.button
-                        type="submit"coul
+                        type="submit"
                         color="primary-outline"
                         name="save_and_email"
                         value="1"
