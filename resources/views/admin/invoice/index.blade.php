@@ -411,7 +411,7 @@
                                             @if($canWriteOffInvoice)
                                                 <button
                                                     type="button"
-                                                    class="inline-flex items-center justify-center text-gray-500 transition hover:text-amber-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                                                    class="inline-flex items-center justify-center transition hover:text-red-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
                                                     title="Write Off Invoice"
                                                     x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                                 ><i class="fa-solid fa-file-circle-minus"></i></button>
