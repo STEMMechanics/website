@@ -3,6 +3,7 @@
 ## Current
 
 - Added configurable school holiday shading and calendar keys to public and admin workshop month views.
+- Updated Axios to clear the high-severity npm audit advisory.
 - Update TipTap packages to `3.28.0` together so `@tiptap/react` peer dependencies stay aligned.
 - Restrict SAST push workflow runs to `main` to avoid duplicate PR checks.
 - Update Guzzle dependencies to clear the `GHSA-94pj-82f3-465w` Composer audit advisory.
