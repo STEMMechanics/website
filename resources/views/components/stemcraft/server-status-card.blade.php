@@ -108,21 +108,6 @@
                 <p class="mt-1 text-xs text-gray-500">supported version</p>
             </div>
 
-            <div class="rounded-md bg-slate-50 p-4">
-                <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {{ $stale ? 'Last updated' : 'Last checked' }}
-                </dt>
-
-                <dd class="mt-2 text-base font-semibold text-gray-900">
-                    {{ $checkedAt ? $checkedAt->diffForHumans() : 'Not available' }}
-                </dd>
-
-                @if($stale)
-                    <p class="mt-1 text-xs font-medium text-amber-700">
-                        Cached status
-                    </p>
-                @endif
-            </div>
         </dl>
 
         @if($message !== '')
