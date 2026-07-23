@@ -83,6 +83,30 @@ class WorkshopCategoryTest extends TestCase
         );
     }
 
+    public function test_admin_duplicate_copies_workshop_categories(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $robotics = WorkshopCategory::factory()->create(['name' => 'Robotics', 'slug' => 'robotics']);
+        $coding = WorkshopCategory::factory()->create(['name' => 'Coding', 'slug' => 'coding']);
+        $workshop = $this->createPublicWorkshop($admin, $location, 'Robot Builders');
+        $workshop->categories()->attach([$robotics->id, $coding->id]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop.duplicate', $workshop));
+
+        $newWorkshop = Workshop::query()
+            ->where('title', 'Robot Builders (copy)')
+            ->firstOrFail();
+
+        $response->assertRedirect(route('admin.workshop.edit', $newWorkshop));
+
+        $this->assertEqualsCanonicalizing(
+            [$robotics->id, $coding->id],
+            $newWorkshop->categories()->pluck('workshop_categories.id')->all()
+        );
+    }
+
     public function test_public_workshop_cards_can_be_filtered_by_category(): void
     {
         $admin = $this->createAdminUser();
