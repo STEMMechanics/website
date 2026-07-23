@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -98,6 +99,17 @@ class Workshop extends Model
     public function hero(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_name');
+    }
+
+    /**
+     * @return MorphToMany<Media, $this>
+     */
+    public function photos(): MorphToMany
+    {
+        return $this->morphToMany(Media::class, 'mediable', 'mediables', 'mediable_id', 'media_name')
+            ->wherePivot('collection', 'workshop_photos')
+            ->withPivot('collection')
+            ->withTimestamps();
     }
 
     /**

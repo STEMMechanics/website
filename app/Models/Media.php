@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +35,12 @@ class Media extends Model
         'user_id',
         'hash',
         'password',
-        'status'
+        'status',
+        'visibility',
+        'consent_notes',
+        'caption',
+        'tags',
+        'photographed_at',
     ];
 
     /**
@@ -66,6 +72,7 @@ class Media extends Model
     protected $casts = [
         'variants' => 'array',
         'last_processing_failed_at' => 'datetime',
+        'photographed_at' => 'datetime',
     ];
 
     /**
@@ -215,6 +222,24 @@ class Media extends Model
     public function mediable()
     {
         return $this->morphTo();
+    }
+
+    /**
+     * @return MorphToMany<Workshop, $this>
+     */
+    public function workshops(): MorphToMany
+    {
+        return $this->morphedByMany(Workshop::class, 'mediable', 'mediables', 'media_name', 'mediable_id')
+            ->withPivot('collection')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return MorphToMany<Workshop, $this>
+     */
+    public function workshopPhotos(): MorphToMany
+    {
+        return $this->workshops()->wherePivot('collection', 'workshop_photos');
     }
 
     /**

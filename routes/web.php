@@ -340,6 +340,14 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/workshops/{workshop}/attendance/dropins/{attendance}', [WorkshopController::class, 'admin_attendance_dropin_update'])->name('admin.workshop.attendance.dropin.update');
     Route::post('/admin/workshops/{workshop}/attendance/dropins/{attendance}/delete', [WorkshopController::class, 'admin_attendance_dropin_destroy'])->name('admin.workshop.attendance.dropin.destroy');
     Route::get('/admin/workshops/{workshop}/interests', [WorkshopController::class, 'admin_interests'])->name('admin.workshop.interests');
+    Route::get('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos'])->name('admin.workshop.photos');
+    Route::post('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos_store'])->name('admin.workshop.photos.store');
+    Route::put('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos_bulk_update'])->name('admin.workshop.photos.bulk-update');
+    Route::get('/admin/workshops/{workshop}/photos/zip', [WorkshopController::class, 'admin_photos_zip'])->name('admin.workshop.photos.zip');
+    Route::get('/admin/workshops/{workshop}/photos/{media}/file', [WorkshopController::class, 'admin_photos_media'])->name('admin.workshop.photos.media');
+    Route::put('/admin/workshops/{workshop}/photos/{media}', [WorkshopController::class, 'admin_photos_update'])->name('admin.workshop.photos.update');
+    Route::delete('/admin/workshops/{workshop}/photos/{media}', [WorkshopController::class, 'admin_photos_destroy'])->name('admin.workshop.photos.destroy');
+    Route::delete('/admin/workshops/{workshop}/photos/{media}/delete', [WorkshopController::class, 'admin_photos_delete'])->name('admin.workshop.photos.delete');
     Route::get('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'show'])->name('admin.workshop.pick-list');
     Route::post('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'save'])->name('admin.workshop.pick-list.save');
     Route::get('/admin/workshops/{workshop}/pick-list/pdf', [WorkshopPickListController::class, 'pdf'])->name('admin.workshop.pick-list.pdf');

@@ -88,9 +88,24 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
         $earlyBirdTicketLimitInfo = $soldEarlyBirdTicketCount.' early-bird ticket'.($soldEarlyBirdTicketCount === 1 ? '' : 's').' are currently sold.';
     }
 }
+
+$workshopTabs = null;
+if (isset($workshop)) {
+    $workshopTabs = [
+        [
+            'title' => 'Details',
+            'route' => route('admin.workshop.edit', $workshop),
+            'active' => true,
+        ],
+        [
+            'title' => 'Photos',
+            'route' => route('admin.workshop.photos', $workshop),
+        ],
+    ];
+}
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-mast>
 
     <x-container class="mt-4">
         <form x-data="{
@@ -552,7 +567,7 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
                     <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
                 </div>
                 <div class="mb-4">
-                    <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
+                    <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
                 </div>
                 <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

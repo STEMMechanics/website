@@ -411,6 +411,9 @@ const SMMediaPicker = {
         }, titles, {
             showModal: false,
             successDelayMs: 0,
+            fields: {
+                visibility: store.public_usable_only ? 'public' : 'private',
+            },
             onProgress: ({ file, index, count, percent }) => {
                 SMMediaPicker.setUploadingState(true, {
                     progress: percent,
@@ -542,6 +545,10 @@ const SMMediaPicker = {
             search: search,
             'selected[]': store.selected,
         };
+
+        if (store.public_usable_only) {
+            params.public_usable_only = 1;
+        }
 
         if(page !== null) {
             params.page = page;
@@ -719,7 +726,8 @@ const SMMediaPicker = {
                             x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
                             <div class="absolute top-0 left-0 flex flex-col gap-1 z-10">
-                                <i x-show="item.is_private" class="fa-solid fa-eye  text-gray-600 bg-white p-0.75 rounded-full" title="Private media" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
+                                <span x-show="item.visibility && item.visibility !== 'public'" class="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Private</span>
+                                <i x-show="item.is_private" class="fa-solid fa-eye text-gray-600 bg-white p-0.75 rounded-full" title="Private owner" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                                 <i x-show="item.password" class="fa-solid fa-lock text-gray-600 bg-white p-0.75 rounded-full" title="Password protected" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                             </div>
                             <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white z-10 flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
@@ -862,6 +870,7 @@ const SMMediaPicker = {
         if(!options.hasOwnProperty('allow_uploads')) options.allow_uploads = false;
         if(!options.hasOwnProperty('allow_browser')) options.allow_browser = true;
         if(!options.hasOwnProperty('allow_camera')) options.allow_camera = false;
+        if(!options.hasOwnProperty('public_usable_only')) options.public_usable_only = true;
         if(!options.hasOwnProperty('custom_tabs')) options.custom_tabs = [];
 
         if(selected === null || selected === '') selected = [];
@@ -873,6 +882,7 @@ const SMMediaPicker = {
         store.allow_multiple = options.allow_multiple;
         store.allow_uploads = options.allow_uploads;
         store.allow_browser = options.allow_browser;
+        store.public_usable_only = options.public_usable_only;
         store.allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
         store.camera_supported = store.allow_camera && SMMediaPicker.cameraSupported();
         store.camera_ready = false;

@@ -8,6 +8,7 @@ use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
 use App\Models\User;
+use App\Models\Workshop;
 use App\Services\MediaUsageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class MediaController extends Controller
 {
@@ -46,7 +48,7 @@ class MediaController extends Controller
     public function admin_index(Request $request)
     {
         $media = $this->getMedia($request);
-        $media->getCollection()->load('user');
+        $media->getCollection()->load(['user', 'workshopPhotos.location']);
         $filteredOwner = null;
 
         if (trim((string) $request->query('user_id', '')) !== '') {
@@ -89,6 +91,10 @@ class MediaController extends Controller
             if ($user) {
                 $query->where('user_id', (string) $user->id);
             } else {
+                $query->where(function ($builder) {
+                    $builder->whereNull('visibility')
+                        ->orWhere('visibility', 'public');
+                });
                 $query->whereNotExists(function ($builder) {
                     $builder->selectRaw('1')
                         ->from('mediables')
@@ -113,10 +119,108 @@ class MediaController extends Controller
         }
 
         if(!empty($request->get('search'))) {
+            $search = trim((string) $request->search);
             $query->where(function($query) use ($request) {
                 $query->where('title', 'like', '%' . $request->search . '%');
                 $query->orWhere('name', 'like', '%' . $request->search . '%');
+                $query->orWhere('caption', 'like', '%' . $request->search . '%');
+                $query->orWhere('tags', 'like', '%' . $request->search . '%');
+                $query->orWhereExists(function ($builder) use ($request) {
+                    $builder->selectRaw('1')
+                        ->from('mediables')
+                        ->join('workshops', function ($join) {
+                            $join->on('workshops.id', '=', 'mediables.mediable_id')
+                                ->where('mediables.mediable_type', Workshop::class);
+                        })
+                        ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                        ->whereColumn('mediables.media_name', 'media.name')
+                        ->where('mediables.collection', 'workshop_photos')
+                        ->where(function ($nested) use ($request) {
+                            $nested->where('workshops.title', 'like', '%' . $request->search . '%')
+                                ->orWhere('workshops.hosted_for', 'like', '%' . $request->search . '%')
+                                ->orWhere('locations.name', 'like', '%' . $request->search . '%')
+                                ->orWhere('locations.address', 'like', '%' . $request->search . '%');
+                        });
+                });
             });
+
+            foreach (preg_split('/\s+/', $search) ?: [] as $term) {
+                if (strlen($term) < 2) {
+                    continue;
+                }
+
+                $query->where(function ($builder) use ($term) {
+                    $builder->where('title', 'like', '%'.$term.'%')
+                        ->orWhere('name', 'like', '%'.$term.'%')
+                        ->orWhere('caption', 'like', '%'.$term.'%')
+                        ->orWhere('tags', 'like', '%'.$term.'%')
+                        ->orWhereExists(function ($exists) use ($term) {
+                            $exists->selectRaw('1')
+                                ->from('mediables')
+                                ->join('workshops', function ($join) {
+                                    $join->on('workshops.id', '=', 'mediables.mediable_id')
+                                        ->where('mediables.mediable_type', Workshop::class);
+                                })
+                                ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                                ->whereColumn('mediables.media_name', 'media.name')
+                                ->where('mediables.collection', 'workshop_photos')
+                                ->where(function ($nested) use ($term) {
+                                    $nested->where('workshops.title', 'like', '%'.$term.'%')
+                                        ->orWhere('workshops.hosted_for', 'like', '%'.$term.'%')
+                                        ->orWhere('locations.name', 'like', '%'.$term.'%')
+                                        ->orWhere('locations.address', 'like', '%'.$term.'%');
+                                });
+                        });
+                });
+            }
+        }
+
+        if ($request->query('visibility') === 'public') {
+            $query->where('visibility', 'public');
+        } elseif ($request->query('visibility') === 'private') {
+            $query->where(function ($builder) {
+                $builder->whereNull('visibility')
+                    ->orWhere('visibility', '!=', 'public');
+            });
+        }
+
+        if (trim((string) $request->query('workshop')) !== '') {
+            $workshopSearch = trim((string) $request->query('workshop'));
+            $query->whereExists(function ($builder) use ($workshopSearch) {
+                $builder->selectRaw('1')
+                    ->from('mediables')
+                    ->join('workshops', function ($join) {
+                        $join->on('workshops.id', '=', 'mediables.mediable_id')
+                            ->where('mediables.mediable_type', Workshop::class);
+                    })
+                    ->whereColumn('mediables.media_name', 'media.name')
+                    ->where('mediables.collection', 'workshop_photos')
+                    ->where('workshops.title', 'like', '%'.$workshopSearch.'%');
+            });
+        }
+
+        if (trim((string) $request->query('location')) !== '') {
+            $locationSearch = trim((string) $request->query('location'));
+            $query->whereExists(function ($builder) use ($locationSearch) {
+                $builder->selectRaw('1')
+                    ->from('mediables')
+                    ->join('workshops', function ($join) {
+                        $join->on('workshops.id', '=', 'mediables.mediable_id')
+                            ->where('mediables.mediable_type', Workshop::class);
+                    })
+                    ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                    ->whereColumn('mediables.media_name', 'media.name')
+                    ->where('mediables.collection', 'workshop_photos')
+                    ->where(function ($nested) use ($locationSearch) {
+                        $nested->where('locations.name', 'like', '%'.$locationSearch.'%')
+                            ->orWhere('locations.address', 'like', '%'.$locationSearch.'%')
+                            ->orWhere('workshops.hosted_for', 'like', '%'.$locationSearch.'%');
+                    });
+            });
+        }
+
+        if ($request->boolean('public_usable_only')) {
+            $query->where('visibility', 'public');
         }
 
         if($request->has('mime_type')) {
@@ -178,6 +282,8 @@ class MediaController extends Controller
     {
         return view('admin.media.edit', [
             'mediaOwners' => $this->mediaOwners(),
+            'workshopOptions' => $this->workshopOptions(),
+            'tagOptions' => $this->mediaTagOptions(),
         ]);
     }
 
@@ -346,6 +452,10 @@ class MediaController extends Controller
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         }
 
+        $visibility = in_array((string) $request->input('visibility', 'private'), ['private', 'public'], true)
+            ? (string) $request->input('visibility', 'private')
+            : 'private';
+
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
             'user_id' => $ownerId !== '' ? $ownerId : auth()->id(),
@@ -354,7 +464,14 @@ class MediaController extends Controller
             'mime_type' => $file->getMimeType(),
             'hash' => $hash,
             'password' => $passwordHash,
+            'visibility' => $visibility,
+            'caption' => trim((string) $request->input('caption', '')) ?: null,
+            'consent_notes' => trim((string) $request->input('consent_notes', '')) ?: null,
+            'tags' => trim((string) $request->input('tags', '')) ?: null,
+            'photographed_at' => $request->input('photographed_at') ?: null,
         ]);
+
+        $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
 
         if(!$exists) {
             $media->generateVariants(false);
@@ -395,6 +512,7 @@ class MediaController extends Controller
      */
     public function admin_edit(Media $media)
     {
+        $media->load('workshopPhotos.location');
         $mediaFilesInfo = [];
         try {
             $mediaFilesInfo = $this->mediaFilesInfo($media);
@@ -406,6 +524,9 @@ class MediaController extends Controller
             'medium' => $media,
             'mediaFilesInfo' => $mediaFilesInfo,
             'mediaOwners' => $this->mediaOwners(),
+            'mediaUsages' => app(MediaUsageService::class)->usagesFor((string) $media->name),
+            'workshopOptions' => $this->workshopOptions(),
+            'tagOptions' => $this->mediaTagOptions(),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -421,6 +542,13 @@ class MediaController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'user_id' => 'nullable|exists:users,id',
+            'visibility' => ['nullable', Rule::in(['private', 'public'])],
+            'caption' => ['nullable', 'string'],
+            'consent_notes' => ['nullable', 'string'],
+            'tags' => ['nullable', 'string', 'max:255'],
+            'photographed_at' => ['nullable', 'date'],
+            'workshop_ids' => ['nullable', 'array'],
+            'workshop_ids.*' => ['string', 'exists:workshops,id'],
 //            'file' => 'nullable|file|max:' . (max(round($max_size / 1024),0)),
         ], [
             'title.required' => __('validation.custom_messages.title_required'),
@@ -435,6 +563,27 @@ class MediaController extends Controller
 
         $mediaData = $request->all();
         $mediaData['user_id'] = trim((string) ($request->input('user_id') ?? '')) ?: null;
+        $mediaData['visibility'] = in_array((string) $request->input('visibility', $media->visibility ?? 'private'), ['private', 'public'], true)
+            ? (string) $request->input('visibility', $media->visibility ?? 'private')
+            : 'private';
+        $mediaData['caption'] = trim((string) $request->input('caption', '')) ?: null;
+        $mediaData['consent_notes'] = trim((string) $request->input('consent_notes', '')) ?: null;
+        $mediaData['tags'] = trim((string) $request->input('tags', '')) ?: null;
+        $mediaData['photographed_at'] = $request->input('photographed_at') ?: null;
+
+        $mediaUsages = app(MediaUsageService::class)->usagesFor((string) $media->name);
+        $hasPublicUsage = collect($mediaUsages)->contains(fn (array $usage) => (bool) ($usage['public'] ?? false));
+        if (($media->visibility ?? 'public') === 'public' && $mediaData['visibility'] === 'private' && $hasPublicUsage) {
+            session()->flash('message', 'Media was not updated because it is still used in public website content.');
+            session()->flash('message-title', 'Save failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back()
+                ->withErrors([
+                    'visibility' => 'This media is still used in public website content. Remove those links before changing it to private.',
+                ])
+                ->withInput();
+        }
 
 //        $file = null;
 //        if($request->has('file')) {
@@ -484,6 +633,7 @@ class MediaController extends Controller
         }
 
         $media->update($mediaData);
+        $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
 
 //        if($file) {
 //            $media->generateVariants(false);
@@ -1220,6 +1370,7 @@ class MediaController extends Controller
             'mime_type' => (string) $media->mime_type,
             'size' => (int) $media->size,
             'status' => (string) ($media->status ?? ''),
+            'visibility' => (string) ($media->visibility ?? 'public'),
             'url' => (string) $media->url,
             'thumbnail' => (string) $media->thumbnail,
             'file_type' => (string) $media->file_type,
@@ -1233,6 +1384,11 @@ class MediaController extends Controller
     private function authorizeMediaAccess(Media $media): void
     {
         $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
+        $visibility = (string) ($media->visibility ?? 'public');
+        if (! $isAdmin && in_array($visibility, ['private', 'internal'], true) && ! $this->ownsMedia($media)) {
+            abort(403, 'You are not authorized to access this file.');
+        }
+
         if (! $isAdmin && $this->isPrivateAdminMedia($media) && ! $this->ownsMedia($media)) {
             abort(403, 'You are not authorized to access this file.');
         }
@@ -1284,6 +1440,41 @@ class MediaController extends Controller
     private function canDeleteMedia(Media $media): bool
     {
         return ! Auth::user()?->isAdmin() && $this->ownsMedia($media);
+    }
+
+    private function syncWorkshopPhotoLinks(Media $media, mixed $workshopIds): void
+    {
+        $ids = collect(is_array($workshopIds) ? $workshopIds : [])
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $media->workshopPhotos()->sync($ids->mapWithKeys(fn ($id) => [
+            $id => ['collection' => 'workshop_photos'],
+        ])->all());
+    }
+
+    private function workshopOptions()
+    {
+        return Workshop::query()
+            ->with('location')
+            ->orderByDesc('starts_at')
+            ->limit(500)
+            ->get();
+    }
+
+    private function mediaTagOptions(): array
+    {
+        return Media::query()
+            ->whereNotNull('tags')
+            ->pluck('tags')
+            ->flatMap(fn ($tags) => array_map('trim', explode(',', (string) $tags)))
+            ->filter()
+            ->unique(fn ($tag) => strtolower((string) $tag))
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function mediaPasswordInput(Request $request): ?string

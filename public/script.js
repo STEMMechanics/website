@@ -686,6 +686,7 @@ let SM = {
         const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
         const onSuccess = typeof options.onSuccess === 'function' ? options.onSuccess : null;
         const onError = typeof options.onError === 'function' ? options.onError : null;
+        const fields = options.fields && typeof options.fields === 'object' ? options.fields : {};
 
         if(files.length === 0) {
             return;
@@ -757,6 +758,11 @@ let SM = {
             formData.append('file', chunk);
             formData.append('filename', file.name);
             formData.append('filesize', file.size);
+            Object.entries(fields).forEach(([key, value]) => {
+                if (value !== null && typeof value !== 'undefined') {
+                    formData.append(key, value);
+                }
+            });
             if (uploadToken) {
                 formData.append('upload_token', uploadToken);
             }

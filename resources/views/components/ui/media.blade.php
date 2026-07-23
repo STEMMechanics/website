@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name', 'label' => 'File', 'value' => null, 'info', 'mime_type' => 'image/*', 'allow_multiple' => 'false', 'allow_uploads' => 'false'])
+@props(['type' => 'text', 'name', 'label' => 'File', 'value' => null, 'info', 'mime_type' => 'image/*', 'allow_multiple' => 'false', 'allow_uploads' => 'false', 'public_usable_only' => 'true'])
 
 @php
     $selectedValue = old($name, $value);
@@ -35,7 +35,7 @@
                     x-data
                     type="button"
                     class="bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                    x-on:click.prevent="SMMediaPicker.open(document.getElementById(@js($name)).value, {require_mime_type:@js($mime_type), allow_multiple:{{ $allow_multiple }}, allow_uploads:{{ $allow_uploads }}}, (value)=>updateMedia(@js($name), value))"
+                    x-on:click.prevent="SMMediaPicker.open(document.getElementById(@js($name)).value, {require_mime_type:@js($mime_type), allow_multiple:{{ $allow_multiple }}, allow_uploads:{{ $allow_uploads }}, public_usable_only:{{ $public_usable_only }}}, (value)=>updateMedia(@js($name), value))"
                 >
                     Select Image
                 </button>
