@@ -24,7 +24,7 @@
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
             <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">STEMCraft</a></li>
-            <li class="mb-3"><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li>
+            <li class="mb-3"><a href="https://stemmech.com.au/discord" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li>
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
             <li><a href="https://instagram.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Instagram</a></li>
             <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">YouTube</a></li>
