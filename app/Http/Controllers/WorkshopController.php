@@ -3617,10 +3617,13 @@ class WorkshopController extends Controller
      */
     public function admin_duplicate(Workshop $workshop)
     {
+        $workshop->loadMissing('categories');
+
         $newWorkshop = $workshop->replicate();
         $newWorkshop->title = $newWorkshop->title.' (copy)';
         $newWorkshop->status = 'draft';
         $newWorkshop->save();
+        $newWorkshop->categories()->sync($workshop->categories->modelKeys());
 
         foreach ($workshop->files()->get() as $file) {
             $newWorkshop->files()->attach($file->name);
