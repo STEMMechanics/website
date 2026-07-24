@@ -79,29 +79,6 @@ class MediaUsageService
     /**
      * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
      */
-    private function collectPivotUsageDetails(array &$usages, string $mediaName): void
-    {
-        if (! Schema::hasTable('mediables')) {
-            return;
-        }
-
-        foreach (DB::table('mediables')->where('media_name', $mediaName)->cursor() as $row) {
-            if (($row->mediable_type ?? '') === 'App\\Models\\Workshop' && Schema::hasTable('workshops')) {
-                $workshop = DB::table('workshops')->where('id', $row->mediable_id)->first();
-                $usages[] = [
-                    'type' => 'Workshop photo',
-                    'label' => trim((string) ($workshop->title ?? '')) ?: '#'.$row->mediable_id,
-                    'detail' => 'Attached photo',
-                    'url' => $workshop && Route::has('admin.workshop.photos') ? route('admin.workshop.photos', $workshop->id) : null,
-                    'public' => false,
-                ];
-            }
-        }
-    }
-
-    /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
-     */
     private function collectContentUsageDetails(array &$usages, string $mediaName): void
     {
         $this->collectContentUsageDetailsForTable($usages, $mediaName, 'workshops', 'content', 'Workshop content', 'title', 'admin.workshop.edit', true);
