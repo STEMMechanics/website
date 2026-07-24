@@ -10,6 +10,7 @@ use App\Mail\WorkshopInterestAdminNotification;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Media;
 use App\Models\Payment;
 use App\Models\PickListTemplate;
 use App\Models\SiteOption;
@@ -41,10 +42,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 class WorkshopController extends Controller
@@ -920,6 +923,344 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'interestRegistrations' => $workshop->interests,
         ]);
+    }
+
+    public function admin_photos(Request $request, Workshop $workshop): View
+    {
+        $photos = $workshop->photos()
+            ->with('user')
+            ->when(trim((string) $request->query('search')) !== '', function ($query) use ($request) {
+                $search = trim((string) $request->query('search'));
+                $query->where(function ($builder) use ($search) {
+                    $builder->where('title', 'like', '%'.$search.'%')
+                        ->orWhere('name', 'like', '%'.$search.'%')
+                        ->orWhere('caption', 'like', '%'.$search.'%')
+                        ->orWhere('tags', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($request->query('visibility') === 'public', function ($query) {
+                $query->where('visibility', 'public');
+            })
+            ->when($request->query('visibility') === 'private', function ($query) {
+                $query->where(function ($builder) {
+                    $builder->whereNull('visibility')
+                        ->orWhere('visibility', '!=', 'public');
+                });
+            })
+            ->orderByDesc('photographed_at')
+            ->orderByDesc('media.created_at')
+            ->paginate(24)
+            ->withQueryString();
+
+        return view('admin.workshop.photos', [
+            'workshop' => $workshop,
+            'photos' => $photos,
+            'tagOptions' => $this->mediaTagOptions(),
+        ]);
+    }
+
+    public function admin_photos_store(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
+    {
+        $maxSize = Helpers::getMaxUploadSize(auth()->user());
+        $validated = $request->validate([
+            'photos' => ['required', 'array'],
+            'photos.*' => ['file', 'mimetypes:image/jpeg,image/png,image/webp,image/gif', 'max:'.max((int) round($maxSize / 1024), 1)],
+            'photos_meta' => ['nullable', 'array'],
+            'photos_meta.*.title' => ['nullable', 'string', 'max:255'],
+            'photos_meta.*.visibility' => ['nullable', Rule::in(['private', 'public'])],
+            'photos_meta.*.photographed_at' => ['required', 'date'],
+            'photos_meta.*.tags' => ['nullable', 'string', 'max:255'],
+            'photos_meta.*.caption' => ['nullable', 'string'],
+            'photos_meta.*.consent_notes' => ['nullable', 'string'],
+        ], [
+            'photos.*.uploaded' => 'The selected photo could not be uploaded. It may exceed the server upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
+            'photos.*.max' => 'The selected photo is larger than the upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
+            'photos.*.mimetypes' => 'The selected photo must be a JPG, PNG, WebP, or GIF image.',
+        ]);
+
+        $created = 0;
+        foreach ($request->file('photos', []) as $index => $file) {
+            $meta = (array) ($validated['photos_meta'][$index] ?? []);
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
+            $hash = hash_file('sha256', $file->path());
+            $storage = Storage::disk('media');
+            $exists = $storage->exists($hash);
+
+            if (! $exists && $file->storeAs('/', $hash, 'media') === false) {
+                continue;
+            }
+
+            $visibility = in_array((string) ($meta['visibility'] ?? 'private'), ['private', 'public'], true)
+                ? (string) ($meta['visibility'] ?? 'private')
+                : 'private';
+
+            $media = Media::create([
+                'title' => trim((string) ($meta['title'] ?? '')) ?: Helpers::filenameToTitle($fileName),
+                'user_id' => auth()->id(),
+                'name' => $fileName,
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'hash' => $hash,
+                'visibility' => $visibility,
+                'photographed_at' => ! empty($meta['photographed_at']) ? $meta['photographed_at'] : $this->photoTakenAt($file),
+                'tags' => trim((string) ($meta['tags'] ?? '')) ?: null,
+                'caption' => trim((string) ($meta['caption'] ?? '')) ?: null,
+                'consent_notes' => trim((string) ($meta['consent_notes'] ?? '')) ?: null,
+            ]);
+
+            if (! $exists) {
+                $media->generateVariants(false);
+            } else {
+                $mediaWithVariants = Media::where('hash', $hash)->where('variants', '!=', '')->orderBy('created_at')->first();
+                if ($mediaWithVariants) {
+                    $media->variants = $mediaWithVariants->variants;
+                    $media->save();
+                }
+            }
+
+            $workshop->photos()->syncWithoutDetaching([
+                $media->name => ['collection' => 'workshop_photos'],
+            ]);
+            $created++;
+        }
+
+        session()->flash('message', $created.' workshop photo'.($created === 1 ? '' : 's').' uploaded.');
+        session()->flash('message-title', 'Photos uploaded');
+        session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $created.' workshop photo'.($created === 1 ? '' : 's').' uploaded.',
+                'created' => $created,
+            ]);
+        }
+
+        return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    public function admin_photos_update(Request $request, Workshop $workshop, Media $media): RedirectResponse
+    {
+        $this->ensureWorkshopPhoto($workshop, $media);
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'visibility' => ['required', Rule::in(['private', 'public'])],
+            'caption' => ['nullable', 'string'],
+            'consent_notes' => ['nullable', 'string'],
+            'tags' => ['nullable', 'string', 'max:255'],
+            'photographed_at' => ['nullable', 'date'],
+        ]);
+
+        $visibility = in_array((string) $validated['visibility'], ['private', 'public'], true)
+            ? (string) $validated['visibility']
+            : 'private';
+
+        $media->update([
+            'title' => $validated['title'],
+            'visibility' => $visibility,
+            'caption' => trim((string) ($validated['caption'] ?? '')) ?: null,
+            'consent_notes' => trim((string) ($validated['consent_notes'] ?? '')) ?: null,
+            'tags' => trim((string) ($validated['tags'] ?? '')) ?: null,
+            'photographed_at' => $validated['photographed_at'] ?? null,
+        ]);
+
+        session()->flash('message', 'Workshop photo metadata updated.');
+        session()->flash('message-title', 'Photo updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    public function admin_photos_bulk_update(Request $request, Workshop $workshop): RedirectResponse
+    {
+        $validated = $request->validate([
+            'photos' => ['required', 'array'],
+            'photos.*.title' => ['required', 'string', 'max:255'],
+            'photos.*.visibility' => ['required', Rule::in(['private', 'public'])],
+            'photos.*.caption' => ['nullable', 'string'],
+            'photos.*.consent_notes' => ['nullable', 'string'],
+            'photos.*.tags' => ['nullable', 'string', 'max:255'],
+            'photos.*.photographed_at' => ['nullable', 'date'],
+        ]);
+
+        $updated = 0;
+        foreach ((array) $validated['photos'] as $mediaName => $photoData) {
+            $media = Media::find((string) $mediaName);
+            if (! $media instanceof Media) {
+                continue;
+            }
+
+            $this->ensureWorkshopPhoto($workshop, $media);
+
+            $visibility = in_array((string) $photoData['visibility'], ['private', 'public'], true)
+                ? (string) $photoData['visibility']
+                : 'private';
+
+            $media->update([
+                'title' => $photoData['title'],
+                'visibility' => $visibility,
+                'caption' => trim((string) ($photoData['caption'] ?? '')) ?: null,
+                'consent_notes' => trim((string) ($photoData['consent_notes'] ?? '')) ?: null,
+                'tags' => trim((string) ($photoData['tags'] ?? '')) ?: null,
+                'photographed_at' => $photoData['photographed_at'] ?? null,
+            ]);
+            $updated++;
+        }
+
+        session()->flash('message', $updated.' workshop photo'.($updated === 1 ? '' : 's').' updated.');
+        session()->flash('message-title', 'Photos updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    public function admin_photos_destroy(Workshop $workshop, Media $media): RedirectResponse
+    {
+        $this->ensureWorkshopPhoto($workshop, $media);
+        $workshop->photos()->detach($media->name);
+
+        session()->flash('message', 'Photo removed from this workshop. The media file remains in the library.');
+        session()->flash('message-title', 'Photo removed');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    public function admin_photos_delete(Workshop $workshop, Media $media): RedirectResponse|JsonResponse
+    {
+        $this->ensureWorkshopPhoto($workshop, $media);
+        $media->delete();
+
+        session()->flash('message', 'Photo has been permanently deleted.');
+        session()->flash('message-title', 'Photo deleted');
+        session()->flash('message-type', 'danger');
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.workshop.photos', $workshop),
+            ]);
+        }
+
+        return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    public function admin_photos_media(Request $request, Workshop $workshop, Media $media): BinaryFileResponse
+    {
+        $this->ensureWorkshopPhoto($workshop, $media);
+
+        $file = $media->path();
+        $mimeType = $media->mime_type;
+        $name = $media->name;
+        $variant = trim((string) $request->query('variant'));
+
+        if ($variant !== '') {
+            $variantFile = $media->getClosestVariant($variant);
+            if (! is_string($variantFile['file'] ?? null) || ! is_file((string) $variantFile['file'])) {
+                $variant = '';
+            }
+        }
+
+        if ($variant !== '') {
+            $variantFile = $media->getClosestVariant($variant);
+            if (! is_string($variantFile['file'] ?? null) || ! is_file((string) $variantFile['file'])) {
+                abort(404);
+            }
+            $file = $variantFile['file'];
+            $mimeType = $variantFile['mime_type'];
+            $name = $variantFile['name'];
+        }
+
+        if ($file === null || ! is_file($file)) {
+            abort(404);
+        }
+
+        return response()->file($file, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => ($request->boolean('download') ? 'attachment; ' : '').'filename="'.$name.'"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function admin_photos_zip(Workshop $workshop): BinaryFileResponse
+    {
+        $zipPath = tempnam(sys_get_temp_dir(), 'workshop-photos-');
+        if ($zipPath === false) {
+            abort(500, 'Could not create zip file.');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Could not open zip file.');
+        }
+
+        foreach ($workshop->photos()->get() as $photo) {
+            $path = $photo->path();
+            if ($path !== null && is_file($path)) {
+                $zip->addFile($path, $photo->name);
+            }
+        }
+        $zip->close();
+
+        return response()->download($zipPath, 'workshop-'.$workshop->id.'-photos.zip')->deleteFileAfterSend(true);
+    }
+
+    private function uniqueMediaFileName(string $originalName): string
+    {
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $name = Helpers::cleanFileName(pathinfo($originalName, PATHINFO_FILENAME));
+        if ($name === '') {
+            $name = 'workshop-photo';
+        }
+
+        $fileName = $extension !== '' ? $name.'.'.$extension : $name;
+        if (Media::find($fileName) === null) {
+            return $fileName;
+        }
+
+        $increment = 1;
+        do {
+            $fileName = $extension !== '' ? $name.'-'.$increment.'.'.$extension : $name.'-'.$increment;
+            $increment++;
+        } while (Media::find($fileName) !== null);
+
+        return $fileName;
+    }
+
+    private function ensureWorkshopPhoto(Workshop $workshop, Media $media): void
+    {
+        if (! $workshop->photos()->where('media.name', $media->name)->exists()) {
+            abort(404);
+        }
+    }
+
+    private function photoTakenAt(\Illuminate\Http\UploadedFile $file): Carbon
+    {
+        if (function_exists('exif_read_data') && is_file($file->path())) {
+            try {
+                $exif = @exif_read_data($file->path());
+                $date = is_array($exif) ? ($exif['DateTimeOriginal'] ?? $exif['DateTimeDigitized'] ?? $exif['DateTime'] ?? null) : null;
+                if (is_string($date) && trim($date) !== '') {
+                    return Carbon::createFromFormat('Y:m:d H:i:s', trim($date)) ?: now();
+                }
+            } catch (\Throwable) {
+                //
+            }
+        }
+
+        return now();
+    }
+
+    private function mediaTagOptions(): array
+    {
+        return Media::query()
+            ->whereNotNull('tags')
+            ->pluck('tags')
+            ->flatMap(fn ($tags) => array_map('trim', explode(',', (string) $tags)))
+            ->filter()
+            ->unique(fn ($tag) => strtolower((string) $tag))
+            ->sort()
+            ->values()
+            ->all();
     }
 
     /**

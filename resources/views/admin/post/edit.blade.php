@@ -11,7 +11,7 @@
                 <x-ui.input label="Title" name="title" value="{!! isset($post) ? $post->title : '' !!}" />
             </div>
             <div class="mb-4">
-                <x-ui.media label="Image" name="hero_media_name" value="{{ $post->hero_media_name ?? '' }}" allow_uploads="true" />
+                <x-ui.media label="Image" name="hero_media_name" value="{{ $post->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
             </div>
             <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">

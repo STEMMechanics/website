@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 class MediaUsageService
@@ -21,6 +22,93 @@ class MediaUsageService
         $this->collectContentReferences($usedMediaNames);
 
         return array_keys($usedMediaNames);
+    }
+
+    /**
+     * @return array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>
+     */
+    public function usagesFor(string $mediaName): array
+    {
+        $mediaName = trim($mediaName);
+        if ($mediaName === '') {
+            return [];
+        }
+
+        $usages = [];
+
+        $this->collectDirectUsageDetails($usages, $mediaName);
+        $this->collectContentUsageDetails($usages, $mediaName);
+
+        return $usages;
+    }
+
+    /**
+     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     */
+    private function collectDirectUsageDetails(array &$usages, string $mediaName): void
+    {
+        $this->collectColumnUsageDetails($usages, $mediaName, 'workshops', 'hero_media_name', 'Workshop hero', 'title', 'admin.workshop.edit', true);
+        $this->collectColumnUsageDetails($usages, $mediaName, 'posts', 'hero_media_name', 'Post hero', 'title', 'admin.post.edit', true);
+        $this->collectColumnUsageDetails($usages, $mediaName, 'custom_pages', 'hero_media_name', 'Page hero', 'title', 'admin.custom-page.edit', true);
+        $this->collectColumnUsageDetails($usages, $mediaName, 'products', 'hero_media_name', 'Product hero', 'title', 'admin.shop.product.edit', true);
+        $this->collectColumnUsageDetails($usages, $mediaName, 'store_order_item_downloads', 'media_name', 'Store download', 'id', null, false);
+    }
+
+    /**
+     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     */
+    private function collectColumnUsageDetails(array &$usages, string $mediaName, string $table, string $column, string $type, string $labelColumn, ?string $routeName, bool $public): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        foreach (DB::table($table)->where($column, $mediaName)->get() as $row) {
+            $label = trim((string) ($row->{$labelColumn} ?? ''));
+            $id = $row->id ?? null;
+            $usages[] = [
+                'type' => $type,
+                'label' => $label !== '' ? $label : '#'.$id,
+                'detail' => $table.'.'.$column,
+                'url' => $routeName !== null && $id !== null && Route::has($routeName) ? route($routeName, $id) : null,
+                'public' => $public,
+            ];
+        }
+    }
+
+    /**
+     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     */
+    private function collectContentUsageDetails(array &$usages, string $mediaName): void
+    {
+        $this->collectContentUsageDetailsForTable($usages, $mediaName, 'workshops', 'content', 'Workshop content', 'title', 'admin.workshop.edit', true);
+        $this->collectContentUsageDetailsForTable($usages, $mediaName, 'posts', 'content', 'Post content', 'title', 'admin.post.edit', true);
+        $this->collectContentUsageDetailsForTable($usages, $mediaName, 'custom_pages', 'content', 'Page content', 'title', 'admin.custom-page.edit', true);
+    }
+
+    /**
+     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     */
+    private function collectContentUsageDetailsForTable(array &$usages, string $mediaName, string $table, string $column, string $type, string $labelColumn, string $routeName, bool $public): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        foreach (DB::table($table)->where($column, 'like', '%'.$mediaName.'%')->cursor() as $row) {
+            $content = trim((string) ($row->{$column} ?? ''));
+            if ($content === '' || ! str_contains($content, $mediaName)) {
+                continue;
+            }
+
+            $usages[] = [
+                'type' => $type,
+                'label' => trim((string) ($row->{$labelColumn} ?? '')) ?: '#'.$row->id,
+                'detail' => 'Embedded in content',
+                'url' => Route::has($routeName) ? route($routeName, $row->id) : null,
+                'public' => $public,
+            ];
+        }
     }
 
     /**

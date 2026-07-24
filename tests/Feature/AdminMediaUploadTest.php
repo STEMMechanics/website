@@ -24,7 +24,7 @@ class AdminMediaUploadTest extends TestCase
             ->get(route('admin.media.index'))
             ->assertOk()
             ->assertSeeText('Quick upload')
-            ->assertSeeText('Drop multiple files here to create media items with default titles and your admin account as the owner.')
+            ->assertSeeText('Drop multiple files here to create media items with default values and your account as the owner.')
             ->assertSee('admin-media-bulk-upload-input', false)
             ->assertSee('admin-media-bulk-upload-status-bar', false)
             ->assertSee('multiple', false);

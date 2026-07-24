@@ -32,7 +32,7 @@
                 <x-ui.input label="Path" name="path" value="{{ old('path', $page->path) }}" info="Example: /stemcraft/rules. A leading slash is added automatically and a trailing slash is removed automatically." />
             </div>
             <div class="mb-4">
-                <x-ui.media label="Hero Image" name="hero_media_name" :value="$heroMediaValue" allow_uploads="true" />
+                <x-ui.media label="Hero Image" name="hero_media_name" :value="$heroMediaValue" allow_uploads="true" public_usable_only="true" />
             </div>
             <div class="mb-4">
                 <x-ui.checkbox label="Show mast header" name="show_mast" :checked="$showMastChecked" />
