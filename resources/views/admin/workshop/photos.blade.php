@@ -66,6 +66,7 @@
                     buildPreview(file, index) {
                         return {
                             index,
+                            file,
                             name: file.name,
                             size: file.size,
                             type: file.type,
