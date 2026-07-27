@@ -24,13 +24,12 @@
             submitting: false,
             seededBlankItem(previousItem = null) {
                 const previousType = String(previousItem?.quantity_type ?? '');
-                const previousValue = Number.parseInt(String(previousItem?.quantity_value ?? 1), 10) || 1;
 
                 return {
                     id: null,
                     item_name: '',
                     quantity_type: ['per_participant', 'fixed'].includes(previousType) ? previousType : 'per_participant',
-                    quantity_value: Math.max(1, previousValue),
+                    quantity_value: 1,
                     sort_order: 0,
                 };
             },
