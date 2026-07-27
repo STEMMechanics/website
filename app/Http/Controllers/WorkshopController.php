@@ -1019,7 +1019,7 @@ class WorkshopController extends Controller
 
             $photographedAt = ! empty($meta['photographed_at'])
                 ? (string) $meta['photographed_at']
-                : ($this->photoTakenAt($file, $workshop)?->toDateString() ?? now()->toDateString());
+                : $this->photoTakenAt($file, $workshop)->toDateString();
 
             $media = Media::create([
                 'title' => trim((string) ($meta['title'] ?? '')) ?: Helpers::filenameToTitle($fileName),
