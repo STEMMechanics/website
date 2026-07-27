@@ -35,6 +35,7 @@
                 enctype="multipart/form-data"
                 class="space-y-4"
                 x-data="{
+                    workshopDate: @js(optional($workshop->starts_at)->format('Y-m-d') ?? now()->format('Y-m-d')),
                     previews: [],
                     uploading: false,
                     uploadIndex: 0,
@@ -44,18 +45,34 @@
                     editingDraft: null,
                     editingBounds: null,
                     uploadError: '',
-                    update(files) {
-                        this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
-                        const today = new Date().toISOString().slice(0, 10);
-                        this.previews = Array.from(files || []).map((file, index) => ({
+                    defaultPhotoDate(file = null) {
+                        if (file && Number.isFinite(file.lastModified) && file.lastModified > 0) {
+                            const lastModified = new Date(file.lastModified);
+                            if (!Number.isNaN(lastModified.getTime())) {
+                                return lastModified.toISOString().slice(0, 10);
+                            }
+                        }
+
+                        return this.workshopDate;
+                    },
+                    titleFromFileName(fileName) {
+                        return String(fileName || '')
+                            .replace(/\.[^.]+$/, '')
+                            .replace(/[-_]+/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim()
+                            .replace(/\b\w/g, (char) => char.toUpperCase());
+                    },
+                    buildPreview(file, index) {
+                        return {
                             index,
                             name: file.name,
                             size: file.size,
                             type: file.type,
                             url: URL.createObjectURL(file),
-                            title: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, (char) => char.toUpperCase()),
-                            visibility: 'private',
-                            photographedAt: today,
+                            title: this.titleFromFileName(file.name),
+                            visibility: 'public',
+                            photographedAt: this.defaultPhotoDate(file),
                             tags: [],
                             tagDraft: '',
                             caption: '',
@@ -67,16 +84,178 @@
                             editCropLeft: 0,
                             imageWidth: 0,
                             imageHeight: 0,
-                        }));
+                        };
+                    },
+                    syncInputFiles() {
+                        const transfer = new DataTransfer();
                         this.previews.forEach((preview) => {
-                            if (!this.isImage(preview)) return;
+                            if (preview.file instanceof File) {
+                                transfer.items.add(preview.file);
+                            }
+                        });
+                        this.$refs.photosInput.files = transfer.files;
+                    },
+                    appendFiles(files) {
+                        const incoming = Array.from(files || []);
+                        if (incoming.length === 0) {
+                            return;
+                        }
+
+                        const nextPreviews = incoming.map((file, offset) => this.buildPreview(file, this.previews.length + offset));
+                        this.previews = [...this.previews, ...nextPreviews].map((preview, nextIndex) => ({
+                            ...preview,
+                            index: nextIndex,
+                        }));
+                        this.syncInputFiles();
+                        this.previews.forEach((preview) => {
+                            this.populatePreviewMetadata(preview);
+                        });
+                    },
+                    update(files) {
+                        this.clear();
+                        this.appendFiles(files);
+                    },
+                    populatePreviewMetadata(preview) {
+                        if (!(preview?.file instanceof File)) {
+                            return;
+                        }
+
+                        if (this.isImage(preview)) {
                             const img = new Image();
                             img.onload = () => {
                                 preview.imageWidth = Number(img.naturalWidth || 0);
                                 preview.imageHeight = Number(img.naturalHeight || 0);
                             };
                             img.src = preview.url;
-                        });
+                        }
+
+                        this.readPhotographedAt(preview.file).then((date) => {
+                            if (!date) {
+                                return;
+                            }
+
+                            preview.photographedAt = date;
+                        }).catch(() => {});
+                    },
+                    async readPhotographedAt(file) {
+                        const mimeType = String(file?.type || '').toLowerCase();
+                        if (!mimeType.startsWith('image/jpeg')) {
+                            return this.defaultPhotoDate(file);
+                        }
+
+                        const exifDate = await this.readJpegExifDate(file);
+                        return exifDate || this.defaultPhotoDate(file);
+                    },
+                    async readJpegExifDate(file) {
+                        const buffer = await file.arrayBuffer();
+                        const view = new DataView(buffer);
+                        if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) {
+                            return null;
+                        }
+
+                        let offset = 2;
+                        while (offset + 4 <= view.byteLength) {
+                            const marker = view.getUint16(offset);
+                            offset += 2;
+
+                            if (marker === 0xFFDA || marker === 0xFFD9) {
+                                break;
+                            }
+
+                            const segmentLength = view.getUint16(offset);
+                            if (segmentLength < 2 || offset + segmentLength > view.byteLength) {
+                                break;
+                            }
+
+                            if (marker === 0xFFE1 && segmentLength >= 10) {
+                                const exifHeader = this.readAscii(view, offset + 2, 4);
+                                if (exifHeader === 'Exif') {
+                                    return this.extractExifDate(view, offset + 8, segmentLength - 8);
+                                }
+                            }
+
+                            offset += segmentLength;
+                        }
+
+                        return null;
+                    },
+                    extractExifDate(view, tiffOffset, availableLength) {
+                        if (tiffOffset + 8 > view.byteLength || availableLength < 8) {
+                            return null;
+                        }
+
+                        const byteOrder = this.readAscii(view, tiffOffset, 2);
+                        const littleEndian = byteOrder === 'II';
+                        if (!littleEndian && byteOrder !== 'MM') {
+                            return null;
+                        }
+
+                        const firstIfdOffset = view.getUint32(tiffOffset + 4, littleEndian);
+                        const exifIfd = this.findExifIfdOffset(view, tiffOffset, firstIfdOffset, littleEndian);
+                        if (exifIfd === null) {
+                            return null;
+                        }
+
+                        return this.findExifDateValue(view, tiffOffset, exifIfd, littleEndian);
+                    },
+                    findExifIfdOffset(view, tiffOffset, ifdOffset, littleEndian) {
+                        const directoryOffset = tiffOffset + ifdOffset;
+                        if (directoryOffset + 2 > view.byteLength) {
+                            return null;
+                        }
+
+                        const entryCount = view.getUint16(directoryOffset, littleEndian);
+                        for (let index = 0; index < entryCount; index += 1) {
+                            const entryOffset = directoryOffset + 2 + (index * 12);
+                            if (entryOffset + 12 > view.byteLength) {
+                                return null;
+                            }
+
+                            const tag = view.getUint16(entryOffset, littleEndian);
+                            if (tag === 0x8769) {
+                                return view.getUint32(entryOffset + 8, littleEndian);
+                            }
+                        }
+
+                        return null;
+                    },
+                    findExifDateValue(view, tiffOffset, ifdOffset, littleEndian) {
+                        const directoryOffset = tiffOffset + ifdOffset;
+                        if (directoryOffset + 2 > view.byteLength) {
+                            return null;
+                        }
+
+                        const entryCount = view.getUint16(directoryOffset, littleEndian);
+                        for (let index = 0; index < entryCount; index += 1) {
+                            const entryOffset = directoryOffset + 2 + (index * 12);
+                            if (entryOffset + 12 > view.byteLength) {
+                                return null;
+                            }
+
+                            const tag = view.getUint16(entryOffset, littleEndian);
+                            if (![0x9003, 0x9004, 0x0132].includes(tag)) {
+                                continue;
+                            }
+
+                            const count = view.getUint32(entryOffset + 4, littleEndian);
+                            const valueOffset = view.getUint32(entryOffset + 8, littleEndian);
+                            const textOffset = count <= 4 ? entryOffset + 8 : tiffOffset + valueOffset;
+                            const value = this.readAscii(view, textOffset, count).replace(/\0/g, '').trim();
+                            const match = value.match(/^(\d{4}):(\d{2}):(\d{2})/);
+                            if (match) {
+                                return `${match[1]}-${match[2]}-${match[3]}`;
+                            }
+                        }
+
+                        return null;
+                    },
+                    readAscii(view, start, length) {
+                        let output = '';
+                        const max = Math.min(view.byteLength, start + Math.max(0, length));
+                        for (let offset = start; offset < max; offset += 1) {
+                            output += String.fromCharCode(view.getUint8(offset));
+                        }
+                        return output;
                     },
                     isImage(preview) {
                         return String(preview?.type || '').startsWith('image/');
@@ -303,17 +482,11 @@
                         if (removed) {
                             URL.revokeObjectURL(removed.url);
                         }
-                        const transfer = new DataTransfer();
-                        Array.from(this.$refs.photosInput.files || []).forEach((file, fileIndex) => {
-                            if (fileIndex !== index) {
-                                transfer.items.add(file);
-                            }
-                        });
-                        this.$refs.photosInput.files = transfer.files;
                         this.previews = this.previews.filter((preview, previewIndex) => previewIndex !== index).map((preview, nextIndex) => ({
                             ...preview,
                             index: nextIndex,
                         }));
+                        this.syncInputFiles();
                         if (this.editingIndex === index) {
                             this.closeEditor();
                         }
@@ -441,7 +614,7 @@
                         required
                         class="sr-only"
                         x-ref="photosInput"
-                        x-on:change="update($event.target.files)"
+                        x-on:change="appendFiles($event.target.files); $event.target.value = ''"
                         x-bind:disabled="uploading"
                     >
                     <label
@@ -449,7 +622,7 @@
                         class="group mt-1 flex w-full cursor-pointer items-center justify-between gap-4 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-left text-sm transition hover:border-primary-color hover:bg-sky-50"
                         x-on:dragover.prevent="$el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color')"
                         x-on:dragleave.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
-                        x-on:drop.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); $refs.photosInput.files = $event.dataTransfer.files; update($event.dataTransfer.files)"
+                        x-on:drop.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); appendFiles($event.dataTransfer.files)"
                     >
                         <div class="min-w-0 grow">
                             <div class="truncate font-medium text-gray-800" x-text="previews.length ? previews.length + ' media item' + (previews.length === 1 ? '' : 's') + ' selected' : 'Drop photos or videos here or click to browse'"></div>
@@ -527,8 +700,8 @@
                                                         x-model="preview.visibility"
                                                         x-bind:disabled="uploading"
                                                     >
-                                                        <option value="private">Private</option>
                                                         <option value="public">Public</option>
+                                                        <option value="private">Private</option>
                                                     </x-ui.select>
                                                     <x-ui.input
                                                         label="Caption"
