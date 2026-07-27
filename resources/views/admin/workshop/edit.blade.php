@@ -601,7 +601,7 @@ if (isset($workshop)) {
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
+                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; if (typeof syncWorkshopClosesAt === 'function') { syncWorkshopClosesAt() }">
                             <option value="physical">Physical</option>
                             <option value="online">Online</option>
                             <option value="stemcraft">STEMCraft</option>
@@ -678,6 +678,7 @@ if (isset($workshop)) {
                             label="End Date"
                             name="ends_at"
                             value="{{ $workshopEndValue }}"
+                            onchange="updatedEndsAt()"
                             x-ref="endsAt"
                             x-on:input="manualEndsAt = $event.target.value"
                             x-on:change="manualEndsAt = $event.target.value"
@@ -914,6 +915,34 @@ if (isset($workshop)) {
 </x-layout>
 
 <script>
+    function isStemcraftWorkshopType() {
+        const typeElement = document.getElementsByName('type')[0];
+        return typeElement && typeElement.value === 'stemcraft';
+    }
+
+    function syncWorkshopClosesAt() {
+        const startsAtElement = document.getElementsByName('starts_at')[0];
+        const endsAtElement = document.getElementsByName('ends_at')[0];
+        const closesAtElement = document.getElementsByName('closes_at')[0];
+
+        if (!startsAtElement || !endsAtElement || !closesAtElement) {
+            return;
+        }
+
+        if (isStemcraftWorkshopType()) {
+            closesAtElement.value = endsAtElement.value || '';
+            return;
+        }
+
+        if (startsAtElement.value === '') {
+            return;
+        }
+
+        let closesAt = new Date(startsAtElement.value);
+        closesAt.setHours(closesAt.getHours() - 2);
+        closesAtElement.value = SM.toLocalISOString(closesAt);
+    }
+
     function updatedStartsAt() {
         const startsAt = document.getElementsByName('starts_at')[0].value;
         console.log(startsAt);
@@ -925,9 +954,11 @@ if (isset($workshop)) {
             document.getElementsByName('ends_at')[0].value = SM.toLocalISOString(endsAt);
         }
 
-        let closesAt = new Date(startsAt);
-        closesAt.setHours(closesAt.getHours() - 2);
-        document.getElementsByName('closes_at')[0].value = SM.toLocalISOString(closesAt);
+        syncWorkshopClosesAt();
+    }
+
+    function updatedEndsAt() {
+        syncWorkshopClosesAt();
     }
 
     function updatedPublishAt() {
@@ -962,4 +993,6 @@ if (isset($workshop)) {
         let publishAt = new Date();
         document.getElementsByName('publish_at')[0].value = SM.toLocalISOString(publishAt);
     }
+
+    syncWorkshopClosesAt();
 </script>
