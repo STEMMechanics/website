@@ -989,13 +989,12 @@ const registerWorkshopPickListPage = () => {
         newCustomItem(previousItem = null) {
             const id = this.nextCustomItemId++;
             const previousType = String(previousItem?.quantity_type ?? '');
-            const previousValue = Number.parseInt(String(previousItem?.quantity_value ?? 1), 10) || 1;
 
             return {
                 id,
                 item_name: '',
                 quantity_type: ['fixed', 'per_participant'].includes(previousType) ? previousType : 'per_participant',
-                quantity_value: Math.max(1, previousValue),
+                quantity_value: 1,
                 sort_order: this.customItems.length * 10,
             };
         },
