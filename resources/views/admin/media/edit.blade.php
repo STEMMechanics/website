@@ -11,16 +11,228 @@ $selectedWorkshopIds = collect(old('workshop_ids', isset($medium) ? $medium->wor
 $visibilityValue = old('visibility', $medium->visibility ?? 'public');
 $visibilityValue = in_array((string) $visibilityValue, ['private', 'public'], true) ? (string) $visibilityValue : 'private';
 $publicUsages = collect($mediaUsages ?? [])->filter(fn ($usage) => (bool) ($usage['public'] ?? false));
+$isEditableImage = isset($medium) && is_string($medium->mime_type ?? null) && str_starts_with((string) $medium->mime_type, 'image/');
+$originalDimensions = isset($originalFileInfo['dimensions']) ? (string) $originalFileInfo['dimensions'] : '';
+$originalDimensionParts = preg_split('/\s*x\s*/i', $originalDimensions) ?: [];
+$originalImageWidth = (int) ($originalDimensionParts[0] ?? 0);
+$originalImageHeight = (int) ($originalDimensionParts[1] ?? 0);
+$editorImageUrl = isset($medium) ? $medium->url : null;
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.media.index" backTitle="Media">{{ isset($medium) ? 'Edit' : 'Create' }} Media</x-mast>
     <x-container class="mt-4">
-        <form method="POST" action="{{ route('admin.media.' . ( isset($medium) ? 'update' : 'store'), $medium ?? []) }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('admin.media.' . ( isset($medium) ? 'update' : 'store'), $medium ?? []) }}" enctype="multipart/form-data"
+            x-data="{
+                editRotation: @js((int) old('edit_rotation', 0)),
+                editCropTop: @js((int) old('edit_crop_top', 0)),
+                editCropRight: @js((int) old('edit_crop_right', 0)),
+                editCropBottom: @js((int) old('edit_crop_bottom', 0)),
+                editCropLeft: @js((int) old('edit_crop_left', 0)),
+                editorOpen: false,
+                editorDraft: { rotation: @js((int) old('edit_rotation', 0)), top: @js((int) old('edit_crop_top', 0)), right: @js((int) old('edit_crop_right', 0)), bottom: @js((int) old('edit_crop_bottom', 0)), left: @js((int) old('edit_crop_left', 0)) },
+                editorBounds: null,
+                openEditor() {
+                    this.editorDraft = {
+                        rotation: Number(this.editRotation || 0),
+                        top: Number(this.editCropTop || 0),
+                        right: Number(this.editCropRight || 0),
+                        bottom: Number(this.editCropBottom || 0),
+                        left: Number(this.editCropLeft || 0),
+                    };
+                    this.editorBounds = null;
+                    this.editorOpen = true;
+                },
+                closeEditor() {
+                    this.editorOpen = false;
+                    this.editorBounds = null;
+                },
+                applyEditor() {
+                    this.editRotation = Number(this.editorDraft.rotation || 0);
+                    this.editCropTop = Number(this.editorDraft.top || 0);
+                    this.editCropRight = Number(this.editorDraft.right || 0);
+                    this.editCropBottom = Number(this.editorDraft.bottom || 0);
+                    this.editCropLeft = Number(this.editorDraft.left || 0);
+                    this.closeEditor();
+                },
+                rotate(delta) {
+                    this.editorDraft = {
+                        ...this.editorDraft,
+                        rotation: (((Number(this.editorDraft.rotation || 0) + Number(delta || 0)) % 360) + 360) % 360,
+                    };
+                },
+                cropFocusStyle() {
+                    const bounds = this.editorBounds;
+                    if (!bounds) return 'display:none;';
+                    const left = bounds.x + (bounds.width * this.editorDraft.left / 100);
+                    const top = bounds.y + (bounds.height * this.editorDraft.top / 100);
+                    const width = Math.max(12, bounds.width * (100 - this.editorDraft.left - this.editorDraft.right) / 100);
+                    const height = Math.max(12, bounds.height * (100 - this.editorDraft.top - this.editorDraft.bottom) / 100);
+                    return `left:${left}px; top:${top}px; width:${width}px; height:${height}px;`;
+                },
+                editorFrameStyle() {
+                    return 'width:min(100%,48rem); height:min(65vh,32rem);';
+                },
+                cropShadeStyle(edge) {
+                    const bounds = this.editorBounds;
+                    if (!bounds) return 'display:none;';
+                    const left = bounds.x + (bounds.width * this.editorDraft.left / 100);
+                    const top = bounds.y + (bounds.height * this.editorDraft.top / 100);
+                    const right = bounds.x + bounds.width - (bounds.width * this.editorDraft.right / 100);
+                    const bottom = bounds.y + bounds.height - (bounds.height * this.editorDraft.bottom / 100);
+                    if (edge === 'top') return `left:${bounds.x}px; top:${bounds.y}px; width:${bounds.width}px; height:${Math.max(0, top - bounds.y)}px;`;
+                    if (edge === 'right') return `left:${right}px; top:${top}px; width:${Math.max(0, bounds.x + bounds.width - right)}px; height:${Math.max(0, bottom - top)}px;`;
+                    if (edge === 'bottom') return `left:${bounds.x}px; top:${bottom}px; width:${bounds.width}px; height:${Math.max(0, bounds.y + bounds.height - bottom)}px;`;
+                    return `left:${bounds.x}px; top:${top}px; width:${Math.max(0, left - bounds.x)}px; height:${Math.max(0, bottom - top)}px;`;
+                },
+                startCropDrag(mode, event) {
+                    const bounds = this.editorBounds;
+                    if (!bounds) return;
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+                    const initial = { ...this.editorDraft };
+                    const onMove = (moveEvent) => {
+                        const dx = ((moveEvent.clientX - startX) / bounds.width) * 100;
+                        const dy = ((moveEvent.clientY - startY) / bounds.height) * 100;
+                        let next = { ...initial };
+                        if (mode === 'move') {
+                            const shiftX = Math.max(-initial.left, Math.min(initial.right, dx));
+                            const shiftY = Math.max(-initial.top, Math.min(initial.bottom, dy));
+                            next.left = initial.left + shiftX;
+                            next.right = initial.right - shiftX;
+                            next.top = initial.top + shiftY;
+                            next.bottom = initial.bottom - shiftY;
+                        } else {
+                            if (mode.includes('n')) next.top = Math.max(0, Math.min(90, initial.top + dy));
+                            if (mode.includes('s')) next.bottom = Math.max(0, Math.min(90, initial.bottom - dy));
+                            if (mode.includes('w')) next.left = Math.max(0, Math.min(90, initial.left + dx));
+                            if (mode.includes('e')) next.right = Math.max(0, Math.min(90, initial.right - dx));
+                        }
+                        if (next.left + next.right > 95) {
+                            const overflow = next.left + next.right - 95;
+                            if (mode.includes('w')) next.left -= overflow;
+                            else if (mode.includes('e')) next.right -= overflow;
+                        }
+                        if (next.top + next.bottom > 95) {
+                            const overflow = next.top + next.bottom - 95;
+                            if (mode.includes('n')) next.top -= overflow;
+                            else if (mode.includes('s')) next.bottom -= overflow;
+                        }
+                        this.editorDraft = {
+                            ...this.editorDraft,
+                            top: Math.round(Math.max(0, Math.min(90, next.top))),
+                            right: Math.round(Math.max(0, Math.min(90, next.right))),
+                            bottom: Math.round(Math.max(0, Math.min(90, next.bottom))),
+                            left: Math.round(Math.max(0, Math.min(90, next.left))),
+                        };
+                    };
+                    const onUp = () => {
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                },
+                renderPreviewCanvas(canvas, imageUrl, edits) {
+                    if (!canvas || !imageUrl) return;
+                    const context = canvas.getContext('2d');
+                    if (!context) return;
+                    const width = Math.max(0, canvas.clientWidth || 0);
+                    const height = Math.max(0, canvas.clientHeight || 0);
+                    if (width < 20 || height < 20) {
+                        requestAnimationFrame(() => this.renderPreviewCanvas(canvas, imageUrl, edits));
+                        return;
+                    }
+                    if (canvas.width !== width || canvas.height !== height) {
+                        canvas.width = width;
+                        canvas.height = height;
+                    }
+                    const image = new Image();
+                    image.onload = () => {
+                        context.clearRect(0, 0, width, height);
+                        const sx = (Math.max(0, Math.min(90, Number(edits.left || 0))) / 100) * image.naturalWidth;
+                        const sy = (Math.max(0, Math.min(90, Number(edits.top || 0))) / 100) * image.naturalHeight;
+                        const sw = Math.max(1, ((100 - Math.max(0, Math.min(90, Number(edits.left || 0))) - Math.max(0, Math.min(90, Number(edits.right || 0)))) / 100) * image.naturalWidth);
+                        const sh = Math.max(1, ((100 - Math.max(0, Math.min(90, Number(edits.top || 0))) - Math.max(0, Math.min(90, Number(edits.bottom || 0)))) / 100) * image.naturalHeight);
+                        const rotationDegrees = Number(edits.rotation || 0);
+                        const rotation = (rotationDegrees * Math.PI) / 180;
+                        const quarterTurns = ((Math.round(rotationDegrees / 90) % 4) + 4) % 4;
+                        const boundWidth = quarterTurns % 2 === 1 ? sh : sw;
+                        const boundHeight = quarterTurns % 2 === 1 ? sw : sh;
+                        const scale = Math.min(width / boundWidth, height / boundHeight);
+                        const drawWidth = sw * scale;
+                        const drawHeight = sh * scale;
+                        context.save();
+                        context.translate(width / 2, height / 2);
+                        context.rotate(rotation);
+                        context.drawImage(image, sx, sy, sw, sh, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                        context.restore();
+                    };
+                    image.src = imageUrl;
+                },
+                renderEditorCanvas(canvas) {
+                    if (!canvas) return;
+                    const context = canvas.getContext('2d');
+                    if (!context) return;
+
+                    const width = Math.max(0, canvas.clientWidth || 0);
+                    const height = Math.max(0, canvas.clientHeight || 0);
+                    if (width < 20 || height < 20) {
+                        requestAnimationFrame(() => this.renderEditorCanvas(canvas));
+                        return;
+                    }
+                    if (canvas.width !== width || canvas.height !== height) {
+                        canvas.width = width;
+                        canvas.height = height;
+                    }
+
+                    const image = new Image();
+                    image.onload = () => {
+                        context.clearRect(0, 0, width, height);
+                        const rotationDegrees = Number(this.editorDraft.rotation || 0);
+                        const rotation = (rotationDegrees * Math.PI) / 180;
+                        const quarterTurns = ((Math.round(rotationDegrees / 90) % 4) + 4) % 4;
+                        const sourceWidth = image.naturalWidth || 1;
+                        const sourceHeight = image.naturalHeight || 1;
+                        const boundWidth = quarterTurns % 2 === 1 ? sourceHeight : sourceWidth;
+                        const boundHeight = quarterTurns % 2 === 1 ? sourceWidth : sourceHeight;
+                        const scale = Math.min(width / boundWidth, height / boundHeight);
+                        const drawWidth = sourceWidth * scale;
+                        const drawHeight = sourceHeight * scale;
+
+                        context.save();
+                        context.translate(width / 2, height / 2);
+                        context.rotate(rotation);
+                        context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                        context.restore();
+
+                        this.editorBounds = {
+                            x: (width - (boundWidth * scale)) / 2,
+                            y: (height - (boundHeight * scale)) / 2,
+                            width: boundWidth * scale,
+                            height: boundHeight * scale,
+                        };
+                    };
+                    const imageUrl = @js($editorImageUrl);
+                    if (!imageUrl) {
+                        context.clearRect(0, 0, width, height);
+                        return;
+                    }
+                    image.src = imageUrl;
+                },
+                resetEdits() {
+                    this.editorDraft = { rotation: 0, top: 0, right: 0, bottom: 0, left: 0 };
+                }
+            }">
             @isset($medium)
                 @method('PUT')
             @endisset
             @csrf
+            <input type="hidden" name="edit_rotation" :value="editRotation">
+            <input type="hidden" name="edit_crop_top" :value="editCropTop">
+            <input type="hidden" name="edit_crop_right" :value="editCropRight">
+            <input type="hidden" name="edit_crop_bottom" :value="editCropBottom">
+            <input type="hidden" name="edit_crop_left" :value="editCropLeft">
             <div class="mb-4">
                 <x-ui.input label="Title" name="title" value="{{ $medium->title ?? '' }}"/>
             </div>
@@ -30,9 +242,65 @@ $publicUsages = collect($mediaUsages ?? [])->filter(fn ($usage) => (bool) ($usag
                     <h3 class="mb-3 text-base font-semibold">Preview</h3>
                     <div class="flex justify-center rounded-lg border border-gray-200 bg-gray-100 p-3">
                         <a href="{{ $medium->url }}" target="_blank" rel="noopener noreferrer" class="inline-block overflow-hidden rounded-lg">
-                            <img src="{{ $medium->thumbnail ?: $medium->url }}" alt="{{ $medium->title }}" class="max-h-96 max-w-full object-contain">
+                            <div class="flex max-h-96 min-h-48 min-w-48 items-center justify-center overflow-hidden">
+                                <canvas class="block h-full w-full" x-effect="editRotation; editCropTop; editCropRight; editCropBottom; editCropLeft; renderPreviewCanvas($el, @js($editorImageUrl), { rotation: editRotation, top: editCropTop, right: editCropRight, bottom: editCropBottom, left: editCropLeft })"></canvas>
+                            </div>
                         </a>
                     </div>
+                    @if($isEditableImage)
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click.prevent="openEditor()">
+                                <i class="fa-solid fa-pen-to-square mr-2"></i>Edit Image
+                            </button>
+                        </div>
+                        <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeEditor()">
+                            <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" x-on:click.away="closeEditor()">
+                                <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                                    <div>
+                                        <div class="text-base font-semibold text-gray-900">Edit Image</div>
+                                        <div class="text-xs text-gray-500">Saving applies these edits to the original image and regenerates variants.</div>
+                                    </div>
+                                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                                <div class="overflow-y-auto p-4">
+                                    <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+                                    <div class="sm-image-crop-preview" :style="editorFrameStyle()">
+                                        <div class="absolute inset-0 flex items-center justify-center overflow-hidden">
+                                            <canvas x-ref="editorCanvas" x-effect="editorDraft.rotation; editorDraft.top; editorDraft.right; editorDraft.bottom; editorDraft.left; renderEditorCanvas($refs.editorCanvas)" class="block h-full w-full"></canvas>
+                                        </div>
+                                        <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('top')"></div>
+                                        <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('right')"></div>
+                                        <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('bottom')"></div>
+                                        <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('left')"></div>
+                                        <div class="sm-image-crop-preview__focus" :style="cropFocusStyle()" x-on:mousedown.prevent="startCropDrag('move', $event)">
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></button>
+                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></button>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-4 md:max-w-72">
+                                        <div class="flex items-center gap-2">
+                                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate left" x-on:click.prevent="rotate(-90)"><i class="fa-solid fa-rotate-left"></i></button>
+                                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate right" x-on:click.prevent="rotate(90)"><i class="fa-solid fa-rotate-right"></i></button>
+                                        </div>
+                                        <div class="text-xs text-gray-500">Drag the crop box or its handles directly on the image.</div>
+                                        <div class="flex justify-between gap-2">
+                                            <button type="button" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" x-on:click.prevent="resetEdits()">Reset</button>
+                                            <button type="button" class="rounded bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" x-on:click.prevent="applyEditor()">Done</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             @endisset
 

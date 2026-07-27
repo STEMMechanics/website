@@ -23,6 +23,7 @@ use App\Models\WorkshopAttendance;
 use App\Models\WorkshopCategory;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
+use App\Services\MediaImageEditor;
 use App\Services\DocumentNumberService;
 use App\Services\ManualWorkshopTicketEmailService;
 use App\Services\SmsFlowMessageService;
@@ -964,7 +965,7 @@ class WorkshopController extends Controller
         $maxSize = Helpers::getMaxUploadSize(auth()->user());
         $validated = $request->validate([
             'photos' => ['required', 'array'],
-            'photos.*' => ['file', 'mimetypes:image/jpeg,image/png,image/webp,image/gif', 'max:'.max((int) round($maxSize / 1024), 1)],
+            'photos.*' => ['file', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v', 'max:'.max((int) round($maxSize / 1024), 1)],
             'photos_meta' => ['nullable', 'array'],
             'photos_meta.*.title' => ['nullable', 'string', 'max:255'],
             'photos_meta.*.visibility' => ['nullable', Rule::in(['private', 'public'])],
@@ -972,15 +973,37 @@ class WorkshopController extends Controller
             'photos_meta.*.tags' => ['nullable', 'string', 'max:255'],
             'photos_meta.*.caption' => ['nullable', 'string'],
             'photos_meta.*.consent_notes' => ['nullable', 'string'],
+            'photos_meta.*.edit_rotation' => ['nullable', 'integer'],
+            'photos_meta.*.edit_crop_top' => ['nullable', 'numeric'],
+            'photos_meta.*.edit_crop_right' => ['nullable', 'numeric'],
+            'photos_meta.*.edit_crop_bottom' => ['nullable', 'numeric'],
+            'photos_meta.*.edit_crop_left' => ['nullable', 'numeric'],
         ], [
-            'photos.*.uploaded' => 'The selected photo could not be uploaded. It may exceed the server upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
-            'photos.*.max' => 'The selected photo is larger than the upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
-            'photos.*.mimetypes' => 'The selected photo must be a JPG, PNG, WebP, or GIF image.',
+            'photos.*.uploaded' => 'The selected media file could not be uploaded. It may exceed the server upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
+            'photos.*.max' => 'The selected media file is larger than the upload limit of '.Helpers::bytesToString((int) $maxSize).'.',
+            'photos.*.mimetypes' => 'The selected media file must be a JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, or M4V file.',
         ]);
 
         $created = 0;
+        $imageEditor = app(MediaImageEditor::class);
         foreach ($request->file('photos', []) as $index => $file) {
             $meta = (array) ($validated['photos_meta'][$index] ?? []);
+            if ($imageEditor->supportsMime($file->getMimeType()) && $imageEditor->hasEdits([
+                'rotation' => $meta['edit_rotation'] ?? 0,
+                'crop_top' => $meta['edit_crop_top'] ?? 0,
+                'crop_right' => $meta['edit_crop_right'] ?? 0,
+                'crop_bottom' => $meta['edit_crop_bottom'] ?? 0,
+                'crop_left' => $meta['edit_crop_left'] ?? 0,
+            ])) {
+                $file = $imageEditor->applyToUploadedFile($file, [
+                    'rotation' => $meta['edit_rotation'] ?? 0,
+                    'crop_top' => $meta['edit_crop_top'] ?? 0,
+                    'crop_right' => $meta['edit_crop_right'] ?? 0,
+                    'crop_bottom' => $meta['edit_crop_bottom'] ?? 0,
+                    'crop_left' => $meta['edit_crop_left'] ?? 0,
+                ]);
+            }
+
             $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $hash = hash_file('sha256', $file->path());
             $storage = Storage::disk('media');
@@ -1024,16 +1047,16 @@ class WorkshopController extends Controller
             $created++;
         }
 
-        session()->flash('message', $created.' workshop photo'.($created === 1 ? '' : 's').' uploaded.');
-        session()->flash('message-title', 'Photos uploaded');
-        session()->flash('message-type', 'success');
-
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => $created.' workshop photo'.($created === 1 ? '' : 's').' uploaded.',
+                'message' => $created.' workshop media item'.($created === 1 ? '' : 's').' uploaded.',
                 'created' => $created,
             ]);
         }
+
+        session()->flash('message', $created.' workshop media item'.($created === 1 ? '' : 's').' uploaded.');
+        session()->flash('message-title', 'Media uploaded');
+        session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.photos', $workshop);
     }
