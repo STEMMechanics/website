@@ -691,9 +691,7 @@ class MediaController extends Controller
 
                 $this->cleanupUnusedMediaArtifacts($oldHash, $oldVariants);
             } finally {
-                if (is_file($tempSource)) {
-                    @unlink($tempSource);
-                }
+                @unlink($tempSource);
                 if (is_string($editedPath) && is_file($editedPath)) {
                     @unlink($editedPath);
                 }
