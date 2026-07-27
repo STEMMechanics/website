@@ -1013,9 +1013,13 @@ class WorkshopController extends Controller
                 continue;
             }
 
-            $visibility = in_array((string) ($meta['visibility'] ?? 'private'), ['private', 'public'], true)
-                ? (string) ($meta['visibility'] ?? 'private')
-                : 'private';
+            $visibility = in_array((string) ($meta['visibility'] ?? 'public'), ['private', 'public'], true)
+                ? (string) ($meta['visibility'] ?? 'public')
+                : 'public';
+
+            $photographedAt = ! empty($meta['photographed_at'])
+                ? (string) $meta['photographed_at']
+                : $this->photoTakenAt($file, $workshop)->toDateString();
 
             $media = Media::create([
                 'title' => trim((string) ($meta['title'] ?? '')) ?: Helpers::filenameToTitle($fileName),
@@ -1025,7 +1029,7 @@ class WorkshopController extends Controller
                 'mime_type' => $file->getMimeType(),
                 'hash' => $hash,
                 'visibility' => $visibility,
-                'photographed_at' => ! empty($meta['photographed_at']) ? $meta['photographed_at'] : $this->photoTakenAt($file),
+                'photographed_at' => $photographedAt,
                 'tags' => trim((string) ($meta['tags'] ?? '')) ?: null,
                 'caption' => trim((string) ($meta['caption'] ?? '')) ?: null,
                 'consent_notes' => trim((string) ($meta['consent_notes'] ?? '')) ?: null,
@@ -1256,7 +1260,7 @@ class WorkshopController extends Controller
         }
     }
 
-    private function photoTakenAt(\Illuminate\Http\UploadedFile $file): Carbon
+    private function photoTakenAt(\Illuminate\Http\UploadedFile $file, ?Workshop $workshop = null): Carbon
     {
         if (function_exists('exif_read_data') && is_file($file->path())) {
             try {
@@ -1270,7 +1274,7 @@ class WorkshopController extends Controller
             }
         }
 
-        return now();
+        return $workshop?->starts_at?->copy() ?? now();
     }
 
     private function mediaTagOptions(): array

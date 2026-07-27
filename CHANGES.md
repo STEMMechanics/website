@@ -2,6 +2,7 @@
 
 ## Current
 
+- Improved workshop media uploads so new file drops append to the pending list, default dates use workshop/metadata dates, and new uploads default to public visibility.
 - Added an invoice write-off flow for uncollectable invoices without cancelling linked tickets or attendance records.
 - Added configurable school holiday shading and calendar keys to public and admin workshop month views.
 - Updated Axios to clear the high-severity npm audit advisory.
