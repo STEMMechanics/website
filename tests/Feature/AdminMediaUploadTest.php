@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Workshop;
 use App\Jobs\Media\GenerateVariants;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -63,6 +65,132 @@ class AdminMediaUploadTest extends TestCase
             'name' => 'bulk-upload-example.png',
             'user_id' => $admin->id,
         ]);
+    }
+
+    public function test_workshop_media_upload_accepts_mov_video_files(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $location = Location::factory()->create();
+        Media::query()->create([
+            'name' => 'stemmechanics-logo.png',
+            'title' => 'STEMMechanics Logo',
+            'hash' => str_repeat('a', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+        ]);
+        $file = UploadedFile::fake()->create('IMG_0131.MOV', 1024, 'video/quicktime');
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $workshop), [
+                'photos' => [$file],
+                'photos_meta' => [[
+                    'title' => 'Workshop Clip',
+                    'visibility' => 'private',
+                    'photographed_at' => now()->toDateString(),
+                    'tags' => 'video',
+                    'caption' => 'Test clip',
+                    'consent_notes' => '',
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', 1);
+
+        $this->assertDatabaseHas('media', [
+            'name' => 'img-0131.MOV',
+            'mime_type' => 'video/quicktime',
+            'user_id' => $admin->id,
+        ]);
+    }
+
+    public function test_workshop_media_upload_applies_image_edits_before_storing(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $location = Location::factory()->create();
+        Media::query()->create([
+            'name' => 'stemmechanics-logo.png',
+            'title' => 'STEMMechanics Logo',
+            'hash' => str_repeat('b', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+        ]);
+        $file = UploadedFile::fake()->image('edited-still.png', 100, 80);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $workshop), [
+                'photos' => [$file],
+                'photos_meta' => [[
+                    'title' => 'Edited Still',
+                    'visibility' => 'private',
+                    'photographed_at' => now()->toDateString(),
+                    'edit_rotation' => 90,
+                    'edit_crop_left' => 10,
+                    'edit_crop_right' => 10,
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', 1);
+
+        $media = Media::query()->where('title', 'Edited Still')->firstOrFail();
+        [$width, $height] = getimagesize(Storage::disk('media')->path((string) $media->hash));
+
+        $this->assertSame(64, $width);
+        $this->assertSame(100, $height);
+    }
+
+    public function test_admin_media_update_applies_image_edits_and_replaces_original_hash(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $source = UploadedFile::fake()->image('source.png', 120, 60);
+        $oldHash = hash_file('sha256', $source->path());
+        $source->storeAs('/', $oldHash, 'media');
+
+        $media = Media::query()->create([
+            'name' => 'source.png',
+            'title' => 'Source',
+            'hash' => $oldHash,
+            'mime_type' => 'image/png',
+            'size' => $source->getSize(),
+            'user_id' => $admin->id,
+            'variants' => [
+                'thumbnail' => ['mime_type' => 'image/webp', 'extension' => 'webp'],
+            ],
+        ]);
+        Storage::disk('media')->put($oldHash.'-thumbnail', 'fake-variant');
+
+        $this->actingAs($admin)
+            ->put(route('admin.media.update', $media), [
+                'title' => 'Source',
+                'visibility' => 'private',
+                'edit_rotation' => 90,
+                'edit_crop_top' => 10,
+                'edit_crop_bottom' => 10,
+            ])
+            ->assertRedirect(route('admin.media.index'));
+
+        $media->refresh();
+        $this->assertNotSame($oldHash, $media->hash);
+        $this->assertFalse(Storage::disk('media')->exists($oldHash));
+
+        [$width, $height] = getimagesize(Storage::disk('media')->path((string) $media->hash));
+
+        $this->assertSame(60, $width);
+        $this->assertSame(96, $height);
     }
 
     public function test_admin_media_store_persists_a_password_on_create(): void

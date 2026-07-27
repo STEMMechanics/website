@@ -31,7 +31,7 @@
     $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
     $suggestionInputHandler = trim((string) ($attributes->get('x-on:input') ?? ''));
     $isFileInput = $type === 'file';
-    $inputId = (string) ($attributes->get('id') ?? $name);
+    $inputId = (string) ($attributes->get('id') ?? $name ?? '');
     $autocomplete = (string) ($attributes->get('autocomplete') ?? 'off');
 
     $autocompleteValue = (string) $value;
@@ -59,8 +59,8 @@
     @elseif($floating)
         @if($type === 'textarea')
             <div class="relative">
-                <textarea class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
-                <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}</label>
+                <textarea class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
+                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}</label>
             </div>
         @elseif($hasSuggestions)
             <div
@@ -226,14 +226,14 @@
             </div>
         @else
             <div class="relative">
-                <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
-                <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
+                <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
+                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
             </div>
         @endif
     @elseif($noLabel)
         <div class="relative">
             @if($type === 'textarea')
-                <textarea class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" name="{{ $name }}" placeholder="{{ $label }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
+                <textarea class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif placeholder="{{ $label }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
             @elseif($hasSuggestions)
                 <div
                     class="relative"
@@ -414,7 +414,7 @@
                         autocomplete="{{ $autocomplete }}"
                         placeholder="{{ $label }}"
                     type="{{ $type }}"
-                    name="{{ $name }}"
+                    @if($name !== null && $name !== '') name="{{ $name }}" @endif
                     x-model="rawValue"
                     x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
                     x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
@@ -449,7 +449,7 @@
                     </template>
                 </div>
             @else
-                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
+                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
             @endif
         </div>
     @else

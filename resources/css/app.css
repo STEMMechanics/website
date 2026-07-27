@@ -797,7 +797,7 @@ body.image-resize-active {
     margin: 0 auto;
     overflow: hidden;
     border-radius: 0.5rem;
-    background: rgb(229 231 235);
+    background: transparent;
     aspect-ratio: 16 / 10;
 }
 
@@ -815,9 +815,6 @@ body.image-resize-active {
 
 .sm-image-crop-preview__focus {
     position: absolute;
-    border: 2px solid rgba(255, 255, 255, 0.95);
-    border-radius: 0.5rem;
-    background: rgba(255, 255, 255, 0.08);
     cursor: move;
 }
 

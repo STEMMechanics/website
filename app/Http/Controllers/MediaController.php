@@ -9,6 +9,7 @@ use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Services\MediaImageEditor;
 use App\Services\MediaUsageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
@@ -549,6 +550,11 @@ class MediaController extends Controller
             'photographed_at' => ['nullable', 'date'],
             'workshop_ids' => ['nullable', 'array'],
             'workshop_ids.*' => ['string', 'exists:workshops,id'],
+            'edit_rotation' => ['nullable', 'integer'],
+            'edit_crop_top' => ['nullable', 'numeric'],
+            'edit_crop_right' => ['nullable', 'numeric'],
+            'edit_crop_bottom' => ['nullable', 'numeric'],
+            'edit_crop_left' => ['nullable', 'numeric'],
 //            'file' => 'nullable|file|max:' . (max(round($max_size / 1024),0)),
         ], [
             'title.required' => __('validation.custom_messages.title_required'),
@@ -632,8 +638,67 @@ class MediaController extends Controller
             }
         }
 
+        $imageEditor = app(MediaImageEditor::class);
+        $editPayload = [
+            'rotation' => $request->input('edit_rotation', 0),
+            'crop_top' => $request->input('edit_crop_top', 0),
+            'crop_right' => $request->input('edit_crop_right', 0),
+            'crop_bottom' => $request->input('edit_crop_bottom', 0),
+            'crop_left' => $request->input('edit_crop_left', 0),
+        ];
+
+        if ($imageEditor->hasEdits($editPayload) && ! $imageEditor->supportsMedia($media)) {
+            return redirect()->back()
+                ->withErrors([
+                    'edit_rotation' => 'Crop and rotate tools are only available for image files.',
+                ])
+                ->withInput();
+        }
+
+        $oldHash = (string) $media->hash;
+        $oldVariants = is_array($media->variants) ? $media->variants : null;
+
         $media->update($mediaData);
         $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
+
+        if ($imageEditor->supportsMedia($media) && $imageEditor->hasEdits($editPayload)) {
+            $tempSource = $media->getAsTempFile();
+            if (! is_string($tempSource) || ! is_file($tempSource)) {
+                return redirect()->back()
+                    ->withErrors([
+                        'edit_rotation' => 'Could not prepare the source image for editing.',
+                    ])
+                    ->withInput();
+            }
+
+            $editedPath = null;
+
+            try {
+                $editedPath = $imageEditor->renderEditedTempFile($tempSource, pathinfo((string) $media->name, PATHINFO_EXTENSION), $imageEditor->normalize($editPayload));
+                $newHash = hash_file('sha256', $editedPath);
+                $storage = Storage::disk('media');
+
+                if (! $storage->exists($newHash)) {
+                    $storage->put($newHash, fopen($editedPath, 'rb'));
+                }
+
+                $media->hash = $newHash;
+                $media->size = filesize($editedPath) ?: $media->size;
+                $media->mime_type = mime_content_type($editedPath) ?: $media->mime_type;
+                $media->variants = null;
+                $media->save();
+                $media->generateVariants(true);
+
+                $this->cleanupUnusedMediaArtifacts($oldHash, $oldVariants);
+            } finally {
+                if (is_file($tempSource)) {
+                    @unlink($tempSource);
+                }
+                if (is_string($editedPath) && is_file($editedPath)) {
+                    @unlink($editedPath);
+                }
+            }
+        }
 
 //        if($file) {
 //            $media->generateVariants(false);
@@ -644,6 +709,28 @@ class MediaController extends Controller
         session()->flash('message-title', 'Media updated');
         session()->flash('message-type', 'success');
         return redirect()->route('admin.media.index');
+    }
+
+    /**
+     * @param array<string, array<string, mixed>>|null $variants
+     */
+    private function cleanupUnusedMediaArtifacts(string $hash, ?array $variants = null): void
+    {
+        if ($hash === '' || Media::query()->where('hash', $hash)->exists()) {
+            return;
+        }
+
+        $storage = Storage::disk('media');
+        if ($storage->exists($hash)) {
+            $storage->delete($hash);
+        }
+
+        foreach (array_keys($variants ?? []) as $variant) {
+            $key = $hash.'-'.$variant;
+            if ($storage->exists($key)) {
+                $storage->delete($key);
+            }
+        }
     }
 
     public function admin_regenerate_variants(Media $media): RedirectResponse

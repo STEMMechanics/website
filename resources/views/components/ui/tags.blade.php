@@ -8,16 +8,18 @@
 ])
 
 @php
-    $inputId = $attributes->get('id') ?: $name.'_tags';
-    $textInputId = $inputId.'_entry';
-    $datalistId = $inputId.'_options';
+    $inputId = $attributes->get('id') ?: ($name ? $name.'_tags' : '');
+    $textInputId = $inputId !== '' ? $inputId.'_entry' : '';
+    $datalistId = $inputId !== '' ? $inputId.'_options' : '';
     $noWrapper = filter_var($noWrapper, FILTER_VALIDATE_BOOLEAN);
+    $externalTagsBinding = trim((string) ($attributes->get('x-model-tags') ?? ''));
+    $externalDraftBinding = trim((string) ($attributes->get('x-model-draft') ?? ''));
 @endphp
 
 @if(!$noWrapper)
 <div class="mb-4">
 @endif
-    <label for="{{ $textInputId }}" class="block text-sm pl-1">{{ $label }}</label>
+    <label @if($textInputId !== '') for="{{ $textInputId }}" @endif class="block text-sm pl-1">{{ $label }}</label>
     <div
         class="mt-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 focus-within:border-indigo-300"
         x-data="{
@@ -40,15 +42,63 @@
                 this.sync();
             },
         }"
-        x-init="sync()"
+        x-init="
+            @if($externalTagsBinding !== '')
+                try {
+                    const initialTags = {{ $externalTagsBinding }};
+                    if (Array.isArray(initialTags)) {
+                        tags = initialTags;
+                    }
+                } catch (e) {}
+                $watch('tags', value => {
+                    try {
+                        {{ $externalTagsBinding }} = value;
+                    } catch (e) {}
+                });
+            @endif
+            @if($externalDraftBinding !== '')
+                try {
+                    const initialDraft = {{ $externalDraftBinding }};
+                    if (typeof initialDraft === 'string') {
+                        draft = initialDraft;
+                    }
+                } catch (e) {}
+                $watch('draft', value => {
+                    try {
+                        {{ $externalDraftBinding }} = value;
+                    } catch (e) {}
+                });
+            @endif
+            sync()
+        "
+        @if($externalTagsBinding !== '' || $externalDraftBinding !== '')
+        x-effect="
+            @if($externalTagsBinding !== '')
+                try {
+                    const incomingTags = {{ $externalTagsBinding }};
+                    if (Array.isArray(incomingTags) && JSON.stringify(tags) !== JSON.stringify(incomingTags)) {
+                        tags = incomingTags;
+                    }
+                } catch (e) {}
+            @endif
+            @if($externalDraftBinding !== '')
+                try {
+                    const incomingDraft = {{ $externalDraftBinding }};
+                    if (typeof incomingDraft === 'string' && draft !== incomingDraft) {
+                        draft = incomingDraft;
+                    }
+                } catch (e) {}
+            @endif
+        "
+        @endif
         x-on:click="if (!$event.target.closest('button')) { $refs.entry.focus(); }"
     >
         <input
             type="hidden"
-            id="{{ $inputId }}"
-            name="{{ $name }}"
+            @if($inputId !== '') id="{{ $inputId }}" @endif
+            @if($name) name="{{ $name }}" @endif
             x-ref="value"
-            {{ $attributes->except(['id']) }}
+            {{ $attributes->except(['id', 'x-model-tags', 'x-model-draft']) }}
         >
         <div class="flex min-h-9 flex-wrap items-center gap-1.5">
             <template x-for="(tag, index) in tags" :key="tag">
@@ -61,10 +111,10 @@
             </template>
             <input
                 x-ref="entry"
-                id="{{ $textInputId }}"
+                @if($textInputId !== '') id="{{ $textInputId }}" @endif
                 type="text"
                 x-model="draft"
-                list="{{ $datalistId }}"
+                @if($datalistId !== '') list="{{ $datalistId }}" @endif
                 placeholder="{{ $placeholder }}"
                 class="w-32 max-w-full border-0 px-1 py-1 text-sm focus:outline-none focus:ring-0"
                 x-on:keydown.enter.prevent="add()"
@@ -73,11 +123,13 @@
                 x-on:blur="add()"
             >
         </div>
-        <datalist id="{{ $datalistId }}">
-            @foreach($options as $option)
-                <option value="{{ $option }}"></option>
-            @endforeach
-        </datalist>
+        @if($datalistId !== '')
+            <datalist id="{{ $datalistId }}">
+                @foreach($options as $option)
+                    <option value="{{ $option }}"></option>
+                @endforeach
+            </datalist>
+        @endif
     </div>
     <div class="mt-1 text-xs text-gray-500">Press space, comma, or enter to create a tag.</div>
 @if(!$noWrapper)
