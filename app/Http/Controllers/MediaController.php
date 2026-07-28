@@ -7,6 +7,7 @@ use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
+use App\Models\Token;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Services\MediaImageEditor;
@@ -21,13 +22,16 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class MediaController extends Controller
 {
     private const REGENERATE_MISSING_BATCH_CACHE_KEY = 'media:regenerate-missing:active-batch-id';
+    private const PROTECTED_DOWNLOAD_TOKEN_TYPE = 'media-protected-download';
 
     /**
      * Display a listing of the resource.
@@ -178,10 +182,12 @@ class MediaController extends Controller
 
         if ($request->query('visibility') === 'public') {
             $query->where('visibility', 'public');
+        } elseif ($request->query('visibility') === 'protected') {
+            $query->where('visibility', 'protected');
         } elseif ($request->query('visibility') === 'private') {
             $query->where(function ($builder) {
                 $builder->whereNull('visibility')
-                    ->orWhere('visibility', '!=', 'public');
+                    ->orWhereIn('visibility', ['private', 'internal']);
             });
         }
 
@@ -272,6 +278,7 @@ class MediaController extends Controller
         }
 
         $this->authorizeMediaAccess($media);
+        $this->authorizeProtectedMediaRequest($request, $media);
 
         return response()->json($this->publicMediaPayload($media));
     }
@@ -425,10 +432,28 @@ class MediaController extends Controller
 
         $hash = hash_file('sha256', $file->path());
 
-        $storage = Storage::disk('media');
+        $storageDisk = $this->normalizeStorageDisk((string) $request->input('storage_disk', 'media'));
+        $storage = Storage::disk($storageDisk);
+        try {
+            File::ensureDirectoryExists($storage->path('/'));
+        } catch (\Throwable $e) {
+            if($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'The '.$storageDisk.' storage location is not available.',
+                    'errors' => [
+                        'file' => 'The '.$storageDisk.' storage location is not available.'
+                    ]
+                ], 500);
+            }
+
+            session()->flash('message', 'The '.$storageDisk.' storage location is not available.');
+            session()->flash('message-title', 'Upload failed');
+            session()->flash('message-type', 'danger');
+            return redirect()->back();
+        }
         $exists = $storage->exists($hash);
         if(!$exists) {
-            if($file->storeAs('/', $hash, 'media') === false) {
+            if($file->storeAs('/', $hash, $storageDisk) === false) {
                 if($request->wantsJson()) {
                     return response()->json([
                         'message' => 'A server error occurred uploading the file.',
@@ -453,9 +478,7 @@ class MediaController extends Controller
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         }
 
-        $visibility = in_array((string) $request->input('visibility', 'private'), ['private', 'public'], true)
-            ? (string) $request->input('visibility', 'private')
-            : 'private';
+        $visibility = $this->normalizeVisibility((string) $request->input('visibility', 'private'));
 
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
@@ -464,6 +487,7 @@ class MediaController extends Controller
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'hash' => $hash,
+            'storage_disk' => $storageDisk,
             'password' => $passwordHash,
             'visibility' => $visibility,
             'caption' => trim((string) $request->input('caption', '')) ?: null,
@@ -528,6 +552,8 @@ class MediaController extends Controller
             'mediaUsages' => app(MediaUsageService::class)->usagesFor((string) $media->name),
             'workshopOptions' => $this->workshopOptions(),
             'tagOptions' => $this->mediaTagOptions(),
+            'protectedDownloadLink' => $this->protectedMediaDownloadUrl($media),
+            'protectedDownloadToken' => $this->protectedDownloadToken($media),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -543,7 +569,8 @@ class MediaController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'user_id' => 'nullable|exists:users,id',
-            'visibility' => ['nullable', Rule::in(['private', 'public'])],
+            'visibility' => ['nullable', Rule::in(['private', 'protected', 'public'])],
+            'storage_disk' => ['nullable', Rule::in(['media', 'archive'])],
             'caption' => ['nullable', 'string'],
             'consent_notes' => ['nullable', 'string'],
             'tags' => ['nullable', 'string', 'max:255'],
@@ -569,9 +596,8 @@ class MediaController extends Controller
 
         $mediaData = $request->all();
         $mediaData['user_id'] = trim((string) ($request->input('user_id') ?? '')) ?: null;
-        $mediaData['visibility'] = in_array((string) $request->input('visibility', $media->visibility ?? 'private'), ['private', 'public'], true)
-            ? (string) $request->input('visibility', $media->visibility ?? 'private')
-            : 'private';
+        $mediaData['visibility'] = $this->normalizeVisibility((string) $request->input('visibility', $media->visibility ?? 'private'));
+        $mediaData['storage_disk'] = $this->normalizeStorageDisk((string) $request->input('storage_disk', $media->storage_disk ?? 'media'));
         $mediaData['caption'] = trim((string) $request->input('caption', '')) ?: null;
         $mediaData['consent_notes'] = trim((string) $request->input('consent_notes', '')) ?: null;
         $mediaData['tags'] = trim((string) $request->input('tags', '')) ?: null;
@@ -579,14 +605,14 @@ class MediaController extends Controller
 
         $mediaUsages = app(MediaUsageService::class)->usagesFor((string) $media->name);
         $hasPublicUsage = collect($mediaUsages)->contains(fn (array $usage) => (bool) ($usage['public'] ?? false));
-        if (($media->visibility ?? 'public') === 'public' && $mediaData['visibility'] === 'private' && $hasPublicUsage) {
+        if (($media->visibility ?? 'public') === 'public' && $mediaData['visibility'] !== 'public' && $hasPublicUsage) {
             session()->flash('message', 'Media was not updated because it is still used in public website content.');
             session()->flash('message-title', 'Save failed');
             session()->flash('message-type', 'danger');
 
             return redirect()->back()
                 ->withErrors([
-                    'visibility' => 'This media is still used in public website content. Remove those links before changing it to private.',
+                    'visibility' => 'This media is still used in public website content. Remove those links before changing it from public.',
                 ])
                 ->withInput();
         }
@@ -657,9 +683,18 @@ class MediaController extends Controller
 
         $oldHash = (string) $media->hash;
         $oldVariants = is_array($media->variants) ? $media->variants : null;
+        $oldStorageDisk = $media->storageDiskName();
 
         $media->update($mediaData);
         $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
+
+        if ($mediaData['visibility'] !== 'protected') {
+            $this->revokeProtectedDownloadTokens($media);
+        }
+
+        if ($oldStorageDisk !== $media->storageDiskName()) {
+            $this->moveMediaOriginalToStorageDisk($media, $oldStorageDisk);
+        }
 
         if ($imageEditor->supportsMedia($media) && $imageEditor->hasEdits($editPayload)) {
             $tempSource = $media->getAsTempFile();
@@ -676,7 +711,7 @@ class MediaController extends Controller
             try {
                 $editedPath = $imageEditor->renderEditedTempFile($tempSource, pathinfo((string) $media->name, PATHINFO_EXTENSION), $imageEditor->normalize($editPayload));
                 $newHash = hash_file('sha256', $editedPath);
-                $storage = Storage::disk('media');
+                $storage = $media->sourceStorage();
 
                 if (! $storage->exists($newHash)) {
                     $storage->put($newHash, fopen($editedPath, 'rb'));
@@ -706,7 +741,61 @@ class MediaController extends Controller
         session()->flash('message', 'Media has been updated');
         session()->flash('message-title', 'Media updated');
         session()->flash('message-type', 'success');
-        return redirect()->route('admin.media.index');
+        return redirect()->route('admin.media.edit', $media);
+    }
+
+    public function admin_generate_protected_link(Request $request, Media $media): RedirectResponse
+    {
+        $this->authorizeMediaOwnershipForAdmin($media);
+
+        if ($this->normalizeVisibility((string) ($media->visibility ?? 'private')) !== 'protected') {
+            session()->flash('message', 'Set visibility to Protected before generating a protected link.');
+            session()->flash('message-title', 'Link not created');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.media.edit', $media);
+        }
+
+        $validated = $request->validate([
+            'expires_in_days' => ['required', Rule::in(['1', '7', '30', '90'])],
+        ]);
+
+        $this->revokeProtectedDownloadTokens($media);
+
+        $ownerId = trim((string) ($media->user_id ?? '')) ?: (string) Auth::id();
+        if ($ownerId === '') {
+            abort(422, 'A media owner is required before a protected link can be created.');
+        }
+
+        $expiresAt = now()->addDays((int) $validated['expires_in_days']);
+
+        Token::query()->create([
+            'user_id' => $ownerId,
+            'type' => self::PROTECTED_DOWNLOAD_TOKEN_TYPE,
+            'data' => [
+                'media_name' => (string) $media->name,
+            ],
+            'expires_at' => $expiresAt,
+        ]);
+
+        session()->flash('message', 'Protected download link created.');
+        session()->flash('message-title', 'Link created');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.media.edit', $media);
+    }
+
+    public function admin_revoke_protected_link(Media $media): RedirectResponse
+    {
+        $this->authorizeMediaOwnershipForAdmin($media);
+
+        $deleted = $this->revokeProtectedDownloadTokens($media);
+
+        session()->flash('message', $deleted > 0 ? 'Protected download link revoked.' : 'No active protected download link was found.');
+        session()->flash('message-title', $deleted > 0 ? 'Link revoked' : 'No active link');
+        session()->flash('message-type', $deleted > 0 ? 'success' : 'warning');
+
+        return redirect()->route('admin.media.edit', $media);
     }
 
     /**
@@ -718,11 +807,14 @@ class MediaController extends Controller
             return;
         }
 
-        $storage = Storage::disk('media');
-        if ($storage->exists($hash)) {
-            $storage->delete($hash);
+        foreach (['media', 'archive'] as $diskName) {
+            $storage = Storage::disk($diskName);
+            if ($storage->exists($hash)) {
+                $storage->delete($hash);
+            }
         }
 
+        $storage = Storage::disk('media');
         foreach (array_keys($variants ?? []) as $variant) {
             $key = $hash.'-'.$variant;
             if ($storage->exists($key)) {
@@ -814,7 +906,7 @@ class MediaController extends Controller
 
             $media->deleteVariant($variant);
 
-            session()->flash('message', 'Variant "'.$variant.'" has been deleted.');
+            session()->flash('message', ucfirst($variant).' variant has been deleted.');
             session()->flash('message-title', 'Variant deleted');
             session()->flash('message-type', 'success');
         } catch (\Throwable $e) {
@@ -1052,7 +1144,7 @@ class MediaController extends Controller
         $files[] = $this->buildMediaFileInfo(
             label: 'Original',
             variant: '',
-            storageKey: (string) ($media->hash ?? ''),
+            storageKey: $media->storageDiskName() . ':' . (string) ($media->hash ?? ''),
             filePath: is_string($originalPath) ? $originalPath : null,
             mimeType: (string) ($media->mime_type ?? ''),
             fallbackSize: isset($media->size) ? (int) $media->size : null,
@@ -1110,14 +1202,7 @@ class MediaController extends Controller
 
     private function variantFilePath(Media $media, string $variant): ?string
     {
-        $path = $media->path();
-        if (! is_string($path) || $path === '') {
-            return null;
-        }
-
-        $variantPath = $path.'-'.$variant;
-
-        return is_file($variantPath) ? $variantPath : null;
+        return $media->variantPath($variant);
     }
 
     private function imageDimensions(?string $filePath, string $mimeType): string
@@ -1286,6 +1371,7 @@ class MediaController extends Controller
     public function download(Request $request, Media $media)
     {
         $this->authorizeMediaAccess($media);
+        $this->authorizeProtectedMediaRequest($request, $media);
 
         $file = $media->path();
         if($file === null) {
@@ -1371,7 +1457,7 @@ class MediaController extends Controller
             'Content-Disposition' => ($download ? 'attachment; ' : '') . 'filename="' . $name . '"',
         ];
 
-        if (Helpers::isNginxXAccelEnabled()) {
+        if (Helpers::isNginxXAccelEnabled() && $media->storageDiskName() === 'media') {
             $headers['X-Accel-Redirect'] = $this->mediaXAccelRedirectPath($file);
             $headers['Content-Length'] = (string) filesize($file);
 
@@ -1410,6 +1496,7 @@ class MediaController extends Controller
     public function unlock(Request $request, Media $media)
     {
         $this->authorizeMediaAccess($media);
+        $this->authorizeProtectedMediaRequest($request, $media);
 
         $file = $media->path();
         if($file === null) {
@@ -1456,13 +1543,16 @@ class MediaController extends Controller
             'size' => (int) $media->size,
             'status' => (string) ($media->status ?? ''),
             'visibility' => (string) ($media->visibility ?? 'public'),
-            'url' => (string) $media->url,
+            'storage_disk' => $media->storageDiskName(),
+            'url' => $this->publicMediaUrl($media),
+            'download_url' => $this->publicMediaUrl($media, download: true),
             'thumbnail' => (string) $media->thumbnail,
             'file_type' => (string) $media->file_type,
             'is_private' => $isPrivate,
             'password' => Auth::user()?->isAdmin() ? ($media->password ? 'yes' : null) : null,
             'can_delete' => $canDelete,
             'delete_url' => $canDelete ? route('account.media.destroy', $media) : null,
+            'edit_url' => Auth::user()?->isAdmin() ? route('admin.media.edit', $media) : null,
         ];
     }
 
@@ -1482,6 +1572,13 @@ class MediaController extends Controller
     private function authorizeMediaOwnership(Media $media): void
     {
         if (! $this->ownsMedia($media)) {
+            abort(403, 'You are not authorized to manage this file.');
+        }
+    }
+
+    private function authorizeMediaOwnershipForAdmin(Media $media): void
+    {
+        if (! Auth::user()?->isAdmin() && ! $this->ownsMedia($media)) {
             abort(403, 'You are not authorized to manage this file.');
         }
     }
@@ -1610,7 +1707,7 @@ class MediaController extends Controller
             return $url;
         }
 
-        return route('media.download', $media);
+        return $this->publicMediaUrl($media);
     }
 
     private function mediaDownloadUnlockSessionKey(Media $media): string
@@ -1631,5 +1728,125 @@ class MediaController extends Controller
             ->orderBy('surname')
             ->orderBy('email')
             ->get();
+    }
+
+    private function normalizeVisibility(string $visibility): string
+    {
+        return in_array($visibility, ['private', 'protected', 'public'], true) ? $visibility : 'private';
+    }
+
+    private function normalizeStorageDisk(string $storageDisk): string
+    {
+        return in_array($storageDisk, ['media', 'archive'], true) ? $storageDisk : 'media';
+    }
+
+    private function publicMediaUrl(Media $media, ?string $variant = null, bool $download = false): string
+    {
+        $params = ['media' => $media->getKey()];
+        if ($variant !== null && $variant !== '') {
+            $params[$variant] = 1;
+        }
+        if ($download) {
+            $params['download'] = 1;
+        }
+
+        if ((string) ($media->visibility ?? 'public') === 'protected') {
+            $token = $this->protectedDownloadToken($media);
+            if ($token instanceof Token) {
+                $params['access_token'] = $token->getKey();
+            }
+        }
+
+        return route('media.download', $params);
+    }
+
+    private function authorizeProtectedMediaRequest(Request $request, Media $media): void
+    {
+        if ((string) ($media->visibility ?? 'public') !== 'protected') {
+            return;
+        }
+
+        if (Auth::user()?->isAdmin() || $this->ownsMedia($media)) {
+            return;
+        }
+
+        $accessToken = trim((string) $request->query('access_token', ''));
+        if ($accessToken !== '' && $this->hasValidProtectedDownloadToken($media, $accessToken)) {
+            return;
+        }
+
+        if (! $request->hasValidSignature()) {
+            abort(403, 'A valid protected download link is required.');
+        }
+    }
+
+    private function protectedDownloadToken(Media $media): ?Token
+    {
+        return Token::query()
+            ->where('type', self::PROTECTED_DOWNLOAD_TOKEN_TYPE)
+            ->where('data->media_name', (string) $media->name)
+            ->where('expires_at', '>', now())
+            ->orderByDesc('expires_at')
+            ->first();
+    }
+
+    private function revokeProtectedDownloadTokens(Media $media): int
+    {
+        return Token::query()
+            ->where('type', self::PROTECTED_DOWNLOAD_TOKEN_TYPE)
+            ->where('data->media_name', (string) $media->name)
+            ->delete();
+    }
+
+    private function hasValidProtectedDownloadToken(Media $media, string $tokenId): bool
+    {
+        return Token::query()
+            ->where('id', trim($tokenId))
+            ->where('type', self::PROTECTED_DOWNLOAD_TOKEN_TYPE)
+            ->where('data->media_name', (string) $media->name)
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
+    private function protectedMediaDownloadUrl(Media $media): ?string
+    {
+        $token = $this->protectedDownloadToken($media);
+        if (! $token instanceof Token) {
+            return null;
+        }
+
+        return route('media.download', [
+            'media' => $media->getKey(),
+            'access_token' => $token->getKey(),
+        ]);
+    }
+
+    private function moveMediaOriginalToStorageDisk(Media $media, string $fromDisk): void
+    {
+        $hash = trim((string) ($media->hash ?? ''));
+        if ($hash === '' || $fromDisk === $media->storageDiskName()) {
+            return;
+        }
+
+        $sourceDisk = Storage::disk($fromDisk);
+        $targetDisk = $media->sourceStorage();
+        if (! $sourceDisk->exists($hash)) {
+            return;
+        }
+
+        if (! $targetDisk->exists($hash)) {
+            $stream = $sourceDisk->readStream($hash);
+            if (is_resource($stream)) {
+                $targetDisk->put($hash, $stream);
+            }
+        }
+
+        if (! Media::query()
+            ->where('hash', $hash)
+            ->where('storage_disk', $fromDisk)
+            ->where('name', '!=', $media->getKey())
+            ->exists()) {
+            $sourceDisk->delete($hash);
+        }
     }
 }

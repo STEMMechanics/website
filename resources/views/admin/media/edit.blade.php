@@ -9,8 +9,15 @@ $selectedWorkshopIds = collect(old('workshop_ids', isset($medium) ? $medium->wor
     ->map(fn ($id) => (string) $id)
     ->all();
 $visibilityValue = old('visibility', $medium->visibility ?? 'public');
-$visibilityValue = in_array((string) $visibilityValue, ['private', 'public'], true) ? (string) $visibilityValue : 'private';
+$visibilityValue = in_array((string) $visibilityValue, ['private', 'protected', 'public'], true) ? (string) $visibilityValue : 'private';
+$storageDiskValue = old('storage_disk', $medium->storage_disk ?? 'media');
+$storageDiskValue = in_array((string) $storageDiskValue, ['media', 'archive'], true) ? (string) $storageDiskValue : 'media';
 $publicUsages = collect($mediaUsages ?? [])->filter(fn ($usage) => (bool) ($usage['public'] ?? false));
+$visibilityInfoExpression = $publicUsages->isNotEmpty()
+    ? "visibilityInfo() + ' Public usage must be removed before this media can stop being public.'"
+    : 'visibilityInfo()';
+$protectedDownloadLink = isset($protectedDownloadLink) && is_string($protectedDownloadLink) && $protectedDownloadLink !== '' ? $protectedDownloadLink : null;
+$protectedDownloadTokenExpiry = isset($protectedDownloadToken?->expires_at) ? optional($protectedDownloadToken->expires_at)->timezone(config('app.timezone'))->format('j M Y g:i a') : null;
 $isEditableImage = isset($medium) && is_string($medium->mime_type ?? null) && str_starts_with((string) $medium->mime_type, 'image/');
 $originalDimensions = isset($originalFileInfo['dimensions']) ? (string) $originalFileInfo['dimensions'] : '';
 $originalDimensionParts = preg_split('/\s*x\s*/i', $originalDimensions) ?: [];
@@ -22,8 +29,20 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 <x-layout>
     <x-mast backRoute="admin.media.index" backTitle="Media">{{ isset($medium) ? 'Edit' : 'Create' }} Media</x-mast>
     <x-container class="mt-4">
+        @isset($medium)
+            <form id="generate-protected-link-form" method="POST" action="{{ route('admin.media.protected-link.generate', $medium) }}">
+                @csrf
+            </form>
+            <form id="revoke-protected-link-form" method="POST" action="{{ route('admin.media.protected-link.revoke', $medium) }}">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endisset
         <form method="POST" action="{{ route('admin.media.' . ( isset($medium) ? 'update' : 'store'), $medium ?? []) }}" enctype="multipart/form-data"
             x-data="{
+                visibilityValue: @js($visibilityValue),
+                originalVisibilityValue: @js($visibilityValue),
+                formDirty: false,
                 editRotation: @js((int) old('edit_rotation', 0)),
                 editCropTop: @js((int) old('edit_crop_top', 0)),
                 editCropRight: @js((int) old('edit_crop_right', 0)),
@@ -222,8 +241,42 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 },
                 resetEdits() {
                     this.editorDraft = { rotation: 0, top: 0, right: 0, bottom: 0, left: 0 };
+                },
+                visibilityInfo() {
+                    if (this.originalVisibilityValue === 'protected' && this.visibilityValue !== 'protected') {
+                        return 'Changing this from protected will revoke any protected links to this file.';
+                    }
+
+                    if (this.visibilityValue === 'protected') {
+                        return 'Protected files require a generated protected URL unless the viewer is the owner or an admin.';
+                    }
+
+                    if (this.visibilityValue === 'private') {
+                        return 'Private files are only accessible to the owner and admins.';
+                    }
+
+                    return 'Public files can be opened directly by anyone with the URL.';
+                },
+                markDirty(event) {
+                    if (event?.target?.form !== this.$root) {
+                        return;
+                    }
+
+                    this.formDirty = true;
+                },
+                protectedLinkActionsDisabled() {
+                    return this.formDirty;
+                },
+                protectedLinkActionInfo() {
+                    if (this.formDirty) {
+                        return 'Save media changes before generating or revoking a protected URL.';
+                    }
+
+                    return 'Generate a shareable URL for protected files. Revoking it blocks access immediately.';
                 }
-            }">
+            }"
+            x-on:input.capture="markDirty($event)"
+            x-on:change.capture="markDirty($event)">
             @isset($medium)
                 @method('PUT')
             @endisset
@@ -311,23 +364,112 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         label="Visibility"
                         name="visibility"
                         value="{{ $visibilityValue }}"
-                        :info="$publicUsages->isNotEmpty() ? 'Public usage must be removed before this image can be made private.' : null"
+                        x-model="visibilityValue"
+                        class="mb-0"
+                        info="{{ $visibilityInfoExpression }}"
                     >
                             <option value="private" @selected($visibilityValue === 'private')>Private</option>
+                            <option value="protected" @selected($visibilityValue === 'protected')>Protected</option>
                             <option value="public" @selected($visibilityValue === 'public')>Public</option>
                     </x-ui.select>
-                    <x-ui.input label="Photographed At" name="photographed_at" type="date" value="{{ old('photographed_at', isset($medium) ? optional($medium->photographed_at)->format('Y-m-d') : '') }}" />
-                    <div class="md:col-span-2">
+                    <x-ui.select
+                        label="Storage"
+                        name="storage_disk"
+                        value="{{ $storageDiskValue }}"
+                        class="mb-0"
+                    >
+                            <option value="media" @selected($storageDiskValue === 'media')>Media</option>
+                            <option value="archive" @selected($storageDiskValue === 'archive')>Archive</option>
+                    </x-ui.select>
+                    <div class="md:col-span-2" x-show="visibilityValue === 'public' || visibilityValue === 'protected'" x-cloak>
+                        <x-ui.password class="mb-0" label="Password" name="password" value="{{ $password }}"/>
+                    </div>
+                    @if($isEditableImage)
+                        <x-ui.input label="Photographed On" name="photographed_at" type="date" value="{{ old('photographed_at', isset($medium) ? optional($medium->photographed_at)->format('Y-m-d') : '') }}" class="mb-0" />
+                    @endif
+                    <div class="{{ $isEditableImage ? '' : 'md:col-span-2' }}">
                         <x-ui.tags name="tags" value="{{ old('tags', $medium->tags ?? '') }}" :options="$tagOptions ?? []" noWrapper="true" />
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input label="Caption" name="caption" type="textarea" value="{{ old('caption', $medium->caption ?? '') }}" />
+                        <x-ui.input class="mb-0" label="Caption" name="caption" type="textarea" value="{{ old('caption', $medium->caption ?? '') }}" />
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
+                        <x-ui.input class="mb-0" label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
                     </div>
                 </div>
             </div>
+
+            @isset($medium)
+                <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4" x-show="visibilityValue === 'protected'" x-cloak>
+                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h3 class="text-base font-semibold">Protected Link</h3>
+                            <p class="mt-1 text-sm text-gray-600" x-text="protectedLinkActionInfo()"></p>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <x-ui.select label="Expires In" name="expires_in_days" value="30" class="mb-0 min-w-40" selectClass="min-w-40" form="generate-protected-link-form" x-bind:disabled="protectedLinkActionsDisabled()">
+                                <option value="1">1 day</option>
+                                <option value="7">7 days</option>
+                                <option value="30" selected>30 days</option>
+                                <option value="90">90 days</option>
+                            </x-ui.select>
+                            <x-ui.button type="submit" color="outline" form="generate-protected-link-form" x-bind:disabled="protectedLinkActionsDisabled()">Generate URL</x-ui.button>
+                        </div>
+                    </div>
+
+                    @if($protectedDownloadLink)
+                        <div class="mt-4 overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                    <tr>
+                                        <th class="px-3 py-2">URL</th>
+                                        <th class="px-3 py-2">Expires</th>
+                                        <th class="px-3 py-2 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    <tr>
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="max-w-xl overflow-x-auto whitespace-nowrap text-gray-900">
+                                                {{ $protectedDownloadLink }}
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-2 align-top whitespace-nowrap text-gray-600">
+                                            {{ $protectedDownloadTokenExpiry ?? '-' }}
+                                        </td>
+                                        <td class="px-3 py-2 align-top">
+                                            <div class="flex items-center justify-center gap-3">
+                                                <a
+                                                    href="#"
+                                                    class="hover:text-primary-color"
+                                                    title="Copy protected URL"
+                                                    x-on:click.prevent="SM.copyToClipboard(@js($protectedDownloadLink))"
+                                                    x-bind:class="protectedLinkActionsDisabled() ? 'pointer-events-none opacity-50' : ''"
+                                                >
+                                                    <i class="fa-solid fa-copy"></i>
+                                                </a>
+                                                <button
+                                                    type="submit"
+                                                    class="hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Revoke protected URL"
+                                                    form="revoke-protected-link-form"
+                                                    x-bind:disabled="protectedLinkActionsDisabled()"
+                                                >
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500">
+                            No active protected link exists for this file.
+                        </div>
+                    @endif
+                </div>
+            @endisset
 
             @isset($medium)
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
@@ -583,11 +725,6 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     @endif
                 </div>
             @endisset
-
-            <div class="mb-4">
-                <x-ui.password label="Password" name="password" value="{{ $password }}"/>
-            </div>
-
             @unless(isset($medium))
                 <x-ui.file name="file" onchange="updateTitle" value="" />
             @endunless

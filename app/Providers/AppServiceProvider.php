@@ -56,7 +56,7 @@ class AppServiceProvider extends ServiceProvider
             // if a stale hot file was left behind by a previous deploy.
             Vite::useHotFile(storage_path('framework/vite.disabled'));
 
-            if (! $this->app->environment('local')) {
+            if ($this->shouldDeleteStaleViteHotFile()) {
                 File::delete(public_path('hot'));
                 File::delete($viteHotFile);
             }
@@ -192,6 +192,18 @@ class AppServiceProvider extends ServiceProvider
 
         return in_array($requestHost, ['localhost', '127.0.0.1', '::1'], true)
             || str_ends_with($requestHost, '.test');
+    }
+
+    private function shouldDeleteStaleViteHotFile(): bool
+    {
+        if ($this->app->runningInConsole()) {
+            return ! $this->app->environment('local');
+        }
+
+        $requestHost = request()->getHost();
+
+        return ! in_array($requestHost, ['localhost', '127.0.0.1', '::1'], true)
+            && ! str_ends_with($requestHost, '.test');
     }
 
     private function ensurePdfArtifactDirectoriesExist(): void
