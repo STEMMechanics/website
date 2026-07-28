@@ -109,7 +109,10 @@ if (isset($workshop)) {
 }
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+        <x-slot>{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-slot>
+        <x-slot:backTitleExtra><span class="text-sm">(<a href="{{ route('workshop.show', $workshop) }}" target="_blank" class="hover:text-primary-color-dark transition-colors">View</a>)</span></x-slot:backTitleExtra>
+    </x-mast>
 
     <x-container class="mt-4">
         <form x-data="{
@@ -862,6 +865,10 @@ if (isset($workshop)) {
                         >
                             <x-slot name="labelRight">
                                 <a href="{{ route('admin.pick-list-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
+                                @if(isset($workshop) && $workshop->pick_list_template_id)
+                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
+                                @endif
+                                <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.pick-list', $workshop) }}">Open Pick List</a>
                             </x-slot>
                             @if($hasCustomPickList)
                                 <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>
@@ -872,16 +879,6 @@ if (isset($workshop)) {
                                 <option value="{{ $pickListTemplate->id }}" @selected((string) $pickListTemplateMode !== 'custom' && (string) $pickListTemplateFieldValue === (string) $pickListTemplate->id)>{{ $pickListTemplate->name }}</option>
                             @endforeach
                         </x-ui.select>
-                        @if(isset($workshop) && $workshop->pick_list_template_id)
-                            <div class="mt-1 text-xs">
-                                <a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
-                            </div>
-                        @endif
-                        @if(isset($workshop) && $workshop->pick_list_template_id && ! $workshop->pick_list_is_customized)
-                            <div class="mt-2 text-xs text-gray-500">
-                                Active pick list follows the selected template until it is customised.
-                            </div>
-                        @endif
                     </div>
                 </div>
                 <div class="mb-4">

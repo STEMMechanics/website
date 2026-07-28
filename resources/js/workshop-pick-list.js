@@ -460,6 +460,17 @@ class PickListCanvasController {
         return cloneJson(this.cachedSavePayload);
     }
 
+    exportImageDataUrl() {
+        if (!this.hasContent()) {
+            return '';
+        }
+
+        return this.canvas.toDataURL({
+            format: 'png',
+            multiplier: 1,
+        });
+    }
+
     hasContent() {
         return this.userObjects().length > 0;
     }
@@ -1185,6 +1196,58 @@ const registerWorkshopPickListPage = () => {
             const minHeight = Number.parseFloat(computedStyle.minHeight || '0') || 0;
             textarea.style.height = `${Math.max(textarea.scrollHeight, Math.ceil(minHeight))}px`;
         },
+        async initCanvas() {
+            if (this.canvasController || this.canvasLoading) {
+                return;
+            }
+
+            const canvasElement = this.$refs.pickListCanvas;
+            const viewportElement = this.$refs.pickListCanvasViewport;
+
+            if (!(canvasElement instanceof HTMLCanvasElement) || !(viewportElement instanceof HTMLElement)) {
+                this.canvasError = 'Canvas is unavailable on this page.';
+                return;
+            }
+
+            this.canvasLoading = true;
+            this.canvasError = '';
+
+            try {
+                const controller = new PickListCanvasController({
+                    canvasElement,
+                    viewportElement,
+                    initialData: this.pickListCanvasDataJson,
+                    initialColor: this.canvasColor,
+                    initialBrushSize: this.canvasBrushSize,
+                    onDirty: () => {
+                        this.scheduleAutosave();
+                    },
+                    onStateChange: (state) => {
+                        this.syncCanvasUiState(state);
+                    },
+                });
+
+                this.canvasController = await controller.init();
+                this.canvasReady = true;
+            } catch (error) {
+                console.error(error);
+                this.canvasController = null;
+                this.canvasReady = false;
+                this.canvasError = 'Could not load the sketch pad.';
+            } finally {
+                this.canvasLoading = false;
+            }
+        },
+        syncCanvasUiState(state = {}) {
+            this.canvasTool = ['draw', 'erase', 'pan'].includes(String(state.tool ?? ''))
+                ? String(state.tool)
+                : this.canvasTool;
+            this.canvasColor = normalizedString(state.color) || this.canvasColor;
+            this.canvasBrushSize = clamp(Number.parseInt(String(state.brushSize), 10) || this.canvasBrushSize, 1, 48);
+            this.canvasCanUndo = Boolean(state.canUndo);
+            this.canvasCanRedo = Boolean(state.canRedo);
+            this.canvasZoomPercent = Math.max(0, Number.parseInt(String(state.zoomPercent ?? this.canvasZoomPercent), 10) || this.canvasZoomPercent);
+        },
         canvasToolButtonClass(tool) {
             return pickListToolbarButtonClasses(this.canvasTool === tool);
         },
@@ -1325,12 +1388,35 @@ const registerWorkshopPickListPage = () => {
                 this.saving = false;
             }
         },
-        async manualCanvasSave() {
-            this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
-            await this.autosave({
-                showSuccess: true,
-                showFailure: true,
-            });
+        exportCanvasPng() {
+            if (!this.canvasController) {
+                this.saveError = 'Canvas is still loading.';
+                return;
+            }
+
+            const dataUrl = this.canvasController.exportImageDataUrl();
+            if (dataUrl === '') {
+                if (window.SM?.notice) {
+                    window.SM.notice('Nothing to export', 'Add a drawing to export the sketch pad as a PNG.', 'warning', {
+                        toast: true,
+                        timer: 3000,
+                    });
+                }
+                return;
+            }
+
+            const titleSource = document.querySelector('h1')?.textContent || 'workshop-pick-list';
+            const safeTitle = String(titleSource)
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'workshop-pick-list';
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${safeTitle}-sketch-pad.png`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
         },
         refreshSavedRelative() {
             this.lastSavedRelative = window.SM.relativeTimeFromIso(this.lastSavedAtIso);

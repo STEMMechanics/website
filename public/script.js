@@ -954,12 +954,27 @@ let SM = {
     },
 
     mediaDetails: (name, callback) => {
-        axios.get('/media/' + encodeURIComponent(name), {
-            headers: {
-                'Accept': 'application/json'
-            }
-        }).then((response) => {
-            callback(response.data);
+        const url = '/media/' + encodeURIComponent(name);
+        const request = window.axios
+            ? window.axios.get(url, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }).then((response) => response.data)
+            : fetch(url, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }).then((response) => {
+                if (!response.ok) {
+                    throw new Error('Unable to load media details.');
+                }
+
+                return response.json();
+            });
+
+        request.then((data) => {
+            callback(data);
         }).catch((error) => {
             console.error(error);
             callback(null);

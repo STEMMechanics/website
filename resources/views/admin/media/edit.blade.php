@@ -365,6 +365,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         name="visibility"
                         value="{{ $visibilityValue }}"
                         x-model="visibilityValue"
+                        class="mb-0"
                         info="{{ $visibilityInfoExpression }}"
                     >
                             <option value="private" @selected($visibilityValue === 'private')>Private</option>
@@ -375,12 +376,13 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         label="Storage"
                         name="storage_disk"
                         value="{{ $storageDiskValue }}"
+                        class="mb-0"
                     >
                             <option value="media" @selected($storageDiskValue === 'media')>Media</option>
                             <option value="archive" @selected($storageDiskValue === 'archive')>Archive</option>
                     </x-ui.select>
                     <div class="md:col-span-2" x-show="visibilityValue === 'public' || visibilityValue === 'protected'" x-cloak>
-                        <x-ui.password label="Password" name="password" value="{{ $password }}"/>
+                        <x-ui.password class="mb-0" label="Password" name="password" value="{{ $password }}"/>
                     </div>
                     @if($isEditableImage)
                         <x-ui.input label="Photographed On" name="photographed_at" type="date" value="{{ old('photographed_at', isset($medium) ? optional($medium->photographed_at)->format('Y-m-d') : '') }}" class="mb-0" />
@@ -389,10 +391,10 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         <x-ui.tags name="tags" value="{{ old('tags', $medium->tags ?? '') }}" :options="$tagOptions ?? []" noWrapper="true" />
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input label="Caption" name="caption" type="textarea" value="{{ old('caption', $medium->caption ?? '') }}" />
+                        <x-ui.input class="mb-0" label="Caption" name="caption" type="textarea" value="{{ old('caption', $medium->caption ?? '') }}" />
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
+                        <x-ui.input class="mb-0" label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
                     </div>
                 </div>
             </div>

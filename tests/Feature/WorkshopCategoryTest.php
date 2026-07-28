@@ -75,7 +75,7 @@ class WorkshopCategoryTest extends TestCase
                 'hero_media_name' => $hero->name,
                 'category_ids' => [$robotics->id, $coding->id],
             ])
-            ->assertRedirect(route('admin.workshop.index'));
+            ->assertRedirect(route('admin.workshop.edit', $workshop));
 
         $this->assertEqualsCanonicalizing(
             [$robotics->id, $coding->id],

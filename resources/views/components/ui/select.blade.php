@@ -29,7 +29,7 @@
         <i class="fa-solid fa-caret-down absolute text-gray-700 text-2xl right-3 bottom-2.25 pointer-events-none"></i>
     </div>
     @if(is_string($info) && trim($info) !== '')
-        <div class="text-xs text-gray-500 ml-2 mt-1" x-text="{{ $info }}"></div>
+        <div class="text-xs text-gray-500 ml-2 mt-1" x-text="{{ $info }}">{{ $info }}</div>
     @endif
     @if ($hasError)
         <div class="text-xs text-red-600 ml-2 mt-2">{{ $error }}</div>

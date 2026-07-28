@@ -137,23 +137,10 @@
                                             @if($medium->is_private && $visibility !== 'public')
                                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Private owner</span>
                                             @endif
-                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">{{ $medium->storage_disk ?? 'media' }}</span>
                                             @if($medium->password !== null)
                                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Password protected</span>
                                             @endif
                                         </div>
-                                        @if($medium->workshopPhotos->isNotEmpty())
-                                            <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
-                                                @foreach($medium->workshopPhotos->take(3) as $linkedWorkshop)
-                                                    <a href="{{ route('admin.workshop.edit', $linkedWorkshop) }}" class="rounded-full bg-sky-100 px-2 py-0.5 text-sky-800 hover:underline">
-                                                        {{ $linkedWorkshop->title }}{{ $linkedWorkshop->location ? ' · '.$linkedWorkshop->location->name : '' }}
-                                                    </a>
-                                                @endforeach
-                                                @if($medium->workshopPhotos->count() > 3)
-                                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">+{{ $medium->workshopPhotos->count() - 3 }}</span>
-                                                @endif
-                                            </div>
-                                        @endif
                                         <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
                                     </div>

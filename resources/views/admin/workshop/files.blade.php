@@ -28,7 +28,7 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Files</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div class="mb-4 rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
             <div class="mt-2 grid gap-1 text-sm text-gray-700">
                 <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
@@ -405,7 +405,7 @@
                                                 <template x-if="item.kind === 'existing'">
                                                     <div>
                                                         <x-ui.input label="Title" :name="null" x-bind:value="item.title || item.name" disabled="true" />
-                                                        <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true" info="File visibility can be changed from the media editor.">
+                                                        <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true" info="File visibility can be changed for existing files from the media editor.">
                                                             <option value="public">Public</option>
                                                             <option value="protected">Protected</option>
                                                             <option value="private">Private</option>
@@ -483,7 +483,7 @@
                 @foreach($attachedFiles as $file)
                     <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div class="flex flex-col">
-                            <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="flex flex-col sm:flex-row gap-4 mb-4">
                                 <div class="mx-auto shrink">
                                     <div class="w-32">
                                         <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="block overflow-hidden">
@@ -495,17 +495,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="flex flex-col grow md:flex-row md:gap-4">
+                                <div class="flex flex-col grow md:flex-row gap-4">
                                     <div class="flex-1">
-                                        <div>
+                                        <div class="mb-4">
                                             <div class="mb-1 text-sm font-medium text-gray-700">Title</div>
                                             <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
                                                 {{ trim((string) ($file->title ?? '')) !== '' ? (string) $file->title : (string) $file->name }}
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="flex-1">
-                                        <div class="mb-4">
+                                        <div>
                                             <div class="mb-1 text-sm font-medium text-gray-700">Visibility</div>
                                             <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
                                                 {{ in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true)
@@ -513,6 +511,8 @@
                                                     : 'Private' }}
                                             </div>
                                         </div>
+                                    </div>
+                                    <div class="flex-1">
                                         <div>
                                             <div class="mb-1 text-sm font-medium text-gray-700">Notes</div>
                                             <div class="min-h-24 whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 text-left flex items-start justify-start">

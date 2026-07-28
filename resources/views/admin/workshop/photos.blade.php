@@ -24,7 +24,7 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Media</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div class="mb-4 rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
             <div class="mt-2 grid gap-1 text-sm text-gray-700">
                 <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>

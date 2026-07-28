@@ -181,7 +181,7 @@ class AdminMediaUploadTest extends TestCase
                 'edit_crop_top' => 10,
                 'edit_crop_bottom' => 10,
             ])
-            ->assertRedirect(route('admin.media.index'));
+            ->assertRedirect(route('admin.media.edit', $media));
 
         $media->refresh();
         $this->assertNotSame($oldHash, $media->hash);
@@ -236,7 +236,7 @@ class AdminMediaUploadTest extends TestCase
                 'title' => 'Update Archive',
                 'password_password' => 'secret1234',
             ])
-            ->assertRedirect(route('admin.media.index'));
+            ->assertRedirect(route('admin.media.edit', $media));
 
         $media->refresh();
 

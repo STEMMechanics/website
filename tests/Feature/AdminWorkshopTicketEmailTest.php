@@ -725,7 +725,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'ticket_change_email_notes' => "Please use the new entrance.\nParking has changed.",
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message', 'Workshop has been updated and an email was queued to 2 ticket holders.');
 
         Queue::assertPushed(SendEmail::class, 1);
@@ -776,7 +776,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'ticket_change_email_notes' => 'No email should be sent.',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message', 'Workshop has been updated.');
         Queue::assertNotPushed(SendEmail::class);
     }
@@ -803,7 +803,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'ticket_change_email_notes' => 'This should be ignored.',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message', 'Workshop has been updated.');
         Queue::assertNotPushed(SendEmail::class);
     }
@@ -871,7 +871,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'workshop_cancel_reason' => 'The workshop has been cancelled.',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message');
 
         $ticket->refresh();
