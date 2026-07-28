@@ -163,6 +163,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->createWorkshop('Workshop this month', $monthStart);
         $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
         $draftWorkshop->update(['status' => 'draft']);
+        $cancelledWorkshop = $this->createWorkshop('Cancelled workshop', $monthStart->copy()->addDays(3));
+        $cancelledWorkshop->update(['status' => 'cancelled']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.month.pdf', [
             'month' => $monthStart->format('Y-m'),
@@ -183,6 +185,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertIsString($pdfInfo);
         $this->assertMatchesRegularExpression('/^Pages:\s+1$/m', $pdfInfo);
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
+        $this->assertStringNotContainsString('Cancelled workshop', $pdfText);
     }
 
     public function test_admin_workshop_ajax_delete_returns_list_redirect(): void
@@ -215,6 +218,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->createWorkshopWithPickList('Pick list workshop two', $monthStart->copy()->addDays(1), $template, 6);
         $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
         $draftWorkshop->update(['status' => 'draft']);
+        $cancelledWorkshop = $this->createWorkshopWithPickList('Cancelled workshop', $monthStart->copy()->addDays(3), $template, 3);
+        $cancelledWorkshop->update(['status' => 'cancelled']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.month.pick-lists.pdf', [
             'month' => $monthStart->format('Y-m'),
@@ -237,6 +242,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         preg_match('/^Pages:\s+(\d+)$/m', $pdfInfo, $matches);
         $this->assertGreaterThanOrEqual(2, (int) ($matches[1] ?? 0));
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
+        $this->assertStringNotContainsString('Cancelled workshop', $pdfText);
     }
 
     public function test_admin_workshop_month_materials_pdf_route_streams_a_summary_pdf(): void

@@ -110,13 +110,6 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .more {
-            color: #1da1e6;
-            font-size: 7px;
-            font-weight: 700;
-            line-height: 1.1;
-            margin-top: 1px;
-        }
         .footer {
             margin-top: 6px;
             color: #6b7280;
@@ -178,25 +171,19 @@
                     @foreach($week as $day)
                         @php
                             $dayWorkshops = collect($day['workshops'] ?? []);
-                            $visibleWorkshops = $dayWorkshops->take(1);
-                            $remainingWorkshops = max(0, $dayWorkshops->count() - $visibleWorkshops->count());
                         @endphp
                         <td class="{{ $day['in_month'] ? '' : 'outside' }} {{ $day['is_today'] ? 'today' : '' }}">
                             <div class="day-header">
                                 <div class="day-number">{{ $day['label'] }}</div>
                             </div>
 
-                            @foreach($visibleWorkshops as $workshop)
+                            @foreach($dayWorkshops as $workshop)
                                 <div class="event">
                                     <div class="event-time">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
                                     <div class="event-title">{{ $workshop->title }}</div>
                                     <div class="event-location">{{ $workshop->getLocationName() }}</div>
                                 </div>
                             @endforeach
-
-                            @if($remainingWorkshops > 0)
-                                <div class="more">+{{ $remainingWorkshops }} more</div>
-                            @endif
                         </td>
                     @endforeach
                 </tr>
