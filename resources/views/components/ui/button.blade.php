@@ -6,10 +6,10 @@
     $colorMap = [
         'outline' => "hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white {$disabledClasses}",
         'primary' => "hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
-        'primary-sm' => "!font-normal !text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
+        'primary-sm' => "!text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
         'accent' => "hover:bg-orange-600 focus-visible:outline-orange-500 bg-orange-500 text-white {$disabledClasses}",
         'primary-outline' => "hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
-        'primary-outline-sm' => "!font-normal !text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
+        'primary-outline-sm' => "!text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
         'secondary' => "hover:bg-gray-200 focus-visible:outline-gray-300 border border-gray-300 bg-gray-100 text-gray-800 {$disabledClasses}",
         'purple' => "hover:bg-violet-700 focus-visible:outline-violet-600 bg-violet-600 text-white {$disabledClasses}",
         'purple-outline' => "hover:bg-violet-700 focus-visible:outline-violet-600 text-violet-700 border border-violet-300 bg-white hover:text-white {$disabledClasses}",

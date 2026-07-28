@@ -413,6 +413,7 @@ const SMMediaPicker = {
             successDelayMs: 0,
             fields: {
                 visibility: store.public_usable_only ? 'public' : 'private',
+                ...(store.upload_fields || {}),
             },
             onProgress: ({ file, index, count, percent }) => {
                 SMMediaPicker.setUploadingState(true, {
@@ -726,7 +727,7 @@ const SMMediaPicker = {
                             x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
                             <div class="absolute top-0 left-0 flex flex-col gap-1 z-10">
-                                <span x-show="item.visibility && item.visibility !== 'public'" class="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">Private</span>
+                                <span x-show="item.visibility && item.visibility !== 'public'" class="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-white" x-text="item.visibility === 'protected' ? 'Protected' : 'Private'"></span>
                                 <i x-show="item.is_private" class="fa-solid fa-eye text-gray-600 bg-white p-0.75 rounded-full" title="Private owner" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                                 <i x-show="item.password" class="fa-solid fa-lock text-gray-600 bg-white p-0.75 rounded-full" title="Password protected" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                             </div>
@@ -871,6 +872,7 @@ const SMMediaPicker = {
         if(!options.hasOwnProperty('allow_browser')) options.allow_browser = true;
         if(!options.hasOwnProperty('allow_camera')) options.allow_camera = false;
         if(!options.hasOwnProperty('public_usable_only')) options.public_usable_only = true;
+        if(!options.hasOwnProperty('upload_fields')) options.upload_fields = {};
         if(!options.hasOwnProperty('custom_tabs')) options.custom_tabs = [];
 
         if(selected === null || selected === '') selected = [];
@@ -883,6 +885,7 @@ const SMMediaPicker = {
         store.allow_uploads = options.allow_uploads;
         store.allow_browser = options.allow_browser;
         store.public_usable_only = options.public_usable_only;
+        store.upload_fields = options.upload_fields && typeof options.upload_fields === 'object' ? JSON.parse(JSON.stringify(options.upload_fields)) : {};
         store.allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
         store.camera_supported = store.allow_camera && SMMediaPicker.cameraSupported();
         store.camera_ready = false;
@@ -983,6 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allow_uploads: false,
         allow_browser: true,
         allow_camera: false,
+        upload_fields: {},
         camera_supported: false,
         camera_ready: false,
         camera_starting: false,

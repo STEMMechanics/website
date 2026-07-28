@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Contracts\Filesystem\Filesystem;
 
 /**
  * @property string $url
@@ -34,6 +35,7 @@ class Media extends Model
         'size',
         'user_id',
         'hash',
+        'storage_disk',
         'password',
         'status',
         'visibility',
@@ -117,11 +119,11 @@ class Media extends Model
 
         static::deleting(function($media) {
             $hash = $media->hash;
-            if(Media::where('hash', $hash)->count() > 1) {
+            if(Media::where('hash', $hash)->where('storage_disk', $media->storageDiskName())->count() > 1) {
                 return;
             }
 
-            $disk = Storage::disk('media');
+            $disk = $media->sourceStorage();
             if($disk->exists($hash)) {
                 $disk->delete($hash);
             }
@@ -135,7 +137,7 @@ class Media extends Model
      */
     public function getUrlAttribute(): string
     {
-        return Storage::disk('media')->url($this->name);
+        return route('media.download', $this);
     }
 
     public function url($variant, $strict = false): string
@@ -143,7 +145,8 @@ class Media extends Model
         if(!$strict) {
             $data = $this->getClosestVariant($variant);
         } else {
-            if($this->variants === null || !array_key_exists($variant, $this->variants) || !$this->hasVariant($variant)) {
+            $variantFile = $this->variantPath($variant);
+            if($this->variants === null || !array_key_exists($variant, $this->variants) || $variantFile === null) {
                 return '';
             }
 
@@ -151,12 +154,14 @@ class Media extends Model
                 'variant' => $variant,
                 'name' => pathinfo($this->name, PATHINFO_FILENAME) . '-' . $variant . '.' . $this->variants[$variant]['extension'],
                 'mime_type' => $this->variants[$variant]['mime_type'],
-                'file' => $this->path() . '-' . $variant
+                'file' => $variantFile,
             ];
         }
 
 
-        return Storage::disk('media')->url($this->name) . ($data['variant'] !== '' ? '?' . $data['variant'] : '');
+        $url = route('media.download', $this);
+
+        return $url . ($data['variant'] !== '' ? '?' . $data['variant'] : '');
     }
 
     /**
@@ -254,7 +259,7 @@ class Media extends Model
         }
 
         $file = tempnam(sys_get_temp_dir(), 'media_');
-        $disk = Storage::disk('media');
+        $disk = $this->sourceStorage();
         if($disk->exists($this->hash) === false) {
             return null;
         }
@@ -292,7 +297,12 @@ class Media extends Model
      */
     public function storeFromTempFile(string $file): void
     {
-        Storage::disk('media')->put($this->name, fopen($file, 'r+'));
+        $stream = fopen($file, 'r+');
+        if (! is_resource($stream)) {
+            return;
+        }
+
+        $this->sourceStorage()->put($this->hash, $stream);
     }
 
     /**
@@ -309,7 +319,7 @@ class Media extends Model
 
     public function path(): string|null
     {
-        $disk = Storage::disk('media');
+        $disk = $this->sourceStorage();
         if(!$disk->exists($this->hash)) {
             return null;
         }
@@ -329,7 +339,7 @@ class Media extends Model
     public function addVariant(string $name, string $mime_type, string $extension, string $file): void
     {
         $name = strtolower($name);
-        $storage = Storage::disk('media');
+        $storage = $this->variantStorage();
 
         if (isset($this->variants[$name])) {
             if ($storage->exists($this->hash . '-' . $name)) {
@@ -359,7 +369,7 @@ class Media extends Model
     public function hasVariant($variant): bool
     {
         $variant = strtolower($variant);
-        $storage = Storage::disk('media');
+        $storage = $this->variantStorage();
 
         return $storage->exists($this->hash . '-' . $variant);
     }
@@ -374,15 +384,17 @@ class Media extends Model
     public function deleteVariant($variant): void
     {
         $variant = strtolower($variant);
-        $storage = Storage::disk('media');
+        $storage = $this->variantStorage();
+        $variants = $this->variants ?? [];
 
-        if(isset($this->variants[$variant])) {
+        if(isset($variants[$variant])) {
             if($storage->exists($this->hash . '-' . $variant)) {
                 $storage->delete($this->hash . '-' . $variant);
             }
         }
 
-        unset($this->variants[$variant]);
+        unset($variants[$variant]);
+        $this->variants = $variants === [] ? null : $variants;
 
         $this->save();
     }
@@ -394,7 +406,7 @@ class Media extends Model
      */
     public function deleteAllVariants(): void
     {
-        $storage = Storage::disk('media');
+        $storage = $this->variantStorage();
         if($this->variants === null) {
             return;
         }
@@ -443,12 +455,13 @@ class Media extends Model
                     $found = true;
                 }
 
-                if($found && array_key_exists($variant, $this->variants) && $this->hasVariant($variant)) {
+                $variantFile = $this->variantPath($variant);
+                if($found && array_key_exists($variant, $this->variants) && $variantFile !== null) {
                     return [
                         'variant' => $variant,
                         'name' => pathinfo($this->name, PATHINFO_FILENAME) . '-' . $variant . '.' . $this->variants[$variant]['extension'],
                         'mime_type' => $this->variants[$variant]['mime_type'],
-                        'file' => $this->path() . '-' . $variant
+                        'file' => $variantFile,
                     ];
                 }
             }
@@ -460,5 +473,35 @@ class Media extends Model
             'mime_type' => $this->mime_type,
             'file' => $this->path()
         ];
+    }
+
+    public function variantPath(string $variant): string|null
+    {
+        $variant = strtolower($variant);
+        $storage = $this->variantStorage();
+        $key = $this->hash . '-' . $variant;
+
+        if (! $storage->exists($key)) {
+            return null;
+        }
+
+        return $storage->path($key);
+    }
+
+    public function storageDiskName(): string
+    {
+        $disk = trim((string) ($this->storage_disk ?? ''));
+
+        return $disk !== '' ? $disk : 'media';
+    }
+
+    public function sourceStorage(): Filesystem
+    {
+        return Storage::disk($this->storageDiskName());
+    }
+
+    public function variantStorage(): Filesystem
+    {
+        return Storage::disk('media');
     }
 }

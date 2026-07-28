@@ -43,6 +43,12 @@ return [
             'throw' => false,
         ],
 
+        'archive' => [
+            'driver' => 'local',
+            'root' => env('ARCHIVE_FILES_PATH', storage_path('app/archive')),
+            'throw' => false,
+        ],
+
 //        's3' => [
 //            'driver' => 's3',
 //            'key' => env('AWS_ACCESS_KEY_ID'),

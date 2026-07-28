@@ -605,11 +605,38 @@ let SM = {
                     return;
                 }
 
-                axios.delete(deleteUrl)
-                .then((response) => {
-                    if(response.data.success){
-                        SM.redirectIfSafe(response.data.redirect);
+                const axiosClient = window.axios;
+
+                if (axiosClient && typeof axiosClient.delete === 'function') {
+                    axiosClient.delete(deleteUrl)
+                    .then((response) => {
+                        if(response.data.success){
+                            SM.redirectIfSafe(response.data.redirect);
+                        }
+                    })
+                    .catch(() => {
+                        window.location.reload();
+                    });
+                    return;
+                }
+
+                fetch(deleteUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data && data.success) {
+                        SM.redirectIfSafe(data.redirect);
+                        return;
                     }
+
+                    window.location.reload();
                 })
                 .catch(() => {
                     window.location.reload();
@@ -863,8 +890,12 @@ let SM = {
                 } else {
                     showError(response.data.message);
                 }
-            }).catch(() => {
-                showError('An error occurred while uploading the file.');
+            }).catch((error) => {
+                const message = error?.response?.data?.message
+                    || error?.response?.data?.errors?.file
+                    || error?.message
+                    || 'An error occurred while uploading the file.';
+                showError(message);
             });
         }
 

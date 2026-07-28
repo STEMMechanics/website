@@ -14,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Throwable;
@@ -76,8 +75,8 @@ class GenerateVariants implements ShouldQueue
         $media->save();
 
         try {
-            if (Storage::disk('media')->exists((string) $media->hash) === false) {
-                $processingError = 'Source file is missing from media storage.';
+            if ($media->path() === null) {
+                $processingError = 'Source file is missing from '.$media->storageDiskName().' storage.';
                 return;
             }
 

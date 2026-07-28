@@ -5,6 +5,10 @@
             'route' => route('admin.workshop.edit', $workshop),
         ],
         [
+            'title' => 'Files',
+            'route' => route('admin.workshop.files', $workshop),
+        ],
+        [
             'title' => 'Photos',
             'route' => route('admin.workshop.photos', $workshop),
             'active' => true,

@@ -98,6 +98,10 @@ if (isset($workshop)) {
             'active' => true,
         ],
         [
+            'title' => 'Files',
+            'route' => route('admin.workshop.files', $workshop),
+        ],
+        [
             'title' => 'Photos',
             'route' => route('admin.workshop.photos', $workshop),
         ],
@@ -553,7 +557,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" x-init="initLocationSelection()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -885,21 +889,6 @@ if (isset($workshop)) {
                         label="Content"
                         name="content"
                         value="{!! $workshopContent !!}"></x-ui.editor>
-                </div>
-                <div class="mb-4">
-                    <x-ui.filelist
-                        label="Files"
-                        name="files"
-                        editor="true"
-                        value="{!! isset($workshop) ? $workshop->files()->orderBy('name')->get() : '' !!}"></x-ui.filelist>
-                </div>
-                <div class="mb-4">
-                    <x-ui.filelist
-                        label="Private Admin Files"
-                        info="Visible to admins only from workshop admin screens. Not shown on the public workshop page."
-                        name="private_files"
-                        editor="true"
-                        value="{!! isset($workshop) ? $workshop->files('private')->orderBy('name')->get() : '' !!}"></x-ui.filelist>
                 </div>
                 <div class="flex justify-end gap-4 mt-8">
                     @if(isset($workshop) && ($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0))
