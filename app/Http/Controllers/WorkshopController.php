@@ -227,7 +227,7 @@ class WorkshopController extends Controller
 
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -278,7 +278,7 @@ class WorkshopController extends Controller
 
         /** @var Builder<Workshop> $monthWorkshopsQuery */
         $monthWorkshopsQuery = $this->buildWorkshopAdminQuery($search)
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -341,7 +341,7 @@ class WorkshopController extends Controller
 
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
-            ->when($excludeDrafts, fn (Builder $query): Builder => $query->where('status', '!=', 'draft'))
+            ->when($excludeDrafts, fn (Builder $query): Builder => $query->whereNotIn('status', ['draft', 'cancelled']))
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->orderBy('starts_at', 'asc')
             ->get();
