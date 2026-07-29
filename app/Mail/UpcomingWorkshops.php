@@ -71,7 +71,7 @@ class UpcomingWorkshops extends Mailable
 
     private function baseUpcomingWorkshopsQuery(): Builder
     {
-        $startDate = Carbon::now()->addDays(3);
+        $startDate = Carbon::now()->addHours(6);
         $endDate = Carbon::now()->addDays(42);
 
         return Workshop::query()

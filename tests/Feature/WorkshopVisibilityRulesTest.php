@@ -480,6 +480,64 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertGreaterThanOrEqual(5, substr_count($rendered, '?md'));
     }
 
+    public function test_upcoming_workshops_mailable_includes_workshops_starting_more_than_six_hours_ahead(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-29 16:00:00'));
+
+        $owner = User::factory()->create();
+        $heroName = 'hero-'.Str::lower(Str::random(8)).'.png';
+
+        Media::query()->create([
+            'name' => $heroName,
+            'title' => 'Hero',
+            'hash' => str_repeat('b', 64),
+            'mime_type' => 'image/png',
+            'size' => 2048,
+            'user_id' => $owner->id,
+        ]);
+
+        $includedWorkshop = Workshop::query()->create([
+            'title' => 'Tomorrow Morning Robotics',
+            'content' => '<p>Workshop content</p>',
+            'starts_at' => now()->addHours(18),
+            'ends_at' => now()->addHours(20),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addHours(17),
+            'status' => 'open',
+            'price' => 'Free',
+            'registration' => 'tickets',
+            'location_id' => Location::factory()->create(['name' => 'City Lab'])->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $excludedWorkshop = Workshop::query()->create([
+            'title' => 'Tonight Coding Sprint',
+            'content' => '<p>Workshop content</p>',
+            'starts_at' => now()->addHours(4),
+            'ends_at' => now()->addHours(6),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addHours(3),
+            'status' => 'open',
+            'price' => 'Free',
+            'registration' => 'tickets',
+            'location_id' => Location::factory()->create(['name' => 'City Lab'])->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $mailable = new UpcomingWorkshops('tester@example.com');
+
+        $this->assertTrue(
+            $mailable->workshops->contains(fn (Workshop $workshop) => $workshop->id === $includedWorkshop->id)
+        );
+        $this->assertFalse(
+            $mailable->workshops->contains(fn (Workshop $workshop) => $workshop->id === $excludedWorkshop->id)
+        );
+
+        Carbon::setTestNow();
+    }
+
     public function test_upcoming_workshop_cards_use_summary_when_present_and_fall_back_to_description_when_missing(): void
     {
         config()->set('newsletter.upcoming_workshops.hero_messages', [[
