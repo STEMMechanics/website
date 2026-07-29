@@ -71,7 +71,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'hero_media_name' => $heroName,
             ]);
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
         $this->assertNull($workshop->fresh()->location_id);
         $this->assertSame(Workshop::TYPE_ONLINE, (string) $workshop->fresh()->type);
@@ -93,7 +93,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'location_id' => $location->id,
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
 
         $freshWorkshop = $workshop->fresh();
@@ -136,7 +136,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response = $this->actingAs($admin)
             ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $newLocation, $heroName));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
         $this->assertSame((string) $newLocation->id, (string) $workshop->fresh()->location_id);
     }
@@ -336,7 +336,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'early_bird_ticket_limit' => 3,
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
 
         $ticketFlags = Ticket::query()
@@ -402,7 +402,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'status' => 'cancelled',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message-title', 'Workshop cancelled');
 
         $freshWorkshop = $workshop->fresh();
@@ -449,7 +449,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'reset_pick_list_customization' => 1,
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
 
         $freshWorkshop = $workshop->fresh();
@@ -477,7 +477,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'registration' => 'none',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.edit', $workshop));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message-type', 'danger');
         $this->assertSame('tickets', $workshop->fresh()->registration);
         $this->assertDatabaseHas('tickets', [
@@ -505,7 +505,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'registration' => 'none',
             ]));
 
-        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHasNoErrors();
         $this->assertSame('none', $workshop->fresh()->registration);
         $this->assertDatabaseHas('tickets', [
@@ -531,7 +531,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response = $this->actingAs($admin)
             ->delete(route('admin.workshop.destroy', $workshop));
 
-        $response->assertRedirect(route('admin.workshop.edit', $workshop));
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
         $response->assertSessionHas('message-type', 'danger');
         $this->assertDatabaseHas('workshops', ['id' => $workshop->id]);
         $this->assertDatabaseHas('tickets', ['id' => $ticket->id]);

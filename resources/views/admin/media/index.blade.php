@@ -48,28 +48,34 @@
             </div>
         </div>
         <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-            <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                <form method="GET" action="{{ route('admin.media.index') }}" class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <x-ui.input name="search" label="Search media" value="{{ request('search') }}" class="mb-0" noLabel="true" />
-                    <x-ui.input name="workshop" label="Workshop" value="{{ request('workshop') }}" class="mb-0" noLabel="true" />
-                    <x-ui.input name="location" label="Location" value="{{ request('location') }}" class="mb-0" noLabel="true" />
-                    <div class="flex gap-2">
-                        <x-ui.select name="visibility" label="Visibility" class="mb-0 min-w-40 flex-1" selectClass="min-w-40" noLabel="true">
-                        <option value="">Any visibility</option>
-                        <option value="private" @selected(request('visibility') === 'private')>Private</option>
-                        <option value="public" @selected(request('visibility') === 'public')>Public</option>
-                        </x-ui.select>
-                        <x-ui.button type="submit" color="outline">Filter</x-ui.button>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <div class="flex flex-wrap gap-2">
+                        <x-ui.button href="{{ route('admin.media.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
+                        <x-ui.button type="button" color="outline" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()" class="w-full sm:w-auto">Regenerate Missing Variants</x-ui.button>
+                        @if($unusedOnly)
+                            <x-ui.button href="{{ $allMediaRoute }}" color="outline" class="w-full sm:w-auto">Show All</x-ui.button>
+                        @else
+                            <x-ui.button href="{{ $unusedMediaRoute }}" color="outline" class="w-full sm:w-auto">Unused Only</x-ui.button>
+                        @endif
                     </div>
-                </form>
-                <div class="flex flex-wrap gap-2 xl:justify-end">
-                    <x-ui.button href="{{ route('admin.media.create') }}">Create</x-ui.button>
-                    <x-ui.button type="button" color="outline" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()">Regenerate Missing Variants</x-ui.button>
-                    @if($unusedOnly)
-                        <x-ui.button href="{{ $allMediaRoute }}" color="outline">Show All</x-ui.button>
-                    @else
-                        <x-ui.button href="{{ $unusedMediaRoute }}" color="outline">Unused Only</x-ui.button>
-                    @endif
+                </div>
+                <div>
+                    <div class="font-bold text-sm mb-2">Search & Filter</div>
+                    <form method="GET" action="{{ route('admin.media.index') }}" class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <x-ui.input name="search" label="Search media" value="{{ request('search') }}" class="mb-0" noLabel="true" />
+                        <x-ui.input name="workshop" label="Workshop" value="{{ request('workshop') }}" class="mb-0" noLabel="true" />
+                        <x-ui.input name="location" label="Location" value="{{ request('location') }}" class="mb-0" noLabel="true" />
+                        <div class="flex gap-2">
+                            <x-ui.select name="visibility" label="Visibility" class="mb-0 min-w-40 flex-1" selectClass="min-w-40" noLabel="true">
+                            <option value="">Any visibility</option>
+                            <option value="private" @selected(request('visibility') === 'private')>Private</option>
+                            <option value="protected" @selected(request('visibility') === 'protected')>Protected</option>
+                            <option value="public" @selected(request('visibility') === 'public')>Public</option>
+                            </x-ui.select>
+                            <x-ui.button type="submit" color="outline">Filter</x-ui.button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -115,33 +121,26 @@
                                         <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
                                         @php
                                             $visibility = (string) ($medium->visibility ?? 'private');
-                                            $isPublicUse = $visibility === 'public';
-                                            $statusLabel = $isPublicUse ? 'Public' : 'Private';
-                                            $statusClass = $isPublicUse
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-slate-100 text-slate-700';
+                                            $statusLabel = match ($visibility) {
+                                                'public' => 'Public',
+                                                'protected' => 'Protected',
+                                                default => 'Private',
+                                            };
+                                            $statusClass = match ($visibility) {
+                                                'public' => 'bg-green-100 text-green-700',
+                                                'protected' => 'bg-amber-100 text-amber-800',
+                                                default => 'bg-slate-100 text-slate-700',
+                                            };
                                         @endphp
                                         <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
                                             <span class="rounded-full px-2 py-0.5 {{ $statusClass }}">{{ $statusLabel }}</span>
-                                            @if($medium->is_private && ! $isPublicUse)
+                                            @if($medium->is_private && $visibility !== 'public')
                                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Private owner</span>
                                             @endif
                                             @if($medium->password !== null)
                                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Password protected</span>
                                             @endif
                                         </div>
-                                        @if($medium->workshopPhotos->isNotEmpty())
-                                            <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
-                                                @foreach($medium->workshopPhotos->take(3) as $linkedWorkshop)
-                                                    <a href="{{ route('admin.workshop.edit', $linkedWorkshop) }}" class="rounded-full bg-sky-100 px-2 py-0.5 text-sky-800 hover:underline">
-                                                        {{ $linkedWorkshop->title }}{{ $linkedWorkshop->location ? ' · '.$linkedWorkshop->location->name : '' }}
-                                                    </a>
-                                                @endforeach
-                                                @if($medium->workshopPhotos->count() > 3)
-                                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">+{{ $medium->workshopPhotos->count() - 3 }}</span>
-                                                @endif
-                                            </div>
-                                        @endif
                                         <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
                                     </div>

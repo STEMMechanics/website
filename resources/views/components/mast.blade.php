@@ -26,7 +26,12 @@
         <div class="text-lg">{{ $description }}</div>
     @endif
     @if(isset($backTitle) && $resolvedBackUrl)
-        <a href="{{ $resolvedBackUrl }}" class="text-lg hover:text-gray-300"><i class="fa-solid fa-angle-left mr-3"></i>{{ $backTitle }}</a>
+        <div class="flex text-lg">
+            <a href="{{ $resolvedBackUrl }}" class="text-lg hover:text-gray-300"><i class="fa-solid fa-angle-left mr-3"></i>{{ $backTitle }}</a>
+            @isset($backTitleExtra)
+                <div class="pl-2">{!! $backTitleExtra !!}</div>
+            @endisset
+        </div>
     @endif
     @isset($tabs)
         <div class="mt-4 -mb-10 overflow-x-auto">

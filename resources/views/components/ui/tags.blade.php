@@ -3,7 +3,7 @@
     'label' => 'Tags',
     'value' => '',
     'options' => [],
-    'placeholder' => 'tag one, tag two',
+    'placeholder' => 'tag-one tag-two',
     'noWrapper' => false,
 ])
 
@@ -100,7 +100,7 @@
             x-ref="value"
             {{ $attributes->except(['id', 'x-model-tags', 'x-model-draft']) }}
         >
-        <div class="flex min-h-9 flex-wrap items-center gap-1.5">
+        <div class="flex min-h-7 flex-wrap items-center gap-1.5">
             <template x-for="(tag, index) in tags" :key="tag">
                 <span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
                     <span x-text="tag"></span>
@@ -115,8 +115,8 @@
                 type="text"
                 x-model="draft"
                 @if($datalistId !== '') list="{{ $datalistId }}" @endif
-                placeholder="{{ $placeholder }}"
-                class="w-32 max-w-full border-0 px-1 py-1 text-sm focus:outline-none focus:ring-0"
+                x-bind:placeholder="tags.length === 0 ? @js($placeholder) : ''"
+                class="w-32 max-w-full border-0 text-sm focus:outline-none focus:ring-0"
                 x-on:keydown.enter.prevent="add()"
                 x-on:keydown.space.prevent="add()"
                 x-on:keydown="if ($event.key === ',') { $event.preventDefault(); add(); }"

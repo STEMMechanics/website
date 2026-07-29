@@ -269,7 +269,7 @@
                 <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()"><i class="fa-solid fa-magnifying-glass-minus"></i><span>Zoom Out</span></button>
                 <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()"><i class="fa-solid fa-arrows-to-dot"></i><span>Reset View</span></button>
                 <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()"><i class="fa-solid fa-trash-can"></i><span>Clear</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="manualCanvasSave()"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()"><i class="fa-solid fa-file-arrow-down"></i><span>Export</span></button>
             </div>
 
             <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">

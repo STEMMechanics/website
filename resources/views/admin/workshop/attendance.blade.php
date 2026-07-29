@@ -121,8 +121,8 @@
 
         <div class="mb-6">
             <x-ui.filelist
-                label="Private Admin Files"
-                value="{!! $workshop->files('private')->orderBy('name')->get() !!}" />
+                label="Workshop Files"
+                value="{!! $workshop->files()->orderBy('name')->get() !!}" />
         </div>
 
         @if($isTicketedWorkshop)

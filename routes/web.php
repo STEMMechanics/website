@@ -216,6 +216,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/media', [MediaController::class, 'admin_store'])->name('admin.media.store');
     Route::get('/admin/media/{media}', [MediaController::class, 'admin_edit'])->name('admin.media.edit');
     Route::put('/admin/media/{media}', [MediaController::class, 'admin_update'])->name('admin.media.update');
+    Route::post('/admin/media/{media}/protected-link', [MediaController::class, 'admin_generate_protected_link'])->name('admin.media.protected-link.generate');
+    Route::delete('/admin/media/{media}/protected-link', [MediaController::class, 'admin_revoke_protected_link'])->name('admin.media.protected-link.revoke');
     Route::post('/admin/media/{media}/regenerate-variants', [MediaController::class, 'admin_regenerate_variants'])->name('admin.media.regenerate-variants');
     Route::post('/admin/media/{media}/delete-variant', [MediaController::class, 'admin_delete_variant'])->name('admin.media.delete-variant');
     Route::post('/admin/media/{media}/delete-variants', [MediaController::class, 'admin_delete_variants'])->name('admin.media.delete-variants');
@@ -340,6 +342,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/workshops/{workshop}/attendance/dropins/{attendance}', [WorkshopController::class, 'admin_attendance_dropin_update'])->name('admin.workshop.attendance.dropin.update');
     Route::post('/admin/workshops/{workshop}/attendance/dropins/{attendance}/delete', [WorkshopController::class, 'admin_attendance_dropin_destroy'])->name('admin.workshop.attendance.dropin.destroy');
     Route::get('/admin/workshops/{workshop}/interests', [WorkshopController::class, 'admin_interests'])->name('admin.workshop.interests');
+    Route::get('/admin/workshops/{workshop}/files', [WorkshopController::class, 'admin_files'])->name('admin.workshop.files');
+    Route::put('/admin/workshops/{workshop}/files', [WorkshopController::class, 'admin_files_update'])->name('admin.workshop.files.update');
+    Route::delete('/admin/workshops/{workshop}/files/{media}', [WorkshopController::class, 'admin_files_destroy'])->name('admin.workshop.files.destroy');
     Route::get('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos'])->name('admin.workshop.photos');
     Route::post('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos_store'])->name('admin.workshop.photos.store');
     Route::put('/admin/workshops/{workshop}/photos', [WorkshopController::class, 'admin_photos_bulk_update'])->name('admin.workshop.photos.bulk-update');

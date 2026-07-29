@@ -532,7 +532,18 @@
 </div>
 
 <script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.store('{{$name}}_content', `{!! $value !!}`);
-    });
+    (() => {
+        const registerEditorStore = () => {
+            if (!window.Alpine?.store) {
+                return false;
+            }
+
+            Alpine.store('{{$name}}_content', `{!! $value !!}`);
+            return true;
+        };
+
+        if (!registerEditorStore()) {
+            document.addEventListener('alpine:init', registerEditorStore, { once: true });
+        }
+    })();
 </script>

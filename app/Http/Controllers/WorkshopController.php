@@ -41,6 +41,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -226,7 +227,7 @@ class WorkshopController extends Controller
 
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -277,7 +278,7 @@ class WorkshopController extends Controller
 
         /** @var Builder<Workshop> $monthWorkshopsQuery */
         $monthWorkshopsQuery = $this->buildWorkshopAdminQuery($search)
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -340,7 +341,7 @@ class WorkshopController extends Controller
 
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
-            ->when($excludeDrafts, fn (Builder $query): Builder => $query->where('status', '!=', 'draft'))
+            ->when($excludeDrafts, fn (Builder $query): Builder => $query->whereNotIn('status', ['draft', 'cancelled']))
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->orderBy('starts_at', 'asc')
             ->get();
@@ -728,7 +729,6 @@ class WorkshopController extends Controller
             'early_bird_ends_at' => 'nullable|date',
             'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'tickets_json' => 'nullable|string',
-            'private_files' => 'nullable|string',
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -817,7 +817,7 @@ class WorkshopController extends Controller
         $workshop = Workshop::create($workshopData);
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($request->input('files'));
-        $workshop->updateFiles($request->input('private_files'), 'private');
+        $workshop->updateFiles([], 'private');
 
         session()->flash('message', 'Workshop has been created');
         session()->flash('message-title', 'Workshop created');
@@ -924,6 +924,75 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'interestRegistrations' => $workshop->interests,
         ]);
+    }
+
+    public function admin_files(Workshop $workshop): View
+    {
+        $files = $workshop->files()
+            ->when(trim((string) request()->query('search')) !== '', function ($query) {
+                $search = trim((string) request()->query('search'));
+                $query->where(function ($builder) use ($search) {
+                    $builder->where('title', 'like', '%'.$search.'%')
+                        ->orWhere('name', 'like', '%'.$search.'%')
+                        ->orWhere('consent_notes', 'like', '%'.$search.'%')
+                        ->orWhere('file_type', 'like', '%'.$search.'%');
+                });
+            })
+            ->when(request()->query('visibility') === 'public', function ($query) {
+                $query->where('visibility', 'public');
+            })
+            ->when(request()->query('visibility') === 'protected', function ($query) {
+                $query->where('visibility', 'protected');
+            })
+            ->when(request()->query('visibility') === 'private', function ($query) {
+                $query->where(function ($builder) {
+                    $builder->whereNull('visibility')
+                        ->orWhere('visibility', 'private');
+                });
+            })
+            ->orderBy('name')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('admin.workshop.files', [
+            'workshop' => $workshop,
+            'files' => $files,
+        ]);
+    }
+
+    public function admin_files_update(Request $request, Workshop $workshop): RedirectResponse
+    {
+        $request->validate([
+            'files' => 'nullable|string',
+            'files_staged_order' => 'nullable|string',
+            'pending_file_keys' => 'nullable|string',
+            'pending_files' => 'nullable|array',
+            'pending_files.*' => 'file|max:'.max((int) round(Helpers::getMaxUploadSize(auth()->user()) / 1024), 1),
+            'pending_files_meta' => 'nullable|array',
+            'pending_files_meta.*.title' => 'nullable|string|max:255',
+            'pending_files_meta.*.visibility' => ['nullable', Rule::in(['private', 'protected', 'public'])],
+            'pending_files_meta.*.notes' => 'nullable|string',
+        ]);
+
+        $this->syncWorkshopFilesFromRequest($workshop, $request);
+        $workshop->updateFiles([], 'private');
+
+        session()->flash('message', 'Workshop files have been updated.');
+        session()->flash('message-title', 'Workshop files updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.files', $workshop);
+    }
+
+    public function admin_files_destroy(Workshop $workshop, Media $media): RedirectResponse
+    {
+        $workshop->files()->detach($media->name);
+
+        session()->flash('message', 'File removed from workshop.');
+        session()->flash('message-title', 'Workshop file removed');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.files', $workshop);
     }
 
     public function admin_photos(Request $request, Workshop $workshop): View
@@ -1290,6 +1359,97 @@ class WorkshopController extends Controller
             ->all();
     }
 
+    private function syncWorkshopFilesFromRequest(Workshop $workshop, Request $request): void
+    {
+        $existingNames = collect(Helpers::stringToArray((string) $request->input('files', '')))
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->values();
+
+        $pendingFiles = $request->file('pending_files', []);
+        $pendingFileKeys = collect(json_decode((string) $request->input('pending_file_keys', '[]'), true))
+            ->map(fn ($value) => trim((string) $value))
+            ->values();
+        $pendingMeta = collect((array) $request->input('pending_files_meta', []));
+        $pendingNameMap = [];
+
+        foreach ($pendingFiles as $index => $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $pendingId = $pendingFileKeys->get((int) $index, trim((string) ($index ?? '')));
+            $meta = (array) ($pendingMeta->get($pendingId) ?? []);
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
+            $hash = hash_file('sha256', $file->path());
+            $storage = Storage::disk('archive');
+            $exists = $storage->exists($hash);
+
+            if (! $exists && $file->storeAs('/', $hash, 'archive') === false) {
+                continue;
+            }
+
+            $visibility = in_array((string) ($meta['visibility'] ?? 'public'), ['private', 'protected', 'public'], true)
+                ? (string) ($meta['visibility'] ?? 'public')
+                : 'public';
+
+            $media = Media::create([
+                'title' => trim((string) ($meta['title'] ?? '')) ?: Helpers::filenameToTitle($fileName),
+                'user_id' => auth()->id(),
+                'name' => $fileName,
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'hash' => $hash,
+                'storage_disk' => 'archive',
+                'visibility' => $visibility,
+                'consent_notes' => trim((string) ($meta['notes'] ?? '')) ?: null,
+            ]);
+
+            if (! $exists) {
+                $media->generateVariants(false);
+            } else {
+                $mediaWithVariants = Media::where('hash', $hash)->where('variants', '!=', '')->orderBy('created_at')->first();
+                if ($mediaWithVariants) {
+                    $media->variants = $mediaWithVariants->variants;
+                    $media->save();
+                }
+            }
+
+            $pendingNameMap[$pendingId] = $media->name;
+        }
+
+        $orderedFiles = collect(json_decode((string) $request->input('files_staged_order', '[]'), true))
+            ->map(function ($item) use ($pendingNameMap) {
+                if (! is_array($item)) {
+                    return null;
+                }
+
+                if (($item['kind'] ?? null) === 'existing') {
+                    $name = trim((string) ($item['name'] ?? ''));
+                    return $name !== '' ? $name : null;
+                }
+
+                if (($item['kind'] ?? null) === 'pending') {
+                    $pendingId = trim((string) ($item['pending_id'] ?? ''));
+                    return $pendingNameMap[$pendingId] ?? null;
+                }
+
+                return null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($orderedFiles === []) {
+            $orderedFiles = array_values(array_unique([
+                ...$existingNames->all(),
+                ...array_values($pendingNameMap),
+            ]));
+        }
+
+        $workshop->updateFiles($orderedFiles);
+    }
+
     /**
      * Update the specified resource in storage.
      */
@@ -1321,7 +1481,13 @@ class WorkshopController extends Controller
             'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'reset_pick_list_customization' => 'nullable|boolean',
             'tickets_json' => 'nullable|string',
-            'private_files' => 'nullable|string',
+            'files_staged_order' => 'nullable|string',
+            'pending_files' => 'nullable|array',
+            'pending_files.*' => 'file|max:'.max((int) round(Helpers::getMaxUploadSize(auth()->user()) / 1024), 1),
+            'pending_files_meta' => 'nullable|array',
+            'pending_files_meta.*.title' => 'nullable|string|max:255',
+            'pending_files_meta.*.visibility' => ['nullable', Rule::in(['private', 'protected', 'public'])],
+            'pending_files_meta.*.notes' => 'nullable|string',
             'notify_ticket_holders' => 'nullable|boolean',
             'ticket_change_email_notes' => 'nullable|string',
             'category_ids' => 'nullable|array',
@@ -1490,9 +1656,6 @@ class WorkshopController extends Controller
         if ($shouldReflagEarlyBirdTickets && $newEarlyBirdTicketLimit !== null) {
             $this->reflagEarlyBirdTicketsForLimit($workshop, $newEarlyBirdTicketLimit);
         }
-        $workshop->updateFiles($request->input('files'));
-        $workshop->updateFiles($request->input('private_files'), 'private');
-
         $cancelSummary = null;
         $workshopCancelled = $previousStatus !== 'cancelled' && ($workshopData['status'] ?? '') === 'cancelled';
         $usesManagedTickets = in_array((string) ($workshopData['registration'] ?? $workshop->registration), ['tickets'], true);
@@ -1568,7 +1731,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', $messageTitle);
         session()->flash('message-type', $messageType);
 
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.workshop.edit', $workshop);
     }
 
     public function privateAccess(Request $request, Workshop $workshop): RedirectResponse
@@ -3997,7 +4160,9 @@ class WorkshopController extends Controller
             $newWorkshop->files()->attach($file->name);
         }
         foreach ($workshop->files('private')->get() as $file) {
-            $newWorkshop->files('private')->attach($file->name, ['collection' => 'private']);
+            if (! $newWorkshop->files()->where('name', $file->name)->exists()) {
+                $newWorkshop->files()->attach($file->name);
+            }
         }
 
         session()->flash('message', 'Workshop has been duplicated');
