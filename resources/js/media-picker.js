@@ -332,6 +332,16 @@ const SMMediaPicker = {
         SMMediaPicker.syncDialogInteractivity();
     },
 
+    browserSearchInput: () => {
+        return Swal.getHtmlContainer?.()?.querySelector('#content-browser input[name="search"]') || null;
+    },
+
+    browserSearchValue: () => {
+        const input = SMMediaPicker.browserSearchInput();
+
+        return input instanceof HTMLInputElement ? input.value : '';
+    },
+
     addUploadedSelection: (name) => {
         const store = Alpine.store('media');
         if (!store || typeof name !== 'string' || name === '') {
@@ -388,7 +398,7 @@ const SMMediaPicker = {
                 });
             }
 
-            const searchInput = document.querySelector('input[name="search"]');
+            const searchInput = SMMediaPicker.browserSearchInput();
             if (searchInput instanceof HTMLInputElement) {
                 searchInput.value = '';
             }
@@ -443,11 +453,15 @@ const SMMediaPicker = {
     gotoLink: (url) => {
         if(url !== null) {
             const page = new URL(url).searchParams.get('page');
-            SMMediaPicker.query(page, document.querySelector('input[name="search"]').value);
+            SMMediaPicker.query(page, SMMediaPicker.browserSearchValue());
         }
     },
 
     updateSelection: (name) => {
+        if (Alpine.store('media').disabled.some((item) => item === name)) {
+            return;
+        }
+
         if (typeof name === 'string' && name !== '') {
             if (Alpine.store('media').selected.some(i => i === name)) {
                 Alpine.store('media').selected = Alpine.store('media').selected.filter(i => i !== name);
@@ -462,6 +476,10 @@ const SMMediaPicker = {
     },
 
     doubleClick: (name) => {
+        if (Alpine.store('media').disabled.some((item) => item === name)) {
+            return;
+        }
+
         if (!Alpine.store('media').allow_multiple) {
             Alpine.store('media').selected = [name];
             Swal.clickConfirm();
@@ -469,7 +487,7 @@ const SMMediaPicker = {
     },
 
     search: () => {
-        SMMediaPicker.query(null, document.querySelector('input[name="search"]').value);
+        SMMediaPicker.query(null, SMMediaPicker.browserSearchValue());
     },
 
     confirmDelete: (item, event = null) => {
@@ -520,7 +538,7 @@ const SMMediaPicker = {
                 Alpine.store('media').selected = Alpine.store('media').selected.filter((name) => name !== item.name);
                 Alpine.store('media').items = Alpine.store('media').items.filter((entry) => entry.name !== item.name);
 
-                const search = document.querySelector('input[name="search"]')?.value || '';
+                const search = SMMediaPicker.browserSearchValue();
                 SMMediaPicker.query(Alpine.store('media').current_page || 1, search);
 
                 if (window.SM?.alert) {
@@ -721,17 +739,50 @@ const SMMediaPicker = {
                     <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap" :class="{ 'pointer-events-none opacity-60': $store.media.uploading }">
                     <template x-for="item in $store.media.items" :key="item.name">
                         <li
-                            class="cursor-pointer flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
-                            :class="{'border-primary-color': $store.media.selected.some(i => i === item.name), 'border-white': !$store.media.selected.some(i => i === item.name)}"
+                            class="flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
+                            :class="{
+                                'cursor-pointer border-primary-color': $store.media.selected.some(i => i === item.name),
+                                'cursor-pointer border-white': !$store.media.selected.some(i => i === item.name) && !$store.media.disabled.some(i => i === item.name),
+                                'cursor-not-allowed border-gray-200 bg-gray-100 opacity-60': $store.media.disabled.some(i => i === item.name)
+                            }"
+                            x-bind:aria-disabled="$store.media.disabled.some(i => i === item.name) ? 'true' : 'false'"
                             x-on:click="SMMediaPicker.updateSelection(item.name)"
                             x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
-                            <div class="absolute top-0 left-0 flex flex-col gap-1 z-10">
-                                <span x-show="item.visibility && item.visibility !== 'public'" class="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-white" x-text="item.visibility === 'protected' ? 'Protected' : 'Private'"></span>
-                                <i x-show="item.is_private" class="fa-solid fa-eye text-gray-600 bg-white p-0.75 rounded-full" title="Private owner" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
-                                <i x-show="item.password" class="fa-solid fa-lock text-gray-600 bg-white p-0.75 rounded-full" title="Password protected" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
+                            <div class="absolute right-1 top-1 z-10">
+                                <span
+                                    x-show="$store.media.selected.some(i => i === item.name)"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-white bg-primary-color text-xs text-white shadow"
+                                    title="Selected"
+                                    aria-label="Selected"
+                                ><i class="fa-solid fa-check"></i></span>
+                                <span
+                                    x-show="$store.media.disabled.some(i => i === item.name)"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-white bg-gray-700 text-xs text-white shadow"
+                                    x-bind:title="$store.media.disabled_item_text"
+                                    x-bind:aria-label="$store.media.disabled_item_text"
+                                ><i class="fa-solid fa-check"></i></span>
                             </div>
-                            <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white z-10 flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
+                            <div class="absolute left-1 top-1 z-10 flex items-center gap-1">
+                                <span
+                                    x-show="item.password"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xs text-gray-700 shadow"
+                                    title="Password protected"
+                                    aria-label="Password protected"
+                                ><i class="fa-solid fa-lock"></i></span>
+                                <span
+                                    x-show="item.visibility && item.visibility !== 'public'"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xs text-gray-700 shadow"
+                                    x-bind:title="item.visibility === 'protected' ? 'Protected' : 'Private'"
+                                    x-bind:aria-label="item.visibility === 'protected' ? 'Protected' : 'Private'"
+                                ><i class="fa-solid" x-bind:class="item.visibility === 'protected' ? 'fa-shield-halved' : 'fa-eye-slash'"></i></span>
+                                <span
+                                    x-show="item.is_private"
+                                    class="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xs text-gray-700 shadow"
+                                    title="Private owner"
+                                    aria-label="Private owner"
+                                ><i class="fa-solid fa-user-lock"></i></span>
+                            </div>
                             <div class="group/image relative grow flex items-center justify-center select-none">
                                 <img x-bind:src="item.thumbnail" class="rounded max-h-32 pointer-events-none" />
                             </div>
@@ -874,12 +925,17 @@ const SMMediaPicker = {
         if(!options.hasOwnProperty('public_usable_only')) options.public_usable_only = true;
         if(!options.hasOwnProperty('upload_fields')) options.upload_fields = {};
         if(!options.hasOwnProperty('custom_tabs')) options.custom_tabs = [];
+        if(!options.hasOwnProperty('disabled')) options.disabled = [];
 
         if(selected === null || selected === '') selected = [];
         if(!Array.isArray(selected)) selected = [selected];
+        if(options.disabled === null || options.disabled === '') options.disabled = [];
+        if(!Array.isArray(options.disabled)) options.disabled = [options.disabled];
 
         const store = Alpine.store('media');
-        store.selected = selected;
+        store.disabled = [...new Set(options.disabled.map((item) => String(item || '').trim()).filter((item) => item !== ''))];
+        store.selected = [...new Set(selected.map((item) => String(item || '').trim()).filter((item) => item !== '' && !store.disabled.includes(item)))];
+        store.disabled_item_text = String(options.disabled_item_text || 'Unavailable');
         store.require_mime_type = options.require_mime_type;
         store.allow_multiple = options.allow_multiple;
         store.allow_uploads = options.allow_uploads;
@@ -1006,6 +1062,8 @@ document.addEventListener('DOMContentLoaded', () => {
         total: 0,
         items: [],
         selected: [],
+        disabled: [],
+        disabled_item_text: 'Unavailable',
         pagination: [],
         custom_tabs: [],
         custom_tab_state: {},
