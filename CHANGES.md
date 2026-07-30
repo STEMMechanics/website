@@ -2,6 +2,7 @@
 
 ## Current
 
+- Reduced the newsletter upcoming-workshop lead time to 6 hours so next-morning sessions are included in Wednesday sends.
 - Excluded cancelled workshops from admin month PDF exports and expanded each calendar day cell to show all workshops instead of collapsing extra entries into a `+N more` summary.
 - Improved workshop pick list sketch pad loading and changed the toolbar export action to download the drawing instead of duplicating the page save action.
 - Prevent stale Vite hot-mode files from being used on non-local hosts so deployed pages keep loading built assets.
