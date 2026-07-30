@@ -110,7 +110,7 @@
         @else
             <x-ui.table>
                 <x-slot:header>
-                    <th class="w-8 !border-r-0 !px-2">
+                    <th class="w-8 !border-r-0">
                         <x-ui.checkbox
                             id="admin-media-select-page"
                             label="Select all media on this page"
@@ -130,7 +130,7 @@
                 <x-slot:body>
                     @foreach ($media as $medium)
                         <tr>
-                            <td class="w-8 !border-r-0 !px-2">
+                            <td class="w-8 !border-r-0">
                                 <x-ui.checkbox
                                     :id="'admin-media-select-'.md5((string) $medium->name)"
                                     :value="$medium->name"

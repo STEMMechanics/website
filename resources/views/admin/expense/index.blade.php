@@ -16,6 +16,7 @@
                         :noWrapper="true"
                         :inline="true"
                         onchange="this.form.submit()"
+                        class="whitespace-nowrap"
                     />
                     <div class="flex">
                         <input
