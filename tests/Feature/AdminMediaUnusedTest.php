@@ -25,7 +25,9 @@ class AdminMediaUnusedTest extends TestCase
             'user_id' => $admin->id,
             'slug' => 'admin',
         ]);
-        $location = Location::factory()->create();
+        $location = Location::factory()->create([
+            'name' => 'Test Lab',
+        ]);
 
         $heroMedia = $this->createMedia('workshop-hero.png', 'Workshop Hero', 'image/png', $admin->id);
         $contentMedia = $this->createMedia('content-image.png', 'Content Image', 'image/png', $admin->id);
