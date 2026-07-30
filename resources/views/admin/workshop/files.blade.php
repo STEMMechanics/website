@@ -332,14 +332,6 @@
 
                 <input
                     type="file"
-                    id="workshop_files_pending"
-                    multiple
-                    class="sr-only"
-                    x-ref="workshopFilesPicker"
-                    x-on:change="addWorkshopPendingFiles($event.target.files); $event.target.value = ''"
-                >
-                <input
-                    type="file"
                     name="pending_files[]"
                     multiple
                     class="hidden"
@@ -347,22 +339,17 @@
                     aria-hidden="true"
                     x-ref="workshopFilesPendingInput"
                 >
-                <label
-                    for="workshop_files_pending"
-                    class="group mt-1 flex w-full cursor-pointer items-center justify-between gap-4 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-left text-sm transition hover:border-primary-color hover:bg-sky-50"
-                    x-on:dragover.prevent="$el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color')"
-                    x-on:dragleave.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
-                    x-on:drop.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); addWorkshopPendingFiles($event.dataTransfer.files)"
+                <x-ui.media-uploader
+                    input-id="workshop_files_pending"
+                    input-ref="workshopFilesPicker"
+                    count="pendingWorkshopFiles().length"
+                    item-label="file item"
+                    empty-text="Drop files here"
+                    description="Upload new files or select files already in the media library."
+                    on-files="addWorkshopPendingFiles"
+                    on-browse-existing="openWorkshopExistingFilePicker"
+                    disabled="workshopFilesUploading"
                 >
-                    <div class="min-w-0 grow">
-                        <div class="truncate font-medium text-gray-800" x-text="pendingWorkshopFiles().length ? pendingWorkshopFiles().length + ' file item' + (pendingWorkshopFiles().length === 1 ? '' : 's') + ' selected' : 'Drop files here or click to browse'"></div>
-                        <div class="mt-1 text-xs text-gray-500">Upload new files for this workshop.</div>
-                    </div>
-                    <div class="flex gap-4">
-                        <span class="inline-flex shrink-0 items-center rounded-md border border-primary-color px-3 py-1.5 text-xs font-semibold text-primary-color transition group-hover:bg-primary-color group-hover:text-white">Select Local File</span>
-                        <x-ui.button type="button" color="primary-outline-sm" x-on:click.prevent="openWorkshopExistingFilePicker()">Browse Existing Files</x-ui.button>
-                    </div>
-                </label>
 
                 <div x-show="pendingWorkshopFiles().length" x-cloak class="mt-4">
                     <div class="mb-2 flex items-center justify-between gap-3">
@@ -423,7 +410,15 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="flex justify-end items-center">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <template x-if="item.kind === 'pending'">
+                                                <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
+                                            </template>
+                                            <template x-if="item.kind === 'existing'">
+                                                <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
+                                            </template>
+                                        </div>
                                         <div class="flex items-center gap-3 pt-1">
                                             <a x-show="item.kind === 'existing' && item.edit_url" :href="item.edit_url" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
                                                 <i class="fa-solid fa-up-right-from-square"></i>
@@ -455,9 +450,7 @@
                     </div>
                 </div>
 
-                <div class="flex justify-end">
-                    <x-ui.button type="submit">Upload Files</x-ui.button>
-                </div>
+                </x-ui.media-uploader>
             </form>
         </div>
 

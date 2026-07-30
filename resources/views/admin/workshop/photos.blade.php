@@ -40,7 +40,9 @@
                 class="space-y-4"
                 x-data="{
                     workshopDate: @js(optional($workshop->starts_at)->format('Y-m-d') ?? now()->format('Y-m-d')),
+                    attachedPhotoNames: @js($attachedPhotoNames ?? []),
                     previews: [],
+                    existingMedia: [],
                     uploading: false,
                     uploadIndex: 0,
                     uploadProgress: 0,
@@ -499,6 +501,7 @@
                     clear() {
                         this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
                         this.previews = [];
+                        this.existingMedia = [];
                         this.$refs.photosInput.value = '';
                         this.closeEditor();
                     },
@@ -520,8 +523,76 @@
                         if (value === 'application/pdf') return 'PDF';
                         return normalized || value;
                     },
+                    openExistingMediaPicker() {
+                        const selected = [...new Set([
+                            ...this.attachedPhotoNames,
+                            ...this.existingMedia.map((item) => item.name),
+                        ])];
+
+                        SMMediaPicker.open(selected, {
+                            allow_multiple: true,
+                            allow_uploads: false,
+                            public_usable_only: false,
+                            require_mime_type: 'image/*,video/*',
+                            title: 'Select Existing Photos or Videos',
+                            confirm_button_text: 'Add Media',
+                        }, (result) => this.addExistingMedia(result));
+                    },
+                    addExistingMedia(result) {
+                        const names = Array.isArray(result) ? result : [result];
+                        names.forEach((name) => {
+                            const mediaName = String(name || '').trim();
+                            if (!mediaName
+                                || this.attachedPhotoNames.includes(mediaName)
+                                || this.existingMedia.some((item) => item.name === mediaName)) {
+                                return;
+                            }
+
+                            const item = {
+                                name: mediaName,
+                                title: mediaName,
+                                type: '',
+                                size: 0,
+                                thumbnail: '/media/' + encodeURIComponent(mediaName),
+                                visibility: 'public',
+                                photographedAt: '',
+                                tags: '',
+                                caption: '',
+                                consentNotes: '',
+                                editUrl: '',
+                            };
+                            this.existingMedia.push(item);
+                            SM.mediaDetails(mediaName, (details) => {
+                                if (!details || typeof details !== 'object') return;
+                                const index = this.existingMedia.findIndex((existing) => existing.name === mediaName);
+                                if (index === -1) return;
+                                const mimeType = String(details.mime_type || '');
+                                if (!mimeType.startsWith('image/') && !mimeType.startsWith('video/')) {
+                                    this.existingMedia.splice(index, 1);
+                                    this.uploadError = `${details.title || mediaName} is not an image or video.`;
+                                    return;
+                                }
+                                this.existingMedia[index] = {
+                                    ...this.existingMedia[index],
+                                    title: String(details.title || mediaName),
+                                    type: mimeType,
+                                    size: Number(details.size || 0),
+                                    thumbnail: String(details.thumbnail || details.url || this.existingMedia[index].thumbnail),
+                                    visibility: String(details.visibility || 'public'),
+                                    photographedAt: String(details.photographed_at || ''),
+                                    tags: String(details.tags || ''),
+                                    caption: String(details.caption || ''),
+                                    consentNotes: String(details.consent_notes || ''),
+                                    editUrl: String(details.edit_url || ''),
+                                };
+                            });
+                        });
+                    },
+                    removeExistingMedia(index) {
+                        this.existingMedia.splice(index, 1);
+                    },
                     async uploadAll() {
-                        if (this.uploading || this.previews.length === 0) return;
+                        if (this.uploading || (this.previews.length === 0 && this.existingMedia.length === 0)) return;
                         this.uploading = true;
                         this.uploadError = '';
                         this.uploadIndex = 0;
@@ -592,9 +663,22 @@
                                     : 100;
                             }
 
+                            if (this.existingMedia.length > 0) {
+                                const formData = new FormData();
+                                formData.append('_token', @js(csrf_token()));
+                                this.existingMedia.forEach((item) => formData.append('existing_media_names[]', item.name));
+                                await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'X-Requested-With': 'XMLHttpRequest',
+                                    },
+                                });
+                            }
+
+                            const addedCount = files.length + this.existingMedia.length;
                             sessionStorage.setItem('workshop-media-upload-toast', JSON.stringify({
-                                title: 'Media uploaded',
-                                message: `${files.length} workshop media item${files.length === 1 ? '' : 's'} uploaded.`,
+                                title: 'Media added',
+                                message: `${addedCount} workshop media item${addedCount === 1 ? '' : 's'} added.`,
                                 type: 'success',
                             }));
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
@@ -610,40 +694,74 @@
                 @csrf
                 <div>
                     <label class="mb-1 block text-sm pl-1" for="photos">Upload Workshop Media</label>
-                    <input
-                        id="photos"
-                        name="photos[]"
-                        type="file"
+                    <x-ui.media-uploader
+                        input-id="photos"
+                        input-name="photos[]"
+                        input-ref="photosInput"
                         accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v,.mov,.mp4,.webm,.avi,.m4v"
-                        multiple
-                        required
-                        class="sr-only"
-                        x-ref="photosInput"
-                        x-on:change="appendFiles($event.target.files); $event.target.value = ''"
-                        x-bind:disabled="uploading"
+                        count="previews.length + existingMedia.length"
+                        empty-text="Drop photos or videos here"
+                        description="Upload new media or select media already in the library."
+                        supported-types="Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files."
+                        on-files="appendFiles"
+                        on-browse-existing="openExistingMediaPicker"
+                        disabled="uploading"
                     >
-                    <label
-                        for="photos"
-                        class="group mt-1 flex w-full cursor-pointer items-center justify-between gap-4 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-left text-sm transition hover:border-primary-color hover:bg-sky-50"
-                        x-on:dragover.prevent="$el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color')"
-                        x-on:dragleave.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
-                        x-on:drop.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); appendFiles($event.dataTransfer.files)"
-                    >
-                        <div class="min-w-0 grow">
-                            <div class="truncate font-medium text-gray-800" x-text="previews.length ? previews.length + ' media item' + (previews.length === 1 ? '' : 's') + ' selected' : 'Drop photos or videos here or click to browse'"></div>
-                            <div class="mt-1 text-xs text-gray-500">Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files.</div>
-                        </div>
-                        <span class="inline-flex shrink-0 items-center rounded-md border border-primary-color px-3 py-1.5 text-xs font-semibold text-primary-color transition group-hover:bg-primary-color group-hover:text-white">Browse</span>
-                    </label>
                     @error('photos') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     @error('photos.*') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    @error('existing_media_names') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
 
-                    <div x-show="previews.length" x-cloak class="mt-4">
+                    <div x-show="previews.length + existingMedia.length" x-cloak class="mt-4">
                         <div class="mb-2 flex items-center justify-between gap-3">
                             <div class="text-sm font-semibold text-gray-700">Selected Media & Metadata</div>
                             <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color disabled:cursor-not-allowed disabled:opacity-50" x-bind:disabled="uploading" x-on:click.prevent="clear()">Clear files</button>
                         </div>
                         <div class="space-y-4">
+                            <template x-for="(item, itemIndex) in existingMedia" :key="`existing:${item.name}`">
+                                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                    <div class="flex flex-col">
+                                        <div class="flex flex-col gap-4 sm:flex-row">
+                                            <div class="mx-auto shrink">
+                                                <div class="w-32">
+                                                    <img x-bind:src="item.thumbnail" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1">
+                                                    <div class="space-y-0.5 px-2 py-1 text-[11px]">
+                                                        <div class="text-gray-500" x-text="sizeLabel(item.size)"></div>
+                                                        <div class="text-gray-500" x-text="fileTypeLabel(item.type)"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex grow flex-col md:flex-row md:gap-4">
+                                                <div class="flex-1">
+                                                    <x-ui.input label="Title" :name="null" x-bind:value="item.title" disabled="true" />
+                                                    <x-ui.input label="Photographed At" type="date" :name="null" x-bind:value="item.photographedAt" disabled="true" />
+                                                    <x-ui.input label="Tags" :name="null" x-bind:value="item.tags" disabled="true" />
+                                                </div>
+                                                <div class="flex-1">
+                                                    <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true">
+                                                        <option value="public">Public</option>
+                                                        <option value="private">Private</option>
+                                                    </x-ui.select>
+                                                    <x-ui.input label="Caption" :name="null" x-bind:value="item.caption" disabled="true" />
+                                                    <x-ui.input label="Notes" type="textarea" :name="null" x-bind:value="item.consentNotes" disabled="true" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
+                                            </div>
+                                            <div class="flex items-center gap-3 pt-1">
+                                                <a x-show="item.editUrl" x-bind:href="item.editUrl" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
+                                                    <i class="fa-solid fa-up-right-from-square"></i>
+                                                </a>
+                                                <button type="button" class="text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50" title="Delete row" x-bind:disabled="uploading" x-on:click.prevent="removeExistingMedia(itemIndex)">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                             <template x-for="(preview, previewIndex) in previews" :key="preview.url">
                                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                                     <div class="flex flex-col">
@@ -710,7 +828,6 @@
                                                     </x-ui.select>
                                                     <x-ui.input
                                                         label="Caption"
-                                                        type="textarea"
                                                         :name="null"
                                                         x-bind:name="`photos_meta[${preview.index}][caption]`"
                                                         x-model="preview.caption"
@@ -727,7 +844,10 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="flex justify-end items-center">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
+                                            </div>
                                             <div class="flex items-center gap-3 pt-1">
                                                 <template x-if="isImage(preview)">
                                                     <button type="button" class="text-primary-color hover:text-primary-color-dark disabled:cursor-not-allowed disabled:opacity-50" title="Edit image" x-bind:disabled="uploading" x-on:click.prevent="openEditor(previewIndex)">
@@ -795,28 +915,23 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
-                <div x-show="uploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <div class="font-medium">
-                            <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-                            Uploading media
+                    <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
+                    <div x-show="uploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                        <div class="mb-2 flex items-center justify-between gap-3">
+                            <div class="font-medium">
+                                <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
+                                Uploading media
+                            </div>
+                            <div class="text-xs" x-text="uploadIndex + ' / ' + previews.length"></div>
                         </div>
-                        <div class="text-xs" x-text="uploadIndex + ' / ' + previews.length"></div>
+                        <div class="mb-2 text-xs text-sky-900" x-text="currentFileName ? currentFileName + ' — ' + uploadProgress + '%' : ''"></div>
+                        <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
+                            <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${uploadProgress}%`"></div>
+                        </div>
                     </div>
-                    <div class="mb-2 text-xs text-sky-900" x-text="currentFileName ? currentFileName + ' — ' + uploadProgress + '%' : ''"></div>
-                    <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
-                        <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${uploadProgress}%`"></div>
-                    </div>
-                </div>
 
-                <div class="flex justify-end">
-                    <x-ui.button type="submit" x-bind:disabled="uploading">
-                        <span x-show="!uploading">Upload Media</span>
-                        <span x-show="uploading" x-cloak>Uploading...</span>
-                    </x-ui.button>
+                    </x-ui.media-uploader>
                 </div>
             </form>
         </div>
@@ -891,7 +1006,7 @@
                                                 <option value="private" @selected(! in_array($photo->visibility, ['private', 'public'], true) || $photo->visibility === 'private')>Private</option>
                                                 <option value="public" @selected($photo->visibility === 'public')>Public</option>
                                             </x-ui.select>
-                                            <x-ui.input label="Caption" name="photos[{{ $photo->name }}][caption]" type="textarea" value="{{ $photo->caption }}" />
+                                            <x-ui.input label="Caption" name="photos[{{ $photo->name }}][caption]" value="{{ $photo->caption }}" />
                                             <x-ui.input label="Notes" name="photos[{{ $photo->name }}][consent_notes]" type="textarea" value="{{ $photo->consent_notes }}" />
                                         </div>
                                     </div>

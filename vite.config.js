@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
     const isHttps = devServer.protocol === 'https:';
     const port = parsePort(env.VITE_DEV_SERVER_PORT || devServer.port, 5173);
     const hmrHost = env.VITE_DEV_SERVER_HMR_HOST || devServer.hostname;
+    const corsOrigins = String(env.VITE_DEV_SERVER_CORS_ORIGINS || env.APP_URL || '')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean);
     const allowedHosts = Array.from(new Set([
         devServer.hostname,
         hmrHost,
@@ -28,6 +32,15 @@ export default defineConfig(({ mode }) => {
             strictPort: true,
             origin: devServer.origin,
             allowedHosts,
+            cors: {
+                origin: corsOrigins,
+            },
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Vary': 'Origin',
+            },
             hmr: {
                 protocol: env.VITE_DEV_SERVER_HMR_PROTOCOL || (isHttps ? 'wss' : 'ws'),
                 host: hmrHost,

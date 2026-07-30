@@ -2,6 +2,10 @@
 
 ## Current
 
+- Added persistent bulk selection and editing to the admin media library, including mixed-value handling and workshop photo/file link management.
+- Unified the workshop Files and Photos uploaders with shared local/existing media selection, staged metadata, clear item status, and image/video validation.
+- Improved media usage details and workshop linking controls so file and photo associations can be reviewed, changed, or removed from the media editor.
+- Prevented proxied Vite development assets from being cached or served without the configured application-origin CORS headers.
 - Reduced the newsletter upcoming-workshop lead time to 6 hours so next-morning sessions are included in Wednesday sends.
 - Excluded cancelled workshops from admin month PDF exports and expanded each calendar day cell to show all workshops instead of collapsing extra entries into a `+N more` summary.
 - Improved workshop pick list sketch pad loading and changed the toolbar export action to download the drawing instead of duplicating the page save action.

@@ -997,6 +997,11 @@ class WorkshopController extends Controller
 
     public function admin_photos(Request $request, Workshop $workshop): View
     {
+        $attachedPhotoNames = $workshop->photos()
+            ->pluck('media.name')
+            ->values()
+            ->all();
+
         $photos = $workshop->photos()
             ->with('user')
             ->when(trim((string) $request->query('search')) !== '', function ($query) use ($request) {
@@ -1025,6 +1030,7 @@ class WorkshopController extends Controller
         return view('admin.workshop.photos', [
             'workshop' => $workshop,
             'photos' => $photos,
+            'attachedPhotoNames' => $attachedPhotoNames,
             'tagOptions' => $this->mediaTagOptions(),
         ]);
     }
@@ -1033,8 +1039,10 @@ class WorkshopController extends Controller
     {
         $maxSize = Helpers::getMaxUploadSize(auth()->user());
         $validated = $request->validate([
-            'photos' => ['required', 'array'],
+            'photos' => ['nullable', 'array', 'required_without:existing_media_names'],
             'photos.*' => ['file', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v', 'max:'.max((int) round($maxSize / 1024), 1)],
+            'existing_media_names' => ['nullable', 'array', 'required_without:photos'],
+            'existing_media_names.*' => ['string', 'distinct', 'exists:media,name'],
             'photos_meta' => ['nullable', 'array'],
             'photos_meta.*.title' => ['nullable', 'string', 'max:255'],
             'photos_meta.*.visibility' => ['nullable', Rule::in(['private', 'public'])],
@@ -1054,6 +1062,34 @@ class WorkshopController extends Controller
         ]);
 
         $created = 0;
+        $attached = 0;
+
+        $existingMedia = Media::query()
+            ->whereIn('name', $validated['existing_media_names'] ?? [])
+            ->get();
+
+        foreach ($existingMedia as $media) {
+            if (! str_starts_with((string) $media->mime_type, 'image/')
+                && ! str_starts_with((string) $media->mime_type, 'video/')) {
+                throw ValidationException::withMessages([
+                    'existing_media_names' => 'Only existing images or videos can be added to Workshop Photos.',
+                ]);
+            }
+
+            $wasAttached = $workshop->photos()
+                ->where('media.name', $media->name)
+                ->wherePivot('collection', 'workshop_photos')
+                ->exists();
+
+            $workshop->photos()->syncWithoutDetaching([
+                $media->name => ['collection' => 'workshop_photos'],
+            ]);
+
+            if (! $wasAttached) {
+                $attached++;
+            }
+        }
+
         $imageEditor = app(MediaImageEditor::class);
         foreach ($request->file('photos', []) as $index => $file) {
             $meta = (array) ($validated['photos_meta'][$index] ?? []);
@@ -1121,14 +1157,18 @@ class WorkshopController extends Controller
         }
 
         if ($request->expectsJson()) {
+            $total = $created + $attached;
+
             return response()->json([
-                'message' => $created.' workshop media item'.($created === 1 ? '' : 's').' uploaded.',
+                'message' => $total.' workshop media item'.($total === 1 ? '' : 's').' added.',
                 'created' => $created,
+                'attached' => $attached,
             ]);
         }
 
-        session()->flash('message', $created.' workshop media item'.($created === 1 ? '' : 's').' uploaded.');
-        session()->flash('message-title', 'Media uploaded');
+        $total = $created + $attached;
+        session()->flash('message', $total.' workshop media item'.($total === 1 ? '' : 's').' added.');
+        session()->flash('message-title', 'Media added');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.photos', $workshop);

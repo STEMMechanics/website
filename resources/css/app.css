@@ -1103,12 +1103,18 @@ body.image-resize-active {
 
 .sm-ui-checkbox input[type="checkbox"]:indeterminate::after {
     content: '';
-    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
     height: 0.25rem;
     width: 1.1rem;
     border-radius: 9999px;
     background-color: #0370A1;
-    transform: translateX(0.42rem) translateY(0.85rem);
+    transform: translate(-50%, -50%);
+}
+
+.sm-ui-checkbox input[type="checkbox"]:indeterminate {
+    position: relative;
 }
 
 .sm-ui-checkbox input[type="checkbox"]:indeterminate:disabled::after {
@@ -1123,7 +1129,6 @@ body.image-resize-active {
 
 .sm-ui-checkbox.small input[type="checkbox"]:indeterminate::after {
     width: 0.9rem;
-    transform: translateX(0.3rem) translateY(0.65rem);
 }
 
 /* resources/views/components/ui/toolbar.blade.php */

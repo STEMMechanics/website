@@ -5,8 +5,21 @@ if(isset($medium) && ($medium->password !== null && $medium->password !== '')) {
 }
 $originalFileInfo = collect($mediaFilesInfo ?? [])->firstWhere('variant', '');
 $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info['variant'] ?? '') !== '')->values();
-$selectedWorkshopIds = collect(old('workshop_ids', isset($medium) ? $medium->workshopPhotos->pluck('id')->all() : []))
-    ->map(fn ($id) => (string) $id)
+$storedWorkshopLinks = isset($medium)
+    ? $medium->workshopFiles->map(fn ($workshop) => ['workshop_id' => (string) $workshop->id, 'type' => 'file'])
+        ->concat($medium->workshopPhotos->map(fn ($workshop) => ['workshop_id' => (string) $workshop->id, 'type' => 'photo']))
+        ->unique('workshop_id')
+        ->values()
+        ->all()
+    : [];
+$supportsWorkshopPhotoLinks = ! isset($medium) || str_starts_with((string) ($medium->mime_type ?? ''), 'image/');
+$selectedWorkshopLinks = collect(old('workshop_links', $storedWorkshopLinks))
+    ->map(fn ($link) => [
+        'workshop_id' => (string) ($link['workshop_id'] ?? ''),
+        'type' => $supportsWorkshopPhotoLinks && ($link['type'] ?? null) === 'photo' ? 'photo' : 'file',
+    ])
+    ->filter(fn ($link) => $link['workshop_id'] !== '')
+    ->values()
     ->all();
 $visibilityValue = old('visibility', $medium->visibility ?? 'public');
 $visibilityValue = in_array((string) $visibilityValue, ['private', 'protected', 'public'], true) ? (string) $visibilityValue : 'private';
@@ -391,7 +404,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         <x-ui.tags name="tags" value="{{ old('tags', $medium->tags ?? '') }}" :options="$tagOptions ?? []" noWrapper="true" />
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input class="mb-0" label="Caption" name="caption" type="textarea" value="{{ old('caption', $medium->caption ?? '') }}" />
+                        <x-ui.input class="mb-0" label="Caption" name="caption" value="{{ old('caption', $medium->caption ?? '') }}" />
                     </div>
                     <div class="md:col-span-2">
                         <x-ui.input class="mb-0" label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
@@ -471,45 +484,12 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 </div>
             @endisset
 
-            @isset($medium)
-                <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-                    <h3 class="mb-3 text-base font-semibold">Linked & Used By</h3>
-                    @if(empty($mediaUsages))
-                        <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500">No current links or usage found.</div>
-                    @else
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
-                                    <tr>
-                                        <th class="px-3 py-2">Type</th>
-                                        <th class="px-3 py-2">Item</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach($mediaUsages as $usage)
-                                        <tr>
-                                            <td class="px-3 py-2 font-semibold">{{ $usage['type'] }}</td>
-                                            <td class="px-3 py-2">
-                                                @if(! empty($usage['url']))
-                                                    <a href="{{ $usage['url'] }}" class="text-primary-color hover:underline">{{ $usage['label'] }}</a>
-                                                @else
-                                                    {{ $usage['label'] }}
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </div>
-            @endisset
-
             <div
                 class="mb-6 rounded-lg border border-gray-200 bg-white p-4"
                 x-data="{
                     search: '',
-                    selected: @js($selectedWorkshopIds),
+                    links: @js($selectedWorkshopLinks),
+                    supportsPhotoLinks: @js($supportsWorkshopPhotoLinks),
                     workshops: @js(collect($workshopOptions ?? [])->map(function ($workshopOption) {
                         $locationLabel = $workshopOption->location?->name ?: $workshopOption->getLocationName();
                         $dateLabel = $workshopOption->starts_at ? $workshopOption->starts_at->format('j M Y') : 'No date';
@@ -521,50 +501,116 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                             'label' => (string) ($workshopOption->title.' · '.$locationLabel.' · '.$dateLabel),
                             'search' => strtolower(trim((string) ($workshopOption->title.' '.$locationLabel.' '.$dateLabel))),
                             'edit_url' => route('admin.workshop.edit', $workshopOption),
+                            'files_url' => route('admin.workshop.files', $workshopOption),
+                            'photos_url' => route('admin.workshop.photos', $workshopOption),
                         ];
                     })->values()->all()),
                     filtered() {
                         const term = this.search.trim().toLowerCase();
                         if (term.length < 2) return [];
                         return this.workshops
-                            .filter((workshop) => workshop.search.includes(term) && !this.isSelected(workshop.id))
+                            .filter((workshop) => workshop.search.includes(term) && !this.isLinked(workshop.id))
                             .slice(0, 25);
                     },
-                    isSelected(id) {
-                        return this.selected.includes(String(id));
+                    isLinked(id) {
+                        return this.links.some((link) => link.workshop_id === String(id));
                     },
-                    toggle(id) {
+                    add(id) {
                         id = String(id);
-                        this.selected = this.isSelected(id)
-                            ? this.selected.filter((item) => item !== id)
-                            : [...this.selected, id];
+                        if (!this.isLinked(id)) {
+                            this.links.push({
+                                workshop_id: id,
+                                type: this.supportsPhotoLinks ? 'photo' : 'file',
+                            });
+                        }
+                        this.search = '';
                     },
                     remove(id) {
                         id = String(id);
-                        this.selected = this.selected.filter((item) => item !== id);
+                        this.links = this.links.filter((link) => link.workshop_id !== id);
                     },
-                    selectedWorkshops() {
-                        return this.workshops.filter((workshop) => this.isSelected(workshop.id));
+                    workshopFor(id) {
+                        return this.workshops.find((workshop) => workshop.id === String(id));
+                    },
+                    linkUrl(link) {
+                        const workshop = this.workshopFor(link.workshop_id);
+                        if (!workshop) return '#';
+                        return link.type === 'photo' ? workshop.photos_url : workshop.files_url;
                     },
                 }"
             >
-                <h3 class="mb-3 text-base font-semibold">Workshop Links</h3>
-                <div class="mb-3 flex flex-wrap gap-1.5" x-show="selectedWorkshops().length > 0" x-cloak>
-                    <template x-for="workshop in selectedWorkshops()" :key="workshop.id">
-                        <span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">
-                            <a :href="workshop.edit_url" class="hover:underline" x-text="workshop.label"></a>
-                            <button type="button" class="text-sky-600 hover:text-red-600" x-on:click.prevent="remove(workshop.id)" aria-label="Remove workshop link">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </span>
-                    </template>
+                <h3 class="mb-3 text-base font-semibold">Links &amp; Usage</h3>
+                <div class="mb-4 overflow-x-auto rounded-lg border border-gray-200" x-show="links.length > 0 || @js(! empty($mediaUsages ?? []))">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            <tr>
+                                <th class="px-3 py-2">Type</th>
+                                <th class="px-3 py-2">Workshop</th>
+                                <th class="w-12 px-3 py-2"><span class="sr-only">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach($mediaUsages ?? [] as $usage)
+                                <tr>
+                                    <td class="px-3 py-2">{{ $usage['type'] }}</td>
+                                    <td class="px-3 py-2">
+                                        @if(! empty($usage['url']))
+                                            <a href="{{ $usage['url'] }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline">{{ $usage['label'] }}</a>
+                                        @else
+                                            {{ $usage['label'] }}
+                                        @endif
+                                        @if(trim((string) ($usage['detail'] ?? '')) !== '')
+                                            <span class="text-gray-500"> - {{ $usage['detail'] }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2"></td>
+                                </tr>
+                            @endforeach
+                            <template x-for="(link, index) in links" :key="link.workshop_id">
+                                <tr>
+                                    <td class="px-3 py-2">
+                                        <x-ui.select
+                                            name=""
+                                            label="Workshop link type"
+                                            noLabel="true"
+                                            class="mb-0 min-w-32"
+                                            selectClass="py-1.5"
+                                            x-model="link.type"
+                                        >
+                                            <option value="file">Workshop file</option>
+                                            <option value="photo" x-bind:disabled="!supportsPhotoLinks">Workshop photo</option>
+                                        </x-ui.select>
+                                        <input type="hidden" x-bind:name="`workshop_links[${index}][workshop_id]`" :value="link.workshop_id">
+                                        <input type="hidden" x-bind:name="`workshop_links[${index}][type]`" :value="link.type">
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <a :href="linkUrl(link)" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline" x-text="workshopFor(link.workshop_id)?.title || link.workshop_id"></a>
+                                        <span class="text-gray-500" x-text="workshopFor(link.workshop_id) ? ` - ${workshopFor(link.workshop_id).date} · ${workshopFor(link.workshop_id).location}` : ''"></span>
+                                    </td>
+                                    <td class="px-3 py-2 text-center">
+                                        <button type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(link.workshop_id)" title="Disassociate from workshop" aria-label="Disassociate from workshop">
+                                            <i class="fa-solid fa-link-slash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
-                <template x-for="workshopId in selected" :key="`selected-workshop-${workshopId}`">
-                    <input type="hidden" name="workshop_ids[]" :value="workshopId">
-                </template>
 
-                <label class="mb-1 block text-sm font-semibold text-gray-700" for="workshop_link_search">Find Workshops</label>
-                <input id="workshop_link_search" type="search" x-model="search" placeholder="Search workshop title, location, or date" class="mb-3 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-0">
+                <div class="mb-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="links.length === 0 && @js(empty($mediaUsages ?? []))" x-cloak>
+                    No current links or usage found.
+                </div>
+
+                <x-ui.input
+                    id="workshop_link_search"
+                    type="search"
+                    name=""
+                    label="Find workshops"
+                    x-model="search"
+                    placeholder="Search workshop title, location, or date"
+                    class="mb-3"
+                />
 
                 <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="search.trim().length < 2" x-cloak>
                     Enter at least 2 characters to search workshops.
@@ -572,17 +618,17 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 
                 <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50" x-show="search.trim().length >= 2" x-cloak>
                     <template x-for="workshop in filtered()" :key="workshop.id">
-                        <label class="flex cursor-pointer items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-sm last:border-b-0 hover:bg-sky-50">
-                            <input type="checkbox" :checked="isSelected(workshop.id)" x-on:change="toggle(workshop.id)" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                        <button type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(workshop.id)">
+                            <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
                             <span class="min-w-0">
-                                <span class="block font-semibold text-gray-900" x-text="workshop.title"></span>
+                                <span class="block text-gray-900" x-text="workshop.title"></span>
                                 <span class="block text-xs text-gray-500" x-text="`${workshop.location} · ${workshop.date}`"></span>
                             </span>
-                        </label>
+                        </button>
                     </template>
-                    <div class="px-3 py-3 text-sm text-gray-500" x-show="filtered().length === 0" x-cloak>No unselected workshops found.</div>
+                    <div class="px-3 py-3 text-sm text-gray-500" x-show="filtered().length === 0" x-cloak>No unlinked workshops found.</div>
                 </div>
-                <p class="mt-1 text-xs text-gray-500">Selected workshops appear as pills above. Results are limited to 25 matches.</p>
+                <p class="mt-1 text-xs text-gray-500">Choose whether the media appears in the workshop’s Files or Photos tab. Results are limited to 25 matches.</p>
             </div>
 
             @if(isset($mediaOwners))

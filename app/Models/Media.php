@@ -248,6 +248,14 @@ class Media extends Model
     }
 
     /**
+     * @return MorphToMany<Workshop, $this>
+     */
+    public function workshopFiles(): MorphToMany
+    {
+        return $this->workshops()->wherePivotNull('collection');
+    }
+
+    /**
      * Get the media as a temp file.
      *
      * @return string|null The temporary file path or null.

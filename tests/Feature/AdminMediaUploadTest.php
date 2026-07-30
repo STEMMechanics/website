@@ -109,6 +109,98 @@ class AdminMediaUploadTest extends TestCase
         ]);
     }
 
+    public function test_workshop_files_and_photos_use_the_shared_existing_media_uploader(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $workshop->photos()->attach('stemmechanics-logo.png', [
+            'collection' => 'workshop_photos',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.files', $workshop))
+            ->assertOk()
+            ->assertSeeText('Select Local Files')
+            ->assertSeeText('Browse Existing Media')
+            ->assertSee('workshop_files_pending', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.photos', $workshop))
+            ->assertOk()
+            ->assertSeeText('Select Local Files')
+            ->assertSeeText('Browse Existing Media')
+            ->assertViewHas('attachedPhotoNames', ['stemmechanics-logo.png'])
+            ->assertSee("require_mime_type: 'image/*,video/*'", false);
+    }
+
+    public function test_existing_image_can_be_added_to_workshop_photos(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $media = Media::query()->create([
+            'name' => 'existing-workshop-photo.jpg',
+            'title' => 'Existing Workshop Photo',
+            'hash' => str_repeat('c', 64),
+            'mime_type' => 'image/jpeg',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $workshop), [
+                'existing_media_names' => [$media->name],
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', 0)
+            ->assertJsonPath('attached', 1);
+
+        $this->assertDatabaseHas('mediables', [
+            'media_name' => $media->name,
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+            'collection' => 'workshop_photos',
+        ]);
+    }
+
+    public function test_non_visual_existing_media_cannot_be_added_to_workshop_photos(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $media = Media::query()->create([
+            'name' => 'coordinator-handbook.pdf',
+            'title' => 'Coordinator Handbook',
+            'hash' => str_repeat('d', 64),
+            'mime_type' => 'application/pdf',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $workshop), [
+                'existing_media_names' => [$media->name],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('existing_media_names');
+
+        $this->assertDatabaseMissing('mediables', [
+            'media_name' => $media->name,
+            'mediable_id' => $workshop->id,
+            'collection' => 'workshop_photos',
+        ]);
+    }
+
     public function test_workshop_media_upload_applies_image_edits_before_storing(): void
     {
         Storage::fake('media');
@@ -278,5 +370,18 @@ class AdminMediaUploadTest extends TestCase
         ]);
 
         return $admin;
+    }
+
+    private function makeDefaultWorkshopHero(User $admin): void
+    {
+        Media::query()->firstOrCreate([
+            'name' => 'stemmechanics-logo.png',
+        ], [
+            'title' => 'STEMMechanics Logo',
+            'hash' => str_repeat('e', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
     }
 }
