@@ -93,13 +93,34 @@
                 <ul id="regenerate-missing-variants-status-errors-list" class="mt-1 space-y-1 text-xs"></ul>
             </div>
         </div>
+        <form id="admin-media-bulk-form" method="POST" action="{{ route('admin.media.bulk.select') }}" class="mb-4 hidden rounded-xl border border-sky-200 bg-sky-50 p-3">
+            @csrf
+            <div id="admin-media-bulk-inputs"></div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="text-sm font-semibold text-sky-900"><span id="admin-media-selected-count">0</span> media items selected</div>
+                <div class="flex gap-2">
+                    <x-ui.button type="button" color="outline" id="admin-media-clear-selection">Clear Selection</x-ui.button>
+                    <x-ui.button type="submit">Bulk Edit</x-ui.button>
+                </div>
+            </div>
+        </form>
 
         @if($media->isEmpty())
             <x-none-found item="media" search="{{ request()->get('search') }}" />
         @else
             <x-ui.table>
                 <x-slot:header>
-                    <th>Title</th>
+                    <th class="w-8 !border-r-0 !px-2">
+                        <x-ui.checkbox
+                            id="admin-media-select-page"
+                            label="Select all media on this page"
+                            labelHidden="true"
+                            small="true"
+                            noWrapper="true"
+                            inputClass="text-primary-color"
+                        />
+                    </th>
+                    <th class="!border-l-0 !pl-0">Title</th>
                     <th class="hidden lg:table-cell">Owner</th>
                     <th class="hidden md:table-cell">Type</th>
                     <th class="hidden md:table-cell">Size</th>
@@ -109,7 +130,19 @@
                 <x-slot:body>
                     @foreach ($media as $medium)
                         <tr>
-                            <td>
+                            <td class="w-8 !border-r-0 !px-2">
+                                <x-ui.checkbox
+                                    :id="'admin-media-select-'.md5((string) $medium->name)"
+                                    :value="$medium->name"
+                                    :label="'Select '.$medium->title"
+                                    labelHidden="true"
+                                    small="true"
+                                    noWrapper="true"
+                                    class="admin-media-select-item-wrap"
+                                    inputClass="admin-media-select-item text-primary-color"
+                                />
+                            </td>
+                            <td class="!border-l-0 !pl-0">
                                 <div class="flex items-center">
                                     <div class="relative mr-3 shrink-0">
                                         <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 inline rounded" alt="{{ $medium->title }}" {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }} />
@@ -544,4 +577,77 @@
             }
         );
     }
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const storageKey = 'admin-media-bulk-selection';
+        const form = document.getElementById('admin-media-bulk-form');
+        const inputs = document.getElementById('admin-media-bulk-inputs');
+        const count = document.getElementById('admin-media-selected-count');
+        const clear = document.getElementById('admin-media-clear-selection');
+        const selectPage = document.getElementById('admin-media-select-page');
+        const itemCheckboxes = Array.from(document.querySelectorAll('.admin-media-select-item'));
+        let selected = [];
+
+        try {
+            selected = JSON.parse(sessionStorage.getItem(storageKey) || '[]').map(String);
+        } catch (error) {
+            selected = [];
+        }
+        selected = [...new Set(selected)];
+
+        @if(session('admin_media_bulk_clear_selection'))
+            selected = [];
+        @endif
+
+        const render = () => {
+            sessionStorage.setItem(storageKey, JSON.stringify(selected));
+            itemCheckboxes.forEach((checkbox) => {
+                checkbox.checked = selected.includes(checkbox.value);
+            });
+
+            const pageNames = itemCheckboxes.map((checkbox) => checkbox.value);
+            const selectedOnPage = pageNames.filter((name) => selected.includes(name)).length;
+            if (selectPage) {
+                selectPage.checked = pageNames.length > 0 && selectedOnPage === pageNames.length;
+                selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageNames.length;
+            }
+
+            if (count) count.textContent = String(selected.length);
+            if (form) form.classList.toggle('hidden', selected.length === 0);
+            if (inputs) {
+                inputs.replaceChildren(...selected.map((name) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'media_names[]';
+                    input.value = name;
+                    return input;
+                }));
+            }
+        };
+
+        itemCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                selected = checkbox.checked
+                    ? [...new Set([...selected, checkbox.value])]
+                    : selected.filter((name) => name !== checkbox.value);
+                render();
+            });
+        });
+
+        selectPage?.addEventListener('change', () => {
+            const pageNames = itemCheckboxes.map((checkbox) => checkbox.value);
+            selected = selectPage.checked
+                ? [...new Set([...selected, ...pageNames])]
+                : selected.filter((name) => !pageNames.includes(name));
+            render();
+        });
+
+        clear?.addEventListener('click', () => {
+            selected = [];
+            render();
+        });
+
+        render();
+    });
 </script>

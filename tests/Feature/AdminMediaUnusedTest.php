@@ -46,7 +46,7 @@ class AdminMediaUnusedTest extends TestCase
             'hero_media_name' => $heroMedia->name,
         ]);
 
-        $workshop->files()->attach($attachedMedia->name, ['collection' => 'gallery']);
+        $workshop->files()->attach($attachedMedia->name, ['collection' => null]);
 
         $response = $this->actingAs($admin)->get(route('admin.media.index', ['unused_only' => 1]));
 
@@ -56,6 +56,95 @@ class AdminMediaUnusedTest extends TestCase
         $response->assertDontSeeText('Workshop Hero');
         $response->assertDontSeeText('Content Image');
         $response->assertDontSeeText('Attached File');
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.edit', $attachedMedia))
+            ->assertOk()
+            ->assertSee('Workshop file')
+            ->assertSee('Media Usage Workshop')
+            ->assertSee($workshop->starts_at->format('j M Y'))
+            ->assertSee($location->name);
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.edit', $heroMedia))
+            ->assertOk()
+            ->assertSeeText('Workshop hero')
+            ->assertSeeText('Media Usage Workshop')
+            ->assertSeeText($workshop->starts_at->format('j M Y'))
+            ->assertSeeText($location->name);
+
+        $this->actingAs($admin)
+            ->put(route('admin.media.update', $heroMedia), [
+                'title' => $heroMedia->title,
+                'visibility' => 'public',
+                'storage_disk' => 'media',
+                'workshop_links' => [[
+                    'workshop_id' => (string) $workshop->id,
+                    'type' => 'photo',
+                ]],
+            ])
+            ->assertRedirect(route('admin.media.edit', $heroMedia));
+
+        $this->assertDatabaseHas('mediables', [
+            'media_name' => $heroMedia->name,
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+            'collection' => 'workshop_photos',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.media.update', $heroMedia), [
+                'title' => $heroMedia->title,
+                'visibility' => 'public',
+                'storage_disk' => 'media',
+                'workshop_links' => [[
+                    'workshop_id' => (string) $workshop->id,
+                    'type' => 'file',
+                ]],
+            ])
+            ->assertRedirect(route('admin.media.edit', $heroMedia));
+
+        $this->assertDatabaseHas('mediables', [
+            'media_name' => $heroMedia->name,
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+            'collection' => null,
+        ]);
+        $this->assertDatabaseMissing('mediables', [
+            'media_name' => $heroMedia->name,
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+            'collection' => 'workshop_photos',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.media.update', $heroMedia), [
+                'title' => $heroMedia->title,
+                'visibility' => 'public',
+                'storage_disk' => 'media',
+                'workshop_links' => [],
+            ])
+            ->assertRedirect(route('admin.media.edit', $heroMedia));
+
+        $this->assertDatabaseMissing('mediables', [
+            'media_name' => $heroMedia->name,
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.media.edit', $attachedMedia))
+            ->put(route('admin.media.update', $attachedMedia), [
+                'title' => $attachedMedia->title,
+                'visibility' => 'public',
+                'storage_disk' => 'media',
+                'workshop_links' => [[
+                    'workshop_id' => (string) $workshop->id,
+                    'type' => 'photo',
+                ]],
+            ])
+            ->assertRedirect(route('admin.media.edit', $attachedMedia))
+            ->assertSessionHasErrors('workshop_links');
     }
 
     private function createMedia(string $name, string $title, string $mimeType, string|int $userId): Media

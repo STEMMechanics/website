@@ -212,6 +212,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
     Route::post('/admin/media/regenerate-missing-variants', [MediaController::class, 'admin_regenerate_missing_variants'])->name('admin.media.regenerate-missing-variants');
     Route::get('/admin/media/regenerate-missing-variants/status', [MediaController::class, 'admin_regenerate_missing_variants_status'])->name('admin.media.regenerate-missing-variants.status');
+    Route::post('/admin/media/bulk', [MediaController::class, 'admin_bulk_select'])->name('admin.media.bulk.select');
+    Route::get('/admin/media/bulk/edit', [MediaController::class, 'admin_bulk_edit'])->name('admin.media.bulk.edit');
+    Route::put('/admin/media/bulk', [MediaController::class, 'admin_bulk_update'])->name('admin.media.bulk.update');
     Route::get('/admin/media/create', [MediaController::class, 'admin_create'])->name('admin.media.create');
     Route::post('/admin/media', [MediaController::class, 'admin_store'])->name('admin.media.store');
     Route::get('/admin/media/{media}', [MediaController::class, 'admin_edit'])->name('admin.media.edit');

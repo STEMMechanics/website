@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Workshop;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -47,11 +48,42 @@ class MediaUsageService
      */
     private function collectDirectUsageDetails(array &$usages, string $mediaName): void
     {
-        $this->collectColumnUsageDetails($usages, $mediaName, 'workshops', 'hero_media_name', 'Workshop hero', 'title', 'admin.workshop.edit', true);
+        $this->collectWorkshopHeroUsageDetails($usages, $mediaName);
         $this->collectColumnUsageDetails($usages, $mediaName, 'posts', 'hero_media_name', 'Post hero', 'title', 'admin.post.edit', true);
         $this->collectColumnUsageDetails($usages, $mediaName, 'custom_pages', 'hero_media_name', 'Page hero', 'title', 'admin.custom-page.edit', true);
         $this->collectColumnUsageDetails($usages, $mediaName, 'products', 'hero_media_name', 'Product hero', 'title', 'admin.shop.product.edit', true);
         $this->collectColumnUsageDetails($usages, $mediaName, 'store_order_item_downloads', 'media_name', 'Store download', 'id', null, false);
+    }
+
+    /**
+     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     */
+    private function collectWorkshopHeroUsageDetails(array &$usages, string $mediaName): void
+    {
+        if (! Schema::hasTable('workshops') || ! Schema::hasColumn('workshops', 'hero_media_name')) {
+            return;
+        }
+
+        foreach (Workshop::query()->with('location')->where('hero_media_name', $mediaName)->get() as $workshop) {
+            $label = trim((string) $workshop->title);
+            $usages[] = [
+                'type' => 'Workshop hero',
+                'label' => $label !== '' ? $label : '#'.$workshop->id,
+                'detail' => $this->workshopUsageDetail($workshop),
+                'url' => Route::has('admin.workshop.edit') ? route('admin.workshop.edit', $workshop) : null,
+                'public' => true,
+            ];
+        }
+    }
+
+    private function workshopUsageDetail(Workshop $workshop): string
+    {
+        $parts = [
+            $workshop->starts_at?->format('j M Y') ?: 'No date',
+            $workshop->getLocationName(),
+        ];
+
+        return implode(' · ', array_filter($parts, fn ($part) => trim((string) $part) !== ''));
     }
 
     /**

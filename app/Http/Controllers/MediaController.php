@@ -295,6 +295,137 @@ class MediaController extends Controller
         ]);
     }
 
+    public function admin_bulk_select(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:500'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+
+        $request->session()->put('admin_media_bulk_selection', array_values($validated['media_names']));
+
+        return redirect()->route('admin.media.bulk.edit');
+    }
+
+    public function admin_bulk_edit(Request $request)
+    {
+        $mediaNames = $this->bulkMediaSelection($request);
+        if ($mediaNames === []) {
+            return redirect()->route('admin.media.index')
+                ->withErrors(['media_names' => 'Select at least one media item to bulk edit.']);
+        }
+
+        $selectedMedia = Media::query()
+            ->with(['user', 'workshopPhotos.location'])
+            ->whereIn('name', $mediaNames)
+            ->get()
+            ->sortBy(fn (Media $media) => array_search((string) $media->name, $mediaNames, true))
+            ->values();
+
+        $commonValues = [];
+        $mixedFields = [];
+        foreach (['user_id', 'visibility', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
+            $values = $selectedMedia->map(function (Media $media) use ($field) {
+                return $this->bulkMediaFieldValue($media, $field);
+            })->unique(strict: true);
+            $mixedFields[$field] = $values->count() !== 1;
+            $commonValues[$field] = $values->count() === 1 ? $values->first() : '';
+        }
+
+        $linkedWorkshops = $selectedMedia
+            ->flatMap(fn (Media $media) => $media->workshopPhotos)
+            ->groupBy(fn (Workshop $workshop) => (string) $workshop->id)
+            ->map(function ($workshops) use ($selectedMedia) {
+                $workshop = $workshops->first();
+
+                return [
+                    'workshop' => $workshop,
+                    'count' => $workshops->count(),
+                    'total' => $selectedMedia->count(),
+                ];
+            })
+            ->sortByDesc(fn (array $item) => $item['workshop']->starts_at)
+            ->values();
+
+        return response()->view('admin.media.bulk-edit', [
+            'selectedMedia' => $selectedMedia,
+            'commonValues' => $commonValues,
+            'mixedFields' => $mixedFields,
+            'linkedWorkshops' => $linkedWorkshops,
+            'mediaOwners' => $this->mediaOwners(),
+            'workshopOptions' => $this->workshopOptions(),
+            'tagOptions' => $this->mediaTagOptions(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+    }
+
+    public function admin_bulk_update(Request $request): RedirectResponse
+    {
+        $mediaNames = $this->bulkMediaSelection($request);
+        if ($mediaNames === []) {
+            return redirect()->route('admin.media.index')
+                ->withErrors(['media_names' => 'Your bulk media selection has expired. Please select the items again.']);
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['nullable', 'string', Rule::excludeIf(fn () => $request->input('user_id') === '__mixed'), Rule::exists('users', 'id')],
+            'visibility' => ['nullable', Rule::in(['private', 'public', '__mixed'])],
+            'photographed_at' => ['nullable', 'date'],
+            'tags' => ['nullable', 'string', 'max:255'],
+            'caption' => ['nullable', 'string'],
+            'consent_notes' => ['nullable', 'string'],
+            'add_workshop_ids' => ['nullable', 'array'],
+            'add_workshop_ids.*' => ['string', 'distinct', Rule::exists('workshops', 'id')],
+            'remove_workshop_ids' => ['nullable', 'array'],
+            'remove_workshop_ids.*' => ['string', 'distinct', Rule::exists('workshops', 'id')],
+        ]);
+
+        $media = Media::query()->whereIn('name', $mediaNames)->get();
+        $changes = $this->bulkMediaChanges($media, $request);
+
+        if (($changes['visibility'] ?? null) === 'private') {
+            $publiclyUsed = $media->filter(function (Media $item) {
+                return collect(app(MediaUsageService::class)->usagesFor((string) $item->name))
+                    ->contains(fn (array $usage) => (bool) ($usage['public'] ?? false));
+            });
+
+            if ($publiclyUsed->isNotEmpty()) {
+                return redirect()->back()
+                    ->withErrors([
+                        'visibility' => $publiclyUsed->count().' selected item(s) are still used in public website content and cannot be made private.',
+                    ])
+                    ->withInput();
+            }
+        }
+
+        $addWorkshopIds = collect($validated['add_workshop_ids'] ?? [])->map('strval')->unique()->values();
+        $removeWorkshopIds = collect($validated['remove_workshop_ids'] ?? [])->map('strval')->unique()->values();
+
+        DB::transaction(function () use ($media, $changes, $addWorkshopIds, $removeWorkshopIds): void {
+            foreach ($media as $item) {
+                if ($changes !== []) {
+                    $item->update($changes);
+                }
+
+                if ($removeWorkshopIds->isNotEmpty()) {
+                    $item->workshopPhotos()->detach($removeWorkshopIds->all());
+                }
+                if ($addWorkshopIds->isNotEmpty()) {
+                    $item->workshopPhotos()->syncWithoutDetaching($addWorkshopIds->mapWithKeys(fn ($id) => [
+                        $id => ['collection' => 'workshop_photos'],
+                    ])->all());
+                }
+            }
+        });
+
+        $request->session()->forget('admin_media_bulk_selection');
+
+        return redirect()->route('admin.media.index')
+            ->with('message', $media->count().' media item'.($media->count() === 1 ? '' : 's').' updated')
+            ->with('message-title', 'Bulk edit complete')
+            ->with('message-type', 'success')
+            ->with('admin_media_bulk_clear_selection', true);
+    }
+
     public function store(Request $request)
     {
         return $this->admin_store($request);
@@ -496,7 +627,7 @@ class MediaController extends Controller
             'photographed_at' => $request->input('photographed_at') ?: null,
         ]);
 
-        $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
+        $this->syncWorkshopLinks($media, $request->input('workshop_links', []));
 
         if(!$exists) {
             $media->generateVariants(false);
@@ -537,7 +668,7 @@ class MediaController extends Controller
      */
     public function admin_edit(Media $media)
     {
-        $media->load('workshopPhotos.location');
+        $media->load(['workshopPhotos.location', 'workshopFiles.location']);
         $mediaFilesInfo = [];
         try {
             $mediaFilesInfo = $this->mediaFilesInfo($media);
@@ -550,7 +681,11 @@ class MediaController extends Controller
             'mediaFilesInfo' => $mediaFilesInfo,
             'mediaOwners' => $this->mediaOwners(),
             'mediaUsages' => app(MediaUsageService::class)->usagesFor((string) $media->name),
-            'workshopOptions' => $this->workshopOptions(),
+            'workshopOptions' => $this->workshopOptions()
+                ->concat($media->workshopFiles)
+                ->concat($media->workshopPhotos)
+                ->unique('id')
+                ->values(),
             'tagOptions' => $this->mediaTagOptions(),
             'protectedDownloadLink' => $this->protectedMediaDownloadUrl($media),
             'protectedDownloadToken' => $this->protectedDownloadToken($media),
@@ -575,8 +710,9 @@ class MediaController extends Controller
             'consent_notes' => ['nullable', 'string'],
             'tags' => ['nullable', 'string', 'max:255'],
             'photographed_at' => ['nullable', 'date'],
-            'workshop_ids' => ['nullable', 'array'],
-            'workshop_ids.*' => ['string', 'exists:workshops,id'],
+            'workshop_links' => ['nullable', 'array'],
+            'workshop_links.*.workshop_id' => ['required', 'string', 'distinct', 'exists:workshops,id'],
+            'workshop_links.*.type' => ['required', Rule::in(['file', 'photo'])],
             'edit_rotation' => ['nullable', 'integer'],
             'edit_crop_top' => ['nullable', 'numeric'],
             'edit_crop_right' => ['nullable', 'numeric'],
@@ -592,6 +728,13 @@ class MediaController extends Controller
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        if (! str_starts_with((string) $media->mime_type, 'image/')
+            && collect($request->input('workshop_links', []))->contains(fn ($link) => ($link['type'] ?? null) === 'photo')) {
+            return redirect()->back()
+                ->withErrors(['workshop_links' => 'Only image media can be linked to a workshop as a photo.'])
+                ->withInput();
         }
 
         $mediaData = $request->all();
@@ -686,7 +829,7 @@ class MediaController extends Controller
         $oldStorageDisk = $media->storageDiskName();
 
         $media->update($mediaData);
-        $this->syncWorkshopPhotoLinks($media, $request->input('workshop_ids', []));
+        $this->syncWorkshopLinks($media, $request->input('workshop_links', []));
 
         if ($mediaData['visibility'] !== 'protected') {
             $this->revokeProtectedDownloadTokens($media);
@@ -1543,6 +1686,10 @@ class MediaController extends Controller
             'size' => (int) $media->size,
             'status' => (string) ($media->status ?? ''),
             'visibility' => (string) ($media->visibility ?? 'public'),
+            'photographed_at' => optional($media->photographed_at)->format('Y-m-d'),
+            'tags' => (string) ($media->tags ?? ''),
+            'caption' => (string) ($media->caption ?? ''),
+            'consent_notes' => (string) ($media->consent_notes ?? ''),
             'storage_disk' => $media->storageDiskName(),
             'url' => $this->publicMediaUrl($media),
             'download_url' => $this->publicMediaUrl($media, download: true),
@@ -1624,17 +1771,95 @@ class MediaController extends Controller
         return ! Auth::user()?->isAdmin() && $this->ownsMedia($media);
     }
 
-    private function syncWorkshopPhotoLinks(Media $media, mixed $workshopIds): void
+    private function syncWorkshopLinks(Media $media, mixed $workshopLinks): void
     {
-        $ids = collect(is_array($workshopIds) ? $workshopIds : [])
-            ->map(fn ($id) => trim((string) $id))
-            ->filter()
-            ->unique()
+        $supportsPhotoLinks = str_starts_with((string) $media->mime_type, 'image/');
+        $links = collect(is_array($workshopLinks) ? $workshopLinks : [])
+            ->map(fn ($link) => [
+                'workshop_id' => trim((string) ($link['workshop_id'] ?? '')),
+                'type' => $supportsPhotoLinks && ($link['type'] ?? null) === 'photo' ? 'photo' : 'file',
+            ])
+            ->filter(fn ($link) => $link['workshop_id'] !== '')
+            ->unique('workshop_id')
             ->values();
 
-        $media->workshopPhotos()->sync($ids->mapWithKeys(fn ($id) => [
-            $id => ['collection' => 'workshop_photos'],
-        ])->all());
+        DB::transaction(function () use ($media, $links): void {
+            DB::table('mediables')
+                ->where('media_name', (string) $media->name)
+                ->where('mediable_type', Workshop::class)
+                ->where(function ($query) {
+                    $query->whereNull('collection')
+                        ->orWhere('collection', 'workshop_photos');
+                })
+                ->delete();
+
+            foreach ($links as $link) {
+                $media->workshops()->attach($link['workshop_id'], [
+                    'collection' => $link['type'] === 'photo' ? 'workshop_photos' : null,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function bulkMediaSelection(Request $request): array
+    {
+        return collect($request->session()->get('admin_media_bulk_selection', []))
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique()
+            ->take(500)
+            ->values()
+            ->all();
+    }
+
+    private function bulkMediaFieldValue(Media $media, string $field): string
+    {
+        $value = $media->{$field};
+
+        if ($field === 'photographed_at' && $value) {
+            return $value->format('Y-m-d');
+        }
+
+        return trim((string) ($value ?? ''));
+    }
+
+    /**
+     * @param  iterable<int, Media>  $media
+     * @return array<string, string|null>
+     */
+    private function bulkMediaChanges(iterable $media, Request $request): array
+    {
+        $changes = [];
+
+        foreach (['user_id', 'visibility', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
+            if (! $request->exists($field)) {
+                continue;
+            }
+
+            $submitted = trim((string) $request->input($field, ''));
+            if ($submitted === '__mixed') {
+                continue;
+            }
+
+            $currentValues = collect($media)
+                ->map(fn (Media $item) => $this->bulkMediaFieldValue($item, $field))
+                ->unique(strict: true);
+
+            if ($currentValues->count() === 1 && $currentValues->first() === $submitted) {
+                continue;
+            }
+
+            if ($currentValues->count() > 1 && $submitted === '') {
+                continue;
+            }
+
+            $changes[$field] = $submitted !== '' ? $submitted : null;
+        }
+
+        return $changes;
     }
 
     private function workshopOptions()
