@@ -134,6 +134,7 @@ class AdminMediaUploadTest extends TestCase
             ->assertSeeText('Select Local Files')
             ->assertSeeText('Browse Existing Media')
             ->assertViewHas('attachedPhotoNames', ['stemmechanics-logo.png'])
+            ->assertSee('x-on:change="appendFiles($event.target.files)"', false)
             ->assertSee("require_mime_type: 'image/*,video/*'", false);
     }
 

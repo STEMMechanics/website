@@ -928,6 +928,11 @@ class WorkshopController extends Controller
 
     public function admin_files(Workshop $workshop): View
     {
+        $attachedFileNames = $workshop->files()
+            ->pluck('media.name')
+            ->values()
+            ->all();
+
         $files = $workshop->files()
             ->when(trim((string) request()->query('search')) !== '', function ($query) {
                 $search = trim((string) request()->query('search'));
@@ -957,6 +962,7 @@ class WorkshopController extends Controller
         return view('admin.workshop.files', [
             'workshop' => $workshop,
             'files' => $files,
+            'attachedFileNames' => $attachedFileNames,
         ]);
     }
 

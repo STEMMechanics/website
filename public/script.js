@@ -443,6 +443,17 @@ let SM = {
         const styleKey = String(type || 'info').toLowerCase();
         const style = styles[styleKey] || styles.info;
         const toast = options.toast === true;
+        const customClass = typeof options.customClass === 'object' && options.customClass !== null
+            ? {
+                ...options.customClass,
+                container: [options.customClass.container, styleKey].filter(Boolean).join(' '),
+            }
+            : {
+                container: styleKey,
+                ...(typeof options.customClass === 'string' && options.customClass !== ''
+                    ? { popup: options.customClass }
+                    : {}),
+            };
         const config = {
             position: options.position || (toast ? 'top-end' : 'top'),
             title: title,
@@ -461,7 +472,7 @@ let SM = {
             timerProgressBar: options.timerProgressBar ?? false,
             toast: toast,
             showCloseButton: options.showCloseButton ?? toast,
-            customClass: options.customClass,
+            customClass,
             width: options.width,
             footer: options.footer,
         };
