@@ -524,16 +524,18 @@
                         return normalized || value;
                     },
                     openExistingMediaPicker() {
-                        const selected = [...new Set([
+                        const attached = [...new Set([
                             ...this.attachedPhotoNames,
                             ...this.existingMedia.map((item) => item.name),
                         ])];
 
-                        SMMediaPicker.open(selected, {
+                        SMMediaPicker.open([], {
                             allow_multiple: true,
                             allow_uploads: false,
                             public_usable_only: false,
                             require_mime_type: 'image/*,video/*',
+                            disabled: attached,
+                            disabled_item_text: 'Selected',
                             title: 'Select Existing Photos or Videos',
                             confirm_button_text: 'Add Media',
                         }, (result) => this.addExistingMedia(result));
@@ -706,231 +708,233 @@
                         on-files="appendFiles"
                         on-browse-existing="openExistingMediaPicker"
                         disabled="uploading"
+                        clear-after-change="false"
                     >
-                    @error('photos') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    @error('photos.*') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    @error('existing_media_names') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        <div class="flex flex-col gap-4">
+                            @error('photos') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @error('photos.*') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @error('existing_media_names') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
 
-                    <div x-show="previews.length + existingMedia.length" x-cloak class="mt-4">
-                        <div class="mb-2 flex items-center justify-between gap-3">
-                            <div class="text-sm font-semibold text-gray-700">Selected Media & Metadata</div>
-                            <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color disabled:cursor-not-allowed disabled:opacity-50" x-bind:disabled="uploading" x-on:click.prevent="clear()">Clear files</button>
-                        </div>
-                        <div class="space-y-4">
-                            <template x-for="(item, itemIndex) in existingMedia" :key="`existing:${item.name}`">
-                                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                                    <div class="flex flex-col">
-                                        <div class="flex flex-col gap-4 sm:flex-row">
-                                            <div class="mx-auto shrink">
-                                                <div class="w-32">
-                                                    <img x-bind:src="item.thumbnail" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1">
-                                                    <div class="space-y-0.5 px-2 py-1 text-[11px]">
-                                                        <div class="text-gray-500" x-text="sizeLabel(item.size)"></div>
-                                                        <div class="text-gray-500" x-text="fileTypeLabel(item.type)"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex grow flex-col md:flex-row md:gap-4">
-                                                <div class="flex-1">
-                                                    <x-ui.input label="Title" :name="null" x-bind:value="item.title" disabled="true" />
-                                                    <x-ui.input label="Photographed At" type="date" :name="null" x-bind:value="item.photographedAt" disabled="true" />
-                                                    <x-ui.input label="Tags" :name="null" x-bind:value="item.tags" disabled="true" />
-                                                </div>
-                                                <div class="flex-1">
-                                                    <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true">
-                                                        <option value="public">Public</option>
-                                                        <option value="private">Private</option>
-                                                    </x-ui.select>
-                                                    <x-ui.input label="Caption" :name="null" x-bind:value="item.caption" disabled="true" />
-                                                    <x-ui.input label="Notes" type="textarea" :name="null" x-bind:value="item.consentNotes" disabled="true" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <div>
-                                                <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
-                                            </div>
-                                            <div class="flex items-center gap-3 pt-1">
-                                                <a x-show="item.editUrl" x-bind:href="item.editUrl" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
-                                                    <i class="fa-solid fa-up-right-from-square"></i>
-                                                </a>
-                                                <button type="button" class="text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50" title="Delete row" x-bind:disabled="uploading" x-on:click.prevent="removeExistingMedia(itemIndex)">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div x-show="previews.length + existingMedia.length" x-cloak class="mt-4">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <div class="text-sm font-semibold text-gray-700">Selected Media & Metadata</div>
+                                    <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color disabled:cursor-not-allowed disabled:opacity-50" x-bind:disabled="uploading" x-on:click.prevent="clear()">Clear files</button>
                                 </div>
-                            </template>
-                            <template x-for="(preview, previewIndex) in previews" :key="preview.url">
-                                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                                    <div class="flex flex-col">
-                                        <div class="flex flex-col sm:flex-row gap-4">
-                                            <div class="mx-auto shrink">
-                                                <div class="w-32">
-                                                    <div class="block overflow-hidden">
-                                                        <template x-if="String(preview.type || '').startsWith('video/')">
-                                                            <video :src="preview.url" class="h-24 w-32 object-cover" muted playsinline preload="metadata"></video>
-                                                        </template>
-                                                        <template x-if="!String(preview.type || '').startsWith('video/')">
-                                                            <div class="flex h-24 w-32 items-center justify-center overflow-hidden">
-                                                                <canvas class="block h-full w-full" x-effect="preview.editRotation; preview.editCropTop; preview.editCropRight; preview.editCropBottom; preview.editCropLeft; renderPreviewCanvas($el, preview)"></canvas>
+                                <div class="space-y-4">
+                                    <template x-for="(item, itemIndex) in existingMedia" :key="`existing:${item.name}`">
+                                        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                            <div class="flex flex-col">
+                                                <div class="flex flex-col gap-4 sm:flex-row">
+                                                    <div class="mx-auto shrink">
+                                                        <div class="w-32">
+                                                            <img x-bind:src="item.thumbnail" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1">
+                                                            <div class="space-y-0.5 px-2 py-1 text-[11px]">
+                                                                <div class="text-gray-500" x-text="sizeLabel(item.size)"></div>
+                                                                <div class="text-gray-500" x-text="fileTypeLabel(item.type)"></div>
                                                             </div>
-                                                        </template>
-                                                        <div class="space-y-0.5 px-2 py-1 text-[11px]">
-                                                            <div class="text-gray-500" x-text="sizeLabel(preview.size)"></div>
-                                                            <div class="text-gray-500" x-text="fileTypeLabel(preview.type)"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex grow flex-col md:flex-row md:gap-4">
+                                                        <div class="flex-1">
+                                                            <x-ui.input label="Title" :name="null" x-bind:value="item.title" disabled="true" />
+                                                            <x-ui.input label="Photographed At" type="date" :name="null" x-bind:value="item.photographedAt" disabled="true" />
+                                                            <x-ui.input label="Tags" :name="null" x-bind:value="item.tags" disabled="true" />
+                                                        </div>
+                                                        <div class="flex-1">
+                                                            <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true">
+                                                                <option value="public">Public</option>
+                                                                <option value="private">Private</option>
+                                                            </x-ui.select>
+                                                            <x-ui.input label="Caption" :name="null" x-bind:value="item.caption" disabled="true" />
+                                                            <x-ui.input label="Notes" type="textarea" :name="null" x-bind:value="item.consentNotes" disabled="true" />
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="flex flex-col grow md:flex-row md:gap-4">
-                                                <div class="flex-1">
-                                                    <x-ui.input
-                                                        label="Title"
-                                                        :name="null"
-                                                        x-bind:name="`photos_meta[${preview.index}][title]`"
-                                                        x-model="preview.title"
-                                                        x-bind:disabled="uploading"
-                                                    />
-                                                    <x-ui.input
-                                                        label="Photographed At"
-                                                        type="date"
-                                                        :name="null"
-                                                        x-bind:name="`photos_meta[${preview.index}][photographed_at]`"
-                                                        x-model="preview.photographedAt"
-                                                        x-bind:disabled="uploading"
-                                                        required
-                                                    />
-                                                    <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_rotation]`" x-bind:value="preview.editRotation">
-                                                    <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_top]`" x-bind:value="preview.editCropTop">
-                                                    <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_right]`" x-bind:value="preview.editCropRight">
-                                                    <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_bottom]`" x-bind:value="preview.editCropBottom">
-                                                    <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_left]`" x-bind:value="preview.editCropLeft">
-                                                    <x-ui.tags
-                                                        :name="null"
-                                                        :options="$tagOptions ?? []"
-                                                        x-bind:name="`photos_meta[${preview.index}][tags]`"
-                                                        x-model-tags="preview.tags"
-                                                        x-model-draft="preview.tagDraft"
-                                                    />
-                                                </div>
-                                                <div class="flex-1">
-                                                    <x-ui.select
-                                                        label="Visibility"
-                                                        :name="null"
-                                                        x-bind:name="`photos_meta[${preview.index}][visibility]`"
-                                                        x-model="preview.visibility"
-                                                        x-bind:disabled="uploading"
-                                                    >
-                                                        <option value="public">Public</option>
-                                                        <option value="private">Private</option>
-                                                    </x-ui.select>
-                                                    <x-ui.input
-                                                        label="Caption"
-                                                        :name="null"
-                                                        x-bind:name="`photos_meta[${preview.index}][caption]`"
-                                                        x-model="preview.caption"
-                                                        x-bind:disabled="uploading"
-                                                    />
-                                                    <x-ui.input
-                                                        label="Notes"
-                                                        type="textarea"
-                                                        :name="null"
-                                                        x-bind:name="`photos_meta[${preview.index}][consent_notes]`"
-                                                        x-model="preview.consentNotes"
-                                                        x-bind:disabled="uploading"
-                                                    />
+                                                <div class="flex items-center justify-between">
+                                                    <div>
+                                                        <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
+                                                    </div>
+                                                    <div class="flex items-center gap-3 pt-1">
+                                                        <a x-show="item.editUrl" x-bind:href="item.editUrl" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
+                                                            <i class="fa-solid fa-up-right-from-square"></i>
+                                                        </a>
+                                                        <button type="button" class="text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50" title="Delete row" x-bind:disabled="uploading" x-on:click.prevent="removeExistingMedia(itemIndex)">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="flex justify-between items-center">
-                                            <div>
-                                                <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
-                                            </div>
-                                            <div class="flex items-center gap-3 pt-1">
-                                                <template x-if="isImage(preview)">
-                                                    <button type="button" class="text-primary-color hover:text-primary-color-dark disabled:cursor-not-allowed disabled:opacity-50" title="Edit image" x-bind:disabled="uploading" x-on:click.prevent="openEditor(previewIndex)">
-                                                        <i class="fa-solid fa-pen-to-square"></i>
-                                                    </button>
-                                                </template>
-                                                <button type="button" class="text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50" title="Delete row" x-bind:disabled="uploading" x-on:click.prevent="remove(previewIndex)">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                    <div x-show="editingPreview()" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeEditor()">
-                        <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" x-on:click.away="closeEditor()">
-                            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-                                <div>
-                                    <div class="text-base font-semibold text-gray-900">Edit Image</div>
-                                    <div class="text-xs text-gray-500" x-text="editingPreview()?.name || ''"></div>
-                                </div>
-                                <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            </div>
-                            <div class="overflow-y-auto p-4">
-                                <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
-                                <div class="sm-image-crop-preview" :style="editingPreview() ? editorFrameStyle() : ''">
-                                    <template x-if="editingPreview()">
-                                        <div>
-                                            <div class="absolute inset-0 flex items-center justify-center overflow-hidden">
-                                                <canvas x-ref="editorCanvas" x-effect="editingDraft.rotation; editingDraft.top; editingDraft.right; editingDraft.bottom; editingDraft.left; renderEditorCanvas($refs.editorCanvas, editingPreview())" class="block h-full w-full"></canvas>
-                                            </div>
-                                            <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('top')"></div>
-                                            <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('right')"></div>
-                                            <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('bottom')"></div>
-                                            <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('left')"></div>
-                                            <div class="sm-image-crop-preview__focus" :style="cropFocusStyle()" x-on:mousedown.prevent="startCropDrag('move', $event)">
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></button>
-                                                <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></button>
+                                    </template>
+                                    <template x-for="(preview, previewIndex) in previews" :key="preview.url">
+                                        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                            <div class="flex flex-col">
+                                                <div class="flex flex-col sm:flex-row gap-4">
+                                                    <div class="mx-auto shrink">
+                                                        <div class="w-32">
+                                                            <div class="block overflow-hidden">
+                                                                <template x-if="String(preview.type || '').startsWith('video/')">
+                                                                    <video :src="preview.url" class="h-24 w-32 object-cover" muted playsinline preload="metadata"></video>
+                                                                </template>
+                                                                <template x-if="!String(preview.type || '').startsWith('video/')">
+                                                                    <div class="flex h-24 w-32 items-center justify-center overflow-hidden">
+                                                                        <canvas class="block h-full w-full" x-effect="preview.editRotation; preview.editCropTop; preview.editCropRight; preview.editCropBottom; preview.editCropLeft; renderPreviewCanvas($el, preview)"></canvas>
+                                                                    </div>
+                                                                </template>
+                                                                <div class="space-y-0.5 px-2 py-1 text-[11px]">
+                                                                    <div class="text-gray-500" x-text="sizeLabel(preview.size)"></div>
+                                                                    <div class="text-gray-500" x-text="fileTypeLabel(preview.type)"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex flex-col grow md:flex-row md:gap-4">
+                                                        <div class="flex-1">
+                                                            <x-ui.input
+                                                                label="Title"
+                                                                :name="null"
+                                                                x-bind:name="`photos_meta[${preview.index}][title]`"
+                                                                x-model="preview.title"
+                                                                x-bind:disabled="uploading"
+                                                            />
+                                                            <x-ui.input
+                                                                label="Photographed At"
+                                                                type="date"
+                                                                :name="null"
+                                                                x-bind:name="`photos_meta[${preview.index}][photographed_at]`"
+                                                                x-model="preview.photographedAt"
+                                                                x-bind:disabled="uploading"
+                                                                required
+                                                            />
+                                                            <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_rotation]`" x-bind:value="preview.editRotation">
+                                                            <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_top]`" x-bind:value="preview.editCropTop">
+                                                            <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_right]`" x-bind:value="preview.editCropRight">
+                                                            <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_bottom]`" x-bind:value="preview.editCropBottom">
+                                                            <input type="hidden" x-bind:name="`photos_meta[${preview.index}][edit_crop_left]`" x-bind:value="preview.editCropLeft">
+                                                            <x-ui.tags
+                                                                :name="null"
+                                                                :options="$tagOptions ?? []"
+                                                                x-bind:name="`photos_meta[${preview.index}][tags]`"
+                                                                x-model-tags="preview.tags"
+                                                                x-model-draft="preview.tagDraft"
+                                                            />
+                                                        </div>
+                                                        <div class="flex-1">
+                                                            <x-ui.select
+                                                                label="Visibility"
+                                                                :name="null"
+                                                                x-bind:name="`photos_meta[${preview.index}][visibility]`"
+                                                                x-model="preview.visibility"
+                                                                x-bind:disabled="uploading"
+                                                            >
+                                                                <option value="public">Public</option>
+                                                                <option value="private">Private</option>
+                                                            </x-ui.select>
+                                                            <x-ui.input
+                                                                label="Caption"
+                                                                :name="null"
+                                                                x-bind:name="`photos_meta[${preview.index}][caption]`"
+                                                                x-model="preview.caption"
+                                                                x-bind:disabled="uploading"
+                                                            />
+                                                            <x-ui.input
+                                                                label="Notes"
+                                                                type="textarea"
+                                                                :name="null"
+                                                                x-bind:name="`photos_meta[${preview.index}][consent_notes]`"
+                                                                x-model="preview.consentNotes"
+                                                                x-bind:disabled="uploading"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
+                                                    </div>
+                                                    <div class="flex items-center gap-3 pt-1">
+                                                        <template x-if="isImage(preview)">
+                                                            <button type="button" class="text-primary-color hover:text-primary-color-dark disabled:cursor-not-allowed disabled:opacity-50" title="Edit image" x-bind:disabled="uploading" x-on:click.prevent="openEditor(previewIndex)">
+                                                                <i class="fa-solid fa-pen-to-square"></i>
+                                                            </button>
+                                                        </template>
+                                                        <button type="button" class="text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50" title="Delete row" x-bind:disabled="uploading" x-on:click.prevent="remove(previewIndex)">
+                                                            <i class="fa-solid fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </template>
                                 </div>
-                                <div class="space-y-4 md:max-w-72">
-                                    <div class="flex items-center gap-2">
-                                        <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate left" x-on:click.prevent="if (editingPreview()) rotate(-90)"><i class="fa-solid fa-rotate-left"></i></button>
-                                        <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate right" x-on:click.prevent="if (editingPreview()) rotate(90)"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                            <div x-show="editingPreview()" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeEditor()">
+                                <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" x-on:click.away="closeEditor()">
+                                    <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                                        <div>
+                                            <div class="text-base font-semibold text-gray-900">Edit Image</div>
+                                            <div class="text-xs text-gray-500" x-text="editingPreview()?.name || ''"></div>
+                                        </div>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
                                     </div>
-                                    <div class="text-xs text-gray-500">Drag the crop box or its handles directly on the image.</div>
-                                    <div class="flex justify-between gap-2">
-                                        <button type="button" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" x-on:click.prevent="if (editingPreview()) resetEdits()">Reset</button>
-                                        <button type="button" class="rounded bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" x-on:click.prevent="applyEditor()">Done</button>
+                                    <div class="overflow-y-auto p-4">
+                                        <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
+                                        <div class="sm-image-crop-preview" :style="editingPreview() ? editorFrameStyle() : ''">
+                                            <template x-if="editingPreview()">
+                                                <div>
+                                                    <div class="absolute inset-0 flex items-center justify-center overflow-hidden">
+                                                        <canvas x-ref="editorCanvas" x-effect="editingDraft.rotation; editingDraft.top; editingDraft.right; editingDraft.bottom; editingDraft.left; renderEditorCanvas($refs.editorCanvas, editingPreview())" class="block h-full w-full"></canvas>
+                                                    </div>
+                                                    <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('top')"></div>
+                                                    <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('right')"></div>
+                                                    <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('bottom')"></div>
+                                                    <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('left')"></div>
+                                                    <div class="sm-image-crop-preview__focus" :style="cropFocusStyle()" x-on:mousedown.prevent="startCropDrag('move', $event)">
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></button>
+                                                        <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="space-y-4 md:max-w-72">
+                                            <div class="flex items-center gap-2">
+                                                <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate left" x-on:click.prevent="if (editingPreview()) rotate(-90)"><i class="fa-solid fa-rotate-left"></i></button>
+                                                <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate right" x-on:click.prevent="if (editingPreview()) rotate(90)"><i class="fa-solid fa-rotate-right"></i></button>
+                                            </div>
+                                            <div class="text-xs text-gray-500">Drag the crop box or its handles directly on the image.</div>
+                                            <div class="flex justify-between gap-2">
+                                                <button type="button" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" x-on:click.prevent="if (editingPreview()) resetEdits()">Reset</button>
+                                                <button type="button" class="rounded bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" x-on:click.prevent="applyEditor()">Done</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
+                            <div x-show="uploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <div class="font-medium">
+                                        <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
+                                        Uploading media
+                                    </div>
+                                    <div class="text-xs" x-text="uploadIndex + ' / ' + previews.length"></div>
+                                </div>
+                                <div class="mb-2 text-xs text-sky-900" x-text="currentFileName ? currentFileName + ' — ' + uploadProgress + '%' : ''"></div>
+                                <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
+                                    <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${uploadProgress}%`"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
-                    <div x-show="uploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-                        <div class="mb-2 flex items-center justify-between gap-3">
-                            <div class="font-medium">
-                                <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-                                Uploading media
-                            </div>
-                            <div class="text-xs" x-text="uploadIndex + ' / ' + previews.length"></div>
-                        </div>
-                        <div class="mb-2 text-xs text-sky-900" x-text="currentFileName ? currentFileName + ' — ' + uploadProgress + '%' : ''"></div>
-                        <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
-                            <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${uploadProgress}%`"></div>
-                        </div>
-                    </div>
-
                     </x-ui.media-uploader>
                 </div>
             </form>

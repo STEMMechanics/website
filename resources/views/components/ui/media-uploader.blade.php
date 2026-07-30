@@ -14,11 +14,13 @@
     'onFiles',
     'onBrowseExisting',
     'disabled' => 'false',
+    'clearAfterChange' => true,
     'submitText' => 'Add Media',
     'submittingText' => 'Uploading...',
 ])
 
 @php
+    $clearAfterChange = filter_var($clearAfterChange, FILTER_VALIDATE_BOOLEAN);
     $countExpression = '('.$count.')';
     $selectedExpression = $countExpression
         .' ? '.$countExpression
@@ -37,7 +39,7 @@
         @if($multiple) multiple @endif
         class="sr-only"
         x-ref="{{ $inputRef }}"
-        x-on:change="{{ $onFiles }}($event.target.files); $event.target.value = ''"
+        x-on:change="{{ $onFiles }}($event.target.files){{ $clearAfterChange ? '; $event.target.value = \'\'' : '' }}"
         x-bind:disabled="{{ $disabled }}"
     >
 

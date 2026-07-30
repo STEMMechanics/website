@@ -249,14 +249,19 @@
                         pendingKeys.forEach((fileKey) => this.removeWorkshopFileByKey(fileKey));
                     },
                     openWorkshopExistingFilePicker() {
-                        const selected = this.stagedWorkshopFiles
+                        const attached = @js($attachedFileNames ?? []);
+                        const staged = this.stagedWorkshopFiles
                             .filter((item) => item.kind === 'existing')
                             .map((item) => item.name);
 
-                        SMMediaPicker.open(selected, {
+                        SMMediaPicker.open([], {
                             allow_multiple: true,
                             allow_uploads: false,
                             public_usable_only: false,
+                            disabled: [...new Set([...attached, ...staged])],
+                            disabled_item_text: 'Selected',
+                            title: 'Add Existing Files',
+                            confirm_button_text: 'Add Files',
                         }, (result) => this.attachExistingWorkshopFiles(result));
                     },
                     attachExistingWorkshopFiles(result) {
@@ -351,105 +356,106 @@
                     disabled="workshopFilesUploading"
                 >
 
-                <div x-show="pendingWorkshopFiles().length" x-cloak class="mt-4">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <div class="text-sm font-semibold text-gray-700">Selected Files & Metadata</div>
-                        <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color" x-on:click.prevent="clearPendingFiles()">Clear files</button>
-                    </div>
-                    <input type="hidden" name="files" x-ref="workshopFilesExisting">
-                    <input type="hidden" name="files_staged_order" x-ref="workshopFilesOrder">
-                    <input type="hidden" name="pending_file_keys" x-ref="workshopFilesPendingKeys">
-                    <div class="space-y-4">
-                        <template x-for="(item, fileIndex) in pendingWorkshopFiles()" :key="workshopFileRowKey(item, fileIndex)">
-                            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                                <div class="flex flex-col">
-                                    <div class="flex flex-col sm:flex-row gap-4">
-                                        <div class="mx-auto shrink">
-                                            <div class="w-32">
-                                                <div class="block overflow-hidden">
-                                                    <div class="flex h-24 w-32 items-center justify-center overflow-hidden">
-                                                        <img :src="workshopFileThumbnail(item)" x-on:error="if ($el.src !== workshopFilesFallbackThumbnail) { $el.src = workshopFilesFallbackThumbnail }" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1" />
+                    <div class="flex flex-col gap-4">
+                        <div x-show="pendingWorkshopFiles().length" x-cloak class="mt-4">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <div class="text-sm font-semibold text-gray-700">Selected Files & Metadata</div>
+                                <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color" x-on:click.prevent="clearPendingFiles()">Clear files</button>
+                            </div>
+                            <input type="hidden" name="files" x-ref="workshopFilesExisting">
+                            <input type="hidden" name="files_staged_order" x-ref="workshopFilesOrder">
+                            <input type="hidden" name="pending_file_keys" x-ref="workshopFilesPendingKeys">
+                            <div class="space-y-4">
+                                <template x-for="(item, fileIndex) in pendingWorkshopFiles()" :key="workshopFileRowKey(item, fileIndex)">
+                                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                        <div class="flex flex-col">
+                                            <div class="flex flex-col sm:flex-row gap-4">
+                                                <div class="mx-auto shrink">
+                                                    <div class="w-32">
+                                                        <div class="block overflow-hidden">
+                                                            <div class="flex h-24 w-32 items-center justify-center overflow-hidden">
+                                                                <img :src="workshopFileThumbnail(item)" x-on:error="if ($el.src !== workshopFilesFallbackThumbnail) { $el.src = workshopFilesFallbackThumbnail }" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1" />
+                                                            </div>
+                                                            <div class="space-y-0.5 px-2 py-1 text-[11px]">
+                                                                <div class="text-gray-500" x-text="SM.bytesToString(item.size || 0)"></div>
+                                                                <div class="text-gray-500" x-text="workshopFileTypeLabel(item)"></div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="space-y-0.5 px-2 py-1 text-[11px]">
-                                                        <div class="text-gray-500" x-text="SM.bytesToString(item.size || 0)"></div>
-                                                        <div class="text-gray-500" x-text="workshopFileTypeLabel(item)"></div>
+                                                </div>
+                                                <div class="flex flex-col grow md:flex-row md:gap-4">
+                                                    <div class="flex-1">
+                                                        <template x-if="item.kind === 'pending'">
+                                                            <div>
+                                                                <x-ui.input label="Title" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][title]`" x-model="item.title" />
+                                                                <x-ui.select label="Visibility" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][visibility]`" x-model="item.visibility">
+                                                                    <option value="public">Public</option>
+                                                                    <option value="protected">Protected</option>
+                                                                    <option value="private">Private</option>
+                                                                </x-ui.select>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="item.kind === 'existing'">
+                                                            <div>
+                                                                <x-ui.input label="Title" :name="null" x-bind:value="item.title || item.name" disabled="true" />
+                                                                <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true" info="File visibility can be changed for existing files from the media editor.">
+                                                                    <option value="public">Public</option>
+                                                                    <option value="protected">Protected</option>
+                                                                    <option value="private">Private</option>
+                                                                </x-ui.select>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <template x-if="item.kind === 'pending'">
+                                                            <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][notes]`" x-model="item.notes" />
+                                                        </template>
+                                                        <template x-if="item.kind === 'existing'">
+                                                            <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:value="item.notes || ''" disabled="true" />
+                                                        </template>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="flex flex-col grow md:flex-row md:gap-4">
-                                            <div class="flex-1">
-                                                <template x-if="item.kind === 'pending'">
-                                                    <div>
-                                                        <x-ui.input label="Title" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][title]`" x-model="item.title" />
-                                                        <x-ui.select label="Visibility" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][visibility]`" x-model="item.visibility">
-                                                            <option value="public">Public</option>
-                                                            <option value="protected">Protected</option>
-                                                            <option value="private">Private</option>
-                                                        </x-ui.select>
-                                                    </div>
-                                                </template>
-                                                <template x-if="item.kind === 'existing'">
-                                                    <div>
-                                                        <x-ui.input label="Title" :name="null" x-bind:value="item.title || item.name" disabled="true" />
-                                                        <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true" info="File visibility can be changed for existing files from the media editor.">
-                                                            <option value="public">Public</option>
-                                                            <option value="protected">Protected</option>
-                                                            <option value="private">Private</option>
-                                                        </x-ui.select>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                            <div class="flex-1">
-                                                <template x-if="item.kind === 'pending'">
-                                                    <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][notes]`" x-model="item.notes" />
-                                                </template>
-                                                <template x-if="item.kind === 'existing'">
-                                                    <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:value="item.notes || ''" disabled="true" />
-                                                </template>
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <template x-if="item.kind === 'pending'">
+                                                        <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
+                                                    </template>
+                                                    <template x-if="item.kind === 'existing'">
+                                                        <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
+                                                    </template>
+                                                </div>
+                                                <div class="flex items-center gap-3 pt-1">
+                                                    <a x-show="item.kind === 'existing' && item.edit_url" :href="item.edit_url" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
+                                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                                    </a>
+                                                    <a x-show="item.kind === 'existing' && item.download_url" :href="item.download_url" class="text-primary-color hover:text-primary-color-dark" title="Download file">
+                                                        <i class="fa-solid fa-download"></i>
+                                                    </a>
+                                                    <button type="button" class="text-red-600 hover:text-red-800" title="Delete row" x-on:click.prevent="removeWorkshopFileByKey(workshopFileRowKey(item))">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="flex justify-between items-center">
-                                        <div>
-                                            <template x-if="item.kind === 'pending'">
-                                                <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
-                                            </template>
-                                            <template x-if="item.kind === 'existing'">
-                                                <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
-                                            </template>
-                                        </div>
-                                        <div class="flex items-center gap-3 pt-1">
-                                            <a x-show="item.kind === 'existing' && item.edit_url" :href="item.edit_url" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
-                                                <i class="fa-solid fa-up-right-from-square"></i>
-                                            </a>
-                                            <a x-show="item.kind === 'existing' && item.download_url" :href="item.download_url" class="text-primary-color hover:text-primary-color-dark" title="Download file">
-                                                <i class="fa-solid fa-download"></i>
-                                            </a>
-                                            <button type="button" class="text-red-600 hover:text-red-800" title="Delete row" x-on:click.prevent="removeWorkshopFileByKey(workshopFileRowKey(item))">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div x-show="workshopFilesUploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <div class="font-medium">
+                                    <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
+                                    Uploading files
                                 </div>
                             </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div x-show="workshopFilesUploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <div class="font-medium">
-                            <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-                            Uploading files
+                            <div class="mb-2 text-xs text-sky-900" x-text="workshopFilesUploadMessage || ''"></div>
+                            <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
+                                <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-2 text-xs text-sky-900" x-text="workshopFilesUploadMessage || ''"></div>
-                    <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
-                        <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
-                    </div>
-                </div>
-
                 </x-ui.media-uploader>
             </form>
         </div>
