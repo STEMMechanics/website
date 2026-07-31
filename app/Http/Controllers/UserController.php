@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Organisation;
 use App\Models\Payment;
 use App\Models\Ticket;
 use App\Models\User;
@@ -36,7 +37,8 @@ class UserController extends Controller
                         ->orWhere('surname', 'like', '%'.$search.'%')
                         ->orWhere('company', 'like', '%'.$search.'%')
                         ->orWhere('phone', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhereHas('organisations', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
                 });
             }
         }
@@ -45,6 +47,9 @@ class UserController extends Controller
             ->with([
                 'groups' => function ($groupQuery): void {
                     $groupQuery->orderBy('slug');
+                },
+                'organisations' => function ($organisationQuery): void {
+                    $organisationQuery->orderBy('name');
                 },
             ])
             ->withCount('media')
@@ -72,6 +77,7 @@ class UserController extends Controller
     {
         return view('admin.user.create', [
             'groupSuggestions' => $this->groupSuggestions(),
+            'organisationSuggestions' => Organisation::query()->orderBy('name')->pluck('name')->all(),
         ]);
     }
 
@@ -129,6 +135,7 @@ class UserController extends Controller
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
         $user = User::create($payload);
+        $this->syncPrimaryOrganisation($user, (string) ($payload['company'] ?? ''));
         $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User has been created');
@@ -148,12 +155,13 @@ class UserController extends Controller
         $refundPaymentAvailableAmount = $refundPayment ? $this->refundAvailableAmountForPayment($refundPayment) : 0.0;
 
         return view('admin.user.edit', [
-            'user' => $user->load('groups'),
+            'user' => $user->load(['groups', 'organisations'])->loadCount('requestedWorkshops'),
             'accountCredit' => $accountCredit,
             'cardRefundableCredit' => $this->cardRefundableCreditForUser($user),
             'refundPayment' => $refundPayment,
             'refundPaymentAvailableAmount' => $refundPaymentAvailableAmount,
             'groupSuggestions' => $this->groupSuggestions(),
+            'organisationSuggestions' => Organisation::query()->orderBy('name')->pluck('name')->all(),
         ]);
     }
 
@@ -248,6 +256,7 @@ class UserController extends Controller
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
         $user->update($payload);
+        $this->syncPrimaryOrganisation($user, (string) ($payload['company'] ?? ''));
         $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User details have been updated');
@@ -363,6 +372,7 @@ class UserController extends Controller
         ]);
         $user->email_verified_at = now();
         $user->save();
+        $this->syncPrimaryOrganisation($user, (string) ($user->company ?? ''));
 
         $label = trim((string) $user->getName());
         if ((string) $user->company !== '') {
@@ -403,6 +413,35 @@ class UserController extends Controller
             'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
             'account_terms_days' => (int) ($validated['account_terms_days'] ?? 0),
         ];
+    }
+
+    private function syncPrimaryOrganisation(User $user, string $name): void
+    {
+        $name = preg_replace('/\s+/u', ' ', trim($name)) ?? '';
+        if ($name === '') {
+            return;
+        }
+
+        $organisation = Organisation::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $organisation) {
+            $organisation = Organisation::create([
+                'name' => $name,
+                'type' => 'other',
+            ]);
+        } elseif ((string) $user->company !== (string) $organisation->name) {
+            $user->updateQuietly(['company' => $organisation->name]);
+        }
+
+        DB::table('organisation_user')
+            ->where('user_id', $user->id)
+            ->update(['is_primary' => false]);
+
+        $user->organisations()->syncWithoutDetaching([
+            $organisation->id => ['is_primary' => true],
+        ]);
     }
 
     private function groupSuggestions(): array

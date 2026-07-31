@@ -58,6 +58,15 @@
                             {{ trim(($user->firstname ?? '').' '.($user->surname ?? '')) ?: '-' }}
                             </a>
                         </div>
+                        @if($user->organisations->isNotEmpty())
+                            <div class="mt-1 flex flex-col gap-1">
+                                @foreach($user->organisations as $organisation)
+                                    <a href="{{ route('admin.organisation.edit', $organisation) }}" class="text-xs text-gray-500 hover:text-primary-color">
+                                        <i class="fa-solid fa-building mr-1"></i>{{ $organisation->name }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
                     </td>
                     <td>
                         <div class="text-sm text-gray-700">{{ $user->email ?: '-' }}</div>

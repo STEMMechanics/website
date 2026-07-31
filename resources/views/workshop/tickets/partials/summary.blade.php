@@ -13,11 +13,11 @@
         <th class="text-left pr-4">Date</th>
         <td>{{ $workshop->getTicketTimeRangeLabel() }}</td>
     </tr>
-    @if(!empty($workshop->hosted_for))
+    @if($workshop->isPrivate() && !empty($workshop->hostedFor))
     <tr>
         <th class="text-left pr-4 align-top">Hosted For</th>
         <td>
-            {{ $workshop->hosted_for }}
+            {{ $workshop->hostedFor->name }}
         </td>
     </tr>
     @endif

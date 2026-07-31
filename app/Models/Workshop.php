@@ -50,7 +50,6 @@ class Workshop extends Model
         'registration',
         'registration_data',
         'private_code',
-        'hosted_for',
         'is_private',
         'is_hidden',
         'max_tickets',
@@ -64,6 +63,8 @@ class Workshop extends Model
         'pick_list_canvas_data',
         'pick_list_canvas_thumbnail_path',
         'location_id',
+        'hosted_for_organisation_id',
+        'requested_by_user_id',
         'user_id',
         'hero_media_name',
     ];
@@ -118,6 +119,22 @@ class Workshop extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    /**
+     * @return BelongsTo<Organisation, $this>
+     */
+    public function hostedFor(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class, 'hosted_for_organisation_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function requestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by_user_id');
     }
 
     /**
@@ -212,7 +229,10 @@ class Workshop extends Model
             return $this->getLocationName();
         }
 
-        $hostedFor = trim((string) ($this->hosted_for ?? ''));
+        $hostOrganisation = $this->hostedFor;
+        $hostedFor = $hostOrganisation instanceof Organisation
+            ? trim((string) $hostOrganisation->name)
+            : '';
 
         return $hostedFor !== '' ? $hostedFor : 'Private Location';
     }

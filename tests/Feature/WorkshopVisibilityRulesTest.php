@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\UpcomingWorkshops;
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\Organisation;
 use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -113,9 +114,10 @@ class WorkshopVisibilityRulesTest extends TestCase
             isPrivate: true
         );
 
+        $host = Organisation::factory()->create(['name' => 'Primary School Robotics Club']);
         $privateWorkshop->update([
             'location_id' => $privateVenue->id,
-            'hosted_for' => 'Primary School Robotics Club',
+            'hosted_for_organisation_id' => $host->id,
         ]);
 
         $feedResponse = $this->get(route('workshop.feed'));
@@ -330,11 +332,12 @@ class WorkshopVisibilityRulesTest extends TestCase
                 isPrivate: true
             );
 
+            $host = Organisation::factory()->create(['name' => 'Primary School Robotics Club']);
             $workshop->update([
                 'starts_at' => $monthStart,
                 'ends_at' => $monthStart->copy()->addHours(2),
                 'location_id' => $privateVenue->id,
-                'hosted_for' => 'Primary School Robotics Club',
+                'hosted_for_organisation_id' => $host->id,
             ]);
 
             $response = $this->get(route('workshop.index', [

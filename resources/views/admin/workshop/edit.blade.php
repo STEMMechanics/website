@@ -629,7 +629,119 @@ if (isset($workshop)) {
                         </span>
                     </div>
                 </div>
-
+                @php
+                    $selectedContact = $workshopModel?->requestedBy;
+                    $selectedHost = $workshopModel?->hostedFor;
+                    $selectedContactLabel = $selectedContact
+                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->company ? ' · '.$selectedContact->company : ''))
+                        : '';
+                    $selectedHostLabel = $selectedHost
+                        ? ($selectedHost->parent ? $selectedHost->parent->name.' — ' : '').$selectedHost->name
+                        : '';
+                @endphp
+                <div class="flex flex-col sm:flex-row sm:gap-8"
+                    x-data="{
+                        contactId: @js((string) old('requested_by_user_id', $workshopModel?->requested_by_user_id ?? '')),
+                        contactSearch: @js($selectedContactLabel),
+                        contactResults: [],
+                        contactSearching: false,
+                        hostId: @js((string) old('hosted_for_organisation_id', $workshopModel?->hosted_for_organisation_id ?? '')),
+                        hostSearch: @js($selectedHostLabel),
+                        hostResults: [],
+                        hostSearching: false,
+                        contactSequence: 0,
+                        hostSequence: 0,
+                        async findContacts() {
+                            this.contactId = '';
+                            const term = this.contactSearch.trim();
+                            const sequence = ++this.contactSequence;
+                            if (term.length < 2) { this.contactResults = []; return; }
+                            this.contactSearching = true;
+                            try {
+                                const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
+                                url.searchParams.set('search', term);
+                                const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                                const data = response.ok ? await response.json() : { users: [] };
+                                if (sequence === this.contactSequence) this.contactResults = data.users || [];
+                            } finally {
+                                if (sequence === this.contactSequence) this.contactSearching = false;
+                            }
+                        },
+                        chooseContact(contact) {
+                            this.contactId = contact.id;
+                            this.contactSearch = `${contact.name} · ${contact.email}${contact.company ? ` · ${contact.company}` : ''}`;
+                            this.contactResults = [];
+                            if (!this.hostId && contact.organisation_id) {
+                                this.hostId = contact.organisation_id;
+                                this.hostSearch = contact.organisation_name;
+                            }
+                        },
+                        clearContact() {
+                            this.contactId = '';
+                            this.contactSearch = '';
+                            this.contactResults = [];
+                        },
+                        async findHosts() {
+                            this.hostId = '';
+                            const term = this.hostSearch.trim();
+                            const sequence = ++this.hostSequence;
+                            if (term.length < 2) { this.hostResults = []; return; }
+                            this.hostSearching = true;
+                            try {
+                                const url = new URL(@js(route('admin.organisation.options')), window.location.origin);
+                                url.searchParams.set('search', term);
+                                const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                                const data = response.ok ? await response.json() : { organisations: [] };
+                                if (sequence === this.hostSequence) this.hostResults = data.organisations || [];
+                            } finally {
+                                if (sequence === this.hostSequence) this.hostSearching = false;
+                            }
+                        },
+                        chooseHost(organisation) {
+                            this.hostId = organisation.id;
+                            this.hostSearch = organisation.label;
+                            this.hostResults = [];
+                        },
+                        clearHost() {
+                            this.hostId = '';
+                            this.hostSearch = '';
+                            this.hostResults = [];
+                        },
+                    }"
+                >
+                    <div class="relative mb-4 flex-1" x-on:click.outside="contactResults = []">
+                        <input type="hidden" name="requested_by_user_id" :value="contactId">
+                        <label for="requested_by_user_search" class="mb-1 block pl-1 text-sm">Requested by / Contact</label>
+                        <div class="flex gap-2">
+                            <input id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input.debounce.350ms="findContacts()" autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        </div>
+                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearch.trim().length >= 2 && !contactSearching && contactResults.length > 0" x-cloak>
+                            <template x-for="contact in contactResults" :key="contact.id">
+                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseContact(contact)">
+                                    <span class="block text-gray-900" x-text="contact.name"></span>
+                                    <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.company ? ` · ${contact.company}` : ''}`"></span>
+                                </button>
+                            </template>
+                        </div>
+                        @error('requested_by_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="relative mb-4 flex-1" x-on:click.outside="hostResults = []">
+                        <input type="hidden" name="hosted_for_organisation_id" :value="hostId">
+                        <div class="flex justify-between">
+                            <label for="hosted_for_organisation_search" class="mb-1 block pl-1 text-sm">Hosted For</label>
+                            <a href="{{ route('admin.organisation.index') }}" class="text-primary-color cursor-pointer hover:underline text-xs">Manage organisations</a>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="hosted_for_organisation_search" type="search" x-model="hostSearch" x-on:input.debounce.350ms="findHosts()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        </div>
+                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="hostSearch.trim().length >= 2 && !hostSearching && hostResults.length > 0" x-cloak>
+                            <template x-for="organisation in hostResults" :key="organisation.id">
+                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></button>
+                            </template>
+                        </div>
+                        @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                    </div>
+                </div>
             <div
                 x-cloak
                 x-show="createLocationOpen"
@@ -779,9 +891,7 @@ if (isset($workshop)) {
                     <div class="flex-1">
                         <x-ui.input label="Private Code" name="private_code" value="{{ old('private_code', $workshop->private_code ?? '') }}" info="When set, users must enter this code before accessing private registration options." error="{{ $errors->first('private_code') }}" />
                     </div>
-                    <div class="flex-1">
-                        <x-ui.input label="Hosted For" name="hosted_for" value="{{ old('hosted_for', $workshop->hosted_for ?? '') }}" info="Shown publicly for private workshops instead of the location." error="{{ $errors->first('hosted_for') }}" />
-                    </div>
+                    <div class="hidden flex-1 sm:block" aria-hidden="true"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">

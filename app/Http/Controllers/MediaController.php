@@ -138,11 +138,12 @@ class MediaController extends Controller
                                 ->where('mediables.mediable_type', Workshop::class);
                         })
                         ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                        ->leftJoin('organisations', 'organisations.id', '=', 'workshops.hosted_for_organisation_id')
                         ->whereColumn('mediables.media_name', 'media.name')
                         ->where('mediables.collection', 'workshop_photos')
                         ->where(function ($nested) use ($request) {
                             $nested->where('workshops.title', 'like', '%' . $request->search . '%')
-                                ->orWhere('workshops.hosted_for', 'like', '%' . $request->search . '%')
+                                ->orWhere('organisations.name', 'like', '%' . $request->search . '%')
                                 ->orWhere('locations.name', 'like', '%' . $request->search . '%')
                                 ->orWhere('locations.address', 'like', '%' . $request->search . '%');
                         });
@@ -167,11 +168,12 @@ class MediaController extends Controller
                                         ->where('mediables.mediable_type', Workshop::class);
                                 })
                                 ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                                ->leftJoin('organisations', 'organisations.id', '=', 'workshops.hosted_for_organisation_id')
                                 ->whereColumn('mediables.media_name', 'media.name')
                                 ->where('mediables.collection', 'workshop_photos')
                                 ->where(function ($nested) use ($term) {
                                     $nested->where('workshops.title', 'like', '%'.$term.'%')
-                                        ->orWhere('workshops.hosted_for', 'like', '%'.$term.'%')
+                                        ->orWhere('organisations.name', 'like', '%'.$term.'%')
                                         ->orWhere('locations.name', 'like', '%'.$term.'%')
                                         ->orWhere('locations.address', 'like', '%'.$term.'%');
                                 });
@@ -216,12 +218,13 @@ class MediaController extends Controller
                             ->where('mediables.mediable_type', Workshop::class);
                     })
                     ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+                    ->leftJoin('organisations', 'organisations.id', '=', 'workshops.hosted_for_organisation_id')
                     ->whereColumn('mediables.media_name', 'media.name')
                     ->where('mediables.collection', 'workshop_photos')
                     ->where(function ($nested) use ($locationSearch) {
                         $nested->where('locations.name', 'like', '%'.$locationSearch.'%')
                             ->orWhere('locations.address', 'like', '%'.$locationSearch.'%')
-                            ->orWhere('workshops.hosted_for', 'like', '%'.$locationSearch.'%');
+                            ->orWhere('organisations.name', 'like', '%'.$locationSearch.'%');
                     });
             });
         }

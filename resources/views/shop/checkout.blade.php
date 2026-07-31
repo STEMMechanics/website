@@ -151,7 +151,7 @@
                                     x-on:input="syncRecipientField('billing_name', 'shipping_name')"
                                     x-on:change="syncRecipientField('billing_name', 'shipping_name')"
                                 />
-                                <x-ui.input name="billing_company" label="Company" :value="$prefill['billing_company']" />
+                                <x-ui.input name="billing_company" label="Organisation" :value="$prefill['billing_company']" />
                             </div>
                             <div class="grid gap-4 md:grid-cols-2">
                                 <x-ui.input name="billing_email" label="Email" type="email" :value="$prefill['billing_email']" required />

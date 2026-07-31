@@ -4,9 +4,9 @@
     $statusClass = $workshop->publicStatus();
     $statusTitle = $workshop->publicStatusLabel();
     $isAdmin = (bool) (auth()->user()?->isAdmin() ?? false);
-    $showHostedFor = $workshop->is_private && !empty($workshop->hosted_for);
+    $showHostedFor = $workshop->is_private && !empty($workshop->hostedFor);
     $locationLabel = $showHostedFor
-        ? $workshop->hosted_for
+        ? $workshop->hostedFor->name
         : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());
     $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
     $cardStartLabel = $workshop->courseScheduleFirstStartLabel();

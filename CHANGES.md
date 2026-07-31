@@ -2,6 +2,9 @@
 
 ## Current
 
+- Added organisation records with parent/child relationships, searchable contact linking, and consistent organisation terminology across admin workflows.
+- Linked workshop delivery history to hosted-for organisations and requesting contacts, including migration of legacy workshop and user organisation text without losing existing associations.
+- Added detailed workshop history and organisation coverage matrix reports with focused filters, CSV exports, and print-ready PDF exports.
 - Added persistent bulk selection and editing to the admin media library, including mixed-value handling and workshop photo/file link management.
 - Unified the workshop Files and Photos uploaders with shared local/existing media selection, staged metadata, clear item status, and image/video validation.
 - Improved media usage details and workshop linking controls so file and photo associations can be reviewed, changed, or removed from the media editor.

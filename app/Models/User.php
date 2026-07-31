@@ -8,6 +8,7 @@ use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -273,6 +274,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class);
+    }
+
+    /**
+     * @return BelongsToMany<Organisation, $this>
+     */
+    public function organisations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organisation::class)
+            ->withPivot(['role', 'is_primary'])
+            ->withTimestamps();
+    }
+
+    public function requestedWorkshops(): HasMany
+    {
+        return $this->hasMany(Workshop::class, 'requested_by_user_id');
     }
 
     public function expenses(): HasMany

@@ -59,12 +59,14 @@
                     ['label' => 'Media', 'route' => route('admin.media.index'), 'icon' => 'fa-solid fa-photo-film', 'active' => ['admin.media.*']],
                     ['label' => 'Pages', 'route' => route('admin.custom-page.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.custom-page.*']],
                     ['label' => 'Locations', 'route' => route('admin.location.index'), 'icon' => 'fa-solid fa-location-dot', 'active' => ['admin.location.*']],
+                    ['label' => 'Organisations', 'route' => route('admin.organisation.index'), 'icon' => 'fa-solid fa-building', 'active' => ['admin.organisation.*']],
                 ],
             ],
                 [
                     'title' => 'Workshops & Community',
                     'items' => [
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
+                    ['label' => 'Workshop History', 'route' => route('admin.workshop.history'), 'icon' => 'fa-solid fa-clock-rotate-left', 'active' => ['admin.workshop.history*']],
                     ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],
                     ['label' => 'STEMCraft', 'route' => route('admin.stemcraft-content.edit'), 'icon' => 'fa-solid fa-cubes', 'active' => ['admin.stemcraft-content.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],

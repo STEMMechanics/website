@@ -772,7 +772,7 @@
                 field-name="user_id"
                 lookup-name="invoice_linked_user_lookup"
                 label="Linked User"
-                info="Search by name/company/email. Select a suggestion to link the invoice."
+                info="Search by name/organisation/email. Select a suggestion to link the invoice."
                 :disabled="$isLocked"
             />
 
