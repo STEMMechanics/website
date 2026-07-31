@@ -38,15 +38,19 @@
             @if($filters !== [])
                 <div class="filters">
                     {{ implode(' · ', $filters) }}
-                    @if($columnChunks->count() > 1) · Organisation group {{ $chunkIndex + 1 }} of {{ $columnChunks->count() }} @endif
                 </div>
             @endif
             <table>
                 <thead>
                     <tr>
-                        <th class="workshop">Workshop</th>
+                        <th class="workshop" rowspan="2">Workshop</th>
+                        @foreach($columnChunk->groupBy('organisation_id') as $organisationColumns)
+                            <th class="organisation" colspan="{{ $organisationColumns->count() }}">{{ $organisationColumns->first()['organisation_name'] }}</th>
+                        @endforeach
+                    </tr>
+                    <tr>
                         @foreach($columnChunk as $column)
-                            <th class="organisation">{{ $column['name'] }}</th>
+                            <th>{{ $column['location_name'] }}</th>
                         @endforeach
                     </tr>
                 </thead>

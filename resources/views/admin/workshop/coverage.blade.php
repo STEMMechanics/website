@@ -36,10 +36,18 @@
                 <table class="min-w-full table-fixed border-collapse text-sm">
                     <thead>
                         <tr class="bg-gray-50">
-                            <th class="sticky left-0 z-20 w-72 border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-left align-bottom">Workshop</th>
+                            <th class="sticky left-0 z-20 w-72 border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-left align-middle">Workshop</th>
+                            @foreach($columnGroups as $group)
+                                <th colspan="{{ $group['columns']->count() }}" class="border-b border-r border-gray-200 px-3 py-3 text-center align-middle last:border-r-0">
+                                    {{ $group['name'] }}
+                                </th>
+                            @endforeach
+                        </tr>
+                        <tr class="bg-gray-50">
+                            <th class="sticky left-0 z-20 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">Location</th>
                             @foreach($columns as $column)
-                                <th class="w-44 border-b border-r border-gray-200 px-3 py-3 text-center align-bottom last:border-r-0">
-                                    {{ $column['name'] }}
+                                <th class="w-44 border-b border-r border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-600 last:border-r-0">
+                                    {{ $column['location_name'] }}
                                 </th>
                             @endforeach
                         </tr>

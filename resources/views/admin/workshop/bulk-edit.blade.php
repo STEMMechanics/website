@@ -55,20 +55,25 @@
                         id: @js((string) $contactValue),
                         search: @js($contactLabel),
                         results: [],
+                        selectedIndex: -1,
                         searching: false,
                         sequence: 0,
                         async find() {
                             this.id = '';
                             const term = this.search.trim();
                             const sequence = ++this.sequence;
-                            if (term.length < 2) { this.results = []; return; }
+                            if (term.length < 2) { this.results = []; this.selectedIndex = -1; return; }
                             this.searching = true;
                             try {
                                 const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
                                 url.searchParams.set('search', term);
+                                url.searchParams.set('include_ghost', '1');
                                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                                 const data = response.ok ? await response.json() : { users: [] };
-                                if (sequence === this.sequence) this.results = data.users || [];
+                                if (sequence === this.sequence) {
+                                    this.results = data.users || [];
+                                    this.selectedIndex = this.results.length > 0 ? 0 : -1;
+                                }
                             } finally {
                                 if (sequence === this.sequence) this.searching = false;
                             }
@@ -77,14 +82,28 @@
                             this.id = item.id;
                             this.search = `${item.name} · ${item.email}${item.company ? ` · ${item.company}` : ''}`;
                             this.results = [];
+                            this.selectedIndex = -1;
+                        },
+                        move(step) {
+                            if (this.results.length === 0) return;
+                            this.selectedIndex = (this.selectedIndex + step + this.results.length) % this.results.length;
+                        },
+                        apply() {
+                            if (this.selectedIndex >= 0 && this.results[this.selectedIndex]) {
+                                this.choose(this.results[this.selectedIndex]);
+                            }
+                        },
+                        close() {
+                            this.results = [];
+                            this.selectedIndex = -1;
                         }
-                    }" x-on:click.outside="results = []">
+                    }" x-on:click.outside="close()">
                         <input type="hidden" name="requested_by_user_id" :value="id">
                         <label for="bulk_requested_by_search" class="mb-1 block pl-1 text-sm">Requested By</label>
-                        <input id="bulk_requested_by_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
-                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
-                            <template x-for="item in results" :key="item.id">
-                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:click="choose(item)">
+                        <input id="bulk_requested_by_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search name, email, or organisation" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_requested_by_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        <div id="bulk_requested_by_results" role="listbox" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
+                            <template x-for="(item, index) in results" :key="item.id">
+                                <button type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)">
                                     <span class="block text-sm text-gray-900" x-text="item.name"></span>
                                     <span class="block text-xs text-gray-500" x-text="`${item.email}${item.company ? ` · ${item.company}` : ''}`"></span>
                                 </button>
@@ -99,20 +118,24 @@
                         id: @js((string) $hostValue),
                         search: @js($hostLabel),
                         results: [],
+                        selectedIndex: -1,
                         searching: false,
                         sequence: 0,
                         async find() {
                             this.id = '';
                             const term = this.search.trim();
                             const sequence = ++this.sequence;
-                            if (term.length < 2) { this.results = []; return; }
+                            if (term.length < 2) { this.results = []; this.selectedIndex = -1; return; }
                             this.searching = true;
                             try {
                                 const url = new URL(@js(route('admin.organisation.options')), window.location.origin);
                                 url.searchParams.set('search', term);
                                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                                 const data = response.ok ? await response.json() : { organisations: [] };
-                                if (sequence === this.sequence) this.results = data.organisations || [];
+                                if (sequence === this.sequence) {
+                                    this.results = data.organisations || [];
+                                    this.selectedIndex = this.results.length > 0 ? 0 : -1;
+                                }
                             } finally {
                                 if (sequence === this.sequence) this.searching = false;
                             }
@@ -121,14 +144,28 @@
                             this.id = item.id;
                             this.search = item.label;
                             this.results = [];
+                            this.selectedIndex = -1;
+                        },
+                        move(step) {
+                            if (this.results.length === 0) return;
+                            this.selectedIndex = (this.selectedIndex + step + this.results.length) % this.results.length;
+                        },
+                        apply() {
+                            if (this.selectedIndex >= 0 && this.results[this.selectedIndex]) {
+                                this.choose(this.results[this.selectedIndex]);
+                            }
+                        },
+                        close() {
+                            this.results = [];
+                            this.selectedIndex = -1;
                         }
-                    }" x-on:click.outside="results = []">
+                    }" x-on:click.outside="close()">
                         <input type="hidden" name="hosted_for_organisation_id" :value="id">
                         <label for="bulk_hosted_for_search" class="mb-1 block pl-1 text-sm">Hosted For</label>
-                        <input id="bulk_hosted_for_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
-                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
-                            <template x-for="item in results" :key="item.id">
-                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="choose(item)" x-text="item.label"></button>
+                        <input id="bulk_hosted_for_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search organisations" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_hosted_for_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        <div id="bulk_hosted_for_results" role="listbox" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
+                            <template x-for="(item, index) in results" :key="item.id">
+                                <button type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)" x-text="item.label"></button>
                             </template>
                         </div>
                     </div>
