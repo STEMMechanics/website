@@ -82,7 +82,9 @@ class WorkshopHistoryController extends Controller
 
         return response()->streamDownload(function () use ($matrix): void {
             $output = fopen('php://output', 'wb');
-            fputcsv($output, ['Workshop', ...$matrix['columns']->pluck('name')->all()]);
+            fputcsv($output, ['Workshop', ...$matrix['columns']->map(
+                fn (array $column): string => $column['organisation_name'].' — '.$column['location_name']
+            )->all()]);
             foreach ($matrix['rows'] as $row) {
                 fputcsv($output, [
                     $row['title'],
@@ -116,28 +118,31 @@ class WorkshopHistoryController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $organisationId = trim((string) $request->query('organisation_id', ''));
-        $requestedOrganisationIds = $request->query('organisation_ids', []);
-        $organisationIds = is_array($requestedOrganisationIds)
-            ? array_values(array_filter(array_map('strval', $requestedOrganisationIds)))
-            : [];
+        $organisationIds = $this->requestIds($request, 'organisation_ids');
+        $locationIds = $this->requestIds($request, 'location_ids', 'location_id');
+        $requestedByUserIds = $this->requestIds($request, 'requested_by_user_ids', 'requested_by_user_id');
+        $categoryIds = $this->requestIds($request, 'category_ids', 'category_id');
         if ($organisationIds === [] && $organisationId !== '') {
             $organisationIds = [$organisationId];
         }
-        if ($organisationId !== '' && $request->boolean('include_children')) {
-            $organisation = Organisation::query()->find($organisationId);
-            if ($organisation) {
-                $organisationIds = [$organisationId, ...$organisation->descendantIds()];
-            }
+        if ($organisationIds !== [] && $request->boolean('include_children')) {
+            $organisationIds = Organisation::query()
+                ->whereIn('id', $organisationIds)
+                ->get()
+                ->flatMap(fn (Organisation $organisation): array => [(string) $organisation->id, ...$organisation->descendantIds()])
+                ->unique()
+                ->values()
+                ->all();
         }
 
         return Workshop::query()
             ->with(['hostedFor', 'requestedBy', 'location', 'categories'])
             ->when($request->boolean('past_only'), fn ($query) => $query->where('starts_at', '<=', now()))
             ->when(! $request->boolean('include_cancelled'), fn ($query) => $query->whereNotIn('status', ['draft', 'cancelled']))
-            ->when($request->filled('location_id'), fn ($query) => $query->where('location_id', $request->query('location_id')))
+            ->when($locationIds !== [], fn ($query) => $query->whereIn('location_id', $locationIds))
             ->when($organisationIds !== [], fn ($query) => $query->whereIn('hosted_for_organisation_id', $organisationIds))
-            ->when($request->filled('requested_by_user_id'), fn ($query) => $query->where('requested_by_user_id', $request->query('requested_by_user_id')))
-            ->when($request->filled('category_id'), fn ($query) => $query->whereHas('categories', fn ($query) => $query->whereKey($request->query('category_id'))))
+            ->when($requestedByUserIds !== [], fn ($query) => $query->whereIn('requested_by_user_id', $requestedByUserIds))
+            ->when($categoryIds !== [], fn ($query) => $query->whereHas('categories', fn ($query) => $query->whereIn('workshop_categories.id', $categoryIds)))
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('starts_at', '>=', $request->query('date_from')))
             ->when($request->filled('date_to'), fn ($query) => $query->whereDate('starts_at', '<=', $request->query('date_to')))
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
@@ -166,7 +171,12 @@ class WorkshopHistoryController extends Controller
     }
 
     /**
-     * @return array{columns: SupportCollection<int, array{id: string, name: string}>, rows: SupportCollection<int, array{title: string, cells: array<string, non-empty-list<array{date: string, edit_url: string}>>}>, workshopCount: int}
+     * @return array{
+     *     columns: SupportCollection<int, array{id: string, organisation_id: string, organisation_name: string, location_name: string}>,
+     *     columnGroups: SupportCollection<int, array{id: string, name: string, columns: SupportCollection<int, array{id: non-falsy-string, organisation_id: string, organisation_name: string, location_name: string}>}>,
+     *     rows: SupportCollection<int, array{title: string, cells: array<non-falsy-string, non-empty-list<array{date: string, edit_url: string}>>}>,
+     *     workshopCount: int
+     * }
      */
     private function matrixData(Request $request): array
     {
@@ -181,21 +191,55 @@ class WorkshopHistoryController extends Controller
         if ($organisationIds === []) {
             return [
                 'columns' => collect(),
+                'columnGroups' => collect(),
                 'rows' => collect(),
                 'workshopCount' => 0,
             ];
         }
 
         $workshops = $this->filteredQuery($request)->get();
-        $columns = Organisation::query()
+        $organisations = Organisation::query()
             ->whereIn('id', $organisationIds)
             ->orderBy('name')
-            ->get()
-            ->map(fn (Organisation $organisation): array => [
-                'id' => (string) $organisation->id,
+            ->get();
+
+        $columnGroups = $organisations->map(function (Organisation $organisation) use ($workshops): array {
+            $organisationId = (string) $organisation->id;
+            $organisationWorkshops = $workshops
+                ->filter(fn (Workshop $workshop): bool => (string) $workshop->hosted_for_organisation_id === $organisationId);
+
+            $locationColumns = $organisationWorkshops
+                ->groupBy(fn (Workshop $workshop): string => $this->matrixLocationKey($workshop))
+                ->map(function (Collection $locationWorkshops, string $locationKey) use ($organisation, $organisationId): array {
+                    $workshop = $locationWorkshops->first();
+
+                    return [
+                        'id' => $organisationId.'|'.$locationKey,
+                        'organisation_id' => $organisationId,
+                        'organisation_name' => (string) $organisation->name,
+                        'location_name' => $workshop instanceof Workshop ? $workshop->getLocationName() : 'No location',
+                    ];
+                })
+                ->sortBy('location_name', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values();
+
+            if ($locationColumns->isEmpty()) {
+                $locationColumns->push([
+                    'id' => $organisationId.'|__none',
+                    'organisation_id' => $organisationId,
+                    'organisation_name' => (string) $organisation->name,
+                    'location_name' => '-',
+                ]);
+            }
+
+            return [
+                'id' => $organisationId,
                 'name' => (string) $organisation->name,
-            ])
-            ->values();
+                'columns' => $locationColumns,
+            ];
+        })->values();
+
+        $columns = $columnGroups->flatMap(fn (array $group) => $group['columns'])->values();
 
         $rows = $workshops
             ->groupBy(fn (Workshop $workshop): string => mb_strtolower(trim((string) $workshop->title)))
@@ -203,7 +247,7 @@ class WorkshopHistoryController extends Controller
                 $cells = [];
                 foreach ($group->sortBy('starts_at') as $workshop) {
                     $columnId = $workshop->hostedFor instanceof Organisation
-                        ? (string) $workshop->hostedFor->id
+                        ? (string) $workshop->hostedFor->id.'|'.$this->matrixLocationKey($workshop)
                         : '__unassigned';
                     $cells[$columnId][] = [
                         'date' => (string) ($workshop->starts_at?->format('d M Y') ?? 'No date'),
@@ -224,9 +268,17 @@ class WorkshopHistoryController extends Controller
 
         return [
             'columns' => $columns,
+            'columnGroups' => $columnGroups,
             'rows' => $rows,
             'workshopCount' => $workshops->count(),
         ];
+    }
+
+    private function matrixLocationKey(Workshop $workshop): string
+    {
+        $locationId = trim((string) ($workshop->location_id ?? ''));
+
+        return $locationId !== '' ? $locationId : '__'.$workshop->locationType();
     }
 
     /**
@@ -238,29 +290,33 @@ class WorkshopHistoryController extends Controller
         if ($request->filled('search')) {
             $clauses[] = 'matching “'.trim((string) $request->query('search')).'”';
         }
-        if ($request->filled('organisation_id')) {
-            $organisation = Organisation::query()->find($request->query('organisation_id'));
-            if ($organisation) {
-                $clauses[] = 'hosted for '.$organisation->name
-                    .($request->boolean('include_children') ? ' and its child organisations' : '');
+        $organisationIds = $this->requestIds($request, 'organisation_ids', 'organisation_id');
+        if ($organisationIds !== []) {
+            $names = Organisation::query()->whereIn('id', $organisationIds)->orderBy('name')->pluck('name')->all();
+            if ($names !== []) {
+                $clauses[] = 'hosted for '.implode(', ', $names)
+                    .($request->boolean('include_children') ? ' and their child organisations' : '');
             }
         }
-        if ($request->filled('requested_by_user_id')) {
-            $contact = User::query()->find($request->query('requested_by_user_id'));
-            if ($contact) {
-                $clauses[] = 'requested by '.$contact->getName();
+        $requestedByUserIds = $this->requestIds($request, 'requested_by_user_ids', 'requested_by_user_id');
+        if ($requestedByUserIds !== []) {
+            $names = User::query()->whereIn('id', $requestedByUserIds)->get()->map->getName()->filter()->all();
+            if ($names !== []) {
+                $clauses[] = 'requested by '.implode(', ', $names);
             }
         }
-        if ($request->filled('location_id')) {
-            $location = Location::query()->find($request->query('location_id'));
-            if ($location) {
-                $clauses[] = 'at '.$location->name;
+        $locationIds = $this->requestIds($request, 'location_ids', 'location_id');
+        if ($locationIds !== []) {
+            $names = Location::query()->whereIn('id', $locationIds)->orderBy('name')->pluck('name')->all();
+            if ($names !== []) {
+                $clauses[] = 'at '.implode(', ', $names);
             }
         }
-        if ($request->filled('category_id')) {
-            $category = WorkshopCategory::query()->find($request->query('category_id'));
-            if ($category) {
-                $clauses[] = 'in the '.$category->name.' category';
+        $categoryIds = $this->requestIds($request, 'category_ids', 'category_id');
+        if ($categoryIds !== []) {
+            $names = WorkshopCategory::query()->whereIn('id', $categoryIds)->orderBy('name')->pluck('name')->all();
+            if ($names !== []) {
+                $clauses[] = 'in at least one of the '.implode(', ', $names).' categories';
             }
         }
         if ($request->filled('date_from') && $request->filled('date_to')) {
@@ -283,6 +339,26 @@ class WorkshopHistoryController extends Controller
         }
 
         return [$summary];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function requestIds(Request $request, string $arrayKey, ?string $legacyKey = null): array
+    {
+        $values = $request->query($arrayKey, []);
+        $ids = is_array($values) ? $values : [];
+
+        if ($ids === [] && $legacyKey !== null && $request->filled($legacyKey)) {
+            $ids = [$request->query($legacyKey)];
+        }
+
+        return collect($ids)
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function pdfResponse(PDF $pdf, string $filename): Response

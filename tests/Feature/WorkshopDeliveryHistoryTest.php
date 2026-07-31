@@ -8,6 +8,7 @@ use App\Models\Organisation;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -61,6 +62,11 @@ class WorkshopDeliveryHistoryTest extends TestCase
             'surname' => 'Customer',
             'email_verified_at' => now(),
         ]);
+        $ghost = User::factory()->unverified()->create([
+            'firstname' => 'Ghost',
+            'surname' => 'Contact',
+            'company' => 'Cairns Libraries',
+        ]);
 
         $this->actingAs($admin)
             ->getJson(route('admin.organisation.contact-options', ['search' => 'Cairns']))
@@ -69,6 +75,15 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertJsonPath('users.0.id', (string) $matching->id)
             ->assertJsonPath('users.0.name', 'Jemima Jones')
             ->assertJsonPath('users.0.organisation_id', (string) $organisation->id);
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.organisation.contact-options', [
+                'search' => 'Cairns',
+                'include_ghost' => 1,
+            ]))
+            ->assertOk()
+            ->assertJsonCount(2, 'users')
+            ->assertJsonFragment(['id' => (string) $ghost->id]);
     }
 
     public function test_admin_can_select_or_create_an_organisation_from_the_user_editor(): void
@@ -211,16 +226,65 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertDontSee('Future Stop Motion');
     }
 
+    public function test_history_and_matrix_category_filters_match_any_selected_category(): void
+    {
+        $admin = $this->createAdminUser();
+        $organisation = Organisation::factory()->create(['name' => 'Category Test Organisation']);
+        $robotics = WorkshopCategory::query()->create(['name' => 'Robotics', 'slug' => 'robotics']);
+        $coding = WorkshopCategory::query()->create(['name' => 'Coding', 'slug' => 'coding']);
+        $craft = WorkshopCategory::query()->create(['name' => 'Craft', 'slug' => 'craft']);
+
+        $roboticsWorkshop = $this->createWorkshop($admin, ['title' => 'Robot Lab', 'hosted_for_organisation_id' => $organisation->id]);
+        $codingWorkshop = $this->createWorkshop($admin, ['title' => 'Code Club', 'hosted_for_organisation_id' => $organisation->id]);
+        $craftWorkshop = $this->createWorkshop($admin, ['title' => 'Craft Club', 'hosted_for_organisation_id' => $organisation->id]);
+        $roboticsWorkshop->categories()->attach($robotics->id);
+        $codingWorkshop->categories()->attach($coding->id);
+        $craftWorkshop->categories()->attach($craft->id);
+
+        $filters = ['category_ids' => [$robotics->id, $coding->id]];
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.history', $filters))
+            ->assertOk()
+            ->assertSee('Robot Lab')
+            ->assertSee('Code Club')
+            ->assertDontSee('Craft Club')
+            ->assertSee('history_category_search', false)
+            ->assertSee('x-on:focus="open = true"', false)
+            ->assertDontSee('term.length &lt; 2', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.coverage', [
+                ...$filters,
+                'organisation_ids' => [$organisation->id],
+            ]))
+            ->assertOk()
+            ->assertSee('Robot Lab')
+            ->assertSee('Code Club')
+            ->assertDontSee('Craft Club')
+            ->assertSee('matrix_category_search', false);
+    }
+
     public function test_coverage_matrix_and_report_exports_are_available(): void
     {
         $admin = $this->createAdminUser();
         $library = Organisation::factory()->create(['name' => 'Cairns Libraries']);
         $school = Organisation::factory()->create(['name' => 'Example School']);
+        $cityLibrary = Location::factory()->create(['name' => 'City Library']);
+        $smithfieldLibrary = Location::factory()->create(['name' => 'Smithfield Library']);
         $this->createWorkshop($admin, [
             'title' => 'Stop Motion',
             'hosted_for_organisation_id' => $library->id,
+            'location_id' => $cityLibrary->id,
             'starts_at' => now()->subMonths(2),
             'ends_at' => now()->subMonths(2)->addHours(2),
+        ]);
+        $this->createWorkshop($admin, [
+            'title' => 'Stop Motion',
+            'hosted_for_organisation_id' => $library->id,
+            'location_id' => $smithfieldLibrary->id,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->subMonth()->addHours(2),
         ]);
         $this->createWorkshop($admin, [
             'title' => 'Stop Motion',
@@ -244,12 +308,17 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertOk()
             ->assertSee('Cairns Libraries')
             ->assertSee('Example School')
+            ->assertSee('City Library')
+            ->assertSee('Smithfield Library')
             ->assertSee('Stop Motion');
 
-        $this->actingAs($admin)
+        $csvResponse = $this->actingAs($admin)
             ->get(route('admin.workshop.coverage.csv', $matrixFilters))
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $csvContent = $csvResponse->streamedContent();
+        $this->assertStringContainsString('Cairns Libraries — City Library', $csvContent);
+        $this->assertStringContainsString('Cairns Libraries — Smithfield Library', $csvContent);
 
         $this->actingAs($admin)
             ->get(route('admin.workshop.history.pdf'))

@@ -43,7 +43,7 @@ class OrganisationController extends Controller
 
         $users = User::query()
             ->with('organisations')
-            ->whereNotNull('email_verified_at')
+            ->when(! $request->boolean('include_ghost'), fn ($query) => $query->whereNotNull('email_verified_at'))
             ->where(function ($query) use ($search): void {
                 $query->where('firstname', 'like', '%'.$search.'%')
                     ->orWhere('surname', 'like', '%'.$search.'%')

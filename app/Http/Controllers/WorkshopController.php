@@ -181,11 +181,6 @@ class WorkshopController extends Controller
                     ])),
                     'active' => $view === 'month',
                 ],
-                [
-                    'title' => 'History',
-                    'route' => route('admin.workshop.history'),
-                    'active' => false,
-                ],
             ],
             'view' => $view,
             'workshops' => $workshops,
