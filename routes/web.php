@@ -337,6 +337,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/month/pdf', [WorkshopController::class, 'admin_month_pdf'])->name('admin.workshop.month.pdf');
     Route::get('/admin/workshops/month/pick-lists/pdf', [WorkshopController::class, 'admin_month_pick_lists_pdf'])->name('admin.workshop.month.pick-lists.pdf');
     Route::get('/admin/workshops/month/materials/pdf', [WorkshopController::class, 'admin_month_materials_pdf'])->name('admin.workshop.month.materials.pdf');
+    Route::post('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_select'])->name('admin.workshop.bulk.select');
+    Route::get('/admin/workshops/bulk/edit', [WorkshopController::class, 'admin_bulk_edit'])->name('admin.workshop.bulk.edit');
+    Route::put('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_update'])->name('admin.workshop.bulk.update');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
     Route::get('/admin/workshop-categories', [WorkshopCategoryController::class, 'index'])->name('admin.workshop-category.index');
     Route::get('/admin/workshop-categories/create', [WorkshopCategoryController::class, 'create'])->name('admin.workshop-category.create');

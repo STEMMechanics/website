@@ -299,7 +299,10 @@
             @else
                 <x-ui.table>
                     <x-slot:header>
-                        <th>Title</th>
+                        <th class="w-10 text-center !border-r-0">
+                            <x-ui.checkbox id="admin-workshop-select-page" aria-label="Select all workshops on this page" :noWrapper="true" inputClass="mx-auto" />
+                        </th>
+                        <th class="!border-l-0 !pl-1">Title</th>
                         <th class="hidden lg:table-cell">Status</th>
                         <th class="hidden lg:table-cell">Location</th>
                         <th class="hidden md:table-cell">Starts</th>
@@ -308,7 +311,10 @@
                     <x-slot:body>
                         @foreach ($workshops as $workshop)
                             <tr>
-                                <td>
+                                <td class="text-center !border-r-0">
+                                    <x-ui.checkbox value="{{ $workshop->id }}" label="Select {{ $workshop->title }}" :labelHidden="true" :noWrapper="true" inputClass="admin-workshop-select-item" />
+                                </td>
+                                <td class="!border-l-0 !pl-1">
                                     <div class="flex items-center">
                                         <div class="w-12 text-center hidden sm:inline-block">
                                             <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
@@ -358,7 +364,83 @@
 
                 {{ $workshops->appends(request()->query())->links() }}
             @endif
+            <form id="admin-workshop-bulk-form" method="POST" action="{{ route('admin.workshop.bulk.select') }}" class="mt-4">
+                @csrf
+                <div id="admin-workshop-bulk-inputs"></div>
+                <div class="flex flex-wrap items-center justify-start gap-3">
+                    <x-ui.button type="submit" id="admin-workshop-bulk-edit" disabled>Bulk Edit</x-ui.button>
+                    <x-ui.button type="button" id="admin-workshop-clear-selection" color="outline" disabled>Clear</x-ui.button>
+                    <div class="text-sm"><span id="admin-workshop-selected-count">0</span> selected</div>
+                </div>
+            </form>
         @endif
         </div>
     </x-container>
 </x-layout>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const storageKey = 'admin-workshop-bulk-selection';
+        const form = document.getElementById('admin-workshop-bulk-form');
+        const inputs = document.getElementById('admin-workshop-bulk-inputs');
+        const count = document.getElementById('admin-workshop-selected-count');
+        const clear = document.getElementById('admin-workshop-clear-selection');
+        const bulkEdit = document.getElementById('admin-workshop-bulk-edit');
+        const selectPage = document.getElementById('admin-workshop-select-page');
+        const itemCheckboxes = Array.from(document.querySelectorAll('.admin-workshop-select-item'));
+        let selected = [];
+
+        try {
+            selected = JSON.parse(sessionStorage.getItem(storageKey) || '[]').map(String);
+        } catch (error) {
+            selected = [];
+        }
+        selected = [...new Set(selected)];
+
+        @if(session('admin_workshop_bulk_clear_selection'))
+            selected = [];
+        @endif
+
+        const render = () => {
+            sessionStorage.setItem(storageKey, JSON.stringify(selected));
+            itemCheckboxes.forEach((checkbox) => checkbox.checked = selected.includes(checkbox.value));
+            const pageIds = itemCheckboxes.map((checkbox) => checkbox.value);
+            const selectedOnPage = pageIds.filter((id) => selected.includes(id)).length;
+            if (selectPage) {
+                selectPage.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
+                selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
+            }
+            if (count) count.textContent = String(selected.length);
+            if (clear) clear.disabled = selected.length === 0;
+            if (bulkEdit) bulkEdit.disabled = selected.length === 0;
+            if (inputs) {
+                inputs.replaceChildren(...selected.map((id) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'workshop_ids[]';
+                    input.value = id;
+                    return input;
+                }));
+            }
+        };
+
+        itemCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', () => {
+            selected = checkbox.checked
+                ? [...new Set([...selected, checkbox.value])]
+                : selected.filter((id) => id !== checkbox.value);
+            render();
+        }));
+        selectPage?.addEventListener('change', () => {
+            const pageIds = itemCheckboxes.map((checkbox) => checkbox.value);
+            selected = selectPage.checked
+                ? [...new Set([...selected, ...pageIds])]
+                : selected.filter((id) => !pageIds.includes(id));
+            render();
+        });
+        clear?.addEventListener('click', () => {
+            selected = [];
+            render();
+        });
+        render();
+    });
+</script>

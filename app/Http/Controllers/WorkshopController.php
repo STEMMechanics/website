@@ -10,6 +10,7 @@ use App\Mail\WorkshopInterestAdminNotification;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Location;
 use App\Models\Media;
 use App\Models\Payment;
 use App\Models\PickListTemplate;
@@ -189,6 +190,140 @@ class WorkshopController extends Controller
             'view' => $view,
             'workshops' => $workshops,
         ]);
+    }
+
+    public function admin_bulk_select(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'workshop_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'workshop_ids.*' => ['required', 'string', 'distinct', Rule::exists('workshops', 'id')],
+        ]);
+
+        $request->session()->put('admin_workshop_bulk_selection', array_values($validated['workshop_ids']));
+
+        return redirect()->route('admin.workshop.bulk.edit');
+    }
+
+    public function admin_bulk_edit(Request $request)
+    {
+        $workshopIds = $this->bulkWorkshopSelection($request);
+        if ($workshopIds === []) {
+            return redirect()->route('admin.workshop.index')
+                ->withErrors(['workshop_ids' => 'Select at least one workshop to bulk edit.']);
+        }
+
+        $selectedWorkshops = Workshop::query()
+            ->with(['hero', 'categories', 'location', 'requestedBy', 'hostedFor'])
+            ->whereIn('id', $workshopIds)
+            ->get()
+            ->sortBy(fn (Workshop $workshop) => array_search((string) $workshop->id, $workshopIds, true))
+            ->values();
+
+        $fields = [
+            'type', 'location_id', 'requested_by_user_id', 'hosted_for_organisation_id',
+            'status', 'is_private', 'is_hidden', 'price', 'ages', 'registration',
+            'registration_data', 'max_tickets',
+        ];
+        $commonValues = [];
+        $mixedFields = [];
+        foreach ($fields as $field) {
+            $values = $selectedWorkshops
+                ->map(fn (Workshop $workshop) => $this->bulkWorkshopFieldValue($workshop, $field))
+                ->unique(strict: true);
+            $mixedFields[$field] = $values->count() !== 1;
+            $commonValues[$field] = $values->count() === 1 ? $values->first() : '';
+        }
+
+        $linkedCategories = $selectedWorkshops
+            ->flatMap(fn (Workshop $workshop) => $workshop->categories)
+            ->groupBy(fn (WorkshopCategory $category) => (string) $category->id)
+            ->map(fn ($categories) => [
+                'category' => $categories->first(),
+                'count' => $categories->count(),
+                'total' => $selectedWorkshops->count(),
+            ])
+            ->sortBy(fn (array $item) => $item['category']->name)
+            ->values();
+
+        return response()->view('admin.workshop.bulk-edit', [
+            'selectedWorkshops' => $selectedWorkshops,
+            'commonValues' => $commonValues,
+            'mixedFields' => $mixedFields,
+            'linkedCategories' => $linkedCategories,
+            'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
+            'locations' => Location::query()->orderBy('name')->get(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+    }
+
+    public function admin_bulk_update(Request $request): RedirectResponse
+    {
+        $workshopIds = $this->bulkWorkshopSelection($request);
+        if ($workshopIds === []) {
+            return redirect()->route('admin.workshop.index')
+                ->withErrors(['workshop_ids' => 'Your bulk workshop selection has expired. Please select the workshops again.']);
+        }
+
+        $validated = $request->validate([
+            'type' => ['nullable', Rule::in([...Workshop::TYPES, '__mixed'])],
+            'location_id' => ['nullable', 'string', Rule::excludeIf(fn () => $request->input('location_id') === '__mixed'), Rule::exists('locations', 'id')],
+            'requested_by_user_id' => ['nullable', 'string', Rule::excludeIf(fn () => $request->input('requested_by_user_id') === '__mixed'), Rule::exists('users', 'id')],
+            'hosted_for_organisation_id' => ['nullable', 'string', Rule::excludeIf(fn () => $request->input('hosted_for_organisation_id') === '__mixed'), Rule::exists('organisations', 'id')],
+            'status' => ['nullable', Rule::in(['draft', 'scheduled', 'open', 'full', 'closed', 'cancelled', '__mixed'])],
+            'is_private' => ['nullable', Rule::in(['0', '1', '__mixed'])],
+            'is_hidden' => ['nullable', Rule::in(['0', '1', '__mixed'])],
+            'price' => ['nullable', 'string', 'max:255'],
+            'ages' => ['nullable', 'string', 'max:255'],
+            'registration' => ['nullable', Rule::in(['none', 'tickets', 'interest', 'link', 'email', 'message', '__mixed'])],
+            'registration_data' => ['nullable', 'string', Rule::requiredIf(fn () => in_array($request->input('registration'), ['link', 'email', 'message'], true))],
+            'max_tickets' => ['nullable', 'integer', 'min:1', Rule::requiredIf(fn () => $request->input('registration') === 'tickets')],
+            'add_category_ids' => ['nullable', 'array'],
+            'add_category_ids.*' => ['integer', 'distinct', Rule::exists('workshop_categories', 'id')],
+            'remove_category_ids' => ['nullable', 'array'],
+            'remove_category_ids.*' => ['integer', 'distinct', Rule::exists('workshop_categories', 'id')],
+        ]);
+
+        $workshops = Workshop::query()->whereIn('id', $workshopIds)->get();
+        $changes = $this->bulkWorkshopChanges($workshops, $request);
+        $addCategoryIds = collect($validated['add_category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        $removeCategoryIds = collect($validated['remove_category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        DB::transaction(function () use ($workshops, $changes, $addCategoryIds, $removeCategoryIds): void {
+            foreach ($workshops as $workshop) {
+                $itemChanges = $changes;
+                if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL) {
+                    $itemChanges['location_id'] = null;
+                }
+                if (isset($itemChanges['registration']) && ! in_array($itemChanges['registration'], ['link', 'email', 'message'], true)) {
+                    $itemChanges['registration_data'] = null;
+                }
+                if (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets') {
+                    $itemChanges['max_tickets'] = null;
+                }
+                if ($itemChanges !== []) {
+                    $workshop->update($itemChanges);
+                }
+                if ($removeCategoryIds->isNotEmpty()) {
+                    $workshop->categories()->detach($removeCategoryIds->all());
+                }
+                if ($addCategoryIds->isNotEmpty()) {
+                    $workshop->categories()->syncWithoutDetaching($addCategoryIds->all());
+                }
+            }
+        });
+
+        $request->session()->forget('admin_workshop_bulk_selection');
+
+        return redirect()->route('admin.workshop.index')
+            ->with('message', $workshops->count().' workshop'.($workshops->count() === 1 ? '' : 's').' updated')
+            ->with('message-title', 'Bulk edit complete')
+            ->with('message-type', 'success')
+            ->with('admin_workshop_bulk_clear_selection', true);
     }
 
     public function admin_month_pdf(Request $request): Response
@@ -4681,6 +4816,78 @@ class WorkshopController extends Controller
             $email !== '' ? $email : null,
             $name !== '' ? $name : null,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function bulkWorkshopSelection(Request $request): array
+    {
+        return collect($request->session()->get('admin_workshop_bulk_selection', []))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->take(500)
+            ->values()
+            ->all();
+    }
+
+    private function bulkWorkshopFieldValue(Workshop $workshop, string $field): string
+    {
+        if (in_array($field, ['is_private', 'is_hidden'], true)) {
+            return $workshop->{$field} ? '1' : '0';
+        }
+
+        return trim((string) ($workshop->{$field} ?? ''));
+    }
+
+    /**
+     * @param iterable<int, Workshop> $workshops
+     * @return array<string, mixed>
+     */
+    private function bulkWorkshopChanges(iterable $workshops, Request $request): array
+    {
+        $changes = [];
+        $fields = [
+            'type', 'location_id', 'requested_by_user_id', 'hosted_for_organisation_id',
+            'status', 'is_private', 'is_hidden', 'price', 'ages', 'registration',
+            'registration_data', 'max_tickets',
+        ];
+
+        foreach ($fields as $field) {
+            if (! $request->exists($field)) {
+                continue;
+            }
+
+            $submitted = trim((string) $request->input($field, ''));
+            if ($submitted === '__mixed') {
+                continue;
+            }
+
+            $currentValues = collect($workshops)
+                ->map(fn (Workshop $workshop) => $this->bulkWorkshopFieldValue($workshop, $field))
+                ->unique(strict: true);
+
+            if ($currentValues->count() === 1 && $currentValues->first() === $submitted) {
+                continue;
+            }
+            if ($currentValues->count() > 1 && $submitted === '') {
+                continue;
+            }
+
+            $changes[$field] = $submitted !== '' ? $submitted : null;
+        }
+
+        foreach (['is_private', 'is_hidden'] as $field) {
+            if (array_key_exists($field, $changes)) {
+                $changes[$field] = $changes[$field] === '1';
+            }
+        }
+        if (array_key_exists('max_tickets', $changes) && $changes['max_tickets'] !== null) {
+            $changes['max_tickets'] = (int) $changes['max_tickets'];
+        }
+
+        return $changes;
     }
 
     private function groupSuggestions(): array
