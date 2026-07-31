@@ -327,7 +327,7 @@
                 field-name="user_id"
                 lookup-name="payment_user_lookup"
                 label="Customer"
-                info="Search by name/company/email. Select a customer for this payment."
+                info="Search by name/organisation/email. Select a customer for this payment."
                 :disabled="!$canEditLinkage"
             />
 

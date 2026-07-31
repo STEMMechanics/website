@@ -16,6 +16,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\OrganisationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PickListTemplateController;
 use App\Http\Controllers\PostController;
@@ -39,8 +40,9 @@ use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\TaxAdjustmentController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\WorkshopCategoryController;
+use App\Http\Controllers\WorkshopController;
+use App\Http\Controllers\WorkshopHistoryController;
 use App\Http\Controllers\WorkshopPickListController;
 use App\Http\Controllers\WorkshopTicketFlowController;
 use Illuminate\Support\Facades\Route;
@@ -231,6 +233,14 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/locations/{location}', [LocationController::class, 'edit'])->name('admin.location.edit');
     Route::put('/admin/locations/{location}', [LocationController::class, 'update'])->name('admin.location.update');
     Route::delete('/admin/locations/{location}', [LocationController::class, 'destroy'])->name('admin.location.destroy');
+    Route::get('/admin/organisations', [OrganisationController::class, 'index'])->name('admin.organisation.index');
+    Route::get('/admin/organisations/create', [OrganisationController::class, 'create'])->name('admin.organisation.create');
+    Route::get('/admin/organisations/contact-options', [OrganisationController::class, 'contactOptions'])->name('admin.organisation.contact-options');
+    Route::get('/admin/organisations/options', [OrganisationController::class, 'organisationOptions'])->name('admin.organisation.options');
+    Route::post('/admin/organisations', [OrganisationController::class, 'store'])->name('admin.organisation.store');
+    Route::get('/admin/organisations/{organisation}', [OrganisationController::class, 'edit'])->name('admin.organisation.edit');
+    Route::put('/admin/organisations/{organisation}', [OrganisationController::class, 'update'])->name('admin.organisation.update');
+    Route::delete('/admin/organisations/{organisation}', [OrganisationController::class, 'destroy'])->name('admin.organisation.destroy');
 
     //    Route::get('/admin/posts', [PostController::class, 'admin_index'])->name('admin.post.index');
     //    Route::get('/admin/posts/create', [PostController::class, 'admin_create'])->name('admin.post.create');
@@ -318,6 +328,12 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/analytics/prune', [AnalyticsController::class, 'prune'])->name('admin.analytics.prune');
 
     Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
+    Route::get('/admin/workshops/history', [WorkshopHistoryController::class, 'index'])->name('admin.workshop.history');
+    Route::get('/admin/workshops/history/csv', [WorkshopHistoryController::class, 'csv'])->name('admin.workshop.history.csv');
+    Route::get('/admin/workshops/history/pdf', [WorkshopHistoryController::class, 'pdf'])->name('admin.workshop.history.pdf');
+    Route::get('/admin/workshops/coverage', [WorkshopHistoryController::class, 'matrix'])->name('admin.workshop.coverage');
+    Route::get('/admin/workshops/coverage/csv', [WorkshopHistoryController::class, 'matrixCsv'])->name('admin.workshop.coverage.csv');
+    Route::get('/admin/workshops/coverage/pdf', [WorkshopHistoryController::class, 'matrixPdf'])->name('admin.workshop.coverage.pdf');
     Route::get('/admin/workshops/month/pdf', [WorkshopController::class, 'admin_month_pdf'])->name('admin.workshop.month.pdf');
     Route::get('/admin/workshops/month/pick-lists/pdf', [WorkshopController::class, 'admin_month_pick_lists_pdf'])->name('admin.workshop.month.pick-lists.pdf');
     Route::get('/admin/workshops/month/materials/pdf', [WorkshopController::class, 'admin_month_materials_pdf'])->name('admin.workshop.month.materials.pdf');

@@ -180,6 +180,11 @@ class WorkshopController extends Controller
                     ])),
                     'active' => $view === 'month',
                 ],
+                [
+                    'title' => 'History',
+                    'route' => route('admin.workshop.history'),
+                    'active' => false,
+                ],
             ],
             'view' => $view,
             'workshops' => $workshops,
@@ -399,7 +404,7 @@ class WorkshopController extends Controller
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = Workshop::query()
             ->publiclyVisible()
-            ->with(['hero', 'location'])
+            ->with(['hero', 'location', 'hostedFor'])
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->orderBy('starts_at', 'asc')
             ->get();
@@ -680,7 +685,13 @@ class WorkshopController extends Controller
         if ($search !== '') {
             $query->where(function (Builder $builder) use ($search): void {
                 $builder->where('title', 'like', '%'.$search.'%')
-                    ->orWhere('content', 'like', '%'.$search.'%');
+                    ->orWhere('content', 'like', '%'.$search.'%')
+                    ->orWhereHas('location', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('hostedFor', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('requestedBy', fn ($query) => $query
+                        ->where('firstname', 'like', '%'.$search.'%')
+                        ->orWhere('surname', 'like', '%'.$search.'%')
+                        ->orWhere('company', 'like', '%'.$search.'%'));
             });
         }
 
@@ -710,6 +721,8 @@ class WorkshopController extends Controller
             'summary' => 'nullable|string|max:1000',
             'type' => ['required', Rule::in(Workshop::TYPES)],
             'location_id' => 'nullable|exists:locations,id',
+            'hosted_for_organisation_id' => 'nullable|exists:organisations,id',
+            'requested_by_user_id' => 'nullable|exists:users,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -720,7 +733,6 @@ class WorkshopController extends Controller
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
-            'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
@@ -750,6 +762,7 @@ class WorkshopController extends Controller
         $workshopData['user_id'] = auth()->user()->id;
         unset($workshopData['category_ids']);
         $this->normalizeWorkshopTypeData($workshopData);
+        $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
         $workshopData['is_hidden'] = $request->boolean('is_hidden');
         if (($workshopData['status'] ?? null) === 'hidden') {
@@ -797,12 +810,9 @@ class WorkshopController extends Controller
         }
         if (! $workshopData['is_private']) {
             $workshopData['private_code'] = null;
-            $workshopData['hosted_for'] = null;
         } else {
             $privateCode = trim((string) ($workshopData['private_code'] ?? ''));
             $workshopData['private_code'] = $privateCode !== '' ? $privateCode : null;
-            $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
-            $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['early_bird_price'] = null;
@@ -879,7 +889,7 @@ class WorkshopController extends Controller
     public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
         $workshop->loadCount('interests');
-        $workshop->loadMissing(['categories', 'pickListTemplate']);
+        $workshop->loadMissing(['categories', 'pickListTemplate', 'requestedBy.organisations', 'hostedFor.parent']);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
         ]);
@@ -1507,6 +1517,8 @@ class WorkshopController extends Controller
             'summary' => 'nullable|string|max:1000',
             'type' => ['required', Rule::in(Workshop::TYPES)],
             'location_id' => 'nullable|exists:locations,id',
+            'hosted_for_organisation_id' => 'nullable|exists:organisations,id',
+            'requested_by_user_id' => 'nullable|exists:users,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -1517,7 +1529,6 @@ class WorkshopController extends Controller
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
-            'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
@@ -1560,6 +1571,7 @@ class WorkshopController extends Controller
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes']);
         $this->normalizeWorkshopTypeData($workshopData);
+        $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
         $workshopData['is_hidden'] = $request->boolean('is_hidden');
         if (($workshopData['status'] ?? null) === 'hidden') {
@@ -1631,12 +1643,9 @@ class WorkshopController extends Controller
         }
         if (! $workshopData['is_private']) {
             $workshopData['private_code'] = null;
-            $workshopData['hosted_for'] = null;
         } else {
             $privateCode = trim((string) ($workshopData['private_code'] ?? ''));
             $workshopData['private_code'] = $privateCode !== '' ? $privateCode : null;
-            $hostedFor = trim((string) ($workshopData['hosted_for'] ?? ''));
-            $workshopData['hosted_for'] = $hostedFor !== '' ? $hostedFor : null;
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['tickets'], true)) {
             $workshopData['early_bird_price'] = null;
@@ -4311,6 +4320,22 @@ class WorkshopController extends Controller
 
         $locationId = trim((string) ($workshopData['location_id'] ?? ''));
         $workshopData['location_id'] = $locationId !== '' ? $locationId : null;
+    }
+
+    private function normalizeWorkshopDeliveryData(array &$workshopData): void
+    {
+        foreach (['hosted_for_organisation_id', 'requested_by_user_id'] as $field) {
+            $value = trim((string) ($workshopData[$field] ?? ''));
+            $workshopData[$field] = $value !== '' ? $value : null;
+        }
+
+        if ($workshopData['hosted_for_organisation_id'] === null && $workshopData['requested_by_user_id'] !== null) {
+            $workshopData['hosted_for_organisation_id'] = DB::table('organisation_user')
+                ->where('user_id', $workshopData['requested_by_user_id'])
+                ->orderByDesc('is_primary')
+                ->orderBy('id')
+                ->value('organisation_id');
+        }
     }
 
     /**

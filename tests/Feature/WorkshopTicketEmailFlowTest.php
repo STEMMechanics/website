@@ -635,7 +635,6 @@ class WorkshopTicketEmailFlowTest extends TestCase
             'registration' => 'tickets',
             'registration_data' => null,
             'private_code' => null,
-            'hosted_for' => null,
             'is_private' => false,
             'is_hidden' => false,
             'max_tickets' => 20,

@@ -256,14 +256,14 @@
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
                 <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
-                @php($hostedFor = $workshop->hosted_for)
-                @if(!empty($hostedFor))
+                @php($hostedFor = $workshop->hostedFor?->name)
+                @if($workshop->isPrivate() && !empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
                     <i class="mr-1 fa-solid fa-building w-5 text-center"></i>
                     Hosted For
                 </h2>
                 <div class="text-gray-600 text-sm pl-6 mb-6">
-                    <p>{{ $workshop->hosted_for }}</p>
+                    <p>{{ $hostedFor }}</p>
                 </div>
                 @endif
                 @if(!$workshop->isPrivate() || (bool) (auth()->user()?->isAdmin() ?? false))

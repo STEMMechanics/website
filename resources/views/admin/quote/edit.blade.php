@@ -448,7 +448,7 @@
                 field-name="user_id"
                 lookup-name="quote_linked_user_lookup"
                 label="Linked User"
-                info="Search by name/company/email. Select a suggestion to link the quote."
+                info="Search by name/organisation/email. Select a suggestion to link the quote."
             />
 
             @if($editing)

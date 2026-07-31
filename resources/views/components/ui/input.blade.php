@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false ])
+@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false, 'labelClass' => '' ])
 
 @php
     if ($error === null) {
@@ -454,7 +454,7 @@
         </div>
     @else
         <div class="{{ ($inline ? 'flex items-center gap-2' : '') }}">
-            <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
+            <label for="{{ $name }}" class="{{ twMerge(['flex','text-sm','pl-1','items-center'], $labelClass) }}">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
             @if($type === 'textarea')
                 <textarea class="{{ twMerge(['pt-2.5','mt-1','h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->whereDoesntStartWith('x-') }}>{{ $value }}</textarea>
             @elseif($hasSuggestions)

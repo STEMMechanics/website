@@ -4,7 +4,7 @@
 'fieldName' => 'user_id',
 'lookupName' => 'linked_user_lookup',
 'label' => 'Linked User',
-'info' => 'Search by name/company/email. Select a suggestion to link this record.',
+'info' => 'Search by name/organisation/email. Select a suggestion to link this record.',
 'disabled' => false,
 'allowCreate' => true,
 ])
@@ -216,7 +216,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
                         x-on:keydown.escape.prevent="linkedUserOpen = false"
                         x-on:blur="syncLinkedUserId(); setTimeout(() => { linkedUserOpen = false }, 120)"
                         autocomplete="off"
-                        placeholder="Search by name/company/email"
+                        placeholder="Search by name/organisation/email"
                         @if($disabled) disabled @endif />
                     @if(! $disabled && $allowCreate)
                     <x-ui.button type="button" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
@@ -262,7 +262,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             <div x-show="createUserTab === 'contact'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <x-ui.input noLabel="true" label="First Name" name="new_user_firstname" x-model="newUser.firstname" />
                 <x-ui.input noLabel="true" label="Surname" name="new_user_surname" x-model="newUser.surname" />
-                <x-ui.input noLabel="true" label="Company" name="new_user_company" x-model="newUser.company" />
+                <x-ui.input noLabel="true" label="Organisation" name="new_user_company" x-model="newUser.company" />
                 <x-ui.input noLabel="true" label="Phone" name="new_user_phone" x-model="newUser.phone" />
                 <div class="sm:col-span-2">
                     <x-ui.input noLabel="true" label="Email (Required)" name="new_user_email" x-model="newUser.email" />

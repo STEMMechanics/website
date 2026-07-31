@@ -8,12 +8,26 @@
         && $user->shipping_postcode === $user->billing_postcode
         && $user->shipping_country === $user->billing_country;
     $groupValue = old('groups', implode(', ', $user->groupSlugs()));
+    $linkedOrganisation = $user->organisations
+        ->sortByDesc(fn ($organisation) => (bool) ($organisation->pivot?->is_primary ?? false))
+        ->first();
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
+        <x-ui.toolbar>
+            <x-slot:right>
+                <x-ui.button color="outline" href="{{ route('admin.workshop.history', [
+                    'requested_by_user_id' => $user->id,
+                    'include_cancelled' => 1,
+                ]) }}">
+                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>Workshop History
+                </x-ui.button>
+            </x-slot:right>
+        </x-ui.toolbar>
+
         @php
             $accountCredit = (float) ($accountCredit ?? 0);
             $cardRefundableCredit = (float) ($cardRefundableCredit ?? 0);
@@ -121,7 +135,25 @@
                 </div>
                 <div class="flex-1"></div>
             </div>
-            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+            <x-ui.input
+                label="Organisation (Optional)"
+                label-class="justify-between"
+                name="company"
+                value="{{ $user->company }}"
+                :suggestions="$organisationSuggestions ?? []"
+                info="Select an existing organisation or enter a new name."
+            >
+                <x-slot:labelInfo>
+                    @if($linkedOrganisation)
+                        <a
+                            href="{{ route('admin.organisation.edit', $linkedOrganisation) }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-primary-color hover:underline cursor-pointer"
+                        >Open Organisation <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-xxs"></i></a>
+                    @endif
+                </x-slot:labelInfo>
+            </x-ui.input>
             <x-ui.select label="Account Terms" name="account_terms_days" info="Set the number of days before invoice payment is due. Current means no extra terms.">
                 @foreach(\App\Models\User::accountTermsOptions() as $days => $label)
                     <option value="{{ $days }}" @selected((int) old('account_terms_days', $user->accountTermsDays()) === (int) $days)>{{ $label }}</option>

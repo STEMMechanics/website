@@ -20,7 +20,12 @@
                 </div>
                 <div class="flex-1"></div>
             </div>
-            <x-ui.input label="Company (Optional)" name="company" />
+            <x-ui.input
+                label="Organisation (Optional)"
+                name="company"
+                :suggestions="$organisationSuggestions ?? []"
+                info="Select an existing organisation or enter a new name."
+            />
             <x-ui.select label="Account Terms" name="account_terms_days" info="Set the number of days before invoice payment is due. Current means no extra terms.">
                 @foreach(\App\Models\User::accountTermsOptions() as $days => $label)
                     <option value="{{ $days }}" @selected((int) old('account_terms_days', 0) === (int) $days)>{{ $label }}</option>
