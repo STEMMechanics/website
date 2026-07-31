@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Workshop History</title>
     <style>
-        @page { margin: 14mm 10mm 13mm; }
+        @page { margin: 18mm 12mm 15mm; }
         body { font-family: DejaVu Sans, sans-serif; color: #000; font-size: 9px; }
         h1 { margin: 0 0 3px; font-size: 20px; color: #000; }
         .logo { position: absolute; top: 0; right: 0; width: 145px; height: auto; }
@@ -21,29 +21,15 @@
         th.workshop { background: #f3f4f6; }
         td.workshop { background: #fff; }
         td.workshop { text-align: left; }
-        /*.organisation.rotated { height: 245px; padding: 0; position: relative; }*/
-        /*.organisation.rotated span {*/
-        /*    position: absolute;*/
-        /*    top: 50%;*/
-        /*    left: 50%;*/
-        /*    width: 230px;*/
-        /*    overflow: hidden;*/
-        /*    font-size: 12px;*/
-        /*    text-overflow: ellipsis;*/
-        /*    white-space: nowrap;*/
-        /*    transform: translate(-50%, -50%) rotate(-90deg);*/
-        /*    transform-origin: center center;*/
-        /*}*/
         .date { display: block; margin-bottom: 2px; color: #000; }
         .empty { color: #000; }
-        .footer { position: fixed; left: 0; bottom: -8mm; color: #000; font-size: 9px; }
+        .footer { position: fixed; left: 0; bottom: -9mm; color: #000; font-size: 9px; }
     </style>
 </head>
 <body>
     <div class="footer">Generated {{ $generatedAt->format('d M Y, g:i a') }}</div>
 
     @php($columnChunks = $columns->chunk(6))
-    @php($rotateOrganisationHeaders = $columns->count() > 4)
 
     @forelse($columnChunks as $chunkIndex => $columnChunk)
         <section class="matrix-page">
@@ -60,9 +46,7 @@
                     <tr>
                         <th class="workshop">Workshop</th>
                         @foreach($columnChunk as $column)
-                            <th class="organisation {{ $rotateOrganisationHeaders ? 'rotated' : '' }}">
-                                <span>{{ $column['name'] }}</span>
-                            </th>
+                            <th class="organisation">{{ $column['name'] }}</th>
                         @endforeach
                     </tr>
                 </thead>

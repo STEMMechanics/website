@@ -25,7 +25,6 @@
         @elseif($rows->isEmpty())
             <x-none-found item="workshops" search="{{ request('search') }}" />
         @else
-            @php($rotateOrganisationHeaders = $columns->count() > 4)
             <div class="flex items-center justify-between gap-4 mb-4 mt-8">
                 <div class="text-lg font-bold">Results</div>
                 <div class="flex gap-4">
@@ -39,15 +38,8 @@
                         <tr class="bg-gray-50">
                             <th class="sticky left-0 z-20 w-72 border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-left align-bottom">Workshop</th>
                             @foreach($columns as $column)
-                                <th class="{{ $rotateOrganisationHeaders ? 'h-36 w-28 px-1 text-center' : 'w-44 px-3 text-center' }} border-b border-r border-gray-200 py-3 align-bottom last:border-r-0">
-                                    @if($rotateOrganisationHeaders)
-                                        <span
-                                            class="mx-auto block max-h-32 overflow-hidden text-sm leading-tight [writing-mode:vertical-rl]"
-                                            title="{{ $column['name'] }}"
-                                        >{{ $column['name'] }}</span>
-                                    @else
-                                        {{ $column['name'] }}
-                                    @endif
+                                <th class="w-44 border-b border-r border-gray-200 px-3 py-3 text-center align-bottom last:border-r-0">
+                                    {{ $column['name'] }}
                                 </th>
                             @endforeach
                         </tr>

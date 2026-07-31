@@ -104,7 +104,7 @@ class WorkshopHistoryController extends Controller
                 ...$matrix,
                 'generatedAt' => now(),
                 'filters' => $this->filterSummary($request, $matrix['workshopCount']),
-            ])->setPaper('a3', 'portrait'),
+            ])->setPaper('a4', 'portrait'),
             'workshop-coverage-'.now()->format('Y-m-d').'.pdf'
         );
     }
