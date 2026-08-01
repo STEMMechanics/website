@@ -80,7 +80,7 @@
                         },
                         choose(item) {
                             this.id = item.id;
-                            this.search = `${item.name} · ${item.email}${item.company ? ` · ${item.company}` : ''}`;
+                            this.search = `${item.name} · ${item.email}${item.organisation_name ? ` · ${item.organisation_name}` : ''}`;
                             this.results = [];
                             this.selectedIndex = -1;
                         },
@@ -105,7 +105,7 @@
                             <template x-for="(item, index) in results" :key="item.id">
                                 <button type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)">
                                     <span class="block text-sm text-gray-900" x-text="item.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${item.email}${item.company ? ` · ${item.company}` : ''}`"></span>
+                                    <span class="block text-xs text-gray-500" x-text="`${item.email}${item.organisation_name ? ` · ${item.organisation_name}` : ''}`"></span>
                                 </button>
                             </template>
                         </div>
@@ -178,7 +178,7 @@
                         @endforeach
                     </x-ui.select>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4 lg:mt-7">
                         @foreach(['is_private' => 'Private', 'is_hidden' => 'Hidden'] as $field => $label)
                             @php($booleanValue = old($field, $mixedFields[$field] ? '__mixed' : $commonValues[$field]))
                             <div>

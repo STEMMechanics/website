@@ -52,7 +52,7 @@ class Organisation extends Model
     public function contacts(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
-            ->withPivot(['role', 'is_primary'])
+            ->withPivot('role')
             ->withTimestamps()
             ->orderBy('firstname')
             ->orderBy('surname');

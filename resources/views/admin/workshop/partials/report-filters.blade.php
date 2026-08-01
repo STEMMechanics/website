@@ -1,7 +1,7 @@
 @php
     $formRoute = route('admin.workshop.history');
     $organisationOptions = $organisations->map(fn ($item) => ['id' => (string) $item->id, 'label' => ($item->parent ? $item->parent->name.' — ' : '').$item->name])->values();
-    $contactOptions = $contacts->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->getName().($item->company ? ' — '.$item->company : '')])->values();
+    $contactOptions = $contacts->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->getName().($item->primaryOrganisation ? ' — '.$item->primaryOrganisation->name : '')])->values();
     $locationOptions = $locations->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->name])->values();
     $categoryOptions = $categories->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->name])->values();
     $selectedOrganisationIds = collect(request('organisation_ids', request()->filled('organisation_id') ? [request('organisation_id')] : []))->map('strval')->all();
@@ -31,11 +31,11 @@
             ])
         </div>
 
-        <div class="grid gap-x-5 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <x-ui.input label="Workshop search" name="search" value="{{ request('search') }}" placeholder="Title, organisation or contact" />
             <x-ui.input type="date" label="From date" name="date_from" value="{{ request('date_from') }}" />
             <x-ui.input type="date" label="To date" name="date_to" value="{{ request('date_to') }}" />
-            <div class="lg:mt-7">
+            <div class="md:mt-7">
                 <x-ui.checkbox label="Past workshops only" name="past_only" value="1" :checked="request()->boolean('past_only')" />
             </div>
             <x-ui.checkbox label="Include cancelled and drafts" name="include_cancelled" value="1" :checked="request()->boolean('include_cancelled')" />

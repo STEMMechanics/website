@@ -8,17 +8,72 @@
         && $user->shipping_postcode === $user->billing_postcode
         && $user->shipping_country === $user->billing_country;
     $groupValue = old('groups', implode(', ', $user->groupSlugs()));
-    $linkedOrganisation = $user->organisations
-        ->sortByDesc(fn ($organisation) => (bool) ($organisation->pivot?->is_primary ?? false))
-        ->first();
+    $linkedOrganisation = $user->primaryOrganisation;
+    $loginUnavailableReason = match (true) {
+        $user->isAnonymized() => 'This user cannot log in because the account has been anonymized.',
+        ! $user->canReceiveEmail() => 'This user cannot log in because they do not have an email address.',
+        $user->email_verified_at === null => 'This user cannot log in because their email address is not verified.',
+        default => null,
+    };
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
-        <x-ui.toolbar>
+        <div x-data="{
+            mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
+            mergeSearch: '',
+            mergeResults: [],
+            mergeTarget: null,
+            mergeSearching: false,
+            mergeSequence: 0,
+            async findMergeTargets() {
+                const term = this.mergeSearch.trim();
+                const sequence = ++this.mergeSequence;
+                this.mergeTarget = null;
+                if (term.length < 2) { this.mergeResults = []; return; }
+                this.mergeSearching = true;
+                try {
+                    const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
+                    url.searchParams.set('search', term);
+                    url.searchParams.set('include_ghost', '1');
+                    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                    const data = response.ok ? await response.json() : { users: [] };
+                    if (sequence === this.mergeSequence) {
+                        this.mergeResults = (data.users || []).filter((candidate) => candidate.id !== @js((string) $user->id) && !candidate.is_anonymized);
+                    }
+                } finally {
+                    if (sequence === this.mergeSequence) this.mergeSearching = false;
+                }
+            },
+            chooseMergeTarget(target) {
+                this.mergeTarget = target;
+                this.mergeSearch = `${target.name}${target.email ? ` (${target.email})` : ' (No email)'}`;
+                this.mergeResults = [];
+            },
+            closeMerge() {
+                this.mergeOpen = false;
+                this.mergeSearch = '';
+                this.mergeResults = [];
+                this.mergeTarget = null;
+            }
+        }">
+            <x-ui.toolbar>
+            @if($loginUnavailableReason)
+                <x-slot:left>
+                    <div class="flex items-center gap-2 text-xs text-amber-700">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                        <span>{{ $loginUnavailableReason }}</span>
+                    </div>
+                </x-slot:left>
+            @endif
             <x-slot:right>
+                @if((string) auth()->id() !== (string) $user->id && ! $user->isAnonymized())
+                    <x-ui.button color="outline" type="button" x-on:click="mergeOpen = true">
+                        <i class="fa-solid fa-code-merge mr-2"></i>Merge User
+                    </x-ui.button>
+                @endif
                 <x-ui.button color="outline" href="{{ route('admin.workshop.history', [
                     'requested_by_user_id' => $user->id,
                     'include_cancelled' => 1,
@@ -26,7 +81,88 @@
                     <i class="fa-solid fa-clock-rotate-left mr-2"></i>Workshop History
                 </x-ui.button>
             </x-slot:right>
-        </x-ui.toolbar>
+            </x-ui.toolbar>
+
+            <template x-teleport="body">
+                <div
+                    x-show="mergeOpen"
+                    x-cloak
+                    x-on:keydown.escape.window="closeMerge()"
+                    class="fixed inset-0 z-220 flex items-center justify-center p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="merge-user-title"
+                >
+                    <div class="absolute inset-0 bg-black/40" x-on:click="closeMerge()"></div>
+                    <div class="relative w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+                        <div class="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="merge-user-title" class="text-lg font-semibold text-gray-950">Merge {{ $user->getName() }} into another user</h3>
+                                <p class="mt-1 text-sm text-gray-600">Everything associated with this account will be moved to the account selected below, then this account will be permanently removed.</p>
+                            </div>
+                            <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeMerge()" aria-label="Close merge dialog">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex gap-3 flex-col sm:flex-row">
+                            <div class="flex-1 rounded-lg border border-red-200 bg-red-50 p-3">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-red-700">Removed account</div>
+                                <div class="mt-1 font-semibold text-gray-950">{{ $user->getName() }}</div>
+                                <div class="text-sm text-gray-600">{{ $user->email ?: 'No email' }}</div>
+                            </div>
+                            <div class="flex items-center justify-center text-xl text-gray-400" aria-hidden="true">
+                                <i class="fa-solid fa-arrow-right rotate-90 sm:rotate-0"></i>
+                            </div>
+                            <div class="flex-1 rounded-lg border p-3" x-bind:class="mergeTarget ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-gray-50'">
+                                <div class="text-xs font-semibold uppercase tracking-wide" x-bind:class="mergeTarget ? 'text-emerald-700' : 'text-gray-500'">Will be merged into</div>
+                                <template x-if="mergeTarget">
+                                    <div>
+                                        <div class="mt-1 font-semibold text-gray-950" x-text="mergeTarget.name"></div>
+                                        <div class="text-sm text-gray-600" x-text="mergeTarget.email || 'No email'"></div>
+                                    </div>
+                                </template>
+                                <div x-show="!mergeTarget" class="mt-1 text-sm text-gray-500">Select the account that should receive everything.</div>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.user.merge', $user) }}" class="mt-5 space-y-4">
+                            @csrf
+                            <input type="hidden" name="target_user_id" x-bind:value="mergeTarget?.id || ''">
+
+                            <div class="relative">
+                                <label for="merge_target_search" class="mb-1 block pl-1 text-sm">Find the account to merge into</label>
+                                <input id="merge_target_search" type="search" x-model="mergeSearch" x-on:input.debounce.350ms="findMergeTargets()" autocomplete="off" placeholder="Search by name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                                <div class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="mergeSearch.trim().length >= 2 && !mergeSearching && mergeResults.length > 0" x-cloak>
+                                    <template x-for="candidate in mergeResults" :key="candidate.id">
+                                        <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:click="chooseMergeTarget(candidate)">
+                                            <span class="block text-sm text-gray-900" x-text="candidate.name"></span>
+                                            <span class="block text-xs text-gray-500" x-text="`${candidate.email || 'No email'}${candidate.organisation_name ? ` · ${candidate.organisation_name}` : ''}`"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                                @error('target_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                All workshops requested or authored, media, tickets, attendance, quotes, invoices, payments, orders, organisation links, groups, and other associated records will move to the account shown under “Will be merged into”. That account's email, password, and profile remain unchanged.
+                            </div>
+
+                            <label class="flex items-start gap-3 text-sm text-gray-700">
+                                <input type="checkbox" name="confirm_merge" value="1" required class="mt-0.5 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <span>I understand that <strong>{{ $user->getName() }}</strong> will be permanently deleted and cannot be restored.</span>
+                            </label>
+                            @error('confirm_merge')<div class="text-xs text-red-600">{{ $message }}</div>@enderror
+
+                            <div class="flex justify-end gap-3">
+                                <x-ui.button type="button" color="secondary" x-on:click="closeMerge()">Cancel</x-ui.button>
+                                <x-ui.button type="submit" color="danger" x-bind:disabled="!mergeTarget">Merge and Delete This User</x-ui.button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </template>
+        </div>
 
         @php
             $accountCredit = (float) ($accountCredit ?? 0);
@@ -122,7 +258,7 @@
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">
                 <div class="flex-1">
-                    <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
+                    <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" required />
                 </div>
                 <div class="flex-1">
                     <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
@@ -138,8 +274,8 @@
             <x-ui.input
                 label="Organisation (Optional)"
                 label-class="justify-between"
-                name="company"
-                value="{{ $user->company }}"
+                name="organisation_name"
+                value="{{ $user->primaryOrganisation?->name }}"
                 :suggestions="$organisationSuggestions ?? []"
                 info="Select an existing organisation or enter a new name."
             >

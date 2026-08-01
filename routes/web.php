@@ -255,6 +255,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/users/inline', [UserController::class, 'storeInline'])->name('admin.user.store-inline');
     Route::get('/admin/users/{user}', [UserController::class, 'edit'])->name('admin.user.edit');
     Route::get('/admin/users/{user}/payments', [UserController::class, 'payments'])->name('admin.user.payments');
+    Route::post('/admin/users/{user}/merge', [UserController::class, 'merge'])->name('admin.user.merge');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
 

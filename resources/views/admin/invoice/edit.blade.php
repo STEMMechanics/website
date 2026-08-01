@@ -4,7 +4,7 @@
     $userLookupOptions = collect($users ?? [])->map(function ($user) {
         $name = trim((string) $user->getName());
         $email = trim((string) ($user->email ?? ''));
-        $company = trim((string) ($user->company ?? ''));
+        $company = trim((string) ($user->primaryOrganisation?->name ?? ''));
 
         $label = $name !== '' ? $name : $email;
         if ($company !== '') {
@@ -512,7 +512,7 @@
                 newUser: {
                     firstname: '',
                     surname: '',
-                    company: '',
+                    organisation_name: '',
                     email: '',
                     phone: '',
                     billing_address: '',
@@ -581,7 +581,7 @@
                     this.newUser = {
                         firstname: '',
                         surname: '',
-                        company: '',
+                        organisation_name: '',
                         email: '',
                         phone: '',
                         billing_address: '',

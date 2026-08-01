@@ -5,7 +5,7 @@
             'id' => (string) $contact->id,
             'name' => $contact->getName(),
             'email' => (string) $contact->email,
-            'company' => (string) ($contact->company ?? ''),
+            'organisation_name' => (string) ($contact->primaryOrganisation?->name ?? ''),
             'edit_url' => route('admin.user.edit', $contact),
         ])->values()->all()
         : [];
@@ -117,7 +117,7 @@
                                         <a :href="contact.edit_url" class="text-primary-color hover:underline" x-text="contact.name"></a>
                                     </td>
                                     <td class="px-3 py-2 text-gray-600" x-text="contact.email"></td>
-                                    <td class="hidden px-3 py-2 text-gray-600 md:table-cell" x-text="contact.company || '-'"></td>
+                                    <td class="hidden px-3 py-2 text-gray-600 md:table-cell" x-text="contact.organisation_name || '-'"></td>
                                     <td class="px-3 py-2 text-center">
                                         <button type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(contact.id)" title="Remove contact" aria-label="Remove contact">
                                             <i class="fa-solid fa-link-slash"></i>
@@ -156,7 +156,7 @@
                             <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="contact.name"></span>
-                                <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.company ? ` · ${contact.company}` : ''}`"></span>
+                                <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
                             </span>
                         </button>
                     </template>

@@ -5,11 +5,14 @@ namespace Tests\Feature;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Organisation;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopAttendance;
 use App\Models\WorkshopCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class WorkshopDeliveryHistoryTest extends TestCase
@@ -46,17 +49,84 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $this->assertTrue($organisation->contacts()->whereKey($contact->id)->exists());
     }
 
+    public function test_deleting_an_organisation_returns_the_expected_redirect_for_ajax_and_standard_requests(): void
+    {
+        $admin = $this->createAdminUser();
+        $ajaxOrganisation = Organisation::factory()->create();
+
+        $this->actingAs($admin)
+            ->deleteJson(route('admin.organisation.destroy', $ajaxOrganisation), [], [
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'redirect' => route('admin.organisation.index'),
+            ]);
+        $this->assertModelMissing($ajaxOrganisation);
+
+        $standardOrganisation = Organisation::factory()->create();
+        $this->actingAs($admin)
+            ->delete(route('admin.organisation.destroy', $standardOrganisation))
+            ->assertRedirect(route('admin.organisation.index'));
+        $this->assertModelMissing($standardOrganisation);
+    }
+
+    public function test_renaming_an_organisation_is_reflected_for_primary_contacts(): void
+    {
+        $this->assertFalse(Schema::hasColumn('users', 'company'));
+
+        $admin = $this->createAdminUser();
+        $primaryContact = User::factory()->create();
+        $secondaryContact = User::factory()->create();
+        $organisation = Organisation::factory()->create(['name' => 'Old Library Name']);
+        $primaryContact->update(['primary_organisation_id' => $organisation->id]);
+        $organisation->contacts()->attach([$primaryContact->id, $secondaryContact->id]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.organisation.update', $organisation), [
+                'name' => 'New Library Name',
+                'type' => $organisation->type,
+                'contact_ids' => [$primaryContact->id, $secondaryContact->id],
+            ])
+            ->assertRedirect(route('admin.organisation.edit', $organisation));
+
+        $this->assertSame('New Library Name', $primaryContact->fresh()->primaryOrganisation?->name);
+        $this->assertNull($secondaryContact->fresh()->primary_organisation_id);
+    }
+
+    public function test_removing_a_primary_contact_clears_the_primary_organisation_relationship(): void
+    {
+        $admin = $this->createAdminUser();
+        $organisation = Organisation::factory()->create(['name' => 'Cairns Libraries']);
+        $contact = User::factory()->create([
+            'primary_organisation_id' => $organisation->id,
+        ]);
+        $organisation->contacts()->attach($contact->id);
+
+        $this->actingAs($admin)
+            ->put(route('admin.organisation.update', $organisation), [
+                'name' => $organisation->name,
+                'type' => $organisation->type,
+                'contact_ids' => [],
+            ])
+            ->assertRedirect(route('admin.organisation.edit', $organisation));
+
+        $contact->refresh();
+        $this->assertNull($contact->primary_organisation_id);
+    }
+
     public function test_organisation_contact_search_returns_matching_users_without_loading_every_user(): void
     {
         $admin = $this->createAdminUser();
         $matching = User::factory()->create([
             'firstname' => 'Jemima',
             'surname' => 'Jones',
-            'company' => 'Cairns Libraries',
             'email_verified_at' => now(),
         ]);
         $organisation = Organisation::factory()->create(['name' => 'Cairns Libraries']);
-        $organisation->contacts()->attach($matching->id, ['is_primary' => true]);
+        $matching->update(['primary_organisation_id' => $organisation->id]);
+        $organisation->contacts()->attach($matching->id);
         User::factory()->create([
             'firstname' => 'Unrelated',
             'surname' => 'Customer',
@@ -65,7 +135,7 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $ghost = User::factory()->unverified()->create([
             'firstname' => 'Ghost',
             'surname' => 'Contact',
-            'company' => 'Cairns Libraries',
+            'primary_organisation_id' => $organisation->id,
         ]);
 
         $this->actingAs($admin)
@@ -89,7 +159,7 @@ class WorkshopDeliveryHistoryTest extends TestCase
     public function test_admin_can_select_or_create_an_organisation_from_the_user_editor(): void
     {
         $admin = $this->createAdminUser();
-        $user = User::factory()->create(['company' => null]);
+        $user = User::factory()->create();
         Organisation::factory()->create(['name' => 'Existing School']);
 
         $this->actingAs($admin)
@@ -106,7 +176,7 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->put(route('admin.user.update', $user), [
                 'firstname' => $user->firstname,
                 'surname' => $user->surname,
-                'company' => 'New Community Group',
+                'organisation_name' => 'New Community Group',
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'groups' => '',
@@ -118,8 +188,8 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $this->assertDatabaseHas('organisation_user', [
             'organisation_id' => $organisation->id,
             'user_id' => $user->id,
-            'is_primary' => true,
         ]);
+        $this->assertSame((string) $organisation->id, (string) $user->fresh()->primary_organisation_id);
     }
 
     public function test_workshop_can_record_a_host_organisation_and_requesting_contact(): void
@@ -127,7 +197,8 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $admin = $this->createAdminUser();
         $contact = User::factory()->create(['email_verified_at' => now()]);
         $organisation = Organisation::factory()->create(['name' => 'Library families']);
-        $organisation->contacts()->attach($contact->id, ['is_primary' => true]);
+        $contact->update(['primary_organisation_id' => $organisation->id]);
+        $organisation->contacts()->attach($contact->id);
         $workshop = $this->createWorkshop($admin);
 
         $payload = $this->workshopPayload($workshop, [
@@ -147,11 +218,76 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->get(route('admin.workshop.edit', $workshop))
             ->assertOk()
             ->assertSee('id="requested_by_user_search"', false)
-            ->assertSee('id="hosted_for_organisation_search"', false);
+            ->assertSee('id="hosted_for_organisation_search"', false)
+            ->assertSee("url.searchParams.set('include_ghost', '1');", false);
 
         $this->get(route('workshop.show', $workshop))
             ->assertOk()
             ->assertDontSee('Library families');
+    }
+
+    public function test_non_ticketed_workshop_can_record_a_manual_attendee_count(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop($admin);
+
+        $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopPayload($workshop, [
+                'attendee_count' => 42,
+            ]))
+            ->assertRedirect(route('admin.workshop.edit', $workshop));
+
+        $this->assertSame(42, $workshop->fresh()->attendee_count);
+        $this->assertSame(42, $workshop->fresh()->reportedAttendeeCount());
+    }
+
+    public function test_ticketed_workshop_uses_live_attendance_and_ignores_manual_count(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop($admin, [
+            'registration' => 'tickets',
+            'max_tickets' => 20,
+            'attendee_count' => null,
+        ]);
+
+        Ticket::factory()->count(2)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => now(),
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => null,
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_CANCELLED,
+            'attended_at' => now(),
+        ]);
+        WorkshopAttendance::factory()->create([
+            'workshop_id' => $workshop->id,
+            'ticket_id' => null,
+            'attended_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.edit', $workshop))
+            ->assertOk()
+            ->assertSee('Attendee Count')
+            ->assertSee('ticketedAttendeeCount: 3', false)
+            ->assertSee('x-bind:disabled="registration === \'tickets\'"', false);
+
+        $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopPayload($workshop, [
+                'max_tickets' => 20,
+                'attendee_count' => 99,
+            ]))
+            ->assertRedirect(route('admin.workshop.edit', $workshop));
+
+        $workshop->refresh();
+        $this->assertNull($workshop->attendee_count);
+        $this->assertSame(3, $workshop->reportedAttendeeCount());
     }
 
     public function test_history_filters_by_a_parent_organisation_and_includes_children(): void

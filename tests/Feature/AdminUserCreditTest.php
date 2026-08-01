@@ -109,7 +109,7 @@ class AdminUserCreditTest extends TestCase
         $response = $this->actingAs($admin)->put(route('admin.user.update', $user), [
             'firstname' => 'Terms',
             'surname' => 'Customer',
-            'company' => '',
+            'organisation_name' => '',
             'email' => 'terms-customer@example.com',
             'phone' => '0400111222',
             'account_terms_days' => 21,
