@@ -66,9 +66,9 @@ class AccountController extends Controller
         $user = auth()->user();
 
         $validator = Validator::make($request->all(), [
-            'firstname' => 'required_with:surname,phone',
+            'firstname' => ['sometimes', 'required', 'string', 'max:120'],
             'surname' => 'required_with:surname,phone',
-            'company' => 'nullable|string|max:255',
+            'organisation_name' => 'nullable|string|max:255',
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'phone' => 'required_with:surname,phone',
 
@@ -110,6 +110,8 @@ class AccountController extends Controller
 
         $userData = $validator->validated();
         $userData = User::filterToExistingDatabaseColumns($userData);
+        $organisationName = (string) ($validator->validated()['organisation_name'] ?? '');
+        unset($userData['organisation_name']);
 
         $newEmail = $userData['email'];
         unset($userData['email']);
@@ -130,7 +132,7 @@ class AccountController extends Controller
 
         $userData['subscribed'] = ($request->get('subscribed', false) === 'on');
         $user->update($userData);
-        $user->save();
+        $user->syncPrimaryOrganisationByName($organisationName);
 
         $this->syncRememberedDevicesFromRequest($request, $user);
 

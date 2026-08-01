@@ -470,7 +470,7 @@ class ShopController extends Controller
         $userName = $user instanceof User ? trim((string) $user->getName()) : '';
         $userEmail = $user instanceof User ? trim((string) $user->email) : '';
         $userPhone = $user instanceof User ? trim((string) $user->phone) : '';
-        $userCompany = $user instanceof User ? trim((string) $user->company) : '';
+        $userCompany = $user instanceof User ? trim((string) $user->primaryOrganisation()->value('name')) : '';
         $userShippingCountry = $user instanceof User ? trim((string) $user->shipping_country) : '';
         $userShippingAddress = $user instanceof User ? trim((string) $user->shipping_address) : '';
         $userShippingAddress2 = $user instanceof User ? trim((string) $user->shipping_address2) : '';

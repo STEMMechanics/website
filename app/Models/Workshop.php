@@ -53,6 +53,7 @@ class Workshop extends Model
         'is_private',
         'is_hidden',
         'max_tickets',
+        'attendee_count',
         'ticket_group_slug',
         'pick_list_template_id',
         'pick_list_participants',
@@ -79,6 +80,7 @@ class Workshop extends Model
         'is_private' => 'boolean',
         'is_hidden' => 'boolean',
         'max_tickets' => 'integer',
+        'attendee_count' => 'integer',
         'early_bird_ticket_limit' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
@@ -333,6 +335,35 @@ class Workshop extends Model
         return (int) $this->tickets()
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->count();
+    }
+
+    public function ticketedAttendeeCount(): int
+    {
+        $ticketCount = $this->getAttribute('attended_tickets_count');
+        if (! is_numeric($ticketCount)) {
+            $ticketCount = $this->tickets()
+                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->whereNotNull('attended_at')
+                ->count();
+        }
+
+        $dropInCount = $this->getAttribute('drop_in_attendees_count');
+        if (! is_numeric($dropInCount)) {
+            $dropInCount = $this->attendances()
+                ->whereNull('ticket_id')
+                ->count();
+        }
+
+        return max(0, (int) $ticketCount) + max(0, (int) $dropInCount);
+    }
+
+    public function reportedAttendeeCount(): ?int
+    {
+        if ($this->registration === 'tickets') {
+            return $this->ticketedAttendeeCount();
+        }
+
+        return $this->attendee_count !== null ? max(0, (int) $this->attendee_count) : null;
     }
 
     public function earlyBirdTicketLimitRemaining(): ?int

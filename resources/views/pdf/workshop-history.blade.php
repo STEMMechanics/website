@@ -51,7 +51,7 @@
                     <td class="center">{{ $workshop->requestedBy?->getName() ?? '-' }}</td>
                     <td class="center">{{ $workshop->getLocationName() }}</td>
                     @if($showStatus)
-                        <td class="center">{{ in_array($workshop->status, ['cancelled', 'draft'], true) ? $workshop->adminStatusLabel() : '' }}</td>
+                        <td class="center">{{ $workshop->adminStatusLabel() }}</td>
                     @endif
                 </tr>
             @empty

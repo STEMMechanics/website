@@ -28,7 +28,7 @@ class UserAnonymizer
             $user->forceFill(User::filterToExistingDatabaseColumns([
                 'firstname' => null,
                 'surname' => null,
-                'company' => null,
+                'primary_organisation_id' => null,
                 'email' => null,
                 'email_verified_at' => null,
                 'password' => null,

@@ -8,6 +8,7 @@ use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -40,7 +41,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'firstname',
         'surname',
-        'company',
+        'primary_organisation_id',
         'email',
         'password',
         'phone',
@@ -282,8 +283,39 @@ class User extends Authenticatable implements MustVerifyEmail
     public function organisations(): BelongsToMany
     {
         return $this->belongsToMany(Organisation::class)
-            ->withPivot(['role', 'is_primary'])
+            ->withPivot('role')
             ->withTimestamps();
+    }
+
+    public function primaryOrganisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class, 'primary_organisation_id');
+    }
+
+    public function syncPrimaryOrganisationByName(string $name): void
+    {
+        $name = preg_replace('/\s+/u', ' ', trim($name)) ?? '';
+        if ($name === '') {
+            $this->updateQuietly(['primary_organisation_id' => null]);
+
+            return;
+        }
+
+        $organisation = Organisation::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $organisation) {
+            $organisation = Organisation::create([
+                'name' => $name,
+                'type' => 'other',
+            ]);
+        }
+
+        $this->updateQuietly([
+            'primary_organisation_id' => $organisation->id,
+        ]);
+        $this->organisations()->syncWithoutDetaching([$organisation->id]);
     }
 
     public function requestedWorkshops(): HasMany

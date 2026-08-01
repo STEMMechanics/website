@@ -152,7 +152,7 @@ class WorkshopHistoryController extends Controller
                     ->orWhereHas('requestedBy', fn ($query) => $query
                         ->where('firstname', 'like', '%'.$search.'%')
                         ->orWhere('surname', 'like', '%'.$search.'%')
-                        ->orWhere('company', 'like', '%'.$search.'%'));
+                        ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%')));
             }))
             ->orderByDesc('starts_at');
     }

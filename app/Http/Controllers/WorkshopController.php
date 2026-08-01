@@ -821,7 +821,7 @@ class WorkshopController extends Controller
                     ->orWhereHas('requestedBy', fn ($query) => $query
                         ->where('firstname', 'like', '%'.$search.'%')
                         ->orWhere('surname', 'like', '%'.$search.'%')
-                        ->orWhere('company', 'like', '%'.$search.'%'));
+                        ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%')));
             });
         }
 
@@ -864,6 +864,7 @@ class WorkshopController extends Controller
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'attendee_count' => 'nullable|integer|min:0',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -910,6 +911,7 @@ class WorkshopController extends Controller
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
+        $this->normalizeWorkshopAttendeeCount($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -1022,6 +1024,10 @@ class WorkshopController extends Controller
         $workshop->loadMissing(['categories', 'pickListTemplate', 'requestedBy.organisations', 'hostedFor.parent']);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+            'tickets as attended_tickets_count' => fn ($query) => $query
+                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->whereNotNull('attended_at'),
+            'attendances as drop_in_attendees_count' => fn ($query) => $query->whereNull('ticket_id'),
         ]);
         $soldTicketCount = $workshop->activeTicketCount();
         $soldEarlyBirdTicketCount = $this->countSoldEarlyBirdTickets($workshop);
@@ -1041,6 +1047,7 @@ class WorkshopController extends Controller
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'activeTicketCount' => $workshop->activeTicketCount(),
+            'ticketedAttendeeCount' => $workshop->ticketedAttendeeCount(),
             'soldTicketCount' => $soldTicketCount,
             'soldEarlyBirdTicketCount' => $soldEarlyBirdTicketCount,
             'reservedTicketCount' => $reservedTicketCount,
@@ -1660,6 +1667,7 @@ class WorkshopController extends Controller
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'attendee_count' => 'nullable|integer|min:0',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -1722,6 +1730,7 @@ class WorkshopController extends Controller
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
+        $this->normalizeWorkshopAttendeeCount($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -4460,12 +4469,24 @@ class WorkshopController extends Controller
         }
 
         if ($workshopData['hosted_for_organisation_id'] === null && $workshopData['requested_by_user_id'] !== null) {
-            $workshopData['hosted_for_organisation_id'] = DB::table('organisation_user')
-                ->where('user_id', $workshopData['requested_by_user_id'])
-                ->orderByDesc('is_primary')
-                ->orderBy('id')
-                ->value('organisation_id');
+            $requester = User::query()->find($workshopData['requested_by_user_id']);
+            if ($requester instanceof User) {
+                $workshopData['hosted_for_organisation_id'] = $requester->primary_organisation_id
+                    ?? $requester->organisations()->orderBy('organisation_user.id')->value('organisations.id');
+            }
         }
+    }
+
+    private function normalizeWorkshopAttendeeCount(array &$workshopData): void
+    {
+        if (($workshopData['registration'] ?? 'none') === 'tickets') {
+            $workshopData['attendee_count'] = null;
+
+            return;
+        }
+
+        $value = trim((string) ($workshopData['attendee_count'] ?? ''));
+        $workshopData['attendee_count'] = $value !== '' ? (int) $value : null;
     }
 
     /**

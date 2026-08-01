@@ -43,11 +43,11 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                         </div>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2">
-                            <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
+                            <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" required />
                             <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
                             <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
                             <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
-                            <x-ui.input label="Organisation (Optional)" name="company" value="{{ $user->company }}" />
+                            <x-ui.input label="Organisation (Optional)" name="organisation_name" value="{{ $user->primaryOrganisation?->name }}" />
                         </div>
                         @if($groupSlugs !== [])
                             <div class="mt-2 border-t border-gray-100 pt-4">

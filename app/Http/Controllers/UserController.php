@@ -8,11 +8,13 @@ use App\Models\Payment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\UserMergeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -35,7 +37,6 @@ class UserController extends Controller
                 $query->where(function ($searchQuery) use ($search): void {
                     $searchQuery->where('firstname', 'like', '%'.$search.'%')
                         ->orWhere('surname', 'like', '%'.$search.'%')
-                        ->orWhere('company', 'like', '%'.$search.'%')
                         ->orWhere('phone', 'like', '%'.$search.'%')
                         ->orWhere('email', 'like', '%'.$search.'%')
                         ->orWhereHas('organisations', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
@@ -51,6 +52,7 @@ class UserController extends Controller
                 'organisations' => function ($organisationQuery): void {
                     $organisationQuery->orderBy('name');
                 },
+                'primaryOrganisation',
             ])
             ->withCount('media')
             ->withSum('media', 'size')
@@ -87,10 +89,10 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'firstname' => '',
-            'surname' => '',
-            'company' => 'nullable|string|max:255',
-            'email' => 'email|unique:users',
+            'firstname' => ['required', 'string', 'max:120'],
+            'surname' => ['nullable', 'string', 'max:120'],
+            'organisation_name' => 'nullable|string|max:255',
+            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
@@ -135,7 +137,7 @@ class UserController extends Controller
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
         $user = User::create($payload);
-        $this->syncPrimaryOrganisation($user, (string) ($payload['company'] ?? ''));
+        $user->syncPrimaryOrganisationByName((string) ($validated['organisation_name'] ?? ''));
         $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User has been created');
@@ -155,7 +157,7 @@ class UserController extends Controller
         $refundPaymentAvailableAmount = $refundPayment ? $this->refundAvailableAmountForPayment($refundPayment) : 0.0;
 
         return view('admin.user.edit', [
-            'user' => $user->load(['groups', 'organisations'])->loadCount('requestedWorkshops'),
+            'user' => $user->load(['groups', 'organisations', 'primaryOrganisation'])->loadCount('requestedWorkshops'),
             'accountCredit' => $accountCredit,
             'cardRefundableCredit' => $this->cardRefundableCreditForUser($user),
             'refundPayment' => $refundPayment,
@@ -208,10 +210,10 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'firstname' => '',
-            'surname' => '',
-            'company' => 'nullable|string|max:255',
-            'email' => ['email', Rule::unique('users')->ignore($user->id)],
+            'firstname' => ['required', 'string', 'max:120'],
+            'surname' => ['nullable', 'string', 'max:120'],
+            'organisation_name' => 'nullable|string|max:255',
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
@@ -256,7 +258,7 @@ class UserController extends Controller
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
         $user->update($payload);
-        $this->syncPrimaryOrganisation($user, (string) ($payload['company'] ?? ''));
+        $user->syncPrimaryOrganisationByName((string) ($validated['organisation_name'] ?? ''));
         $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User details have been updated');
@@ -264,6 +266,46 @@ class UserController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    public function merge(Request $request, User $user, UserMergeService $mergeService)
+    {
+        $validated = $request->validate([
+            'target_user_id' => [
+                'required',
+                'uuid',
+                Rule::exists('users', 'id'),
+                Rule::notIn([(string) $user->id]),
+            ],
+            'confirm_merge' => ['accepted'],
+        ]);
+
+        if ((string) auth()->id() === (string) $user->id) {
+            throw ValidationException::withMessages([
+                'target_user_id' => 'You cannot merge the account you are currently logged in with.',
+            ]);
+        }
+
+        if ($user->isAnonymized()) {
+            throw ValidationException::withMessages([
+                'target_user_id' => 'An anonymized account cannot be used as the source of a merge.',
+            ]);
+        }
+
+        $destination = User::query()->findOrFail($validated['target_user_id']);
+        if ($destination->isAnonymized()) {
+            throw ValidationException::withMessages([
+                'target_user_id' => 'The surviving account cannot be anonymized.',
+            ]);
+        }
+
+        $sourceLabel = $user->getName();
+        $mergeService->merge($user, $destination);
+
+        return redirect()->route('admin.user.edit', $destination)
+            ->with('message', $sourceLabel.' has been merged into this account.')
+            ->with('message-title', 'Users merged')
+            ->with('message-type', 'success');
     }
 
     /**
@@ -332,10 +374,10 @@ class UserController extends Controller
     public function storeInline(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'firstname' => ['nullable', 'string', 'max:120'],
+            'firstname' => ['required', 'string', 'max:120'],
             'surname' => ['nullable', 'string', 'max:120'],
-            'company' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'organisation_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:120'],
             'shipping_address' => ['nullable', 'string', 'max:255', 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state'],
             'shipping_address2' => ['nullable', 'string', 'max:255'],
@@ -354,8 +396,7 @@ class UserController extends Controller
         $user = User::create([
             'firstname' => trim((string) ($validated['firstname'] ?? '')),
             'surname' => trim((string) ($validated['surname'] ?? '')),
-            'company' => trim((string) ($validated['company'] ?? '')),
-            'email' => trim((string) ($validated['email'] ?? '')),
+            'email' => $this->normalizedNullableEmail($validated['email'] ?? null),
             'phone' => trim((string) ($validated['phone'] ?? '')),
             'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
             'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
@@ -370,13 +411,15 @@ class UserController extends Controller
             'billing_country' => trim((string) ($validated['billing_country'] ?? '')),
             'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
         ]);
-        $user->email_verified_at = now();
+        $user->email_verified_at = $user->email !== null ? now() : null;
         $user->save();
-        $this->syncPrimaryOrganisation($user, (string) ($user->company ?? ''));
+        $user->syncPrimaryOrganisationByName((string) ($validated['organisation_name'] ?? ''));
+        $user->load('primaryOrganisation');
 
         $label = trim((string) $user->getName());
-        if ((string) $user->company !== '') {
-            $label .= ' - '.$user->company;
+        $organisationName = trim((string) $user->primaryOrganisation()->value('name'));
+        if ($organisationName !== '') {
+            $label .= ' - '.$organisationName;
         }
         if ((string) $user->email !== '') {
             $label .= ' ('.$user->email.')';
@@ -396,8 +439,7 @@ class UserController extends Controller
         return [
             'firstname' => trim((string) ($validated['firstname'] ?? '')),
             'surname' => trim((string) ($validated['surname'] ?? '')),
-            'company' => trim((string) ($validated['company'] ?? '')),
-            'email' => trim((string) ($validated['email'] ?? '')),
+            'email' => $this->normalizedNullableEmail($validated['email'] ?? null),
             'phone' => trim((string) ($validated['phone'] ?? '')),
             'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
             'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
@@ -415,35 +457,6 @@ class UserController extends Controller
         ];
     }
 
-    private function syncPrimaryOrganisation(User $user, string $name): void
-    {
-        $name = preg_replace('/\s+/u', ' ', trim($name)) ?? '';
-        if ($name === '') {
-            return;
-        }
-
-        $organisation = Organisation::query()
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
-            ->first();
-
-        if (! $organisation) {
-            $organisation = Organisation::create([
-                'name' => $name,
-                'type' => 'other',
-            ]);
-        } elseif ((string) $user->company !== (string) $organisation->name) {
-            $user->updateQuietly(['company' => $organisation->name]);
-        }
-
-        DB::table('organisation_user')
-            ->where('user_id', $user->id)
-            ->update(['is_primary' => false]);
-
-        $user->organisations()->syncWithoutDetaching([
-            $organisation->id => ['is_primary' => true],
-        ]);
-    }
-
     private function groupSuggestions(): array
     {
         return UserGroup::query()
@@ -455,6 +468,13 @@ class UserController extends Controller
             ->filter(fn ($slug) => $slug !== '')
             ->values()
             ->all();
+    }
+
+    private function normalizedNullableEmail(mixed $email): ?string
+    {
+        $email = trim((string) $email);
+
+        return $email !== '' ? $email : null;
     }
 
     private function syncGroups(User $user, string $raw): void

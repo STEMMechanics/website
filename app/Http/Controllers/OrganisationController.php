@@ -42,26 +42,20 @@ class OrganisationController extends Controller
         }
 
         $users = User::query()
-            ->with('organisations')
+            ->with(['organisations', 'primaryOrganisation'])
             ->when(! $request->boolean('include_ghost'), fn ($query) => $query->whereNotNull('email_verified_at'))
             ->where(function ($query) use ($search): void {
                 $query->where('firstname', 'like', '%'.$search.'%')
                     ->orWhere('surname', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
-                    ->orWhere('company', 'like', '%'.$search.'%');
+                    ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
             })
             ->orderBy('firstname')
             ->orderBy('surname')
             ->limit(25)
             ->get()
             ->map(function (User $user): array {
-                $organisation = $user->organisations
-                    ->sortByDesc(function (Organisation $organisation): bool {
-                        $pivot = $organisation->getAttribute('pivot');
-
-                        return (bool) ($pivot?->getAttribute('is_primary') ?? false);
-                    })
-                    ->first();
+                $organisation = $user->primaryOrganisation ?? $user->organisations->first();
                 $organisationId = $organisation instanceof Organisation ? (string) $organisation->id : '';
                 $organisationName = $organisation instanceof Organisation ? (string) $organisation->name : '';
 
@@ -69,7 +63,7 @@ class OrganisationController extends Controller
                     'id' => (string) $user->id,
                     'name' => $user->getName(),
                     'email' => (string) $user->email,
-                    'company' => (string) ($user->company ?? ''),
+                    'is_anonymized' => $user->isAnonymized(),
                     'edit_url' => route('admin.user.edit', $user),
                     'organisation_id' => $organisationId,
                     'organisation_name' => $organisationName,
@@ -121,7 +115,7 @@ class OrganisationController extends Controller
 
     public function edit(Organisation $organisation): View
     {
-        $organisation->load(['contacts', 'parent', 'children'])
+        $organisation->load(['contacts.primaryOrganisation', 'parent', 'children'])
             ->loadCount('workshops');
 
         return $this->formView($organisation);
@@ -135,20 +129,33 @@ class OrganisationController extends Controller
         $organisation->update($validated);
         $organisation->contacts()->sync($contactIds);
 
+        User::query()
+            ->where('primary_organisation_id', $organisation->id)
+            ->when($contactIds !== [], fn ($query) => $query->whereNotIn('id', $contactIds))
+            ->update(['primary_organisation_id' => null]);
+
         return redirect()->route('admin.organisation.edit', $organisation)
             ->with('message', 'Organisation has been updated')
             ->with('message-title', 'Organisation updated')
             ->with('message-type', 'success');
     }
 
-    public function destroy(Organisation $organisation): RedirectResponse
+    public function destroy(Request $request, Organisation $organisation): RedirectResponse|JsonResponse
     {
         $organisation->delete();
 
-        return redirect()->route('admin.organisation.index')
-            ->with('message', 'Organisation has been deleted')
-            ->with('message-title', 'Organisation deleted')
-            ->with('message-type', 'danger');
+        session()->flash('message', 'Organisation has been deleted');
+        session()->flash('message-title', 'Organisation deleted');
+        session()->flash('message-type', 'danger');
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.organisation.index'),
+            ]);
+        }
+
+        return redirect()->route('admin.organisation.index');
     }
 
     private function formView(?Organisation $organisation = null): View

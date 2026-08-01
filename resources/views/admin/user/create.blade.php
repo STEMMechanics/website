@@ -7,7 +7,7 @@
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">
                 <div class="flex-1">
-                    <x-ui.input label="First name" name="firstname" />
+                    <x-ui.input label="First name" name="firstname" required />
                 </div>
                 <div class="flex-1">
                     <x-ui.input label="Surname" name="surname" />
@@ -22,7 +22,7 @@
             </div>
             <x-ui.input
                 label="Organisation (Optional)"
-                name="company"
+                name="organisation_name"
                 :suggestions="$organisationSuggestions ?? []"
                 info="Select an existing organisation or enter a new name."
             />

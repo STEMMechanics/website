@@ -13,7 +13,7 @@
 $userLookupOptions = collect($users ?? [])->map(function ($user) {
 $name = trim((string) $user->getName());
 $email = trim((string) ($user->email ?? ''));
-$company = trim((string) ($user->company ?? ''));
+$company = trim((string) ($user->primaryOrganisation?->name ?? ''));
 
 $displayLabel = $name !== '' ? $name : $email;
 if ($company !== '') {
@@ -49,7 +49,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
     newUser: {
         firstname: '',
         surname: '',
-        company: '',
+        organisation_name: '',
         email: '',
         phone: '',
         billing_address: '',
@@ -124,7 +124,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
         this.newUser = {
             firstname: '',
             surname: '',
-            company: '',
+            organisation_name: '',
             email: '',
             phone: '',
             billing_address: '',
@@ -260,12 +260,12 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             </div>
 
             <div x-show="createUserTab === 'contact'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <x-ui.input noLabel="true" label="First Name" name="new_user_firstname" x-model="newUser.firstname" />
+                <x-ui.input noLabel="true" label="First Name" name="new_user_firstname" x-model="newUser.firstname" required />
                 <x-ui.input noLabel="true" label="Surname" name="new_user_surname" x-model="newUser.surname" />
-                <x-ui.input noLabel="true" label="Organisation" name="new_user_company" x-model="newUser.company" />
+                <x-ui.input noLabel="true" label="Organisation" name="new_user_organisation_name" x-model="newUser.organisation_name" />
                 <x-ui.input noLabel="true" label="Phone" name="new_user_phone" x-model="newUser.phone" />
                 <div class="sm:col-span-2">
-                    <x-ui.input noLabel="true" label="Email (Required)" name="new_user_email" x-model="newUser.email" />
+                    <x-ui.input noLabel="true" label="Email" name="new_user_email" x-model="newUser.email" />
                 </div>
             </div>
 

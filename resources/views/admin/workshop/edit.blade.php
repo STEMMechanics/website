@@ -33,6 +33,8 @@ $hasCustomPickList = (bool) ($workshopModel?->pick_list_is_customized);
 $soldTicketCount = (int) ($soldTicketCount ?? $activeTicketCount ?? 0);
 $soldEarlyBirdTicketCount = (int) ($soldEarlyBirdTicketCount ?? 0);
 $maxTicketsTotal = is_numeric($workshopModel?->max_tickets ?? null) ? max(0, (int) $workshopModel->max_tickets) : null;
+$manualAttendeeCountValue = old('attendee_count', $workshopModel?->attendee_count ?? '');
+$ticketedAttendeeCount = max(0, (int) ($ticketedAttendeeCount ?? 0));
 $earlyBirdTicketLimitTotal = $workshopModel instanceof \App\Models\Workshop ? $workshopModel->earlyBirdTicketLimit() : null;
 $earlyBirdPriceValue = old('early_bird_price', $workshopModel?->early_bird_price ?? '');
 $earlyBirdEndsAtValue = old('early_bird_ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->early_bird_ends_at ?? ''));
@@ -124,6 +126,8 @@ if (isset($workshop)) {
             isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
             registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshopModel?->max_tickets ?? '')),
+            manualAttendeeCount: @js((string) $manualAttendeeCountValue),
+            ticketedAttendeeCount: @js($ticketedAttendeeCount),
             earlyBirdPrice: @js((string) $earlyBirdPriceValue),
             earlyBirdEndsAt: @js((string) $earlyBirdEndsAtValue),
             earlyBirdTicketLimit: @js(old('early_bird_ticket_limit', $workshopModel?->early_bird_ticket_limit ?? '')),
@@ -633,7 +637,7 @@ if (isset($workshop)) {
                     $selectedContact = $workshopModel?->requestedBy;
                     $selectedHost = $workshopModel?->hostedFor;
                     $selectedContactLabel = $selectedContact
-                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->company ? ' · '.$selectedContact->company : ''))
+                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->primaryOrganisation ? ' · '.$selectedContact->primaryOrganisation->name : ''))
                         : '';
                     $selectedHostLabel = $selectedHost
                         ? ($selectedHost->parent ? $selectedHost->parent->name.' — ' : '').$selectedHost->name
@@ -660,6 +664,7 @@ if (isset($workshop)) {
                             try {
                                 const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
                                 url.searchParams.set('search', term);
+                                url.searchParams.set('include_ghost', '1');
                                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                                 const data = response.ok ? await response.json() : { users: [] };
                                 if (sequence === this.contactSequence) this.contactResults = data.users || [];
@@ -669,7 +674,7 @@ if (isset($workshop)) {
                         },
                         chooseContact(contact) {
                             this.contactId = contact.id;
-                            this.contactSearch = `${contact.name} · ${contact.email}${contact.company ? ` · ${contact.company}` : ''}`;
+                            this.contactSearch = `${contact.name} · ${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`;
                             this.contactResults = [];
                             if (!this.hostId && contact.organisation_id) {
                                 this.hostId = contact.organisation_id;
@@ -719,7 +724,7 @@ if (isset($workshop)) {
                             <template x-for="contact in contactResults" :key="contact.id">
                                 <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseContact(contact)">
                                     <span class="block text-gray-900" x-text="contact.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.company ? ` · ${contact.company}` : ''}`"></span>
+                                    <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
                                 </button>
                             </template>
                         </div>
@@ -950,6 +955,26 @@ if (isset($workshop)) {
                         </span>
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                     </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.input
+                            type="number"
+                            min="0"
+                            step="1"
+                            label="Attendee Count"
+                            name="attendee_count"
+                            :value="$manualAttendeeCountValue"
+                            x-bind:value="registration === 'tickets' ? ticketedAttendeeCount : manualAttendeeCount"
+                            x-bind:disabled="registration === 'tickets'"
+                            x-on:input="manualAttendeeCount = $event.target.value"
+                            error="{{ $errors->first('attendee_count') }}"
+                        />
+                        <div x-show="registration === 'tickets'" x-cloak class="-mt-3 ml-2 text-xs text-gray-500 mb-4">
+                            For ticketed workshops this is calculated from the attendee list.
+                        </div>
+                    </div>
+                    <div class="flex-1"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='tickets'">
                     <div class="flex-1">
