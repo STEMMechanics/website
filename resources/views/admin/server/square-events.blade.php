@@ -238,15 +238,12 @@
                     </p>
                     <form method="POST" x-bind:action="ignoreAction">
                         @csrf
-                        <div class="mb-4">
-                            <label class="block text-sm pl-1">Reason</label>
-                            <select name="reason_code" class="bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="reasonCode">
-                                <option value="" selected>Select reason</option>
-                                @foreach(($ignoreReasonOptions ?? []) as $reasonKey => $reasonLabel)
-                                    <option value="{{ $reasonKey }}">{{ $reasonLabel }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <x-ui.select label="Reason" name="reason_code" x-model="reasonCode">
+                            <option value="">Select reason</option>
+                            @foreach(($ignoreReasonOptions ?? []) as $reasonKey => $reasonLabel)
+                                <option value="{{ $reasonKey }}">{{ $reasonLabel }}</option>
+                            @endforeach
+                        </x-ui.select>
                         <div class="mb-4" x-show="reasonCode === 'other'" x-cloak>
                             <label class="block text-sm pl-1">Other Reason</label>
                             <textarea name="reason_other" x-model="reasonOther" rows="3" class="bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300"></textarea>

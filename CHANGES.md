@@ -2,6 +2,7 @@
 
 ## Current
 
+- Updated the Ignore Square Payment reason menu to use the standard admin select component.
 - Added an admin user merge workflow that safely moves workshops, media, tickets, attendance, finance records, orders, organisations, groups, and other associations into a clearly selected destination account before removing the duplicate.
 - Added support for email-less ghost users, including nullable email storage, required first names, workshop requester search, and clear login-unavailable notices in the user editor.
 - Replaced legacy user organisation text with a primary organisation relationship and kept organisation names consistent across user, workshop, checkout, invoice, quote, and reporting workflows.
