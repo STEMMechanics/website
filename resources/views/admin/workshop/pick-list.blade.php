@@ -74,8 +74,11 @@
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
-            <section class="mb-8">
-                <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
+            <details open class="group mb-8">
+                <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                    <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                    <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
+                </summary>
                 <textarea
                     id="pick_list_notes"
                     name="pick_list_notes"
@@ -85,34 +88,46 @@
                     x-model="notes"
                     x-on:input="resizeNotesField(); scheduleAutosave()"
                 ></textarea>
-            </section>
+            </details>
 
             @if($workshop->pickListTemplate)
                 <template x-teleport="#workshop-plan-tasks">
-                <section class="mb-8" x-data="{ taskNote: null, taskName: '' }">
-                    <h2 class="text-lg font-semibold text-gray-900">Tasks</h2>
+                <div x-data="{ taskNote: null, taskName: '' }">
                     @if($workshop->pickListTemplate->tasks->isEmpty())
                         <p class="mt-2 text-sm text-gray-600">No template tasks.</p>
                     @else
-                        <ul class="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
-                            @foreach($workshop->pickListTemplate->tasks as $task)
-                                <li id="task-{{ $task->id }}" class="scroll-mt-24 flex gap-3 rounded-lg border border-gray-200 bg-white p-3 target:border-primary-color target:ring-2 target:ring-primary-color/20">
-                                    <x-ui.checkbox
-                                        :noWrapper="true"
-                                        :inline="true"
-                                        x-model="completedTaskIds"
-                                        value="{{ (string) $task->id }}"
-                                        x-on:change="scheduleAutosave()"
-                                    />
-                                    <div class="min-w-0 flex-1 content-center">
-                                        <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $task->name }}</div>
-                                        @if($task->notes)
-                                            <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
-                                        @endif
-                                    </div>
-                                </li>
+                        @php($taskGroups = \App\Support\WorkshopTaskPresenter::grouped($workshop->pickListTemplate->tasks))
+                        <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                            @foreach($taskGroups as $taskGroup)
+                                <section>
+                                    @if($taskGroup['heading'])
+                                        <h3 class="mb-2 font-semibold text-primary-color">{{ $taskGroup['heading'] }}</h3>
+                                    @elseif(count($taskGroups) > 1)
+                                        <h3 class="mb-2 font-semibold text-primary-color">Other Tasks</h3>
+                                    @endif
+                                    <ul>
+                                        @foreach($taskGroup['tasks'] as $presentedTask)
+                                            @php($task = $presentedTask['task'])
+                                            <li id="task-{{ $task->id }}" class="scroll-mt-24 flex gap-2 rounded-md px-1 py-1.5 target:ring-2 target:ring-primary-color/20">
+                                                <x-ui.checkbox
+                                                    :noWrapper="true"
+                                                    :inline="true"
+                                                    x-model="completedTaskIds"
+                                                    value="{{ (string) $task->id }}"
+                                                    x-on:change="scheduleAutosave()"
+                                                />
+                                                <div class="min-w-0 flex-1 content-center">
+                                                    <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
+                                                    @if($task->notes)
+                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                                    @endif
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </section>
                             @endforeach
-                        </ul>
+                        </div>
                     @endif
                     <div x-show="taskNote !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskNote = null">
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
@@ -121,12 +136,17 @@
                             <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="taskNote = null">Close</x-ui.button></div>
                         </div>
                     </div>
-                </section>
+                </div>
                 </template>
             @endif
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Pick List</h2>
+            <details open class="group mb-8">
+                <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                    <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                    <h2 class="text-lg font-semibold text-gray-900">Pick List</h2>
+                </summary>
+
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
                     <div class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
@@ -298,12 +318,25 @@
                     <x-ui.button type="button" color="secondary" x-bind:disabled="saving" x-on:click="stopItemEditing()">Save &amp; Close Editor</x-ui.button>
                 </div>
             </div>
+            </details>
 
-            <div id="workshop-plan-tasks" class="mt-8"></div>
+            @if($workshop->pickListTemplate)
+                <details open class="group mb-8">
+                    <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                        <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                        <h2 class="text-lg font-semibold text-gray-900">Tasks</h2>
+                    </summary>
+                    <div id="workshop-plan-tasks" class="mt-3"></div>
+                </details>
+            @endif
 
-            <h2 class="mt-8 text-lg font-semibold text-gray-900">Run Sheet</h2>
+            <details class="group mb-8">
+                <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                    <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                    <h2 class="text-lg font-semibold text-gray-900">Run Sheet</h2>
+                </summary>
 
-            <div class="mt-2">
+            <div class="mt-3">
                 <x-ui.editor
                     name="workshop_run_sheet"
                     label="Instructions"
@@ -316,10 +349,15 @@
                     <img src="{{ $workshop->pickListTemplate->run_sheet_drawing_data }}" alt="Template run sheet drawing" class="max-h-[32rem] w-full object-contain">
                 </div>
             @endif
+            </details>
 
-            <h3 class="mt-8 font-semibold text-gray-800">Drawing</h3>
+            <details class="group mb-8">
+                <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                    <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                    <h2 class="text-lg font-semibold text-gray-900">Drawing</h2>
+                </summary>
 
-            <div class="mt-2 flex flex-wrap gap-2">
+            <div class="mt-3 flex flex-wrap gap-2">
                 <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
                 <button type="button" x-bind:class="canvasToolButtonClass('erase')" x-on:click="setCanvasTool('erase')"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
                 <button type="button" x-bind:class="canvasToolButtonClass('pan')" x-on:click="setCanvasTool('pan')"><i class="fa-solid fa-hand"></i><span>Pan</span></button>
@@ -378,10 +416,14 @@
                     <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
                 </div>
             </div>
+            </details>
 
             @if($workshop->pickListTemplate && $workshop->pickListTemplate->attachments->isNotEmpty())
-                <section class="mt-8">
-                    <h2 class="text-lg font-semibold text-gray-900">Attachments</h2>
+                <details open class="group mb-8">
+                    <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                        <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
+                        <h2 class="text-lg font-semibold text-gray-900">Attachments</h2>
+                    </summary>
                     <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                         @foreach($workshop->pickListTemplate->attachments as $attachment)
                             <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
@@ -395,7 +437,7 @@
                             </div>
                         @endforeach
                     </div>
-                </section>
+                </details>
             @endif
 
             <div class="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-end">

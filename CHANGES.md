@@ -2,6 +2,7 @@
 
 ## Current
 
+- Improved workshop template and run-sheet workflows with a scrollable TipTap editor, always-ready blank task rows, prefix-based task categories, compact grouped checklists, collapsible page sections, and cleaner two-column PDF tasks.
 - Expanded pick list templates into workshop templates with overview details, reorderable tasks and notes, editable TipTap run sheets, drag-and-drop attachments, and reusable workshop-specific overrides.
 - Added workshop run-sheet pages with persistent task and material checkboxes, workshop notes, drawings, responsive task layouts, and canonical `/run-sheet` links throughout the admin interface.
 - Reworked workshop and template PDFs with shared layouts, three-column tasks and materials, page numbering, workshop notes, run-sheet drawings, and appended image or multi-page PDF attachments.
