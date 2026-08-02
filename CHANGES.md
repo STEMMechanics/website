@@ -2,6 +2,10 @@
 
 ## Current
 
+- Expanded pick list templates into workshop templates with overview details, reorderable tasks and notes, editable TipTap run sheets, drag-and-drop attachments, and reusable workshop-specific overrides.
+- Added workshop run-sheet pages with persistent task and material checkboxes, workshop notes, drawings, responsive task layouts, and canonical `/run-sheet` links throughout the admin interface.
+- Reworked workshop and template PDFs with shared layouts, three-column tasks and materials, page numbering, workshop notes, run-sheet drawings, and appended image or multi-page PDF attachments.
+- Added facilitator-based workshop task reminders with configurable offsets and delivery times, queue-backed email delivery, reminder history, safe rescheduling, overdue cancellation, test resend controls, and authenticated task completion links.
 - Updated the Ignore Square Payment reason menu to use the standard admin select component.
 - Added an admin user merge workflow that safely moves workshops, media, tickets, attendance, finance records, orders, organisations, groups, and other associations into a clearly selected destination account before removing the duplicate.
 - Added support for email-less ghost users, including nullable email storage, required first names, workshop requester search, and clear login-unavailable notices in the user editor.

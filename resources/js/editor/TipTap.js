@@ -1358,6 +1358,12 @@ document.addEventListener('alpine:init', () => {
                     onUpdate({editor}) {
                         _this.updatedAt = Date.now()
                         _this.content = editor.getHTML()
+                        window.dispatchEvent(new CustomEvent('sm-editor-updated', {
+                            detail: {
+                                name: _this.$el.closest('[data-editor-name]')?.dataset.editorName || '',
+                                html: _this.content,
+                            },
+                        }))
                     },
                     onSelectionUpdate({/* editor */}) {
                         _this.updatedAt = Date.now()

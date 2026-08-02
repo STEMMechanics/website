@@ -5,7 +5,7 @@
     $value = old($name, $value);
 @endphp
 
-<div class="editor-container">
+<div class="editor-container" data-editor-name="{{ $name }}">
     @if(isset($label))
     <div class="text-sm pl-1">{{ $label }}</div>
     @endif

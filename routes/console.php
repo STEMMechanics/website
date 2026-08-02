@@ -178,6 +178,10 @@ Schedule::command('store:products:send-low-stock-alerts')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('reminders:send-due')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Schedule::command('payments:send-pending-bank-transfer-reminders')
     ->dailyAt('08:00')
     ->timezone((string) config('app.timezone', 'UTC'))

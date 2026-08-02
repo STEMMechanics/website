@@ -796,6 +796,7 @@ const registerWorkshopPickListPage = () => {
         editSnapshot: null,
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
+        completedTaskIds: Array.isArray(config.completedTaskIds) ? config.completedTaskIds.map((id) => String(id)) : [],
         participantsInput: String(config.participantsInput ?? ''),
         notes: String(config.notes ?? ''),
         defaultParticipants: Number.parseInt(String(config.defaultParticipants ?? 1), 10) || 1,
@@ -1323,6 +1324,8 @@ const registerWorkshopPickListPage = () => {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
                 checked_item_ids: this.checkedIds,
+                completed_task_ids: this.completedTaskIds,
+                workshop_run_sheet: document.querySelector('input[name="workshop_run_sheet"]')?.value ?? '',
                 reset_pick_list_customization: this.resetCustomization ? 1 : 0,
                 pick_list_canvas_data: this.pickListCanvasDataJson || null,
                 pick_list_canvas_thumbnail_data: this.pickListCanvasThumbnailData || '',
@@ -1352,6 +1355,9 @@ const registerWorkshopPickListPage = () => {
                 this.lastSavedAbsolute = data.saved_at_display ?? null;
                 if (Array.isArray(data.checked_item_ids)) {
                     this.checkedIds = data.checked_item_ids.map((id) => String(id));
+                }
+                if (Array.isArray(data.completed_task_ids)) {
+                    this.completedTaskIds = data.completed_task_ids.map((id) => String(id));
                 }
                 if (typeof data.pick_list_is_customized === 'boolean') {
                     this.isCustomized = data.pick_list_is_customized;

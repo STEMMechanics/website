@@ -31,6 +31,7 @@ use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopPickListService;
+use App\Services\ReminderService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Barryvdh\DomPDF\PDF;
@@ -246,6 +247,7 @@ class WorkshopController extends Controller
             'mixedFields' => $mixedFields,
             'linkedCategories' => $linkedCategories,
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
+            'facilitatorOptions' => $this->facilitatorOptions(),
             'locations' => Location::query()->orderBy('name')->get(),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
     }
@@ -853,6 +855,7 @@ class WorkshopController extends Controller
             'location_id' => 'nullable|exists:locations,id',
             'hosted_for_organisation_id' => 'nullable|exists:organisations,id',
             'requested_by_user_id' => 'nullable|exists:users,id',
+            'facilitator_user_id' => ['nullable', Rule::exists('users', 'id')->whereNotNull('email')],
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -891,6 +894,9 @@ class WorkshopController extends Controller
         $workshopData = $request->all();
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
         $workshopData['user_id'] = auth()->user()->id;
+        $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
+            ? (string) $request->input('facilitator_user_id')
+            : (string) $workshopData['user_id'];
         unset($workshopData['category_ids']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
@@ -960,6 +966,7 @@ class WorkshopController extends Controller
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles([], 'private');
+        app(ReminderService::class)->syncWorkshop($workshop);
 
         session()->flash('message', 'Workshop has been created');
         session()->flash('message-title', 'Workshop created');
@@ -1046,6 +1053,7 @@ class WorkshopController extends Controller
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
+            'facilitatorOptions' => $this->facilitatorOptions(),
             'activeTicketCount' => $workshop->activeTicketCount(),
             'ticketedAttendeeCount' => $workshop->ticketedAttendeeCount(),
             'soldTicketCount' => $soldTicketCount,
@@ -1656,6 +1664,7 @@ class WorkshopController extends Controller
             'location_id' => 'nullable|exists:locations,id',
             'hosted_for_organisation_id' => 'nullable|exists:organisations,id',
             'requested_by_user_id' => 'nullable|exists:users,id',
+            'facilitator_user_id' => ['nullable', Rule::exists('users', 'id')->whereNotNull('email')],
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -1702,6 +1711,9 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
+            ? (string) $request->input('facilitator_user_id')
+            : $this->defaultFacilitatorUserId($workshop);
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
         $shouldNotifyTicketHolders = $request->boolean('notify_ticket_holders');
         $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
@@ -1738,6 +1750,11 @@ class WorkshopController extends Controller
         $newTemplateId = $workshopData['pick_list_template_id'] !== null ? (int) $workshopData['pick_list_template_id'] : null;
         $templateChanged = $resetPickListCustomization || $existingTemplateId !== $newTemplateId;
         $pickListIsCustomized = $resetPickListCustomization ? false : (bool) $workshop->pick_list_is_customized;
+
+        if ($templateChanged) {
+            $workshopData['run_sheet_completed_task_ids'] = null;
+            $workshopData['workshop_run_sheet'] = null;
+        }
 
         if ($resetPickListCustomization) {
             $workshopData['pick_list_is_customized'] = false;
@@ -1847,6 +1864,7 @@ class WorkshopController extends Controller
 
         $workshop->update($workshopData);
         $workshop->categories()->sync($categoryIds);
+        app(ReminderService::class)->syncWorkshop($workshop->fresh());
         if ($shouldReflagEarlyBirdTickets && $newEarlyBirdTicketLimit !== null) {
             $this->reflagEarlyBirdTicketsForLimit($workshop, $newEarlyBirdTicketLimit);
         }
@@ -4487,6 +4505,36 @@ class WorkshopController extends Controller
 
         $value = trim((string) ($workshopData['attendee_count'] ?? ''));
         $workshopData['attendee_count'] = $value !== '' ? (int) $value : null;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function facilitatorOptions(): Collection
+    {
+        return User::query()
+            ->whereNotNull('email')
+            ->whereRaw("TRIM(email) <> ''")
+            ->orderBy('firstname')
+            ->orderBy('surname')
+            ->get();
+    }
+
+    private function defaultFacilitatorUserId(Workshop $workshop): ?string
+    {
+        $creatorId = User::query()->whereKey($workshop->user_id)->value('id');
+        if (is_string($creatorId) && $creatorId !== '') {
+            return $creatorId;
+        }
+
+        $jamesId = User::query()->where('email', 'james@stemmechanics.com.au')->value('id');
+        if (is_string($jamesId) && $jamesId !== '') {
+            return $jamesId;
+        }
+
+        $authenticatedId = auth()->id();
+
+        return is_string($authenticatedId) && $authenticatedId !== '' ? $authenticatedId : null;
     }
 
     /**
