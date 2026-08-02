@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -58,6 +59,8 @@ class Workshop extends Model
         'pick_list_template_id',
         'pick_list_participants',
         'pick_list_checked_item_ids',
+        'run_sheet_completed_task_ids',
+        'workshop_run_sheet',
         'pick_list_custom_items',
         'pick_list_is_customized',
         'pick_list_notes',
@@ -67,6 +70,7 @@ class Workshop extends Model
         'hosted_for_organisation_id',
         'requested_by_user_id',
         'user_id',
+        'facilitator_user_id',
         'hero_media_name',
     ];
 
@@ -84,6 +88,7 @@ class Workshop extends Model
         'early_bird_ticket_limit' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
+        'run_sheet_completed_task_ids' => 'array',
         'pick_list_custom_items' => 'array',
         'pick_list_is_customized' => 'boolean',
     ];
@@ -94,6 +99,22 @@ class Workshop extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function facilitator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'facilitator_user_id');
+    }
+
+    /**
+     * @return MorphMany<Reminder, $this>
+     */
+    public function reminders(): MorphMany
+    {
+        return $this->morphMany(Reminder::class, 'remindable');
     }
 
     /**

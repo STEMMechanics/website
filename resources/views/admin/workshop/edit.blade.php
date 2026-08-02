@@ -578,6 +578,20 @@ if (isset($workshop)) {
                     <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
                 </div>
                 <div class="mb-4">
+                    <x-ui.select
+                        label="Facilitator"
+                        name="facilitator_user_id"
+                        value="{{ old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) }}"
+                        info="Workshop task reminders are sent to this person. New workshops default to their creator."
+                    >
+                        @foreach(($facilitatorOptions ?? collect()) as $facilitator)
+                            <option value="{{ $facilitator->id }}" @selected((string) old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) === (string) $facilitator->id)>
+                                {{ $facilitator->getName() }} · {{ $facilitator->email }}
+                            </option>
+                        @endforeach
+                    </x-ui.select>
+                </div>
+                <div class="mb-4">
                     <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
                 </div>
                 <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -993,17 +1007,17 @@ if (isset($workshop)) {
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select
-                            label="Pick List Template"
+                            label="Workshop Template"
                             name="pick_list_template_mode"
                             x-model="pickListTemplateMode"
                             x-on:change="updatePickListTemplateSelection($event.target.value)"
                         >
                             <x-slot name="labelRight">
-                                <a href="{{ route('admin.pick-list-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
+                                <a href="{{ route('admin.workshop-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
                                 @if(isset($workshop) && $workshop->pick_list_template_id)
-                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
+                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
                                 @endif
-                                <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.pick-list', $workshop) }}">Open Pick List</a>
+                                <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open Run Sheet</a>
                             </x-slot>
                             @if($hasCustomPickList)
                                 <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>

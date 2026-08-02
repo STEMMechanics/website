@@ -9,6 +9,7 @@ use App\Models\PickListTemplateItem;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopTemplateTask;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,67 @@ class WorkshopPickListAutosaveTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
+
+    public function test_run_sheet_task_checkboxes_are_saved_for_the_workshop(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create(['name' => 'Task template']);
+        $task = WorkshopTemplateTask::query()->create([
+            'pick_list_template_id' => $template->id,
+            'name' => 'Pack equipment',
+            'sort_order' => 1,
+        ]);
+        $otherTask = WorkshopTemplateTask::query()->create([
+            'pick_list_template_id' => $template->id,
+            'name' => 'Confirm venue',
+            'sort_order' => 2,
+        ]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.run-sheet.save', $workshop), [
+                'completed_task_ids' => [$task->id, 999999],
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('completed_task_ids', [$task->id]);
+        $this->assertSame([$task->id], $workshop->fresh()->run_sheet_completed_task_ids);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.run-sheet', $workshop))
+            ->assertOk()
+            ->assertViewHas('completedTaskIds', [$task->id])
+            ->assertSee('x-model="completedTaskIds"', false)
+            ->assertSeeText($otherTask->name);
+    }
+
+    public function test_workshop_run_sheet_override_does_not_change_the_template(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create([
+            'name' => 'Editable run sheet',
+            'run_sheet' => '<p>Template instructions</p>',
+        ]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.run-sheet.save', $workshop), [
+                'workshop_run_sheet' => '<p>Adjusted workshop instructions</p>',
+            ])
+            ->assertOk()
+            ->assertJsonPath('workshop_run_sheet', '<p>Adjusted workshop instructions</p>');
+
+        $this->assertSame('<p>Adjusted workshop instructions</p>', $workshop->fresh()->workshop_run_sheet);
+        $this->assertSame('<p>Template instructions</p>', $template->fresh()->run_sheet);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.run-sheet', $workshop))
+            ->assertOk()
+            ->assertSee('Adjusted workshop instructions', false)
+            ->assertSeeText('Changes apply only to this workshop');
     }
 
     public function test_pick_list_autosave_returns_json_and_persists_participants_and_checked_items(): void
@@ -198,12 +260,13 @@ class WorkshopPickListAutosaveTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.index'))
             ->assertOk()
-            ->assertSee(route('admin.workshop.pick-list', $workshop), false);
+            ->assertSee(route('admin.workshop.run-sheet', $workshop), false);
 
         $this->actingAs($admin)
             ->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSee(route('admin.workshop.pick-list', $workshop), false);
+            ->assertSee(route('admin.workshop.run-sheet', $workshop), false)
+            ->assertSeeText('Run Sheet');
     }
 
     public function test_non_ticketed_pick_list_shows_participant_count_and_persists_manual_items_without_a_template(): void

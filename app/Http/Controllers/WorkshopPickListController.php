@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\Workshop;
+use App\Models\WorkshopTemplateTask;
 use App\Services\WorkshopPickListService;
+use App\Services\PdfAttachmentAppender;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,13 +20,16 @@ use JsonException;
 
 class WorkshopPickListController extends Controller
 {
-    public function __construct(private WorkshopPickListService $pickListService)
+    public function __construct(
+        private WorkshopPickListService $pickListService,
+        private PdfAttachmentAppender $attachmentAppender,
+    )
     {
     }
 
     public function show(Workshop $workshop)
     {
-        $workshop->loadMissing('location', 'pickListTemplate.items');
+        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments');
 
         $pickListData = $this->pickListService->build($workshop);
         $participants = $pickListData['participants'];
@@ -42,11 +47,19 @@ class WorkshopPickListController extends Controller
             ->values()
             ->all();
 
+        $templateTaskIds = $workshop->pickListTemplate?->tasks
+            ->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+        $completedTaskIds = collect($workshop->run_sheet_completed_task_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => in_array($id, $templateTaskIds, true))
+            ->unique()->values()->all();
+
         return view('admin.workshop.pick-list', [
             'workshop' => $workshop,
             'participants' => $participants,
             'activeTicketCount' => $this->pickListService->activeTicketCount($workshop),
             'checkedItemIds' => $checkedItemIds,
+            'completedTaskIds' => $completedTaskIds,
             'pickListCanvasDataJson' => is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null,
             'pickListCanvasThumbnailUrl' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
             'templateItems' => $resolvedItems->map(function (array $item): array {
@@ -67,6 +80,30 @@ class WorkshopPickListController extends Controller
         ]);
     }
 
+    public function completeTask(Workshop $workshop, WorkshopTemplateTask $task): RedirectResponse
+    {
+        abort_unless(
+            $workshop->pick_list_template_id !== null
+            && (int) $task->pick_list_template_id === (int) $workshop->pick_list_template_id,
+            404,
+        );
+
+        $completedTaskIds = collect($workshop->run_sheet_completed_task_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->push((int) $task->id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $workshop->update(['run_sheet_completed_task_ids' => $completedTaskIds]);
+
+        session()->flash('message', '“'.$task->name.'” has been marked as complete.');
+        session()->flash('message-title', 'Task complete');
+        session()->flash('message-type', 'success');
+
+        return redirect()->to(route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id);
+    }
+
     public function save(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
@@ -77,6 +114,9 @@ class WorkshopPickListController extends Controller
             'reset_pick_list_customization' => ['nullable', 'boolean'],
             'checked_item_ids' => ['nullable', 'array'],
             'checked_item_ids.*' => ['integer'],
+            'completed_task_ids' => ['nullable', 'array'],
+            'completed_task_ids.*' => ['integer'],
+            'workshop_run_sheet' => ['sometimes', 'nullable', 'string'],
             'pick_list_canvas_data' => ['nullable'],
             'pick_list_canvas_thumbnail_data' => ['sometimes', 'nullable', 'string'],
         ]);
@@ -131,6 +171,13 @@ class WorkshopPickListController extends Controller
             ->values()
             ->all();
 
+        $allowedTaskIds = PickListTemplate::query()->find($templateId)?->tasks()
+            ->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+        $completedTaskIds = collect($validated['completed_task_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => in_array($id, $allowedTaskIds, true))
+            ->unique()->values()->all();
+
         $canvasDataWasProvided = $request->exists('pick_list_canvas_data');
         $canvasThumbnailWasProvided = $request->exists('pick_list_canvas_thumbnail_data');
         $canvasData = $canvasDataWasProvided
@@ -138,6 +185,10 @@ class WorkshopPickListController extends Controller
             : (is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null);
 
         $workshop->pick_list_checked_item_ids = $selectedIds;
+        $workshop->run_sheet_completed_task_ids = $completedTaskIds;
+        if (array_key_exists('workshop_run_sheet', $validated)) {
+            $workshop->workshop_run_sheet = trim((string) $validated['workshop_run_sheet']) ?: null;
+        }
         if ($canvasDataWasProvided) {
             $workshop->pick_list_canvas_data = $canvasData;
         }
@@ -159,6 +210,8 @@ class WorkshopPickListController extends Controller
                 'saved_at_display' => $workshop->updated_at?->format('M j, Y g:i a'),
                 'pick_list_participants' => $workshop->pick_list_participants,
                 'checked_item_ids' => $selectedIds,
+                'completed_task_ids' => $completedTaskIds,
+                'workshop_run_sheet' => $workshop->workshop_run_sheet,
                 'pick_list_is_customized' => (bool) $workshop->pick_list_is_customized,
                 'pick_list_custom_items' => $workshop->pick_list_custom_items ?? [],
                 'pick_list_canvas_has_content' => is_string($workshop->pick_list_canvas_data) && trim($workshop->pick_list_canvas_data) !== '',
@@ -170,7 +223,7 @@ class WorkshopPickListController extends Controller
         session()->flash('message-title', 'Pick list saved');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.pick-list', $workshop);
+        return redirect()->route('admin.workshop.run-sheet', $workshop);
     }
 
     public function pdf(Workshop $workshop): Response
@@ -179,19 +232,31 @@ class WorkshopPickListController extends Controller
             abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
         }
 
-        $workshop->loadMissing('location', 'pickListTemplate.items');
+        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments');
         $pickListData = $this->pickListService->build($workshop);
 
         $pdf = DomPdf::loadView('pdf.workshop-pick-list', [
             'workshop' => $workshop,
             'participants' => $pickListData['participants'],
             'calculatedItems' => $pickListData['calculatedItems'],
+            'pickListNotes' => $pickListData['pickListNotes'],
+            'workshopDrawingPath' => $this->pickListCanvasThumbnailPath($workshop->pick_list_canvas_thumbnail_path),
             'generatedAt' => now(),
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
 
-        return $pdf->stream('workshop-'.$workshop->id.'-pick-list.pdf');
+        $content = $this->attachmentAppender->append(
+            $pdf->output(),
+            $workshop->pick_list_template_id !== null
+                ? $workshop->pickListTemplate->attachments
+                : collect(),
+        );
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="workshop-'.$workshop->id.'-plan.pdf"',
+        ]);
     }
 
     /**
@@ -308,5 +373,15 @@ class WorkshopPickListController extends Controller
         $path = trim((string) $path);
 
         return $path !== '' ? Storage::disk('public')->url($path) : null;
+    }
+
+    private function pickListCanvasThumbnailPath(?string $path): ?string
+    {
+        $path = trim((string) $path);
+        if ($path === '' || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->path($path);
     }
 }

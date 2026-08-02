@@ -2,23 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers;
+use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\WorkshopTemplateTask;
+use App\Services\ReminderService;
+use App\Services\PdfAttachmentAppender;
+use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PickListTemplateController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PickListTemplate::query()->withCount('items');
+        $query = PickListTemplate::query()->withCount(['items', 'tasks', 'attachments']);
 
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search', ''));
             $query->where(function ($builder) use ($search): void {
                 $builder->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%');
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('run_sheet', 'like', '%'.$search.'%');
             });
         }
 
@@ -39,26 +50,31 @@ class PickListTemplateController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateRequest($request);
+        $validated['attachments'] = array_values(array_unique([
+            ...$validated['attachments'],
+            ...$this->storeAttachmentUploads($request),
+        ]));
 
-        $template = new PickListTemplate();
-        $template->fill([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ]);
-        $template->save();
+        $template = DB::transaction(function () use ($validated): PickListTemplate {
+            $template = new PickListTemplate();
+            $this->fillTemplate($template, $validated);
+            $this->syncItems($template, $validated['items'] ?? []);
+            $this->syncTasks($template, $validated['tasks'] ?? []);
+            $template->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
 
-        $this->syncItems($template, $validated['items'] ?? []);
+            return $template;
+        });
 
-        session()->flash('message', 'Pick list template has been created');
-        session()->flash('message-title', 'Template created');
+        session()->flash('message', 'Workshop template has been created');
+        session()->flash('message-title', 'Workshop template created');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.pick-list-template.index');
+        return redirect()->route('admin.workshop-template.edit', $template);
     }
 
     public function edit(PickListTemplate $pickListTemplate)
     {
-        $pickListTemplate->load('items');
+        $pickListTemplate->load(['items', 'tasks', 'attachments']);
 
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
@@ -69,17 +85,21 @@ class PickListTemplateController extends Controller
     public function update(Request $request, PickListTemplate $pickListTemplate): RedirectResponse
     {
         $validated = $this->validateRequest($request, $pickListTemplate);
+        $validated['attachments'] = array_values(array_unique([
+            ...$validated['attachments'],
+            ...$this->storeAttachmentUploads($request),
+        ]));
 
-        $pickListTemplate->fill([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ]);
-        $pickListTemplate->save();
+        DB::transaction(function () use ($pickListTemplate, $validated): void {
+            $this->fillTemplate($pickListTemplate, $validated);
+            $this->syncItems($pickListTemplate, $validated['items'] ?? []);
+            $this->syncTasks($pickListTemplate, $validated['tasks'] ?? []);
+            $pickListTemplate->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
+        });
+        app(ReminderService::class)->syncTemplateWorkshops((int) $pickListTemplate->id);
 
-        $this->syncItems($pickListTemplate, $validated['items'] ?? []);
-
-        session()->flash('message', 'Pick list template has been updated');
-        session()->flash('message-title', 'Template updated');
+        session()->flash('message', 'Workshop template has been updated');
+        session()->flash('message-title', 'Workshop template updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
@@ -89,20 +109,24 @@ class PickListTemplateController extends Controller
     {
         $pickListTemplate->delete();
 
-        session()->flash('message', 'Pick list template has been deleted');
-        session()->flash('message-title', 'Template deleted');
+        session()->flash('message', 'Workshop template has been deleted');
+        session()->flash('message-title', 'Workshop template deleted');
         session()->flash('message-type', 'danger');
 
-        return redirect()->route('admin.pick-list-template.index');
+        return redirect()->route('admin.workshop-template.index');
     }
 
     public function duplicate(PickListTemplate $pickListTemplate): RedirectResponse
     {
-        $pickListTemplate->load('items');
+        $pickListTemplate->load(['items', 'tasks', 'attachments']);
 
         $copy = new PickListTemplate();
         $copy->name = trim((string) $pickListTemplate->name).' (Copy)';
         $copy->description = $pickListTemplate->description;
+        $copy->duration = $pickListTemplate->duration;
+        $copy->participants = $pickListTemplate->participants;
+        $copy->run_sheet = $pickListTemplate->run_sheet;
+        $copy->run_sheet_drawing_data = $pickListTemplate->run_sheet_drawing_data;
         $copy->save();
 
         foreach ($pickListTemplate->items as $item) {
@@ -114,11 +138,57 @@ class PickListTemplateController extends Controller
             ]);
         }
 
-        session()->flash('message', 'Pick list template has been duplicated');
-        session()->flash('message-title', 'Template duplicated');
+        foreach ($pickListTemplate->tasks as $task) {
+            $copy->tasks()->create([
+                'name' => (string) $task->name,
+                'notes' => $task->notes,
+                'reminder_enabled' => (bool) $task->reminder_enabled,
+                'reminder_offset_days' => $task->reminder_offset_days,
+                'reminder_time' => $task->reminder_time,
+                'sort_order' => (int) ($task->sort_order ?? 0),
+            ]);
+        }
+
+        $copy->updateFiles(
+            $pickListTemplate->attachments->pluck('name')->all(),
+            PickListTemplate::ATTACHMENT_COLLECTION
+        );
+
+        session()->flash('message', 'Workshop template has been duplicated');
+        session()->flash('message-title', 'Workshop template duplicated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.pick-list-template.edit', $copy);
+        return redirect()->route('admin.workshop-template.edit', $copy);
+    }
+
+    public function pdf(PickListTemplate $pickListTemplate): Response
+    {
+        $pickListTemplate->load(['items', 'tasks', 'attachments']);
+
+        $calculatedItems = $pickListTemplate->items->map(fn (PickListTemplateItem $item): array => [
+            'item_name' => (string) $item->item_name,
+            'quantity' => (int) $item->quantity_value,
+            'quantity_text' => (string) $item->quantity_value,
+            'type_note' => $item->quantity_type === PickListTemplateItem::TYPE_PER_PARTICIPANT
+                ? '('.$item->quantity_value.' per participant)'
+                : '',
+        ]);
+
+        $pdf = DomPdf::loadView('pdf.workshop-pick-list', [
+            'template' => $pickListTemplate,
+            'participants' => null,
+            'calculatedItems' => $calculatedItems,
+            'pickListNotes' => '',
+            'workshopDrawingPath' => null,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ]);
+        $content = app(PdfAttachmentAppender::class)->append($pdf->output(), $pickListTemplate->attachments);
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="workshop-template-'.$pickListTemplate->id.'.pdf"',
+        ]);
     }
 
     private function validateRequest(Request $request, ?PickListTemplate $template = null): array
@@ -126,6 +196,28 @@ class PickListTemplateController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'duration' => ['nullable', 'string', 'max:255'],
+            'participants' => ['nullable', 'string', 'max:255'],
+            'run_sheet' => ['nullable', 'string'],
+            'run_sheet_drawing_data' => ['nullable', 'string'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['string', Rule::exists('media', 'name')],
+            'attachment_uploads' => ['nullable', 'array'],
+            'attachment_uploads.*' => ['file', 'max:'.max((int) round(Helpers::getMaxUploadSize(auth()->user()) / 1024), 1)],
+            'tasks' => ['nullable', 'array'],
+            'tasks.*.id' => array_filter([
+                'nullable',
+                'integer',
+                $template ? Rule::exists('workshop_template_tasks', 'id')->where(
+                    fn ($query) => $query->where('pick_list_template_id', $template->id)
+                ) : null,
+            ]),
+            'tasks.*.name' => ['required', 'string', 'max:255'],
+            'tasks.*.notes' => ['nullable', 'string'],
+            'tasks.*.reminder_enabled' => ['nullable', 'boolean'],
+            'tasks.*.reminder_offset_days' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', 'integer', 'between:-365,365'],
+            'tasks.*.reminder_time' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', Rule::in(['06:00', '12:00', '16:00'])],
+            'tasks.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'items' => ['nullable', 'array'],
             'items.*.id' => array_filter([
                 'nullable',
@@ -154,7 +246,35 @@ class PickListTemplateController extends Controller
             ->values()
             ->all();
 
+        $validated['tasks'] = collect($validated['tasks'] ?? [])
+            ->map(fn (array $row): array => [
+                'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
+                'name' => trim((string) ($row['name'] ?? '')),
+                'notes' => trim((string) ($row['notes'] ?? '')) ?: null,
+                'reminder_enabled' => filter_var($row['reminder_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'reminder_offset_days' => isset($row['reminder_offset_days']) && $row['reminder_offset_days'] !== '' ? (int) $row['reminder_offset_days'] : null,
+                'reminder_time' => in_array(($row['reminder_time'] ?? null), ['06:00', '12:00', '16:00'], true) ? $row['reminder_time'] : null,
+                'sort_order' => max(0, (int) ($row['sort_order'] ?? 0)),
+            ])
+            ->filter(fn (array $row): bool => $row['name'] !== '')
+            ->values()
+            ->all();
+        $validated['attachments'] = array_values($validated['attachments'] ?? []);
+
         return $validated;
+    }
+
+    private function fillTemplate(PickListTemplate $template, array $validated): void
+    {
+        $template->fill([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'duration' => trim((string) ($validated['duration'] ?? '')) ?: null,
+            'participants' => trim((string) ($validated['participants'] ?? '')) ?: null,
+            'run_sheet' => $validated['run_sheet'] ?? null,
+            'run_sheet_drawing_data' => $validated['run_sheet_drawing_data'] ?? null,
+        ]);
+        $template->save();
     }
 
     private function syncItems(PickListTemplate $template, array $items): void
@@ -191,6 +311,42 @@ class PickListTemplateController extends Controller
         $template->items()->whereNotIn('id', $keptIds)->delete();
     }
 
+    private function syncTasks(PickListTemplate $template, array $tasks): void
+    {
+        $existingTasks = $template->tasks()->get()->keyBy(fn (WorkshopTemplateTask $task): int => (int) $task->id);
+        $keptIds = [];
+
+        foreach ($tasks as $index => $row) {
+            $payload = [
+                'name' => $row['name'],
+                'notes' => $row['notes'],
+                'reminder_enabled' => $row['reminder_enabled'],
+                'reminder_offset_days' => $row['reminder_enabled'] ? $row['reminder_offset_days'] : null,
+                'reminder_time' => $row['reminder_enabled'] ? $row['reminder_time'] : null,
+                'sort_order' => ($index + 1) * 10,
+            ];
+            $taskId = isset($row['id']) ? (int) $row['id'] : null;
+
+            if ($taskId !== null && $existingTasks->has($taskId)) {
+                $task = $existingTasks->get($taskId);
+                $task->fill($payload);
+                $task->save();
+                $keptIds[] = $taskId;
+                continue;
+            }
+
+            $task = $template->tasks()->create($payload);
+            $keptIds[] = (int) $task->id;
+        }
+
+        if ($keptIds === []) {
+            $template->tasks()->delete();
+            return;
+        }
+
+        $template->tasks()->whereNotIn('id', $keptIds)->delete();
+    }
+
     /**
      * @return array<int, string>
      */
@@ -206,5 +362,60 @@ class PickListTemplateController extends Controller
             ->filter(fn (string $value) => $value !== '')
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function storeAttachmentUploads(Request $request): array
+    {
+        $storedNames = [];
+        foreach ($request->file('attachment_uploads', []) as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
+            $hash = hash_file('sha256', $file->path());
+            $storage = Storage::disk('archive');
+            $exists = $storage->exists($hash);
+            if (! $exists && $file->storeAs('/', $hash, 'archive') === false) {
+                continue;
+            }
+
+            $media = Media::query()->create([
+                'title' => Helpers::filenameToTitle($fileName),
+                'user_id' => auth()->id(),
+                'name' => $fileName,
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+                'hash' => $hash,
+                'storage_disk' => 'archive',
+                'visibility' => 'private',
+            ]);
+
+            if (! $exists) {
+                $media->generateVariants(false);
+            }
+
+            $storedNames[] = $media->name;
+        }
+
+        return $storedNames;
+    }
+
+    private function uniqueMediaFileName(string $originalName): string
+    {
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $name = Helpers::cleanFileName(pathinfo($originalName, PATHINFO_FILENAME)) ?: 'workshop-template-attachment';
+        $fileName = $extension !== '' ? $name.'.'.$extension : $name;
+        $increment = 1;
+
+        while (Media::query()->whereKey($fileName)->exists()) {
+            $fileName = $extension !== '' ? $name.'-'.$increment.'.'.$extension : $name.'-'.$increment;
+            $increment++;
+        }
+
+        return $fileName;
     }
 }

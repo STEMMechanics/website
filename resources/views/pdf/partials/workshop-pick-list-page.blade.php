@@ -16,6 +16,7 @@
     };
 
     $itemsCollection = ($calculatedItems ?? collect());
+    $templateMode = isset($template) && $template instanceof \App\Models\PickListTemplate;
 @endphp
 
 <table class="header">
@@ -36,6 +37,13 @@
 
 <div class="section-title">Details</div>
 <table class="pick-details">
+    @if($templateMode)
+    <tr>
+        <td><div class="label">Template</div><div class="value">{{ $template->name }}</div></td>
+        <td><div class="label">Duration</div><div class="value">{{ $template->duration ?: 'Not specified' }}</div></td>
+        <td><div class="label" style="width: 96px;">Participants</div><div class="value">{{ $template->participants ?: 'Not specified' }}</div></td>
+    </tr>
+    @else
     <tr>
         <td><div class="label">Workshop</div><div class="value">{{ (string) ($workshop->title ?? '-') }}</div></td>
         <td><div class="label">Date / Time</div><div class="value">{{ $workshop->starts_at?->format('D j M - g:ia') ?? '-' }}</div></td>
@@ -46,7 +54,21 @@
         <td></td>
         <td></td>
     </tr>
+    @endif
 </table>
+
+@if($templateMode && trim((string) $template->description) !== '')
+    <div class="notes-wrap workshop-notes"><div class="section-title">Workshop Notes</div><div class="notes-body">{{ $template->description }}</div></div>
+@endif
+@if(trim((string) ($pickListNotes ?? '')) !== '')
+    @php
+        $notesHtml = $renderMarkdown((string) $pickListNotes);
+    @endphp
+    <div class="notes-wrap workshop-notes">
+        <div class="section-title">Workshop Notes</div>
+        <div class="notes-body">{!! $notesHtml !== '' ? $notesHtml : e((string) $pickListNotes) !!}</div>
+    </div>
+@endif
 
 <div class="section-title">Items / Materials</div>
 
@@ -78,13 +100,3 @@
         @endfor
     </tr>
 </table>
-
-@if(trim((string) ($pickListNotes ?? '')) !== '')
-    @php
-        $notesHtml = $renderMarkdown((string) $pickListNotes);
-    @endphp
-    <div class="notes-wrap">
-        <div class="section-title">Pick List Notes</div>
-        <div class="notes-body">{!! $notesHtml !== '' ? $notesHtml : e((string) $pickListNotes) !!}</div>
-    </div>
-@endif

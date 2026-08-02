@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="workshop.index" backTitle="Workshops">Workshop Pick List</x-mast>
+    <x-mast backRoute="workshop.index" backTitle="Workshops">Run Sheet</x-mast>
 
     <x-container>
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
@@ -21,7 +21,7 @@
             <x-slot:right>
                 <x-ui.button class="mr-2" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                 @if($workshop->pick_list_template_id || $workshop->pick_list_is_customized)
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.pick-list.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.run-sheet.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
                 @endif
             </x-slot:right>
         </x-ui.toolbar>
@@ -36,16 +36,17 @@
 
         <form
             method="POST"
-            action="{{ route('admin.workshop.pick-list.save', $workshop) }}"
+            action="{{ route('admin.workshop.run-sheet.save', $workshop) }}"
             class="rounded-lg border border-gray-200 p-4 mb-6 bg-white"
             x-data="workshopPickListPage({
-                saveUrl: @js(route('admin.workshop.pick-list.save', $workshop)),
+                saveUrl: @js(route('admin.workshop.run-sheet.save', $workshop)),
                 csrfToken: @js(csrf_token()),
                 templateItems: @js($templateItems ?? []),
                 customItems: @js($customItems ?? []),
                 itemSuggestions: @js($itemSuggestions ?? []),
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
+                completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 participantsInput: @js($pickListParticipantsInput),
                 notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
                 defaultParticipants: @js((int) $participants),
@@ -56,10 +57,14 @@
             })"
             x-init="init()"
             x-on:submit.prevent="submitForm($event)"
+            x-on:sm-editor-updated.window="if ($event.detail?.name === 'workshop_run_sheet') scheduleAutosave()"
         >
             @csrf
             <template x-for="id in checkedIds" :key="`checked-${id}`">
                 <input type="hidden" name="checked_item_ids[]" :value="id">
+            </template>
+            <template x-for="id in completedTaskIds" :key="`completed-task-${id}`">
+                <input type="hidden" name="completed_task_ids[]" :value="id">
             </template>
             <input
                 type="hidden"
@@ -69,8 +74,59 @@
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
+            <section class="mb-8">
+                <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
+                <textarea
+                    id="pick_list_notes"
+                    name="pick_list_notes"
+                    rows="4"
+                    x-ref="pickListNotes"
+                    class="mt-2 disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
+                    x-model="notes"
+                    x-on:input="resizeNotesField(); scheduleAutosave()"
+                ></textarea>
+            </section>
+
+            @if($workshop->pickListTemplate)
+                <template x-teleport="#workshop-plan-tasks">
+                <section class="mb-8" x-data="{ taskNote: null, taskName: '' }">
+                    <h2 class="text-lg font-semibold text-gray-900">Tasks</h2>
+                    @if($workshop->pickListTemplate->tasks->isEmpty())
+                        <p class="mt-2 text-sm text-gray-600">No template tasks.</p>
+                    @else
+                        <ul class="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
+                            @foreach($workshop->pickListTemplate->tasks as $task)
+                                <li id="task-{{ $task->id }}" class="scroll-mt-24 flex gap-3 rounded-lg border border-gray-200 bg-white p-3 target:border-primary-color target:ring-2 target:ring-primary-color/20">
+                                    <x-ui.checkbox
+                                        :noWrapper="true"
+                                        :inline="true"
+                                        x-model="completedTaskIds"
+                                        value="{{ (string) $task->id }}"
+                                        x-on:change="scheduleAutosave()"
+                                    />
+                                    <div class="min-w-0 flex-1 content-center">
+                                        <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $task->name }}</div>
+                                        @if($task->notes)
+                                            <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                        @endif
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    <div x-show="taskNote !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskNote = null">
+                        <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
+                            <div class="flex items-center justify-between gap-3"><h3 class="text-lg font-semibold" x-text="taskName"></h3><button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskNote = null"><i class="fa-solid fa-xmark"></i></button></div>
+                            <div class="mt-4 whitespace-pre-line text-sm text-gray-700" x-text="taskNote"></div>
+                            <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="taskNote = null">Close</x-ui.button></div>
+                        </div>
+                    </div>
+                </section>
+                </template>
+            @endif
+
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
+                <h2 class="text-lg font-semibold text-gray-900">Pick List</h2>
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
                     <div class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
@@ -243,21 +299,25 @@
                 </div>
             </div>
 
-            <h2 class="mt-8 text-lg font-semibold text-gray-900">Workshop Notes</h2>
+            <div id="workshop-plan-tasks" class="mt-8"></div>
 
-            <div class="mt-2 rounded-2xl bg-white">
-                <textarea
-                    id="pick_list_notes"
-                    name="pick_list_notes"
-                    rows="4"
-                    x-ref="pickListNotes"
-                    class="disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
-                    x-model="notes"
-                    x-on:input="resizeNotesField(); scheduleAutosave()"
-                ></textarea>
+            <h2 class="mt-8 text-lg font-semibold text-gray-900">Run Sheet</h2>
+
+            <div class="mt-2">
+                <x-ui.editor
+                    name="workshop_run_sheet"
+                    label="Instructions"
+                    value="{!! old('workshop_run_sheet', $workshop->workshop_run_sheet ?? $workshop->pickListTemplate?->run_sheet ?? '') !!}"
+                />
+                <p class="mt-1 text-xs text-gray-500">Changes apply only to this workshop and do not alter the workshop template.</p>
             </div>
+            @if(trim((string) ($workshop->pickListTemplate?->run_sheet_drawing_data ?? '')) !== '')
+                <div class="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-3">
+                    <img src="{{ $workshop->pickListTemplate->run_sheet_drawing_data }}" alt="Template run sheet drawing" class="max-h-[32rem] w-full object-contain">
+                </div>
+            @endif
 
-            <h2 class="mt-8 text-lg font-semibold text-gray-900">Sketch Pad</h2>
+            <h3 class="mt-8 font-semibold text-gray-800">Drawing</h3>
 
             <div class="mt-2 flex flex-wrap gap-2">
                 <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
@@ -318,6 +378,25 @@
                     <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
                 </div>
             </div>
+
+            @if($workshop->pickListTemplate && $workshop->pickListTemplate->attachments->isNotEmpty())
+                <section class="mt-8">
+                    <h2 class="text-lg font-semibold text-gray-900">Attachments</h2>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        @foreach($workshop->pickListTemplate->attachments as $attachment)
+                            <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                                <i class="fa-solid fa-paperclip text-gray-500"></i>
+                                <div class="min-w-0 flex-1">
+                                    <div class="truncate">{{ $attachment->title ?: $attachment->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ $attachment->file_type }} · {{ \App\Helpers::bytesToString((int) $attachment->size) }}</div>
+                                </div>
+                                <a href="{{ $attachment->url }}" target="_blank" class="shrink-0 text-gray-500 hover:text-primary-color" title="View attachment"><i class="fa-solid fa-eye"></i></a>
+                                <a href="{{ $attachment->url }}?download=1" class="shrink-0 text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
 
             <div class="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
                 <div class="text-xs text-gray-500 md:mr-2" x-show="lastSavedAbsolute">
