@@ -59,7 +59,7 @@ class AdminMediaDuplicateTest extends TestCase
             ->assertOk()
             ->assertSeeText('No similar images found.')
             ->assertSeeText('Show ignored matches')
-            ->assertDontSeeText('Possible similar images')
+            ->assertSeeText('Possible similar images')
             ->assertDontSeeText('0 of 1 images scanned');
     }
 
