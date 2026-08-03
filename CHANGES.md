@@ -4,6 +4,7 @@
 
 - Improved public, admin, and PDF workshop calendars so multi-day workshops span every visible date, retain stable lanes across overlaps and week/month boundaries, share hover highlighting, and present compact continuation and end details.
 - Added exact and perceptual media duplicate detection with safe reference merging, upload reuse, similarity scanning, ignored-match controls, and admin attention badges.
+- Improved exact media duplicate review with clearly selected keeper images, responsive multi-record groups, one-step group merging, and advanced metadata comparison across every duplicate.
 - Added unique external workshop registration click tracking and unified dashboard registration reporting across external links and internal ticket sales.
 - Improved workshop template and run-sheet workflows with a scrollable TipTap editor, always-ready blank task rows, prefix-based task categories, compact grouped checklists, collapsible page sections, and cleaner two-column PDF tasks.
 - Expanded pick list templates into workshop templates with overview details, reorderable tasks and notes, editable TipTap run sheets, drag-and-drop attachments, and reusable workshop-specific overrides.

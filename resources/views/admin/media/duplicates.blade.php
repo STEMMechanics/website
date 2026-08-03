@@ -6,7 +6,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Exact duplicate files</h2>
-                    <p class="mt-1 text-sm text-gray-600">The first record is used by default. Open Advanced merge to choose a different filename or mix metadata values before merging.</p>
+                    <p class="mt-1 text-sm text-gray-600">The highlighted image will be kept. Select an image, or open Advanced merge to mix metadata values before merging.</p>
                 </div>
                 <form method="POST" action="{{ route('admin.media.duplicates.scan-similar') }}">
                     @csrf
@@ -22,18 +22,9 @@
 
             <div class="mt-5 space-y-6">
                 @forelse($duplicateGroups as $group)
-                    @php($primary = $group['media']->first())
-                    @foreach($group['media']->slice(1) as $duplicate)
-                        <div class="border-t border-gray-200 pt-6">
-                            @include('admin.media._duplicate-comparison', [
-                                'left' => $primary,
-                                'right' => $duplicate,
-                                'mergeRoute' => route('admin.media.duplicates.merge'),
-                                'isSimilar' => false,
-                                'canMerge' => true,
-                            ])
-                        </div>
-                    @endforeach
+                    <div class="border-t border-gray-200 pt-6">
+                        @include('admin.media._duplicate-group', ['group' => $group])
+                    </div>
                 @empty
                     <div class="border-t border-gray-200 pt-5 text-center text-green-900">
                         <div class="font-semibold">No exact duplicates found</div>

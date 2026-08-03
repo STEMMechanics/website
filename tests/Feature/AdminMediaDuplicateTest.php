@@ -46,26 +46,53 @@ class AdminMediaDuplicateTest extends TestCase
             ->assertSeeInOrder(['Second Image', 'First Image'])
             ->assertSee('aria-label="Open record"', false)
             ->assertSeeText('Advanced merge')
-            ->assertSeeText('Choose which value to keep for each difference.')
+            ->assertSeeText('The highlighted image will be kept.')
+            ->assertSeeText('Image selected to keep')
+            ->assertSeeText('Merge into selected image')
+            ->assertSeeText('Choose the image record and metadata values to keep.')
             ->assertSeeText('File details')
             ->assertSeeText('Record metadata')
-            ->assertSeeText('Password')
+            ->assertSee('type="radio"', false)
+            ->assertSee('xl:grid-cols-2', false)
             ->assertSeeText('Uploaded')
             ->assertDontSeeText('File hash')
             ->assertDontSeeText('Record to keep')
-            ->assertSee('-filename-left', false)
-            ->assertSee('-filename-right', false)
             ->assertSeeText('Public')
             ->assertSeeText('Private')
-            ->assertSee('type="radio"', false)
-            ->assertSee('fa-arrow-left', false)
-            ->assertSee('fa-arrow-right', false)
-            ->assertSee('fa-right-left', false)
-            ->assertSee('rotate-90 md:rotate-0', false)
             ->assertSee('target="_blank"', false)
             ->assertSeeText('1024 bytes')
-            ->assertDontSeeText('2 identical media records')
             ->assertDontSeeText('Unique Image');
+    }
+
+    public function test_duplicate_page_can_merge_a_group_of_four_into_one_selected_record(): void
+    {
+        $admin = $this->createAdmin();
+        $hash = str_repeat('4', 64);
+        $media = collect([
+            $this->createMedia('copy-one.png', 'Copy One', $admin, $hash),
+            $this->createMedia('copy-two.png', 'Copy Two', $admin, $hash),
+            $this->createMedia('copy-three.png', 'Copy Three', $admin, $hash),
+            $this->createMedia('copy-four.png', 'Copy Four', $admin, $hash),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.duplicates'))
+            ->assertOk()
+            ->assertSee('xl:grid-cols-3', false)
+            ->assertSeeText('Merge into selected image');
+
+        $keeper = $media->get(2);
+        $this->actingAs($admin)
+            ->post(route('admin.media.duplicates.merge'), [
+                'keeper' => $keeper->name,
+                'members' => $media->pluck('name')->all(),
+            ])
+            ->assertRedirect(route('admin.media.duplicates'));
+
+        $this->assertDatabaseHas('media', ['name' => $keeper->name]);
+        foreach ($media->except(2) as $duplicate) {
+            $this->assertDatabaseMissing('media', ['name' => $duplicate->name]);
+        }
     }
 
     public function test_merge_can_keep_one_record_with_metadata_from_the_other(): void
