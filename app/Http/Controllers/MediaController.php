@@ -80,6 +80,13 @@ class MediaController extends Controller
             $group['media']->each(function (Media $media) use ($usageService): void {
                 $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
             });
+            $group['media'] = $group['media']->sort(function (Media $first, Media $second): int {
+                $usageComparison = (int) $second->getAttribute('usage_count') <=> (int) $first->getAttribute('usage_count');
+
+                return $usageComparison !== 0
+                    ? $usageComparison
+                    : ((string) $first->created_at <=> (string) $second->created_at);
+            })->values();
 
             return $group;
         });
@@ -92,15 +99,10 @@ class MediaController extends Controller
                 $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
             });
 
-        $imageCount = Media::query()->where('mime_type', 'like', 'image/%')->count();
-        $hashedImageCount = Media::query()->where('mime_type', 'like', 'image/%')->whereNotNull('perceptual_hash_scanned_at')->count();
-
         return view('admin.media.duplicates', [
             'duplicateGroups' => $groups,
             'similarPairs' => $similarPairs,
             'showIgnored' => $showIgnored,
-            'imageCount' => $imageCount,
-            'hashedImageCount' => $hashedImageCount,
         ]);
     }
 

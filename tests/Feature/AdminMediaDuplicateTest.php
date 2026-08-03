@@ -21,16 +21,46 @@ class AdminMediaDuplicateTest extends TestCase
     {
         $admin = $this->createAdmin();
         $this->createMedia('first.png', 'First Image', $admin, str_repeat('a', 64));
-        $this->createMedia('second.png', 'Second Image', $admin, str_repeat('a', 64));
+        $second = $this->createMedia('second.png', 'Second Image', $admin, str_repeat('a', 64));
         $this->createMedia('unique.png', 'Unique Image', $admin, str_repeat('b', 64));
+        $workshop = Workshop::query()->create([
+            'title' => 'Workshop Using Duplicate',
+            'content' => '<p>Content</p>',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDay()->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addHours(12),
+            'status' => 'open',
+            'registration' => 'none',
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $second->name,
+        ]);
+        $workshop->photos()->attach($second->name, ['collection' => 'workshop_photos']);
 
         $this->actingAs($admin)
             ->get(route('admin.media.duplicates'))
             ->assertOk()
-            ->assertSeeText('2 identical media records')
-            ->assertSeeText('First Image')
-            ->assertSeeText('Second Image')
+            ->assertSeeInOrder(['Second Image', 'First Image'])
+            ->assertSeeText('Keep this record')
+            ->assertSeeText('1024 bytes')
+            ->assertDontSeeText('2 identical media records')
+            ->assertDontSee('type="radio"', false)
             ->assertDontSeeText('Unique Image');
+    }
+
+    public function test_duplicate_page_has_a_compact_empty_similar_image_state(): void
+    {
+        $admin = $this->createAdmin();
+        $this->createMedia('only.png', 'Only Image', $admin, str_repeat('a', 64));
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.duplicates'))
+            ->assertOk()
+            ->assertSeeText('No similar images found.')
+            ->assertSeeText('Show ignored matches')
+            ->assertDontSeeText('Possible similar images')
+            ->assertDontSeeText('0 of 1 images scanned');
     }
 
     public function test_merge_moves_references_to_keeper_before_removing_duplicate(): void
