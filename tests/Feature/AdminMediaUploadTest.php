@@ -67,6 +67,36 @@ class AdminMediaUploadTest extends TestCase
         ]);
     }
 
+    public function test_admin_media_store_reuses_an_existing_exact_duplicate(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $file = UploadedFile::fake()->image('duplicate-upload.png', 120, 80);
+        $hash = hash_file('sha256', $file->path());
+        Media::query()->create([
+            'name' => 'existing-image.png',
+            'title' => 'Existing Image',
+            'hash' => $hash,
+            'mime_type' => 'image/png',
+            'size' => $file->getSize(),
+            'user_id' => $admin->id,
+            'storage_disk' => 'media',
+        ]);
+        Storage::disk('media')->put($hash, $file->getContent());
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.media.store'), [
+                'title' => 'Duplicate Upload',
+                'file' => $file,
+            ])
+            ->assertOk()
+            ->assertJsonPath('name', 'existing-image.png')
+            ->assertJsonPath('reused', true);
+
+        $this->assertDatabaseCount('media', 1);
+    }
+
     public function test_workshop_media_upload_accepts_mov_video_files(): void
     {
         Storage::fake('media');
