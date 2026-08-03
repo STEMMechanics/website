@@ -30,7 +30,11 @@ class TrackAnalytics
         $routeName = is_string($route?->getName()) ? $route->getName() : null;
         $workshopId = $this->resolveWorkshopId($request);
         $searchTerm = $this->resolveSearchTerm($request, $routeName);
-        $eventType = $searchTerm !== null ? AnalyticsEvent::TYPE_SEARCH : AnalyticsEvent::TYPE_PAGE_VIEW;
+        $eventType = match (true) {
+            $routeName === 'workshop.registration.redirect' => AnalyticsEvent::TYPE_REGISTRATION_CLICK,
+            $searchTerm !== null => AnalyticsEvent::TYPE_SEARCH,
+            default => AnalyticsEvent::TYPE_PAGE_VIEW,
+        };
 
         AnalyticsEvent::create([
             'event_type' => $eventType,
@@ -89,6 +93,14 @@ class TrackAnalytics
         }
 
         $routeName = (string) ($request->route()?->getName() ?? '');
+        if ($routeName === 'workshop.registration.redirect') {
+            $location = trim((string) $response->headers->get('Location', ''));
+            $scheme = strtolower((string) parse_url($location, PHP_URL_SCHEME));
+            if (! in_array($scheme, ['http', 'https'], true)) {
+                return false;
+            }
+        }
+
         foreach ((array) config('analytics.ignore_route_prefixes', []) as $prefix) {
             $prefix = trim((string) $prefix);
             if ($prefix !== '' && str_starts_with($routeName, $prefix)) {

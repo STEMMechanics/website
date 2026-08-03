@@ -179,7 +179,7 @@
                                 </div>
                             </div>
                         @elseif(!$workshop->isPrivate())
-                            <x-ui.button href="{{ $workshop->registration_data }}" class="my-4">Register for Event</x-ui.button>
+                            <x-ui.button href="{{ route('workshop.registration.redirect', $workshop) }}" class="my-4">Register for Event</x-ui.button>
                         @endif
                     @elseif($workshop->registration === 'email')
                         <div class="sm-registration-email">Registration for this event by emailing <a href="mailto:{{ $workshop->registration_data }}" class="link">{{ $workshop->registration_data }}</a>.</div>
