@@ -226,19 +226,45 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertDontSee('Library families');
     }
 
-    public function test_non_ticketed_workshop_can_record_a_manual_attendee_count(): void
+    public function test_non_ticketed_workshop_can_record_anonymous_attendees(): void
     {
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop($admin);
 
         $this->actingAs($admin)
-            ->put(route('admin.workshop.update', $workshop), $this->workshopPayload($workshop, [
-                'attendee_count' => 42,
-            ]))
-            ->assertRedirect(route('admin.workshop.edit', $workshop));
+            ->post(route('admin.workshop.attendance.dropin.sync', $workshop), [
+                'entries' => [
+                    ['is_anonymous' => 1],
+                    ['is_anonymous' => 1],
+                    ['is_anonymous' => 1],
+                ],
+            ])
+            ->assertRedirect(route('admin.workshop.attendance', $workshop));
 
-        $this->assertSame(42, $workshop->fresh()->attendee_count);
-        $this->assertSame(42, $workshop->fresh()->reportedAttendeeCount());
+        $this->assertSame(3, $workshop->reportedAttendeeCount());
+        $this->assertSame(3, $workshop->attendances()->where('is_anonymous', true)->count());
+    }
+
+    public function test_workshop_with_no_attendance_records_reports_zero_attendees(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop($admin);
+
+        $this->assertSame(0, $workshop->reportedAttendeeCount());
+    }
+
+    public function test_non_ticketed_workshop_counts_detailed_attendance_when_no_aggregate_is_recorded(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop($admin);
+
+        WorkshopAttendance::factory()->count(3)->create([
+            'workshop_id' => $workshop->id,
+            'ticket_id' => null,
+            'attended_at' => now(),
+        ]);
+
+        $this->assertSame(3, $workshop->reportedAttendeeCount());
     }
 
     public function test_ticketed_workshop_uses_live_attendance_and_ignores_manual_count(): void
@@ -247,7 +273,6 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $workshop = $this->createWorkshop($admin, [
             'registration' => 'tickets',
             'max_tickets' => 20,
-            'attendee_count' => null,
         ]);
 
         Ticket::factory()->count(2)->create([
@@ -274,19 +299,15 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.edit', $workshop))
             ->assertOk()
-            ->assertSee('Attendee Count')
-            ->assertSee('ticketedAttendeeCount: 3', false)
-            ->assertSee('x-bind:disabled="registration === \'tickets\'"', false);
+            ->assertDontSee('Attendee Count');
 
         $this->actingAs($admin)
             ->put(route('admin.workshop.update', $workshop), $this->workshopPayload($workshop, [
                 'max_tickets' => 20,
-                'attendee_count' => 99,
             ]))
             ->assertRedirect(route('admin.workshop.edit', $workshop));
 
         $workshop->refresh();
-        $this->assertNull($workshop->attendee_count);
         $this->assertSame(3, $workshop->reportedAttendeeCount());
     }
 

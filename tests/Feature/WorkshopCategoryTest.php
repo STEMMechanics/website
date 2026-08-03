@@ -107,6 +107,30 @@ class WorkshopCategoryTest extends TestCase
         );
     }
 
+    public function test_admin_duplicate_does_not_copy_attendance_records(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $workshop = $this->createPublicWorkshop($admin, $location, 'Robot Builders');
+        \App\Models\WorkshopAttendance::query()->create([
+            'workshop_id' => $workshop->id,
+            'source' => 'anonymous',
+            'is_anonymous' => true,
+            'attended_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.duplicate', $workshop))
+            ->assertRedirect();
+
+        $newWorkshop = Workshop::query()
+            ->where('title', 'Robot Builders (copy)')
+            ->firstOrFail();
+
+        $this->assertSame(0, $newWorkshop->attendances()->count());
+        $this->assertSame(1, $workshop->attendances()->count());
+    }
+
     public function test_public_workshop_cards_can_be_filtered_by_category(): void
     {
         $admin = $this->createAdminUser();

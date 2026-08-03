@@ -867,7 +867,6 @@ class WorkshopController extends Controller
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
-            'attendee_count' => 'nullable|integer|min:0',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -917,7 +916,6 @@ class WorkshopController extends Controller
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
-        $this->normalizeWorkshopAttendeeCount($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -1055,7 +1053,6 @@ class WorkshopController extends Controller
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
             'activeTicketCount' => $workshop->activeTicketCount(),
-            'ticketedAttendeeCount' => $workshop->ticketedAttendeeCount(),
             'soldTicketCount' => $soldTicketCount,
             'soldEarlyBirdTicketCount' => $soldEarlyBirdTicketCount,
             'reservedTicketCount' => $reservedTicketCount,
@@ -1676,7 +1673,6 @@ class WorkshopController extends Controller
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
-            'attendee_count' => 'nullable|integer|min:0',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -1742,7 +1738,6 @@ class WorkshopController extends Controller
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
-        $this->normalizeWorkshopAttendeeCount($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -2714,7 +2709,7 @@ class WorkshopController extends Controller
 
             fputcsv($out, [
                 'Source',
-                'Child Name',
+                'Attendee Name',
                 'Parent/Guardian Name',
                 'Email',
                 'Phone',
@@ -3453,6 +3448,7 @@ class WorkshopController extends Controller
             ->map(function (array $row): array {
                 return [
                     'id' => (int) ($row['id'] ?? 0),
+                    'is_anonymous' => (bool) ($row['is_anonymous'] ?? false),
                     'child_name' => trim((string) ($row['child_name'] ?? '')),
                     'guardian_name' => trim((string) ($row['guardian_name'] ?? '')),
                     'email' => strtolower(trim((string) ($row['email'] ?? ''))),
@@ -3462,14 +3458,19 @@ class WorkshopController extends Controller
             });
 
         $entries = $rawEntries
-            ->filter(fn (array $row): bool => $row['child_name'] !== '')
+            ->filter(fn (array $row): bool => $row['is_anonymous']
+                || $row['child_name'] !== ''
+                || $row['guardian_name'] !== ''
+                || $row['email'] !== ''
+                || $row['phone'] !== '')
             ->values()
             ->all();
 
         validator(['entries' => $entries], [
             'entries' => ['nullable', 'array'],
             'entries.*.id' => ['nullable', 'integer', 'min:0'],
-            'entries.*.child_name' => ['required', 'string', 'max:180'],
+            'entries.*.is_anonymous' => ['nullable', 'boolean'],
+            'entries.*.child_name' => ['nullable', 'string', 'max:180'],
             'entries.*.guardian_name' => ['nullable', 'string', 'max:160'],
             'entries.*.email' => ['nullable', 'email', 'max:255'],
             'entries.*.phone' => ['nullable', 'string', 'max:60'],
@@ -3496,6 +3497,8 @@ class WorkshopController extends Controller
             if ($entryId > 0 && $existing->has($entryId)) {
                 /** @var WorkshopAttendance $entry */
                 $entry = $existing->get($entryId);
+                $entry->is_anonymous = $row['is_anonymous'];
+                $entry->source = $row['is_anonymous'] ? 'anonymous' : 'dropin';
                 $entry->child_name = $row['child_name'];
                 $entry->guardian_name = $row['guardian_name'] !== '' ? $row['guardian_name'] : null;
                 $entry->email = $row['email'] !== '' ? $row['email'] : null;
@@ -3514,7 +3517,8 @@ class WorkshopController extends Controller
                 'ticket_id' => null,
                 'user_id' => $userId,
                 'created_by' => auth()->id(),
-                'source' => 'dropin',
+                'source' => $row['is_anonymous'] ? 'anonymous' : 'dropin',
+                'is_anonymous' => $row['is_anonymous'],
                 'child_name' => $row['child_name'],
                 'firstname' => null,
                 'surname' => null,
@@ -3570,8 +3574,8 @@ class WorkshopController extends Controller
             }
 
             $rows[] = [
-                'source' => 'dropin',
-                'child_name' => $childName,
+                'source' => $entry->is_anonymous ? 'anonymous' : 'dropin',
+                'child_name' => $entry->is_anonymous && $childName === '' ? 'Anonymous attendee' : $childName,
                 'guardian_name' => trim((string) ($entry->guardian_name ?? '')),
                 'email' => trim((string) ($entry->email ?? '')),
                 'phone' => trim((string) ($entry->phone ?? '')),
@@ -4512,18 +4516,6 @@ class WorkshopController extends Controller
                     ?? $requester->organisations()->orderBy('organisation_user.id')->value('organisations.id');
             }
         }
-    }
-
-    private function normalizeWorkshopAttendeeCount(array &$workshopData): void
-    {
-        if (($workshopData['registration'] ?? 'none') === 'tickets') {
-            $workshopData['attendee_count'] = null;
-
-            return;
-        }
-
-        $value = trim((string) ($workshopData['attendee_count'] ?? ''));
-        $workshopData['attendee_count'] = $value !== '' ? (int) $value : null;
     }
 
     /**
