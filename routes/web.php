@@ -213,6 +213,12 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
+    Route::get('/admin/media/duplicates', [MediaController::class, 'admin_duplicates'])->name('admin.media.duplicates');
+    Route::post('/admin/media/duplicates/merge', [MediaController::class, 'admin_merge_duplicates'])->name('admin.media.duplicates.merge');
+    Route::post('/admin/media/duplicates/scan-similar', [MediaController::class, 'admin_scan_similar'])->name('admin.media.duplicates.scan-similar');
+    Route::post('/admin/media/duplicates/merge-similar', [MediaController::class, 'admin_merge_similar'])->name('admin.media.duplicates.merge-similar');
+    Route::post('/admin/media/duplicates/ignore-similar', [MediaController::class, 'admin_ignore_similar'])->name('admin.media.duplicates.ignore-similar');
+    Route::delete('/admin/media/duplicates/ignore-similar', [MediaController::class, 'admin_restore_similar'])->name('admin.media.duplicates.restore-similar');
     Route::post('/admin/media/regenerate-missing-variants', [MediaController::class, 'admin_regenerate_missing_variants'])->name('admin.media.regenerate-missing-variants');
     Route::get('/admin/media/regenerate-missing-variants/status', [MediaController::class, 'admin_regenerate_missing_variants_status'])->name('admin.media.regenerate-missing-variants.status');
     Route::post('/admin/media/bulk', [MediaController::class, 'admin_bulk_select'])->name('admin.media.bulk.select');

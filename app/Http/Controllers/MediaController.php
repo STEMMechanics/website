@@ -6,12 +6,15 @@ use App\Exceptions\FileInvalidException;
 use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
+use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
 use App\Models\Token;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Services\MediaDuplicateService;
 use App\Services\MediaImageEditor;
 use App\Services\MediaUsageService;
+use App\Services\ImagePerceptualHash;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +30,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 class MediaController extends Controller
 {
@@ -50,7 +54,7 @@ class MediaController extends Controller
         return response()->json($media);
     }
 
-    public function admin_index(Request $request)
+    public function admin_index(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher)
     {
         $media = $this->getMedia($request);
         $media->getCollection()->load(['user', 'workshopPhotos.location']);
@@ -65,8 +69,136 @@ class MediaController extends Controller
             'filteredOwner' => $filteredOwner,
             'unusedOnly' => $request->boolean('unused_only'),
             'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
+            'duplicateAttentionCount' => $duplicates->attentionCount($hasher),
         ]);
 
+    }
+
+    public function admin_duplicates(Request $request, MediaDuplicateService $duplicates, MediaUsageService $usageService, ImagePerceptualHash $hasher)
+    {
+        $groups = $duplicates->groups()->map(function (array $group) use ($usageService): array {
+            $group['media']->each(function (Media $media) use ($usageService): void {
+                $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
+            });
+
+            return $group;
+        });
+
+        $showIgnored = $request->boolean('show_ignored');
+        $similarPairs = $duplicates->similarPairs($hasher, $showIgnored);
+        $similarPairs->flatMap(fn (array $pair) => [$pair['first'], $pair['second']])
+            ->unique(fn (Media $media) => (string) $media->name)
+            ->each(function (Media $media) use ($usageService): void {
+                $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
+            });
+
+        $imageCount = Media::query()->where('mime_type', 'like', 'image/%')->count();
+        $hashedImageCount = Media::query()->where('mime_type', 'like', 'image/%')->whereNotNull('perceptual_hash_scanned_at')->count();
+
+        return view('admin.media.duplicates', [
+            'duplicateGroups' => $groups,
+            'similarPairs' => $similarPairs,
+            'showIgnored' => $showIgnored,
+            'imageCount' => $imageCount,
+            'hashedImageCount' => $hashedImageCount,
+        ]);
+    }
+
+    public function admin_scan_similar(): RedirectResponse
+    {
+        $queued = 0;
+        Media::query()
+            ->where('mime_type', 'like', 'image/%')
+            ->whereNull('perceptual_hash_scanned_at')
+            ->pluck('name')
+            ->each(function (string $mediaName) use (&$queued): void {
+                dispatch(new GeneratePerceptualHash($mediaName))->onQueue('media');
+                $queued++;
+            });
+
+        return redirect()->route('admin.media.duplicates')
+            ->with('message', $queued === 0 ? 'All images have already been scanned.' : $queued.' image'.($queued === 1 ? '' : 's').' queued for similarity scanning.')
+            ->with('message-title', $queued === 0 ? 'Scan up to date' : 'Similarity scan queued')
+            ->with('message-type', 'success');
+    }
+
+    public function admin_merge_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse
+    {
+        [$keeper, $duplicate] = $this->validatedSimilarityPair($request);
+
+        try {
+            $duplicates->mergeSimilar($keeper, $duplicate, $hasher);
+        } catch (InvalidArgumentException $exception) {
+            return redirect()->back()->withErrors(['media' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.media.duplicates')
+            ->with('message', $duplicate->title.' has been merged into '.$keeper->title.'.')
+            ->with('message-title', 'Similar images merged')
+            ->with('message-type', 'success');
+    }
+
+    public function admin_ignore_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse
+    {
+        [$first, $second] = $this->validatedSimilarityPair($request);
+        try {
+            $duplicates->ignoreSimilarPair($first, $second, $hasher);
+        } catch (InvalidArgumentException $exception) {
+            return redirect()->back()->withErrors(['media' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.media.duplicates')
+            ->with('message', 'This similar-image suggestion will be ignored.')
+            ->with('message-title', 'Match ignored')
+            ->with('message-type', 'success');
+    }
+
+    public function admin_restore_similar(Request $request, MediaDuplicateService $duplicates): RedirectResponse
+    {
+        [$first, $second] = $this->validatedSimilarityPair($request);
+        $duplicates->restoreSimilarPair($first, $second);
+
+        return redirect()->route('admin.media.duplicates', ['show_ignored' => 1])
+            ->with('message', 'The similar-image suggestion has been restored.')
+            ->with('message-title', 'Match restored')
+            ->with('message-type', 'success');
+    }
+
+    /**
+     * @return array{Media, Media}
+     */
+    private function validatedSimilarityPair(Request $request): array
+    {
+        $validated = $request->validate([
+            'first' => ['required', 'string', 'different:second', Rule::exists('media', 'name')],
+            'second' => ['required', 'string', 'different:first', Rule::exists('media', 'name')],
+        ]);
+
+        return [Media::query()->findOrFail($validated['first']), Media::query()->findOrFail($validated['second'])];
+    }
+
+    public function admin_merge_duplicates(Request $request, MediaDuplicateService $duplicates): RedirectResponse
+    {
+        $validated = $request->validate([
+            'keeper' => ['required', 'string', Rule::exists('media', 'name')],
+            'members' => ['required', 'array', 'min:2'],
+            'members.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+        $keeper = Media::query()->findOrFail($validated['keeper']);
+
+        try {
+            if (! in_array((string) $keeper->name, $validated['members'], true)) {
+                throw new InvalidArgumentException('The selected media item is not part of this duplicate group.');
+            }
+            $merged = $duplicates->merge($keeper, array_values(array_diff($validated['members'], [(string) $keeper->name])));
+        } catch (InvalidArgumentException $exception) {
+            return redirect()->back()->withErrors(['members' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.media.duplicates')
+            ->with('message', $merged.' duplicate media '.($merged === 1 ? 'record has' : 'records have').' been merged into '.$keeper->title.'.')
+            ->with('message-title', 'Duplicates merged')
+            ->with('message-type', 'success');
     }
 
     public function account_index(Request $request)
@@ -585,6 +717,42 @@ class MediaController extends Controller
             session()->flash('message-type', 'danger');
             return redirect()->back();
         }
+
+        $existingMedia = Media::query()
+            ->where('hash', $hash)
+            ->where(function ($query) use ($storageDisk): void {
+                $query->where('storage_disk', $storageDisk);
+                if ($storageDisk === 'media') {
+                    $query->orWhereNull('storage_disk');
+                }
+            })
+            ->when(! Auth::user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
+            ->oldest()
+            ->first();
+
+        if ($existingMedia instanceof Media) {
+            $this->syncWorkshopLinks($existingMedia, $request->input('workshop_links', []));
+            $this->cleanupDeferredUpload($cleanupPath);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'This file already exists. The existing media item has been reused.',
+                    'name' => $existingMedia->name,
+                    'size' => $existingMedia->size,
+                    'mime_type' => $existingMedia->mime_type,
+                    'reused' => true,
+                ]);
+            }
+
+            session()->flash('message', 'This file already exists as '.$existingMedia->title.'. The existing media item has been reused.');
+            session()->flash('message-title', 'Existing media reused');
+            session()->flash('message-type', 'warning');
+
+            return Auth::user()?->isAdmin()
+                ? redirect()->route('admin.media.edit', $existingMedia)
+                : redirect()->route('account.media.index');
+        }
+
         $exists = $storage->exists($hash);
         if(!$exists) {
             if($file->storeAs('/', $hash, $storageDisk) === false) {
@@ -643,13 +811,7 @@ class MediaController extends Controller
             }
         }
 
-        if(is_string($cleanupPath)) {
-            $realPath = realpath($cleanupPath);
-            $tempDir = realpath(sys_get_temp_dir());
-            if($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir . DIRECTORY_SEPARATOR)) {
-                @unlink($realPath);
-            }
-        }
+        $this->cleanupDeferredUpload($cleanupPath);
 
         if($request->wantsJson()) {
             return response()->json([
@@ -663,6 +825,19 @@ class MediaController extends Controller
             session()->flash('message-title', 'Media uploaded');
             session()->flash('message-type', 'success');
             return redirect()->route('admin.media.index');
+        }
+    }
+
+    private function cleanupDeferredUpload(?string $cleanupPath): void
+    {
+        if (! is_string($cleanupPath)) {
+            return;
+        }
+
+        $realPath = realpath($cleanupPath);
+        $tempDir = realpath(sys_get_temp_dir());
+        if ($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir.DIRECTORY_SEPARATOR)) {
+            @unlink($realPath);
         }
     }
 

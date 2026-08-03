@@ -2,6 +2,7 @@
 
 ## Current
 
+- Added exact and perceptual media duplicate detection with safe reference merging, upload reuse, similarity scanning, ignored-match controls, and admin attention badges.
 - Expanded pick list templates into workshop templates with overview details, reorderable tasks and notes, editable TipTap run sheets, drag-and-drop attachments, and reusable workshop-specific overrides.
 - Added workshop run-sheet pages with persistent task and material checkboxes, workshop notes, drawings, responsive task layouts, and canonical `/run-sheet` links throughout the admin interface.
 - Reworked workshop and template PDFs with shared layouts, three-column tasks and materials, page numbering, workshop notes, run-sheet drawings, and appended image or multi-page PDF attachments.

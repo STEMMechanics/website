@@ -52,6 +52,12 @@
                 <div>
                     <div class="flex flex-wrap gap-2">
                         <x-ui.button href="{{ route('admin.media.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
+                        <x-ui.button href="{{ route('admin.media.duplicates') }}" color="outline" class="w-full sm:w-auto">
+                            Find Duplicates
+                            @if((int) ($duplicateAttentionCount ?? 0) > 0)
+                                <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">{{ (int) $duplicateAttentionCount }}</span>
+                            @endif
+                        </x-ui.button>
                         <x-ui.button type="button" color="outline" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()" class="w-full sm:w-auto">Regenerate Missing Variants</x-ui.button>
                         @if($unusedOnly)
                             <x-ui.button href="{{ $allMediaRoute }}" color="outline" class="w-full sm:w-auto">Show All</x-ui.button>

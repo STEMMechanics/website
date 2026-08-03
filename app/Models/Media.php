@@ -4,11 +4,13 @@ namespace App\Models;
 
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
+use App\Jobs\Media\GeneratePerceptualHash;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Contracts\Filesystem\Filesystem;
 
@@ -35,6 +37,8 @@ class Media extends Model
         'size',
         'user_id',
         'hash',
+        'perceptual_hash',
+        'perceptual_hash_scanned_at',
         'storage_disk',
         'password',
         'status',
@@ -75,6 +79,7 @@ class Media extends Model
         'variants' => 'array',
         'last_processing_failed_at' => 'datetime',
         'photographed_at' => 'datetime',
+        'perceptual_hash_scanned_at' => 'datetime',
     ];
 
     /**
@@ -116,6 +121,9 @@ class Media extends Model
     public static function boot()
     {
         parent::boot();
+
+        static::saved(fn () => Cache::forget('media:duplicate-attention-count'));
+        static::deleted(fn () => Cache::forget('media:duplicate-attention-count'));
 
         static::deleting(function($media) {
             $hash = $media->hash;
@@ -323,6 +331,9 @@ class Media extends Model
         $this->status = 'queued';
         $this->save();
         dispatch(new GenerateVariants($this, $overwrite))->onQueue('media');
+        if (str_starts_with((string) $this->mime_type, 'image/')) {
+            dispatch(new GeneratePerceptualHash((string) $this->name))->onQueue('media');
+        }
     }
 
     public function path(): string|null
