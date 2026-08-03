@@ -1971,11 +1971,30 @@ class WorkshopController extends Controller
         if ($workshop->registration === 'link' && trim((string) ($workshop->registration_data ?? '')) !== '') {
             $registrationUrl = trim((string) ($workshop->registration_data ?? ''));
             if ($this->isSafeHttpUrl($registrationUrl)) {
-                return redirect()->away($registrationUrl);
+                return redirect()->route('workshop.registration.redirect', $workshop);
             }
         }
 
         return redirect()->route('workshop.show', $workshop);
+    }
+
+    public function registrationRedirect(Workshop $workshop): RedirectResponse
+    {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! $workshop->isPubliclyVisible()) {
+            abort(404);
+        }
+
+        $hasPrivateAccess = ! $workshop->isPrivate()
+            || (bool) (auth()->user()?->isAdmin() ?? false)
+            || ($workshop->requiresPrivateAccessCode()
+                && (bool) session($this->privateAccessSessionKey($workshop), false));
+
+        $registrationUrl = trim((string) ($workshop->registration_data ?? ''));
+        if ($workshop->registration !== 'link' || ! $hasPrivateAccess || ! $this->isSafeHttpUrl($registrationUrl)) {
+            return redirect()->route('workshop.show', $workshop);
+        }
+
+        return redirect()->away($registrationUrl);
     }
 
     public function interest(Request $request, Workshop $workshop): RedirectResponse

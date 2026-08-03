@@ -11,6 +11,7 @@ class AnalyticsEvent extends Model
     use HasFactory;
 
     public const TYPE_PAGE_VIEW = 'page_view';
+    public const TYPE_REGISTRATION_CLICK = 'registration_click';
     public const TYPE_SEARCH = 'search';
 
     public $timestamps = false;

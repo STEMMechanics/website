@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\UpcomingWorkshops;
+use App\Models\AnalyticsEvent;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Organisation;
@@ -18,6 +19,52 @@ use Tests\TestCase;
 class WorkshopVisibilityRulesTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_external_registration_button_records_a_click_and_redirects_to_provider(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'External Registration Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'link'
+        );
+        $workshop->update(['registration_data' => 'https://tickets.example.com/register']);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee(route('workshop.registration.redirect', $workshop));
+
+        $this->get(route('workshop.registration.redirect', $workshop))
+            ->assertRedirect('https://tickets.example.com/register');
+
+        $this->assertDatabaseHas('analytics_events', [
+            'event_type' => AnalyticsEvent::TYPE_REGISTRATION_CLICK,
+            'route_name' => 'workshop.registration.redirect',
+            'workshop_id' => $workshop->id,
+        ]);
+    }
+
+    public function test_admin_external_registration_click_is_not_recorded(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'External Registration Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'link'
+        );
+        $workshop->update(['registration_data' => 'https://tickets.example.com/register']);
+
+        $this->actingAs($this->createAdminUser())
+            ->get(route('workshop.registration.redirect', $workshop))
+            ->assertRedirect('https://tickets.example.com/register');
+
+        $this->assertDatabaseMissing('analytics_events', [
+            'event_type' => AnalyticsEvent::TYPE_REGISTRATION_CLICK,
+            'workshop_id' => $workshop->id,
+        ]);
+    }
 
     public function test_hidden_workshops_are_excluded_from_public_index_search_and_upcoming_email(): void
     {
