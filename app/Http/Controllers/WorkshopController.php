@@ -479,17 +479,20 @@ class WorkshopController extends Controller
         /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
             ->when($excludeDrafts, fn (Builder $query): Builder => $query->whereNotIn('status', ['draft', 'cancelled']))
-            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->where('starts_at', '<=', $monthEnd)
+            ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
             ->get();
 
-        $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+        $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
+        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
         $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
         $calendarDays = collect();
         for ($cursor = $calendarStart->copy(); $cursor->lessThanOrEqualTo($calendarEnd); $cursor->addDay()) {
             $dateKey = $cursor->toDateString();
+            $dayWorkshops = $workshopsByDate->get($dateKey, collect())->values();
             $calendarDays->push([
                 'date' => $dateKey,
                 'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
@@ -497,7 +500,8 @@ class WorkshopController extends Controller
                 'is_today' => $cursor->isSameDay(now()),
                 'label' => $cursor->format('j'),
                 'full_label' => $cursor->format('D j M Y'),
-                'workshops' => $workshopsByDate->get($dateKey, collect())->values(),
+                'workshops' => $dayWorkshops,
+                'workshop_lanes' => $this->workshopsInCalendarLanes($dayWorkshops, $workshopLanes),
             ]);
         }
 
@@ -537,17 +541,20 @@ class WorkshopController extends Controller
         $monthWorkshops = Workshop::query()
             ->publiclyVisible()
             ->with(['hero', 'location', 'hostedFor'])
-            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->where('starts_at', '<=', $monthEnd)
+            ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
             ->get();
 
-        $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+        $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
+        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
         $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
         $calendarDays = collect();
         for ($cursor = $calendarStart->copy(); $cursor->lessThanOrEqualTo($calendarEnd); $cursor->addDay()) {
             $dateKey = $cursor->toDateString();
+            $dayWorkshops = $workshopsByDate->get($dateKey, collect())->values();
             $calendarDays->push([
                 'date' => $dateKey,
                 'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
@@ -555,7 +562,8 @@ class WorkshopController extends Controller
                 'is_today' => $cursor->isSameDay(now()),
                 'label' => $cursor->format('j'),
                 'full_label' => $cursor->format('D j M Y'),
-                'workshops' => $workshopsByDate->get($dateKey, collect())->values(),
+                'workshops' => $dayWorkshops,
+                'workshop_lanes' => $this->workshopsInCalendarLanes($dayWorkshops, $workshopLanes),
             ]);
         }
 
@@ -572,6 +580,101 @@ class WorkshopController extends Controller
             'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
             'schoolHolidayLabel' => $this->schoolHolidayLabel(),
         ];
+    }
+
+    /**
+     * @param  Collection<int, Workshop>  $workshops
+     * @return Collection<string, Collection<int, Workshop>>
+     */
+    private function groupWorkshopsAcrossDateRange(Collection $workshops, Carbon $rangeStart, Carbon $rangeEnd): Collection
+    {
+        /** @var array<string, Collection<int, Workshop>> $workshopsByDate */
+        $workshopsByDate = [];
+
+        foreach ($workshops as $workshop) {
+            if ($workshop->starts_at === null) {
+                continue;
+            }
+
+            $workshopStart = $workshop->starts_at->copy();
+            $workshopEnd = ($workshop->ends_at ?? $workshop->starts_at)->copy();
+            if ($workshopEnd->lessThan($workshopStart)) {
+                $workshopEnd = $workshopStart->copy();
+            } elseif ($workshopEnd->greaterThan($workshopStart) && $workshopEnd->isStartOfDay()) {
+                $workshopEnd->subSecond();
+            }
+
+            $firstDay = $workshopStart->startOfDay()->greaterThan($rangeStart)
+                ? $workshopStart->startOfDay()
+                : $rangeStart->copy()->startOfDay();
+            $lastDay = $workshopEnd->startOfDay()->lessThan($rangeEnd)
+                ? $workshopEnd->startOfDay()
+                : $rangeEnd->copy()->startOfDay();
+
+            for ($date = $firstDay->copy(); $date->lessThanOrEqualTo($lastDay); $date->addDay()) {
+                $dateKey = $date->toDateString();
+                $workshopsByDate[$dateKey] ??= collect();
+                $workshopsByDate[$dateKey]->push($workshop);
+            }
+        }
+
+        return collect($workshopsByDate);
+    }
+
+    /**
+     * @param  Collection<int, Workshop>  $workshops
+     * @return array<string, int>
+     */
+    private function assignWorkshopCalendarLanes(Collection $workshops): array
+    {
+        /** @var array<int, Carbon> $laneEndDates */
+        $laneEndDates = [];
+        $assignments = [];
+
+        foreach ($workshops->sortBy('starts_at') as $workshop) {
+            if ($workshop->starts_at === null) {
+                continue;
+            }
+
+            $startDate = $workshop->starts_at->copy()->startOfDay();
+            $endDate = ($workshop->ends_at ?? $workshop->starts_at)->copy();
+            if ($endDate->greaterThan($workshop->starts_at) && $endDate->isStartOfDay()) {
+                $endDate->subSecond();
+            }
+            $endDate->startOfDay();
+
+            $lane = 0;
+            while (isset($laneEndDates[$lane]) && $laneEndDates[$lane]->greaterThanOrEqualTo($startDate)) {
+                $lane++;
+            }
+
+            $assignments[(string) $workshop->getKey()] = $lane;
+            $laneEndDates[$lane] = $endDate;
+        }
+
+        return $assignments;
+    }
+
+    /**
+     * @param  Collection<int, Workshop>  $workshops
+     * @param  array<string, int>  $assignments
+     * @return Collection<int, Workshop|null>
+     */
+    private function workshopsInCalendarLanes(Collection $workshops, array $assignments): Collection
+    {
+        if ($workshops->isEmpty()) {
+            return collect();
+        }
+
+        $byLane = $workshops->keyBy(fn (Workshop $workshop): int => $assignments[(string) $workshop->getKey()] ?? 0);
+        $highestLane = (int) $byLane->keys()->max();
+        $lanes = collect();
+
+        foreach (range(0, $highestLane) as $lane) {
+            $lanes->push($byLane->get($lane));
+        }
+
+        return $lanes;
     }
 
     /**

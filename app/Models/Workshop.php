@@ -763,6 +763,34 @@ class Workshop extends Model
         };
     }
 
+    /**
+     * @return array{before: bool, after: bool, show_details: bool, ends: bool}
+     */
+    public function calendarContinuationForDate(string $date): array
+    {
+        $calendarDate = Carbon::parse($date, config('app.timezone'))->startOfDay();
+        $workshopStart = $this->starts_at?->copy();
+        $workshopEnd = ($this->ends_at ?? $this->starts_at)?->copy();
+
+        if ($workshopStart === null || $workshopEnd === null) {
+            return ['before' => false, 'after' => false, 'show_details' => true, 'ends' => false];
+        }
+
+        if ($workshopEnd->greaterThan($workshopStart) && $workshopEnd->isStartOfDay()) {
+            $workshopEnd->subSecond();
+        }
+
+        $before = $workshopStart->startOfDay()->lessThan($calendarDate);
+        $after = $workshopEnd->startOfDay()->greaterThan($calendarDate);
+
+        return [
+            'before' => $before,
+            'after' => $after,
+            'show_details' => ! $before || $calendarDate->isSunday(),
+            'ends' => $before && ! $after,
+        ];
+    }
+
     public function isPubliclyVisible(): bool
     {
         if ($this->status === 'draft') {

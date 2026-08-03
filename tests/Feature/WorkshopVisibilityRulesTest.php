@@ -318,6 +318,39 @@ class WorkshopVisibilityRulesTest extends TestCase
         }
     }
 
+    public function test_public_calendar_shows_a_workshop_on_each_day_it_spans(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));
+
+        try {
+            $startsAt = Carbon::create(2026, 6, 12, 9, 0, 0, config('app.timezone'));
+            $workshop = $this->createWorkshop(
+                title: 'Multi-day public workshop',
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay()
+            );
+            $workshop->update([
+                'starts_at' => $startsAt,
+                'ends_at' => $startsAt->copy()->addDays(3)->setTime(16, 0),
+            ]);
+
+            $response = $this->get(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $startsAt->format('Y-m'),
+            ]));
+
+            $response->assertOk();
+            $this->assertSame(6, substr_count($response->getContent(), 'Multi-day public workshop'));
+            $this->assertSame(3, substr_count($response->getContent(), 'Continues'));
+            $response->assertSeeText('Ends 4:00 pm');
+            $response->assertSee('lg:rounded-l-none lg:border-l-0', false);
+            $response->assertSee('lg:rounded-r-none lg:border-r-0', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_public_workshop_index_calendar_view_shades_configured_school_holiday_days(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));
