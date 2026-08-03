@@ -127,9 +127,13 @@ class MediaController extends Controller
     public function admin_merge_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse
     {
         [$keeper, $duplicate] = $this->validatedSimilarityPair($request);
+        $metadataSources = $request->validate([
+            'metadata_sources' => ['sometimes', 'array'],
+            'metadata_sources.*' => ['required', 'string'],
+        ])['metadata_sources'] ?? [];
 
         try {
-            $duplicates->mergeSimilar($keeper, $duplicate, $hasher);
+            $duplicates->mergeSimilar($keeper, $duplicate, $hasher, $metadataSources);
         } catch (InvalidArgumentException $exception) {
             return redirect()->back()->withErrors(['media' => $exception->getMessage()]);
         }
@@ -185,6 +189,8 @@ class MediaController extends Controller
             'keeper' => ['required', 'string', Rule::exists('media', 'name')],
             'members' => ['required', 'array', 'min:2'],
             'members.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+            'metadata_sources' => ['sometimes', 'array'],
+            'metadata_sources.*' => ['required', 'string'],
         ]);
         $keeper = Media::query()->findOrFail($validated['keeper']);
 
@@ -192,7 +198,11 @@ class MediaController extends Controller
             if (! in_array((string) $keeper->name, $validated['members'], true)) {
                 throw new InvalidArgumentException('The selected media item is not part of this duplicate group.');
             }
-            $merged = $duplicates->merge($keeper, array_values(array_diff($validated['members'], [(string) $keeper->name])));
+            $merged = $duplicates->merge(
+                $keeper,
+                array_values(array_diff($validated['members'], [(string) $keeper->name])),
+                $validated['metadata_sources'] ?? [],
+            );
         } catch (InvalidArgumentException $exception) {
             return redirect()->back()->withErrors(['members' => $exception->getMessage()]);
         }

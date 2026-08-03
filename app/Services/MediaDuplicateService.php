@@ -14,6 +14,19 @@ class MediaDuplicateService
 {
     public const ATTENTION_CACHE_KEY = 'media:duplicate-attention-count';
 
+    public const MERGEABLE_METADATA_FIELDS = [
+        'title',
+        'user_id',
+        'visibility',
+        'tags',
+        'caption',
+        'consent_notes',
+        'photographed_at',
+        'created_at',
+        'status',
+        'password',
+    ];
+
     private const SIMILARITY_DISTANCE_THRESHOLD = 8;
 
     /**
@@ -68,7 +81,7 @@ class MediaDuplicateService
     /**
      * @param  array<int, string>  $duplicateNames
      */
-    public function merge(Media $keeper, array $duplicateNames): int
+    public function merge(Media $keeper, array $duplicateNames, array $metadataSources = []): int
     {
         $duplicates = Media::query()
             ->whereIn('name', array_values(array_unique($duplicateNames)))
@@ -82,25 +95,44 @@ class MediaDuplicateService
             }
         }
 
-        return $this->mergeRecords($keeper, $duplicates, true);
+        return $this->mergeRecords($keeper, $duplicates, true, $metadataSources);
     }
 
-    public function mergeSimilar(Media $keeper, Media $duplicate, ImagePerceptualHash $hasher): void
+    public function mergeSimilar(Media $keeper, Media $duplicate, ImagePerceptualHash $hasher, array $metadataSources = []): void
     {
         $distance = $hasher->distance((string) $keeper->perceptual_hash, (string) $duplicate->perceptual_hash);
         if ($distance > self::SIMILARITY_DISTANCE_THRESHOLD || (string) $keeper->hash === (string) $duplicate->hash) {
             throw new InvalidArgumentException('These media items are not a current similar-image suggestion.');
         }
 
-        $this->mergeRecords($keeper, collect([$duplicate]), false);
+        $this->mergeRecords($keeper, collect([$duplicate]), false, $metadataSources);
     }
 
     /**
      * @param  Collection<int, Media>  $duplicates
      */
-    private function mergeRecords(Media $keeper, Collection $duplicates, bool $normalizeStorageDisk): int
+    private function mergeRecords(Media $keeper, Collection $duplicates, bool $normalizeStorageDisk, array $metadataSources = []): int
     {
-        DB::transaction(function () use ($keeper, $duplicates, $normalizeStorageDisk): void {
+        $records = collect([$keeper])->concat($duplicates)->keyBy(fn (Media $media): string => (string) $media->name);
+        $invalidFields = array_diff(array_keys($metadataSources), self::MERGEABLE_METADATA_FIELDS);
+        if ($invalidFields !== []) {
+            throw new InvalidArgumentException('One or more selected metadata fields cannot be merged.');
+        }
+
+        foreach ($metadataSources as $sourceName) {
+            if (! is_string($sourceName) || ! $records->has($sourceName)) {
+                throw new InvalidArgumentException('Metadata can only be selected from the records being merged.');
+            }
+        }
+
+        DB::transaction(function () use ($keeper, $duplicates, $normalizeStorageDisk, $metadataSources, $records): void {
+            foreach ($metadataSources as $field => $sourceName) {
+                $keeper->setAttribute($field, $records->get($sourceName)?->getRawOriginal($field));
+            }
+            if ($metadataSources !== []) {
+                $keeper->save();
+            }
+
             foreach ($duplicates as $duplicate) {
                 $this->movePivotReferences((string) $duplicate->name, (string) $keeper->name);
                 $this->moveDirectReferences((string) $duplicate->name, (string) $keeper->name);

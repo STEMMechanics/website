@@ -20,8 +20,10 @@ class AdminMediaDuplicateTest extends TestCase
     public function test_duplicate_page_groups_exact_file_matches(): void
     {
         $admin = $this->createAdmin();
-        $this->createMedia('first.png', 'First Image', $admin, str_repeat('a', 64));
+        $first = $this->createMedia('first.png', 'First Image', $admin, str_repeat('a', 64));
         $second = $this->createMedia('second.png', 'Second Image', $admin, str_repeat('a', 64));
+        $first->update(['visibility' => 'private']);
+        $second->update(['visibility' => 'public']);
         $this->createMedia('unique.png', 'Unique Image', $admin, str_repeat('b', 64));
         $workshop = Workshop::query()->create([
             'title' => 'Workshop Using Duplicate',
@@ -42,11 +44,75 @@ class AdminMediaDuplicateTest extends TestCase
             ->get(route('admin.media.duplicates'))
             ->assertOk()
             ->assertSeeInOrder(['Second Image', 'First Image'])
-            ->assertSeeText('Keep this record')
+            ->assertSee('aria-label="Open record"', false)
+            ->assertSeeText('Advanced merge')
+            ->assertSeeText('Choose which value to keep for each difference.')
+            ->assertSeeText('File details')
+            ->assertSeeText('Record metadata')
+            ->assertSeeText('Password')
+            ->assertSeeText('Uploaded')
+            ->assertDontSeeText('File hash')
+            ->assertDontSeeText('Record to keep')
+            ->assertSee('-filename-left', false)
+            ->assertSee('-filename-right', false)
+            ->assertSeeText('Public')
+            ->assertSeeText('Private')
+            ->assertSee('type="radio"', false)
+            ->assertSee('fa-arrow-left', false)
+            ->assertSee('fa-arrow-right', false)
+            ->assertSee('fa-right-left', false)
+            ->assertSee('rotate-90 md:rotate-0', false)
+            ->assertSee('target="_blank"', false)
             ->assertSeeText('1024 bytes')
             ->assertDontSeeText('2 identical media records')
-            ->assertDontSee('type="radio"', false)
             ->assertDontSeeText('Unique Image');
+    }
+
+    public function test_merge_can_keep_one_record_with_metadata_from_the_other(): void
+    {
+        $admin = $this->createAdmin();
+        $left = $this->createMedia('left.png', 'Title from Left', $admin, str_repeat('9', 64));
+        $right = $this->createMedia('right.png', 'Title from Right', $admin, str_repeat('9', 64));
+        $left->forceFill(['created_at' => now()->subYear()])->saveQuietly();
+
+        $this->actingAs($admin)
+            ->post(route('admin.media.duplicates.merge'), [
+                'keeper' => $right->name,
+                'members' => [$left->name, $right->name],
+                'metadata_sources' => [
+                    'title' => $left->name,
+                    'created_at' => $left->name,
+                ],
+            ])
+            ->assertRedirect(route('admin.media.duplicates'));
+
+        $this->assertDatabaseMissing('media', ['name' => $left->name]);
+        $this->assertDatabaseHas('media', [
+            'name' => $right->name,
+            'title' => 'Title from Left',
+        ]);
+        $this->assertSame(now()->subYear()->toDateString(), $right->fresh()->created_at?->toDateString());
+    }
+
+    public function test_merge_rejects_metadata_from_a_record_outside_the_pair(): void
+    {
+        $admin = $this->createAdmin();
+        $left = $this->createMedia('left.png', 'Left', $admin, str_repeat('8', 64));
+        $right = $this->createMedia('right.png', 'Right', $admin, str_repeat('8', 64));
+        $unrelated = $this->createMedia('unrelated.png', 'Unrelated', $admin, str_repeat('7', 64));
+
+        $this->actingAs($admin)
+            ->from(route('admin.media.duplicates'))
+            ->post(route('admin.media.duplicates.merge'), [
+                'keeper' => $right->name,
+                'members' => [$left->name, $right->name],
+                'metadata_sources' => ['title' => $unrelated->name],
+            ])
+            ->assertRedirect(route('admin.media.duplicates'))
+            ->assertSessionHasErrors('members');
+
+        $this->assertDatabaseHas('media', ['name' => $left->name]);
+        $this->assertDatabaseHas('media', ['name' => $right->name]);
     }
 
     public function test_duplicate_page_has_a_compact_empty_similar_image_state(): void
@@ -124,6 +190,8 @@ class AdminMediaDuplicateTest extends TestCase
             ->get(route('admin.media.duplicates'))
             ->assertOk()
             ->assertSeeText('98.4% visually similar')
+            ->assertSeeText('Image selected to keep')
+            ->assertSeeText('The filename selection determines which physical image remains.')
             ->assertSeeText('Similar One')
             ->assertSeeText('Similar Two');
         $this->actingAs($admin)
