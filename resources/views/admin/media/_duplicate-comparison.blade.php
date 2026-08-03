@@ -70,10 +70,6 @@
             },
             openAdvanced() {
                 this.advancedKeeper = this.keeper;
-                if (! @js((bool) $isSimilar)) {
-                    this.keeper = @js((string) $left->name);
-                    this.advancedKeeper = this.keeper;
-                }
                 Object.keys(this.metadata).forEach((field) => { this.metadata[field] = this.keeper; });
                 this.advancedOpen = true;
             },
@@ -110,10 +106,10 @@
             @class([
                 'min-w-0 rounded-xl p-4 text-left transition',
                 'md:order-3' => $index === 1,
-                'cursor-pointer' => $canMerge && $isSimilar,
-                'bg-gray-50' => ! ($canMerge && $isSimilar),
+                'cursor-pointer' => $canMerge,
+                'bg-gray-50' => ! $canMerge,
             ])
-            @if($canMerge && $isSimilar)
+            @if($canMerge)
                 x-on:click="chooseImage(@js((string) $medium->name))"
                 x-on:keydown.enter.prevent="chooseImage(@js((string) $medium->name))"
                 x-bind:class="keeper === @js((string) $medium->name) ? 'bg-primary-color-light/10 ring-2 ring-primary-color' : 'bg-gray-50 hover:bg-gray-100'"
@@ -139,7 +135,7 @@
                     <a href="{{ route('admin.media.edit', $medium) }}" target="_blank" rel="noopener" class="absolute top-0 right-0 text-sm font-medium text-primary-color hover:underline" x-on:click.stop aria-label="Open record"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
                 </div>
             </div>
-            @if($canMerge && $isSimilar)
+            @if($canMerge)
                 <div class="mt-4 text-center text-sm font-semibold text-primary-color" x-show="keeper === @js((string) $medium->name)">
                     <i class="fa-solid fa-circle-check mr-1"></i> Image selected to keep
                 </div>
@@ -159,7 +155,7 @@
             @if($differentFields->isNotEmpty())
                 <x-ui.button type="button" color="outline" x-on:click="openAdvanced()">Advanced merge</x-ui.button>
             @endif
-            <x-ui.button type="submit">Merge</x-ui.button>
+            <x-ui.button type="submit">Merge into selected image</x-ui.button>
         </div>
 
         @if($differentFields->isNotEmpty())
