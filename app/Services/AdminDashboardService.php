@@ -42,6 +42,8 @@ class AdminDashboardService
         $workshopViewsPrevious = $this->countAnalyticsEventsForRoutesBetween($previousStart, $previousEnd, ['workshop.index', 'workshop.show']);
         $ticketsSoldCurrent = $this->countWorkshopTicketSalesBetween($currentStart, $currentEnd);
         $ticketsSoldPrevious = $this->countWorkshopTicketSalesBetween($previousStart, $previousEnd);
+        $externalRegistrationClicksCurrent = $this->countExternalRegistrationClickersBetween($currentStart, $currentEnd);
+        $externalRegistrationClicksPrevious = $this->countExternalRegistrationClickersBetween($previousStart, $previousEnd);
 
         $incomeGrossCurrent = $this->sumPaymentsBetween($currentStart, $currentEnd, Payment::KIND_PAYMENT);
         $incomeGrossPrevious = $this->sumPaymentsBetween($previousStart, $previousEnd, Payment::KIND_PAYMENT);
@@ -87,6 +89,7 @@ class AdminDashboardService
                     ],
                     'metrics' => [
                         $this->metric('Workshop views', $workshopViewsCurrent, $workshopViewsPrevious),
+                        $this->metric('Unique external registration clicks', $externalRegistrationClicksCurrent, $externalRegistrationClicksPrevious),
                     ],
                 ],
                 [
@@ -265,6 +268,18 @@ class AdminDashboardService
             ->count();
     }
 
+    private function countExternalRegistrationClickersBetween(Carbon $start, Carbon $end): int
+    {
+        return AnalyticsEvent::query()
+            ->join('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
+            ->where('workshops.registration', 'link')
+            ->where('analytics_events.event_type', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->where('analytics_events.created_at', '>=', $start)
+            ->where('analytics_events.created_at', '<', $end)
+            ->distinct('analytics_events.session_token')
+            ->count('analytics_events.session_token');
+    }
+
     private function sumPaymentsBetween(Carbon $start, Carbon $end, string $kind): float
     {
         return round((float) Payment::query()
@@ -287,6 +302,7 @@ class AdminDashboardService
     private function countAnalyticsEventsBetween(Carbon $start, Carbon $end): int
     {
         return AnalyticsEvent::query()
+            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
             ->where('created_at', '>=', $start)
             ->where('created_at', '<', $end)
             ->count();
@@ -295,6 +311,7 @@ class AdminDashboardService
     private function countAnalyticsVisitorsBetween(Carbon $start, Carbon $end): int
     {
         return AnalyticsEvent::query()
+            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
             ->where('created_at', '>=', $start)
             ->where('created_at', '<', $end)
             ->whereNotNull('visitor_hash')
@@ -358,32 +375,50 @@ class AdminDashboardService
             ->selectRaw('tickets.workshop_id, COUNT(*) as tickets_sold')
             ->groupBy('tickets.workshop_id');
 
-        return DB::table('analytics_events')
-            ->join('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
+        $viewCounts = DB::table('analytics_events')
+            ->where('event_type', AnalyticsEvent::TYPE_PAGE_VIEW)
+            ->where('route_name', 'workshop.show')
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
+            ->selectRaw('workshop_id, COUNT(*) as views')
+            ->groupBy('workshop_id');
+
+        $externalClickCounts = DB::table('analytics_events')
+            ->where('event_type', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
+            ->selectRaw('workshop_id, COUNT(DISTINCT session_token) as unique_clicks')
+            ->groupBy('workshop_id');
+
+        return DB::table('workshops')
             ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+            ->leftJoinSub($viewCounts, 'view_counts', function ($join): void {
+                $join->on('view_counts.workshop_id', '=', 'workshops.id');
+            })
             ->leftJoinSub($ticketCounts, 'ticket_counts', function ($join): void {
                 $join->on('ticket_counts.workshop_id', '=', 'workshops.id');
             })
-            ->where('analytics_events.route_name', 'workshop.show')
-            ->where('analytics_events.created_at', '>=', $start)
-            ->where('analytics_events.created_at', '<', $end)
+            ->leftJoinSub($externalClickCounts, 'external_click_counts', function ($join): void {
+                $join->on('external_click_counts.workshop_id', '=', 'workshops.id');
+            })
+            ->where(function ($query): void {
+                $query->whereNotNull('view_counts.views')
+                    ->orWhereNotNull('ticket_counts.tickets_sold')
+                    ->orWhereNotNull('external_click_counts.unique_clicks');
+            })
             ->selectRaw('
                 workshops.id as workshop_id,
                 workshops.title as workshop_title,
                 workshops.starts_at as workshop_starts_at,
+                workshops.registration as registration_type,
                 COALESCE(locations.name, \'\') as location_name,
-                COUNT(*) as views,
-                COALESCE(ticket_counts.tickets_sold, 0) as tickets_sold
+                COALESCE(view_counts.views, 0) as views,
+                COALESCE(ticket_counts.tickets_sold, 0) as tickets_sold,
+                COALESCE(external_click_counts.unique_clicks, 0) as unique_clicks
             ')
-            ->groupBy(
-                'workshops.id',
-                'workshops.title',
-                'workshops.starts_at',
-                'locations.name',
-                'ticket_counts.tickets_sold'
-            )
             ->orderByDesc('views')
             ->orderByDesc('tickets_sold')
+            ->orderByDesc('unique_clicks')
             ->orderBy('workshops.starts_at')
             ->limit(5)
             ->get()
@@ -395,13 +430,15 @@ class AdminDashboardService
                  *     workshop_starts_at: string|null,
                  *     location_name: string,
                  *     views: int,
-                 *     tickets_sold: int,
+                 *     registration_count: int|null,
+                 *     registration_label: string|null,
                  * }
                  */
                 function ($row): array {
                     $workshopId = (string) ($row->workshop_id ?? '');
                     $workshopTitle = (string) ($row->workshop_title ?? '');
                     $workshopStartsAt = (string) ($row->workshop_starts_at ?? '');
+                    $registrationType = (string) ($row->registration_type ?? '');
 
                     if ($workshopId === '' || $workshopTitle === '') {
                         throw new \RuntimeException('Workshop sales row is missing required fields.');
@@ -413,7 +450,16 @@ class AdminDashboardService
                         'workshop_starts_at' => $workshopStartsAt !== '' ? $workshopStartsAt : null,
                         'location_name' => (string) ($row->location_name ?? ''),
                         'views' => (int) $row->views,
-                        'tickets_sold' => (int) $row->tickets_sold,
+                        'registration_count' => match ($registrationType) {
+                            'tickets' => (int) $row->tickets_sold,
+                            'link' => (int) $row->unique_clicks,
+                            default => null,
+                        },
+                        'registration_label' => match ($registrationType) {
+                            'tickets' => 'tickets sold',
+                            'link' => 'unique clicks',
+                            default => null,
+                        },
                     ];
                 })
             ->values();

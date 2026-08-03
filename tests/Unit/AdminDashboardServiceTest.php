@@ -302,6 +302,20 @@ class AdminDashboardServiceTest extends TestCase
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
+        foreach (['current-session-b', 'current-session-b', 'current-session-c'] as $sessionToken) {
+            AnalyticsEvent::query()->create([
+                'event_type' => AnalyticsEvent::TYPE_REGISTRATION_CLICK,
+                'session_token' => $sessionToken,
+                'visitor_hash' => $sessionToken.'-visitor',
+                'path' => route('workshop.registration.redirect', $currentExternalWorkshop, false),
+                'route_name' => 'workshop.registration.redirect',
+                'workshop_id' => $currentExternalWorkshop->id,
+                'search_term' => null,
+                'referrer_host' => null,
+                'http_method' => 'GET',
+                'created_at' => Carbon::now(),
+            ]);
+        }
         AnalyticsEvent::query()->create([
             'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
             'session_token' => 'current-session-d',
@@ -360,6 +374,7 @@ class AdminDashboardServiceTest extends TestCase
         $growth = $this->cardByTitle($data, 'Growth');
 
         $this->assertSame('3', $this->metricByLabel($workshops, 'Workshop views')['current']);
+        $this->assertSame('2', $this->metricByLabel($workshops, 'Unique external registration clicks')['current']);
 
         $this->assertSame('3', $this->metricByLabel($tickets, 'Tickets sold')['current']);
 
@@ -380,10 +395,12 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertCount(2, $data['workshopSalesRows']);
         $this->assertSame('Current Workshop', $data['workshopSalesRows'][0]['workshop_title']);
         $this->assertSame(1, $data['workshopSalesRows'][0]['views']);
-        $this->assertSame(3, $data['workshopSalesRows'][0]['tickets_sold']);
+        $this->assertSame(3, $data['workshopSalesRows'][0]['registration_count']);
+        $this->assertSame('tickets sold', $data['workshopSalesRows'][0]['registration_label']);
         $this->assertSame('External Workshop', $data['workshopSalesRows'][1]['workshop_title']);
         $this->assertSame(1, $data['workshopSalesRows'][1]['views']);
-        $this->assertSame(0, $data['workshopSalesRows'][1]['tickets_sold']);
+        $this->assertSame(2, $data['workshopSalesRows'][1]['registration_count']);
+        $this->assertSame('unique clicks', $data['workshopSalesRows'][1]['registration_label']);
         $this->assertCount(2, $data['storeSalesRows']);
         $this->assertSame('Store Item One', $data['storeSalesRows'][0]['product_title']);
         $this->assertSame(1, $data['storeSalesRows'][0]['views']);

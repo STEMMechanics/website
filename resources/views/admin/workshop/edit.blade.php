@@ -33,8 +33,6 @@ $hasCustomPickList = (bool) ($workshopModel?->pick_list_is_customized);
 $soldTicketCount = (int) ($soldTicketCount ?? $activeTicketCount ?? 0);
 $soldEarlyBirdTicketCount = (int) ($soldEarlyBirdTicketCount ?? 0);
 $maxTicketsTotal = is_numeric($workshopModel?->max_tickets ?? null) ? max(0, (int) $workshopModel->max_tickets) : null;
-$manualAttendeeCountValue = old('attendee_count', $workshopModel?->attendee_count ?? '');
-$ticketedAttendeeCount = max(0, (int) ($ticketedAttendeeCount ?? 0));
 $earlyBirdTicketLimitTotal = $workshopModel instanceof \App\Models\Workshop ? $workshopModel->earlyBirdTicketLimit() : null;
 $earlyBirdPriceValue = old('early_bird_price', $workshopModel?->early_bird_price ?? '');
 $earlyBirdEndsAtValue = old('early_bird_ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->early_bird_ends_at ?? ''));
@@ -100,6 +98,10 @@ if (isset($workshop)) {
             'active' => true,
         ],
         [
+            'title' => 'Attendance',
+            'route' => route('admin.workshop.attendance', $workshop),
+        ],
+        [
             'title' => 'Files',
             'route' => route('admin.workshop.files', $workshop),
         ],
@@ -126,8 +128,6 @@ if (isset($workshop)) {
             isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
             registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshopModel?->max_tickets ?? '')),
-            manualAttendeeCount: @js((string) $manualAttendeeCountValue),
-            ticketedAttendeeCount: @js($ticketedAttendeeCount),
             earlyBirdPrice: @js((string) $earlyBirdPriceValue),
             earlyBirdEndsAt: @js((string) $earlyBirdEndsAtValue),
             earlyBirdTicketLimit: @js(old('early_bird_ticket_limit', $workshopModel?->early_bird_ticket_limit ?? '')),
@@ -969,26 +969,6 @@ if (isset($workshop)) {
                         </span>
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                     </div>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.input
-                            type="number"
-                            min="0"
-                            step="1"
-                            label="Attendee Count"
-                            name="attendee_count"
-                            :value="$manualAttendeeCountValue"
-                            x-bind:value="registration === 'tickets' ? ticketedAttendeeCount : manualAttendeeCount"
-                            x-bind:disabled="registration === 'tickets'"
-                            x-on:input="manualAttendeeCount = $event.target.value"
-                            error="{{ $errors->first('attendee_count') }}"
-                        />
-                        <div x-show="registration === 'tickets'" x-cloak class="-mt-3 ml-2 text-xs text-gray-500 mb-4">
-                            For ticketed workshops this is calculated from the attendee list.
-                        </div>
-                    </div>
-                    <div class="flex-1"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='tickets'">
                     <div class="flex-1">

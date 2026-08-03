@@ -118,16 +118,41 @@
                 this.$refs.runSheetDrawingInput.value = '';
                 this.drawingChanged = true;
             },
-            addTask() {
-                this.tasks.push({ id: null, name: '', notes: '', reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_time: '06:00', sort_order: (this.tasks.length + 1) * 10 });
+            seededBlankTask() {
+                return { id: null, name: '', notes: '', reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_time: '06:00', sort_order: 0 };
+            },
+            isBlankTask(task) {
+                return String(task?.name || '').trim() === '';
+            },
+            hasSingleTrailingBlankTask() {
+                if (this.tasks.length === 0) return false;
+                const blankCount = this.tasks.filter((task) => this.isBlankTask(task)).length;
+                return blankCount === 1 && this.isBlankTask(this.tasks[this.tasks.length - 1]);
+            },
+            ensureSingleTrailingBlankTask() {
+                const nonBlank = this.tasks.filter((task) => !this.isBlankTask(task));
+                this.tasks = [...nonBlank, this.seededBlankTask()];
+                this.normalizeTaskSort();
+            },
+            handleTaskRowChange(index) {
+                const isLastRow = index === (this.tasks.length - 1);
+                if (isLastRow && !this.isBlankTask(this.tasks[index])) {
+                    this.tasks.push(this.seededBlankTask());
+                    this.normalizeTaskSort();
+                    return;
+                }
+
+                if (!this.hasSingleTrailingBlankTask()) {
+                    this.ensureSingleTrailingBlankTask();
+                }
             },
             removeTask(index) {
                 this.tasks.splice(index, 1);
-                this.normalizeTaskSort();
+                this.ensureSingleTrailingBlankTask();
             },
             moveTask(index, direction) {
                 const destination = index + direction;
-                if (destination < 0 || destination >= this.tasks.length) return;
+                if (this.isBlankTask(this.tasks[index]) || destination < 0 || destination >= this.tasks.length - 1) return;
                 [this.tasks[index], this.tasks[destination]] = [this.tasks[destination], this.tasks[index]];
                 this.normalizeTaskSort();
             },
@@ -249,7 +274,7 @@
                     this.ensureSingleTrailingBlank();
                 }
             },
-        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); normalizeTaskSort(); $nextTick(() => initDrawing())" x-on:submit="saveDrawing(); submitting = true">
+        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask(); $nextTick(() => initDrawing())" x-on:submit="saveDrawing(); submitting = true">
             @csrf
             @if($editing)
                 @method('PUT')
@@ -270,25 +295,24 @@
             <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold">Tasks</h2>
-                    <x-ui.button type="button" color="outline" x-on:click="addTask()">Add Task</x-ui.button>
                 </div>
                 <div class="space-y-3">
                     <template x-for="(task, index) in tasks" :key="task.id || `new-task-${index}`">
                         <div class="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
                             <div>
                                 <label class="block text-sm pl-1 mb-1">Task</label>
-                                <input type="hidden" x-bind:name="task.id ? `tasks[${index}][id]` : null" x-model="task.id">
-                                <input type="hidden" x-bind:name="`tasks[${index}][sort_order]`" x-model="task.sort_order">
-                                <input type="hidden" x-bind:name="`tasks[${index}][notes]`" x-model="task.notes">
-                                <input type="hidden" x-bind:name="`tasks[${index}][reminder_enabled]`" x-bind:value="task.reminder_enabled ? '1' : '0'">
-                                <input type="hidden" x-bind:name="`tasks[${index}][reminder_offset_days]`" x-bind:value="task.reminder_direction === 'before' ? -Math.abs(Number(task.reminder_days || 0)) : Math.abs(Number(task.reminder_days || 0))">
-                                <input type="hidden" x-bind:name="`tasks[${index}][reminder_time]`" x-model="task.reminder_time">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) && task.id ? `tasks[${index}][id]` : null" x-model="task.id">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][sort_order]` : null" x-model="task.sort_order">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][notes]` : null" x-model="task.notes">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_enabled]` : null" x-bind:value="task.reminder_enabled ? '1' : '0'">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_offset_days]` : null" x-bind:value="task.reminder_direction === 'before' ? -Math.abs(Number(task.reminder_days || 0)) : Math.abs(Number(task.reminder_days || 0))">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_time]` : null" x-model="task.reminder_time">
                                 <div class="flex gap-4 items-center">
-                                    <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:name="`tasks[${index}][name]`" x-model="task.name" required>
+                                    <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:name="!isBlankTask(task) ? `tasks[${index}][name]` : null" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)">
                                     <div class="flex items-center justify-end gap-3">
                                         <button type="button" class="text-gray-700 hover:text-primary-color" x-on:click="taskEditorIndex = index" title="Notes and reminder"><i class="fa-solid fa-sliders"></i></button>
-                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
-                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, 1)" x-bind:disabled="index === tasks.length - 1" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
+                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
+                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
                                         <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeTask(index)" title="Remove"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
@@ -299,7 +323,6 @@
                             </div>
                         </div>
                     </template>
-                    <p x-show="tasks.length === 0" class="text-sm text-gray-600">No tasks have been added.</p>
                 </div>
             </div>
 
@@ -480,6 +503,7 @@
                 <x-ui.editor
                     name="run_sheet"
                     label="Instructions"
+                    class="workshop-template-editor"
                     value="{!! old('run_sheet', $template->run_sheet ?? '') !!}"
                 />
 

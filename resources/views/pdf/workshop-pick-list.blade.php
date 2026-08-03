@@ -29,8 +29,10 @@
         .notes-body { font-size: 11px; color: #333; line-height: 1.35; }
         .plan-page { page-break-before: always; }
         .tasks-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .tasks-grid td { width: 33.333%; padding: 0 10px 0 0; vertical-align: top; }
-        .tasks-grid td:last-child { padding-right: 0; }
+        .tasks-grid td { width: 50%; padding: 0 10px 10px 0; vertical-align: top; }
+        .tasks-grid td:nth-child(2) { padding-right: 0; }
+        .task-group { page-break-inside: avoid; }
+        .task-group-title { margin-bottom: 7px; color: #333; font-size: 12px; font-weight: 700; }
         .task { margin-bottom: 9px; page-break-inside: avoid; }
         .task-name { font-size: 12px; font-weight: 700; line-height: 1.15; }
         .task-timeframe { margin: 0 0 0 22px; font-size: 9px; line-height: 1.1; color: #666; }
@@ -91,26 +93,35 @@
             @if($tasks->isNotEmpty())
                 <div class="section-title">Tasks</div>
                 @php
-                    $taskColumnCount = 3;
-                    $tasksPerColumn = (int) ceil($tasks->count() / $taskColumnCount);
-                    $taskColumns = $tasks->chunk(max(1, $tasksPerColumn));
+                    $taskGroups = \App\Support\WorkshopTaskPresenter::grouped($tasks);
+                    $taskGroupRows = array_chunk($taskGroups, 2);
                 @endphp
                 <table class="tasks-grid">
-                    <tr>
-                        @foreach($taskColumns as $taskColumn)
+                    @foreach($taskGroupRows as $taskGroupRow)
+                        <tr>
+                        @foreach($taskGroupRow as $taskGroup)
                             <td>
-                                @foreach($taskColumn as $task)
-                                    <div class="task">
-                                        <div class="task-name"><span class="box"></span>{{ $task->name }}</div>
-                                        @if($taskReminderTimeframe($task) !== '')<div class="task-timeframe">{{ $taskReminderTimeframe($task) }}</div>@endif
-                                    </div>
-                                @endforeach
+                                <div class="task-group">
+                                    @if($taskGroup['heading'])
+                                        <div class="task-group-title">{{ $taskGroup['heading'] }}</div>
+                                    @elseif(count($taskGroups) > 1)
+                                        <div class="task-group-title">Other Tasks</div>
+                                    @endif
+                                    @foreach($taskGroup['tasks'] as $presentedTask)
+                                        @php($task = $presentedTask['task'])
+                                        <div class="task">
+                                            <div class="task-name"><span class="box"></span>{{ $presentedTask['label'] }}</div>
+                                            @if($taskReminderTimeframe($task) !== '')<div class="task-timeframe">{{ $taskReminderTimeframe($task) }}</div>@endif
+                                        </div>
+                                    @endforeach
+                                </div>
                             </td>
                         @endforeach
-                        @for($column = $taskColumns->count(); $column < $taskColumnCount; $column++)
+                        @if(count($taskGroupRow) === 1)
                             <td></td>
-                        @endfor
-                    </tr>
+                        @endif
+                        </tr>
+                    @endforeach
                 </table>
             @endif
 

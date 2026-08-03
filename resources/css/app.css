@@ -513,6 +513,12 @@ body.swal2-height-auto {
         min-width: 0;
     }
 
+    &.workshop-template-editor .tiptap {
+        max-height: 32rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
     .tiptap ul,
     .content ul {
         @apply my-3 pl-6;
