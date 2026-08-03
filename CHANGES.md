@@ -11,7 +11,7 @@
 - Added an admin user merge workflow that safely moves workshops, media, tickets, attendance, finance records, orders, organisations, groups, and other associations into a clearly selected destination account before removing the duplicate.
 - Added support for email-less ghost users, including nullable email storage, required first names, workshop requester search, and clear login-unavailable notices in the user editor.
 - Replaced legacy user organisation text with a primary organisation relationship and kept organisation names consistent across user, workshop, checkout, invoice, quote, and reporting workflows.
-- Added workshop attendee counts, with manual reporting for non-ticketed workshops and live attended-ticket/drop-in totals for ticketed workshops.
+- Reworked workshop attendance around individual records, including explicitly anonymous attendees, migration of legacy aggregate counts, attendee-neutral sign-in fields, consistent zero-value reporting, and Attendance tabs across workshop administration pages.
 - Fixed organisation deletion redirects, ghost-user requester search in the workshop editor, and empty workshop-history PDF status columns.
 - Added organisation records with parent/child relationships, searchable contact linking, and consistent organisation terminology across admin workflows.
 - Linked workshop delivery history to hosted-for organisations and requesting contacts, including migration of legacy workshop and user organisation text without losing existing associations.

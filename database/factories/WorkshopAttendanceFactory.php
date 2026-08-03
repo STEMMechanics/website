@@ -27,6 +27,7 @@ class WorkshopAttendanceFactory extends Factory
             'user_id' => User::query()->value('id') ?? User::factory(),
             'created_by' => User::query()->value('id') ?? User::factory(),
             'source' => 'dropin',
+            'is_anonymous' => false,
             'child_name' => fake()->name(),
             'firstname' => fake()->firstName(),
             'surname' => fake()->lastName(),

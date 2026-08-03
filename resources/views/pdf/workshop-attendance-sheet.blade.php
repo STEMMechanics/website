@@ -30,7 +30,7 @@
             <thead>
                 <tr>
                     <th style="width: 10%">Source</th>
-                    <th style="width: 18%">Child Name</th>
+                    <th style="width: 18%">Attendee Name</th>
                     <th style="width: 17%">Parent/Guardian</th>
                     <th style="width: 17%">Email</th>
                     <th style="width: 12%">Phone</th>
