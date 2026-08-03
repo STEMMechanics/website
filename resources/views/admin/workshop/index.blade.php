@@ -6,7 +6,7 @@
     <x-mast title="Workshops" :tabs="$tabs" />
 
     <x-container>
-        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: false, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
+        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: false, hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
             <x-ui.toolbar break="lg">
                 <x-slot:left>
                     <div class="flex justify-between w-full items-center gap-2">
@@ -210,7 +210,7 @@
                                         >
                                             <div class="flex items-start justify-between gap-3">
                                                 <div class="min-w-0">
-                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->toDateString() === $day['date'] ? $workshop->starts_at->format('g:i a') : 'Continues' }}</div>
                                                     <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                     <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                 </div>
@@ -227,7 +227,11 @@
                 </div>
             </div>
 
-            <div class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block">
+            <div
+                class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block"
+                x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
+                x-on:mouseleave="hoveredWorkshop = null"
+            >
                 <table class="min-w-245 w-full table-fixed border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -256,26 +260,49 @@
                                             </div>
                                         </div>
                                         <div class="mt-2 space-y-2">
-                                            @forelse($day['workshops'] as $workshop)
+                                            @forelse($day['workshop_lanes'] as $lane => $workshop)
+                                                @if($workshop === null)
+                                                    <div class="min-h-18" data-calendar-lane="{{ $lane }}" data-calendar-placeholder aria-hidden="true"></div>
+                                                @else
                                                 @php
                                                     $status = $adminCalendarStatus($workshop);
+                                                    $continuation = $workshop->calendarContinuationForDate($day['date']);
                                                 @endphp
                                                 <a
                                                     href="{{ route('admin.workshop.edit', $workshop) }}"
-                                                    @if((string) $workshop->status === 'cancelled') x-show="showCancelled" x-cloak @endif
-                                                    class="block rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark"
+                                                    data-calendar-lane="{{ $lane }}"
+                                                    data-workshop-key="{{ $workshop->getKey() }}"
+                                                    style="cursor: pointer;"
+                                                    x-bind:class="{
+                                                        '!border-primary-color !bg-primary-color-light/10 !text-primary-color-dark': hoveredWorkshop === @js((string) $workshop->getKey()),
+                                                        'invisible pointer-events-none': @js((string) $workshop->status === 'cancelled') && ! showCancelled
+                                                    }"
+                                                    @class([
+                                                        'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
+                                                        'lg:relative lg:z-10 lg:-ml-[9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
+                                                        'lg:relative lg:z-10 lg:-mr-[9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
+                                                    ])
                                                 >
                                                     <div class="flex items-start justify-between gap-2">
                                                         <div class="w-full">
                                                             <div class="flex justify-between items-center">
-                                                                <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                                                <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                                                @if(! $continuation['before'])
+                                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                                @elseif($continuation['ends'])
+                                                                    <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                                                @endif
+                                                                @if(! $continuation['before'])
+                                                                    <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                                                @endif
                                                             </div>
-                                                            <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                            @if($continuation['show_details'])
+                                                                <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                                <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </a>
+                                                @endif
                                             @empty
                                                 <div class="min-h-16"></div>
                                             @endforelse

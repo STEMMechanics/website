@@ -129,7 +129,7 @@
                                                 <a href="{{ route('workshop.show', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
                                                     <div class="flex items-start justify-between gap-3">
                                                         <div class="min-w-0">
-                                                            <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                            <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->toDateString() === $day['date'] ? $workshop->starts_at->format('g:i a') : 'Continues' }}</div>
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                             <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
@@ -148,7 +148,12 @@
                 </x-container>
 
                 <x-container class="mt-6">
-                    <div class="mx-auto hidden w-full overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block">
+                    <div
+                        class="mx-auto hidden w-full overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block"
+                        x-data="{ hoveredWorkshop: null }"
+                        x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
+                        x-on:mouseleave="hoveredWorkshop = null"
+                    >
                         <table class="min-w-245 w-full table-fixed border-collapse">
                         <thead>
                             <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -181,30 +186,53 @@
                                                 </div>
                                             </div>
                                             <div class="mt-2 space-y-2">
-                                                @forelse($day['workshops'] as $workshop)
-                                            <a href="{{ route('workshop.show', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
-                                                        @php
-                                                            $statusClass = $workshop->publicStatus();
-                                                            $statusTitle = $workshop->publicStatusLabel();
-                                                            $statusShortTitle = $workshop->calendarStatusLabel();
+                                                @forelse($day['workshop_lanes'] as $lane => $workshop)
+                                                    @if($workshop === null)
+                                                        <div class="min-h-18" data-calendar-lane="{{ $lane }}" data-calendar-placeholder aria-hidden="true"></div>
+                                                    @else
+                                                    @php
+                                                        $statusClass = $workshop->publicStatus();
+                                                        $statusTitle = $workshop->publicStatusLabel();
+                                                        $statusShortTitle = $workshop->calendarStatusLabel();
+                                                        $continuation = $workshop->calendarContinuationForDate($day['date']);
 
-                                                            if ($workshop->status === 'scheduled') {
-                                                                $statusClass = 'soon';
-                                                                $statusTitle = 'Opens Soon';
-                                                                $statusShortTitle = 'Soon';
-                                                            }
-                                                        @endphp
+                                                        if ($workshop->status === 'scheduled') {
+                                                            $statusClass = 'soon';
+                                                            $statusTitle = 'Opens Soon';
+                                                            $statusShortTitle = 'Soon';
+                                                        }
+                                                    @endphp
+                                                    <a
+                                                        href="{{ route('workshop.show', $workshop) }}"
+                                                        data-calendar-lane="{{ $lane }}"
+                                                        data-workshop-key="{{ $workshop->getKey() }}"
+                                                        style="cursor: pointer;"
+                                                        x-bind:class="{ '!border-primary-color !bg-primary-color-light/10 !text-primary-color-dark': hoveredWorkshop === @js((string) $workshop->getKey()) }"
+                                                        @class([
+                                                        'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
+                                                        'lg:relative lg:z-10 lg:-ml-[9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
+                                                        'lg:relative lg:z-10 lg:-mr-[9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
+                                                    ])>
                                                         <div class="flex items-start justify-between gap-2">
                                                             <div class="w-full">
                                                                 <div class="flex justify-between items-center">
-                                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                                                    <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
+                                                                    @if(! $continuation['before'])
+                                                                        <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                                    @elseif($continuation['ends'])
+                                                                        <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                                                    @endif
+                                                                    @if(! $continuation['before'])
+                                                                        <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
+                                                                    @endif
                                                                 </div>
-                                                                <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                                <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                                @if($continuation['show_details'])
+                                                                    <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                                    <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                                @endif
                                                             </div>
                                                         </div>
                                                     </a>
+                                                    @endif
                                                 @empty
                                                     <div class="min-h-16"></div>
                                                 @endforelse

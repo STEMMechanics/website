@@ -22,7 +22,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-top: 20px;
+            margin-top: 8px;
         }
         .calendar th,
         .calendar td {
@@ -80,20 +80,47 @@
         .event {
             border: 1px solid #e5e7eb;
             background: #f8f8f8;
+            box-sizing: border-box;
             border-radius: 3px;
-            padding: 1px 3px 6px;
+            padding: 1px 3px 2px;
             margin-bottom: 2px;
             page-break-inside: avoid;
+            height: 41px;
+            overflow: hidden;
+            position: relative;
+        }
+        .event.continues-before {
+            border-left: 0;
+            border-radius: 0 3px 3px 0;
+            margin-left: -4px;
+            padding-left: 6px;
+        }
+        .event.continues-after {
+            border-right: 0;
+            border-radius: 3px 0 0 3px;
+            margin-right: -4px;
+            padding-right: 6px;
+        }
+        .event.continues-before.continues-after {
+            border-radius: 0;
+        }
+        .event-placeholder {
+            height: 41px;
+            margin-bottom: 2px;
         }
         .event-time {
             color: #111827;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             line-height: 1.1;
         }
+        .event-end {
+            padding-top: 20px;
+            text-align: right;
+        }
         .event-title {
             color: #111827;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             line-height: 1.05;
             margin-top: 1px;
@@ -101,9 +128,12 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .event-title.recap {
+            font-weight: 400;
+        }
         .event-location {
             color: #6b7280;
-            font-size: 8px;
+            font-size: 7px;
             line-height: 1.05;
             margin-top: 1px;
             overflow: hidden;
@@ -170,19 +200,30 @@
                 <tr>
                     @foreach($week as $day)
                         @php
-                            $dayWorkshops = collect($day['workshops'] ?? []);
+                            $dayWorkshopLanes = collect($day['workshop_lanes'] ?? []);
                         @endphp
                         <td class="{{ $day['in_month'] ? '' : 'outside' }} {{ $day['is_today'] ? 'today' : '' }}">
                             <div class="day-header">
                                 <div class="day-number">{{ $day['label'] }}</div>
                             </div>
 
-                            @foreach($dayWorkshops as $workshop)
-                                <div class="event">
-                                    <div class="event-time">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
-                                    <div class="event-title">{{ $workshop->title }}</div>
-                                    <div class="event-location">{{ $workshop->getLocationName() }}</div>
-                                </div>
+                            @foreach($dayWorkshopLanes as $workshop)
+                                @if($workshop === null)
+                                    <div class="event-placeholder"></div>
+                                @else
+                                    @php($continuation = $workshop->calendarContinuationForDate($day['date']))
+                                    <div @class(['event', 'continues-before' => $continuation['before'], 'continues-after' => $continuation['after']])>
+                                    @if(! $continuation['before'])
+                                        <div class="event-time">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                    @elseif($continuation['ends'])
+                                        <div class="event-time event-end">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                    @endif
+                                    @if($continuation['show_details'])
+                                        <div @class(['event-title', 'recap' => $continuation['before']])>{{ $workshop->title }}</div>
+                                        <div class="event-location">{{ $workshop->getLocationName() }}</div>
+                                    @endif
+                                    </div>
+                                @endif
                             @endforeach
                         </td>
                     @endforeach

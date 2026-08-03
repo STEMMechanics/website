@@ -98,6 +98,64 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertSee('Month');
     }
 
+    public function test_admin_month_view_shows_a_workshop_on_each_day_it_spans(): void
+    {
+        $admin = $this->createAdminUser();
+        $monthStart = now()->addMonthNoOverflow()->startOfMonth();
+        $workshop = $this->createWorkshop('Multi-day admin workshop', $monthStart->copy()->subDay()->setTime(10, 0));
+        $workshop->update(['ends_at' => $monthStart->copy()->addDay()->setTime(16, 0)]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
+            'view' => 'month',
+            'month' => $monthStart->format('Y-m'),
+        ]));
+
+        $response->assertOk();
+        $this->assertSame(3, substr_count($response->getContent(), 'Multi-day admin workshop'));
+        $this->assertSame(2, substr_count($response->getContent(), 'Continues'));
+        $response->assertSeeText('Ends 4:00 pm');
+        $response->assertSee('lg:rounded-l-none lg:border-l-0', false);
+        $response->assertSee('lg:rounded-r-none lg:border-r-0', false);
+    }
+
+    public function test_admin_month_view_keeps_overlapping_workshops_in_the_same_lane_across_days(): void
+    {
+        $admin = $this->createAdminUser();
+        $monthStart = now()->addMonthNoOverflow()->startOfMonth();
+        $firstWorkshop = $this->createWorkshop('First spanning workshop', $monthStart->copy()->addDays(14)->setTime(9, 0));
+        $firstWorkshop->update(['ends_at' => $monthStart->copy()->addDays(15)->setTime(16, 0)]);
+        $secondWorkshop = $this->createWorkshop('Second spanning workshop', $monthStart->copy()->addDays(15)->setTime(10, 0));
+        $secondWorkshop->update(['ends_at' => $monthStart->copy()->addDays(16)->setTime(16, 0)]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
+            'view' => 'month',
+            'month' => $monthStart->format('Y-m'),
+        ]));
+
+        $response->assertOk();
+        $this->assertSame(2, substr_count($response->getContent(), 'data-calendar-lane="1"'));
+        $response->assertSee('data-calendar-lane="0" data-calendar-placeholder', false);
+    }
+
+    public function test_admin_month_view_continues_workshops_into_visible_days_of_the_next_month(): void
+    {
+        $admin = $this->createAdminUser();
+        $startsAt = Carbon::create(2026, 8, 31, 10, 30, 0, config('app.timezone'));
+        $workshop = $this->createWorkshop('Cross-month workshop', $startsAt);
+        $workshop->update(['ends_at' => $startsAt->copy()->addDays(6)->setTime(16, 0)]);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
+            'view' => 'month',
+            'month' => '2026-08',
+        ]));
+
+        $response->assertOk();
+        $this->assertSame(6, substr_count(
+            $response->getContent(),
+            'data-workshop-key="'.$workshop->getKey().'"'
+        ));
+    }
+
     public function test_admin_workshop_index_month_view_renders_cancelled_workshops_behind_a_dynamic_toggle(): void
     {
         $admin = $this->createAdminUser();
@@ -117,7 +175,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $defaultResponse->assertSee('Visible workshop');
         $defaultResponse->assertSee('Cancelled workshop');
         $defaultResponse->assertSee('x-model="showCancelled"', false);
-        $defaultResponse->assertSee('x-show="showCancelled"', false);
+        $defaultResponse->assertSee("'invisible pointer-events-none'", false);
         $defaultResponse->assertDontSee('show_cancelled=1', false);
     }
 
@@ -160,7 +218,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $admin = $this->createAdminUser();
         $monthStart = now()->startOfMonth()->addDays(10);
 
-        $this->createWorkshop('Workshop this month', $monthStart);
+        $workshop = $this->createWorkshop('Workshop this month', $monthStart);
+        $workshop->update(['ends_at' => $monthStart->copy()->addDays(2)->setTime(16, 0)]);
         $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
         $draftWorkshop->update(['status' => 'draft']);
         $cancelledWorkshop = $this->createWorkshop('Cancelled workshop', $monthStart->copy()->addDays(3));
@@ -184,6 +243,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
 
         $this->assertIsString($pdfInfo);
         $this->assertMatchesRegularExpression('/^Pages:\s+1$/m', $pdfInfo);
+        $this->assertStringContainsString('Ends 4:00 pm', $pdfText);
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
         $this->assertStringNotContainsString('Cancelled workshop', $pdfText);
     }
