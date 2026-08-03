@@ -1,4 +1,23 @@
 @php
+    $workshopTabs = [
+        [
+            'title' => 'Details',
+            'route' => route('admin.workshop.edit', $workshop),
+        ],
+        [
+            'title' => 'Attendance',
+            'route' => route('admin.workshop.attendance', $workshop),
+            'active' => true,
+        ],
+        [
+            'title' => 'Files',
+            'route' => route('admin.workshop.files', $workshop),
+        ],
+        [
+            'title' => 'Photos',
+            'route' => route('admin.workshop.photos', $workshop),
+        ],
+    ];
     $isTicketedWorkshop = $workshop->registration === 'tickets';
     $showCancelledTickets = (bool) ($showCancelledTickets ?? false);
     $cancelledTickets = $cancelledTickets ?? collect();
@@ -85,6 +104,7 @@
 
             return [
                 'id' => (int) $entry->id,
+                'is_anonymous' => (bool) ($entry->is_anonymous ?? false),
                 'child_name' => $childName,
                 'guardian_name' => (string) ($entry->guardian_name ?? ''),
                 'email' => (string) ($entry->email ?? ''),
@@ -96,7 +116,7 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Attendance</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Attendance</x-mast>
 
     <x-container>
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -1255,6 +1275,7 @@
                 newBlankEntry() {
                     return {
                         id: 0,
+                        is_anonymous: false,
                         child_name: '',
                         guardian_name: '',
                         email: '',
@@ -1263,7 +1284,8 @@
                     };
                 },
                 isBlankEntry(entry) {
-                    return String(entry?.child_name || '').trim() === ''
+                    return !Boolean(entry?.is_anonymous)
+                        && String(entry?.child_name || '').trim() === ''
                         && String(entry?.guardian_name || '').trim() === ''
                         && String(entry?.email || '').trim() === ''
                         && String(entry?.phone || '').trim() === ''
@@ -1299,6 +1321,17 @@
                         this.ensureSingleTrailingBlank();
                     }
                 },
+                handleEntryChange(index) {
+                    const entry = this.entries[index];
+                    const hasDetails = String(entry?.child_name || '').trim() !== ''
+                        || String(entry?.guardian_name || '').trim() !== ''
+                        || String(entry?.email || '').trim() !== ''
+                        || String(entry?.phone || '').trim() !== '';
+                    if (hasDetails) {
+                        entry.is_anonymous = false;
+                    }
+                    this.handleRowChange(index);
+                },
                 syncViewport() {
                     this.isDesktop = window.innerWidth >= 1024;
                 },
@@ -1312,31 +1345,42 @@
                     <template x-for="(entry, index) in entries" :key="`mobile-${index}`">
                         <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || `Entry ${index + 1}`"></h3>
+                                <div class="flex items-center gap-3">
+                                    <x-ui.checkbox
+                                        label="Anonymous attendee"
+                                        :small="true"
+                                        :noWrapper="true"
+                                        :inline="true"
+                                        x-model="entry.is_anonymous"
+                                        x-on:change="handleRowChange(index)"
+                                    />
+                                    <h3 class="text-sm font-semibold text-gray-900" x-text="entry.is_anonymous ? 'Anonymous attendee' : (entry.child_name || entry.guardian_name || `Entry ${index + 1}`)"></h3>
+                                </div>
                                 <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
 
                             <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
+                            <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
 
                             <div class="mt-4 space-y-3">
                                 <x-ui.input
-                                    label="Child Name"
+                                    label="Attendee Name"
                                     name="mobile_child_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.child_name"
                                     x-bind:name="!isDesktop ? `entries[${index}][child_name]` : null"
-                                    x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
-                                    x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
+                                    x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
+                                    x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
                                 <x-ui.input
-                                    label="Parent/Guardian"
+                                    label="Parent/Guardian (optional)"
                                     name="mobile_guardian_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.guardian_name"
                                     x-bind:name="!isDesktop ? `entries[${index}][guardian_name]` : null"
-                                    x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
-                                    x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
+                                    x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
+                                    x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
                                 <x-ui.input
                                     type="email"
                                     label="Email"
@@ -1344,26 +1388,29 @@
                                     fieldClasses="mt-1"
                                     x-model="entry.email"
                                     x-bind:name="!isDesktop ? `entries[${index}][email]` : null"
-                                    x-on:input="entry.email = $event.target.value; handleRowChange(index)"
-                                    x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
+                                    x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
+                                    x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
                                 <x-ui.input
                                     label="Phone"
                                     name="mobile_phone_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.phone"
                                     x-bind:name="!isDesktop ? `entries[${index}][phone]` : null"
-                                    x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
-                                    x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
+                                    x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
+                                    x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
                                 <div>
-                                    <div class="mt-8 mb-4 flex items-center gap-3">
+                                    <div class="mt-8 mb-4">
                                         <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
-                                        <input type="checkbox"
-                                               class="h-6 w-6 rounded border-gray-400 text-primary-color focus:ring-primary-color"
-                                               x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
-                                               value="1"
-                                               x-model="entry.media_consent"
-                                               x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)">
-                                        <span class="text-sm text-gray-600">Media Consent</span>
+                                        <x-ui.checkbox
+                                            label="Media Consent"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
+                                            value="1"
+                                            x-model="entry.media_consent"
+                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1375,7 +1422,8 @@
                     <table class="min-w-full">
                         <thead class="bg-gray-50 rounded-md">
                             <tr>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Child Name</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Anonymous</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Attendee Name</th>
                                 <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Parent/Guardian</th>
                                 <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Email</th>
                                 <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Phone</th>
@@ -1386,8 +1434,20 @@
                         <tbody>
                             <template x-for="(entry, index) in entries" :key="index">
                                 <tr class="border-b last:border-b-0">
-                                    <td class="p-2 align-top">
+                                    <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
+                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
+                                        <x-ui.checkbox
+                                            label="Anonymous attendee"
+                                            :labelHidden="true"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-model="entry.is_anonymous"
+                                            x-on:change="handleRowChange(index)"
+                                        />
+                                    </td>
+                                    <td class="p-2 align-top">
                                         <x-ui.input
                                             name="child_name_placeholder"
                                             :noLabel="true"
@@ -1395,8 +1455,8 @@
                                             fieldClasses="mt-0"
                                             x-model="entry.child_name"
                                             x-bind:name="isDesktop ? `entries[${index}][child_name]` : null"
-                                            x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
-                                            x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
+                                            x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
+                                            x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1406,8 +1466,8 @@
                                             fieldClasses="mt-0"
                                             x-model="entry.guardian_name"
                                             x-bind:name="isDesktop ? `entries[${index}][guardian_name]` : null"
-                                            x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
-                                            x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
+                                            x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
+                                            x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1418,8 +1478,8 @@
                                             fieldClasses="mt-0"
                                             x-model="entry.email"
                                             x-bind:name="isDesktop ? `entries[${index}][email]` : null"
-                                            x-on:input="entry.email = $event.target.value; handleRowChange(index)"
-                                            x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
+                                            x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
+                                            x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1429,17 +1489,22 @@
                                             fieldClasses="mt-0"
                                             x-model="entry.phone"
                                             x-bind:name="isDesktop ? `entries[${index}][phone]` : null"
-                                            x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
-                                            x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
+                                            x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
+                                            x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
                                     </td>
                                     <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null" value="0">
-                                        <input type="checkbox"
-                                               class="h-5 w-5 mt-1 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                               x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
-                                               value="1"
-                                               x-model="entry.media_consent"
-                                               x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)">
+                                        <x-ui.checkbox
+                                            label="Media consent"
+                                            :labelHidden="true"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
+                                            value="1"
+                                            x-model="entry.media_consent"
+                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+                                        />
                                     </td>
                                     <td class="p-2 align-middle text-center">
                                         <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">

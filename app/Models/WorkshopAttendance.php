@@ -16,6 +16,7 @@ class WorkshopAttendance extends Model
         'user_id',
         'created_by',
         'source',
+        'is_anonymous',
         'child_name',
         'firstname',
         'surname',
@@ -28,6 +29,7 @@ class WorkshopAttendance extends Model
 
     protected $casts = [
         'attended_at' => 'datetime',
+        'is_anonymous' => 'boolean',
         'media_consent' => 'boolean',
     ];
 

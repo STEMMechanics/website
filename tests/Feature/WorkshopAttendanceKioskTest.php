@@ -42,7 +42,7 @@ class WorkshopAttendanceKioskTest extends TestCase
             ->get(route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]))
             ->assertOk()
             ->assertSee('Sign-In Sheet')
-            ->assertSee('Parent/Guardian Name');
+            ->assertSee('Parent/Guardian (optional)');
 
         $response = $this->actingAs($admin)
             ->post(route('admin.workshop.attendance.dropin.store', $workshop), [
