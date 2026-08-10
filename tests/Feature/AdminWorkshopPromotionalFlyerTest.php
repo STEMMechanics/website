@@ -75,8 +75,10 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
         $admin = $this->makeAdmin();
         $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
         $variantStorage = Mockery::mock(Filesystem::class);
-        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnFalse();
+        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnTrue();
+        $variantStorage->shouldReceive('get')->once()->with('remote-hash-md')->andReturn('unsupported image data');
         $sourceStorage = Mockery::mock(Filesystem::class);
+        $sourceStorage->shouldReceive('exists')->once()->with('remote-hash')->andReturnTrue();
         $sourceStorage->shouldReceive('get')->once()->with('remote-hash')->andReturn(
             file_get_contents(public_path('logo.png')),
         );

@@ -6,6 +6,7 @@ use App\Models\Workshop;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -82,23 +83,39 @@ class WorkshopPromotionalFlyerController extends Controller
             return null;
         }
 
-        try {
-            $variantKey = $media->hash.'-md';
-            $variantStorage = $media->variantStorage();
-            $contents = $variantStorage->exists($variantKey)
-                ? $variantStorage->get($variantKey)
-                : $media->sourceStorage()->get($media->hash);
+        $candidates = [
+            [$media->variantStorage(), $media->hash.'-md'],
+            [$media->sourceStorage(), $media->hash],
+        ];
+        $lastError = null;
 
-            if (! is_string($contents) || $contents === '') {
-                return null;
+        foreach ($candidates as [$storage, $key]) {
+            try {
+                if (! $storage->exists($key)) {
+                    continue;
+                }
+
+                $contents = $storage->get($key);
+                if (! is_string($contents) || $contents === '') {
+                    continue;
+                }
+
+                $image = (new ImageManager(new Driver))->read($contents)->cover(1200, 425);
+
+                return $image->toJpeg(84)->toDataUri();
+            } catch (Throwable $exception) {
+                $lastError = $exception;
             }
-
-            $image = (new ImageManager(new Driver))->read($contents)->cover(1200, 425);
-
-            return $image->toJpeg(84)->toDataUri();
-        } catch (Throwable) {
-            return null;
         }
+
+        if ($lastError !== null) {
+            Log::warning('Workshop flyer image could not be decoded.', [
+                'media' => $media->name,
+                'message' => $lastError->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 
     private function flyerDescription(Workshop $workshop, int $limit = 165): string
