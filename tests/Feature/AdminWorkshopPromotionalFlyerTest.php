@@ -108,6 +108,24 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
         $this->assertSame('Build a robot Then test it Bring ideas', $description);
     }
 
+    public function test_flyer_description_prefers_a_complete_sentence_within_its_larger_limit(): void
+    {
+        $admin = $this->makeAdmin();
+        $workshop = $this->makeWorkshop($admin, 'Nightfall', now()->addWeek());
+        $workshop->summary = 'Ready to survive the night? Join us on Saturday from 3:00–4:00 pm for an hour of Nightfall on the STEMCraft server! This time, everyone is on the same team. Work together to explore, build and survive the night.';
+
+        $description = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertSame($workshop->summary, $description);
+
+        $workshop->summary .= ' This additional sentence should fall beyond the flyer description limit.';
+        $description = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertSame('Ready to survive the night? Join us on Saturday from 3:00–4:00 pm for an hour of Nightfall on the STEMCraft server! This time, everyone is on the same team. Work together to explore, build and survive the night.', $description);
+    }
+
     private function makeAdmin(): User
     {
         $admin = User::factory()->create();

@@ -118,7 +118,7 @@ class WorkshopPromotionalFlyerController extends Controller
         return null;
     }
 
-    private function flyerDescription(Workshop $workshop, int $limit = 165): string
+    private function flyerDescription(Workshop $workshop, int $limit = 220): string
     {
         $description = trim((string) ($workshop->summary ?: $workshop->content));
         if ($description === '') {
@@ -137,6 +137,20 @@ class WorkshopPromotionalFlyerController extends Controller
             $description,
         ) ?? $description;
 
-        return Str::limit((string) Str::of($description)->squish(), $limit);
+        $description = (string) Str::of($description)->squish();
+        if (Str::length($description) <= $limit) {
+            return $description;
+        }
+
+        $minimumSentenceLength = (int) floor($limit * 0.5);
+        if (preg_match(
+            '/^(.{'.$minimumSentenceLength.','.$limit.'}[.!?])(?=\s|$)/us',
+            $description,
+            $sentenceMatch,
+        ) === 1) {
+            return trim($sentenceMatch[1]);
+        }
+
+        return Str::limit($description, $limit);
     }
 }
