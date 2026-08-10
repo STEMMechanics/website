@@ -471,7 +471,7 @@ class MediaController extends Controller
 
         $commonValues = [];
         $mixedFields = [];
-        foreach (['user_id', 'visibility', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
+        foreach (['user_id', 'visibility', 'storage_disk', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
             $values = $selectedMedia->map(function (Media $media) use ($field) {
                 return $this->bulkMediaFieldValue($media, $field);
             })->unique(strict: true);
@@ -516,6 +516,7 @@ class MediaController extends Controller
         $validated = $request->validate([
             'user_id' => ['nullable', 'string', Rule::excludeIf(fn () => $request->input('user_id') === '__mixed'), Rule::exists('users', 'id')],
             'visibility' => ['nullable', Rule::in(['private', 'public', '__mixed'])],
+            'storage_disk' => ['nullable', Rule::in(['media', 'archive', '__mixed'])],
             'photographed_at' => ['nullable', 'date'],
             'tags' => ['nullable', 'string', 'max:255'],
             'caption' => ['nullable', 'string'],
@@ -549,8 +550,14 @@ class MediaController extends Controller
 
         DB::transaction(function () use ($media, $changes, $addWorkshopIds, $removeWorkshopIds): void {
             foreach ($media as $item) {
+                $oldStorageDisk = $item->storageDiskName();
+
                 if ($changes !== []) {
                     $item->update($changes);
+                }
+
+                if ($oldStorageDisk !== $item->storageDiskName()) {
+                    $this->moveMediaOriginalToStorageDisk($item, $oldStorageDisk);
                 }
 
                 if ($removeWorkshopIds->isNotEmpty()) {
@@ -2007,6 +2014,10 @@ class MediaController extends Controller
 
     private function bulkMediaFieldValue(Media $media, string $field): string
     {
+        if ($field === 'storage_disk') {
+            return $media->storageDiskName();
+        }
+
         $value = $media->{$field};
 
         if ($field === 'photographed_at' && $value) {
@@ -2024,7 +2035,7 @@ class MediaController extends Controller
     {
         $changes = [];
 
-        foreach (['user_id', 'visibility', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
+        foreach (['user_id', 'visibility', 'storage_disk', 'photographed_at', 'tags', 'caption', 'consent_notes'] as $field) {
             if (! $request->exists($field)) {
                 continue;
             }
