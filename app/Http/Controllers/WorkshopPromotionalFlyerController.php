@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Throwable;
 
