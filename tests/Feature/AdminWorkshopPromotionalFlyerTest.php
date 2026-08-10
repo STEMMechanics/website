@@ -75,8 +75,10 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
         $admin = $this->makeAdmin();
         $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
         $variantStorage = Mockery::mock(Filesystem::class);
-        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnFalse();
+        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnTrue();
+        $variantStorage->shouldReceive('get')->once()->with('remote-hash-md')->andReturn('unsupported image data');
         $sourceStorage = Mockery::mock(Filesystem::class);
+        $sourceStorage->shouldReceive('exists')->once()->with('remote-hash')->andReturnTrue();
         $sourceStorage->shouldReceive('get')->once()->with('remote-hash')->andReturn(
             file_get_contents(public_path('logo.png')),
         );
@@ -104,6 +106,24 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
             ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
 
         $this->assertSame('Build a robot Then test it Bring ideas', $description);
+    }
+
+    public function test_flyer_description_prefers_a_complete_sentence_within_its_larger_limit(): void
+    {
+        $admin = $this->makeAdmin();
+        $workshop = $this->makeWorkshop($admin, 'Nightfall', now()->addWeek());
+        $workshop->summary = 'Ready to survive the night? Join us on Saturday from 3:00–4:00 pm for an hour of Nightfall on the STEMCraft server! This time, everyone is on the same team. Work together to explore, build and survive the night.';
+
+        $description = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertSame($workshop->summary, $description);
+
+        $workshop->summary .= ' This additional sentence should fall beyond the flyer description limit.';
+        $description = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertSame('Ready to survive the night? Join us on Saturday from 3:00–4:00 pm for an hour of Nightfall on the STEMCraft server! This time, everyone is on the same team. Work together to explore, build and survive the night.', $description);
     }
 
     private function makeAdmin(): User
