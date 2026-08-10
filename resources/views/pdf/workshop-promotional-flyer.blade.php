@@ -38,10 +38,10 @@
         .accent-1 .location { color: #15803d; }
         .accent-2 .location { color: #b45309; }
         .workshop-location { width: 32%; padding: 0; text-align: right; vertical-align: top; }
-        .description { height: 15.5mm; overflow: hidden; padding: 1mm 0 0; color: #475569; font-size: 6.4pt; line-height: 1.1; vertical-align: top; }
+        .description { height: 17mm; overflow: hidden; padding: 1mm 0 0; color: #475569; font-size: 6.4pt; line-height: 1.0; vertical-align: top; }
         .date { height: 4mm; color: #334155; font-size: 6.5pt; font-weight: 700; line-height: 1.1; margin-bottom: 2mm; }
         .footer { position: fixed; bottom: 6mm; width: 33%; }
-        .footer div { margin: 0 auto; background-color: #0284c7; color: #fff; font-size: 8pt; font-weight: 700; text-align: center; border-radius: 8px; width: 80%; padding: 5px 0 8px 0; }
+        .footer div { margin: 0 auto; background-color: #0284c7; color: #fff; font-size: 8pt; text-align: center; border-radius: 8px; width: 80%; padding: 0 0 4px 0; }
     </style>
 </head>
 <body>
