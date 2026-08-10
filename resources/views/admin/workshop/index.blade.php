@@ -13,6 +13,15 @@
                         <x-ui.button href="{{ route('admin.workshop.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
                         <div class="flex items-center gap-2">
                             <x-ui.button
+                                    href="{{ route('admin.workshop-flyer.create') }}"
+                                    color="outline"
+                                    class="h-10 w-10 shrink-0 px-0"
+                                    title="Promotional Flyer"
+                                    aria-label="Promotional Flyer"
+                            >
+                                <i class="fa-solid fa-print"></i>
+                            </x-ui.button>
+                            <x-ui.button
                                     href="{{ $monthCalendarPdfRoute }}"
                                     target="_blank"
                                     color="outline"
