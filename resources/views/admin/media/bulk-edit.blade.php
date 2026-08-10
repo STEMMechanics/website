@@ -39,6 +39,15 @@
                         <option value="public" @selected($visibilityValue === 'public')>Public</option>
                     </x-ui.select>
 
+                    @php($storageDiskValue = old('storage_disk', $mixedFields['storage_disk'] ? '__mixed' : $commonValues['storage_disk']))
+                    <x-ui.select label="Storage" name="storage_disk" :value="$storageDiskValue" class="mb-0">
+                        @if($mixedFields['storage_disk'] || $storageDiskValue === '__mixed')
+                            <option value="__mixed" @selected($storageDiskValue === '__mixed')>Mixed</option>
+                        @endif
+                        <option value="media" @selected($storageDiskValue === 'media')>Media</option>
+                        <option value="archive" @selected($storageDiskValue === 'archive')>Archive</option>
+                    </x-ui.select>
+
                     @php($ownerValue = old('user_id', $mixedFields['user_id'] ? '__mixed' : $commonValues['user_id']))
                     <x-ui.select label="Owner" name="user_id" :value="$ownerValue" class="mb-0">
                         @if($mixedFields['user_id'] || $ownerValue === '__mixed')

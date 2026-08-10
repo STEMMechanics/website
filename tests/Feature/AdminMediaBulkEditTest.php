@@ -85,6 +85,57 @@ class AdminMediaBulkEditTest extends TestCase
             ->assertSeeText('Mixed');
     }
 
+    public function test_bulk_update_moves_selected_media_to_another_storage_disk(): void
+    {
+        $admin = $this->makeAdmin();
+        Storage::fake('media');
+        Storage::fake('archive');
+        $first = $this->makeMedia($admin, 'first.jpg');
+        $second = $this->makeMedia($admin, 'second.jpg');
+        Storage::disk('media')->put((string) $first->hash, $first->name);
+
+        $this->withSession(['admin_media_bulk_selection' => [$first->name, $second->name]])
+            ->actingAs($admin)
+            ->put(route('admin.media.bulk.update'), [
+                'storage_disk' => 'archive',
+            ])
+            ->assertRedirect(route('admin.media.index'));
+
+        foreach ([$first, $second] as $medium) {
+            $this->assertSame('archive', $medium->fresh()->storage_disk);
+            Storage::disk('archive')->assertExists((string) $medium->hash);
+            Storage::disk('media')->assertMissing((string) $medium->hash);
+        }
+    }
+
+    public function test_bulk_editor_shows_mixed_storage_without_moving_media_until_changed(): void
+    {
+        $admin = $this->makeAdmin();
+        $first = $this->makeMedia($admin, 'first.jpg');
+        $second = $this->makeMedia($admin, 'second.jpg', ['storage_disk' => 'archive']);
+
+        $response = $this->withSession(['admin_media_bulk_selection' => [$first->name, $second->name]])
+            ->actingAs($admin)
+            ->get(route('admin.media.bulk.edit'));
+
+        $response->assertOk()
+            ->assertSee('name="storage_disk"', false)
+            ->assertSee('<option value="__mixed" selected>Mixed</option>', false);
+    }
+
+    public function test_media_editor_only_requires_a_new_user_first_name_when_the_create_modal_is_open(): void
+    {
+        $admin = $this->makeAdmin();
+        $medium = $this->makeMedia($admin, 'first.jpg');
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.edit', $medium))
+            ->assertOk()
+            ->assertSee('name="new_user_firstname"', false)
+            ->assertSee('x-bind:required="createUserOpen"', false)
+            ->assertDontSee('name="new_user_firstname" required', false);
+    }
+
     public function test_bulk_update_adds_and_removes_workshop_links_without_replacing_other_links(): void
     {
         $admin = $this->makeAdmin();

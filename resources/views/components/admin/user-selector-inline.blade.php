@@ -260,7 +260,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             </div>
 
             <div x-show="createUserTab === 'contact'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <x-ui.input noLabel="true" label="First Name" name="new_user_firstname" x-model="newUser.firstname" required />
+                <x-ui.input noLabel="true" label="First Name" name="new_user_firstname" x-model="newUser.firstname" x-bind:required="createUserOpen" />
                 <x-ui.input noLabel="true" label="Surname" name="new_user_surname" x-model="newUser.surname" />
                 <x-ui.input noLabel="true" label="Organisation" name="new_user_organisation_name" x-model="newUser.organisation_name" />
                 <x-ui.input noLabel="true" label="Phone" name="new_user_phone" x-model="newUser.phone" />
