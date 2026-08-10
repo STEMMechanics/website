@@ -45,6 +45,7 @@ use App\Http\Controllers\WorkshopCategoryController;
 use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\WorkshopHistoryController;
 use App\Http\Controllers\WorkshopPickListController;
+use App\Http\Controllers\WorkshopPromotionalFlyerController;
 use App\Http\Controllers\WorkshopTicketFlowController;
 use Illuminate\Support\Facades\Route;
 
@@ -346,6 +347,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/month/pdf', [WorkshopController::class, 'admin_month_pdf'])->name('admin.workshop.month.pdf');
     Route::get('/admin/workshops/month/pick-lists/pdf', [WorkshopController::class, 'admin_month_pick_lists_pdf'])->name('admin.workshop.month.pick-lists.pdf');
     Route::get('/admin/workshops/month/materials/pdf', [WorkshopController::class, 'admin_month_materials_pdf'])->name('admin.workshop.month.materials.pdf');
+    Route::get('/admin/workshops/promotional-flyer', [WorkshopPromotionalFlyerController::class, 'create'])->name('admin.workshop-flyer.create');
+    Route::post('/admin/workshops/promotional-flyer', [WorkshopPromotionalFlyerController::class, 'generate'])->name('admin.workshop-flyer.generate');
     Route::post('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_select'])->name('admin.workshop.bulk.select');
     Route::get('/admin/workshops/bulk/edit', [WorkshopController::class, 'admin_bulk_edit'])->name('admin.workshop.bulk.edit');
     Route::put('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_update'])->name('admin.workshop.bulk.update');
