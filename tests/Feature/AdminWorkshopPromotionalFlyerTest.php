@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\WorkshopPromotionalFlyerController;
+use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
-use App\Models\Media;
 use App\Models\Workshop;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class AdminWorkshopPromotionalFlyerTest extends TestCase
@@ -64,6 +68,42 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
             ])
             ->assertRedirect(route('admin.workshop-flyer.create'))
             ->assertSessionHasErrors('workshop_ids');
+    }
+
+    public function test_flyer_reads_hero_images_through_the_storage_disk(): void
+    {
+        $admin = $this->makeAdmin();
+        $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
+        $variantStorage = Mockery::mock(Filesystem::class);
+        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnFalse();
+        $sourceStorage = Mockery::mock(Filesystem::class);
+        $sourceStorage->shouldReceive('get')->once()->with('remote-hash')->andReturn(
+            file_get_contents(public_path('logo.png')),
+        );
+        $media = Mockery::mock(Media::class)->makePartial();
+        $media->hash = 'remote-hash';
+        $media->shouldReceive('variantStorage')->once()->andReturn($variantStorage);
+        $media->shouldReceive('sourceStorage')->once()->andReturn($sourceStorage);
+        $workshop->setRelation('hero', $media);
+
+        $image = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerImageData'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertIsString($image);
+        $this->assertStringStartsWith('data:image/jpeg;base64,', $image);
+    }
+
+    public function test_flyer_description_replaces_line_breaks_and_removes_emoji(): void
+    {
+        $admin = $this->makeAdmin();
+        $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
+        $workshop->summary = null;
+        $workshop->content = "<p>Build a robot</p>\n<div>Then test it 🚀</div><br>Bring ideas 🤖</br>";
+
+        $description = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
+
+        $this->assertSame('Build a robot Then test it Bring ideas', $description);
     }
 
     private function makeAdmin(): User

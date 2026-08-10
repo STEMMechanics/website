@@ -85,7 +85,7 @@
                                 <span class="title">{{ $workshop->title }}</span>
                                 <span class="location">{{ $workshop->getLocationName() }}</span>
                             </div>
-                            <div class="description">{{ $workshop->newsletterSummary(165) }}</div>
+                            <div class="description">{{ $item['description'] }}</div>
                             <div class="date">
                                 {{ $workshop->starts_at?->format('D j M, g:i a') }}
                                 @if($workshop->workshopDurationLabel())
