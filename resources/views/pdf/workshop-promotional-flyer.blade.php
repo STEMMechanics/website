@@ -19,7 +19,9 @@
         }
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; color: #0f172a; font-family: 'Poppins', sans-serif; }
-        .flyer { position: fixed; top: 0; width: 33%; height: 100%; overflow: hidden; }
+        .page { position: relative; width: 297mm; height: 210mm; overflow: hidden; page-break-after: always; }
+        .page:last-child { page-break-after: auto; }
+        .flyer { position: absolute; top: 0; width: 99mm; height: 210mm; overflow: hidden; }
         .flyer.cut { border-right: 0.25mm dashed #94a3b8; }
         .brand { width: 100%; text-align: center; margin: 6mm 0 0; }
         .logo { display: inline-block; width: 38mm; max-height: 9mm; }
@@ -40,7 +42,7 @@
         .workshop-location { width: 32%; padding: 0; text-align: right; vertical-align: top; }
         .description { height: 17mm; overflow: hidden; padding: 1mm 0 0; color: #475569; font-size: 6.4pt; line-height: 1.0; vertical-align: top; }
         .date { height: 4mm; color: #334155; font-size: 6.5pt; font-weight: 700; line-height: 1.1; margin-bottom: 2mm; }
-        .footer { position: fixed; bottom: 6mm; width: 33%; }
+        .footer { position: absolute; bottom: 6mm; width: 99mm; }
         .footer div { margin: 0 auto; background-color: #0284c7; color: #fff; font-size: 8pt; text-align: center; border-radius: 8px; width: 80%; padding: 0 0 4px 0; }
     </style>
 </head>
@@ -54,6 +56,8 @@
         ? 'data:'.(mime_content_type($logoPath) ?: 'image/png').';base64,'.base64_encode(file_get_contents($logoPath))
         : null;
 @endphp
+@foreach($flyerWorkshops->chunk(3) as $pageWorkshops)
+<div class="page">
 @for($copy = 0; $copy < 3; $copy++)
     <section class="flyer {{ $copy < 2 ? 'cut' : '' }}" style="left: {{ $copy * 99 }}mm;">
         <header class="brand">
@@ -65,7 +69,7 @@
         </header>
 
         <div class="workshops-list">
-            @foreach($flyerWorkshops as $item)
+            @foreach($pageWorkshops as $item)
                 @php
                     $workshop = $item['workshop'];
                     $price = $workshop->currentTicketPriceAmount();
@@ -113,5 +117,7 @@
     </section>
     <footer class="footer" style="left: {{ ($copy * 99) }}mm;"><div>{{ $footer }}</div></footer>
 @endfor
+</div>
+@endforeach
 </body>
 </html>

@@ -30,9 +30,13 @@
                         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h2 class="text-lg font-semibold text-gray-900">Choose workshops</h2>
-                                <p class="mt-1 text-sm text-gray-600">Select up to three upcoming workshops. They will appear on each of the three DL flyers.</p>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    Select up to six upcoming workshops.
+                                    <span x-show="selected.length > 3" x-cloak>Workshops 1–3 appear on the front and 4–6 on the back of each DL flyer.</span>
+                                    <span x-show="selected.length <= 3" x-cloak>They will appear on each of the three DL flyers.</span>
+                                </p>
                             </div>
-                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"><span x-text="selected.length"></span> / 3 selected</span>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"><span x-text="selected.length"></span> / 6 selected</span>
                         </div>
 
                         @error('workshop_ids')
@@ -51,7 +55,7 @@
                                             name="workshop_ids[]"
                                             value="{{ $workshopId }}"
                                             x-model="selected"
-                                            x-bind:disabled="selected.length >= 3 && !selected.includes(@js($workshopId))"
+                                            x-bind:disabled="selected.length >= 6 && !selected.includes(@js($workshopId))"
                                             inputClass="mt-1"
                                         />
                                         <span class="min-w-0">
@@ -67,7 +71,9 @@
 
                     <section class="rounded-xl border border-gray-200 bg-white p-5">
                         <h2 class="text-lg font-semibold text-gray-900">Booking call to action</h2>
-                        <p class="mb-4 mt-1 text-sm text-gray-600">This short message appears at the bottom of all three flyers.</p>
+                        <p class="mb-4 mt-1 text-sm text-gray-600">
+                            This short message appears at the bottom of every flyer<span x-show="selected.length > 3" x-cloak> on both sides</span>.
+                        </p>
                         <x-ui.input label="Footer" name="footer" type="text" :value="old('footer', $defaultFooter)" maxlength="220" class="mb-0" x-model="footer" />
                     </section>
                 </div>
@@ -91,12 +97,32 @@
                                 </div>
                             @endfor
                         </div>
-                        <p class="mt-4 text-sm leading-6 text-gray-600 text-center">Print at 100% scale on A4 landscape paper, then cut along the two vertical guides.</p>
+                        <template x-if="selected.length > 3">
+                            <div>
+                                <div class="my-2 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Back</div>
+                                <div class="mx-auto grid w-full max-w-xl grid-cols-3 border border-gray-300 bg-white shadow-sm" style="aspect-ratio: 297 / 210;">
+                                    @for($copy = 0; $copy < 3; $copy++)
+                                        <div class="relative flex h-full flex-col overflow-hidden border-r border-dashed border-gray-400 bg-slate-50 px-2 py-3 last:border-r-0">
+                                            <div class="flex h-[8%] items-center justify-center"><img src="{{ asset('logo.png') }}" alt="STEMMechanics" class="w-3/5"></div>
+                                            <div class="my-2 flex min-h-0 flex-1 flex-col gap-1">
+                                                <template x-for="workshopId in selected.slice(3, 6)" :key="`back-layout-${workshopId}-{{ $copy }}`">
+                                                    <div class="flex-1 rounded-sm border border-sky-200 bg-white"></div>
+                                                </template>
+                                            </div>
+                                            <div class="truncate rounded-sm bg-primary-color px-1 py-1 text-center text-[5px] font-bold text-white">Book now at stemmechanics.com.au/workshops</div>
+                                        </div>
+                                    @endfor
+                                </div>
+                            </div>
+                        </template>
+                        <p class="mt-4 text-center text-sm leading-6 text-gray-600">Print at 100% scale on A4 landscape paper<span x-show="selected.length > 3" x-cloak> using double-sided, flip on short edge</span>, then cut along the two vertical guides.</p>
                     </div>
                     <div class="flex flex-col pt-6 lg:pl-6 lg:pt-0 xl:pl-0 xl:pt-6">
                         <div class="text-xs font-bold uppercase tracking-widest text-primary-color">Live preview</div>
-                        <h2 class="mt-1 text-lg font-semibold text-gray-900">One DL flyer</h2>
-                        <p class="mt-1 text-sm text-gray-600">Select a workshop card to edit its picture and description.</p>
+                        <h2 class="mt-1 text-lg font-semibold text-gray-900">
+                            One DL flyer<span x-show="selected.length > 3" x-cloak> · <span x-text="previewPage === 0 ? 'Front' : 'Back'"></span></span>
+                        </h2>
+                        <p class="mt-1 text-sm text-gray-600">Select a workshop card to edit it and preview the side it appears on.</p>
 
                         <div class="relative mx-auto mt-4 w-full max-w-[21rem] overflow-hidden border border-gray-300 bg-white shadow-sm" style="aspect-ratio: 99 / 210; container-type: inline-size;">
                             <div class="text-center leading-none" style="margin-top: 6.06cqw;">
@@ -104,13 +130,13 @@
                             </div>
 
                             <div class="mx-auto" style="width: 80cqw;">
-                                <template x-if="selected.length === 0">
+                                <template x-if="previewSelected.length === 0">
                                     <div class="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center text-xs text-gray-500">
                                         Select at least one workshop to preview it here.
                                     </div>
                                 </template>
 
-                                <template x-for="(workshopId, index) in selected" :key="`preview-${workshopId}`">
+                                <template x-for="(workshopId, index) in previewSelected" :key="`preview-${workshopId}`">
                                     <button
                                         type="button"
                                         class="block w-full bg-white text-left transition"
@@ -238,6 +264,16 @@
 
                 get activeWorkshop() {
                     return this.activeId ? this.workshops[this.activeId] : null;
+                },
+
+                get previewPage() {
+                    const index = this.selected.indexOf(this.activeId);
+                    return index >= 3 ? 1 : 0;
+                },
+
+                get previewSelected() {
+                    const start = this.previewPage * 3;
+                    return this.selected.slice(start, start + 3);
                 },
 
                 accentColour(index) {

@@ -47,7 +47,7 @@ class WorkshopPromotionalFlyerController extends Controller
         }
 
         $validated = $request->validate([
-            'workshop_ids' => ['required', 'array', 'min:1', 'max:3'],
+            'workshop_ids' => ['required', 'array', 'min:1', 'max:6'],
             'workshop_ids.*' => [
                 'required',
                 'string',

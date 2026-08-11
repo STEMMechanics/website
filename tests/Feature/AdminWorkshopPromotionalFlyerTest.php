@@ -69,14 +69,31 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $response->getContent());
     }
 
-    public function test_flyer_rejects_more_than_three_workshops(): void
+    public function test_flyer_accepts_six_workshops_and_rejects_a_seventh(): void
     {
         $admin = $this->makeAdmin();
-        $workshops = collect(range(1, 4))->map(fn (int $index) => $this->makeWorkshop(
+        $workshops = collect(range(1, 7))->map(fn (int $index) => $this->makeWorkshop(
             $admin,
             'Workshop '.$index,
             now()->addDays($index),
         ));
+
+        $sixWorkshopResponse = $this->actingAs($admin)
+            ->post(route('admin.workshop-flyer.generate'), [
+                'workshop_ids' => $workshops->take(6)->pluck('id')->map('strval')->all(),
+                'footer' => 'Book now',
+                'customizations' => $workshops->take(6)->mapWithKeys(fn (Workshop $workshop) => [
+                    (string) $workshop->id => [
+                        'description' => 'Workshop description',
+                        'image_zoom' => 100,
+                        'image_x' => 50,
+                        'image_y' => 50,
+                    ],
+                ])->all(),
+            ]);
+
+        $sixWorkshopResponse->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertSame(2, preg_match_all('/\/Type\s*\/Page\b/', $sixWorkshopResponse->getContent()));
 
         $this->actingAs($admin)
             ->from(route('admin.workshop-flyer.create'))
