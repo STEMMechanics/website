@@ -30,7 +30,11 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
             ->assertSeeText($upcoming->title)
             ->assertDontSeeText($past->title)
             ->assertDontSee('name="header"', false)
-            ->assertSeeText('A4 with three DL flyers');
+            ->assertSeeText('A4 with three DL flyers')
+            ->assertSeeText('One DL flyer')
+            ->assertSeeText('Picture size')
+            ->assertSee('name="preview_workshop"', false)
+            ->assertSee('x-model="customizations[activeId].description"', false);
     }
 
     public function test_admin_can_generate_a_three_up_a4_flyer_for_selected_workshops(): void
@@ -43,6 +47,20 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
             ->post(route('admin.workshop-flyer.generate'), [
                 'workshop_ids' => [(string) $first->id, (string) $second->id],
                 'footer' => 'Book at stemmechanics.com.au/workshops',
+                'customizations' => [
+                    (string) $first->id => [
+                        'description' => 'Custom robotics description',
+                        'image_zoom' => 140,
+                        'image_x' => 25,
+                        'image_y' => 75,
+                    ],
+                    (string) $second->id => [
+                        'description' => 'Custom Minecraft description',
+                        'image_zoom' => 100,
+                        'image_x' => 50,
+                        'image_y' => 50,
+                    ],
+                ],
             ]);
 
         $response->assertOk()
@@ -75,17 +93,17 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
         $admin = $this->makeAdmin();
         $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
         $variantStorage = Mockery::mock(Filesystem::class);
-        $variantStorage->shouldReceive('exists')->once()->with('remote-hash-md')->andReturnTrue();
-        $variantStorage->shouldReceive('get')->once()->with('remote-hash-md')->andReturn('unsupported image data');
+        $variantStorage->shouldReceive('exists')->times(3)->with('remote-hash-md')->andReturnTrue();
+        $variantStorage->shouldReceive('get')->times(3)->with('remote-hash-md')->andReturn('unsupported image data');
         $sourceStorage = Mockery::mock(Filesystem::class);
-        $sourceStorage->shouldReceive('exists')->once()->with('remote-hash')->andReturnTrue();
-        $sourceStorage->shouldReceive('get')->once()->with('remote-hash')->andReturn(
+        $sourceStorage->shouldReceive('exists')->times(3)->with('remote-hash')->andReturnTrue();
+        $sourceStorage->shouldReceive('get')->times(3)->with('remote-hash')->andReturn(
             file_get_contents(public_path('logo.png')),
         );
         $media = Mockery::mock(Media::class)->makePartial();
         $media->hash = 'remote-hash';
-        $media->shouldReceive('variantStorage')->once()->andReturn($variantStorage);
-        $media->shouldReceive('sourceStorage')->once()->andReturn($sourceStorage);
+        $media->shouldReceive('variantStorage')->times(3)->andReturn($variantStorage);
+        $media->shouldReceive('sourceStorage')->times(3)->andReturn($sourceStorage);
         $workshop->setRelation('hero', $media);
 
         $image = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerImageData'))
@@ -93,6 +111,18 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
 
         $this->assertIsString($image);
         $this->assertStringStartsWith('data:image/jpeg;base64,', $image);
+
+        $customizedImage = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerImageData'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop, 150, 20, 80);
+
+        $this->assertIsString($customizedImage);
+        $this->assertNotSame($image, $customizedImage);
+
+        $rightAlignedImage = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerImageData'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop, 100, 100, 100);
+
+        $this->assertIsString($rightAlignedImage);
+        $this->assertNotSame($image, $rightAlignedImage);
     }
 
     public function test_flyer_description_replaces_line_breaks_and_removes_emoji(): void
@@ -106,6 +136,38 @@ class AdminWorkshopPromotionalFlyerTest extends TestCase
             ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop);
 
         $this->assertSame('Build a robot Then test it Bring ideas', $description);
+
+        $customDescription = (new ReflectionMethod(WorkshopPromotionalFlyerController::class, 'flyerDescription'))
+            ->invoke(app(WorkshopPromotionalFlyerController::class), $workshop, "A custom line\nwith an emoji 🚀");
+
+        $this->assertSame('A custom line with an emoji', $customDescription);
+    }
+
+    public function test_flyer_rejects_image_customization_outside_supported_bounds(): void
+    {
+        $admin = $this->makeAdmin();
+        $workshop = $this->makeWorkshop($admin, 'Robotics Lab', now()->addWeek());
+
+        $this->actingAs($admin)
+            ->from(route('admin.workshop-flyer.create'))
+            ->post(route('admin.workshop-flyer.generate'), [
+                'workshop_ids' => [(string) $workshop->id],
+                'footer' => 'Book now',
+                'customizations' => [
+                    (string) $workshop->id => [
+                        'description' => 'Custom copy',
+                        'image_zoom' => 250,
+                        'image_x' => -1,
+                        'image_y' => 101,
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.workshop-flyer.create'))
+            ->assertSessionHasErrors([
+                'customizations.'.$workshop->id.'.image_zoom',
+                'customizations.'.$workshop->id.'.image_x',
+                'customizations.'.$workshop->id.'.image_y',
+            ]);
     }
 
     public function test_flyer_description_prefers_a_complete_sentence_within_its_larger_limit(): void
