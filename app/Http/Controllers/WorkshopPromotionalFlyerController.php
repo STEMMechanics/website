@@ -18,8 +18,24 @@ class WorkshopPromotionalFlyerController extends Controller
 {
     public function create(): View
     {
+        $workshops = $this->upcomingWorkshops()->get();
+
         return view('admin.workshop.promotional-flyer', [
-            'workshops' => $this->upcomingWorkshops()->get(),
+            'workshops' => $workshops,
+            'previewWorkshops' => $workshops->mapWithKeys(fn (Workshop $workshop): array => [
+                (string) $workshop->id => [
+                    'id' => (string) $workshop->id,
+                    'title' => $workshop->title,
+                    'location' => $workshop->getLocationName(),
+                    'description' => $this->flyerDescription($workshop),
+                    'image' => $workshop->hero?->url('md') ?: null,
+                    'date' => $workshop->starts_at?->format('D j M, g:i a'),
+                    'duration' => $workshop->workshopDurationLabel(),
+                    'price' => $workshop->currentTicketPriceAmount() > 0.0001
+                        ? '$'.number_format($workshop->currentTicketPriceAmount(), 2)
+                        : 'Free',
+                ],
+            ]),
             'defaultFooter' => 'Book now at stemmechanics.com.au/workshops',
         ]);
     }
@@ -31,7 +47,7 @@ class WorkshopPromotionalFlyerController extends Controller
         }
 
         $validated = $request->validate([
-            'workshop_ids' => ['required', 'array', 'min:1', 'max:3'],
+            'workshop_ids' => ['required', 'array', 'min:1', 'max:6'],
             'workshop_ids.*' => [
                 'required',
                 'string',
@@ -42,6 +58,12 @@ class WorkshopPromotionalFlyerController extends Controller
                 }),
             ],
             'footer' => ['required', 'string', 'max:220'],
+            'customizations' => ['nullable', 'array'],
+            'customizations.*' => ['array'],
+            'customizations.*.description' => ['nullable', 'string', 'max:400'],
+            'customizations.*.image_zoom' => ['required', 'integer', 'min:100', 'max:200'],
+            'customizations.*.image_x' => ['required', 'integer', 'min:0', 'max:100'],
+            'customizations.*.image_y' => ['required', 'integer', 'min:0', 'max:100'],
         ]);
 
         $selectedIds = collect($validated['workshop_ids'])->map('strval')->values();
@@ -52,11 +74,26 @@ class WorkshopPromotionalFlyerController extends Controller
             ->sortBy(fn (Workshop $workshop) => $selectedIds->search((string) $workshop->id))
             ->values();
 
-        $flyerWorkshops = $workshops->map(fn (Workshop $workshop): array => [
-            'workshop' => $workshop,
-            'image' => $this->flyerImageData($workshop),
-            'description' => $this->flyerDescription($workshop),
-        ]);
+        $customizations = collect($validated['customizations'] ?? []);
+        $flyerWorkshops = $workshops->map(function (Workshop $workshop) use ($customizations): array {
+            $customization = $customizations->get((string) $workshop->id, []);
+
+            return [
+                'workshop' => $workshop,
+                'image' => $this->flyerImageData(
+                    $workshop,
+                    (int) ($customization['image_zoom'] ?? 100),
+                    (int) ($customization['image_x'] ?? 50),
+                    (int) ($customization['image_y'] ?? 50),
+                ),
+                'description' => $this->flyerDescription(
+                    $workshop,
+                    array_key_exists('description', $customization)
+                        ? (string) $customization['description']
+                        : null,
+                ),
+            ];
+        });
 
         return DomPdf::loadView('pdf.workshop-promotional-flyer', [
             'flyerWorkshops' => $flyerWorkshops,
@@ -76,8 +113,12 @@ class WorkshopPromotionalFlyerController extends Controller
             ->orderBy('starts_at');
     }
 
-    private function flyerImageData(Workshop $workshop): ?string
-    {
+    private function flyerImageData(
+        Workshop $workshop,
+        int $zoom = 100,
+        int $positionX = 50,
+        int $positionY = 50,
+    ): ?string {
         $media = $workshop->hero;
         if ($media === null) {
             return null;
@@ -100,7 +141,19 @@ class WorkshopPromotionalFlyerController extends Controller
                     continue;
                 }
 
-                $image = (new ImageManager(new Driver))->read($contents)->cover(1200, 425);
+                $zoom = max(100, min(200, $zoom));
+                $positionX = max(0, min(100, $positionX));
+                $positionY = max(0, min(100, $positionY));
+                $image = (new ImageManager(new Driver))->read($contents);
+                $coverScale = max(1200 / $image->width(), 425 / $image->height());
+                $scale = $coverScale * ($zoom / 100);
+                $scaledWidth = (int) ceil($image->width() * $scale);
+                $scaledHeight = (int) ceil($image->height() * $scale);
+                $offsetX = (int) round(($scaledWidth - 1200) * ($positionX / 100));
+                $offsetY = (int) round(($scaledHeight - 425) * ($positionY / 100));
+                $image = $image
+                    ->resize($scaledWidth, $scaledHeight)
+                    ->crop(1200, 425, $offsetX, $offsetY);
 
                 return $image->toJpeg(84)->toDataUri();
             } catch (Throwable $exception) {
@@ -118,9 +171,9 @@ class WorkshopPromotionalFlyerController extends Controller
         return null;
     }
 
-    private function flyerDescription(Workshop $workshop, int $limit = 220): string
+    private function flyerDescription(Workshop $workshop, ?string $override = null, int $limit = 220): string
     {
-        $description = trim((string) ($workshop->summary ?: $workshop->content));
+        $description = trim($override ?? (string) ($workshop->summary ?: $workshop->content));
         if ($description === '') {
             return '';
         }
