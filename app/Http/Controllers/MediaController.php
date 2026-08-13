@@ -56,6 +56,11 @@ class MediaController extends Controller
 
     public function admin_index(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher)
     {
+        $view = trim((string) $request->query('view', 'table'));
+        if (! in_array($view, ['table', 'photos'], true)) {
+            $view = 'table';
+        }
+
         $media = $this->getMedia($request);
         $media->getCollection()->load(['user', 'workshopPhotos.location']);
         $filteredOwner = null;
@@ -70,6 +75,13 @@ class MediaController extends Controller
             'unusedOnly' => $request->boolean('unused_only'),
             'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
             'duplicateAttentionCount' => $duplicates->attentionCount($hasher),
+            'toggleViewRoute' => route('admin.media.index', array_merge(
+                $request->except(['page', 'view']),
+                ['view' => $view === 'photos' ? 'table' : 'photos']
+            )),
+            'toggleViewTitle' => $view === 'photos' ? 'Table view' : 'Photo view',
+            'toggleViewIcon' => $view === 'photos' ? 'fa-solid fa-table-list' : 'fa-solid fa-table-cells-large',
+            'view' => $view,
         ]);
 
     }
