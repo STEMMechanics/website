@@ -47,9 +47,15 @@
                                 ? ($tabPath !== '/' && str_starts_with($currentPath, rtrim($tabPath, '/').'/')) || $currentPath === $tabPath
                                 : $currentPath === $tabPath);
                     @endphp
-                    <a href="{{ $tab['route'] }}" class="shrink-0 rounded-t-md px-4 py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
+                    <a href="{{ $tab['route'] }}"
+                       @if(!empty($tab['external'])) target="_blank" rel="noopener noreferrer" @endif
+                       class="shrink-0 rounded-t-md px-4 py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
                         <span class="inline-flex items-center gap-2">
                             <span>{{ $tab['title'] }}</span>
+                            @if(!empty($tab['external']))
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
+                                <span class="sr-only">(opens in a new tab)</span>
+                            @endif
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
                                 <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-green-700" aria-label="{{ (int) $tab['badge'] }} unread items">{{ number_format((int) $tab['badge']) }}</span>
                             @endif

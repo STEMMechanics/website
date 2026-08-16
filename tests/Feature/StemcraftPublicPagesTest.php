@@ -16,6 +16,8 @@ class StemcraftPublicPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Continue Building Beyond the Workshop')
             ->assertSee('STEMCraft Server')
+            ->assertSee('Player Handbook')
+            ->assertSee('https://www.stemcraft.com.au/', false)
             ->assertSee('STEMCraft is the online world of STEMMechanics')
             ->assertSee('Community expectations');
 
@@ -23,6 +25,7 @@ class StemcraftPublicPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Get Ready to Build Online')
             ->assertSee('Connection details')
+            ->assertSee('Explore the Player Handbook')
             ->assertSee('STEMCraft Server');
 
         $this->get(route('stemcraft.rules'))

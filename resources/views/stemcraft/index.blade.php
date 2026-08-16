@@ -3,6 +3,7 @@
         $tabs = [
             ['title' => 'Overview', 'route' => route('stemcraft.index')],
             ['title' => 'Join', 'route' => route('stemcraft.join')],
+            ['title' => 'Player Handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
             ['title' => 'Rules', 'route' => route('stemcraft.rules')],
             ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
         ];
