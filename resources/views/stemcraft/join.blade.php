@@ -3,6 +3,7 @@
         $tabs = [
             ['title' => 'Overview', 'route' => route('stemcraft.index')],
             ['title' => 'Join', 'route' => route('stemcraft.join')],
+            ['title' => 'Player Handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
             ['title' => 'Rules', 'route' => route('stemcraft.rules')],
             ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
         ];
@@ -67,6 +68,7 @@
             <p class="mx-auto mt-4 max-w-2xl text-lg text-white/90">Contact STEMMechanics with the minecraft player name, device type and what happened when you tried to connect.</p>
             <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <x-ui.button href="{{ route('contact') }}" color="outline">Contact support</x-ui.button>
+                <x-ui.button href="https://www.stemcraft.com.au/" target="_blank" rel="noopener noreferrer" color="outline">Explore the Player Handbook</x-ui.button>
                 <x-ui.button href="{{ route('stemcraft.faqs') }}" color="outline">Read the FAQs</x-ui.button>
             </div>
         </section>
