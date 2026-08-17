@@ -68,6 +68,7 @@ Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController
 Route::post('workshops/{workshop}/tickets/voucher', [WorkshopTicketFlowController::class, 'updateVoucher'])->name('workshop.ticket.flow.voucher');
 Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');
 Route::get('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'details'])->name('workshop.ticket.flow.details');
+Route::get('workshops/{workshop}/tickets/details/attachments/{media}', [WorkshopTicketFlowController::class, 'downloadParticipantAttachment'])->name('workshop.ticket.flow.details.attachment');
 Route::get('workshops/{workshop}/tickets/details/keepalive', [WorkshopTicketFlowController::class, 'detailsKeepAlive'])->name('workshop.ticket.flow.details.keepalive');
 Route::post('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'saveDetails'])->name('workshop.ticket.flow.details.save');
 Route::get('workshops/{workshop}/tickets/complete', [WorkshopTicketFlowController::class, 'complete'])->name('workshop.ticket.flow.complete');

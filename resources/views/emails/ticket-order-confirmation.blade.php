@@ -17,6 +17,9 @@ if ($creditReceiptAttachmentCount > 0) {
 if ($ticketAttachmentCount > 0) {
     $attachmentLabels[] = 'ticket'.($ticketAttachmentCount > 1 ? 's' : '');
 }
+if (($participantAttachmentCount ?? 0) > 0) {
+    $attachmentLabels[] = 'workshop document'.($participantAttachmentCount > 1 ? 's' : '');
+}
 @endphp
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
@@ -49,6 +52,11 @@ $paymentAmount = round((float) ($paymentAmount ?? 0), 2);
 @endif
 @endif
 **Number of Tickets:** {{ (int) ($ticketCount ?? count($tickets)) }}
+
+@if(trim((string) ($workshop['participantInformation'] ?? '')) !== '')
+### Additional Information
+{!! $workshop['participantInformation'] !!}
+@endif
 
 @if($invoice)
 **Invoice #:** {{ (string) ($invoice['number'] ?? '-') }}<br>

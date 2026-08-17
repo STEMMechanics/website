@@ -2,6 +2,10 @@
 
 @source "../**/*.{blade.php,js,php,vue}";
 
+.participant-information-content p + p {
+    margin-top: 0.75rem !important;
+}
+
 @theme {
     /* Color tokens */
     --color-primary-color: #0284C7;

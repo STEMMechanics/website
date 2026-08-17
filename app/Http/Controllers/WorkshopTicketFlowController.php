@@ -9,6 +9,7 @@ use App\Models\Coupon;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\Media;
 use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\Token;
@@ -33,6 +34,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use RuntimeException;
@@ -1030,6 +1032,32 @@ class WorkshopTicketFlowController extends Controller
             'bankTransferDetails' => (string) ($session['payment_method'] ?? '') === 'bank_transfer'
                 ? $this->bankTransferDetails($invoice)
                 : null,
+        ]);
+    }
+
+    public function downloadParticipantAttachment(Workshop $workshop, Media $media): BinaryFileResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
+        $session = $this->getFlowSession($workshop);
+        if ($session === null || ! ($session['payment_complete'] ?? false)) {
+            abort(403);
+        }
+
+        $isParticipantAttachment = $workshop->participantAttachments()
+            ->where('media.name', $media->name)
+            ->exists();
+        if (! $isParticipantAttachment) {
+            abort(404);
+        }
+
+        $path = $media->path();
+        if ($path === null || ! is_file($path)) {
+            abort(404);
+        }
+
+        return response()->download($path, $media->name, [
+            'Content-Type' => (string) ($media->mime_type ?: 'application/octet-stream'),
         ]);
     }
 

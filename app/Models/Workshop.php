@@ -21,6 +21,8 @@ class Workshop extends Model
 {
     use HasFactory, HasFiles, Slug;
 
+    public const PARTICIPANT_ATTACHMENT_COLLECTION = 'participant_attachments';
+
     public const TYPE_PHYSICAL = 'physical';
 
     public const TYPE_ONLINE = 'online';
@@ -50,6 +52,7 @@ class Workshop extends Model
         'ages',
         'registration',
         'registration_data',
+        'participant_information',
         'private_code',
         'is_private',
         'is_hidden',
@@ -182,6 +185,14 @@ class Workshop extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    /**
+     * @return MorphToMany<Media, $this>
+     */
+    public function participantAttachments(): MorphToMany
+    {
+        return $this->files(self::PARTICIPANT_ATTACHMENT_COLLECTION);
     }
 
     /**
