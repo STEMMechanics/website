@@ -32,6 +32,55 @@ class AdminMediaUploadTest extends TestCase
             ->assertSee('multiple', false);
     }
 
+    public function test_admin_media_index_defaults_to_table_and_offers_photo_view_toggle(): void
+    {
+        $admin = $this->makeAdminUser();
+        Media::query()->create([
+            'name' => 'operation-table-photo.jpg',
+            'title' => 'Operation Table Photo',
+            'hash' => str_repeat('a', 64),
+            'mime_type' => 'image/jpeg',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.index', ['search' => 'Operation']))
+            ->assertOk()
+            ->assertSee('aria-label="Photo view"', false)
+            ->assertSee('fa-solid fa-table-cells-large', false)
+            ->assertSee(route('admin.media.index', [
+                'search' => 'Operation',
+                'view' => 'photos',
+            ]))
+            ->assertSee('<table', false)
+            ->assertDontSee('name="view" value="photos"', false);
+    }
+
+    public function test_admin_media_photo_view_renders_thumbnail_cards_and_preserves_view_when_filtering(): void
+    {
+        $admin = $this->makeAdminUser();
+        Media::query()->create([
+            'name' => 'operation-photo.jpg',
+            'title' => 'Operation Workshop Photo',
+            'hash' => str_repeat('f', 64),
+            'mime_type' => 'image/jpeg',
+            'size' => 2048,
+            'user_id' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.media.index', ['view' => 'photos']))
+            ->assertOk()
+            ->assertSeeText('Operation Workshop Photo')
+            ->assertSee('aria-label="Table view"', false)
+            ->assertSee('fa-solid fa-table-list', false)
+            ->assertSee('admin-media-select-photos-', false)
+            ->assertSee('class="flex aspect-square', false)
+            ->assertSee('name="view" value="photos"', false)
+            ->assertDontSee('<table', false);
+    }
+
     public function test_admin_media_create_page_supports_drag_and_drop_on_file_field(): void
     {
         $admin = $this->makeAdminUser();

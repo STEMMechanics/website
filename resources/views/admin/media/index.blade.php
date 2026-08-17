@@ -19,33 +19,45 @@
                 <a href="{{ $allMediaRoute }}" class="ml-2 text-primary-color hover:underline">Show all media</a>
             </div>
         @endif
-        <div class="my-4 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div class="text-base font-semibold text-gray-900">Quick upload</div>
-                    <div class="text-sm text-gray-600">Drop multiple files here to create media items with default values and your account as the owner.</div>
+        <div class="flex gap-4 my-4">
+            <div class="flex-1 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <div class="text-base font-semibold text-gray-900">Quick upload</div>
+                        <div class="text-sm text-gray-600">Drop multiple files here to create media items with default values and your account as the owner.</div>
+                    </div>
+                    <label for="admin-media-bulk-upload-input" class="inline-flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
+                        Browse files
+                    </label>
                 </div>
-                <label for="admin-media-bulk-upload-input" class="inline-flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
-                    Browse files
+                <label
+                    for="admin-media-bulk-upload-input"
+                    id="admin-media-bulk-upload-dropzone"
+                    class="mt-4 block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center text-sm text-gray-500 transition"
+                >
+                    Drop files here or click Browse files
                 </label>
+                <input id="admin-media-bulk-upload-input" type="file" multiple class="hidden" />
+                <div id="admin-media-bulk-upload-status" class="mt-3 hidden rounded border px-3 py-2 text-sm">
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <div class="font-medium" id="admin-media-bulk-upload-status-text"></div>
+                        <div class="text-xs text-gray-500" id="admin-media-bulk-upload-status-percent"></div>
+                    </div>
+                    <div class="h-2 w-full overflow-hidden rounded bg-gray-200">
+                        <div id="admin-media-bulk-upload-status-bar" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>
+                    </div>
+                </div>
             </div>
-            <label
-                for="admin-media-bulk-upload-input"
-                id="admin-media-bulk-upload-dropzone"
-                class="mt-4 block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center text-sm text-gray-500 transition"
+            <x-ui.button
+                    href="{{ $toggleViewRoute }}"
+                    color="outline"
+                    class="h-10 w-10 shrink-0 px-0"
+                    title="{{ $toggleViewTitle }}"
+                    aria-label="{{ $toggleViewTitle }}"
             >
-                Drop files here or click Browse files
-            </label>
-            <input id="admin-media-bulk-upload-input" type="file" multiple class="hidden" />
-            <div id="admin-media-bulk-upload-status" class="mt-3 hidden rounded border px-3 py-2 text-sm">
-                <div class="mb-2 flex items-center justify-between gap-3">
-                    <div class="font-medium" id="admin-media-bulk-upload-status-text"></div>
-                    <div class="text-xs text-gray-500" id="admin-media-bulk-upload-status-percent"></div>
-                </div>
-                <div class="h-2 w-full overflow-hidden rounded bg-gray-200">
-                    <div id="admin-media-bulk-upload-status-bar" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>
-                </div>
-            </div>
+                <i class="{{ $toggleViewIcon }}"></i>
+                <span class="sr-only">{{ $toggleViewTitle }}</span>
+            </x-ui.button>
         </div>
         <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
             <div class="flex flex-col gap-4">
@@ -69,6 +81,9 @@
                 <div>
                     <div class="font-bold text-sm mb-2">Search & Filter</div>
                     <form method="GET" action="{{ route('admin.media.index') }}" class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        @if($view === 'photos')
+                            <input type="hidden" name="view" value="photos" />
+                        @endif
                         <x-ui.input name="search" label="Search media" value="{{ request('search') }}" class="mb-0" noLabel="true" />
                         <x-ui.input name="workshop" label="Workshop" value="{{ request('workshop') }}" class="mb-0" noLabel="true" />
                         <x-ui.input name="location" label="Location" value="{{ request('location') }}" class="mb-0" noLabel="true" />
@@ -114,6 +129,7 @@
         @if($media->isEmpty())
             <x-none-found item="media" search="{{ request()->get('search') }}" />
         @else
+            @if($view === 'table')
             <x-ui.table>
                 <x-slot:header>
                     <th class="w-8 !border-r-0">
@@ -201,6 +217,78 @@
                   @endforeach
                 </x-slot:body>
             </x-ui.table>
+            @else
+                <div class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+                    <x-ui.checkbox
+                        id="admin-media-select-page"
+                        label="Select all media on this page"
+                        small="true"
+                        noWrapper="true"
+                        inputClass="text-primary-color"
+                    />
+                    <span class="text-sm text-gray-500">{{ $media->count() }} {{ \Illuminate\Support\Str::plural('item', $media->count()) }} on this page</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    @foreach ($media as $medium)
+                        @php
+                            $visibility = (string) ($medium->visibility ?? 'private');
+                            $statusLabel = match ($visibility) {
+                                'public' => 'Public',
+                                'protected' => 'Protected',
+                                default => 'Private',
+                            };
+                            $statusClass = match ($visibility) {
+                                'public' => 'bg-green-100 text-green-700',
+                                'protected' => 'bg-amber-100 text-amber-800',
+                                default => 'bg-slate-100 text-slate-700',
+                            };
+                        @endphp
+                        <article class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-300 hover:shadow-md">
+                            <div class="absolute left-3 top-3 z-10">
+                                <x-ui.checkbox
+                                    :id="'admin-media-select-photos-'.md5((string) $medium->name)"
+                                    :value="$medium->name"
+                                    :label="'Select '.$medium->title"
+                                    labelHidden="true"
+                                    small="true"
+                                    noWrapper="true"
+                                    class="admin-media-select-item-wrap"
+                                    inputClass="admin-media-select-item text-primary-color"
+                                />
+                            </div>
+                            <a href="{{ route('admin.media.edit', $medium) }}" class="flex aspect-square items-center justify-center overflow-hidden bg-gray-100">
+                                <img
+                                    src="{{ $medium->thumbnail }}"
+                                    class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+                                    alt="{{ $medium->title }}"
+                                    loading="lazy"
+                                    {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }}
+                                />
+                            </a>
+                            <div class="p-3">
+                                <a href="{{ route('admin.media.edit', $medium) }}" class="block truncate font-semibold text-gray-900 hover:text-primary-color" title="{{ $medium->title }}">{{ $medium->title }}</a>
+                                <div class="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500">
+                                    <span class="truncate">{{ $medium->file_type }}</span>
+                                    <span class="shrink-0">{{ \App\Helpers::bytesToString($medium->size) }}</span>
+                                </div>
+                                <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
+                                    <span class="rounded-full px-2 py-0.5 {{ $statusClass }}">{{ $statusLabel }}</span>
+                                    @if($medium->password !== null)
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Protected</span>
+                                    @endif
+                                </div>
+                                <div class="mt-3 flex items-center justify-end gap-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
+                                    <a href="{{ route('admin.media.edit', $medium) }}" title="Edit media item" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                    <a href="#" class="hover:text-primary-color" title="Copy media link" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')"><i class="fa-solid fa-link"></i></a>
+                                    <a href="{{ $medium->url }}?download" class="hover:text-primary-color" title="Download media"><i class="fa-solid fa-download"></i></a>
+                                    <a href="#" class="hover:text-red-600" title="Delete media item" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')"><i class="fa-solid fa-trash"></i></a>
+                                </div>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
 
             {{ $media->appends(request()->query())->links() }}
         @endif
