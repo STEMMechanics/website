@@ -79,7 +79,7 @@ class WorkshopTicketOrderEmailService
         }
 
         $tickets = Ticket::query()
-            ->with(['workshop.location', 'workshop.hero', 'invoice', 'reissuedFromTicket', 'reissuedToTicket'])
+            ->with(['workshop.location', 'workshop.hero', 'workshop.participantAttachments', 'invoice', 'reissuedFromTicket', 'reissuedToTicket'])
             ->whereIn('id', $ticketIds)
             ->orderBy('id')
             ->get();
@@ -183,6 +183,25 @@ class WorkshopTicketOrderEmailService
             ];
         }
 
+        if ($workshop instanceof Workshop) {
+            foreach ($workshop->participantAttachments as $participantAttachment) {
+                $path = $participantAttachment->path();
+                if ($path === null || ! is_file($path)) {
+                    continue;
+                }
+                $content = file_get_contents($path);
+                if ($content === false) {
+                    continue;
+                }
+                $attachments[] = [
+                    'type' => 'participant',
+                    'content' => $content,
+                    'filename' => (string) $participantAttachment->name,
+                    'mime' => (string) ($participantAttachment->mime_type ?: 'application/octet-stream'),
+                ];
+            }
+        }
+
         $ticketRows = $tickets->map(function (Ticket $ticket): array {
             return [
                 'reference' => $ticket->ensureReferenceCode(),
@@ -202,6 +221,7 @@ class WorkshopTicketOrderEmailService
                 'location' => $workshop instanceof Workshop ? (string) $workshop->getLocationDisplay(true) : '-',
                 'registration' => 'tickets',
                 'courseUrl' => $workshop instanceof Workshop ? route('workshop.show', $workshop) : null,
+                'participantInformation' => $workshop instanceof Workshop ? (string) ($workshop->participant_information ?? '') : '',
             ],
             tickets: $ticketRows,
             paymentMethodLabel: $paymentBreakdown['payment_method_label'],

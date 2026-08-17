@@ -29,6 +29,30 @@
                     </div>
                 @endif
 
+                @php($participantAttachments = $workshop->participantAttachments()->get())
+                @if(trim((string) ($workshop->participant_information ?? '')) !== '' || $participantAttachments->isNotEmpty())
+                    <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                        <div class="mb-2 text-base font-semibold">Additional Information</div>
+                        @if(trim((string) ($workshop->participant_information ?? '')) !== '')
+                            <div class="participant-information-content prose prose-sm max-w-none [&_a]:font-normal [&_a]:text-primary-color [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary-color-dark">{!! $workshop->participant_information !!}</div>
+                        @endif
+                        @if($participantAttachments->isNotEmpty())
+                            <div class="mt-4 font-bold">Workshop documents:</div>
+                            <ul class="mt-1 list-disc pl-5">
+                                @foreach($participantAttachments as $attachment)
+                                    <li>
+                                        <a
+                                            href="{{ route('workshop.ticket.flow.details.attachment', [$workshop, $attachment]) }}"
+                                            class="font-normal text-primary-color underline underline-offset-2 hover:text-primary-color-dark"
+                                        >{{ $attachment->title ?: $attachment->name }}</a>
+                                        <span class="text-sky-800">({{ $attachment->file_type }})</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                @endif
+
                 @if((string) ($session['payment_method'] ?? '') === 'bank_transfer' && is_array($bankTransferDetails ?? null))
                     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                         <div class="font-semibold text-base mb-2">Bank Transfer Details</div>

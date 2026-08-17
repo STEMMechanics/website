@@ -65,6 +65,14 @@ $selectedCategoryIds = collect(old('category_ids', $workshopModel?->categories?-
     ->map(fn ($id) => (string) $id)
     ->all();
 $workshopTypeForForm = old('type', $workshopModel instanceof \App\Models\Workshop ? $workshopModel->locationType() : \App\Models\Workshop::TYPE_ONLINE);
+$participantAttachmentNames = old('participant_files');
+if (is_string($participantAttachmentNames)) {
+    $participantAttachmentNames = json_decode($participantAttachmentNames, true);
+}
+if (! is_array($participantAttachmentNames)) {
+    $participantAttachmentNames = $workshopModel?->participantAttachments()->pluck('media.name')->all() ?? [];
+}
+$participantAttachmentNames = collect($participantAttachmentNames)->map(fn ($name) => trim((string) $name))->filter()->unique()->values()->all();
 if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], true)) {
     if ($maxTicketsTotal !== null) {
         if ($soldTicketCount >= $maxTicketsTotal) {
@@ -127,6 +135,23 @@ if (isset($workshop)) {
             isPrivate: @js((bool) old('is_private', isset($workshopModel) ? $workshopModel->isPrivate() : false)),
             isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
             registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
+            participantInformationOpen: @js($errors->hasAny(['participant_information', 'participant_files', 'ticket_group_slug'])),
+            participantFiles: @js($participantAttachmentNames),
+            openParticipantFilePicker() {
+                SMMediaPicker.open(this.participantFiles, {
+                    allow_multiple: true,
+                    allow_uploads: true,
+                    public_usable_only: false,
+                    title: 'Select Participant Attachments',
+                    confirm_button_text: 'Use Selected Files',
+                }, (result) => {
+                    const values = Array.isArray(result) ? result : [result];
+                    this.participantFiles = [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+                });
+            },
+            removeParticipantFile(index) {
+                this.participantFiles.splice(index, 1);
+            },
             maxTickets: @js(old('max_tickets', $workshopModel?->max_tickets ?? '')),
             earlyBirdPrice: @js((string) $earlyBirdPriceValue),
             earlyBirdEndsAt: @js((string) $earlyBirdEndsAtValue),
@@ -970,19 +995,76 @@ if (isset($workshop)) {
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                     </div>
                 </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='tickets'">
-                    <div class="flex-1">
-                        <x-ui.input
-                            label="Access Group Granted on Checkout Completion"
-                            name="ticket_group_slug"
-                            :suggestions="$groupSuggestions ?? []"
-                            :value="old('ticket_group_slug', $workshop->ticket_group_slug ?? '')"
-                            info="Optional. Grants this group to the purchaser-linked account as soon as checkout completes."
-                            x-model="ticketGroupRaw"
-                            x-on:input="ticketGroupRaw = ticketGroupRaw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')"
-                        />
+                <div x-show="registration==='tickets'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div class="font-semibold text-gray-900">Participant information</div>
+                            <div class="text-sm text-gray-600">Add instructions, permission forms, or other documents to checkout and the confirmation email.</div>
+                            <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? `${participantFiles.length} attachment${participantFiles.length === 1 ? '' : 's'} selected` : 'No attachments selected'"></div>
+                        </div>
+                        <x-ui.button type="button" color="outline" x-on:click.prevent="participantInformationOpen = true">
+                            <i class="fa-solid fa-paperclip mr-2"></i>Configure
+                        </x-ui.button>
                     </div>
-                    <div class="flex-1"></div>
+                </div>
+                <input type="hidden" name="participant_files" x-bind:value="JSON.stringify(participantFiles)">
+                <div
+                    x-cloak
+                    x-show="participantInformationOpen"
+                    x-on:keydown.escape.window="participantInformationOpen = false"
+                    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="participant-information-title">
+                    <div class="absolute inset-0 bg-black/40" x-on:click="participantInformationOpen = false"></div>
+                    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+                        <div class="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="participant-information-title" class="text-lg font-semibold text-gray-900">Participant information</h3>
+                                <p class="mt-1 text-sm text-gray-600">This content appears during checkout and in the booking confirmation email.</p>
+                            </div>
+                            <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="mb-5 border-b border-gray-200 pb-5">
+                            <x-ui.input
+                                label="Access Group Granted on Checkout Completion"
+                                name="ticket_group_slug"
+                                :suggestions="$groupSuggestions ?? []"
+                                :value="old('ticket_group_slug', $workshop->ticket_group_slug ?? '')"
+                                info="Optional. Grants this group to the purchaser-linked account as soon as checkout completes."
+                                x-model="ticketGroupRaw"
+                                x-on:input="ticketGroupRaw = ticketGroupRaw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')"
+                            />
+                        </div>
+                        <x-ui.editor
+                            label="Instructions or notes"
+                            name="participant_information"
+                            value="{!! old('participant_information', $workshopModel?->participant_information ?? '') !!}"
+                        ></x-ui.editor>
+                        <div class="mt-5">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">Attachments</div>
+                                    <div class="text-xs text-gray-500">PDF, Word, or other supporting files will be attached to the confirmation email.</div>
+                                </div>
+                                <x-ui.button type="button" color="outline" x-on:click.prevent="openParticipantFilePicker()">Select or Upload</x-ui.button>
+                            </div>
+                            <div x-show="participantFiles.length === 0" class="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500">No attachments selected.</div>
+                            <div class="space-y-2" x-show="participantFiles.length > 0">
+                                <template x-for="(fileName, index) in participantFiles" :key="fileName">
+                                    <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="min-w-0 truncate text-sm font-medium text-gray-800" x-text="fileName"></div>
+                                        <button type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                            <x-ui.button type="button" x-on:click="participantInformationOpen = false">Done</x-ui.button>
+                        </div>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">

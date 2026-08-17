@@ -42,6 +42,8 @@ class TicketOrderConfirmation extends Mailable
 
     public int $ticketCount;
 
+    public int $participantAttachmentCount;
+
     private array $attachmentFiles;
 
     public function __construct(
@@ -82,6 +84,7 @@ class TicketOrderConfirmation extends Mailable
         $this->receiptAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'receipt')->count();
         $this->creditReceiptAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'credit_receipt')->count();
         $this->ticketAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'ticket')->count();
+        $this->participantAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'participant')->count();
         $this->ticketCount = max(0, (int) ($ticketCount ?? count($tickets)));
     }
 

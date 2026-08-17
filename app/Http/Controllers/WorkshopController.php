@@ -968,6 +968,8 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'participant_information' => 'nullable|string',
+            'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
@@ -999,7 +1001,8 @@ class WorkshopController extends Controller
         $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
             ? (string) $request->input('facilitator_user_id')
             : (string) $workshopData['user_id'];
-        unset($workshopData['category_ids']);
+        $participantFiles = $this->validatedParticipantAttachmentNames($request);
+        unset($workshopData['category_ids'], $workshopData['participant_files']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -1065,6 +1068,7 @@ class WorkshopController extends Controller
 
         $workshop = Workshop::create($workshopData);
         $workshop->categories()->sync($categoryIds);
+        $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles([], 'private');
         app(ReminderService::class)->syncWorkshop($workshop);
@@ -1235,8 +1239,10 @@ class WorkshopController extends Controller
             'pending_files_meta.*.notes' => 'nullable|string',
         ]);
 
-        $this->syncWorkshopFilesFromRequest($workshop, $request);
-        $workshop->updateFiles([], 'private');
+        if ($request->hasAny(['files', 'files_staged_order', 'pending_file_keys', 'pending_files'])) {
+            $this->syncWorkshopFilesFromRequest($workshop, $request);
+            $workshop->updateFiles([], 'private');
+        }
 
         session()->flash('message', 'Workshop files have been updated.');
         session()->flash('message-title', 'Workshop files updated');
@@ -1727,11 +1733,13 @@ class WorkshopController extends Controller
 
                 if (($item['kind'] ?? null) === 'existing') {
                     $name = trim((string) ($item['name'] ?? ''));
+
                     return $name !== '' ? $name : null;
                 }
 
                 if (($item['kind'] ?? null) === 'pending') {
                     $pendingId = trim((string) ($item['pending_id'] ?? ''));
+
                     return $pendingNameMap[$pendingId] ?? null;
                 }
 
@@ -1774,6 +1782,8 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'participant_information' => 'nullable|string',
+            'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
@@ -1818,7 +1828,8 @@ class WorkshopController extends Controller
         $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
-        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes']);
+        $participantFiles = $this->validatedParticipantAttachmentNames($request);
+        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -1962,6 +1973,7 @@ class WorkshopController extends Controller
 
         $workshop->update($workshopData);
         $workshop->categories()->sync($categoryIds);
+        $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         app(ReminderService::class)->syncWorkshop($workshop->fresh());
         if ($shouldReflagEarlyBirdTickets && $newEarlyBirdTicketLimit !== null) {
             $this->reflagEarlyBirdTicketsForLimit($workshop, $newEarlyBirdTicketLimit);
@@ -5023,6 +5035,33 @@ class WorkshopController extends Controller
      * @param iterable<int, Workshop> $workshops
      * @return array<string, mixed>
      */
+    /**
+     * @return array<int, string>
+     */
+    private function validatedParticipantAttachmentNames(Request $request): array
+    {
+        $decoded = json_decode((string) $request->input('participant_files', '[]'), true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $names = collect($decoded)
+            ->filter(fn ($name): bool => is_string($name))
+            ->map(fn (string $name): string => trim($name))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($names->isEmpty()) {
+            return [];
+        }
+
+        return Media::query()
+            ->whereIn('name', $names->all())
+            ->pluck('name')
+            ->all();
+    }
+
     private function bulkWorkshopChanges(iterable $workshops, Request $request): array
     {
         $changes = [];
