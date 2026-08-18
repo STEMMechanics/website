@@ -1,4 +1,6 @@
-FROM php:8.4-fpm
+FROM composer:latest@sha256:4d71c3c2109c61d5415544264b59ad4087e4c5b7244481723664138fd36d5040 AS composer
+
+FROM php:8.4-fpm@sha256:9467f10bf42897dec0abb73ee20c747ebd45463ec9d6fcc4044cb83eba6dade7
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -21,6 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && php -r 'exit(function_exists("imagecreatefromwebp") && (gd_info()["WebP Support"] ?? false) ? 0 : 1);' \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www/html
