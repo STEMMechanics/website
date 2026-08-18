@@ -41,9 +41,9 @@ class StoreOrderItem extends Model
         'unit_shipping_rate',
         'tax_rate',
         'unit_weight_grams',
-        'unit_length_cm',
-        'unit_width_cm',
-        'unit_height_cm',
+        'unit_length_mm',
+        'unit_width_mm',
+        'unit_height_mm',
         'line_price_amount',
         'line_shipping_amount',
         'line_gst_amount',
@@ -67,9 +67,9 @@ class StoreOrderItem extends Model
         'unit_shipping_rate' => 'decimal:2',
         'tax_rate' => 'decimal:4',
         'unit_weight_grams' => 'integer',
-        'unit_length_cm' => 'decimal:2',
-        'unit_width_cm' => 'decimal:2',
-        'unit_height_cm' => 'decimal:2',
+        'unit_length_mm' => 'integer',
+        'unit_width_mm' => 'integer',
+        'unit_height_mm' => 'integer',
         'line_price_amount' => 'decimal:2',
         'line_shipping_amount' => 'decimal:2',
         'line_gst_amount' => 'decimal:2',
@@ -233,8 +233,6 @@ class StoreOrderItem extends Model
     /**
      * Pickup collections are stored separately from shipping trackings, but we keep a
      * legacy fallback so existing pickup orders with only tracking records continue to render.
-     *
-     * @return Collection
      */
     public function pickupCollectionEntries(): Collection
     {

@@ -214,6 +214,13 @@
                     <i class="fa-solid fa-list-ul"></i>
                 </button>
                 <button
+                    @click.prevent="toggleTickList()"
+                    title="Green tick list"
+                    aria-label="Green tick list"
+                    :class="{ 'is-active' : isActive('tickList', updatedAt) }">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                </button>
+                <button
                     @click.prevent="toggleOrderedList()"
                     title="Numbered list"
                     aria-label="Numbered list"

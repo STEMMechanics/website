@@ -202,7 +202,7 @@ class StoreShippingService
     }
 
     /**
-     * @return Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}>
+     * @return Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float,length_mm:int,width_mm:int,height_mm:int,max_weight_grams:int}>
      */
     private function packageOptionsForMethod(?StoreShippingMethod $method): Collection
     {
@@ -228,6 +228,10 @@ class StoreShippingService
                     'label' => trim((string) ($package->label ?? 'Package')) ?: 'Package',
                     'rank' => max(1, (int) ($package->sort_order ?? 1)),
                     'capacity' => round(max(0.01, (float) ($package->capacity ?? 0.01)), 2),
+                    'length_mm' => (int) ($package->internal_length_mm ?? 0),
+                    'width_mm' => (int) ($package->internal_width_mm ?? 0),
+                    'height_mm' => (int) ($package->internal_height_mm ?? 0),
+                    'max_weight_grams' => (int) ($package->max_weight_grams ?? 0),
                     'price' => round(max(0, (float) ($package->price ?? 0)), 2),
                 ];
             })
@@ -244,6 +248,10 @@ class StoreShippingService
                         'rank' => (int) $package['rank'],
                         'capacity' => (float) $package['capacity'],
                         'price' => (float) $package['price'],
+                        'length_mm' => (int) $package['length_mm'],
+                        'width_mm' => (int) $package['width_mm'],
+                        'height_mm' => (int) $package['height_mm'],
+                        'max_weight_grams' => (int) $package['max_weight_grams'],
                     ];
                 })
                 ->values();
@@ -255,7 +263,7 @@ class StoreShippingService
     }
 
     /**
-     * @return Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}>
+     * @return Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float,length_mm:int,width_mm:int,height_mm:int,max_weight_grams:int}>
      */
     private function legacyPackageOptionsForMethod(StoreShippingMethod $method): Collection
     {
@@ -267,6 +275,10 @@ class StoreShippingService
                     'rank' => (int) $satchel['rank'],
                     'capacity' => round((float) $satchel['capacity'], 2),
                     'price' => round($method->adjustedAmount((float) $satchel['price']), 2),
+                    'length_mm' => 0,
+                    'width_mm' => 0,
+                    'height_mm' => 0,
+                    'max_weight_grams' => 0,
                 ];
             })
             ->values();
@@ -277,8 +289,7 @@ class StoreShippingService
         bool $consolidateShipments,
         ?StoreShippingMethod $method,
         ?Carbon $processingPauseUntil = null
-    ): array
-    {
+    ): array {
         $immediateLines = collect();
         $delayedLines = collect();
         $allLines = collect();
@@ -447,10 +458,17 @@ class StoreShippingService
     }
 
     /**
-     * @param  Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}>  $packages
+     * @param  Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float,length_mm:int,width_mm:int,height_mm:int,max_weight_grams:int}>  $packages
      */
     private function configuredPackageQuote(Collection $physicalLines, Collection $packages): array
     {
+        if ($packages->every(fn (array $package): bool => ($package['length_mm'] ?? 0) > 0
+            && ($package['width_mm'] ?? 0) > 0
+            && ($package['height_mm'] ?? 0) > 0
+            && ($package['max_weight_grams'] ?? 0) > 0)) {
+            return $this->dimensionPackageQuote($physicalLines, $packages);
+        }
+
         $hasInvalidPackageItem = $physicalLines->contains(function ($line): bool {
             $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
 
@@ -541,6 +559,160 @@ class StoreShippingService
             'amount' => round((float) $parcelCollection->sum('price'), 2),
             'manual_quote_line_keys' => [],
         ];
+    }
+
+    private function dimensionPackageQuote(Collection $physicalLines, Collection $packages): array
+    {
+        $missingDimensions = $physicalLines->filter(fn ($line): bool => (int) ($line->unit_length_mm ?? 0) <= 0
+            || (int) ($line->unit_width_mm ?? 0) <= 0
+            || (int) ($line->unit_height_mm ?? 0) <= 0
+            || (int) ($line->unit_weight_grams ?? 0) <= 0
+        );
+
+        if ($missingDimensions->isNotEmpty()) {
+            return $this->boxedShippingQuote(
+                'Some physical products do not have packed dimensions and weight configured.',
+                $this->manualQuoteLineKeysForAllPhysicalLines($missingDimensions)
+            );
+        }
+
+        $units = $physicalLines->flatMap(function ($line): array {
+            return collect(range(1, max(0, (int) $line->quantity)))->map(fn (): array => [
+                'title' => (string) ($line->display_title ?? $line->product->title ?? 'Item'),
+                'dimensions' => [
+                    (int) $line->unit_length_mm,
+                    (int) $line->unit_width_mm,
+                    (int) $line->unit_height_mm,
+                ],
+                'weight_grams' => (int) $line->unit_weight_grams,
+            ])->all();
+        })->sortByDesc(fn (array $unit): int => array_product($unit['dimensions']))->values();
+
+        $packages = $packages->sortBy(fn (array $package): array => [$package['price'], array_product([$package['length_mm'], $package['width_mm'], $package['height_mm']])])->values();
+        $parcels = [];
+
+        foreach ($units as $unit) {
+            $candidates = collect();
+            foreach ($parcels as $parcelIndex => $parcel) {
+                foreach ($packages as $package) {
+                    if ((float) $package['price'] + 0.0001 < (float) $parcel['package']['price']) {
+                        continue;
+                    }
+                    $items = [...$parcel['items'], $unit];
+                    $placements = $this->packRectangularItems($items, $package);
+                    if ($placements !== null) {
+                        $candidates->push([
+                            'kind' => 'existing', 'parcel_index' => $parcelIndex, 'package' => $package,
+                            'items' => $items, 'placements' => $placements,
+                            'extra_cost' => (float) $package['price'] - (float) $parcel['package']['price'],
+                        ]);
+                    }
+                }
+            }
+            foreach ($packages as $package) {
+                $placements = $this->packRectangularItems([$unit], $package);
+                if ($placements !== null) {
+                    $candidates->push([
+                        'kind' => 'new', 'package' => $package, 'items' => [$unit], 'placements' => $placements,
+                        'extra_cost' => (float) $package['price'],
+                    ]);
+                }
+            }
+
+            $choice = $candidates->sortBy(fn (array $candidate): array => [$candidate['extra_cost'], $candidate['package']['price']])->first();
+            if (! is_array($choice)) {
+                return $this->boxedShippingQuote('This order cannot be packed into the configured box sizes.', $this->manualQuoteLineKeysForAllPhysicalLines($physicalLines));
+            }
+
+            $parcel = ['package' => $choice['package'], 'items' => $choice['items'], 'placements' => $choice['placements']];
+            if ($choice['kind'] === 'existing') {
+                $parcels[$choice['parcel_index']] = $parcel;
+            } else {
+                $parcels[] = $parcel;
+            }
+        }
+
+        $parcelCollection = collect($parcels)->map(function (array $parcel): array {
+            $package = $parcel['package'];
+
+            return [
+                'code' => $package['code'], 'label' => $package['label'], 'rank' => $package['rank'],
+                'price' => round((float) $package['price'], 2),
+                'internal_dimensions_mm' => [$package['length_mm'], $package['width_mm'], $package['height_mm']],
+                'max_weight_grams' => $package['max_weight_grams'],
+                'total_weight_grams' => array_sum(array_column($parcel['items'], 'weight_grams')),
+                'items' => collect($parcel['items'])->map(fn (array $item): array => ['title' => $item['title'], 'dimensions_mm' => $item['dimensions'], 'weight_grams' => $item['weight_grams']])->all(),
+            ];
+        })->values();
+        $breakdown = $parcelCollection->groupBy('code')->map(function (Collection $group): array {
+            $first = $group->first();
+
+            return ['code' => $first['code'], 'label' => $first['label'], 'count' => $group->count(), 'unit_price' => $first['price'], 'subtotal' => round((float) $group->sum('price'), 2)];
+        })->values();
+
+        return [
+            'can_checkout' => true, 'boxed_shipping_required' => false, 'requires_manual_quote' => false,
+            'method' => 'Box shipping', 'package_summary' => $breakdown->map(fn (array $item): string => $item['count'].' x '.$item['label'])->implode(', '),
+            'reason' => null, 'parcel_count' => $parcelCollection->count(), 'parcels' => $parcelCollection->all(),
+            'package_breakdown' => $breakdown->all(), 'satchel_breakdown' => [],
+            'known_weight_grams' => (int) $parcelCollection->sum('total_weight_grams'),
+            'amount' => round((float) $parcelCollection->sum('price'), 2), 'manual_quote_line_keys' => [],
+        ];
+    }
+
+    /** @return list<array{x:int,y:int,z:int,l:int,w:int,h:int}>|null */
+    private function packRectangularItems(array $items, array $package): ?array
+    {
+        if (array_sum(array_column($items, 'weight_grams')) > (int) $package['max_weight_grams']) {
+            return null;
+        }
+
+        $placements = [];
+        $points = [[0, 0, 0]];
+        foreach ($items as $item) {
+            $placed = null;
+            $orientations = collect($this->dimensionOrientations($item['dimensions']))
+                ->sortBy(fn (array $dimensions): int => $dimensions[2] * 1000000 + $dimensions[1] * 1000 + $dimensions[0]);
+            foreach ($points as $point) {
+                foreach ($orientations as [$length, $width, $height]) {
+                    [$x, $y, $z] = $point;
+                    if ($x + $length > $package['length_mm'] || $y + $width > $package['width_mm'] || $z + $height > $package['height_mm']) {
+                        continue;
+                    }
+                    $candidate = ['x' => $x, 'y' => $y, 'z' => $z, 'l' => $length, 'w' => $width, 'h' => $height];
+                    if (collect($placements)->contains(fn (array $existing): bool => $this->boxesOverlap($candidate, $existing))) {
+                        continue;
+                    }
+                    $placed = $candidate;
+                    break 2;
+                }
+            }
+            if ($placed === null) {
+                return null;
+            }
+            $placements[] = $placed;
+            $points[] = [$placed['x'] + $placed['l'], $placed['y'], $placed['z']];
+            $points[] = [$placed['x'], $placed['y'] + $placed['w'], $placed['z']];
+            $points[] = [$placed['x'], $placed['y'], $placed['z'] + $placed['h']];
+            $points = collect($points)->unique(fn (array $point): string => implode(':', $point))->sortBy(fn (array $point): array => [$point[2], $point[1], $point[0]])->values()->all();
+        }
+
+        return $placements;
+    }
+
+    private function dimensionOrientations(array $dimensions): array
+    {
+        [$a, $b, $c] = $dimensions;
+
+        return collect([[$a, $b, $c], [$a, $c, $b], [$b, $a, $c], [$b, $c, $a], [$c, $a, $b], [$c, $b, $a]])
+            ->unique(fn (array $item): string => implode(':', $item))->values()->all();
+    }
+
+    private function boxesOverlap(array $a, array $b): bool
+    {
+        return $a['x'] < $b['x'] + $b['l'] && $b['x'] < $a['x'] + $a['l']
+            && $a['y'] < $b['y'] + $b['w'] && $b['y'] < $a['y'] + $a['w']
+            && $a['z'] < $b['z'] + $b['h'] && $b['z'] < $a['z'] + $a['h'];
     }
 
     private function satchelQuote(Collection $physicalLines): array
@@ -813,7 +985,7 @@ class StoreShippingService
     }
 
     /**
-     * @param Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}> $satchels
+     * @param  Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}>  $satchels
      * @return array{code:string,label:string,rank:int,capacity:float,price:float}|null
      */
     private function smallestSatchelForUsage(int $minRank, float $requiredCapacity, ?int $knownWeightGrams, Collection $satchels): ?array

@@ -36,6 +36,19 @@
         }
     }
     $productDescription = old('description', $product->description ?? '');
+    $defaultProductDetails = [
+        ['key' => 'Pack size', 'value' => ''],
+        ['key' => 'Material', 'value' => ''],
+        ['key' => 'Colour', 'value' => ''],
+        ['key' => 'Recommended age', 'value' => ''],
+    ];
+    $productDetailRows = collect(old('product_details', isset($product) ? ($product->product_details ?? []) : $defaultProductDetails))
+        ->map(fn ($detail) => [
+            'key' => (string) data_get($detail, 'key', ''),
+            'value' => (string) data_get($detail, 'value', ''),
+        ])
+        ->values()
+        ->all();
     $satchelOptions = \App\Models\Product::satchelOptions();
     $defaultSatchelRank = (int) ($satchelOptions->first()['rank'] ?? 1);
     $productBackorderEstimateType = old('backorder_shipping_estimate_type', isset($product)
@@ -118,6 +131,7 @@
                 productBackorderEstimateType: @js($productBackorderEstimateType),
                 productBackorderOffsetDays: @js((string) $productBackorderOffsetDays),
                 variants: @js($variantRows),
+                productDetails: @js($productDetailRows),
                 variantInputClasses: 'disabled:bg-gray-100 bg-white block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
                 variantTextareaClasses: 'disabled:bg-gray-100 bg-white block min-h-[7rem] w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
                 defaultBaseOptionLabel() {
@@ -292,6 +306,24 @@
                         sort_order: variant.sort_order === '' || variant.sort_order === null ? currentIndex : variant.sort_order,
                     }));
                 },
+                addProductDetail() {
+                    this.productDetails.push({ key: '', value: '' });
+                },
+                addProductDetailAfterTab(event, index) {
+                    if (event.shiftKey || index !== this.productDetails.length - 1) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    this.addProductDetail();
+                    this.$nextTick(() => {
+                        const inputs = this.$root.querySelectorAll('[data-product-detail-key]');
+                        inputs[index + 1]?.focus();
+                    });
+                },
+                removeProductDetail(index) {
+                    this.productDetails.splice(index, 1);
+                },
                 init() {
                     this.syncSlugFromTitle();
                     this.syncBaseSkuFromSlug();
@@ -341,22 +373,25 @@
                                     $categoryId = (string) $category->id;
                                     $isSelected = in_array($categoryId, $selectedCategoryIds, true);
                                 @endphp
-                                <label class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
-                                    <input
-                                        type="checkbox"
+                                <div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
+                                    <x-ui.checkbox
+                                        id="category-{{ $category->id }}"
                                         name="category_ids[]"
                                         value="{{ $category->id }}"
-                                        @checked($isSelected)
-                                        class="mt-1 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                    >
-                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
-                                        <i class="{{ $category->iconClass() }}"></i>
-                                    </span>
-                                    <span class="min-w-0">
-                                        <span class="block font-medium text-gray-900">{{ $category->name }}</span>
-                                        <span class="block text-xs text-gray-500">{{ $category->slug }}</span>
-                                    </span>
-                                </label>
+                                        :checked="$isSelected"
+                                        noWrapper
+                                        inputClass="mt-0.5"
+                                    />
+                                    <label for="category-{{ $category->id }}" class="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                                            <i class="{{ $category->iconClass() }}"></i>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block font-medium text-gray-900">{{ $category->name }}</span>
+                                            <span class="block text-xs text-gray-500">{{ $category->slug }}</span>
+                                        </span>
+                                    </label>
+                                </div>
                             @endforeach
                         </div>
                     @endif
@@ -391,6 +426,56 @@
                 </div>
                 <x-ui.input name="short_description" label="Short Description" :value="$product->short_description ?? ''" />
                 <x-ui.editor name="description" label="Description" :value="$productDescription" />
+
+                <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Product Details</h3>
+                            <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age.</p>
+                        </div>
+                        <x-ui.button type="button" color="outline" x-on:click="addProductDetail()">Add Detail</x-ui.button>
+                    </div>
+
+                    <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white" x-show="productDetails.length > 0" x-cloak>
+                        <table class="w-full table-fixed border-collapse">
+                            <thead class="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                <tr>
+                                    <th class="w-2/5 px-3 py-2">Detail</th>
+                                    <th class="px-3 py-2">Value</th>
+                                    <th class="w-12 px-2 py-2"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <template x-for="(detail, index) in productDetails" :key="index">
+                                    <tr>
+                                        <td class="border-r border-gray-200 p-0">
+                                            <input type="text" x-bind:name="`product_details[${index}][key]`" x-model="detail.key" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Detail name">
+                                        </td>
+                                        <td class="border-r border-gray-200 p-0">
+                                            <input type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)">
+                                        </td>
+                                        <td class="p-0 text-center">
+                                            <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" x-on:click="removeProductDetail(index)" title="Remove detail" aria-label="Remove detail">
+                                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-500" x-show="productDetails.length === 0">No structured details added.</p>
+                </div>
+
+                <x-ui.input
+                    name="caution_message"
+                    type="textarea"
+                    rows="3"
+                    label="Product Warning"
+                    :value="$product->caution_message ?? ''"
+                    info="Optional. Displayed to customers with a caution icon."
+                    placeholder="Not suitable for children under 3 years."
+                />
             </div>
 
             <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
@@ -468,41 +553,12 @@
                     </div>
                 </div>
 
+                <input type="hidden" name="shipping_units" value="0" step="0.001">
+                <input type="hidden" name="min_satchel_rank" value="1">
                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div x-bind:class="boxOnly ? 'opacity-60' : ''">
-                        <x-ui.input
-                            name="shipping_units"
-                            label="Package Units"
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            :value="isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000'"
-                            info="The size of this item compared to capacity of the smallest package."
-                            x-model="baseShippingUnits"
-                            x-bind:disabled="boxOnly"
-                        />
-                        <template x-if="boxOnly">
-                            <input type="hidden" name="shipping_units" x-bind:value="baseShippingUnits">
-                        </template>
-                    </div>
-                    <div x-bind:class="boxOnly ? 'opacity-60' : ''">
-                        <x-ui.select
-                            name="min_satchel_rank"
-                            label="Minimum Package Size"
-                            info="The smallest package size this product can fit into."
-                            x-model="baseMinSatchelRank"
-                            x-bind:disabled="boxOnly"
-                        >
-                            @foreach($satchelOptions as $satchel)
-                                <option value="{{ $satchel['rank'] }}" @selected((int) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank) === (int) $satchel['rank'])>
-                                    {{ $satchel['label'] }} (capacity {{ number_format((float) $satchel['capacity'], 2) }})
-                                </option>
-                            @endforeach
-                        </x-ui.select>
-                        <template x-if="boxOnly">
-                            <input type="hidden" name="min_satchel_rank" x-bind:value="baseMinSatchelRank">
-                        </template>
-                    </div>
+                    <x-ui.input name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" step="1" min="1" :value="old('length_mm', $product->length_mm ?? '')" info="Measure the product as it will be placed in the shipping box." />
+                    <x-ui.input name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" step="1" min="1" :value="old('width_mm', $product->width_mm ?? '')" />
+                    <x-ui.input name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" step="1" min="1" :value="old('height_mm', $product->height_mm ?? '')" />
                     <x-ui.input
                         name="weight_grams"
                         label="Packed Weight"

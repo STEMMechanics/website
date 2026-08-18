@@ -29,9 +29,9 @@ class ProductVariantFactory extends Factory
             'backorder_shipping_estimate' => null,
             'backorder_shipping_estimate_type' => null,
             'backorder_shipping_offset_days' => null,
-            'length_cm' => null,
-            'width_cm' => null,
-            'height_cm' => null,
+            'length_mm' => null,
+            'width_mm' => null,
+            'height_mm' => null,
             'is_active' => true,
             'sort_order' => 0,
         ];

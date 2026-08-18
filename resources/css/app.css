@@ -547,6 +547,26 @@ body.swal2-height-auto {
         @apply mb-0;
     }
 
+    .tiptap ul[data-list-style="ticks"],
+    .content ul[data-list-style="ticks"] {
+        @apply space-y-2 pl-0;
+        list-style: none;
+    }
+
+    .tiptap ul[data-list-style="ticks"] > li,
+    .content ul[data-list-style="ticks"] > li {
+        @apply relative pl-7;
+        display: list-item;
+    }
+
+    .tiptap ul[data-list-style="ticks"] > li::before,
+    .content ul[data-list-style="ticks"] > li::before {
+        @apply absolute left-0 top-0 font-bold text-emerald-600;
+        content: "\f058";
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+    }
+
     .tiptap .sm-collapsible-node,
     .content .sm-collapsible-node,
     details.sm-collapsible-node {
@@ -876,6 +896,23 @@ body.image-resize-active {
 }
 
 .content {
+    ul[data-list-style="ticks"] {
+        @apply my-4 space-y-2 pl-0;
+        list-style: none;
+
+        > li {
+            @apply relative pl-7;
+            display: list-item;
+
+            &::before {
+                @apply absolute left-0 top-0 font-bold text-emerald-600;
+                content: "\f058";
+                font-family: "Font Awesome 6 Free";
+                font-weight: 900;
+            }
+        }
+    }
+
     h1 {
         @apply text-3xl font-semibold mb-4;
     }

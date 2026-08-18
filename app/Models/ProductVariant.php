@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class ProductVariant extends Model
 {
@@ -29,9 +29,9 @@ class ProductVariant extends Model
         'backorder_shipping_estimate',
         'backorder_shipping_estimate_type',
         'backorder_shipping_offset_days',
-        'length_cm',
-        'width_cm',
-        'height_cm',
+        'length_mm',
+        'width_mm',
+        'height_mm',
         'is_active',
         'sort_order',
     ];
@@ -48,9 +48,9 @@ class ProductVariant extends Model
         'allow_backorder' => 'boolean',
         'backorder_shipping_estimate' => 'date',
         'backorder_shipping_offset_days' => 'integer',
-        'length_cm' => 'decimal:2',
-        'width_cm' => 'decimal:2',
-        'height_cm' => 'decimal:2',
+        'length_mm' => 'integer',
+        'width_mm' => 'integer',
+        'height_mm' => 'integer',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
@@ -133,25 +133,25 @@ class ProductVariant extends Model
         return $value !== null ? (int) $value : null;
     }
 
-    public function effectiveLengthCm(): ?float
+    public function effectiveLengthMm(): ?int
     {
-        $value = $this->product?->length_cm;
+        $value = $this->product?->length_mm;
 
-        return $value !== null ? round((float) $value, 2) : null;
+        return $value !== null ? (int) $value : null;
     }
 
-    public function effectiveWidthCm(): ?float
+    public function effectiveWidthMm(): ?int
     {
-        $value = $this->product?->width_cm;
+        $value = $this->product?->width_mm;
 
-        return $value !== null ? round((float) $value, 2) : null;
+        return $value !== null ? (int) $value : null;
     }
 
-    public function effectiveHeightCm(): ?float
+    public function effectiveHeightMm(): ?int
     {
-        $value = $this->product?->height_cm;
+        $value = $this->product?->height_mm;
 
-        return $value !== null ? round((float) $value, 2) : null;
+        return $value !== null ? (int) $value : null;
     }
 
     public function tracksInventory(): bool

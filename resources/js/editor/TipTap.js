@@ -11,6 +11,7 @@ import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import {TickList} from "./TickList.js";
 import {ColorHighlighter} from "./ColourHighter.js";
 import {SmileyReplacer} from "./SmileyReplacer.js";
 import {Small} from "./Small.js";
@@ -1349,7 +1350,8 @@ document.addEventListener('alpine:init', () => {
                         ExtraSmall,
                         Box,
                         Collapsible,
-                        Spoiler
+                        Spoiler,
+                        TickList,
                     ],
                     content: content,
                     onCreate({/* editor */}) {
@@ -1503,6 +1505,9 @@ document.addEventListener('alpine:init', () => {
             },
             toggleBulletList() {
                 editor.chain().toggleBulletList().focus().run()
+            },
+            toggleTickList() {
+                editor.chain().toggleTickList().focus().run()
             },
             toggleOrderedList() {
                 editor.chain().toggleOrderedList().focus().run()

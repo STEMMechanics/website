@@ -26,6 +26,10 @@
                             'label' => (string) ($package['label'] ?? ''),
                             'sort_order' => (int) ($package['sort_order'] ?? 1),
                             'capacity' => (string) ($package['capacity'] ?? '1.00'),
+                            'internal_length_mm' => (string) ($package['internal_length_mm'] ?? ''),
+                            'internal_width_mm' => (string) ($package['internal_width_mm'] ?? ''),
+                            'internal_height_mm' => (string) ($package['internal_height_mm'] ?? ''),
+                            'max_weight_grams' => (string) ($package['max_weight_grams'] ?? '5000'),
                             'price' => (string) ($package['price'] ?? '0.00'),
                             'is_active' => filter_var($package['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                         ];
@@ -71,9 +75,21 @@
                         label: '',
                         sort_order: sortOrder,
                         capacity: '1.00',
+                        internal_length_mm: '',
+                        internal_width_mm: '',
+                        internal_height_mm: '',
+                        max_weight_grams: '5000',
                         price: '0.00',
                         is_active: true,
                     };
+                },
+                loadStandardBoxes(methodIndex) {
+                    this.shippingMethods[methodIndex].packages = [
+                        { id: null, code: 'box_220_160_70', label: '220 × 160 × 70 mm Box', sort_order: 1, capacity: '1.00', internal_length_mm: '220', internal_width_mm: '160', internal_height_mm: '70', max_weight_grams: '5000', price: '12.38', is_active: true },
+                        { id: null, code: 'box_240_190_120', label: '240 × 190 × 120 mm Box', sort_order: 2, capacity: '1.00', internal_length_mm: '240', internal_width_mm: '190', internal_height_mm: '120', max_weight_grams: '5000', price: '16.56', is_active: true },
+                        { id: null, code: 'box_390_280_140', label: '390 × 280 × 140 mm Box', sort_order: 3, capacity: '1.00', internal_length_mm: '390', internal_width_mm: '280', internal_height_mm: '140', max_weight_grams: '5000', price: '20.93', is_active: true },
+                        { id: null, code: 'box_440_277_168', label: '440 × 277 × 168 mm Box', sort_order: 4, capacity: '1.00', internal_length_mm: '440', internal_width_mm: '277', internal_height_mm: '168', max_weight_grams: '5000', price: '25.09', is_active: true },
+                    ];
                 },
                 nextShippingMethodSortOrder() {
                     return this.shippingMethods.length > 0
@@ -431,9 +447,12 @@
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <div class="font-semibold text-gray-900">Package Options</div>
-                                        <div class="mt-1 text-sm text-gray-600">Capacity is the packing size used by products. Price is the shipping charge for one parcel in this channel.</div>
+                                        <div class="mt-1 text-sm text-gray-600">Dimensions are the usable internal measurements of each box. Price is the GST-inclusive customer charge and includes the box and postage.</div>
                                     </div>
-                                    <x-ui.button type="button" color="outline" x-on:click="addPackage(index)">Add Package</x-ui.button>
+                                    <div class="flex gap-2">
+                                        <x-ui.button type="button" color="outline" x-on:click="loadStandardBoxes(index)">Load Standard Boxes</x-ui.button>
+                                        <x-ui.button type="button" color="outline" x-on:click="addPackage(index)">Add Box</x-ui.button>
+                                    </div>
                                 </div>
 
                                 <div x-show="channelUsesFreeCollection(method)" x-cloak class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
@@ -479,13 +498,26 @@
                                                 </label>
                                             </div>
 
-                                            <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                            <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][capacity]`" value="1.00">
+                                            <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                                 <div>
-                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Capacity</label>
-                                                    <input type="number" step="0.01" min="0.01" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][capacity]`" x-model="packageOption.capacity">
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Internal length (mm)</label>
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_length_mm]`" x-model="packageOption.internal_length_mm">
                                                 </div>
                                                 <div>
-                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Price</label>
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Internal width (mm)</label>
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_width_mm]`" x-model="packageOption.internal_width_mm">
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Internal height (mm)</label>
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_height_mm]`" x-model="packageOption.internal_height_mm">
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Maximum weight (g)</label>
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][max_weight_grams]`" x-model="packageOption.max_weight_grams">
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-sm font-medium text-gray-700">Price (inc. GST)</label>
                                                     <input type="number" step="0.01" min="0" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][price]`" x-model="packageOption.price">
                                                 </div>
                                             </div>

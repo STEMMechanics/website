@@ -77,6 +77,10 @@ class ShopSettingsController extends Controller
                     'shipping_methods.*.packages.*.label' => ['nullable', 'string', 'max:120'],
                     'shipping_methods.*.packages.*.sort_order' => ['nullable', 'integer', 'min:1', 'max:999'],
                     'shipping_methods.*.packages.*.capacity' => ['nullable', 'numeric', 'min:0.01', 'max:999'],
+                    'shipping_methods.*.packages.*.internal_length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+                    'shipping_methods.*.packages.*.internal_width_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+                    'shipping_methods.*.packages.*.internal_height_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+                    'shipping_methods.*.packages.*.max_weight_grams' => ['nullable', 'integer', 'min:1', 'max:100000'],
                     'shipping_methods.*.packages.*.price' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
                     'shipping_methods.*.packages.*.is_active' => ['nullable', 'boolean'],
                 ]);
@@ -186,6 +190,10 @@ class ShopSettingsController extends Controller
                             'label' => (string) $package->label,
                             'sort_order' => (int) $package->sort_order,
                             'capacity' => number_format((float) $package->capacity, 2, '.', ''),
+                            'internal_length_mm' => (string) ($package->internal_length_mm ?? ''),
+                            'internal_width_mm' => (string) ($package->internal_width_mm ?? ''),
+                            'internal_height_mm' => (string) ($package->internal_height_mm ?? ''),
+                            'max_weight_grams' => (string) ($package->max_weight_grams ?? 5000),
                             'price' => number_format((float) $package->price, 2, '.', ''),
                             'is_active' => (bool) $package->is_active,
                         ];
@@ -218,7 +226,7 @@ class ShopSettingsController extends Controller
     }
 
     /**
-     * @return list<array{id:null,code:string,label:string,sort_order:int,capacity:string,price:string,is_active:bool}>
+     * @return list<array{id:null,code:string,label:string,sort_order:int,capacity:string,internal_length_mm:string,internal_width_mm:string,internal_height_mm:string,max_weight_grams:string,price:string,is_active:bool}>
      */
     private function fallbackPackageOptionsForMethod(StoreShippingMethod $method): array
     {
@@ -230,6 +238,10 @@ class ShopSettingsController extends Controller
                     'label' => (string) $package['label'],
                     'sort_order' => max(1, (int) $package['rank']),
                     'capacity' => number_format((float) $package['capacity'], 2, '.', ''),
+                    'internal_length_mm' => '',
+                    'internal_width_mm' => '',
+                    'internal_height_mm' => '',
+                    'max_weight_grams' => '',
                     'price' => number_format($method->adjustedAmount((float) $package['price']), 2, '.', ''),
                     'is_active' => (bool) $package['active'],
                 ];
@@ -263,6 +275,10 @@ class ShopSettingsController extends Controller
      *         label:string,
      *         sort_order:int,
      *         capacity:float|null,
+     *         internal_length_mm:int|null,
+     *         internal_width_mm:int|null,
+     *         internal_height_mm:int|null,
+     *         max_weight_grams:int|null,
      *         price:float|null,
      *         is_active:bool
      *     }>
@@ -283,6 +299,10 @@ class ShopSettingsController extends Controller
                             'label' => trim((string) ($package['label'] ?? '')),
                             'sort_order' => ($package['sort_order'] ?? '') !== '' ? (int) $package['sort_order'] : $packageIndex + 1,
                             'capacity' => ($package['capacity'] ?? '') !== '' ? round((float) $package['capacity'], 2) : null,
+                            'internal_length_mm' => ($package['internal_length_mm'] ?? '') !== '' ? (int) $package['internal_length_mm'] : null,
+                            'internal_width_mm' => ($package['internal_width_mm'] ?? '') !== '' ? (int) $package['internal_width_mm'] : null,
+                            'internal_height_mm' => ($package['internal_height_mm'] ?? '') !== '' ? (int) $package['internal_height_mm'] : null,
+                            'max_weight_grams' => ($package['max_weight_grams'] ?? '') !== '' ? (int) $package['max_weight_grams'] : null,
                             'price' => ($package['price'] ?? '') !== '' ? round((float) $package['price'], 2) : null,
                             'is_active' => filter_var($package['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                         ];
@@ -290,7 +310,7 @@ class ShopSettingsController extends Controller
                     ->filter(function (array $package): bool {
                         return $package['code'] !== ''
                             || $package['label'] !== ''
-                            || $package['capacity'] !== null
+                            || $package['internal_length_mm'] !== null
                             || $package['price'] !== null;
                     })
                     ->values()
@@ -370,8 +390,12 @@ class ShopSettingsController extends Controller
                 if ($package['label'] === '') {
                     $errors['shipping_methods.'.$index.'.packages.'.$packageIndex.'.label'][] = 'Each package option needs a label.';
                 }
-                if ($package['capacity'] === null) {
-                    $errors['shipping_methods.'.$index.'.packages.'.$packageIndex.'.capacity'][] = 'Each package option needs a capacity.';
+                $dimensionFields = ['internal_length_mm' => 'length', 'internal_width_mm' => 'width', 'internal_height_mm' => 'height', 'max_weight_grams' => 'maximum weight'];
+                $usesDimensions = collect(array_keys($dimensionFields))->contains(fn (string $field): bool => $package[$field] !== null);
+                foreach ($dimensionFields as $field => $label) {
+                    if ($usesDimensions && $package[$field] === null) {
+                        $errors['shipping_methods.'.$index.'.packages.'.$packageIndex.'.'.$field][] = 'Each box needs an internal '.$label.'.';
+                    }
                 }
                 if ($package['price'] === null) {
                     $errors['shipping_methods.'.$index.'.packages.'.$packageIndex.'.price'][] = 'Each package option needs a price.';
@@ -410,6 +434,10 @@ class ShopSettingsController extends Controller
      *         label:string,
      *         sort_order:int,
      *         capacity:float|null,
+     *         internal_length_mm:int|null,
+     *         internal_width_mm:int|null,
+     *         internal_height_mm:int|null,
+     *         max_weight_grams:int|null,
      *         price:float|null,
      *         is_active:bool
      *     }>
@@ -418,12 +446,15 @@ class ShopSettingsController extends Controller
     private function syncShippingMethods(array $shippingMethods): void
     {
         $existingMethods = StoreShippingMethod::query()->with('packageOptions')->get()->keyBy('id');
+        $existingMethodsByCode = $existingMethods
+            ->filter(fn (StoreShippingMethod $method): bool => trim((string) $method->code) !== '')
+            ->keyBy(fn (StoreShippingMethod $method): string => Str::lower(trim((string) $method->code)));
         $submittedIds = [];
 
         foreach ($shippingMethods as $methodData) {
             $method = $methodData['id'] !== null
                 ? $existingMethods->get($methodData['id'])
-                : new StoreShippingMethod();
+                : $existingMethodsByCode->get($methodData['code'], new StoreShippingMethod);
 
             if (! $method instanceof StoreShippingMethod) {
                 continue;
@@ -465,6 +496,10 @@ class ShopSettingsController extends Controller
      *     label:string,
      *     sort_order:int,
      *     capacity:float|null,
+     *     internal_length_mm:int|null,
+     *     internal_width_mm:int|null,
+     *     internal_height_mm:int|null,
+     *     max_weight_grams:int|null,
      *     price:float|null,
      *     is_active:bool
      * }> $packages
@@ -493,7 +528,7 @@ class ShopSettingsController extends Controller
                 : $existingPackagesByCode->get($packageData['code']);
 
             if (! $package instanceof StoreShippingMethodPackage) {
-                $package = new StoreShippingMethodPackage();
+                $package = new StoreShippingMethodPackage;
             }
 
             $package->store_shipping_method_id = $method->id;
@@ -502,6 +537,10 @@ class ShopSettingsController extends Controller
                 'label' => $packageData['label'],
                 'sort_order' => $packageData['sort_order'],
                 'capacity' => round((float) ($packageData['capacity'] ?? 0), 2),
+                'internal_length_mm' => $packageData['internal_length_mm'],
+                'internal_width_mm' => $packageData['internal_width_mm'],
+                'internal_height_mm' => $packageData['internal_height_mm'],
+                'max_weight_grams' => $packageData['max_weight_grams'],
                 'price' => round((float) ($packageData['price'] ?? 0), 2),
                 'is_active' => $packageData['is_active'],
             ]);

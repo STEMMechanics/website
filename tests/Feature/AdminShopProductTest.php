@@ -40,7 +40,11 @@ class AdminShopProductTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.product.create'))
             ->assertOk()
-            ->assertSee('Create Product');
+            ->assertSee('Create Product')
+            ->assertSee('Pack size')
+            ->assertSee('Material')
+            ->assertSee('Colour')
+            ->assertSee('Recommended age');
 
         $this->actingAs($admin)
             ->post(route('admin.shop.product.store'), [
@@ -52,12 +56,21 @@ class AdminShopProductTest extends TestCase
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'short_description' => 'A build-at-home launcher kit.',
                 'description' => 'Includes all timber parts and instructions.',
+                'product_details' => [
+                    ['key' => 'Pack size', 'value' => '150 straws'],
+                    ['key' => 'Material', 'value' => 'Paper'],
+                    ['key' => '', 'value' => 'Ignored incomplete row'],
+                ],
+                'caution_message' => 'Not suitable for children under 3 years.',
                 'price' => '24.95',
                 'compare_at_price' => '29.95',
                 'inventory_quantity' => '12',
                 'shipping_units' => '1.00',
                 'min_satchel_rank' => '3',
                 'weight_grams' => '820',
+                'length_mm' => '220',
+                'width_mm' => '160',
+                'height_mm' => '70',
                 'box_only' => '0',
                 'sort_order' => '5',
                 'is_featured' => '1',
@@ -73,6 +86,9 @@ class AdminShopProductTest extends TestCase
             'shipping_units' => 1.00,
             'min_satchel_rank' => 3,
             'weight_grams' => 820,
+            'length_mm' => 220,
+            'width_mm' => 160,
+            'height_mm' => 70,
             'box_only' => 0,
             'is_featured' => 1,
             'tax_rate' => 0.1000,
@@ -80,6 +96,11 @@ class AdminShopProductTest extends TestCase
 
         $product = Product::query()->where('slug', 'laser-cut-catapult-kit')->with('categories')->firstOrFail();
         $this->assertSame(['Kits', 'Hardware'], $product->categories->pluck('name')->all());
+        $this->assertSame([
+            ['key' => 'Pack size', 'value' => '150 straws'],
+            ['key' => 'Material', 'value' => 'Paper'],
+        ], $product->product_details);
+        $this->assertSame('Not suitable for children under 3 years.', $product->caution_message);
         $this->assertDatabaseHas('product_category_product', [
             'product_id' => $product->id,
             'product_category_id' => $kits->id,

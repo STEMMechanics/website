@@ -79,15 +79,12 @@
         :description="$product->short_description ?: strip_tags((string) $product->description)"
         :canonical="route('shop.product.show', $product)"
 >
-    <x-mast backRoute="shop.index" backTitle="Store">{{ $product->title }}</x-mast>
-
     @include('shop.partials.processing-pause-notice', [
         'notice' => $cartPayload['summary']['shipping_quote']['processing_pause_notice'] ?? null,
     ])
 
-    <x-container class="py-8">
+    <x-container class="bg-white">
         <div
-                class="space-y-8"
                 x-data="{
                 options: @js($optionPayload),
                 selectedVariantId: @js($defaultOptionInput),
@@ -550,12 +547,8 @@
                 },
             }"
         >
-            <div class="flex xgrid md:xgrid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-start rounded-3xl border border-gray-200 bg-white">
-                <div class="w-full p-6 flow-root">
-                    <div class="-ml-6 -mr-6 -mt-6 mb-6 overflow-hidden rounded-t-3xl sm:rounded-tl-none sm:rounded-bl-3xl sm:ml-6 sm:float-right sm:w-[42%] lg:w-[38%]">
-                        <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-96 w-full object-cover" />
-                    </div>
-
+            <div class="grid gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_38%] lg:items-start">
+                <div class="min-w-0">
                     <div class="min-w-0">
                             <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ $product->title }}</h1>
                             @if(trim((string) $product->subtitle) !== '')
@@ -685,7 +678,7 @@
                                         <form
                                                 method="POST"
                                                 action="{{ route('shop.cart.add', $product) }}"
-                                                class="m-0 sm:min-w-40"
+                                                class="m-0 sm:min-w-96"
                                                 x-on:submit.prevent="handleAddToCart($event.target)"
                                                 x-show="cartQuantity() <= 0"
                                         >
@@ -701,7 +694,7 @@
                                             </x-ui.button>
                                         </form>
 
-                                        <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-40">
+                                        <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-96">
                                             <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
                                                 <button
                                                         type="button"
@@ -732,25 +725,35 @@
                                 </div>
                             @else
                                 <div class="mt-6 space-y-3">
+                                    <div class="mb-12">
+                                        @if($productDescriptionHtml !== '')
+                                            <article class="content text-gray-700">
+                                                {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
+                                            </article>
+                                        @elseif(trim((string) $product->short_description) !== '')
+                                            <p class="text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
+                                        @endif
+                                    </div>
+
                                     <form
                                             method="POST"
                                             action="{{ route('shop.cart.add', $product) }}"
-                                            class="m-0"
+                                            class="w-full sm:w-fit sm:min-w-96"
                                             x-on:submit.prevent="handleAddToCart($event.target)"
                                             x-show="cartQuantity() <= 0"
                                     >
                                         @csrf
                                         <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
                                         <input type="hidden" name="quantity" value="1">
-                                        <x-ui.button type="submit" color="primary" class="w-full sm:w-auto" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                        <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
                                             <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
                                             <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
                                             <span x-show="!canAddSelection()" x-cloak>Sold out</span>
                                         </x-ui.button>
                                     </form>
 
-                                    <div x-show="cartQuantity() > 0" x-cloak>
-                                        <div class="shop-catalog-stepper inline-flex items-center gap-2 rounded border border-gray-300 bg-white">
+                                    <div x-show="cartQuantity() > 0" x-cloak class="w-full sm:w-fit sm:min-w-96">
+                                        <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
                                             <button
                                                     type="button"
                                                     class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
@@ -783,13 +786,24 @@
                                 </div>
                             @endif
 
-                            @if($productDescriptionHtml !== '')
-                                <article class="mt-8 content text-gray-700">
-                                    {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
-                                </article>
-                            @elseif(trim((string) $product->short_description) !== '')
-                                <p class="mt-8 text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
-                            @endif
+                            <div class="grid grid-cols-3 overflow-hidden w-full sm:w-96">
+                                <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                    <i class="fa-solid fa-person text-lg" aria-hidden="true"></i>
+                                    <span>Local/workshop pickup available</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                    <i class="fa-solid fa-truck-fast text-lg" aria-hidden="true"></i>
+                                    <span>Fast shipping Australia-wide</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                    <i class="fa-solid fa-lock text-lg" aria-hidden="true"></i>
+                                    <span>Secure checkout SSL encrypted</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 max-w-96 lg:hidden">
+                                @include('shop.partials.product-details-caution', ['product' => $product])
+                            </div>
 
                             @if($product->galleryMedia->isNotEmpty())
                                 <x-ui.gallery
@@ -800,6 +814,14 @@
                             @endif
                     </div>
                 </div>
+                <aside class="order-first min-w-0 lg:order-last">
+                    <div class="overflow-hidden rounded-3xl">
+                        <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-96 w-full object-cover" />
+                    </div>
+                    <div class="mt-6 hidden lg:block">
+                        @include('shop.partials.product-details-caution', ['product' => $product])
+                    </div>
+                </aside>
             </div>
         </div>
     </x-container>
