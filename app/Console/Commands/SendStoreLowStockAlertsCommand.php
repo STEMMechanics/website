@@ -170,16 +170,19 @@ class SendStoreLowStockAlertsCommand extends Command
 
         $items = StoreOrderItem::query()
             ->with([
+                'order:id,shipping_method_code',
                 'trackingEntries' => fn ($query) => $query->select([
                     'id',
                     'store_order_item_id',
                     'shipment_type',
                     'quantity',
                 ]),
+                'collectionEntries:id,store_order_item_id,collection_type,pickup_state,quantity',
             ])
             ->whereIn('product_id', $productIds)
             ->get([
                 'id',
+                'store_order_id',
                 'product_id',
                 'quantity',
                 'available_now_quantity',
@@ -197,10 +200,10 @@ class SendStoreLowStockAlertsCommand extends Command
                 continue;
             }
 
-            $summaries[$productId]['awaiting'] += $item->remainingFulfillableQuantity();
+            $summaries[$productId]['awaiting'] += $item->remainingOrderFulfillableQuantity();
             $summaries[$productId]['reserved'] += $item->reservedInventory();
 
-            $remainingDelayedQuantity = $item->remainingDelayedQuantity();
+            $remainingDelayedQuantity = $item->remainingOrderDelayedQuantity();
             if ($remainingDelayedQuantity <= 0) {
                 continue;
             }

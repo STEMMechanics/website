@@ -1964,11 +1964,6 @@ class StoreOrderService
             $collection->collected_by_user_id = $actingUser?->id;
             $collection->notes = $notes;
             $collection->collected_at = $parsedCollectedAt;
-            $collection->save();
-
-            if ($item->relationLoaded('collectionEntries')) {
-                $item->setRelation('collectionEntries', $item->collectionEntries->push($collection));
-            }
 
             $update = $this->orderUpdates->recordCollectionAdded($order, $item, $collection);
         }

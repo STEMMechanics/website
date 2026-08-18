@@ -8,6 +8,7 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
+use App\Models\StoreOrderItemCollection;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -777,6 +778,40 @@ class AdminShopProductTest extends TestCase
             ->assertSee('Blue')
             ->assertSee('3')
             ->assertSee('1');
+    }
+
+    public function test_collected_pickup_items_are_not_counted_as_awaiting_fulfilment(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+        $product = Product::factory()->create();
+        $order = StoreOrder::factory()->create([
+            'status' => StoreOrder::STATUS_COLLECTED,
+            'shipping_method_code' => 'pickup',
+        ]);
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'available_now_quantity' => 2,
+            'delayed_quantity' => 0,
+        ]);
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+            'quantity' => 2,
+            'collected_at' => now(),
+        ]);
+
+        $this->assertSame(0, $item->fresh()->remainingOrderFulfillableQuantity());
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.edit', $product))
+            ->assertOk()
+            ->assertSee('<span class="font-semibold">Awaiting fulfilment:</span> 0', false);
     }
 
     public function test_admin_product_index_shows_remaining_reserved_and_backorder_summary(): void
