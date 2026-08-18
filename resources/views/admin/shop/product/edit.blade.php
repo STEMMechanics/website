@@ -69,6 +69,11 @@
                     'price' => $variant->price !== null ? number_format((float) $variant->price, 2, '.', '') : '',
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
+                    'weight_grams' => $variant->weight_grams,
+                    'length_mm' => $variant->length_mm,
+                    'width_mm' => $variant->width_mm,
+                    'height_mm' => $variant->height_mm,
+                    'low_stock_threshold' => $variant->low_stock_threshold,
                     'allow_backorder' => (bool) ($variant->allow_backorder || $variant->is_preorder),
                     'backorder_shipping_estimate_type' => $variant->backorder_shipping_estimate_type ?? ($variant->backorder_shipping_offset_days !== null ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC),
                     'backorder_shipping_estimate' => $variant->backorder_shipping_estimate?->format('Y-m-d')
@@ -289,6 +294,11 @@
                         price: '',
                         compare_at_price: '',
                         inventory_quantity: '',
+                        weight_grams: '',
+                        length_mm: '',
+                        width_mm: '',
+                        height_mm: '',
+                        low_stock_threshold: '',
                         awaiting_fulfilment: 0,
                         reserved_quantity: 0,
                         allow_backorder: false,
@@ -603,7 +613,7 @@
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Tiers' : 'Variants'"></h2>
-                        <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak class="text-sm text-gray-600">Use variants for option-level differences like colour or size. Physical variants share the base product price and packaging, and only change their own name, SKU, details, stock, and fulfilment status.</p>
+                        <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak class="text-sm text-gray-600">Use variants for pack sizes, colours, or other options. Leave price, weight, or dimensions blank to inherit the base product values.</p>
                         <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Add only the extra tiers you want to offer.</p>
                     </div>
                     <x-ui.button type="button" color="outline" x-on:click="addVariant()" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add Custom Tier' : 'Add Variant'">Add Variant</x-ui.button>
@@ -666,13 +676,13 @@
                                     <label class="mb-1 block pl-1 text-sm">Sort Order</label>
                                     <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][sort_order]`" x-model="variant.sort_order">
                                 </div>
-                                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak>
+                                <div>
                                     <label class="mb-1 block pl-1 text-sm">Price</label>
-                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][price]`" x-model="variant.price">
+                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][price]`" x-model="variant.price" placeholder="Inherit base price">
                                 </div>
-                                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak>
+                                <div>
                                     <label class="mb-1 block pl-1 text-sm">Compare-at Price</label>
-                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price">
+                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="Inherit base price">
                                 </div>
                             </div>
 
@@ -692,7 +702,38 @@
                                         fieldClasses="mt-0"
                                         x-bind:name="`variants[${index}][inventory_quantity]`"
                                         x-model="variant.inventory_quantity"
+                                        info="Leave blank for unlimited stock. Enter 0 when this variant is sold out."
                                     />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block pl-1 text-sm">Low-stock alert threshold</label>
+                                    <input type="number" min="1" x-bind:class="variantInputClasses" :name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold">
+                                    <div class="mt-1 pl-1 text-xs text-gray-500">Leave blank to use the base product threshold.</div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-gray-200 bg-white p-4" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
+                                <div class="mb-3">
+                                    <h3 class="text-sm font-semibold text-gray-900">Packaging overrides</h3>
+                                    <p class="mt-1 text-xs text-gray-500">Only fill these in when this pack has different packed measurements from the base option.</p>
+                                </div>
+                                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div>
+                                        <label class="mb-1 block pl-1 text-sm">Packed Weight <span class="text-xs text-gray-500">(grams)</span></label>
+                                        <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block pl-1 text-sm">Packed Length <span class="text-xs text-gray-500">(mm)</span></label>
+                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][length_mm]`" x-model="variant.length_mm" placeholder="Inherit base length">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block pl-1 text-sm">Packed Width <span class="text-xs text-gray-500">(mm)</span></label>
+                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][width_mm]`" x-model="variant.width_mm" placeholder="Inherit base width">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block pl-1 text-sm">Packed Height <span class="text-xs text-gray-500">(mm)</span></label>
+                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][height_mm]`" x-model="variant.height_mm" placeholder="Inherit base height">
+                                    </div>
                                 </div>
                             </div>
 

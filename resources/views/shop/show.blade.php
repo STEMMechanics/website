@@ -204,10 +204,13 @@
                     return this.multiOptionStockTone;
                 },
                 selectionButtonSku() {
-                    return this.selectedOption?.sku || '';
+                    return String(this.selectedOption?.sku || '').toUpperCase();
                 },
                 selectionButtonSKU() {
                     return this.selectionButtonSku();
+                },
+                currentSku() {
+                    return String(this.selectedOption?.sku || @js($baseOptionSku)).toUpperCase();
                 },
                 toggleVariantMenu() {
                     this.variantMenuOpen = !this.variantMenuOpen;
@@ -569,7 +572,7 @@
                                     />
                                 @endforeach
                                 @if(trim((string) $product->sku) !== '')
-                                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">SKU {{ $product->sku }}</span>
+                                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">SKU <span x-text="currentSku()">{{ mb_strtoupper($baseOptionSku) }}</span></span>
                                 @endif
                                 @if(!$product->isPurchasable())
                                     <x-stock-indicator tone="danger" :label="'Out of stock'" class="rounded-full bg-red-100 px-3 py-1" />
@@ -591,6 +594,16 @@
                                     <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
                                     <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
                                 </div>
+                            </div>
+
+                            <div class="mt-8 mb-12">
+                                @if($productDescriptionHtml !== '')
+                                    <article class="content text-gray-700">
+                                        {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
+                                    </article>
+                                @elseif(trim((string) $product->short_description) !== '')
+                                    <p class="text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
+                                @endif
                             </div>
 
                             @if($hasOptionChoices)
@@ -626,7 +639,7 @@
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>
+{{--                                                <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>--}}
                                                 <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
                                             </button>
 
@@ -641,12 +654,13 @@
                                                         <button
                                                                 type="button"
                                                                 x-data="{ option: @js($option) }"
-                                                                class="flex w-full items-start justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
+                                                                class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
                                                                 :class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
                                                                 @click="chooseOption(String(@js((string) ($option['input_value'] ?? ''))))"
                                                         >
                                                             <span class="min-w-0 flex-1">
-                                                                <span class="flex items-baseline gap-2 text-sm">
+                                                                <div>
+                                                                <span class="flex items-center gap-2 text-sm">
                                                                     <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
                                                                     <span class="text-gray-400">-</span>
                                                                     <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
@@ -663,12 +677,12 @@
                                                                 @if(!empty($option['description']))
                                                                     <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
                                                                 @endif
-                                                            </span>
-                                                            <span class="shrink-0 text-right">
+                                                                </div>
                                                                 @if(!empty($option['sku']))
-                                                                    <span class="block text-xs font-medium text-gray-400" x-text="option.sku">{{ $option['sku'] }}</span>
+                                                                    <span class="block text-xxs font-medium text-gray-400" x-text="String(option.sku || '').toUpperCase()">{{ mb_strtoupper($option['sku']) }}</span>
                                                                 @endif
                                                             </span>
+                                                            <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
                                                         </button>
                                                     @endforeach
                                                 </div>
@@ -678,7 +692,7 @@
                                         <form
                                                 method="POST"
                                                 action="{{ route('shop.cart.add', $product) }}"
-                                                class="m-0 sm:min-w-96"
+                                                class="m-0"
                                                 x-on:submit.prevent="handleAddToCart($event.target)"
                                                 x-show="cartQuantity() <= 0"
                                         >
@@ -694,7 +708,7 @@
                                             </x-ui.button>
                                         </form>
 
-                                        <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-96">
+                                        <div x-show="cartQuantity() > 0" x-cloak>
                                             <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
                                                 <button
                                                         type="button"
@@ -725,16 +739,6 @@
                                 </div>
                             @else
                                 <div class="mt-6 space-y-3">
-                                    <div class="mb-12">
-                                        @if($productDescriptionHtml !== '')
-                                            <article class="content text-gray-700">
-                                                {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
-                                            </article>
-                                        @elseif(trim((string) $product->short_description) !== '')
-                                            <p class="text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
-                                        @endif
-                                    </div>
-
                                     <form
                                             method="POST"
                                             action="{{ route('shop.cart.add', $product) }}"

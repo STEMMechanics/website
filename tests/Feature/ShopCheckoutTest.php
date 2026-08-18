@@ -252,6 +252,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Home Licence')
             ->assertSeeText('Classroom Licence')
             ->assertSeeText('Organisation Licence')
+            ->assertSee('x-text="currentSku()"', false)
             ->assertSeeText('For one classroom.')
             ->assertSeeText('For one school.')
             ->assertSeeText('Add to Cart')
@@ -260,7 +261,7 @@ class ShopCheckoutTest extends TestCase
             ->assertDontSee('id="product-variant-select"', false);
     }
 
-    public function test_physical_variant_without_inventory_shows_sold_out_on_product_page(): void
+    public function test_physical_variant_without_inventory_shows_as_unlimited_on_product_page(): void
     {
         /** @var Product $product */
         $product = Product::factory()->create([
@@ -280,13 +281,12 @@ class ShopCheckoutTest extends TestCase
             'sort_order' => 0,
         ]);
 
+        $this->assertTrue($product->isSelectionInStock($product->variants()->firstOrFail()));
+
         $this->get(route('shop.product.show', $product))
             ->assertOk()
             ->assertSeeText('Extended Kit')
-            ->assertSeeText('Out of stock')
-            ->assertSeeText('Sold out')
-            ->assertSee('fa-circle-xmark', false)
-            ->assertSee('text-red-700', false);
+            ->assertSeeText('In stock');
     }
 
     public function test_product_page_shows_variant_specific_backorder_dates(): void

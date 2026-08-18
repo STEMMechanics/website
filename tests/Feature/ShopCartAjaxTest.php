@@ -284,7 +284,7 @@ class ShopCartAjaxTest extends TestCase
             ->assertJsonPath('cart.lines.0.quantity', 3);
     }
 
-    public function test_physical_variant_without_inventory_cannot_be_added_when_not_preorder_or_backorder(): void
+    public function test_physical_variant_without_inventory_is_unlimited(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -300,13 +300,20 @@ class ShopCartAjaxTest extends TestCase
             'inventory_quantity' => null,
         ]);
 
-        $this->from(route('shop.product.show', $product))
+        $this->withHeaders([
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
             ->post(route('shop.cart.add', $product), [
                 'product_variant_id' => $variant->id,
-                'quantity' => 1,
+                'quantity' => 50,
             ])
-            ->assertRedirect(route('shop.product.show', $product))
-            ->assertSessionHasErrors('product_variant_id');
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('cart.lines.0.quantity', 50);
+
+        $this->assertFalse($product->tracksInventory($variant));
+        $this->assertNull($product->availableInventory($variant));
     }
 
     public function test_backorder_variant_without_inventory_can_be_purchased_when_variant_allows_backorder(): void
@@ -322,7 +329,7 @@ class ShopCartAjaxTest extends TestCase
             'product_id' => $product->id,
             'name' => 'Extended Kit',
             'price' => 29.95,
-            'inventory_quantity' => null,
+            'inventory_quantity' => 0,
             'allow_backorder' => true,
             'backorder_shipping_estimate' => '2026-05-01',
         ]);
@@ -354,7 +361,7 @@ class ShopCartAjaxTest extends TestCase
             'product_id' => $product->id,
             'name' => 'Extended Kit',
             'price' => 29.95,
-            'inventory_quantity' => null,
+            'inventory_quantity' => 0,
             'is_preorder' => true,
             'preorder_shipping_estimate' => '2026-05-15',
         ]);
