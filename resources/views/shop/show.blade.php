@@ -816,7 +816,15 @@
                 </div>
                 <aside class="order-first min-w-0 lg:order-last">
                     <div class="overflow-hidden rounded-3xl">
-                        <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-96 w-full object-cover" />
+                        <img
+                            src="{{ $product->primaryImageUrl('lg') }}"
+                            @if($product->hero)
+                                srcset="{{ $product->primaryImageUrl('md') }} 768w, {{ $product->primaryImageUrl('lg') }} 1024w, {{ $product->primaryImageUrl('xl') }} 1536w"
+                                sizes="(min-width: 1024px) 38vw, 100vw"
+                            @endif
+                            alt="{{ $product->title }}"
+                            class="max-h-96 w-full object-cover"
+                        />
                     </div>
                     <div class="mt-6 hidden lg:block">
                         @include('shop.partials.product-details-caution', ['product' => $product])

@@ -324,6 +324,16 @@
                 removeProductDetail(index) {
                     this.productDetails.splice(index, 1);
                 },
+                moveProductDetail(index, direction) {
+                    const targetIndex = index + direction;
+
+                    if (targetIndex < 0 || targetIndex >= this.productDetails.length) {
+                        return;
+                    }
+
+                    const [detail] = this.productDetails.splice(index, 1);
+                    this.productDetails.splice(targetIndex, 0, detail);
+                },
                 init() {
                     this.syncSlugFromTitle();
                     this.syncBaseSkuFromSlug();
@@ -442,7 +452,7 @@
                                 <tr>
                                     <th class="w-2/5 px-3 py-2">Detail</th>
                                     <th class="px-3 py-2">Value</th>
-                                    <th class="w-12 px-2 py-2"><span class="sr-only">Actions</span></th>
+                                    <th class="w-28 px-2 py-2"><span class="sr-only">Actions</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
@@ -455,6 +465,12 @@
                                             <input type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)">
                                         </td>
                                         <td class="p-0 text-center">
+                                            <button type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0" title="Move detail up" aria-label="Move detail up">
+                                                <i class="fa-solid fa-arrow-up text-xs" aria-hidden="true"></i>
+                                            </button>
+                                            <button type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="index === productDetails.length - 1" title="Move detail down" aria-label="Move detail down">
+                                                <i class="fa-solid fa-arrow-down text-xs" aria-hidden="true"></i>
+                                            </button>
                                             <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" x-on:click="removeProductDetail(index)" title="Remove detail" aria-label="Remove detail">
                                                 <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
                                             </button>

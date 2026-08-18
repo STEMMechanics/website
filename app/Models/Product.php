@@ -253,10 +253,12 @@ class Product extends Model
         return $this->files('downloads');
     }
 
-    public function primaryImageUrl(): string
+    public function primaryImageUrl(?string $variant = null): string
     {
         if ($this->hero instanceof Media) {
-            return (string) $this->hero->thumbnail;
+            return $variant === null
+                ? (string) $this->hero->thumbnail
+                : $this->hero->url($variant);
         }
 
         return asset('/thumbnails/unknown.webp');
