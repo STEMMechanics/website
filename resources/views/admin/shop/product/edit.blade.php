@@ -338,7 +338,8 @@
                     event.preventDefault();
                     this.addVariantProductDetail(variantIndex);
                     this.$nextTick(() => {
-                        this.$root.querySelector(`[data-variant-detail-key="${variantIndex}-${detailIndex + 1}"]`)?.focus();
+                        const inputs = Array.from(this.$root.querySelectorAll('[data-variant-detail-key]'));
+                        inputs.find((input) => input.dataset.variantDetailKey === `${variantIndex}-${detailIndex + 1}`)?.focus();
                     });
                 },
                 removeVariantProductDetail(variantIndex, detailIndex) {
