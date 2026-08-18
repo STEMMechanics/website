@@ -44,7 +44,9 @@ class AdminShopProductTest extends TestCase
             ->assertSee('Pack size')
             ->assertSee('Material')
             ->assertSee('Colour')
-            ->assertSee('Recommended age');
+            ->assertSee('Recommended age')
+            ->assertSee('Move detail up')
+            ->assertSee('Move detail down');
 
         $this->actingAs($admin)
             ->post(route('admin.shop.product.store'), [
