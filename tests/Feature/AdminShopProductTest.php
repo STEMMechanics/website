@@ -970,6 +970,52 @@ class AdminShopProductTest extends TestCase
         $this->assertSame('Starter Kit', $variant->fresh()->product->variantDisplayName(null));
     }
 
+    public function test_admin_can_save_variant_product_detail_overrides(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+        $product = Product::factory()->create([
+            'sku' => 'STRAWS-150',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 10,
+            'product_details' => [
+                ['key' => 'Pack size', 'value' => '150 straws'],
+                ['key' => 'SKU', 'value' => '{sku}'],
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.product.update', $product), [
+                'title' => $product->title,
+                'slug' => $product->slug,
+                'sku' => 'STRAWS-150',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '10.00',
+                'product_details' => $product->product_details,
+                'variants' => [[
+                    'name' => '500 pack',
+                    'sku' => 'STRAWS-500',
+                    'sort_order' => '0',
+                    'is_active' => '1',
+                    'product_details' => [
+                        ['key' => 'pack-size', 'value' => '500 straws'],
+                        ['key' => 'Bulk packaging', 'value' => 'Yes'],
+                    ],
+                ]],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame([
+            ['key' => 'pack-size', 'value' => '500 straws'],
+            ['key' => 'Bulk packaging', 'value' => 'Yes'],
+        ], $product->fresh()->variants()->firstOrFail()->product_details);
+    }
+
     public function test_admin_can_save_variant_specific_backorder_settings_and_clear_legacy_preorder_state(): void
     {
         $admin = User::factory()->create();

@@ -65,6 +65,10 @@
                     'id' => $variant->id,
                     'name' => $variant->name,
                     'description' => $variant->description,
+                    'product_details' => collect($variant->product_details ?? [])->map(fn ($detail) => [
+                        'key' => (string) data_get($detail, 'key', ''),
+                        'value' => (string) data_get($detail, 'value', ''),
+                    ])->values()->all(),
                     'sku' => $variant->sku,
                     'price' => $variant->price !== null ? number_format((float) $variant->price, 2, '.', '') : '',
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
@@ -95,6 +99,10 @@
 
                 return array_merge($variant, [
                     'description' => data_get($variant, 'description', ''),
+                    'product_details' => collect(data_get($variant, 'product_details', []))->map(fn ($detail) => [
+                        'key' => (string) data_get($detail, 'key', ''),
+                        'value' => (string) data_get($detail, 'value', ''),
+                    ])->values()->all(),
                     'allow_backorder' => (bool) data_get($variant, 'allow_backorder', data_get($variant, 'is_preorder', false)),
                     'backorder_shipping_estimate_type' => data_get($variant, 'backorder_shipping_estimate_type', data_get($variant, 'backorder_shipping_offset_days', '') !== '' ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC),
                     'backorder_shipping_estimate' => data_get($variant, 'backorder_shipping_estimate', data_get($variant, 'preorder_shipping_estimate', '')),
@@ -290,6 +298,7 @@
                         id: null,
                         name: '',
                         description: '',
+                        product_details: [],
                         sku: '',
                         price: '',
                         compare_at_price: '',
@@ -315,6 +324,25 @@
                         ...variant,
                         sort_order: variant.sort_order === '' || variant.sort_order === null ? currentIndex : variant.sort_order,
                     }));
+                },
+                addVariantProductDetail(index) {
+                    this.variants[index].product_details ??= [];
+                    this.variants[index].product_details.push({ key: '', value: '' });
+                },
+                addVariantProductDetailAfterTab(event, variantIndex, detailIndex) {
+                    const details = this.variants[variantIndex]?.product_details || [];
+                    if (event.shiftKey || detailIndex !== details.length - 1) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    this.addVariantProductDetail(variantIndex);
+                    this.$nextTick(() => {
+                        this.$root.querySelector(`[data-variant-detail-key="${variantIndex}-${detailIndex + 1}"]`)?.focus();
+                    });
+                },
+                removeVariantProductDetail(variantIndex, detailIndex) {
+                    this.variants[variantIndex].product_details.splice(detailIndex, 1);
                 },
                 addProductDetail() {
                     this.productDetails.push({ key: '', value: '' });
@@ -451,7 +479,7 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h3 class="text-sm font-semibold text-gray-900">Product Details</h3>
-                            <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age.</p>
+                            <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age. Values may include <code>{sku}</code>, which follows the selected variant.</p>
                         </div>
                         <x-ui.button type="button" color="outline" x-on:click="addProductDetail()">Add Detail</x-ui.button>
                     </div>
@@ -689,6 +717,43 @@
                             <div>
                                 <label class="mb-1 block pl-1 text-sm" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Details' : 'Variant Details'"></label>
                                 <textarea x-bind:class="variantTextareaClasses" :name="`variants[${index}][description]`" x-model="variant.description" :placeholder="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Describe who this licence tier covers and where it may be used.' : 'Optional extra notes for this option.'"></textarea>
+                            </div>
+
+                            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                                <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-100 px-3 py-2">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-gray-900">Product detail overrides</h3>
+                                        <p class="text-xs text-gray-500">Matching names replace the base value; new names are appended.</p>
+                                    </div>
+                                    <button type="button" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800" x-on:click="addVariantProductDetail(index)">Add detail</button>
+                                </div>
+                                <table class="w-full table-fixed border-collapse" x-show="(variant.product_details || []).length > 0" x-cloak>
+                                    <thead class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        <tr>
+                                            <th class="w-2/5 px-3 py-2">Detail</th>
+                                            <th class="px-3 py-2">Override value</th>
+                                            <th class="w-12 px-2 py-2"><span class="sr-only">Actions</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        <template x-for="(detail, detailIndex) in (variant.product_details || [])" :key="detailIndex">
+                                            <tr>
+                                                <td class="border-r border-gray-200 p-0">
+                                                    <input type="text" :name="`variants[${index}][product_details][${detailIndex}][key]`" x-model="detail.key" :data-variant-detail-key="`${index}-${detailIndex}`" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="e.g. Pack size">
+                                                </td>
+                                                <td class="border-r border-gray-200 p-0">
+                                                    <input type="text" :name="`variants[${index}][product_details][${detailIndex}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Variant value" x-on:keydown.tab="addVariantProductDetailAfterTab($event, index, detailIndex)">
+                                                </td>
+                                                <td class="p-0 text-center">
+                                                    <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" x-on:click="removeVariantProductDetail(index, detailIndex)" title="Remove detail" aria-label="Remove detail">
+                                                        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                                <p class="px-3 py-3 text-sm text-gray-500" x-show="(variant.product_details || []).length === 0">No detail overrides.</p>
                             </div>
 
                             <div class="grid gap-4 md:grid-cols-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
