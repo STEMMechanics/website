@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Jobs\SendEmail;
 use App\Mail\StoreLowStockAdminAlert;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StoreOrderItem;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
@@ -38,49 +39,55 @@ class SendStoreLowStockAlertsCommand extends Command
         $summaries = $this->inventorySummariesByProduct($productIds);
         $alertProducts = [];
         $alertProductIds = [];
+        $alertVariantIds = [];
 
         foreach ($products as $product) {
-            $available = $product->trackedInventoryTotal();
-            $threshold = $product->effectiveLowStockThreshold();
             $summary = $summaries[(int) $product->id] ?? [
                 'awaiting' => 0,
                 'reserved' => 0,
                 'backorder' => 0,
                 'preorder' => 0,
             ];
+            $notesExcerpt = ($notes = trim((string) ($product->private_notes ?? ''))) !== ''
+                ? Str::limit(str_replace(["\r\n", "\r"], "\n", $notes), 160)
+                : null;
+            $baseAvailable = $product->inventory_quantity !== null ? max(0, (int) $product->inventory_quantity) : null;
+            $baseThreshold = $product->effectiveLowStockThreshold();
+            $baseIsLow = $baseAvailable !== null && $baseThreshold !== null && $baseAvailable <= $baseThreshold;
 
-            $shouldAlert = $threshold !== null
-                && $available !== null
-                && $available <= $threshold;
+            if (! $baseIsLow && $product->low_stock_alert_sent_at !== null) {
+                $product->low_stock_alert_sent_at = null;
+                $product->save();
+            } elseif ($baseIsLow && $product->low_stock_alert_sent_at === null) {
+                $alertProducts[] = $this->alertEntry(
+                    $product->hasOptionChoices() ? $product->displayTitle() : (string) $product->title,
+                    $product,
+                    $baseAvailable,
+                    (int) $baseThreshold,
+                    $summary,
+                    $notesExcerpt,
+                );
+                $alertProductIds[] = (int) $product->id;
+            }
 
-            if (! $shouldAlert) {
-                if ($product->low_stock_alert_sent_at !== null) {
-                    $product->low_stock_alert_sent_at = null;
-                    $product->save();
+            foreach ($product->variants as $variant) {
+                $variantIsLow = $variant->is_active && $variant->isLowStock();
+
+                if (! $variantIsLow && $variant->low_stock_alert_sent_at !== null) {
+                    $variant->low_stock_alert_sent_at = null;
+                    $variant->save();
+                } elseif ($variantIsLow && $variant->low_stock_alert_sent_at === null) {
+                    $alertProducts[] = $this->alertEntry(
+                        $product->displayTitle($variant),
+                        $product,
+                        $variant->availableInventory(),
+                        (int) $variant->effectiveLowStockThreshold(),
+                        $summary,
+                        $notesExcerpt,
+                    );
+                    $alertVariantIds[] = (int) $variant->id;
                 }
-
-                continue;
             }
-
-            if ($product->low_stock_alert_sent_at !== null) {
-                continue;
-            }
-
-            $alertProducts[] = [
-                'title' => (string) $product->title,
-                'product_type_label' => Product::productTypeLabel((string) $product->product_type),
-                'available' => $available,
-                'low_stock_threshold' => $threshold,
-                'awaiting' => (int) ($summary['awaiting'] ?? 0),
-                'reserved' => (int) ($summary['reserved'] ?? 0),
-                'backorder' => (int) ($summary['backorder'] ?? 0),
-                'preorder' => (int) ($summary['preorder'] ?? 0),
-                'edit_url' => route('admin.shop.product.edit', $product),
-                'notes_excerpt' => ($notes = trim((string) ($product->private_notes ?? ''))) !== ''
-                    ? Str::limit(str_replace(["\r\n", "\r"], "\n", $notes), 160)
-                    : null,
-            ];
-            $alertProductIds[] = (int) $product->id;
         }
 
         $recipients = $this->adminRecipients();
@@ -109,9 +116,35 @@ class SendStoreLowStockAlertsCommand extends Command
                 'low_stock_alert_sent_at' => now(),
             ]);
 
+        if ($alertVariantIds !== []) {
+            ProductVariant::query()
+                ->whereIn('id', $alertVariantIds)
+                ->update(['low_stock_alert_sent_at' => now()]);
+        }
+
         $this->info('Queued '.count($recipients).' low-stock alert email(s) for '.count($alertProducts).' product(s).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  array{awaiting:int,reserved:int,backorder:int,preorder:int}  $summary
+     * @return array{title:string,product_type_label:string,available:int|null,low_stock_threshold:int,awaiting:int,reserved:int,backorder:int,preorder:int,edit_url:string,notes_excerpt:string|null}
+     */
+    private function alertEntry(string $title, Product $product, ?int $available, int $threshold, array $summary, ?string $notesExcerpt): array
+    {
+        return [
+            'title' => $title,
+            'product_type_label' => Product::productTypeLabel((string) $product->product_type),
+            'available' => $available,
+            'low_stock_threshold' => $threshold,
+            'awaiting' => (int) ($summary['awaiting'] ?? 0),
+            'reserved' => (int) ($summary['reserved'] ?? 0),
+            'backorder' => (int) ($summary['backorder'] ?? 0),
+            'preorder' => (int) ($summary['preorder'] ?? 0),
+            'edit_url' => route('admin.shop.product.edit', $product),
+            'notes_excerpt' => $notesExcerpt,
+        ];
     }
 
     /**

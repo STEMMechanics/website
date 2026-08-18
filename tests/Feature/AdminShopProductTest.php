@@ -174,6 +174,42 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_product_update_redirects_to_the_current_slug_after_sku_and_slug_change(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+        $product = Product::factory()->create([
+            'slug' => 'old-product-slug',
+            'sku' => 'OLD-SKU',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.shop.product.edit', $product))
+            ->put(route('admin.shop.product.update', $product), [
+                'title' => $product->title,
+                'slug' => 'new-product-slug',
+                'sku' => 'NEW-SKU',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+            ])
+            ->assertRedirect(route('admin.shop.product.edit', ['product' => 'new-product-slug']));
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'slug' => 'new-product-slug',
+            'sku' => 'NEW-SKU',
+        ]);
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.edit', ['product' => 'new-product-slug']))
+            ->assertOk();
+    }
+
     public function test_admin_can_rename_a_product_category_across_assigned_products(): void
     {
         $admin = User::factory()->create();
@@ -1022,7 +1058,7 @@ class AdminShopProductTest extends TestCase
         }
     }
 
-    public function test_physical_variants_use_base_pricing_and_packaging_even_if_override_values_are_posted(): void
+    public function test_physical_variants_can_override_pricing_weight_and_dimensions(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -1037,6 +1073,10 @@ class AdminShopProductTest extends TestCase
             'shipping_units' => 1.00,
             'min_satchel_rank' => 2,
             'box_only' => false,
+            'weight_grams' => 400,
+            'length_mm' => 200,
+            'width_mm' => 120,
+            'height_mm' => 50,
         ]);
 
         $this->actingAs($admin)
@@ -1059,6 +1099,10 @@ class AdminShopProductTest extends TestCase
                         'shipping_units' => '2.50',
                         'min_satchel_rank' => '4',
                         'weight_grams' => '900',
+                        'length_mm' => '300',
+                        'width_mm' => '180',
+                        'height_mm' => '90',
+                        'low_stock_threshold' => '3',
                         'box_only' => '1',
                         'sort_order' => '0',
                         'is_active' => '1',
@@ -1069,11 +1113,21 @@ class AdminShopProductTest extends TestCase
 
         $variant = $product->fresh()->variants()->firstOrFail();
 
-        $this->assertNull($variant->price);
-        $this->assertNull($variant->compare_at_price);
+        $this->assertSame('49.95', number_format((float) $variant->price, 2, '.', ''));
+        $this->assertSame('59.95', number_format((float) $variant->compare_at_price, 2, '.', ''));
         $this->assertNull($variant->shipping_units);
-        $this->assertNull($variant->weight_grams);
-        $this->assertSame('39.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
+        $this->assertSame(900, $variant->weight_grams);
+        $this->assertSame(300, $variant->length_mm);
+        $this->assertSame(180, $variant->width_mm);
+        $this->assertSame(90, $variant->height_mm);
+        $this->assertSame(3, $variant->low_stock_threshold);
+        $this->assertSame(3, $variant->effectiveLowStockThreshold());
+        $this->assertSame('49.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
+        $this->assertSame('59.95', number_format((float) $variant->effectiveCompareAtPrice(), 2, '.', ''));
+        $this->assertSame(900, $variant->effectiveWeightGrams());
+        $this->assertSame(300, $variant->effectiveLengthMm());
+        $this->assertSame(180, $variant->effectiveWidthMm());
+        $this->assertSame(90, $variant->effectiveHeightMm());
         $this->assertSame(2, $product->fresh()->minSatchelRankForVariant($variant->fresh()));
         $this->assertFalse($product->fresh()->boxOnlyForVariant($variant->fresh()));
     }

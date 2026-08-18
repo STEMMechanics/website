@@ -414,10 +414,6 @@ class Product extends Model
     public function tracksInventory(?ProductVariant $variant = null): bool
     {
         if ($variant instanceof ProductVariant) {
-            if ($this->isPhysical()) {
-                return true;
-            }
-
             return $variant->tracksInventory();
         }
 
@@ -427,10 +423,6 @@ class Product extends Model
     public function availableInventory(?ProductVariant $variant = null): ?int
     {
         if ($variant instanceof ProductVariant) {
-            if ($this->isPhysical() && $variant->inventory_quantity === null) {
-                return 0;
-            }
-
             return $variant->availableInventory();
         }
 

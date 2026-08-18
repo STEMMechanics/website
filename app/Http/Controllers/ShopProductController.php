@@ -99,7 +99,7 @@ class ShopProductController extends Controller
         session()->flash('message-title', 'Product updated');
         session()->flash('message-type', 'success');
 
-        return redirect()->back();
+        return redirect()->route('admin.shop.product.edit', $product);
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -194,6 +194,11 @@ class ShopProductController extends Controller
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
+            'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
+            'variants.*.length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'variants.*.width_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'variants.*.height_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:1'],
             'variants.*.allow_backorder' => ['nullable', 'boolean'],
             'variants.*.backorder_shipping_estimate_type' => ['nullable', Rule::in([
                 Product::BACKORDER_SHIPPING_ESTIMATE_STATIC,
@@ -326,7 +331,11 @@ class ShopProductController extends Controller
         $freshProduct = $product->fresh('variants');
         $this->allocateRestockedInventory($freshProduct, $previousProductInventory, $previousVariantInventory, $allocator);
 
-        if ($freshProduct instanceof Product && ! $freshProduct->isLowStock()) {
+        if ($freshProduct instanceof Product
+            && ($freshProduct->inventory_quantity === null
+                || $freshProduct->effectiveLowStockThreshold() === null
+                || (int) $freshProduct->inventory_quantity > $freshProduct->effectiveLowStockThreshold())
+        ) {
             $freshProduct->low_stock_alert_sent_at = null;
             $freshProduct->save();
         }
@@ -468,6 +477,11 @@ class ShopProductController extends Controller
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
+                    'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
+                    'length_mm' => ($variant['length_mm'] ?? '') !== '' ? (int) $variant['length_mm'] : null,
+                    'width_mm' => ($variant['width_mm'] ?? '') !== '' ? (int) $variant['width_mm'] : null,
+                    'height_mm' => ($variant['height_mm'] ?? '') !== '' ? (int) $variant['height_mm'] : null,
+                    'low_stock_threshold' => ($variant['low_stock_threshold'] ?? '') !== '' ? (int) $variant['low_stock_threshold'] : null,
                     'allow_backorder' => filter_var($variant['allow_backorder'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'backorder_shipping_estimate_type' => $this->backorderShippingEstimateType(
                         isset($variant['backorder_shipping_estimate_type']) ? (string) $variant['backorder_shipping_estimate_type'] : null,
@@ -487,6 +501,11 @@ class ShopProductController extends Controller
                     || $variant['price'] !== null
                     || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
+                    || $variant['weight_grams'] !== null
+                    || $variant['length_mm'] !== null
+                    || $variant['width_mm'] !== null
+                    || $variant['height_mm'] !== null
+                    || $variant['low_stock_threshold'] !== null
                     || $variant['allow_backorder']
                     || $variant['backorder_shipping_estimate'] !== null
                     || $variant['backorder_shipping_offset_days'] !== null;
@@ -569,12 +588,12 @@ class ShopProductController extends Controller
             $variant->name = $variantData['name'];
             $variant->description = $variantData['description'] !== '' ? $variantData['description'] : null;
             $variant->sku = $variantData['sku'] !== '' ? $variantData['sku'] : null;
-            $variant->price = $isDigital ? $variantData['price'] : null;
-            $variant->compare_at_price = $isDigital ? $variantData['compare_at_price'] : null;
+            $variant->price = $variantData['price'];
+            $variant->compare_at_price = $variantData['compare_at_price'];
             $variant->shipping_rate = null;
             $variant->shipping_units = null;
             $variant->inventory_quantity = $isDigital ? null : $variantData['inventory_quantity'];
-            $variant->weight_grams = null;
+            $variant->weight_grams = $isDigital ? null : $variantData['weight_grams'];
             $variant->is_preorder = false;
             $variant->preorder_shipping_estimate = null;
             $variant->allow_backorder = $isDigital ? false : (bool) $variantData['allow_backorder'];
@@ -587,12 +606,18 @@ class ShopProductController extends Controller
             $variant->backorder_shipping_offset_days = ! $isDigital && $variantData['allow_backorder'] && $variantData['backorder_shipping_estimate_type'] === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC
                 ? $variantData['backorder_shipping_offset_days']
                 : null;
-            $variant->length_mm = null;
-            $variant->width_mm = null;
-            $variant->height_mm = null;
+            $variant->length_mm = $isDigital ? null : $variantData['length_mm'];
+            $variant->width_mm = $isDigital ? null : $variantData['width_mm'];
+            $variant->height_mm = $isDigital ? null : $variantData['height_mm'];
+            $variant->low_stock_threshold = $isDigital ? null : $variantData['low_stock_threshold'];
             $variant->is_active = (bool) $variantData['is_active'];
             $variant->sort_order = (int) $variantData['sort_order'];
             $variant->save();
+
+            if (! $variant->isLowStock() && $variant->low_stock_alert_sent_at !== null) {
+                $variant->low_stock_alert_sent_at = null;
+                $variant->save();
+            }
 
             $submittedIds[] = (int) $variant->id;
         }

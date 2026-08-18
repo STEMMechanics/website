@@ -105,10 +105,11 @@ class ShopVariantCouponStockTest extends TestCase
         $this->assertSame('regular', $order->shipping_method_code);
         $this->assertSame('1 x Medium', $order->shipping_package_summary);
         $this->assertSame(12.95, round((float) $order->shipping_amount, 2));
-        $this->assertSame(42.95, round((float) $order->total_amount, 2));
+        $this->assertSame(52.95, round((float) $order->total_amount, 2));
         $this->assertSame($variant->id, $item->product_variant_id);
         $this->assertSame('Large Kit', $item->variant_name);
         $this->assertSame('1.00', number_format((float) $item->unit_shipping_units, 2, '.', ''));
+        $this->assertSame(800, $item->unit_weight_grams);
         $this->assertSame(2, (int) $item->inventory_reserved_quantity);
         $this->assertSame(3, (int) $variant->fresh()->inventory_quantity);
 

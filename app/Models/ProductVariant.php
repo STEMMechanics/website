@@ -34,6 +34,8 @@ class ProductVariant extends Model
         'height_mm',
         'is_active',
         'sort_order',
+        'low_stock_threshold',
+        'low_stock_alert_sent_at',
     ];
 
     protected $casts = [
@@ -53,6 +55,8 @@ class ProductVariant extends Model
         'height_mm' => 'integer',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'low_stock_threshold' => 'integer',
+        'low_stock_alert_sent_at' => 'datetime',
     ];
 
     /**
@@ -79,21 +83,12 @@ class ProductVariant extends Model
     public function effectivePrice(): float
     {
         $product = $this->product;
-        if ($product instanceof Product && $product->isPhysical()) {
-            return round((float) $product->price, 2);
-        }
 
         return round((float) ($this->price ?? ($product instanceof Product ? $product->price : 0)), 2);
     }
 
     public function effectiveCompareAtPrice(): ?float
     {
-        if ($this->product instanceof Product && $this->product->isPhysical()) {
-            $value = $this->product->compare_at_price;
-
-            return $value !== null ? round((float) $value, 2) : null;
-        }
-
         $value = $this->compare_at_price;
         if ($value === null) {
             $value = $this->product?->compare_at_price;
@@ -128,28 +123,28 @@ class ProductVariant extends Model
 
     public function effectiveWeightGrams(): ?int
     {
-        $value = $this->product?->weight_grams;
+        $value = $this->weight_grams ?? $this->product?->weight_grams;
 
         return $value !== null ? (int) $value : null;
     }
 
     public function effectiveLengthMm(): ?int
     {
-        $value = $this->product?->length_mm;
+        $value = $this->length_mm ?? $this->product?->length_mm;
 
         return $value !== null ? (int) $value : null;
     }
 
     public function effectiveWidthMm(): ?int
     {
-        $value = $this->product?->width_mm;
+        $value = $this->width_mm ?? $this->product?->width_mm;
 
         return $value !== null ? (int) $value : null;
     }
 
     public function effectiveHeightMm(): ?int
     {
-        $value = $this->product?->height_mm;
+        $value = $this->height_mm ?? $this->product?->height_mm;
 
         return $value !== null ? (int) $value : null;
     }
@@ -162,6 +157,21 @@ class ProductVariant extends Model
     public function availableInventory(): ?int
     {
         return $this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null;
+    }
+
+    public function effectiveLowStockThreshold(): ?int
+    {
+        $value = $this->low_stock_threshold ?? $this->product?->effectiveLowStockThreshold();
+
+        return $value !== null && (int) $value > 0 ? (int) $value : null;
+    }
+
+    public function isLowStock(): bool
+    {
+        $available = $this->availableInventory();
+        $threshold = $this->effectiveLowStockThreshold();
+
+        return $available !== null && $threshold !== null && $available <= $threshold;
     }
 
     public function isInStock(): bool
