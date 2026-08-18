@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
-use App\Jobs\SendEmail;
 use App\Jobs\SendDeferredStoreOrderEmail;
+use App\Jobs\SendEmail;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
-use App\Mail\StoreQuoteRequestAdminNotification;
-use App\Mail\StoreOrderAdminUpdateNotice;
 use App\Mail\StoreOrderAdminNotification;
+use App\Mail\StoreOrderAdminUpdateNotice;
 use App\Mail\StoreOrderConfirmation;
 use App\Mail\StoreOrderCustomerUpdateNotice;
 use App\Mail\StoreOrderPaid;
+use App\Mail\StoreQuoteRequestAdminNotification;
 use App\Models\Coupon;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -20,17 +20,17 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
-use App\Models\SquareRefundOperation;
 use App\Models\SentEmail;
+use App\Models\SquareRefundOperation;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
-use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemCancellation;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
 use App\Models\User;
-use App\Support\ShopShippingSettings;
 use App\Support\InvoiceDueDate;
+use App\Support\ShopShippingSettings;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -190,7 +190,7 @@ class StoreOrderService
             $checkout = $this->prepareCheckout($lines, $customer, $user, true);
             $quoteLineItems = $this->storeQuoteLineItems($checkout['lines'], $checkout['totals']);
 
-            $quote = new Quote();
+            $quote = new Quote;
             $quote->quote_number = $this->documentNumbers->nextQuoteNumber();
             $quote->user_id = $user?->id;
             $quote->status = Quote::STATUS_DRAFT;
@@ -310,6 +310,9 @@ class StoreOrderService
                     'unit_shipping_units' => round((float) ($product->shippingUnitsForVariant($variant) ?? ($storeContext['unit_shipping_units'] ?? 0)), 3),
                     'unit_min_satchel_rank' => $product->minSatchelRankForVariant($variant) ?? ($storeContext['unit_min_satchel_rank'] ?? null),
                     'unit_weight_grams' => $product->weightGramsForVariant($variant) ?? ($storeContext['unit_weight_grams'] ?? null),
+                    'unit_length_mm' => $product->lengthMmForVariant($variant) ?? ($storeContext['unit_length_mm'] ?? null),
+                    'unit_width_mm' => $product->widthMmForVariant($variant) ?? ($storeContext['unit_width_mm'] ?? null),
+                    'unit_height_mm' => $product->heightMmForVariant($variant) ?? ($storeContext['unit_height_mm'] ?? null),
                     'unit_price_inc_tax' => round($unitPriceExTax * (1 + $taxRate), 2),
                     'unit_price_ex_tax' => $unitPriceExTax,
                     'line_total_inc_tax' => round($lineTotalExTax * (1 + $taxRate), 2),
@@ -347,7 +350,7 @@ class StoreOrderService
                 ? trim((string) $shippingLines->first()->description)
                 : 'Quoted shipping';
 
-            $order = new StoreOrder();
+            $order = new StoreOrder;
             $order->order_number = $this->documentNumbers->nextStoreOrderNumber();
             $order->access_token = Str::random(40);
             $order->user_id = $quote->user_id;
@@ -406,7 +409,7 @@ class StoreOrderService
                 /** @var InvoiceLine|null $invoiceLine */
                 $invoiceLine = $payload['invoice_line'];
 
-                $orderItem = new StoreOrderItem();
+                $orderItem = new StoreOrderItem;
                 $orderItem->store_order_id = $order->id;
                 $orderItem->product_id = $product->id;
                 $orderItem->product_variant_id = $variant?->id;
@@ -432,9 +435,9 @@ class StoreOrderService
                 $orderItem->unit_shipping_rate = 0;
                 $orderItem->tax_rate = (float) $payload['tax_rate'];
                 $orderItem->unit_weight_grams = $payload['unit_weight_grams'];
-                $orderItem->unit_length_cm = null;
-                $orderItem->unit_width_cm = null;
-                $orderItem->unit_height_cm = null;
+                $orderItem->unit_length_mm = $payload['unit_length_mm'];
+                $orderItem->unit_width_mm = $payload['unit_width_mm'];
+                $orderItem->unit_height_mm = $payload['unit_height_mm'];
                 $orderItem->line_price_amount = round((float) $payload['line_total_inc_tax'], 2);
                 $orderItem->line_shipping_amount = 0;
                 $orderItem->line_gst_amount = round((float) $payload['line_gst_amount'], 2);
@@ -586,8 +589,7 @@ class StoreOrderService
         ?string $publicNotes = null,
         bool $suppressAdminNotifications = false,
         bool $suppressCustomerNotifications = false
-    ): StoreOrder
-    {
+    ): StoreOrder {
         $result = DB::transaction(function () use ($order, $status, $notes, $publicNotes): array {
             /** @var StoreOrder $lockedOrder */
             $lockedOrder = StoreOrder::query()
@@ -718,7 +720,7 @@ class StoreOrderService
 
             $lockedItem->save();
 
-            $cancellation = new StoreOrderItemCancellation();
+            $cancellation = new StoreOrderItemCancellation;
             $cancellation->store_order_item_id = $lockedItem->id;
             $cancellation->cancelled_by_user_id = $actingUser?->id;
             $cancellation->available_quantity = $availableQuantity;
@@ -880,8 +882,7 @@ class StoreOrderService
         StoreOrderItem $item,
         array $payload,
         bool $suppressAdminNotifications = false
-    ): array
-    {
+    ): array {
         $summary = DB::transaction(function () use ($order, $item, $payload): array {
             $lockedItem = $this->lockOrderItemForUpdate($order, $item);
 
@@ -950,7 +951,7 @@ class StoreOrderService
                 $lockedItem->save();
             }
 
-            $tracking = new StoreOrderItemTracking();
+            $tracking = new StoreOrderItemTracking;
             $tracking->store_order_item_id = $lockedItem->id;
             $tracking->shipment_type = $shipmentType;
             $tracking->quantity = $quantity;
@@ -989,8 +990,7 @@ class StoreOrderService
         array $payload,
         ?User $actingUser = null,
         bool $suppressAdminNotifications = false
-    ): array
-    {
+    ): array {
         $summary = DB::transaction(function () use ($order, $item, $payload, $actingUser): array {
             $lockedItem = $this->lockOrderItemForUpdate($order, $item);
             $pickupState = trim((string) ($payload['pickup_state'] ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
@@ -1064,7 +1064,7 @@ class StoreOrderService
                     ]);
                 }
 
-                $collection = new StoreOrderItemCollection();
+                $collection = new StoreOrderItemCollection;
                 $collection->store_order_item_id = $lockedItem->id;
                 $collection->collection_type = $collectionType;
                 $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_READY;
@@ -1118,7 +1118,7 @@ class StoreOrderService
                         $readyEntry->quantity = max(0, $readyQuantity - $consumeQuantity);
                         $readyEntry->save();
 
-                        $collection = new StoreOrderItemCollection();
+                        $collection = new StoreOrderItemCollection;
                         $collection->store_order_item_id = $lockedItem->id;
                         $collection->collection_type = $collectionType;
                         $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
@@ -1142,7 +1142,7 @@ class StoreOrderService
                     ]);
                 }
 
-                $collection = new StoreOrderItemCollection();
+                $collection = new StoreOrderItemCollection;
                 $collection->store_order_item_id = $lockedItem->id;
                 $collection->collection_type = $collectionType;
                 $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
@@ -1197,8 +1197,7 @@ class StoreOrderService
         ?User $actingUser = null,
         bool $suppressAdminNotifications = false,
         bool $suppressCustomerNotifications = false
-    ): array
-    {
+    ): array {
         $normalizedActions = $this->normalizeQueuedOrderItemActions($actions);
         if ($normalizedActions === []) {
             return [
@@ -1771,7 +1770,7 @@ class StoreOrderService
 
         $item->save();
 
-        $cancellation = new StoreOrderItemCancellation();
+        $cancellation = new StoreOrderItemCancellation;
         $cancellation->store_order_item_id = $item->id;
         $cancellation->cancelled_by_user_id = $actingUser?->id;
         $cancellation->available_quantity = $availableQuantity;
@@ -1875,7 +1874,7 @@ class StoreOrderService
                 ]);
             }
 
-            $collection = new StoreOrderItemCollection();
+            $collection = new StoreOrderItemCollection;
             $collection->store_order_item_id = $item->id;
             $collection->collection_type = $collectionType;
             $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_READY;
@@ -1933,7 +1932,7 @@ class StoreOrderService
                     $readyEntry->quantity = max(0, $readyQuantity - $consumeQuantity);
                     $readyEntry->save();
 
-                    $collection = new StoreOrderItemCollection();
+                    $collection = new StoreOrderItemCollection;
                     $collection->store_order_item_id = $item->id;
                     $collection->collection_type = $collectionType;
                     $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
@@ -1957,7 +1956,7 @@ class StoreOrderService
                 ]);
             }
 
-            $collection = new StoreOrderItemCollection();
+            $collection = new StoreOrderItemCollection;
             $collection->store_order_item_id = $item->id;
             $collection->collection_type = $collectionType;
             $collection->pickup_state = StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
@@ -2040,7 +2039,7 @@ class StoreOrderService
             ]);
         }
 
-        $tracking = new StoreOrderItemTracking();
+        $tracking = new StoreOrderItemTracking;
         $tracking->store_order_item_id = $item->id;
         $tracking->shipment_type = $shipmentType;
         $tracking->quantity = $quantity;
@@ -2113,7 +2112,7 @@ class StoreOrderService
             ->unique()
             ->values();
 
-        $adjustment = new TaxAdjustment();
+        $adjustment = new TaxAdjustment;
         $adjustment->invoice_id = $invoice->id;
         $adjustment->adjustment_number = $this->documentNumbers->nextTaxAdjustmentNumber();
         $adjustment->issue_date = now()->startOfDay();
@@ -2154,8 +2153,7 @@ class StoreOrderService
         iterable $eventIds,
         bool $suppressAdminNotifications = false,
         bool $suppressCustomerNotifications = false
-    ): void
-    {
+    ): void {
         $customerPayload = $this->orderUpdates->payloadForEvents($eventIds, false);
         $customerRecipient = strtolower(trim((string) $order->billing_email));
         if (! $suppressCustomerNotifications && $customerPayload !== null && $customerPayload['orders'] !== [] && $customerRecipient !== '' && filter_var($customerRecipient, FILTER_VALIDATE_EMAIL)) {
@@ -2418,7 +2416,7 @@ class StoreOrderService
         $gst = round((float) $creditLines->sum('tax_amount'), 2);
         $total = round((float) $creditLines->sum('line_total_inc_tax'), 2);
 
-        $adjustment = new TaxAdjustment();
+        $adjustment = new TaxAdjustment;
         $adjustment->invoice_id = $invoice->id;
         $adjustment->adjustment_number = $this->documentNumbers->nextTaxAdjustmentNumber();
         $adjustment->issue_date = now()->startOfDay();
@@ -2616,6 +2614,7 @@ class StoreOrderService
 
             if ($operation->status === SquareRefundOperation::STATUS_COMPLETED) {
                 $refundedCents += (int) $operation->refunded_cents;
+
                 continue;
             }
 
@@ -2625,6 +2624,7 @@ class StoreOrderService
                 $operation->failure_message = 'Customer payment record is missing.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -2633,6 +2633,7 @@ class StoreOrderService
                 $operation->failure_message = 'Square integration is not enabled.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -2641,6 +2642,7 @@ class StoreOrderService
                 $operation->failure_message = 'Square payment id is missing on the customer payment.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -2651,6 +2653,7 @@ class StoreOrderService
                 $operation->failure_message = 'No remaining refundable Square balance on the payment.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -2742,7 +2745,7 @@ class StoreOrderService
             return $existing;
         }
 
-        $refundPayment = new Payment();
+        $refundPayment = new Payment;
         $refundPayment->refund_of_payment_id = $originalPayment->id;
         $refundPayment->kind = Payment::KIND_REFUND;
         $refundPayment->user_id = $originalPayment->user_id;
@@ -3025,11 +3028,10 @@ class StoreOrderService
         ?string $forcedStatus = null,
         bool $reserveInventory = true,
         ?string $paymentMethod = null,
-    ): StoreOrder
-    {
+    ): StoreOrder {
         $invoice = null;
         if ($createInvoice) {
-            $invoice = new Invoice();
+            $invoice = new Invoice;
             $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
             $invoice->user_id = $user?->id;
             $invoice->billing_name = $customer['billing_name'];
@@ -3052,7 +3054,7 @@ class StoreOrderService
             $invoice->save();
         }
 
-        $order = new StoreOrder();
+        $order = new StoreOrder;
         $order->order_number = $this->documentNumbers->nextStoreOrderNumber();
         $order->access_token = Str::random(40);
         $order->user_id = $user?->id;
@@ -3107,7 +3109,7 @@ class StoreOrderService
 
             $invoiceLine = null;
             if ($invoice instanceof Invoice) {
-                $invoiceLine = new InvoiceLine();
+                $invoiceLine = new InvoiceLine;
                 $invoiceLine->invoice_id = $invoice->id;
                 $invoiceLine->line_number = $lineNumber++;
                 $invoiceLine->kind = 'product';
@@ -3125,7 +3127,7 @@ class StoreOrderService
 
             $reservedQuantity = $reserveInventory ? $this->reserveInventoryForPreparedLine($line) : 0;
 
-            $orderItem = new StoreOrderItem();
+            $orderItem = new StoreOrderItem;
             $orderItem->store_order_id = $order->id;
             $orderItem->product_id = $line->product->id;
             $orderItem->product_variant_id = $line->variant?->id;
@@ -3153,9 +3155,9 @@ class StoreOrderService
             $orderItem->unit_shipping_rate = 0;
             $orderItem->tax_rate = (float) $line->tax_rate;
             $orderItem->unit_weight_grams = $line->unit_weight_grams;
-            $orderItem->unit_length_cm = null;
-            $orderItem->unit_width_cm = null;
-            $orderItem->unit_height_cm = null;
+            $orderItem->unit_length_mm = $line->unit_length_mm;
+            $orderItem->unit_width_mm = $line->unit_width_mm;
+            $orderItem->unit_height_mm = $line->unit_height_mm;
             $orderItem->line_price_amount = round((float) $line->line_price, 2);
             $orderItem->line_shipping_amount = 0;
             $orderItem->line_gst_amount = round((float) $line->line_gst, 2);
@@ -3228,7 +3230,7 @@ class StoreOrderService
             ]);
         }
 
-        $customerPayment = new Payment();
+        $customerPayment = new Payment;
         $customerPayment->user_id = $order->user_id;
         $customerPayment->created_by = $actingUser?->id;
         $customerPayment->kind = Payment::KIND_PAYMENT;
@@ -3372,6 +3374,9 @@ class StoreOrderService
                     'unit_min_satchel_rank' => $product->isPhysical() ? $product->minSatchelRankForVariant($variant) : null,
                     'box_only' => $product->isPhysical() ? $product->boxOnlyForVariant($variant) : false,
                     'unit_weight_grams' => $product->isPhysical() ? $product->weightGramsForVariant($variant) : null,
+                    'unit_length_mm' => $product->isPhysical() ? $product->lengthMmForVariant($variant) : null,
+                    'unit_width_mm' => $product->isPhysical() ? $product->widthMmForVariant($variant) : null,
+                    'unit_height_mm' => $product->isPhysical() ? $product->heightMmForVariant($variant) : null,
                     'available_now_inventory' => $actualInventory,
                     'available_now_quantity' => $fulfilment['available_now_quantity'],
                     'delayed_quantity' => $fulfilment['delayed_quantity'],
@@ -3624,7 +3629,7 @@ class StoreOrderService
             return $user;
         }
 
-        $user = new User();
+        $user = new User;
         $user->email = $email;
         $nameParts = preg_split('/\s+/', trim((string) ($customer['billing_name'] ?? ''))) ?: [];
         $user->firstname = $nameParts[0] ?? null;
@@ -3960,7 +3965,7 @@ class StoreOrderService
         if ($gatewayProcessedAtRaw !== '') {
             try {
                 $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 $gatewayProcessedAtLabel = '';
             }
         }
@@ -4372,7 +4377,7 @@ class StoreOrderService
 
         try {
             return Carbon::parse($raw)->setTimezone((string) config('app.timezone'));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

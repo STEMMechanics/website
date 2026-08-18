@@ -7,15 +7,15 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrderItem;
 use App\Services\StoreInventoryAllocatorService;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Illuminate\Support\Str;
 
 class ShopProductController extends Controller
 {
@@ -70,7 +70,7 @@ class ShopProductController extends Controller
 
     public function store(Request $request, StoreInventoryAllocatorService $allocator): RedirectResponse
     {
-        $product = new Product();
+        $product = new Product;
         $this->saveProduct($request, $product, $allocator);
 
         session()->flash('message', 'Product has been created.');
@@ -163,6 +163,10 @@ class ShopProductController extends Controller
             'backorder_shipping_offset_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
+            'product_details' => ['nullable', 'array', 'max:30'],
+            'product_details.*.key' => ['nullable', 'string', 'max:120'],
+            'product_details.*.value' => ['nullable', 'string', 'max:500'],
+            'caution_message' => ['nullable', 'string', 'max:1000'],
             'base_variant_name' => ['nullable', 'string', 'max:120'],
             'base_variant_description' => ['nullable', 'string', 'max:2000'],
             'private_notes' => ['nullable', 'string'],
@@ -173,6 +177,9 @@ class ShopProductController extends Controller
             'shipping_units' => ['nullable', 'numeric', 'min:0'],
             'min_satchel_rank' => ['nullable', 'integer', Rule::in($satchelRanks)],
             'weight_grams' => ['nullable', 'integer', 'min:0'],
+            'length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'width_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'height_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'box_only' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -274,6 +281,15 @@ class ShopProductController extends Controller
                 : null,
             'short_description' => trim((string) ($validated['short_description'] ?? '')) ?: null,
             'description' => trim((string) ($validated['description'] ?? '')) ?: null,
+            'product_details' => collect($validated['product_details'] ?? [])
+                ->map(fn (array $detail): array => [
+                    'key' => trim((string) ($detail['key'] ?? '')),
+                    'value' => trim((string) ($detail['value'] ?? '')),
+                ])
+                ->filter(fn (array $detail): bool => $detail['key'] !== '')
+                ->values()
+                ->all() ?: null,
+            'caution_message' => trim((string) ($validated['caution_message'] ?? '')) ?: null,
             'base_variant_name' => trim((string) ($validated['base_variant_name'] ?? '')) ?: null,
             'base_variant_description' => trim((string) ($validated['base_variant_description'] ?? '')) ?: null,
             'private_notes' => trim((string) ($validated['private_notes'] ?? '')) ?: null,
@@ -287,9 +303,9 @@ class ShopProductController extends Controller
             'min_satchel_rank' => $isDigital ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
             'weight_grams' => $isDigital ? null : ($validated['weight_grams'] ?? null),
             'box_only' => $isDigital ? false : $request->boolean('box_only'),
-            'length_cm' => null,
-            'width_cm' => null,
-            'height_cm' => null,
+            'length_mm' => $isDigital ? null : ($validated['length_mm'] ?? null),
+            'width_mm' => $isDigital ? null : ($validated['width_mm'] ?? null),
+            'height_mm' => $isDigital ? null : ($validated['height_mm'] ?? null),
             'is_featured' => $isFeatured,
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
             'low_stock_threshold' => $isDigital ? null : ($validated['low_stock_threshold'] ?? 5),
@@ -328,7 +344,7 @@ class ShopProductController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      * @return Collection<int, ProductCategory>
      */
     private function resolveSelectedCategories(array $validated, string $legacyCategory): Collection
@@ -571,9 +587,9 @@ class ShopProductController extends Controller
             $variant->backorder_shipping_offset_days = ! $isDigital && $variantData['allow_backorder'] && $variantData['backorder_shipping_estimate_type'] === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC
                 ? $variantData['backorder_shipping_offset_days']
                 : null;
-            $variant->length_cm = null;
-            $variant->width_cm = null;
-            $variant->height_cm = null;
+            $variant->length_mm = null;
+            $variant->width_mm = null;
+            $variant->height_mm = null;
             $variant->is_active = (bool) $variantData['is_active'];
             $variant->sort_order = (int) $variantData['sort_order'];
             $variant->save();

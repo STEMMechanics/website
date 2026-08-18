@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Product;
 use App\Models\SiteOption;
+use App\Models\StoreShippingMethod;
 use App\Services\StoreShippingService;
 use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +14,49 @@ use Tests\TestCase;
 class StoreShippingServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_it_packs_rectangular_products_using_internal_box_dimensions(): void
+    {
+        $this->configureDimensionBoxes();
+
+        $quote = $this->service()->quote(collect([
+            $this->line('Parts tray', ['length_mm' => 200, 'width_mm' => 150, 'height_mm' => 30, 'weight_grams' => 400], 2),
+        ]));
+
+        $this->assertTrue($quote['can_checkout']);
+        $this->assertSame('1 x 220 × 160 × 70 mm Box', $quote['package_summary']);
+        $this->assertSame(12.38, round((float) $quote['amount'], 2));
+        $this->assertSame(1, $quote['parcel_count']);
+    }
+
+    public function test_dimension_packing_rotates_items_and_splits_on_weight(): void
+    {
+        $this->configureDimensionBoxes();
+
+        $rotated = $this->service()->quote(collect([
+            $this->line('Rotated item', ['length_mm' => 160, 'width_mm' => 70, 'height_mm' => 220, 'weight_grams' => 500]),
+        ]));
+        $heavy = $this->service()->quote(collect([
+            $this->line('Heavy item', ['length_mm' => 100, 'width_mm' => 100, 'height_mm' => 50, 'weight_grams' => 3000], 2),
+        ]));
+
+        $this->assertTrue($rotated['can_checkout']);
+        $this->assertSame('1 x 220 × 160 × 70 mm Box', $rotated['package_summary']);
+        $this->assertSame(2, $heavy['parcel_count']);
+        $this->assertSame(24.76, round((float) $heavy['amount'], 2));
+    }
+
+    public function test_dimension_packing_requires_all_product_measurements(): void
+    {
+        $this->configureDimensionBoxes();
+
+        $quote = $this->service()->quote(collect([
+            $this->line('Unmeasured item', ['length_mm' => 100, 'width_mm' => 100, 'weight_grams' => 200]),
+        ]));
+
+        $this->assertFalse($quote['can_checkout']);
+        $this->assertSame('Some physical products do not have packed dimensions and weight configured.', $quote['reason']);
+    }
 
     public function test_it_packs_small_items_into_the_smallest_package(): void
     {
@@ -287,6 +331,9 @@ class StoreShippingServiceTest extends TestCase
             'unit_shipping_units' => (float) ($attributes['shipping_units'] ?? 0),
             'unit_min_satchel_rank' => (int) ($attributes['min_satchel_rank'] ?? 1),
             'unit_weight_grams' => $attributes['weight_grams'] ?? null,
+            'unit_length_mm' => $attributes['length_mm'] ?? null,
+            'unit_width_mm' => $attributes['width_mm'] ?? null,
+            'unit_height_mm' => $attributes['height_mm'] ?? null,
             'box_only' => (bool) ($attributes['box_only'] ?? false),
             'available_now_quantity' => $attributes['available_now_quantity'] ?? $quantity,
             'delayed_quantity' => $attributes['delayed_quantity'] ?? 0,
@@ -295,5 +342,18 @@ class StoreShippingServiceTest extends TestCase
             'is_preorder' => (bool) ($attributes['is_preorder'] ?? false),
             'unit_price' => 0,
         ];
+    }
+
+    private function configureDimensionBoxes(): void
+    {
+        $method = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $method->packageOptions()->delete();
+        foreach (config('store.shipping.boxes') as $box) {
+            $method->packageOptions()->create([
+                'code' => $box['code'], 'label' => $box['label'], 'sort_order' => $box['rank'], 'capacity' => 1,
+                'internal_length_mm' => $box['length_mm'], 'internal_width_mm' => $box['width_mm'], 'internal_height_mm' => $box['height_mm'],
+                'max_weight_grams' => $box['max_weight_grams'], 'price' => $box['price'], 'is_active' => true,
+            ]);
+        }
     }
 }

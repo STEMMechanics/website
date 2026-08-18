@@ -59,6 +59,8 @@ class Product extends Model
         'backorder_shipping_offset_days',
         'short_description',
         'description',
+        'product_details',
+        'caution_message',
         'base_variant_name',
         'base_variant_description',
         'private_notes',
@@ -72,9 +74,9 @@ class Product extends Model
         'min_satchel_rank',
         'weight_grams',
         'box_only',
-        'length_cm',
-        'width_cm',
-        'height_cm',
+        'length_mm',
+        'width_mm',
+        'height_mm',
         'is_featured',
         'sort_order',
         'low_stock_threshold',
@@ -92,13 +94,14 @@ class Product extends Model
         'backorder_shipping_estimate' => 'date',
         'backorder_shipping_offset_days' => 'integer',
         'inventory_quantity' => 'integer',
+        'product_details' => 'array',
         'shipping_units' => 'decimal:3',
         'min_satchel_rank' => 'integer',
         'weight_grams' => 'integer',
         'box_only' => 'boolean',
-        'length_cm' => 'decimal:2',
-        'width_cm' => 'decimal:2',
-        'height_cm' => 'decimal:2',
+        'length_mm' => 'integer',
+        'width_mm' => 'integer',
+        'height_mm' => 'integer',
         'is_featured' => 'boolean',
         'sort_order' => 'integer',
         'low_stock_threshold' => 'integer',
@@ -389,6 +392,21 @@ class Product extends Model
         return $variant instanceof ProductVariant
             ? $variant->effectiveWeightGrams()
             : ($this->weight_grams !== null ? (int) $this->weight_grams : null);
+    }
+
+    public function lengthMmForVariant(?ProductVariant $variant = null): ?int
+    {
+        return $variant instanceof ProductVariant ? $variant->effectiveLengthMm() : ($this->length_mm !== null ? (int) $this->length_mm : null);
+    }
+
+    public function widthMmForVariant(?ProductVariant $variant = null): ?int
+    {
+        return $variant instanceof ProductVariant ? $variant->effectiveWidthMm() : ($this->width_mm !== null ? (int) $this->width_mm : null);
+    }
+
+    public function heightMmForVariant(?ProductVariant $variant = null): ?int
+    {
+        return $variant instanceof ProductVariant ? $variant->effectiveHeightMm() : ($this->height_mm !== null ? (int) $this->height_mm : null);
     }
 
     public function tracksInventory(?ProductVariant $variant = null): bool

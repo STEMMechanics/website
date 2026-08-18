@@ -22,8 +22,6 @@
     description="Browse STEMMechanics kits, downloads, and hands-on resources."
     :canonical="route('shop.index')"
 >
-    <x-mast>Store</x-mast>
-
     @include('shop.partials.processing-pause-notice', [
         'notice' => $cartPayload['summary']['shipping_quote']['processing_pause_notice'] ?? null,
     ])

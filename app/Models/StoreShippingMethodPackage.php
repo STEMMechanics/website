@@ -16,6 +16,10 @@ class StoreShippingMethodPackage extends Model
         'label',
         'sort_order',
         'capacity',
+        'internal_length_mm',
+        'internal_width_mm',
+        'internal_height_mm',
+        'max_weight_grams',
         'price',
         'is_active',
     ];
@@ -23,6 +27,10 @@ class StoreShippingMethodPackage extends Model
     protected $casts = [
         'sort_order' => 'integer',
         'capacity' => 'decimal:2',
+        'internal_length_mm' => 'integer',
+        'internal_width_mm' => 'integer',
+        'internal_height_mm' => 'integer',
+        'max_weight_grams' => 'integer',
         'price' => 'decimal:2',
         'is_active' => 'boolean',
     ];

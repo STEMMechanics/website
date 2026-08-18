@@ -178,6 +178,7 @@ class StoreCartService
                     $requestedQuantity,
                     0,
                 );
+
                 continue;
             }
 
@@ -190,6 +191,7 @@ class StoreCartService
                     $requestedQuantity,
                     0,
                 );
+
                 continue;
             }
 
@@ -201,6 +203,7 @@ class StoreCartService
                     $requestedQuantity,
                     0,
                 );
+
                 continue;
             }
 
@@ -215,6 +218,7 @@ class StoreCartService
                         $requestedQuantity,
                         0,
                     );
+
                     continue;
                 }
 
@@ -252,6 +256,9 @@ class StoreCartService
                 'unit_min_satchel_rank' => $product->isPhysical() ? $product->minSatchelRankForVariant($variant) : null,
                 'box_only' => $product->isPhysical() ? $product->boxOnlyForVariant($variant) : false,
                 'unit_weight_grams' => $product->isPhysical() ? $product->weightGramsForVariant($variant) : null,
+                'unit_length_mm' => $product->isPhysical() ? $product->lengthMmForVariant($variant) : null,
+                'unit_width_mm' => $product->isPhysical() ? $product->widthMmForVariant($variant) : null,
+                'unit_height_mm' => $product->isPhysical() ? $product->heightMmForVariant($variant) : null,
                 'available_inventory' => $availableInventory,
                 'available_now_inventory' => $fulfilment['available_now_inventory'],
                 'available_now_quantity' => $fulfilment['available_now_quantity'],
@@ -727,7 +734,7 @@ class StoreCartService
     }
 
     /**
-     * @param Collection<int, array<string, mixed>> $methodQuotes
+     * @param  Collection<int, array<string, mixed>>  $methodQuotes
      * @return Collection<int, array<string, mixed>>
      */
     private function presentShippingMethods(Collection $methodQuotes): Collection
@@ -772,7 +779,7 @@ class StoreCartService
     }
 
     /**
-     * @param Collection<int, array<string, mixed>> $shippingMethods
+     * @param  Collection<int, array<string, mixed>>  $shippingMethods
      */
     private function resolveSelectedShippingMethodCode(Collection $shippingMethods, string $requestedShippingMethodCode): ?string
     {
@@ -795,9 +802,9 @@ class StoreCartService
     }
 
     /**
-     * @param Collection<int, object> $lines
-     * @param Collection<int, array<string, mixed>> $methodQuotes
-     * @param Collection<int, array<string, mixed>> $shippingMethods
+     * @param  Collection<int, object>  $lines
+     * @param  Collection<int, array<string, mixed>>  $methodQuotes
+     * @param  Collection<int, array<string, mixed>>  $shippingMethods
      * @return array<string, mixed>
      */
     private function resolvePresentedShippingQuote(

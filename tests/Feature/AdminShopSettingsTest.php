@@ -8,8 +8,8 @@ use App\Models\StoreShippingMethod;
 use App\Models\StoreShippingMethodPackage;
 use App\Models\User;
 use App\Models\UserGroup;
-use App\Services\StoreShippingService;
 use App\Services\StoreShippingMethodService;
+use App\Services\StoreShippingService;
 use App\Support\ShopAvailability;
 use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +18,42 @@ use Tests\TestCase;
 class AdminShopSettingsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_recreated_channel_reuses_an_existing_row_with_the_same_code(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $pickup = StoreShippingMethod::query()->where('code', 'pickup')->firstOrFail();
+
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), [
+            'public_enabled' => '1',
+            'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote',
+            'boxed_shipping_message' => 'Manual shipping quote required.',
+            'boxed_shipping_amount' => '',
+            'shipping_methods' => [[
+                'id' => '',
+                'code' => 'pickup',
+                'name' => 'Local pickup',
+                'description' => 'Collect locally.',
+                'shipment_label' => 'Collection',
+                'immediate_status_label' => 'Available now',
+                'delayed_status_label' => 'Available later',
+                'delivery_estimate_min_days' => '',
+                'delivery_estimate_max_days' => '',
+                'is_active' => '1',
+                'sort_order' => '0',
+                'packages' => [],
+            ]],
+        ])->assertRedirect();
+
+        $this->assertDatabaseCount('store_shipping_methods', 1);
+        $this->assertDatabaseHas('store_shipping_methods', [
+            'id' => $pickup->id,
+            'code' => 'pickup',
+            'name' => 'Local pickup',
+        ]);
+    }
 
     public function test_admin_can_update_shop_shipping_settings(): void
     {
