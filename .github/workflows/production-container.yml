@@ -2,6 +2,9 @@ name: Production container
 
 on:
   workflow_dispatch:
+  schedule:
+    # Monday 3:00 am Australia/Brisbane (UTC+10, no daylight saving).
+    - cron: "0 17 * * 0"
   push:
     branches: ["main"]
     paths:
@@ -56,6 +59,7 @@ jobs:
         with:
           context: .
           file: .docker/production/Dockerfile
+          pull: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
