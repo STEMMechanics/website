@@ -59,6 +59,7 @@ jobs:
         with:
           context: .
           file: .docker/production/Dockerfile
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
           pull: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.metadata.outputs.tags }}
