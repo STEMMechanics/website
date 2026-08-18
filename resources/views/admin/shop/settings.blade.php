@@ -46,6 +46,7 @@
         ->unique()
         ->values()
         ->all();
+    $validationErrors = $errors->getMessages();
     $settingsCardClasses = 'rounded-3xl border border-gray-200 bg-white p-6 shadow-sm';
     $inlineInputClasses = 'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0';
     $inlineTextareaClasses = 'block min-h-[5.5rem] w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0';
@@ -56,6 +57,18 @@
     <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">Store Settings</x-mast>
 
     <x-container class="mt-4">
+        @if($errors->any())
+            <div role="alert" class="mb-6 rounded-2xl border border-red-300 bg-red-50 px-5 py-4 text-red-800">
+                <div class="font-semibold">Store settings were not saved</div>
+                <div class="mt-1 text-sm">Please correct the highlighted fields below and save again.</div>
+                <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">
+                    @foreach($errors->all() as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form
             method="POST"
             action="{{ route('admin.shop.settings.update') }}"
@@ -64,6 +77,7 @@
                 shippingMethods: @js($shippingMethodRows),
                 processingPauseUntil: @js(old('processing_pause_until', $processingPauseUntil ?? '')),
                 trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
+                validationErrors: @js($validationErrors),
                 trackingLinkTemplates: [],
                 init() {
                     this.trackingLinkTemplates = this.parseTrackingLinkTemplates(this.trackingLinkTemplatesSource);
@@ -207,6 +221,12 @@
                             template: String(row.template ?? '').trim(),
                         }))
                         .filter((row) => row.carrier !== '' && row.template !== '');
+                },
+                fieldErrors(name) {
+                    return this.validationErrors[name] ?? [];
+                },
+                hasFieldError(name) {
+                    return this.fieldErrors(name).length > 0;
                 },
             }"
         >
@@ -461,7 +481,10 @@
 
                                 <div class="mt-4 space-y-3" x-show="!channelUsesFreeCollection(method) || method.packages.length > 0" x-cloak>
                                     <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id ?? `package-${packageIndex}`">
-                                        <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                        <section
+                                            class="rounded-2xl border bg-white p-4 shadow-sm"
+                                            :class="Object.keys(validationErrors).some((key) => key.startsWith(`shipping_methods.${index}.packages.${packageIndex}.`)) ? 'border-red-300' : 'border-gray-200'"
+                                        >
                                             <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][id]`" :value="packageOption.id ?? ''">
                                             <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][is_active]`" :value="packageOption.is_active ? 1 : 0">
 
@@ -479,11 +502,13 @@
                                             <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Code</label>
-                                                    <input type="text" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][code]`" x-model="packageOption.code">
+                                                    <input type="text" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.code`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][code]`" x-model="packageOption.code">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.code`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div class="xl:col-span-2">
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Label</label>
-                                                    <input type="text" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][label]`" x-model="packageOption.label">
+                                                    <input type="text" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.label`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][label]`" x-model="packageOption.label">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.label`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
@@ -502,23 +527,28 @@
                                             <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal length (mm)</label>
-                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_length_mm]`" x-model="packageOption.internal_length_mm">
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_length_mm`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_length_mm]`" x-model="packageOption.internal_length_mm">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_length_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal width (mm)</label>
-                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_width_mm]`" x-model="packageOption.internal_width_mm">
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_width_mm`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_width_mm]`" x-model="packageOption.internal_width_mm">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_width_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal height (mm)</label>
-                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_height_mm]`" x-model="packageOption.internal_height_mm">
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_height_mm`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][internal_height_mm]`" x-model="packageOption.internal_height_mm">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_height_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Maximum weight (g)</label>
-                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][max_weight_grams]`" x-model="packageOption.max_weight_grams">
+                                                    <input type="number" min="1" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.max_weight_grams`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][max_weight_grams]`" x-model="packageOption.max_weight_grams">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.max_weight_grams`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Price (inc. GST)</label>
-                                                    <input type="number" step="0.01" min="0" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][price]`" x-model="packageOption.price">
+                                                    <input type="number" step="0.01" min="0" class="{{ $inlineInputClasses }}" :class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.price`) && 'border-red-400'" :name="`shipping_methods[${index}][packages][${packageIndex}][price]`" x-model="packageOption.price">
+                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                             </div>
                                         </section>

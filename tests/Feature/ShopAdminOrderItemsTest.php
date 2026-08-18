@@ -682,6 +682,7 @@ class ShopAdminOrderItemsTest extends TestCase
         $this->assertSame(0, (int) $item->readyPickupQuantity());
         $this->assertSame(2, (int) $item->collectedQuantity());
         $this->assertSame(0, (int) $item->remainingPickupQuantity());
+        $this->assertCount(1, $item->collectionEntries);
     }
 
     public function test_admin_pickup_orders_keep_other_items_unready_when_one_item_is_marked_ready(): void

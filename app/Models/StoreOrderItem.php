@@ -230,6 +230,29 @@ class StoreOrderItem extends Model
         return $this->remainingAvailableQuantity() + $this->remainingDelayedQuantity();
     }
 
+    public function remainingOrderAvailableQuantity(): int
+    {
+        $order = $this->relationLoaded('order') ? $this->order : $this->order()->first();
+
+        return $order instanceof StoreOrder && $order->usesPickup()
+            ? $this->remainingPickupAvailableQuantity()
+            : $this->remainingAvailableQuantity();
+    }
+
+    public function remainingOrderDelayedQuantity(): int
+    {
+        $order = $this->relationLoaded('order') ? $this->order : $this->order()->first();
+
+        return $order instanceof StoreOrder && $order->usesPickup()
+            ? $this->remainingPickupDelayedQuantity()
+            : $this->remainingDelayedQuantity();
+    }
+
+    public function remainingOrderFulfillableQuantity(): int
+    {
+        return $this->remainingOrderAvailableQuantity() + $this->remainingOrderDelayedQuantity();
+    }
+
     /**
      * Pickup collections are stored separately from shipping trackings, but we keep a
      * legacy fallback so existing pickup orders with only tracking records continue to render.

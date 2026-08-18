@@ -691,15 +691,18 @@ class ShopProductController extends Controller
         $items = StoreOrderItem::query()
             ->where('product_id', $product->id)
             ->with([
+                'order:id,shipping_method_code',
                 'trackingEntries' => fn ($query) => $query->select([
                     'id',
                     'store_order_item_id',
                     'shipment_type',
                     'quantity',
                 ]),
+                'collectionEntries:id,store_order_item_id,collection_type,pickup_state,quantity',
             ])
             ->get([
                 'id',
+                'store_order_id',
                 'product_variant_id',
                 'quantity',
                 'available_now_quantity',
@@ -711,7 +714,7 @@ class ShopProductController extends Controller
 
         foreach ($items as $item) {
             if ($item->product_variant_id === null) {
-                $contexts['base']['awaiting'] += $item->remainingFulfillableQuantity();
+                $contexts['base']['awaiting'] += $item->remainingOrderFulfillableQuantity();
                 $contexts['base']['reserved'] += $item->reservedInventory();
 
                 continue;
@@ -725,7 +728,7 @@ class ShopProductController extends Controller
                 ];
             }
 
-            $contexts['variants'][$variantId]['awaiting'] += $item->remainingFulfillableQuantity();
+            $contexts['variants'][$variantId]['awaiting'] += $item->remainingOrderFulfillableQuantity();
             $contexts['variants'][$variantId]['reserved'] += $item->reservedInventory();
         }
 
@@ -762,15 +765,18 @@ class ShopProductController extends Controller
         $items = StoreOrderItem::query()
             ->whereIn('product_id', array_keys($summaries))
             ->with([
+                'order:id,shipping_method_code',
                 'trackingEntries' => fn ($query) => $query->select([
                     'id',
                     'store_order_item_id',
                     'shipment_type',
                     'quantity',
                 ]),
+                'collectionEntries:id,store_order_item_id,collection_type,pickup_state,quantity',
             ])
             ->get([
                 'id',
+                'store_order_id',
                 'product_id',
                 'quantity',
                 'available_now_quantity',
@@ -789,10 +795,10 @@ class ShopProductController extends Controller
                 continue;
             }
 
-            $summaries[$productId]['awaiting'] += $item->remainingFulfillableQuantity();
+            $summaries[$productId]['awaiting'] += $item->remainingOrderFulfillableQuantity();
             $summaries[$productId]['reserved'] += $item->reservedInventory();
 
-            $remainingDelayedQuantity = $item->remainingDelayedQuantity();
+            $remainingDelayedQuantity = $item->remainingOrderDelayedQuantity();
             if ($remainingDelayedQuantity <= 0) {
                 continue;
             }

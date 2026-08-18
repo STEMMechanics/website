@@ -349,14 +349,14 @@ class StoreOrder extends Model
         if ($this->relationLoaded('items')) {
             return (int) $this->items
                 ->filter(fn (StoreOrderItem $item) => ! $item->isDigital())
-                ->sum(fn (StoreOrderItem $item) => $item->remainingFulfillableQuantity());
+                ->sum(fn (StoreOrderItem $item) => $item->remainingOrderFulfillableQuantity());
         }
 
         return (int) $this->items()
-            ->with('trackingEntries')
+            ->with(['order:id,shipping_method_code', 'trackingEntries', 'collectionEntries'])
             ->where('product_type', '!=', Product::PRODUCT_TYPE_DIGITAL)
             ->get()
-            ->sum(fn (StoreOrderItem $item) => $item->remainingFulfillableQuantity());
+            ->sum(fn (StoreOrderItem $item) => $item->remainingOrderFulfillableQuantity());
     }
 
     public function isPartiallyShippedByEntries(): bool

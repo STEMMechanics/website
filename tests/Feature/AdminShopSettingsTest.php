@@ -19,6 +19,54 @@ class AdminShopSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_shipping_validation_errors_are_clearly_shown_on_the_settings_page(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+
+        $response = $this->actingAs($admin)->put(route('admin.shop.settings.update'), [
+            'public_enabled' => '1',
+            'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote',
+            'boxed_shipping_message' => 'Manual shipping quote required.',
+            'boxed_shipping_amount' => '',
+            'shipping_methods' => [[
+                'code' => 'regular',
+                'name' => 'Regular shipping',
+                'is_active' => '1',
+                'sort_order' => '0',
+                'packages' => [[
+                    'code' => 'small',
+                    'label' => 'Small box',
+                    'sort_order' => '1',
+                    'capacity' => '1.00',
+                    'internal_length_mm' => '220',
+                    'internal_width_mm' => '',
+                    'internal_height_mm' => '',
+                    'max_weight_grams' => '',
+                    'price' => '12.38',
+                    'is_active' => '1',
+                ]],
+            ]],
+        ]);
+
+        $response
+            ->assertRedirect()
+            ->assertSessionHasErrors([
+                'shipping_methods.0.packages.0.internal_width_mm',
+                'shipping_methods.0.packages.0.internal_height_mm',
+                'shipping_methods.0.packages.0.max_weight_grams',
+            ]);
+
+        $this->get(route('admin.shop.settings.edit'))
+            ->assertOk()
+            ->assertSee('Store settings were not saved')
+            ->assertSee('Please correct the highlighted fields below and save again.')
+            ->assertSee('Each box needs an internal width.')
+            ->assertSee('Each box needs an internal height.')
+            ->assertSee('Each box needs an internal maximum weight.');
+    }
+
     public function test_recreated_channel_reuses_an_existing_row_with_the_same_code(): void
     {
         $admin = User::factory()->create();
