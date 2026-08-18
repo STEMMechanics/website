@@ -36,6 +36,7 @@
             'name' => $product->baseOptionName(),
             'sku' => $baseOptionSku !== '' ? $baseOptionSku : null,
             'description' => $product->baseOptionDescription(),
+            'product_details' => [],
             'price_label' => $product->priceLabel(),
             'compare_at_price_label' => $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase(),
@@ -55,6 +56,10 @@
             'name' => $product->variantDisplayName($variant),
             'sku' => trim((string) ($variant->sku ?? '')) ?: null,
             'description' => trim((string) ($variant->description ?? '')) ?: null,
+            'product_details' => collect($variant->product_details ?? [])->map(fn ($detail) => [
+                'key' => trim((string) data_get($detail, 'key')),
+                'value' => trim((string) data_get($detail, 'value')),
+            ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all(),
             'price_label' => $product->priceLabel($variant),
             'compare_at_price_label' => $variant->effectiveCompareAtPrice() !== null ? '$'.number_format((float) $variant->effectiveCompareAtPrice(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
@@ -98,6 +103,10 @@
                 formError: @js($errors->first('product_variant_id')),
                 productIsDigital: @js($product->isDigital()),
                 productTitle: @js($product->title),
+                baseProductDetails: @js(collect($product->product_details ?? [])->map(fn ($detail) => [
+                    'key' => trim((string) data_get($detail, 'key')),
+                    'value' => trim((string) data_get($detail, 'value')),
+                ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all()),
                 priceRangeLabel: @js($product->priceRangeLabel()),
                 basePriceLabel: @js($product->priceLabel()),
                 baseCompareAtPriceLabel: @js($product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null),
@@ -211,6 +220,37 @@
                 },
                 currentSku() {
                     return String(this.selectedOption?.sku || @js($baseOptionSku)).toUpperCase();
+                },
+                detailSlug(value) {
+                    return String(value || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                },
+                interpolateProductDetail(value) {
+                    return String(value || '').replace(/\{sku\}/gi, this.currentSku());
+                },
+                currentProductDetails() {
+                    const details = this.baseProductDetails.map((detail) => ({ ...detail }));
+                    const positions = new Map(details.map((detail, index) => [this.detailSlug(detail.key), index]));
+
+                    (this.selectedOption?.product_details || []).forEach((override) => {
+                        const slug = this.detailSlug(override.key);
+                        if (slug !== '' && positions.has(slug)) {
+                            details[positions.get(slug)].value = override.value;
+                            return;
+                        }
+
+                        if (slug !== '') {
+                            positions.set(slug, details.length);
+                            details.push({ key: override.key, value: override.value });
+                        }
+                    });
+
+                    return details
+                        .map((detail) => ({ ...detail, value: this.interpolateProductDetail(detail.value) }))
+                        .filter((detail) => String(detail.key || '').trim() !== '' && String(detail.value || '').trim() !== '');
                 },
                 toggleVariantMenu() {
                     this.variantMenuOpen = !this.variantMenuOpen;

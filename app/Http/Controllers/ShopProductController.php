@@ -190,6 +190,9 @@ class ShopProductController extends Controller
             'variants.*.id' => ['nullable', 'integer'],
             'variants.*.name' => ['nullable', 'string', 'max:120'],
             'variants.*.description' => ['nullable', 'string', 'max:2000'],
+            'variants.*.product_details' => ['nullable', 'array', 'max:30'],
+            'variants.*.product_details.*.key' => ['nullable', 'string', 'max:120'],
+            'variants.*.product_details.*.value' => ['nullable', 'string', 'max:500'],
             'variants.*.sku' => ['nullable', 'string', 'max:120'],
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
@@ -473,6 +476,14 @@ class ShopProductController extends Controller
                     'id' => isset($variant['id']) ? (int) $variant['id'] : null,
                     'name' => trim((string) ($variant['name'] ?? '')),
                     'description' => trim((string) ($variant['description'] ?? '')),
+                    'product_details' => collect($variant['product_details'] ?? [])
+                        ->map(fn ($detail): array => [
+                            'key' => trim((string) data_get($detail, 'key')),
+                            'value' => trim((string) data_get($detail, 'value')),
+                        ])
+                        ->filter(fn (array $detail): bool => $detail['key'] !== '')
+                        ->values()
+                        ->all(),
                     'sku' => trim((string) ($variant['sku'] ?? '')),
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
@@ -497,6 +508,7 @@ class ShopProductController extends Controller
             ->filter(function (array $variant): bool {
                 return $variant['name'] !== ''
                     || $variant['description'] !== ''
+                    || $variant['product_details'] !== []
                     || $variant['sku'] !== ''
                     || $variant['price'] !== null
                     || $variant['compare_at_price'] !== null
@@ -587,6 +599,7 @@ class ShopProductController extends Controller
             $variant->product_id = $product->id;
             $variant->name = $variantData['name'];
             $variant->description = $variantData['description'] !== '' ? $variantData['description'] : null;
+            $variant->product_details = $variantData['product_details'] !== [] ? $variantData['product_details'] : null;
             $variant->sku = $variantData['sku'] !== '' ? $variantData['sku'] : null;
             $variant->price = $variantData['price'];
             $variant->compare_at_price = $variantData['compare_at_price'];
