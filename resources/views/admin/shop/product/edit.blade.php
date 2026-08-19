@@ -138,6 +138,7 @@
                 isFeatured: @js((bool) old('is_featured', $product->is_featured ?? false)),
                 boxOnly: @js((bool) old('box_only', $product->box_only ?? false)),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
+                baseCompareAtPrice: @js(old('compare_at_price', isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : '')),
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
                 baseVariantName: @js(old('base_variant_name', $product->base_variant_name ?? '')),
@@ -710,8 +711,8 @@
                                     <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][price]`" x-model="variant.price" placeholder="Inherit base price">
                                 </div>
                                 <div>
-                                    <label class="mb-1 block pl-1 text-sm">Compare-at Price</label>
-                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="Inherit base price">
+                                    <label class="mb-1 block pl-1 text-sm">Recommended Price</label>
+                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="No recommended price">
                                 </div>
                             </div>
 
@@ -726,10 +727,10 @@
                                         <h3 class="text-sm font-semibold text-gray-900">Product detail overrides</h3>
                                         <p class="text-xs text-gray-500">Matching names replace the base value; new names are appended.</p>
                                     </div>
-                                    <button type="button" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800" x-on:click="addVariantProductDetail(index)">Add detail</button>
+                                    <x-ui.button type="button" color="primary-outline-sm" x-on:click="addVariantProductDetail(index)">Add detail</x-ui.button>
                                 </div>
                                 <table class="w-full table-fixed border-collapse" x-show="(variant.product_details || []).length > 0" x-cloak>
-                                    <thead class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <thead class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                         <tr>
                                             <th class="w-2/5 px-3 py-2">Detail</th>
                                             <th class="px-3 py-2">Override value</th>

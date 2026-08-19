@@ -61,7 +61,7 @@
                 'value' => trim((string) data_get($detail, 'value')),
             ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all(),
             'price_label' => $product->priceLabel($variant),
-            'compare_at_price_label' => $variant->effectiveCompareAtPrice() !== null ? '$'.number_format((float) $variant->effectiveCompareAtPrice(), 2) : null,
+            'compare_at_price_label' => $variant->compare_at_price !== null ? '$'.number_format((float) $variant->compare_at_price, 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
             'actual_inventory_quantity' => $product->availableInventory($variant),
             'is_in_stock' => $product->isSelectionPurchasable($variant),
@@ -83,12 +83,13 @@
         :title="$product->title"
         :description="$product->short_description ?: strip_tags((string) $product->description)"
         :canonical="route('shop.product.show', $product)"
+        :body-class="'bg-white'"
 >
     @include('shop.partials.processing-pause-notice', [
         'notice' => $cartPayload['summary']['shipping_quote']['processing_pause_notice'] ?? null,
     ])
 
-    <x-container class="bg-white">
+    <x-container>
         <div
                 x-data="{
                 options: @js($optionPayload),
@@ -611,25 +612,20 @@
                                         :href="route('shop.index', ['category' => $category->slug])"
                                     />
                                 @endforeach
-                                @if(trim((string) $product->sku) !== '')
-                                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">SKU <span x-text="currentSku()">{{ mb_strtoupper($baseOptionSku) }}</span></span>
-                                @endif
                                 @if(!$product->isPurchasable())
                                     <x-stock-indicator tone="danger" :label="'Out of stock'" class="rounded-full bg-red-100 px-3 py-1" />
                                 @endif
                             </div>
 
-                            <div class="mt-5">
-                                <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
-                                    <div class="text-3xl font-bold tracking-tight text-gray-900" x-text="currentPriceLabel()">{{ $product->priceRangeLabel() }}</div>
-                                    <div
-                                            x-show="currentCompareAtPriceLabel()"
-                                            x-cloak
-                                            class="pb-1 text-base text-gray-400 line-through"
-                                            x-text="currentCompareAtPriceLabel()"
-                                    >{{ $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : '' }}</div>
-                                </div>
-                                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
+                            <div class="mt-5 flex items-center gap-4">
+                                <div class="text-3xl font-bold tracking-tight text-gray-900" x-text="currentPriceLabel()">{{ $product->priceRangeLabel() }}</div>
+                                <div
+                                        x-show="currentCompareAtPriceLabel()"
+                                        x-cloak
+                                        class="text-base text-gray-400 line-through"
+                                        x-text="currentCompareAtPriceLabel()"
+                                >{{ $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : '' }}</div>
+                                <div class="flex flex-wrap items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
                                     <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
                                     <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
                                     <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
@@ -646,17 +642,11 @@
                                 @endif
                             </div>
 
-                            @if($hasOptionChoices)
-                                <div class="mt-6 space-y-3">
+                            <div class="mt-6 w-full max-w-108 space-y-3 mx-auto lg:mx-0">
+                                @if($hasOptionChoices)
                                     <div class="mb-1 pl-1 text-sm font-medium text-gray-900">{{ $chooserHeading }}</div>
 
-                                    @error('product_variant_id')
-                                    <div class="text-sm text-red-600">{{ $message }}</div>
-                                    @enderror
-                                    <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
-
-                                    <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
-                                        <div class="relative" @click.outside="closeVariantMenu()">
+                                    <div class="relative w-full" @click.outside="closeVariantMenu()">
                                             <button
                                                     type="button"
                                                     class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
@@ -679,7 +669,6 @@
                                                         </span>
                                                     </span>
                                                 </span>
-{{--                                                <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>--}}
                                                 <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
                                             </button>
 
@@ -718,134 +707,90 @@
                                                                     <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
                                                                 @endif
                                                                 </div>
-                                                                @if(!empty($option['sku']))
-                                                                    <span class="block text-xxs font-medium text-gray-400" x-text="String(option.sku || '').toUpperCase()">{{ mb_strtoupper($option['sku']) }}</span>
-                                                                @endif
                                                             </span>
                                                             <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
                                                         </button>
                                                     @endforeach
                                                 </div>
                                             </div>
-                                        </div>
+                                    </div>
+                                @endif
 
-                                        <form
-                                                method="POST"
-                                                action="{{ route('shop.cart.add', $product) }}"
-                                                class="m-0"
-                                                x-on:submit.prevent="handleAddToCart($event.target)"
-                                                x-show="cartQuantity() <= 0"
-                                        >
-                                            @csrf
-                                            <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                @error('product_variant_id')
+                                    <div class="text-sm text-red-600">{{ $message }}</div>
+                                @enderror
+                                <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
+
+                                <form
+                                        method="POST"
+                                        action="{{ route('shop.cart.add', $product) }}"
+                                        class="w-full"
+                                        x-on:submit.prevent="handleAddToCart($event.target)"
+                                        x-show="cartQuantity() <= 0"
+                                >
+                                    @csrf
+                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                    @if($hasOptionChoices)
                                             <input type="hidden" name="product_variant_id" :value="selectedVariantId ?? ''">
-                                            <input type="hidden" name="quantity" value="1">
-                                            <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                                <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
-                                                <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                    @endif
+                                    <input type="hidden" name="quantity" value="1">
+                                    <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
+                                        <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                        @if($hasOptionChoices)
                                                 <span x-show="!canAddSelection() && selectedOption" x-cloak>Sold out</span>
                                                 <span x-show="!canAddSelection() && !selectedOption" x-cloak>Select option</span>
-                                            </x-ui.button>
-                                        </form>
-
-                                        <div x-show="cartQuantity() > 0" x-cloak>
-                                            <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
-                                                <button
-                                                        type="button"
-                                                        class="shop-catalog-stepper-button inline-flex h-11 w-11 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                        :disabled="busyCartLineKey === activeLineKey()"
-                                                        @click="changeCartQuantity(cartQuantity() - 1)"
-                                                >-</button>
-                                                <input
-                                                        type="number"
-                                                        min="0"
-                                                        :max="cartMaxQuantity()"
-                                                        :value="cartQuantity()"
-                                                        class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                        :disabled="busyCartLineKey === activeLineKey()"
-                                                        @change="changeCartQuantity($event.target.value)"
-                                                />
-                                                <button
-                                                        type="button"
-                                                        class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center p-1 border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                        :disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                        @click="changeCartQuantity(cartQuantity() + 1)"
-                                                >+</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
-                                </div>
-                            @else
-                                <div class="mt-6 space-y-3">
-                                    <form
-                                            method="POST"
-                                            action="{{ route('shop.cart.add', $product) }}"
-                                            class="w-full sm:w-fit sm:min-w-96"
-                                            x-on:submit.prevent="handleAddToCart($event.target)"
-                                            x-show="cartQuantity() <= 0"
-                                    >
-                                        @csrf
-                                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                        <input type="hidden" name="quantity" value="1">
-                                        <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                            <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
-                                            <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                        @else
                                             <span x-show="!canAddSelection()" x-cloak>Sold out</span>
-                                        </x-ui.button>
-                                    </form>
+                                        @endif
+                                    </x-ui.button>
+                                </form>
 
-                                    <div x-show="cartQuantity() > 0" x-cloak class="w-full sm:w-fit sm:min-w-96">
-                                        <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
-                                            <button
-                                                    type="button"
-                                                    class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                    :disabled="busyCartLineKey === activeLineKey()"
-                                                    @click="changeCartQuantity(cartQuantity() - 1)"
-                                            >-</button>
-                                            <input
-                                                    type="number"
-                                                    min="0"
-                                                    :max="cartMaxQuantity()"
-                                                    :value="cartQuantity()"
-                                                    class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                    :disabled="busyCartLineKey === activeLineKey()"
-                                                    @change="changeCartQuantity($event.target.value)"
-                                            />
-                                            <button
-                                                    type="button"
-                                                    class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                    :disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                    @click="changeCartQuantity(cartQuantity() + 1)"
-                                            >+</button>
-                                        </div>
+                                <div x-show="cartQuantity() > 0" x-cloak class="w-full">
+                                    <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
+                                        <button
+                                                type="button"
+                                                class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                :disabled="busyCartLineKey === activeLineKey()"
+                                                @click="changeCartQuantity(cartQuantity() - 1)"
+                                        >-</button>
+                                        <input
+                                                type="number"
+                                                min="0"
+                                                :max="cartMaxQuantity()"
+                                                :value="cartQuantity()"
+                                                class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
+                                                :disabled="busyCartLineKey === activeLineKey()"
+                                                @change="changeCartQuantity($event.target.value)"
+                                        />
+                                        <button
+                                                type="button"
+                                                class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                :disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
+                                                @click="changeCartQuantity(cartQuantity() + 1)"
+                                        >+</button>
                                     </div>
+                                </div>
 
-                                    @error('product_variant_id')
-                                    <div class="text-sm text-red-600">{{ $message }}</div>
-                                    @enderror
-                                    <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
-                                    <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
-                                </div>
-                            @endif
+                                <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
 
-                            <div class="grid grid-cols-3 overflow-hidden w-full sm:w-96">
-                                <div class="flex items-center gap-2 text-xxs text-gray-500">
-                                    <i class="fa-solid fa-person text-lg" aria-hidden="true"></i>
-                                    <span>Local/workshop pickup available</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-xxs text-gray-500">
-                                    <i class="fa-solid fa-truck-fast text-lg" aria-hidden="true"></i>
-                                    <span>Fast shipping Australia-wide</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-xxs text-gray-500">
-                                    <i class="fa-solid fa-lock text-lg" aria-hidden="true"></i>
-                                    <span>Secure checkout SSL encrypted</span>
+                                <div class="grid w-full grid-cols-2 sm:grid-cols-3 overflow-hidden">
+                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                        <i class="fa-solid fa-person text-lg" aria-hidden="true"></i>
+                                        <span>Local/workshop pickup available</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                        <i class="fa-solid fa-truck-fast text-lg" aria-hidden="true"></i>
+                                        <span>Fast shipping Australia-wide</span>
+                                    </div>
+                                    <div class="sm:flex items-center gap-2 text-xxs text-gray-500 hidden">
+                                        <i class="fa-solid fa-lock text-lg" aria-hidden="true"></i>
+                                        <span>Secure checkout SSL encrypted</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="mt-8 max-w-96 lg:hidden">
+                            <div class="mt-8 max-w-108 lg:hidden mx-auto">
                                 @include('shop.partials.product-details-caution', ['product' => $product])
                             </div>
 

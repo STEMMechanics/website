@@ -140,12 +140,6 @@
         selectionButtonTone() {
             return this.selectedOption?.availability_tone || 'neutral';
         },
-        selectionButtonSku() {
-            return this.selectedOption?.sku || '';
-        },
-        selectionButtonSKU() {
-            return this.selectionButtonSku();
-        },
         toggleVariantMenu() {
             this.variantMenuOpen = !this.variantMenuOpen;
         },
@@ -312,7 +306,7 @@
                         <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" x-show="formError" x-cloak x-text="formError"></div>
 
                         <div class="space-y-3">
-                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
+                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center">
                                 <div class="relative" @click.outside="closeVariantMenu()">
                                     <button
                                         type="button"
@@ -336,7 +330,7 @@
                                                 </span>
                                             </span>
                                         </span>
-                                        <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>
+                                        <span class="shrink-0 text-md font-semibold text-gray-900" x-text="selectedOption?.price_label"></span>
                                         <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
                                     </button>
 
@@ -351,7 +345,7 @@
                                                 <button
                                                     type="button"
                                                     x-data="{ option: @js($option) }"
-                                                    class="flex w-full items-start justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
+                                                    class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
                                                     :class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
                                                     @click="chooseOption(String(@js((string) ($option['input_value'] ?? ''))))"
                                                 >
@@ -374,11 +368,7 @@
                                                         <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
                                                         @endif
                                                     </span>
-                                                    <span class="shrink-0 text-right">
-                                                        @if(!empty($option['sku']))
-                                                            <span class="block text-xs font-medium text-gray-400" x-text="option.sku">{{ $option['sku'] }}</span>
-                                                        @endif
-                                                    </span>
+                                                    <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
                                                 </button>
                                             @endforeach
                                         </div>
@@ -439,8 +429,7 @@
                     </div>
 
                     <div class="border-t border-gray-200 px-6 py-4">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold" x-text="selectedOption?.price_label"></span>
+                        <div class="flex items-center justify-end">
                             <x-ui.button type="button" color="outline" @click="closeDialog()">Close</x-ui.button>
                         </div>
                     </div>
