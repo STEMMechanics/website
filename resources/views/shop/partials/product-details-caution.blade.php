@@ -9,8 +9,8 @@
 </dl>
 
 @if(trim((string) $product->caution_message) !== '')
-    <div class="mt-4 mx-auto flex items-center justify-center gap-3" role="note" aria-label="Product caution">
-        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0 text-md text-yellow-500" aria-hidden="true"></i>
-        <p class="text-xs leading-4">{{ $product->caution_message }}</p>
+    <div class="mt-4 mx-auto flex items-start justify-center gap-3" role="note" aria-label="Product caution">
+        <i class="fa-solid fa-triangle-exclamation shrink-0 text-md text-yellow-500" aria-hidden="true"></i>
+        <p class="whitespace-pre-line text-xs leading-4">{{ $product->caution_message }}</p>
     </div>
 @endif
