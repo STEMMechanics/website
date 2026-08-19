@@ -175,6 +175,39 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_overlong_product_subtitle_shows_validation_error_with_nested_form_data(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.shop.product.create'))
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Tiny Pigs',
+                'subtitle' => str_repeat('a', 161),
+                'slug' => 'tiny-pigs',
+                'sku' => 'PIG-5',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '9.95',
+                'product_details' => [
+                    ['key' => 'Pack size', 'value' => '5 pigs'],
+                ],
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.shop.product.create'))
+            ->assertSessionHasErrors('subtitle');
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.create'))
+            ->assertOk()
+            ->assertSeeText('The subtitle field must not be greater than 160 characters.');
+    }
+
     public function test_product_update_redirects_to_the_current_slug_after_sku_and_slug_change(): void
     {
         $admin = User::factory()->create();
