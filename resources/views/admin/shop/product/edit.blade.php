@@ -786,10 +786,6 @@
                                 </div>
                                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <div>
-                                        <label class="mb-1 block pl-1 text-sm">Packed Weight <span class="text-xs text-gray-500">(grams)</span></label>
-                                        <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight">
-                                    </div>
-                                    <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Length <span class="text-xs text-gray-500">(mm)</span></label>
                                         <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][length_mm]`" x-model="variant.length_mm" placeholder="Inherit base length">
                                     </div>
@@ -800,6 +796,10 @@
                                     <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Height <span class="text-xs text-gray-500">(mm)</span></label>
                                         <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][height_mm]`" x-model="variant.height_mm" placeholder="Inherit base height">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block pl-1 text-sm">Packed Weight <span class="text-xs text-gray-500">(grams)</span></label>
+                                        <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight">
                                     </div>
                                 </div>
                             </div>
