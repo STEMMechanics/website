@@ -605,7 +605,7 @@
                                                 <div class="text-right">
                                                     <div class="flex items-baseline gap-1 text-xl font-bold text-gray-900 sm:justify-end">
                                                         @if($priceIsFromRange)
-                                                            <span class="text-xs font-medium text-gray-500">From</span>
+                                                            <span class="text-xs font-medium text-gray-500 mr-1">From</span>
                                                         @endif
                                                         <span>{{ $priceRangeAmountLabel }}</span>
                                                     </div>

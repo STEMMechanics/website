@@ -175,6 +175,64 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_duplicate_a_product_with_variants_and_unique_copy_identifiers(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+        $category = ProductCategory::factory()->create();
+        $product = Product::factory()->create([
+            'title' => 'Paper Straws',
+            'slug' => 'paper-straws',
+            'sku' => 'STRAWS-150',
+            'status' => Product::STATUS_ACTIVE,
+            'is_featured' => true,
+            'product_details' => [['key' => 'Pack size', 'value' => '150']],
+            'low_stock_alert_sent_at' => now(),
+        ]);
+        $product->categories()->attach($category->id, ['sort_order' => 3]);
+        $variant = ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => '500 pack',
+            'sku' => 'STRAWS-500',
+            'price' => 24.95,
+            'low_stock_alert_sent_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.shop.product.duplicate', $product));
+
+        $copy = Product::query()->where('slug', 'paper-straws-copy')->firstOrFail();
+        $response->assertRedirect(route('admin.shop.product.edit', $copy));
+        $this->assertSame('STRAWS-150-copy', $copy->sku);
+        $this->assertSame(Product::STATUS_DRAFT, $copy->status);
+        $this->assertFalse($copy->is_featured);
+        $this->assertNull($copy->low_stock_alert_sent_at);
+        $this->assertSame($product->product_details, $copy->product_details);
+        $this->assertSame([$category->id], $copy->categories()->pluck('product_categories.id')->all());
+        $this->assertDatabaseHas('product_category_product', [
+            'product_id' => $copy->id,
+            'product_category_id' => $category->id,
+            'sort_order' => 3,
+        ]);
+
+        $variantCopy = $copy->variants()->sole();
+        $this->assertSame($variant->name, $variantCopy->name);
+        $this->assertSame('STRAWS-500-copy', $variantCopy->sku);
+        $this->assertSame('24.95', $variantCopy->price);
+        $this->assertNull($variantCopy->low_stock_alert_sent_at);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.duplicate', $product))
+            ->assertRedirect();
+
+        $secondCopy = Product::query()->where('slug', 'paper-straws-copy-2')->firstOrFail();
+        $this->assertSame('STRAWS-150-copy-2', $secondCopy->sku);
+        $this->assertSame('STRAWS-500-copy-2', $secondCopy->variants()->sole()->sku);
+    }
+
     public function test_overlong_product_subtitle_shows_validation_error_with_nested_form_data(): void
     {
         $admin = User::factory()->create();
