@@ -26,6 +26,24 @@
             </div>
         @endif
 
+        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" x-data="fileBackupArchive(@js($archiveRun), @js(route('admin.server.files.archive', ['mode' => $backupMode, 'filename' => $backup['filename']])), @js(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])))" x-init="init()">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <div class="font-semibold text-gray-900">Download complete backup</div>
+                    <div class="mt-1 text-xs text-gray-600">The ZIP is prepared in the background before downloading, avoiding a long-running streamed response.</div>
+                </div>
+                <form method="POST" action="{{ route('admin.server.files.archive', ['mode' => $backupMode, 'filename' => $backup['filename']]) }}" @submit.prevent="start($event)">
+                    @csrf
+                    <x-ui.button type="submit" color="outline" x-bind:disabled="run && !run.finished">Prepare ZIP</x-ui.button>
+                </form>
+            </div>
+            <div x-show="run" x-cloak class="mt-4 rounded-md border p-3" :class="run?.status === 'failed' ? 'border-red-200 bg-red-50' : (run?.status === 'completed' ? 'border-green-200 bg-green-50' : 'border-sky-200 bg-sky-50')">
+                <div class="text-sm" x-text="run?.status === 'failed' ? run.error_message : run?.message"></div>
+                <div x-show="run && !run.finished" class="mt-2 h-2 overflow-hidden rounded-full bg-white"><div class="h-full animate-pulse rounded-full bg-sky-600" :style="`width:${Math.max(5, Number(run?.progress || 0))}%`"></div></div>
+                <a x-show="run?.download_url" :href="run?.download_url" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-color hover:underline"><i class="fa-solid fa-download"></i> Download ZIP</a>
+            </div>
+        </div>
+
         <form
             id="file-backup-selection-form"
             method="POST"
@@ -339,6 +357,27 @@
 </x-layout>
 
 <script>
+    window.fileBackupArchive = (initialRun, startUrl, statusTemplate) => ({
+        run: initialRun,
+        init() { if (this.run && !this.run.finished) this.poll(); },
+        async start(event) {
+            const response = await fetch(startUrl, { method: 'POST', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: new FormData(event.target) });
+            const payload = await response.json();
+            this.run = payload.run;
+            if (this.run && !this.run.finished) this.poll();
+        },
+        poll() {
+            window.setTimeout(async () => {
+                try {
+                    const response = await fetch(statusTemplate.replace('__RUN_ID__', encodeURIComponent(this.run.id)), { headers: { 'Accept': 'application/json' } });
+                    const payload = await response.json();
+                    this.run = payload.run;
+                    if (this.run && !this.run.finished) this.poll();
+                } catch (error) { this.poll(); }
+            }, 1500);
+        },
+    });
+
     (() => {
         const form = document.getElementById('file-backup-selection-form');
         const selectVisibleButton = document.querySelector('[data-file-backup-select-visible]');

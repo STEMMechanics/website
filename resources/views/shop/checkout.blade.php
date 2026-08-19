@@ -138,11 +138,11 @@
 {{--                            <div class="mt-1">Any quantity above available stock will move into a later shipment unless you choose to consolidate it.</div>--}}
 {{--                        </div>--}}
 
-                        <div class="rounded-2xl border border-gray-200 p-5">
+                        <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                             <h4 class="text-lg font-bold text-gray-900">Contact Details</h4>
                             <p class="mt-1 text-sm text-gray-600">We use these details for order updates and payment confirmations.</p>
 
-                            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                            <div class="mt-5 grid gap-0 sm:gap-4 md:grid-cols-2">
                                 <x-ui.input
                                     name="billing_name"
                                     label="Full Name"
@@ -153,7 +153,7 @@
                                 />
                                 <x-ui.input name="billing_company" label="Organisation" :value="$prefill['billing_company']" />
                             </div>
-                            <div class="grid gap-4 md:grid-cols-2">
+                            <div class="grid gap-0 sm:gap-4 md:grid-cols-2">
                                 <x-ui.input name="billing_email" label="Email" type="email" :value="$prefill['billing_email']" required />
                                 <x-ui.input
                                     name="billing_phone"
@@ -166,8 +166,8 @@
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 p-5">
-                            <div class="flex items-center justify-between gap-4">
+                        <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div>
                                     <h4 class="text-lg font-bold text-gray-900">Shipping Address</h4>
                                     <p class="mt-1 text-sm text-gray-600" x-text="hasPhysicalItems() ? 'Shipping is only available within Australia.' : 'This order only contains digital items, so no shipping address is required.'">Shipping is only available within Australia.</p>
@@ -184,7 +184,7 @@
                             </div>
 
                             <div x-show="needsShippingAddress()" x-cloak class="mt-5">
-                                <div class="grid gap-4 md:grid-cols-2">
+                                <div class="grid gap-0 sm:gap-4 md:grid-cols-2">
                                     <x-ui.input
                                         name="shipping_name"
                                         label="Recipient Name"
@@ -206,7 +206,7 @@
                                 </div>
                                 <x-ui.input name="shipping_address" label="Address Line 1" :value="$prefill['shipping_address']" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()" />
                                 <x-ui.input name="shipping_address2" label="Address Line 2" :value="$prefill['shipping_address2']" x-bind:disabled="!needsShippingAddress()" />
-                                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <div class="grid gap-0 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <x-ui.input name="shipping_city" label="City" :value="$prefill['shipping_city']" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()" />
                                     <x-ui.select name="shipping_state" label="State" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()">
                                         <option value="">Select state</option>
@@ -305,7 +305,7 @@
                             </div>
                         </div>
 
-                        <div x-show="hasPhysicalItems()" x-cloak class="rounded-2xl border border-gray-200 p-5">
+                        <div x-show="hasPhysicalItems()" x-cloak class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                             <h4 class="text-lg font-bold text-gray-900">Shipping Options</h4>
 
                             <div class="mt-5 space-y-3">
@@ -402,7 +402,7 @@
                             @endforeach
                         </div>
 
-                        <div class="rounded-2xl border border-gray-200 p-5">
+                        <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                             <h4 class="text-lg font-bold text-gray-900">Order Notes</h4>
                             <p class="mt-1 text-sm text-gray-600">Add any delivery or packing notes that should travel with this order.</p>
                             <div class="mt-5">
@@ -494,7 +494,7 @@
                                 Online card payments are currently unavailable.
                             </div>
                         @else
-                            <div class="rounded-2xl border border-gray-200 p-5">
+                            <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                                 <x-ui.select
                                     label="Payment Method"
                                     name="payment_method"

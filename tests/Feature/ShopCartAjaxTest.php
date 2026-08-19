@@ -117,7 +117,9 @@ class ShopCartAjaxTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('cart.is_empty', false)
+            ->assertJsonPath('cart.has_selected_shipping_method', false)
             ->assertJsonPath('cart.summary.item_count', 2)
+            ->assertJsonPath('cart.summary.item_gst', 3.63)
             ->assertJsonPath('cart.lines.0.quantity', 2);
         $this->assertFalse(session()->has('message'));
 

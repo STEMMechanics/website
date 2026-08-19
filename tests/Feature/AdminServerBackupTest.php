@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\RunServerBackup;
+use App\Models\ServerBackupRun;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\DatabaseBackupService;
 use App\Services\FileBackupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -114,6 +117,117 @@ class AdminServerBackupTest extends TestCase
         self::assertLessThan(strpos($content, 'Deployment'), strpos($content, 'Runtime'));
     }
 
+    public function test_admin_can_queue_database_and_file_backups_without_waiting_for_them(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+
+        $databaseResponse = $this->actingAs($admin)->postJson(route('admin.server.database.backup-now'));
+        $databaseResponse
+            ->assertAccepted()
+            ->assertJsonPath('run.type', ServerBackupRun::TYPE_DATABASE)
+            ->assertJsonPath('run.status', ServerBackupRun::STATUS_QUEUED);
+
+        $fileResponse = $this->actingAs($admin)->postJson(route('admin.server.files.backup-now'));
+        $fileResponse
+            ->assertAccepted()
+            ->assertJsonPath('run.type', ServerBackupRun::TYPE_FILES)
+            ->assertJsonPath('run.status', ServerBackupRun::STATUS_QUEUED);
+
+        Queue::assertPushed(RunServerBackup::class, 2);
+        $this->assertDatabaseCount('server_backup_runs', 2);
+    }
+
+    public function test_backup_status_endpoint_reports_completion_after_the_background_job_runs(): void
+    {
+        $admin = $this->createAdminUser();
+        $run = ServerBackupRun::query()->create([
+            'type' => ServerBackupRun::TYPE_DATABASE,
+            'status' => ServerBackupRun::STATUS_QUEUED,
+            'progress' => 5,
+            'requested_by' => $admin->id,
+        ]);
+
+        $this->mock(DatabaseBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createBackup')->once()->andReturn('/tmp/website_test.sql.gz');
+            $mock->shouldReceive('resolvedKeepCount')->once()->andReturn(10);
+            $mock->shouldReceive('pruneOldBackups')->once()->with(10)->andReturn(0);
+        });
+
+        (new RunServerBackup((string) $run->id))->handle(
+            app(DatabaseBackupService::class),
+            app(FileBackupService::class),
+        );
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.server.backups.status', $run))
+            ->assertOk()
+            ->assertJsonPath('run.status', ServerBackupRun::STATUS_COMPLETED)
+            ->assertJsonPath('run.progress', 100)
+            ->assertJsonPath('run.finished', true)
+            ->assertJsonPath('run.message', 'Database backup created: website_test.sql.gz');
+    }
+
+    public function test_opening_a_backup_queues_manifest_preparation_instead_of_blocking(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+        $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('hasFreshInspectionManifest')->once()->andReturnFalse();
+        });
+
+        $this->actingAs($admin)
+            ->get(route('admin.server.files.show', ['mode' => 'full', 'filename' => '20260819_full']))
+            ->assertOk()
+            ->assertSeeText('Preparing backup contents');
+
+        Queue::assertPushed(RunServerBackup::class, 1);
+        $this->assertDatabaseHas('server_backup_runs', [
+            'type' => ServerBackupRun::TYPE_INSPECTION,
+            'status' => ServerBackupRun::STATUS_QUEUED,
+        ]);
+    }
+
+    public function test_bulk_media_download_is_prepared_in_the_background(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.server.media.download-all'))
+            ->assertAccepted()
+            ->assertJsonPath('run.type', ServerBackupRun::TYPE_MEDIA_ARCHIVE)
+            ->assertJsonPath('run.status', ServerBackupRun::STATUS_QUEUED);
+
+        Queue::assertPushed(RunServerBackup::class, 1);
+    }
+
+    public function test_completed_generated_archive_can_be_downloaded(): void
+    {
+        $admin = $this->createAdminUser();
+        $directory = storage_path('app/backups/generated');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0775, true);
+        }
+        $path = $directory.'/test-download.zip';
+        file_put_contents($path, 'zip contents');
+
+        $run = ServerBackupRun::query()->create([
+            'type' => ServerBackupRun::TYPE_MEDIA_ARCHIVE,
+            'status' => ServerBackupRun::STATUS_COMPLETED,
+            'progress' => 100,
+            'result' => ['archive_path' => $path, 'archive_name' => 'media-files.zip'],
+            'finished_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.server.backups.download', $run))
+            ->assertOk()
+            ->assertDownload('media-files.zip');
+
+        @unlink($path);
+    }
+
     public function test_admin_server_backups_page_shows_backup_rollback_action(): void
     {
         $admin = $this->createAdminUser();
@@ -192,6 +306,9 @@ class AdminServerBackupTest extends TestCase
         $admin = $this->createAdminUser();
 
         $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('hasFreshInspectionManifest')
+                ->once()
+                ->andReturnTrue();
             $mock->shouldReceive('inspectBackupRun')
                 ->once()
                 ->with('full', '20260409_011500_full', 'media')

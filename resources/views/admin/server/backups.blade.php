@@ -2,13 +2,35 @@
     <x-mast>Server Backups</x-mast>
 
     <x-container>
+        <div
+            x-data="serverBackupRunner({
+                initialRuns: @js($activeBackupRuns),
+                statusUrl: @js(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])),
+            })"
+            x-init="init()"
+        >
+        <template x-for="run in runs" :key="run.id">
+            <div class="my-4 rounded-lg border p-4 shadow-sm" :class="run.status === 'failed' ? 'border-red-200 bg-red-50' : (run.status === 'completed' ? 'border-green-200 bg-green-50' : 'border-sky-200 bg-sky-50')" role="status">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="font-semibold" :class="run.status === 'failed' ? 'text-red-900' : (run.status === 'completed' ? 'text-green-900' : 'text-sky-950')" x-text="operationLabel(run.type)"></div>
+                        <div class="mt-1 text-sm" :class="run.status === 'failed' ? 'text-red-800' : (run.status === 'completed' ? 'text-green-800' : 'text-sky-800')" x-text="run.status === 'failed' ? run.error_message : run.message"></div>
+                    </div>
+                    <span class="text-xs font-semibold uppercase tracking-wide" x-text="run.status"></span>
+                </div>
+                <div x-show="!run.finished" class="mt-3 h-2.5 overflow-hidden rounded-full bg-white/80">
+                    <div class="h-full rounded-full bg-sky-600 transition-all duration-700" :class="run.status === 'running' ? 'animate-pulse' : ''" :style="`width: ${Math.max(5, Number(run.progress || 0))}%`"></div>
+                </div>
+            </div>
+        </template>
+
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Database Backup</h3>
                 <div class="flex items-center gap-3">
-                    <form method="POST" action="{{ route('admin.server.database.backup-now') }}" data-sm-confirm="Create a full database backup now?" data-sm-confirm-button="Backup Now">
+                    <form method="POST" action="{{ route('admin.server.database.backup-now') }}" @submit.prevent="startBackup($event, 'database')">
                         @csrf
-                        <x-ui.button type="submit" color="dark">Backup Now</x-ui.button>
+                        <x-ui.button type="submit" color="dark" x-bind:disabled="isRunning('database')">Backup Now</x-ui.button>
                     </form>
 {{--                    <form method="POST" action="{{ route('admin.server.database.export') }}" data-sm-confirm="Create and download a full database backup now?" data-sm-confirm-button="Export Backup">--}}
 {{--                        @csrf--}}
@@ -90,9 +112,9 @@
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">File Backups</h3>
                 <div class="flex items-center gap-3">
-                    <form method="POST" action="{{ route('admin.server.files.backup-now') }}" data-sm-confirm="Create a full local file snapshot now?" data-sm-confirm-button="Backup Now">
+                    <form method="POST" action="{{ route('admin.server.files.backup-now') }}" @submit.prevent="startBackup($event, 'files')">
                         @csrf
-                        <x-ui.button type="submit" color="dark">Full Backup Now</x-ui.button>
+                        <x-ui.button type="submit" color="dark" x-bind:disabled="isRunning('files')">Full Backup Now</x-ui.button>
                     </form>
                 </div>
             </div>
@@ -181,14 +203,10 @@
                             {{ \App\Helpers::bytesToString((int) ($mediaStats['size'] ?? 0)) }}
                         </div>
                     </div>
-                    <a
-                        href="{{ route('admin.server.media.download-all') }}"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
-                        title="Download media ZIP"
-                        aria-label="Download media ZIP"
-                    >
-                        <i class="fa-solid fa-download"></i>
-                    </a>
+                    <form method="POST" action="{{ route('admin.server.media.download-all') }}" @submit.prevent="startBackup($event, 'media_archive')">
+                        @csrf
+                        <button type="submit" :disabled="isRunning('media_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare media ZIP" aria-label="Prepare media ZIP"><i class="fa-solid fa-download"></i></button>
+                    </form>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-white p-3 flex justify-between">
                     <div>
@@ -199,21 +217,85 @@
                             {{ \App\Helpers::bytesToString((int) ($financeStats['size'] ?? 0)) }}
                         </div>
                     </div>
-                    <a
-                        href="{{ route('admin.server.finance.download-all') }}"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
-                        title="Download finance ZIP"
-                        aria-label="Download finance ZIP"
-                    >
-                        <i class="fa-solid fa-download"></i>
-                    </a>
+                    <form method="POST" action="{{ route('admin.server.finance.download-all') }}" @submit.prevent="startBackup($event, 'finance_archive')">
+                        @csrf
+                        <button type="submit" :disabled="isRunning('finance_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare finance ZIP" aria-label="Prepare finance ZIP"><i class="fa-solid fa-download"></i></button>
+                    </form>
                 </div>
             </div>
+        </div>
         </div>
     </x-container>
 </x-layout>
 
 <script>
+    window.serverBackupRunner = (config) => ({
+        runs: Array.isArray(config.initialRuns) ? config.initialRuns : [],
+        timers: {},
+
+        init() {
+            this.runs.filter((run) => !run.finished).forEach((run) => this.poll(run.id));
+        },
+
+        isRunning(type) {
+            return this.runs.some((run) => run.type === type && !run.finished);
+        },
+
+        operationLabel(type) {
+            return ({ database: 'Database backup', files: 'Full file backup', media_archive: 'Media files download', finance_archive: 'Finance files download', backup_archive: 'Backup download' })[type] || 'Server operation';
+        },
+
+        async startBackup(event, type) {
+            if (this.isRunning(type)) return;
+
+            const form = event.target;
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.run) {
+                this.runs.unshift({ id: `${type}-error`, type, status: 'failed', progress: 100, finished: true, message: '', error_message: payload.message || 'Unable to queue backup.' });
+                return;
+            }
+
+            this.upsert(payload.run);
+            this.poll(payload.run.id);
+        },
+
+        upsert(run) {
+            const index = this.runs.findIndex((item) => item.id === run.id);
+            if (index === -1) this.runs.unshift(run);
+            else this.runs.splice(index, 1, run);
+        },
+
+        poll(runId) {
+            window.clearTimeout(this.timers[runId]);
+            this.timers[runId] = window.setTimeout(async () => {
+                try {
+                    const url = config.statusUrl.replace('__RUN_ID__', encodeURIComponent(runId));
+                    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const payload = await response.json();
+                    if (!response.ok || !payload.run) throw new Error('Unable to read backup status.');
+                    this.upsert(payload.run);
+                    if (payload.run.finished) {
+                        if (payload.run.status === 'completed' && payload.run.download_url) {
+                            window.location.assign(payload.run.download_url);
+                            window.setTimeout(() => { this.runs = this.runs.filter((run) => run.id !== runId); }, 5000);
+                        } else {
+                            window.setTimeout(() => window.location.reload(), 4000);
+                        }
+                    } else {
+                        this.poll(runId);
+                    }
+                } catch (error) {
+                    this.timers[runId] = window.setTimeout(() => this.poll(runId), 5000);
+                }
+            }, 1500);
+        },
+    });
+
     const initServerBackupControls = () => {
         const databaseImportInput = document.getElementById('database_backup');
         const databaseImportForm = document.getElementById('database-import-form');

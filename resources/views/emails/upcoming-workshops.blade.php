@@ -6,11 +6,17 @@
         ->merge($onlineWorkshops)
         ->sortBy(fn ($workshop) => $workshop->starts_at?->timestamp ?? PHP_INT_MAX)
         ->values();
+    $storePromotion = $storePromotion ?? ['sections' => collect()];
+    $storeSections = collect($storePromotion['sections'] ?? []);
+    $contentOrder = ($contentOrder ?? 'workshops') === 'store' ? 'store' : 'workshops';
+    $storeProducts = $storeSections->flatMap(fn ($section) => collect($section['products'] ?? []))->values();
     $heroImageCandidates = $allItems->filter(fn ($workshop) => filled($workshop->hero?->url))->values();
-    $featuredWorkshop = $heroImageCandidates->isNotEmpty()
-        ? \Illuminate\Support\Arr::random($heroImageCandidates->all())
-        : $allItems->first();
-    $featuredImageUrl = $featuredWorkshop?->hero?->url ? url((string) $featuredWorkshop->hero->url) : null;
+    $featuredWorkshop = $heroImageCandidates->isNotEmpty() ? \Illuminate\Support\Arr::random($heroImageCandidates->all()) : $allItems->first();
+    $featuredProduct = $storeProducts->isNotEmpty() ? \Illuminate\Support\Arr::random($storeProducts->all()) : null;
+    $featuredImageUrl = $contentOrder === 'store' && $featuredProduct
+        ? url($featuredProduct->primaryImageUrl())
+        : ($featuredWorkshop?->hero?->url ? url((string) $featuredWorkshop->hero->url) : null);
+    $featuredImageAlt = $contentOrder === 'store' && $featuredProduct ? $featuredProduct->title : $featuredWorkshop?->title;
 @endphp
 
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-hero__table mobile-hide" style="display:table; max-width:1028px; margin:0 auto 28px auto;">
@@ -27,7 +33,7 @@
 </td>
 @if($featuredImageUrl)
 <td width="372" class="newsletter-hero__cell newsletter-hero__media-cell" style="padding:22px 22px 22px 12px; background:#111827; vertical-align:middle;">
-<img src="{{ $featuredImageUrl }}?md" alt="{{ $featuredWorkshop->title }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:16px;">
+<img src="{{ $featuredImageUrl }}{{ $contentOrder === 'store' ? '' : '?md' }}" alt="{{ $featuredImageAlt }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:16px;">
 </td>
 @endif
 </tr>
@@ -48,28 +54,13 @@
 </tr>
 </table>
 
-@if($allItems->isNotEmpty())
-@foreach($allItems as $workshop)
-@php
-    $accent = $workshop->getLocationName() === 'Online' ? '#16a34a' : '#2563eb';
-    $badgeText = $workshop->getLocationName();
-@endphp
-@include('emails.partials.upcoming-workshop-card', [
-    'workshop' => $workshop,
-    'accent' => $accent,
-    'badgeText' => $badgeText,
-    'showSummary' => true,
-    'showScheduleLines' => false,
-    'showImage' => true,
-    'compact' => false,
-    'showLocationFooter' => false,
-])
-@endforeach
+@if($contentOrder === 'store')
+@include('emails.partials.newsletter-store-section', ['hideFirstStoreHeading' => true])
+@include('emails.partials.newsletter-workshop-section', ['showWorkshopHeading' => true])
+@else
+@include('emails.partials.newsletter-workshop-section', ['showWorkshopHeading' => false])
+@include('emails.partials.newsletter-store-section', ['hideFirstStoreHeading' => false])
 @endif
-
-<p class="tall center" style="margin-top: 28px">
-    <a href="https://stemmechanics.com.au/workshops" target="_blank" rel="noopener" class="newsletter-hero-cta" style="display:inline-block; background:#0f172a; color:#ffffff; text-decoration:none; font-size:18px; font-weight:800; padding:18px 34px; border-radius:24px;">{{ $heroButtonLabel ?? 'View All Workshops' }}</a>
-</p>
 
 @slot('subcopy')
     <h4>Why did I get this email?</h4>

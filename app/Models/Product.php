@@ -81,6 +81,7 @@ class Product extends Model
         'sort_order',
         'low_stock_threshold',
         'low_stock_alert_sent_at',
+        'restocked_at',
     ];
 
     protected $casts = [
@@ -106,11 +107,21 @@ class Product extends Model
         'sort_order' => 'integer',
         'low_stock_threshold' => 'integer',
         'low_stock_alert_sent_at' => 'datetime',
+        'restocked_at' => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::saving(function (self $product): void {
+            if ($product->exists
+                && $product->isDirty('inventory_quantity')
+                && $product->getRawOriginal('inventory_quantity') !== null
+                && (int) $product->getRawOriginal('inventory_quantity') <= 0
+                && $product->inventory_quantity !== null
+                && (int) $product->inventory_quantity > 0) {
+                $product->restocked_at = now();
+            }
+
             $product->slug = self::uniqueSlug(
                 trim((string) ($product->slug ?: $product->title)),
                 $product->exists ? (int) $product->id : null

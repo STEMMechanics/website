@@ -56,4 +56,26 @@ return [
         ],
         'button_label' => 'View All Workshops',
     ],
+    'store' => [
+        'hero_messages' => [
+            ['header' => 'STEM supplies for the next big idea', 'cta' => 'Discover kits, materials and parts ready for making.', 'subject' => 'STEM supplies for your next project'],
+            ['header' => 'Ways to build, test and create', 'cta' => 'Explore practical supplies and hands-on kits from the STEMMechanics store.', 'subject' => 'Kits and creative supplies to explore'],
+            ['header' => 'Stock up for your next making session', 'cta' => 'Find useful parts, materials and projects for curious makers.', 'subject' => 'Kits, parts and materials worth discovering'],
+            ['header' => 'Bring the next STEM project to life', 'cta' => 'Browse our store picks, then see what is happening in our workshops.', 'subject' => 'Store picks and hands-on STEM ideas'],
+            ['header' => 'A few favourites for curious builders', 'cta' => 'Hand-picked kits and workshop essentials are ready to explore.', 'subject' => 'Our latest STEM store picks'],
+        ],
+        'hero_messages_by_match' => [
+            'created_within' => [
+                ['header' => 'New STEM supplies have arrived', 'cta' => 'Explore recently added kits, materials and parts for your next project.', 'subject' => 'New kits and creative supplies have arrived'],
+                ['header' => 'Fresh additions for curious makers', 'cta' => 'See what has recently joined the STEMMechanics store.', 'subject' => 'New STEM store arrivals to explore'],
+            ],
+            'restocked_within' => [
+                ['header' => 'Workshop favourites are back in stock', 'cta' => 'Popular kits, materials and parts are available again.', 'subject' => 'Back in stock at STEMMechanics'],
+                ['header' => 'Back and ready for the next build', 'cta' => 'Take another look at these recently restocked supplies.', 'subject' => 'Recently restocked STEM favourites'],
+            ],
+            'updated_within' => [
+                ['header' => 'Take another look at these store picks', 'cta' => 'Explore products and projects we have recently updated.', 'subject' => 'Recently updated STEM store picks'],
+            ],
+        ],
+    ],
 ];

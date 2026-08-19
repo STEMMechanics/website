@@ -37,6 +37,7 @@ class ProductVariant extends Model
         'sort_order',
         'low_stock_threshold',
         'low_stock_alert_sent_at',
+        'restocked_at',
     ];
 
     protected $casts = [
@@ -59,7 +60,28 @@ class ProductVariant extends Model
         'sort_order' => 'integer',
         'low_stock_threshold' => 'integer',
         'low_stock_alert_sent_at' => 'datetime',
+        'restocked_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $variant): void {
+            if ($variant->exists
+                && $variant->isDirty('inventory_quantity')
+                && $variant->getRawOriginal('inventory_quantity') !== null
+                && (int) $variant->getRawOriginal('inventory_quantity') <= 0
+                && $variant->inventory_quantity !== null
+                && (int) $variant->inventory_quantity > 0) {
+                $variant->restocked_at = now();
+            }
+        });
+
+        static::saved(function (self $variant): void {
+            if ($variant->wasChanged('restocked_at')) {
+                $variant->product()->update(['restocked_at' => $variant->restocked_at]);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Product, $this>

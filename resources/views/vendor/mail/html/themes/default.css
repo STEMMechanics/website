@@ -392,3 +392,17 @@ hr {
 .break-all {
     word-break: break-all;
 }
+
+@media only screen and (max-width: 640px) {
+    .newsletter-products-row,
+    .newsletter-products-row tbody,
+    .newsletter-products-row tr,
+    .newsletter-product-cell {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .newsletter-product-cell {
+        box-sizing: border-box !important;
+    }
+}
