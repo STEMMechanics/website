@@ -199,13 +199,15 @@ input[type=number] {
 }
 
 
-html, body {
-    @apply bg-gray-100;
-    min-height: 100vh;
-}
+@layer base {
+    html, body {
+        min-height: 100vh;
+    }
 
-body {
-    font-family: Poppins, Roboto, Open Sans, ui-sans-serif, system-ui, sans-serif;
+    body {
+        font-family: Poppins, Roboto, Open Sans, ui-sans-serif, system-ui, sans-serif;
+        @apply bg-gray-100;
+    }
 }
 
 altcha-widget {
@@ -1473,4 +1475,8 @@ table tr.highlight-row {
 
 .sm-registration-private {
     @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-orange-400 text-orange-900 bg-orange-100;
+}
+
+.content ul {
+    @apply ml-2 sm:ml-6;
 }

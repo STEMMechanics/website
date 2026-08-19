@@ -252,7 +252,6 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Home Licence')
             ->assertSeeText('Classroom Licence')
             ->assertSeeText('Organisation Licence')
-            ->assertSee('x-text="currentSku()"', false)
             ->assertSeeText('For one classroom.')
             ->assertSeeText('For one school.')
             ->assertSeeText('Add to Cart')

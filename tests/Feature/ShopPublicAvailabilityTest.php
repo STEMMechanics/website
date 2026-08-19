@@ -327,7 +327,7 @@ class ShopPublicAvailabilityTest extends TestCase
         $this->assertSame(3, substr_count($response->getContent(), 'Best seller'));
     }
 
-    public function test_admins_see_an_inline_edit_link_and_consistent_title_row_height_on_product_cards(): void
+    public function test_product_cards_keep_consistent_title_row_height_without_inline_admin_controls(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -345,14 +345,14 @@ class ShopPublicAvailabilityTest extends TestCase
             ->get(route('shop.index'))
             ->assertOk()
             ->assertSee('min-height: 4rem;', false)
-            ->assertSee(route('admin.shop.product.edit', $product), false)
-            ->assertSee('aria-label="Edit Short Title"', false);
+            ->assertDontSee(route('admin.shop.product.edit', $product), false)
+            ->assertDontSee('aria-label="Edit Short Title"', false);
 
         $this->actingAs($admin)
             ->get(route('shop.index', ['view' => 'list']))
             ->assertOk()
             ->assertDontSee('min-h-16', false)
-            ->assertSee(route('admin.shop.product.edit', $product), false)
-            ->assertSee('aria-label="Edit Short Title"', false);
+            ->assertDontSee(route('admin.shop.product.edit', $product), false)
+            ->assertDontSee('aria-label="Edit Short Title"', false);
     }
 }

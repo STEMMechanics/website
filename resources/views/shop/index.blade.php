@@ -56,32 +56,39 @@
             }
 
             [data-shop-catalog] .shop-product-card {
+                height: auto;
                 padding: 0 !important;
             }
 
             [data-shop-catalog] .shop-product-card-inner {
                 display: flex !important;
+                flex: none !important;
                 flex-direction: column !important;
                 gap: 0 !important;
+                height: auto;
             }
 
             [data-shop-catalog] .shop-product-card-image-frame {
                 grid-column: auto !important;
                 grid-row: auto !important;
-                height: auto !important;
+                height: 16rem !important;
                 border-radius: 0 !important;
             }
 
             [data-shop-catalog] .shop-product-card-image {
-                height: 16rem !important;
+                height: 100% !important;
                 min-height: 0 !important;
+                object-fit: cover;
+                object-position: center;
             }
 
             [data-shop-catalog] .shop-product-card-body {
+                flex: none !important;
                 grid-column: auto !important;
                 grid-row: auto !important;
+                height: auto !important;
                 min-width: 0;
-                padding: 1.25rem 1.25rem 0.5rem 1.25rem !important;
+                padding: 1.25rem 1.25rem 0 1.25rem !important;
             }
 
             [data-shop-catalog] .shop-product-card-header {
@@ -95,9 +102,11 @@
 
             [data-shop-catalog] .shop-product-card-description {
                 display: block !important;
+                flex: none !important;
                 margin-top: 0 !important;
-                margin-bottom: 1rem !important;
+                margin-bottom: 2rem !important;
                 max-width: none !important;
+                min-height: 0 !important;
                 overflow: visible !important;
                 -webkit-line-clamp: unset !important;
             }
@@ -125,6 +134,7 @@
             [data-shop-catalog][data-current-view="grid"] [data-shop-results] {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
         }
 
         @media (min-width: 1280px) {
@@ -205,10 +215,11 @@
             }
         }
 
-        [data-shop-catalog][data-current-view="list"] .shop-product-card-body {
+        [data-shop-catalog] .shop-product-card-body {
+            height: 100%;
             min-width: 0;
             grid-column: 2;
-            grid-row: 1;
+            grid-row: 1 / span 2;
         }
 
         [data-shop-catalog][data-current-view="list"] .shop-product-card-header {
@@ -250,6 +261,25 @@
             margin-bottom: 1rem;
         }
 
+        [data-shop-catalog][data-current-view="grid"] .shop-product-card-stock-price-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+        }
+
+        [data-shop-catalog][data-current-view="list"] .shop-product-card-stock-price-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-right: 11rem;
+        }
+
+        @media (min-width: 768px) {
+            [data-shop-catalog][data-current-view="list"] .shop-product-card-stock-price-line {
+                margin-right: 13rem;
+            }
+        }
+
         [data-shop-catalog][data-current-view="list"] .shop-product-card-stock {
             margin-top: 0.75rem;
         }
@@ -267,6 +297,34 @@
         @media (min-width: 640px) {
             [data-shop-catalog][data-current-view="list"] .shop-product-card-actions {
                 justify-self: end;
+            }
+        }
+
+        @media (max-width: 767px) {
+            [data-shop-catalog] .shop-product-card-stock-price-line {
+                margin-right: 13rem;
+            }
+
+            [data-shop-catalog] .shop-product-card-actions {
+                width: 12rem !important;
+                margin-top: -2rem !important;
+                margin-left: auto;
+                align-self: flex-end;
+            }
+        }
+
+        @media (max-width: 511px) {
+            [data-shop-catalog] .shop-product-card-stock-price-line {
+                margin-right: 0 !important;
+                margin-bottom: .5rem;
+            }
+
+            [data-shop-catalog] .shop-product-card-actions {
+                width: 100% !important;
+                margin-top: 0 !important;
+                margin-left: 0;
+                align-self: stretch;
+                justify-self: stretch;
             }
         }
 
@@ -427,7 +485,7 @@
                                 Showing <span class="font-semibold text-gray-900">{{ $firstResult }}-{{ $lastResult }}</span> of <span class="font-semibold text-gray-900">{{ $totalResults }}</span> result{{ $totalResults === 1 ? '' : 's' }}
                             </div>
 
-                            <div class="hidden sm:inline-flex overflow-hidden rounded border border-gray-300 bg-white shadow-sm self-start lg:self-auto">
+                            <div class="hidden md:inline-flex overflow-hidden rounded border border-gray-300 bg-white shadow-sm self-start lg:self-auto">
                                 <button
                                     type="button"
                                     data-shop-view-button="grid"
@@ -496,16 +554,16 @@
                                                 <div class="shop-product-card-title flex flex-col justify-between">
                                                     <div class="flex items-center gap-2">
                                                         <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
-                                                        @if($isAdmin)
-                                                            <a
-                                                                href="{{ route('admin.shop.product.edit', $product) }}"
-                                                                class="pointer-events-auto relative z-20 inline-flex shrink-0 items-center text-gray-400 transition hover:text-primary-color"
-                                                                title="Edit product"
-                                                                aria-label="Edit {{ $product->title }}"
-                                                            >
-                                                                <i class="fa-solid fa-pen text-sm"></i>
-                                                            </a>
-                                                        @endif
+{{--                                                        @if($isAdmin)--}}
+{{--                                                            <a--}}
+{{--                                                                href="{{ route('admin.shop.product.edit', $product) }}"--}}
+{{--                                                                class="pointer-events-auto relative z-20 inline-flex shrink-0 items-center text-gray-400 transition hover:text-primary-color"--}}
+{{--                                                                title="Edit product"--}}
+{{--                                                                aria-label="Edit {{ $product->title }}"--}}
+{{--                                                            >--}}
+{{--                                                                <i class="fa-solid fa-pen text-sm"></i>--}}
+{{--                                                            </a>--}}
+{{--                                                        @endif--}}
                                                     </div>
                             @if(trim((string) $product->subtitle) !== '')
                                 <div class="text-sm font-medium text-gray-500">{{ $product->subtitle }}</div>
@@ -525,31 +583,33 @@
                                                         @endif
                                                     </div>
                                                 </div>
-                                                <div class="text-right">
-                                                    <div class="flex items-baseline gap-1 text-xl font-bold text-gray-900 sm:justify-end">
-                                                        @if($priceIsFromRange)
-                                                            <span class="text-sm font-medium text-gray-500">From</span>
-                                                        @endif
-                                                        <span>{{ $priceRangeAmountLabel }}</span>
-                                                    </div>
-                                                    <div class="text-xs text-gray-500">(inc GST)</div>
-                                                </div>
                                             </div>
 
                                             @if($shortDescription !== '')
                                                 <p class="shop-product-card-description text-sm text-gray-600 flex-1 min-h-18">{{ $shortDescription }}</p>
                                             @endif
 
-                                            <div class="shop-product-card-stock">
-                                                @if(!$inStock)
-                                                    <x-stock-indicator tone="danger" :label="'Out of stock'" />
-                                                @elseif($product->isDigital())
-                                                    <x-stock-indicator tone="success" :label="'Instant download after checkout'" />
-                                                @elseif($hasVariants)
-                                                    <span class="text-xs font-medium text-gray-500">{{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available</span>
-                                                @else
-                                                    <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" />
-                                                @endif
+                                            <div class="shop-product-card-stock-price-line">
+                                                <div class="shop-product-card-stock">
+                                                    @if(!$inStock)
+                                                        <x-stock-indicator tone="danger" :label="'Out of stock'" />
+                                                    @elseif($product->isDigital())
+                                                        <x-stock-indicator tone="success" :label="'Instant download after checkout'" />
+                                                    @elseif($hasVariants)
+                                                        <span class="text-xs font-medium text-gray-500">{{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available</span>
+                                                    @else
+                                                        <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" />
+                                                    @endif
+                                                </div>
+
+                                                <div class="text-right">
+                                                    <div class="flex items-baseline gap-1 text-xl font-bold text-gray-900 sm:justify-end">
+                                                        @if($priceIsFromRange)
+                                                            <span class="text-xs font-medium text-gray-500">From</span>
+                                                        @endif
+                                                        <span>{{ $priceRangeAmountLabel }}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
