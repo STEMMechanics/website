@@ -38,6 +38,7 @@ class StoreShippingMethod extends Model
         'rate_multiplier',
         'rate_adjustment_amount',
         'is_pickup',
+        'suppresses_request_quote',
         'is_active',
         'sort_order',
     ];
@@ -49,6 +50,7 @@ class StoreShippingMethod extends Model
         'rate_multiplier' => 'decimal:2',
         'rate_adjustment_amount' => 'decimal:2',
         'is_pickup' => 'boolean',
+        'suppresses_request_quote' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
@@ -56,6 +58,13 @@ class StoreShippingMethod extends Model
     public function isPickup(): bool
     {
         return (bool) $this->is_pickup || (string) $this->calculator === self::CALCULATOR_PICKUP;
+    }
+
+    public function suppressesRequestQuote(): bool
+    {
+        $value = $this->getAttribute('suppresses_request_quote');
+
+        return $value !== null ? (bool) $value : ! $this->isPickup();
     }
 
     /**

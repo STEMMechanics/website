@@ -6,6 +6,7 @@ use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StoreShippingMethod;
+use App\Support\ShopShippingSettings;
 use Illuminate\Support\Collection;
 
 class StoreCartService
@@ -309,6 +310,8 @@ class StoreCartService
                     'description' => trim((string) ($method->description ?? '')) ?: null,
                     'delivery_estimate_label' => $method->deliveryEstimateLabel(),
                     'is_pickup' => $method->isPickup(),
+                    'suppresses_request_quote' => $method->suppressesRequestQuote(),
+                    'sort_order' => (int) $method->sort_order,
                     'estimated_amount' => round((float) ($methodQuote['amount'] ?? 0), 2),
                     'can_checkout' => (bool) ($methodQuote['can_checkout'] ?? true),
                     'requires_manual_quote' => (bool) ($methodQuote['requires_manual_quote'] ?? false),
@@ -755,7 +758,13 @@ class StoreCartService
             ->filter(fn (array $method): bool => ! (bool) ($method['is_pickup'] ?? false) && (bool) ($method['requires_manual_quote'] ?? false))
             ->values();
 
-        if ($manualQuoteMethods->isEmpty()) {
+        $hasAvailableShippingAlternative = $methodQuotes->contains(
+            fn (array $method): bool => (bool) ($method['suppresses_request_quote'] ?? false)
+                && (bool) ($method['can_checkout'] ?? false)
+                && ! (bool) ($method['requires_manual_quote'] ?? false)
+        );
+
+        if ($manualQuoteMethods->isEmpty() || $hasAvailableShippingAlternative) {
             return $visibleMethods;
         }
 
@@ -779,10 +788,15 @@ class StoreCartService
             'requires_manual_quote' => true,
             'reason' => self::CUSTOMER_MANUAL_QUOTE_REASON,
             'manual_quote_line_keys' => $manualQuoteLineKeys,
+            'sort_order' => ShopShippingSettings::requestQuoteSortOrder(),
         ];
 
-        return collect([$requestQuoteMethod])
-            ->concat($visibleMethods)
+        return $visibleMethods
+            ->push($requestQuoteMethod)
+            ->sortBy(fn (array $method): array => [
+                (int) ($method['sort_order'] ?? 0),
+                trim((string) ($method['code'] ?? '')) === StoreShippingService::REQUEST_QUOTE_METHOD_CODE ? 0 : 1,
+            ])
             ->values();
     }
 
@@ -798,10 +812,6 @@ class StoreCartService
 
         if ($availableCodes->contains($requestedShippingMethodCode)) {
             return $requestedShippingMethodCode;
-        }
-
-        if ($availableCodes->contains(StoreShippingService::REQUEST_QUOTE_METHOD_CODE)) {
-            return StoreShippingService::REQUEST_QUOTE_METHOD_CODE;
         }
 
         $firstCode = $availableCodes->first();

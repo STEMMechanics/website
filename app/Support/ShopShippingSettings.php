@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Schema;
 
 class ShopShippingSettings
 {
+    public const REQUEST_QUOTE_SORT_ORDER_OPTION = 'store.shipping.request-quote-sort-order';
+
+    public static function requestQuoteSortOrder(): int
+    {
+        return max(0, (int) (SiteOption::value(self::REQUEST_QUOTE_SORT_ORDER_OPTION) ?? 2));
+    }
+
     public const SATCHELS_OPTION = 'store.shipping.satchels';
 
     public const MAX_WEIGHT_OPTION = 'store.shipping.max-satchel-weight-grams';
