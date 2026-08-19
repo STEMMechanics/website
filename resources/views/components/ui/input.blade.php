@@ -9,13 +9,13 @@
     $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
     $value = old($name, $value);
     if (is_array($value)) {
-        $value = implode($type === 'textarea' ? PHP_EOL : ', ', array_map(function ($item) {
-            if (is_array($item)) {
-                return implode(', ', array_map(fn ($nested) => (string) $nested, $item));
-            }
-
-            return (string) $item;
-        }, $value));
+        $value = implode(
+            $type === 'textarea' ? PHP_EOL : ', ',
+            array_map(
+                static fn ($item): string => is_scalar($item) || $item instanceof \Stringable ? (string) $item : '',
+                \Illuminate\Support\Arr::flatten($value),
+            ),
+        );
     }
     $moneyFormat = filter_var($moneyFormat, FILTER_VALIDATE_BOOLEAN);
     $readonly = filter_var($readonly, FILTER_VALIDATE_BOOLEAN);
