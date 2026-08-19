@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
-    && docker-php-ext-install pdo_mysql bcmath gd zip opcache sockets \
+    && docker-php-ext-install pdo_mysql bcmath gd zip sockets \
+    && php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);' \
     && php -r 'exit(function_exists("imagecreatefromwebp") && (gd_info()["WebP Support"] ?? false) ? 0 : 1);' \
     && rm -rf /var/lib/apt/lists/*
 
