@@ -59,6 +59,7 @@ class Product extends Model
         'backorder_shipping_offset_days',
         'short_description',
         'description',
+        'search_terms',
         'product_details',
         'caution_message',
         'base_variant_name',

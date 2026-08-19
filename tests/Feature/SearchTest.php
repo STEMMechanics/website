@@ -94,6 +94,51 @@ class SearchTest extends TestCase
             ->assertSeeText('25 pack');
     }
 
+    public function test_search_page_matches_product_search_terms(): void
+    {
+        SiteOption::query()->updateOrCreate([
+            'name' => ShopAvailability::PUBLIC_ENABLED_OPTION,
+        ], [
+            'value' => '1',
+        ]);
+
+        Product::factory()->create([
+            'title' => 'Wooden Craft Sticks',
+            'search_terms' => 'popsicle sticks, ice block sticks',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 7.95,
+        ]);
+
+        $this->get(route('search.index', ['q' => 'popsicle']))
+            ->assertOk()
+            ->assertSeeText('Wooden Craft Sticks');
+
+        $this->get(route('shop.index', ['search' => 'popsicle']))
+            ->assertOk()
+            ->assertSeeText('Wooden Craft Sticks');
+    }
+
+    public function test_product_page_includes_search_terms_as_meta_keywords(): void
+    {
+        SiteOption::query()->updateOrCreate([
+            'name' => ShopAvailability::PUBLIC_ENABLED_OPTION,
+        ], [
+            'value' => '1',
+        ]);
+
+        $product = Product::factory()->create([
+            'title' => 'Wooden Craft Sticks',
+            'search_terms' => 'popsicle sticks, ice block sticks',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSee('<meta name="keywords" content="popsicle sticks, ice block sticks">', false);
+    }
+
     public function test_search_page_does_not_search_store_products_when_the_store_is_disabled(): void
     {
         SiteOption::query()->updateOrCreate([

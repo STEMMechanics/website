@@ -476,6 +476,14 @@
                 </div>
                 <x-ui.input name="short_description" label="Short Description" :value="$product->short_description ?? ''" />
                 <x-ui.editor name="description" label="Description" :value="$productDescription" />
+                <x-ui.input
+                    type="textarea"
+                    name="search_terms"
+                    label="Search Terms"
+                    :value="$product->search_terms ?? ''"
+                    rows="3"
+                    info="Alternative names and related words, separated by spaces or commas. Used by site search and product-page metadata; not shown in the product description."
+                />
 
                 <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                     <div class="flex flex-wrap items-start justify-between gap-3">
