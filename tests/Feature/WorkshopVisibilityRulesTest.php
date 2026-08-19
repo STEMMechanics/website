@@ -6,6 +6,7 @@ use App\Mail\UpcomingWorkshops;
 use App\Models\AnalyticsEvent;
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\NewsletterStoreTheme;
 use App\Models\Organisation;
 use App\Models\SiteOption;
 use App\Models\User;
@@ -561,6 +562,83 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertSame(3, substr_count($rendered, '(2 hours)'));
         $this->assertStringContainsString('Get Tickets', $rendered);
         $this->assertGreaterThanOrEqual(5, substr_count($rendered, '?md'));
+    }
+
+    public function test_upcoming_workshops_mailable_limits_the_combined_chronological_selection_to_six(): void
+    {
+        $workshops = collect(range(1, 8))->map(function (int $number): Workshop {
+            $workshop = $this->createWorkshop(
+                title: 'Newsletter Workshop '.$number,
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay(),
+                isOnline: $number % 2 === 0,
+            );
+            $workshop->update([
+                'starts_at' => now()->addDays($number),
+                'ends_at' => now()->addDays($number)->addHours(2),
+                'closes_at' => now()->addDays($number)->subHour(),
+            ]);
+
+            return $workshop;
+        });
+
+        $mailable = new UpcomingWorkshops('tester@example.com');
+        $selected = $mailable->workshops->merge($mailable->onlineWorkshops)->sortBy('starts_at')->values();
+
+        $this->assertCount(6, $selected);
+        $this->assertSame($workshops->take(6)->pluck('id')->all(), $selected->pluck('id')->all());
+    }
+
+    public function test_store_led_newsletter_uses_store_copy_and_places_store_content_first(): void
+    {
+        config()->set('newsletter.content_order', 'store');
+        config()->set('newsletter.store.hero_messages', [[
+            'header' => 'Store-led heading',
+            'cta' => 'Store-led introduction',
+            'subject' => 'Store-led subject',
+        ]]);
+        $workshop = $this->createWorkshop(
+            title: 'Later Workshop Content',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+        );
+        $storeSelection = ['source' => 'draft', 'sections' => collect([[
+            'title' => 'Earlier Store Content',
+            'intro' => 'Store section introduction',
+            'products' => collect(),
+        ], [
+            'title' => 'Second Store Content',
+            'intro' => 'Second store introduction',
+            'products' => collect(),
+        ]])];
+
+        $mailable = new UpcomingWorkshops('tester@example.com', storeSelection: $storeSelection);
+        $rendered = $mailable->render();
+
+        $this->assertSame('store', $mailable->contentOrder);
+        $this->assertSame('Store-led subject', $mailable->subject);
+        $this->assertStringContainsString('Store-led heading', $rendered);
+        $this->assertStringNotContainsString('Earlier Store Content', $rendered);
+        $this->assertStringContainsString('Second Store Content', $rendered);
+        $this->assertStringContainsString('Upcoming workshops', $rendered);
+        $this->assertStringContainsString('Book a hands-on session and keep the making going.', $rendered);
+        $this->assertLessThan(strrpos($rendered, $workshop->title), strpos($rendered, 'Second Store Content'));
+    }
+
+    public function test_store_subject_only_claims_new_arrivals_for_a_created_within_theme(): void
+    {
+        config()->set('newsletter.store.hero_messages', [['header' => 'Neutral', 'cta' => 'Neutral copy', 'subject' => 'Neutral store subject']]);
+        config()->set('newsletter.store.hero_messages_by_match.created_within', [['header' => 'New', 'cta' => 'New copy', 'subject' => 'New arrival subject']]);
+        $randomTheme = NewsletterStoreTheme::query()->where('match_type', 'random')->firstOrFail();
+        $newTheme = NewsletterStoreTheme::query()->where('match_type', 'created_within')->firstOrFail();
+
+        $randomMail = new UpcomingWorkshops('tester@example.com', storeSelection: ['sections' => collect([['theme_id' => $randomTheme->id]])]);
+        $newMail = new UpcomingWorkshops('tester@example.com', storeSelection: ['sections' => collect([['theme_id' => $newTheme->id]])]);
+
+        $this->assertSame('Neutral store subject', $randomMail->heroSubject);
+        $this->assertSame('New arrival subject', $newMail->heroSubject);
     }
 
     public function test_upcoming_workshops_mailable_includes_workshops_starting_more_than_six_hours_ahead(): void

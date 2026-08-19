@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
 use App\Models\EmailSubscriptions;
+use App\Models\NewsletterStoreTheme;
+use App\Models\Product;
 use App\Models\SentEmail;
+use App\Services\NewsletterProductSelectionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -45,10 +48,95 @@ class EmailSubscriptionController extends Controller
                 ->map(fn (Collection $sentEmails) => $sentEmails->first());
         }
 
+        $selector = app(NewsletterProductSelectionService::class);
+
         return view('admin.subscription.index', [
             'subscriptions' => $subscriptions,
             'latestNewsletterByEmail' => $latestNewsletterByEmail,
+            'storePromotion' => $selector->draft(),
+            'storeProducts' => Product::query()->active()->orderBy('title')->get(['id', 'title', 'sku']),
+            'currentStoreSelection' => $selector->selection(),
+            'storeThemes' => NewsletterStoreTheme::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
         ]);
+    }
+
+    public function updateStorePromotion(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'sections' => ['required', 'array', 'size:2'],
+            'sections.*.key' => ['required', 'string', 'in:kits,extras'],
+            'sections.*.title' => ['required', 'string', 'max:120'],
+            'sections.*.intro' => ['nullable', 'string', 'max:400'],
+            'sections.*.theme' => ['nullable', 'string', 'in:managed,custom,disabled'],
+            'sections.*.theme_id' => ['nullable', 'integer', 'exists:newsletter_store_themes,id'],
+            'sections.*.category_slugs' => ['required', 'array', 'min:1'],
+            'sections.*.category_slugs.*' => ['required', 'string', 'exists:product_categories,slug'],
+            'sections.*.product_ids' => ['nullable', 'array', 'max:3'],
+            'sections.*.product_ids.*' => ['nullable', 'integer', 'distinct', 'exists:products,id'],
+            'sections.*.product_titles' => ['nullable', 'array', 'max:3'],
+            'sections.*.product_titles.*' => ['nullable', 'string', 'max:255'],
+            'sections.*.locked_product_ids' => ['nullable', 'array', 'max:3'],
+            'sections.*.locked_product_ids.*' => ['integer', 'distinct', 'exists:products,id'],
+            'refresh_section' => ['nullable', 'integer', 'min:0', 'max:1'],
+            'refresh_copy' => ['nullable', 'integer', 'min:0', 'max:1'],
+            'apply_theme' => ['nullable', 'integer', 'min:0', 'max:1'],
+            'refresh_product' => ['nullable', 'regex:/^[01]:[0-2]$/'],
+        ]);
+
+        $selector = app(NewsletterProductSelectionService::class);
+        $productsByTitle = Product::query()->active()->get(['id', 'title'])->keyBy(fn (Product $product) => mb_strtolower(trim($product->title)));
+        foreach ($validated['sections'] as &$section) {
+            if (isset($section['product_titles'])) {
+                $section['product_ids'] = collect($section['product_titles'])
+                    ->map(fn ($title) => $productsByTitle->get(mb_strtolower(trim((string) $title)))?->id)
+                    ->filter()
+                    ->values()
+                    ->all();
+            }
+            unset($section['product_titles']);
+        }
+        unset($section);
+        $draft = $selector->draft();
+        $requestedThemeSection = isset($validated['apply_theme']) ? (int) $validated['apply_theme'] : null;
+        $requestedTheme = $requestedThemeSection !== null
+            ? NewsletterStoreTheme::query()->find((int) ($validated['sections'][$requestedThemeSection]['theme_id'] ?? 0))
+            : null;
+        $themeMatchFailed = $requestedTheme instanceof NewsletterStoreTheme && ! $selector->themeHasCandidates($requestedTheme);
+        if ($themeMatchFailed && $requestedThemeSection !== null) {
+            $validated['sections'][$requestedThemeSection] = $draft->sections[$requestedThemeSection];
+        }
+
+        $promotion = $selector->saveSections($draft, $validated['sections']);
+        $refreshSection = isset($validated['refresh_section']) ? (int) $validated['refresh_section'] : null;
+        if ($refreshSection !== null) {
+            $selector->refreshSection($promotion, $refreshSection);
+        }
+        $refreshCopy = isset($validated['refresh_copy']) ? (int) $validated['refresh_copy'] : null;
+        if ($refreshCopy !== null) {
+            $selector->refreshCopy($promotion, $refreshCopy);
+        }
+        $applyTheme = ! $themeMatchFailed && isset($validated['apply_theme']) ? (int) $validated['apply_theme'] : null;
+        if ($applyTheme !== null) {
+            $selector->applyTheme($promotion, $applyTheme, (int) ($validated['sections'][$applyTheme]['theme_id'] ?? 0));
+        }
+        $refreshProduct = $validated['refresh_product'] ?? null;
+        if (is_string($refreshProduct)) {
+            [$sectionIndex, $slot] = array_map('intval', explode(':', $refreshProduct));
+            $selector->refreshProduct($promotion, $sectionIndex, $slot);
+        }
+
+        session()->flash('message', match (true) {
+            $themeMatchFailed => 'No available products match the selected theme. The existing section has been kept unchanged.',
+            $refreshSection !== null => 'Newsletter product suggestions refreshed.',
+            $refreshCopy !== null => 'Newsletter heading and introduction refreshed.',
+            $applyTheme !== null => 'Newsletter section rebuilt from the selected theme.',
+            $refreshProduct !== null => 'Newsletter product suggestion refreshed.',
+            default => 'Newsletter store picks saved.',
+        });
+        session()->flash('message-title', $themeMatchFailed ? 'Theme has no matching products' : 'Newsletter promotion updated');
+        session()->flash('message-type', $themeMatchFailed ? 'warning' : 'success');
+
+        return redirect()->route('admin.subscription.index');
     }
 
     public function create()
@@ -202,10 +290,14 @@ class EmailSubscriptionController extends Controller
             return redirect()->back();
         }
 
+        $selector = app(NewsletterProductSelectionService::class);
+        $storeSelection = $selector->selection();
+
         try {
             foreach ($emails as $email) {
-                $this->queueNewsletter($email);
+                $this->queueNewsletter($email, $storeSelection);
             }
+            $selector->clearLocks($selector->draft());
         } catch (Throwable $exception) {
             session()->flash('message', 'Unable to queue newsletters: '.$exception->getMessage());
             session()->flash('message-title', 'Newsletter failed');
@@ -221,8 +313,9 @@ class EmailSubscriptionController extends Controller
         return redirect()->back();
     }
 
-    private function queueNewsletter(string $email): void
+    /** @param array<string, mixed>|null $storeSelection */
+    private function queueNewsletter(string $email, ?array $storeSelection = null): void
     {
-        dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
+        dispatch(new SendEmail($email, new UpcomingWorkshops($email, storeSelection: $storeSelection)))->onQueue('mail');
     }
 }

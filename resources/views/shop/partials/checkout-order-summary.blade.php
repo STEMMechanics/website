@@ -50,7 +50,7 @@
                     <h3 class="text-sm font-semibold text-gray-900">Items in your order</h3>
                     <p class="mt-1 text-xs text-gray-500">Review and adjust quantities before payment.</p>
                 </div>
-                <div class="text-xs font-medium text-gray-500" x-text="`${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'}`">{{ $resolvedItemCount }} items</div>
+                <div class="text-xs font-medium text-gray-500 hidden sm:block" x-text="`${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'}`">{{ $resolvedItemCount }} items</div>
             </div>
 
             <div class="mt-4 space-y-3">
@@ -72,7 +72,7 @@
                                 </div>
 
                                 <div class="mt-3 flex items-center justify-between gap-3">
-                                    <div class="text-xs text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                    <div class="hidden sm:block text-xs text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
                                     <div class="flex items-center gap-2">
                                         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
                                             <button
@@ -99,7 +99,7 @@
                                         </div>
                                         <button
                                             type="button"
-                                            class="text-xs text-red-600 transition hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                                            class="hidden sm:block text-xs text-red-600 transition hover:underline disabled:cursor-not-allowed disabled:opacity-40"
                                             :disabled="busyLineKey === line.key || isSubmitting"
                                             @click="removeCartLine(line.key)"
                                         >Remove</button>

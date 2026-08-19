@@ -5,6 +5,7 @@ use App\Mail\UpcomingWorkshops;
 use App\Models\Invoice;
 use App\Models\Media;
 use App\Models\Ticket;
+use App\Services\NewsletterProductSelectionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
@@ -29,13 +30,19 @@ Artisan::command('email:send', function () {
     ];
 
     $subject = $subjects[array_rand($subjects)];
+    $selector = app(NewsletterProductSelectionService::class);
+    $storeSelection = $selector->selection();
 
     $subscribers = DB::table('email_subscriptions')
         ->whereNotNull('confirmed')
         ->get();
 
     foreach ($subscribers as $subscriber) {
-        dispatch(new SendEmail($subscriber->email, new UpcomingWorkshops($subscriber->email, $subject)))->onQueue('mail');
+        dispatch(new SendEmail($subscriber->email, new UpcomingWorkshops($subscriber->email, $subject, $storeSelection)))->onQueue('mail');
+    }
+
+    if ($subscribers->isNotEmpty()) {
+        $selector->clearLocks($selector->draft());
     }
 })->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, '16:00');
 

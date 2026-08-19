@@ -225,6 +225,7 @@ class ShopPreorderShippingTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('cart.has_selected_shipping_method', true)
             ->assertJsonPath('cart.summary.shipping', 19.90)
             ->assertJsonPath('cart.summary.shipping_quote.split_shipments', true)
             ->assertJsonPath('cart.summary.shipping_quote.shipment_count', 2)

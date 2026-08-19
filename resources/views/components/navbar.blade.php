@@ -58,7 +58,8 @@
                 'title' => 'People & Content',
                 'items' => [
                     ['label' => 'Users', 'route' => route('admin.user.index'), 'icon' => 'fa-solid fa-users', 'active' => ['admin.user.*']],
-                    ['label' => 'Subscriptions', 'route' => route('admin.subscription.index'), 'icon' => 'fa-solid fa-envelope-open-text', 'active' => ['admin.subscription.*']],
+                    ['label' => 'Subscriptions', 'route' => route('admin.subscription.index'), 'icon' => 'fa-solid fa-envelope-open-text', 'active' => ['admin.subscription.index', 'admin.subscription.create', 'admin.subscription.edit']],
+                    ['label' => 'Subscription Store Themes', 'route' => route('admin.subscription.theme.index'), 'icon' => 'fa-solid fa-wand-magic-sparkles', 'active' => ['admin.subscription.theme.*']],
                     ['label' => 'Media', 'route' => route('admin.media.index'), 'icon' => 'fa-solid fa-photo-film', 'active' => ['admin.media.*'], 'badge' => $mediaDuplicateCount],
                     ['label' => 'Pages', 'route' => route('admin.custom-page.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.custom-page.*']],
                     ['label' => 'Locations', 'route' => route('admin.location.index'), 'icon' => 'fa-solid fa-location-dot', 'active' => ['admin.location.*']],
@@ -380,17 +381,21 @@
                             <span x-text="`Items (${Number(cartState.summary.item_count || 0)})`"></span>
                             <span x-text="formatMoney(cartState.summary.subtotal)"></span>
                         </div>
-                        <div x-show="Number(cartState.summary.discount || 0) > 0" class="flex items-center justify-between gap-4 text-emerald-700">
-                            <span x-text="cartState.summary.coupon_code ? `Discount (${cartState.summary.coupon_code})` : 'Discount'"></span>
-                            <span x-text="`- ${formatMoney(cartState.summary.discount)}`"></span>
+                        <div class="flex items-center justify-between gap-4">
+                            <span>Shipping</span>
+                            <span x-text="drawerHasSelectedShipping() ? formatMoney(cartState.summary.shipping) : 'TBD'"></span>
+                        </div>
+                        <div x-show="drawerDiscountAmount() > 0" class="flex items-center justify-between gap-4 text-emerald-700">
+                            <span x-text="cartState.summary.coupon_code ? `Voucher (${cartState.summary.coupon_code})` : 'Discount'"></span>
+                            <span x-text="`- ${formatMoney(drawerDiscountAmount())}`"></span>
                         </div>
                         <div class="flex items-center justify-between gap-4 text-gray-500">
                             <span>GST included</span>
-                            <span x-text="formatMoney(cartState.summary.gst)"></span>
+                            <span x-text="formatMoney(drawerGstAmount())"></span>
                         </div>
                         <div class="border-t border-gray-200 pt-3 flex items-center justify-between gap-4">
-                            <span class="text-base font-bold text-gray-900">Sub-Total</span>
-                            <span class="text-right text-xl font-bold text-gray-900" x-text="formatMoney(drawerSubtotalAmount())"></span>
+                            <span class="text-base font-bold text-gray-900" x-text="drawerHasSelectedShipping() ? 'Total' : 'Sub-Total'"></span>
+                            <span class="text-right text-xl font-bold text-gray-900" x-text="formatMoney(drawerDisplayedTotal())"></span>
                         </div>
                     </div>
 
@@ -629,9 +634,42 @@
 
             drawerSubtotalAmount() {
                 const subtotal = Number(this.cartState?.summary?.subtotal || 0);
-                const discount = Number(this.cartState?.summary?.discount || 0);
+                const discount = this.drawerDiscountAmount();
 
                 return Math.max(0, subtotal - discount);
+            },
+
+            drawerDiscountAmount() {
+                if (!this.drawerHasSelectedShipping() && this.cartState?.summary?.coupon_type === 'free_shipping') {
+                    return 0;
+                }
+
+                return Number(this.cartState?.summary?.discount || 0);
+            },
+
+            drawerHasSelectedShipping() {
+                return Boolean(this.cartState?.has_selected_shipping_method);
+            },
+
+            drawerDisplayedTotal() {
+                if (this.drawerHasSelectedShipping()) {
+                    return Number(this.cartState?.summary?.total || 0);
+                }
+
+                return this.drawerSubtotalAmount();
+            },
+
+            drawerGstAmount() {
+                if (this.drawerHasSelectedShipping()) {
+                    return Number(this.cartState?.summary?.gst || 0);
+                }
+
+                const itemGst = Number(this.cartState?.summary?.item_gst || 0);
+                const discountGst = this.cartState?.summary?.coupon_type === 'free_shipping'
+                    ? 0
+                    : Number(this.cartState?.summary?.discount_gst || 0);
+
+                return Math.max(0, itemGst - discountGst);
             },
 
             currentShippingMethodCode() {

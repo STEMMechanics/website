@@ -12,15 +12,27 @@ use ZipArchive;
 class FileBackupService
 {
     public const KEEP_COUNT_OPTION = 'backup.files.keep';
+
     public const FULL_KEEP_COUNT_OPTION = 'backup.files.full.keep';
+
     public const INCREMENTAL_KEEP_COUNT_OPTION = 'backup.files.incremental.keep';
+
     public const BACKUP_ROOT = 'backups/files';
+
     public const STATE_MANIFEST_PATH = self::BACKUP_ROOT.'/state/files-manifest.json';
+
+    public const INSPECTION_MANIFEST_PATH = self::BACKUP_ROOT.'/state/inspection-manifest.json';
+
     public const MODE_FULL = 'full';
+
     public const MODE_INCREMENTAL = 'incremental';
+
     public const DEFAULT_KEEP_COUNT = 35;
+
     public const DEFAULT_FULL_KEEP_COUNT = 12;
+
     public const DEFAULT_INCREMENTAL_KEEP_COUNT = 35;
+
     public const DEFAULT_INCREMENTAL_WINDOW_HOURS = 24;
 
     /**
@@ -306,7 +318,7 @@ class FileBackupService
         $target = Storage::disk('local');
         $runPath = $this->backupPath($mode, $filename);
         $manifest = $this->readRunManifest($mode, $filename);
-        $currentManifest = $this->buildCurrentFilesManifest(ExternalBackupService::defaultFileSources());
+        $currentManifest = $this->inspectionManifest();
 
         if (! $target->exists($runPath)) {
             throw new RuntimeException('File backup run not found.');
@@ -325,8 +337,42 @@ class FileBackupService
         ];
     }
 
+    public function hasFreshInspectionManifest(): bool
+    {
+        $target = Storage::disk('local');
+        if (! $target->exists(self::INSPECTION_MANIFEST_PATH)) {
+            return false;
+        }
+
+        return (int) $target->lastModified(self::INSPECTION_MANIFEST_PATH) >= now()->subMinutes(10)->timestamp;
+    }
+
+    public function prepareInspectionManifest(): void
+    {
+        $this->writeJson(
+            self::INSPECTION_MANIFEST_PATH,
+            $this->buildCurrentFilesManifest(ExternalBackupService::defaultFileSources())
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function inspectionManifest(): array
+    {
+        if (! $this->hasFreshInspectionManifest()) {
+            throw new RuntimeException('The file backup inspection is still being prepared.');
+        }
+
+        $json = Storage::disk('local')->get(self::INSPECTION_MANIFEST_PATH);
+        $manifest = is_string($json) ? json_decode($json, true) : null;
+        if (! is_array($manifest)) {
+            throw new RuntimeException('The prepared file inspection manifest is invalid.');
+        }
+
+        return $manifest;
+    }
+
     /**
-     * @param array<int, string> $selectedItems
+     * @param  array<int, string>  $selectedItems
      * @return array{restored_files: int, restored_paths: array<int, string>, skipped_paths: array<int, string>}
      */
     public function restoreBackupItems(string $mode, string $filename, array $selectedItems): array
@@ -361,6 +407,7 @@ class FileBackupService
             $sourceInfo = $this->sourceInfoForBackupItem($manifest, $item['relative_path']);
             if ($sourceInfo === null) {
                 $skippedPaths[] = $item['relative_path'];
+
                 continue;
             }
 
@@ -369,6 +416,7 @@ class FileBackupService
 
             if (! $target->exists($sourcePath)) {
                 $skippedPaths[] = $item['relative_path'];
+
                 continue;
             }
 
@@ -385,7 +433,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<int, string> $selectedItems
+     * @param  array<int, string>  $selectedItems
      * @return array{zip_path: string, zip_name: string, included_files: int, skipped_paths: array<int, string>}
      */
     public function downloadBackupItems(string $mode, string $filename, array $selectedItems): array
@@ -417,7 +465,7 @@ class FileBackupService
             throw new RuntimeException('Unable to create temporary file backup archive.');
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
             @unlink($zipPath);
             throw new RuntimeException('Unable to create file backup archive.');
@@ -429,6 +477,7 @@ class FileBackupService
             $sourcePath = $this->joinPath($runPath, 'files', $item['relative_path']);
             if (! $target->exists($sourcePath)) {
                 $skippedPaths[] = $item['relative_path'];
+
                 continue;
             }
 
@@ -489,7 +538,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<int, array{key: string, disk: string, path: string, label: string}> $sources
+     * @param  array<int, array{key: string, disk: string, path: string, label: string}>  $sources
      * @return array{sources: array<string, array{label: string, disk: string, path: string, files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}
      */
     private function buildCurrentFilesManifest(array $sources): array
@@ -566,7 +615,7 @@ class FileBackupService
     }
 
     /**
-     * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>} $currentManifest
+     * @param  array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}  $currentManifest
      * @return array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>
      */
     private function selectAllFiles(array $currentManifest): array
@@ -584,7 +633,7 @@ class FileBackupService
     }
 
     /**
-     * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>} $currentManifest
+     * @param  array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}  $currentManifest
      * @return array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>
      */
     private function selectRecentFiles(array $currentManifest, int $windowHours): array
@@ -607,8 +656,8 @@ class FileBackupService
     }
 
     /**
-     * @param array{sources: array<string, array{files?: array<string, array{size?: int, last_modified?: int, hash?: string, source_disk?: string, source_path?: string}>}>} $previousManifest
-     * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>} $currentManifest
+     * @param  array{sources: array<string, array{files?: array<string, array{size?: int, last_modified?: int, hash?: string, source_disk?: string, source_path?: string}>}>}  $previousManifest
+     * @param  array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}  $currentManifest
      * @return array<string, array<int, string>>
      */
     private function detectDeletedFiles(array $previousManifest, array $currentManifest): array
@@ -627,7 +676,7 @@ class FileBackupService
     }
 
     /**
-     * @param array{sources: array<string, array{label: string, disk: string, path: string, files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>} $currentManifest
+     * @param  array{sources: array<string, array{label: string, disk: string, path: string, files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}  $currentManifest
      * @return array{sources: array<string, array{label: string, disk: string, path: string, files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}
      */
     private function buildStateManifest(array $currentManifest): array
@@ -639,7 +688,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      * @return array<int, array<string, mixed>>
      */
     private function buildBackupEntries(string $mode, string $runPath, array $manifest, array $currentManifest, string $pathPrefix): array
@@ -696,6 +745,7 @@ class FileBackupService
                     (int) $folderStats[$folderPath]['last_modified'],
                     (int) ($target->lastModified($path) ?: 0)
                 );
+
                 continue;
             }
 
@@ -739,10 +789,12 @@ class FileBackupService
 
                 if ($baseName !== '' && $basename !== $baseName) {
                     $mediaGroups[$groupKey]['children'][$relativePath] = $fileEntry;
+
                     continue;
                 }
 
                 $mediaGroups[$groupKey]['base'] = $fileEntry;
+
                 continue;
             }
 
@@ -757,11 +809,13 @@ class FileBackupService
                 foreach ($children as $childEntry) {
                     $entriesByPath[(string) ($childEntry['path'] ?? '')] = $childEntry;
                 }
+
                 continue;
             }
 
             if ($children === []) {
                 $entriesByPath[(string) $baseEntry['path']] = $baseEntry;
+
                 continue;
             }
 
@@ -818,7 +872,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<int, array{current_state?: array{state?: string, label?: string, tone?: string}}> $states
+     * @param  array<int, array{current_state?: array{state?: string, label?: string, tone?: string}}>  $states
      * @return array{state: string, label: string, tone: string}
      */
     private function summarizeCurrentStates(array $states): array
@@ -830,6 +884,7 @@ class FileBackupService
             $value = (string) ($state['current_state']['state'] ?? '');
             if ($value === 'missing') {
                 $hasMissing = true;
+
                 continue;
             }
 
@@ -862,7 +917,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      * @return array<int, array<string, mixed>>
      */
     private function buildDeletedEntries(array $manifest, string $pathPrefix): array
@@ -899,7 +954,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      * @return array{key: string, label: string, disk: string, path: string, source_relative_path: string}|null
      */
     private function sourceInfoForBackupItem(array $manifest, string $relativePath): ?array
@@ -927,7 +982,7 @@ class FileBackupService
     }
 
     /**
-     * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>} $currentManifest
+     * @param  array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, hash: string, source_disk: string, source_path: string}>}>}  $currentManifest
      * @return array{state: string, label: string, tone: string}
      */
     private function liveBackupItemState(array $currentManifest, string $sourceKey, string $sourceRelativePath, string $backupHash): array
@@ -989,7 +1044,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<string, mixed> $manifest
+     * @param  array<string, mixed>  $manifest
      * @return array{
      *     filename: string,
      *     mode: string,
@@ -1054,7 +1109,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<int, string> $selectedItems
+     * @param  array<int, string>  $selectedItems
      * @return array<int, array{relative_path: string, source_relative_path: string}>
      */
     private function expandSelectedBackupItems(string $runPath, array $selectedItems): array
@@ -1200,7 +1255,7 @@ class FileBackupService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function writeJson(string $path, array $payload): void
     {

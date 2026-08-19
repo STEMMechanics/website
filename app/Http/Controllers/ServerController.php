@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers;
+use App\Jobs\RunServerBackup;
 use App\Models\AuditLog;
 use App\Models\InboundSms;
 use App\Models\Expense;
@@ -10,6 +11,7 @@ use App\Models\Media;
 use App\Models\Payment;
 use App\Models\SentEmail;
 use App\Models\SentSms;
+use App\Models\ServerBackupRun;
 use App\Models\User;
 use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
@@ -68,32 +70,38 @@ class ServerController extends Controller
         return view('admin.server.backups', $this->backupViewData(request()));
     }
 
-    public function admin_file_backup_now(Request $request): RedirectResponse
+    public function admin_file_backup_now(Request $request): RedirectResponse|JsonResponse
     {
-        try {
-            $summary = $this->fileBackupService->createFullBackup();
-        } catch (\Throwable $e) {
-            session()->flash('file_backup_notice', [
-                'type' => 'danger',
-                'text' => 'Backup failed: '.$e->getMessage(),
-            ]);
-
-            return redirect()->route('admin.server.backups');
-        }
-
-        session()->flash('file_backup_notice', [
-            'type' => 'success',
-            'text' => 'File snapshot created: '.(string) ($summary['run_path'] ?? 'unknown'),
-        ]);
-
-        return redirect()->route('admin.server.backups');
+        return $this->queueBackup($request, ServerBackupRun::TYPE_FILES);
     }
 
     public function admin_file_backup_show(Request $request, string $mode, string $filename): View
     {
         $pathPrefix = trim((string) $request->query('path', ''), '/');
 
+        if (! $this->fileBackupService->hasFreshInspectionManifest()) {
+            $run = $this->findOrCreateBackupRun($request, ServerBackupRun::TYPE_INSPECTION, [
+                'mode' => $mode,
+                'filename' => basename($filename),
+            ]);
+
+            return view('admin.server.backup-preparing', [
+                'run' => $run->payload(),
+                'statusUrl' => route('admin.server.backups.status', $run),
+                'returnUrl' => $request->fullUrl(),
+                'title' => 'Preparing file backup',
+            ]);
+        }
+
         return view('admin.server.file-backup', $this->fileBackupViewData($mode, $filename, $pathPrefix));
+    }
+
+    public function admin_file_backup_archive(Request $request, string $mode, string $filename): RedirectResponse|JsonResponse
+    {
+        return $this->queueTrackedOperation($request, ServerBackupRun::TYPE_BACKUP_ARCHIVE, [
+            'mode' => $mode,
+            'filename' => basename($filename),
+        ]);
     }
 
     public function admin_file_backup_restore(Request $request, string $mode, string $filename): RedirectResponse
@@ -198,27 +206,31 @@ class ServerController extends Controller
         ]);
     }
 
-    public function admin_database_backup_now(Request $request): RedirectResponse
+    public function admin_database_backup_now(Request $request): RedirectResponse|JsonResponse
     {
-        try {
-            $path = $this->databaseBackupService->createBackup();
-            $keep = $this->databaseBackupService->resolvedKeepCount();
-            $this->databaseBackupService->pruneOldBackups($keep);
-        } catch (\Throwable $e) {
-            session()->flash('database_backup_notice', [
-                'type' => 'danger',
-                'text' => 'Backup failed: '.$e->getMessage(),
-            ]);
+        return $this->queueBackup($request, ServerBackupRun::TYPE_DATABASE);
+    }
 
-            return redirect()->route('admin.server.backups');
-        }
+    public function admin_backup_status(ServerBackupRun $backupRun): JsonResponse
+    {
+        return response()->json(['run' => $backupRun->fresh()->payload()]);
+    }
 
-        session()->flash('database_backup_notice', [
-            'type' => 'success',
-            'text' => 'Backup created: '.basename($path),
+    public function admin_backup_download(ServerBackupRun $backupRun): SymfonyResponse
+    {
+        abort_unless($backupRun->status === ServerBackupRun::STATUS_COMPLETED, 404);
+        $path = (string) ($backupRun->result['archive_path'] ?? '');
+        $name = basename((string) ($backupRun->result['archive_name'] ?? 'backup.zip'));
+        $generatedRoot = realpath(storage_path('app/backups/generated'));
+        $realPath = $path !== '' ? realpath($path) : false;
+
+        abort_unless(is_string($generatedRoot) && is_string($realPath) && str_starts_with($realPath, $generatedRoot.DIRECTORY_SEPARATOR) && is_file($realPath), 404);
+
+        return response()->download($realPath, $name, [
+            'Content-Type' => 'application/zip',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'private, no-store',
         ]);
-
-        return redirect()->route('admin.server.backups');
     }
 
     public function admin_database_download(string $filename)
@@ -337,14 +349,14 @@ class ServerController extends Controller
         return redirect()->route('admin.server.backups');
     }
 
-    public function admin_media_download_all()
+    public function admin_media_download_all(Request $request): RedirectResponse|JsonResponse
     {
-        return $this->streamDiskDirectoryAsZip('media', '/', 'media-files');
+        return $this->queueTrackedOperation($request, ServerBackupRun::TYPE_MEDIA_ARCHIVE);
     }
 
-    public function admin_finance_download_all()
+    public function admin_finance_download_all(Request $request): RedirectResponse|JsonResponse
     {
-        return $this->streamDiskDirectoryAsZip('local', 'finance', 'finance-files');
+        return $this->queueTrackedOperation($request, ServerBackupRun::TYPE_FINANCE_ARCHIVE);
     }
 
     public function admin_clear_log(): RedirectResponse
@@ -1733,72 +1745,6 @@ class ServerController extends Controller
         ];
     }
 
-    private function streamDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
-    {
-        $normalizedPrefix = trim($prefix, '/');
-        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
-        $files = collect(Storage::disk($disk)->allFiles($searchPrefix))
-            ->map(fn ($path) => ltrim((string) $path, '/'))
-            ->filter(fn ($path) => $path !== '')
-            ->values()
-            ->all();
-
-        if ($files === []) {
-            session()->flash('message', 'No files found for this archive.');
-            session()->flash('message-title', 'Nothing to download');
-            session()->flash('message-type', 'warning');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $rootPath = $normalizedPrefix === ''
-            ? Storage::disk($disk)->path('/')
-            : Storage::disk($disk)->path($normalizedPrefix);
-
-        if (! is_dir($rootPath)) {
-            session()->flash('message', 'Archive directory is missing on disk.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        if (! $this->isCommandAvailable('zip')) {
-            session()->flash('message', 'The `zip` command is not available on this server.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $filename = $archivePrefix.'-'.now()->format('Ymd-His').'.zip';
-
-        return response()->streamDownload(function () use ($rootPath): void {
-            @set_time_limit(0);
-            @ini_set('output_buffering', 'off');
-            @ini_set('zlib.output_compression', '0');
-
-            $process = new Process(['zip', '-qr', '-', '.'], $rootPath, null, null, null);
-            $process->run(function (string $type, string $buffer): void {
-                if ($type === Process::OUT) {
-                    echo $buffer;
-                    if (function_exists('ob_flush')) {
-                        @ob_flush();
-                    }
-                    flush();
-                }
-            });
-
-            if (! $process->isSuccessful()) {
-                throw new \RuntimeException('Failed to stream ZIP archive.');
-            }
-        }, $filename, [
-            'Content-Type' => 'application/zip',
-            'X-Accel-Buffering' => 'no',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-        ]);
-    }
-
     private function isCommandAvailable(string $command): bool
     {
         $process = Process::fromShellCommandline('command -v '.escapeshellarg($command));
@@ -2136,12 +2082,76 @@ class ServerController extends Controller
             'fileBackups' => collect($this->fileBackupService->listBackups()),
             'mediaStats' => $this->directoryStats('media', '/'),
             'financeStats' => $this->directoryStats('local', 'finance'),
+            'activeBackupRuns' => ServerBackupRun::query()
+                ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])
+                ->latest()
+                ->get()
+                ->map(fn (ServerBackupRun $run): array => $run->payload())
+                ->values(),
         ];
+    }
+
+    private function queueBackup(Request $request, string $type): RedirectResponse|JsonResponse
+    {
+        return $this->queueTrackedOperation($request, $type);
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function queueTrackedOperation(Request $request, string $type, array $parameters = []): RedirectResponse|JsonResponse
+    {
+        $run = $this->findOrCreateBackupRun($request, $type, $parameters);
+
+        if ($request->expectsJson()) {
+            return response()->json(['run' => $run->fresh()->payload()], 202);
+        }
+
+        session()->flash('message', 'The operation was queued. You can leave this page while it runs.');
+        session()->flash('message-title', 'Queued');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function findOrCreateBackupRun(Request $request, string $type, array $parameters = []): ServerBackupRun
+    {
+        $run = ServerBackupRun::query()
+            ->where('type', $type)
+            ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])
+            ->latest()
+            ->first();
+
+        if (! $run instanceof ServerBackupRun) {
+            $run = ServerBackupRun::query()->create([
+                'type' => $type,
+                'status' => ServerBackupRun::STATUS_QUEUED,
+                'progress' => 5,
+                'message' => match ($type) {
+                    ServerBackupRun::TYPE_DATABASE => 'Database backup queued…',
+                    ServerBackupRun::TYPE_FILES => 'Full file backup queued…',
+                    ServerBackupRun::TYPE_INSPECTION => 'File inspection queued…',
+                    default => 'ZIP download queued…',
+                },
+                'result' => $parameters,
+                'requested_by' => $request->user()?->id,
+            ]);
+
+            RunServerBackup::dispatch((string) $run->id);
+        }
+
+        return $run;
     }
 
     private function fileBackupViewData(string $mode, string $filename, string $pathPrefix = ''): array
     {
         $inspection = $this->fileBackupService->inspectBackupRun($mode, $filename, $pathPrefix);
+        $archiveRun = ServerBackupRun::query()
+            ->where('type', ServerBackupRun::TYPE_BACKUP_ARCHIVE)
+            ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])
+            ->latest()
+            ->get()
+            ->first(fn (ServerBackupRun $run): bool => (string) ($run->result['mode'] ?? '') === $mode
+                && (string) ($run->result['filename'] ?? '') === basename($filename));
 
         return [
             'backup' => $inspection['backup'],
@@ -2150,6 +2160,7 @@ class ServerController extends Controller
             'entries' => $inspection['entries'],
             'deletedEntries' => $inspection['deleted_entries'],
             'breadcrumbs' => $inspection['breadcrumbs'],
+            'archiveRun' => $archiveRun?->payload(),
         ];
     }
 
