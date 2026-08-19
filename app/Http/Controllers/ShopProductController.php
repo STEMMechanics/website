@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -100,6 +101,48 @@ class ShopProductController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.shop.product.edit', $product);
+    }
+
+    public function duplicate(Product $product): RedirectResponse
+    {
+        $copy = DB::transaction(function () use ($product): Product {
+            $product->loadMissing('variants');
+
+            $copy = $product->replicate();
+            $copy->slug = $this->uniqueCopySlug((string) $product->slug);
+            $copy->sku = $this->uniqueCopySku((string) $product->sku);
+            $copy->status = Product::STATUS_DRAFT;
+            $copy->is_featured = false;
+            $copy->low_stock_alert_sent_at = null;
+            $copy->save();
+
+            $categoryAssignments = DB::table('product_category_product')
+                ->where('product_id', $product->id)
+                ->pluck('sort_order', 'product_category_id')
+                ->map(fn ($sortOrder): array => ['sort_order' => (int) $sortOrder])
+                ->all();
+            $copy->categories()->sync($categoryAssignments);
+            $copy->updateFiles($product->galleryMedia()->get()->pluck('name')->all(), 'gallery');
+            $copy->updateFiles($product->downloadMedia()->get()->pluck('name')->all(), 'downloads');
+
+            foreach ($product->variants as $variant) {
+                $variantCopy = $variant->replicate();
+                $variantCopy->product_id = $copy->id;
+                $variantCopy->sku = trim((string) $variant->sku) !== ''
+                    ? $this->uniqueCopySku((string) $variant->sku)
+                    : null;
+                $variantCopy->low_stock_alert_sent_at = null;
+                $variantCopy->save();
+            }
+
+            return $copy;
+        });
+
+        session()->flash('message', 'Product has been duplicated as a draft.');
+        session()->flash('message-title', 'Product duplicated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.shop.product.edit', $copy);
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -421,6 +464,55 @@ class ShopProductController extends Controller
         }
 
         return $candidate;
+    }
+
+    private function uniqueCopySlug(string $source): string
+    {
+        $base = Str::slug($source);
+        if ($base === '') {
+            $base = 'product';
+        }
+
+        $candidateBase = Str::limit($base, 249, '');
+        $candidate = $candidateBase.'-copy';
+        $suffix = 2;
+
+        while (Product::query()->where('slug', $candidate)->exists()) {
+            $suffixText = '-copy-'.$suffix;
+            $candidate = Str::limit($base, 255 - strlen($suffixText), '').$suffixText;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    private function uniqueCopySku(string $source): string
+    {
+        $base = trim($source);
+        if ($base === '') {
+            $base = 'product';
+        }
+
+        $suffixText = '-copy';
+        $candidate = rtrim(substr($base, 0, 120 - strlen($suffixText)), '-').$suffixText;
+        $suffix = 2;
+
+        while ($this->skuExists($candidate)) {
+            $suffixText = '-copy-'.$suffix;
+            $candidateBase = rtrim(substr($base, 0, 120 - strlen($suffixText)), '-');
+            $candidate = ($candidateBase !== '' ? $candidateBase : 'product').$suffixText;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    private function skuExists(string $sku): bool
+    {
+        $skuKey = mb_strtolower(trim($sku));
+
+        return Product::query()->whereRaw('LOWER(sku) = ?', [$skuKey])->exists()
+            || ProductVariant::query()->whereRaw('LOWER(sku) = ?', [$skuKey])->exists();
     }
 
     private function productSkuIsTaken(string $sku, Product $product): bool

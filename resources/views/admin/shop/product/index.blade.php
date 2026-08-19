@@ -102,6 +102,12 @@
                             <td>
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('admin.shop.product.edit', $product) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                                    <form method="POST" action="{{ route('admin.shop.product.duplicate', $product) }}">
+                                        @csrf
+                                        <button type="submit" class="hover:text-primary-color" title="Duplicate" aria-label="Duplicate {{ $product->title }}">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </button>
+                                    </form>
                                     @if($product->isActive())
                                         <a href="{{ route('shop.product.show', $product) }}" class="hover:text-primary-color" title="View"><i class="fa-solid fa-up-right-from-square"></i></a>
                                     @endif
