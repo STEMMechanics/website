@@ -33,6 +33,7 @@ class ShopSettingsController extends Controller
                 array_values(ShopShippingSettings::trackingLinkTemplates())
             ),
             'shippingMethods' => $this->shippingMethods(),
+            'requestQuoteSortOrder' => ShopShippingSettings::requestQuoteSortOrder(),
         ]);
     }
 
@@ -51,6 +52,7 @@ class ShopSettingsController extends Controller
             'tracking_link_templates' => ['nullable', 'array'],
             'tracking_link_templates.*.carrier' => ['required', 'string', 'max:120'],
             'tracking_link_templates.*.template' => ['required', 'string', 'max:500'],
+            'request_quote_sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
         ];
 
         if ($hasShippingMethodsTable) {
@@ -66,6 +68,7 @@ class ShopSettingsController extends Controller
                 'shipping_methods.*.delivery_estimate_min_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.delivery_estimate_max_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.is_active' => ['nullable', 'boolean'],
+                'shipping_methods.*.suppresses_request_quote' => ['nullable', 'boolean'],
                 'shipping_methods.*.sort_order' => ['required', 'integer', 'min:0', 'max:999'],
             ]);
 
@@ -98,6 +101,10 @@ class ShopSettingsController extends Controller
 
         $this->storeOption(ShopAvailability::PUBLIC_ENABLED_OPTION, (string) ((int) $validated['public_enabled']));
         $this->storeOption(ShopShippingSettings::MAX_WEIGHT_OPTION, (string) ((int) $validated['max_satchel_weight_grams']));
+        $this->storeOption(
+            ShopShippingSettings::REQUEST_QUOTE_SORT_ORDER_OPTION,
+            (string) ((int) ($validated['request_quote_sort_order'] ?? ShopShippingSettings::requestQuoteSortOrder()))
+        );
         $this->storeOption(ShopShippingSettings::BOXED_LABEL_OPTION, trim((string) $validated['boxed_shipping_label']));
         $this->storeOption(ShopShippingSettings::BOXED_MESSAGE_OPTION, trim((string) $validated['boxed_shipping_message']));
         $this->storeOption(
@@ -217,6 +224,7 @@ class ShopSettingsController extends Controller
                     'delivery_estimate_max_days' => $method->delivery_estimate_max_days !== null ? (string) $method->delivery_estimate_max_days : '',
                     'is_pickup' => $method->isPickup() || $packages === [],
                     'is_active' => (bool) $method->is_active,
+                    'suppresses_request_quote' => $method->suppressesRequestQuote(),
                     'sort_order' => (int) $method->sort_order,
                     'packages' => $packages,
                 ];
@@ -267,6 +275,7 @@ class ShopSettingsController extends Controller
      *     rate_multiplier:float,
      *     rate_adjustment_amount:float,
      *     is_pickup:bool,
+     *     suppresses_request_quote:bool,
      *     is_active:bool,
      *     sort_order:int,
      *     packages:list<array{
@@ -333,6 +342,7 @@ class ShopSettingsController extends Controller
                     'rate_multiplier' => 1.00,
                     'rate_adjustment_amount' => 0.00,
                     'is_pickup' => $isPickup,
+                    'suppresses_request_quote' => filter_var($method['suppresses_request_quote'] ?? ! $isPickup, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'is_active' => (bool) ($method['is_active'] ?? false),
                     'sort_order' => (int) ($method['sort_order'] ?? $methodIndex),
                     'packages' => $packages,
@@ -426,6 +436,7 @@ class ShopSettingsController extends Controller
      *     rate_multiplier:float,
      *     rate_adjustment_amount:float,
      *     is_pickup:bool,
+     *     suppresses_request_quote:bool,
      *     is_active:bool,
      *     sort_order:int,
      *     packages:list<array{
@@ -474,6 +485,7 @@ class ShopSettingsController extends Controller
                 'rate_multiplier' => $methodData['rate_multiplier'],
                 'rate_adjustment_amount' => $methodData['rate_adjustment_amount'],
                 'is_pickup' => $methodData['is_pickup'],
+                'suppresses_request_quote' => $methodData['suppresses_request_quote'],
                 'is_active' => $methodData['is_active'],
                 'sort_order' => $methodData['sort_order'],
             ]);

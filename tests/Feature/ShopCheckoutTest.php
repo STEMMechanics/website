@@ -9,7 +9,10 @@ use App\Models\SiteOption;
 use App\Models\ProductVariant;
 use App\Models\Quote;
 use App\Models\StoreOrder;
+use App\Models\StoreShippingMethod;
+use App\Models\StoreShippingMethodPackage;
 use App\Models\User;
+use App\Services\StoreCartService;
 use App\Support\ShopShippingSettings;
 use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +23,73 @@ use Tests\TestCase;
 class ShopCheckoutTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_request_quote_only_appears_when_no_qualifying_shipping_channel_can_fulfil_the_cart(): void
+    {
+        $regular = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $express = StoreShippingMethod::query()->where('code', 'express')->firstOrFail();
+        $pickup = StoreShippingMethod::query()->where('code', 'pickup')->firstOrFail();
+
+        $regular->update(['is_active' => true, 'sort_order' => 0, 'suppresses_request_quote' => true]);
+        $express->update(['is_active' => true, 'sort_order' => 1, 'suppresses_request_quote' => true]);
+        $pickup->update(['is_active' => true, 'sort_order' => 3, 'suppresses_request_quote' => false]);
+        StoreShippingMethodPackage::query()->delete();
+
+        StoreShippingMethodPackage::query()->create([
+            'store_shipping_method_id' => $regular->id,
+            'code' => 'large_bx20',
+            'label' => 'Large (BX20)',
+            'sort_order' => 1,
+            'capacity' => 1,
+            'internal_length_mm' => 500,
+            'internal_width_mm' => 440,
+            'internal_height_mm' => 350,
+            'max_weight_grams' => 1000,
+            'price' => 24.95,
+            'is_active' => true,
+        ]);
+        StoreShippingMethodPackage::query()->create([
+            'store_shipping_method_id' => $express->id,
+            'code' => 'extra_large',
+            'label' => 'Extra Large',
+            'sort_order' => 1,
+            'capacity' => 1,
+            'internal_length_mm' => 440,
+            'internal_width_mm' => 277,
+            'internal_height_mm' => 168,
+            'max_weight_grams' => 5000,
+            'price' => 25.09,
+            'is_active' => true,
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'length_mm' => 395,
+            'width_mm' => 295,
+            'height_mm' => 250,
+            'weight_grams' => 1000,
+            'shipping_units' => 1,
+        ]);
+
+        $cart = app(StoreCartService::class);
+        $cart->add($product);
+        $summary = $cart->summary();
+
+        $this->assertSame(['regular', 'pickup'], collect($summary['shipping_methods'])->pluck('code')->all());
+        $this->assertSame('regular', $summary['shipping_method_code']);
+
+        StoreShippingMethodPackage::query()->where('store_shipping_method_id', $regular->id)->update([
+            'internal_length_mm' => 390,
+            'internal_width_mm' => 280,
+            'internal_height_mm' => 140,
+        ]);
+
+        $summary = $cart->summary();
+
+        $this->assertSame(['request_quote', 'pickup'], collect($summary['shipping_methods'])->pluck('code')->all());
+        $this->assertSame('request_quote', $summary['shipping_method_code']);
+    }
 
     public function test_paid_shop_checkout_stays_on_checkout_until_card_details_are_provided(): void
     {

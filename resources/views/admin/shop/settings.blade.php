@@ -15,6 +15,7 @@
                 'delivery_estimate_min_days' => (string) ($method['delivery_estimate_min_days'] ?? ''),
                 'delivery_estimate_max_days' => (string) ($method['delivery_estimate_max_days'] ?? ''),
                 'is_active' => filter_var($method['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
+                'suppresses_request_quote' => filter_var($method['suppresses_request_quote'] ?? ! $isPickup, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                 'sort_order' => (int) ($method['sort_order'] ?? 0),
                 'packages' => collect($method['packages'] ?? [])
                     ->map(function ($package): array {
@@ -95,6 +96,7 @@
                         max_weight_grams: '5000',
                         price: '0.00',
                         is_active: true,
+                        suppresses_request_quote: true,
                     };
                 },
                 loadStandardBoxes(methodIndex) {
@@ -450,12 +452,20 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,1.2fr)]">
+                            <div class="mt-4 grid gap-3 lg:grid-cols-3">
                                 <label class="{{ $toggleCardClasses }}">
                                     <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" x-model="method.is_active">
                                     <span class="block">
                                         <span class="block font-medium text-gray-900">Active at checkout</span>
                                         <span class="mt-1 block text-gray-500">Customers can select this channel when it applies.</span>
+                                    </span>
+                                </label>
+                                <label class="{{ $toggleCardClasses }}">
+                                    <input type="hidden" :name="`shipping_methods[${index}][suppresses_request_quote]`" value="0">
+                                    <input type="checkbox" value="1" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" :name="`shipping_methods[${index}][suppresses_request_quote]`" x-model="method.suppresses_request_quote">
+                                    <span class="block">
+                                        <span class="block font-medium text-gray-900">Can replace a manual quote</span>
+                                        <span class="mt-1 block text-gray-500">When this channel can fulfil the cart, Request Quote is hidden. Leave this off for pickup or collection.</span>
                                     </span>
                                 </label>
                                 <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
@@ -557,6 +567,22 @@
                             </div>
                         </section>
                     </template>
+
+                    <section class="rounded-3xl border border-amber-200 bg-amber-50/80 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-semibold text-gray-900">Request Quote</h3>
+                                    <span class="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-amber-800">System option</span>
+                                </div>
+                                <p class="mt-2 text-sm text-gray-600">Shown only when no active channel marked “Can replace a manual quote” can fulfil the cart.</p>
+                            </div>
+                            <div class="w-40">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
+                                <input type="number" min="0" max="999" name="request_quote_sort_order" value="{{ old('request_quote_sort_order', $requestQuoteSortOrder ?? 2) }}" class="{{ $inlineInputClasses }}">
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </section>
 

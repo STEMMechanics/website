@@ -19,6 +19,24 @@ class AdminShopSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_request_quote_order_and_shipping_alternative_controls_are_editable(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.settings.edit'))
+            ->assertOk()
+            ->assertSeeText('Request Quote')
+            ->assertSeeText('Can replace a manual quote')
+            ->assertSee('name="request_quote_sort_order"', false);
+
+        $regular = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $regular->update(['suppresses_request_quote' => false]);
+
+        $this->assertFalse($regular->fresh()->suppressesRequestQuote());
+    }
+
     public function test_shipping_validation_errors_are_clearly_shown_on_the_settings_page(): void
     {
         $admin = User::factory()->create();
@@ -128,6 +146,7 @@ class AdminShopSettingsTest extends TestCase
                 'boxed_shipping_label' => 'Special box shipping',
                 'boxed_shipping_message' => 'This order needs a custom boxed shipment.',
                 'boxed_shipping_amount' => '25.00',
+                'request_quote_sort_order' => '7',
                 'processing_pause_until' => $processingPauseUntil,
                 'tracking_link_templates' => [
                     [
@@ -151,6 +170,7 @@ class AdminShopSettingsTest extends TestCase
                         'delivery_estimate_min_days' => '3',
                         'delivery_estimate_max_days' => '7',
                         'is_active' => '1',
+                        'suppresses_request_quote' => '1',
                         'sort_order' => '0',
                         'packages' => [
                             [
@@ -182,6 +202,7 @@ class AdminShopSettingsTest extends TestCase
                         'delivery_estimate_min_days' => '1',
                         'delivery_estimate_max_days' => '2',
                         'is_active' => '1',
+                        'suppresses_request_quote' => '1',
                         'sort_order' => '1',
                         'packages' => [
                             [
@@ -211,6 +232,7 @@ class AdminShopSettingsTest extends TestCase
                         'immediate_status_label' => 'Available now',
                         'delayed_status_label' => 'Available later',
                         'is_active' => '1',
+                        'suppresses_request_quote' => '0',
                         'sort_order' => '2',
                         'packages' => [],
                     ],
@@ -229,6 +251,10 @@ class AdminShopSettingsTest extends TestCase
         $this->assertDatabaseHas('site_options', [
             'name' => ShopShippingSettings::BOXED_LABEL_OPTION,
             'value' => 'Special box shipping',
+        ]);
+        $this->assertDatabaseHas('site_options', [
+            'name' => ShopShippingSettings::REQUEST_QUOTE_SORT_ORDER_OPTION,
+            'value' => '7',
         ]);
         $this->assertDatabaseHas('site_options', [
             'name' => ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION,
@@ -256,6 +282,7 @@ class AdminShopSettingsTest extends TestCase
             'delivery_estimate_max_days' => 2,
             'rate_multiplier' => 1.00,
             'rate_adjustment_amount' => 0.00,
+            'suppresses_request_quote' => true,
         ]);
         $this->assertDatabaseHas('store_shipping_method_packages', [
             'store_shipping_method_id' => $express->id,
@@ -267,6 +294,7 @@ class AdminShopSettingsTest extends TestCase
             'id' => $pickup->id,
             'calculator' => StoreShippingMethod::CALCULATOR_PICKUP,
             'is_pickup' => true,
+            'suppresses_request_quote' => false,
             'flat_rate_amount' => '0.00',
         ]);
         $this->assertSame(0, StoreShippingMethodPackage::query()->where('store_shipping_method_id', $pickup->id)->count());
