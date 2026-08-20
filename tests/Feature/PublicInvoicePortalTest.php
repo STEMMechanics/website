@@ -154,7 +154,7 @@ class PublicInvoicePortalTest extends TestCase
 
         $this->assertStringContainsString('hello.<br>this is your <span class="underline">tax invoice.</span>', $html);
         $this->assertStringContainsString('<div class="watermark">CANCELLED</div>', $html);
-        $this->assertStringContainsString('<th class="pay">PLEASE PAY</th>', $html);
+        $this->assertStringContainsString('<th class="pay">AMOUNT DUE</th>', $html);
         $this->assertStringContainsString('<td class="pay">$ 0.00</td>', $html);
         $this->assertStringNotContainsString('cancelled invoice', strtolower($html));
         $this->assertStringNotContainsString('Pay Online', $html);

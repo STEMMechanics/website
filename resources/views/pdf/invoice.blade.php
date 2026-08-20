@@ -38,6 +38,22 @@
     $documentTitle = 'tax invoice';
     $documentType = 'invoice';
     $isCancelled = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED;
+    $amountDue = (float) $invoice->displayOutstandingAmount();
+    $amountPaid = (float) $invoice->settledAmount();
+    $taxAdjustmentTotal = (float) $invoice->issuedAdjustmentTotalAmount();
+    $paymentsAndCredits = $amountPaid + max(0, -$taxAdjustmentTotal);
+    $paymentAllocations = $invoice->allocations()
+        ->with('customerPayment')
+        ->where('allocated_amount', '>', 0)
+        ->orderBy('created_at')
+        ->orderBy('id')
+        ->get()
+        ->filter(fn ($allocation) => $allocation->customerPayment instanceof \App\Models\Payment)
+        ->values();
+    $taxAdjustments = $invoice->taxAdjustments()
+        ->orderBy('issue_date')
+        ->orderBy('id')
+        ->get();
     $publicPayUrl = isset($publicPayUrl) && is_string($publicPayUrl) ? $publicPayUrl : null;
     $displayPublicPayUrl = $publicPayUrl !== null ? preg_replace('#^https?://#', '', $publicPayUrl) : '';
     $renderLineNotes = function (string $rawNotes): string {
@@ -135,13 +151,13 @@
                             <tr>
                                 <th>INVOICE NO</th>
                                 <th>INVOICE DATE</th>
-                                <th class="pay">PLEASE PAY</th>
+                                <th class="pay">AMOUNT DUE</th>
                                 <th>DUE DATE</th>
                             </tr>
                             <tr>
                                 <td class="invoice-number">{{ $invoice->invoice_number }}</td>
                                 <td>{{ $issueDate }}</td>
-                                <td class="pay">{{ $isCancelled ? '$ 0.00' : '$ '.number_format((float) $invoice->total_amount, 2) }}</td>
+                                <td class="pay">$ {{ number_format($amountDue, 2) }}</td>
                                 <td>{{ $dueDate }}</td>
                             </tr>
                         </table>
@@ -220,13 +236,19 @@
                         <td class="label">TOTAL</td>
                         <td class="value">$ {{ number_format((float) $invoice->total_amount, 2) }}</td>
                     </tr>
+                    @if($taxAdjustmentTotal > 0.0001)
                     <tr>
-                        <td class="label">Previous Balance</td>
-                        <td class="value">$ 0.00</td>
+                        <td class="label">Adjustments</td>
+                        <td class="value">$ {{ number_format($taxAdjustmentTotal, 2) }}</td>
+                    </tr>
+                    @endif
+                    <tr>
+                        <td class="label">Payments / Credits</td>
+                        <td class="value">{{ $paymentsAndCredits > 0.0001 ? '- ' : '' }}$ {{ number_format($paymentsAndCredits, 2) }}</td>
                     </tr>
                     <tr class="total-row">
                         <td class="label">TOTAL DUE</td>
-                        <td class="value">{{ $isCancelled ? '$ 0.00' : '$ '.number_format((float) $invoice->total_amount, 2) }}</td>
+                        <td class="value">$ {{ number_format($amountDue, 2) }}</td>
                     </tr>
                 </table>
 
@@ -235,6 +257,49 @@
             @endif
         </div>
         @endforeach
+
+        @if($paymentAllocations->isNotEmpty() || $taxAdjustments->isNotEmpty())
+        <div class="page">
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th style="width:14%;">DATE</th>
+                        <th style="width:18%;">METHOD</th>
+                        <th style="width:18%;">CARD</th>
+                        <th style="width:38%; padding-left:12px;">TRANSACTION ID</th>
+                        <th class="right" style="width:12%;">AMOUNT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($paymentAllocations as $allocation)
+                    @php
+                    $payment = $allocation->customerPayment;
+                    $cardBrand = trim((string) $payment->square_card_brand);
+                    $cardLast4 = trim((string) $payment->square_card_last4);
+                    $cardDisplay = trim($cardBrand.($cardLast4 !== '' ? ' ending '.$cardLast4 : ''));
+                    $transactionId = trim((string) ($payment->square_payment_id ?: $payment->gateway_reference_id));
+                    @endphp
+                    <tr>
+                        <td>{{ $payment->received_on?->format('d/m/Y') ?? '-' }}</td>
+                        <td>{{ \App\Models\Payment::paymentMethodLabel((string) $payment->payment_method) }}</td>
+                        <td>{{ $cardDisplay !== '' ? $cardDisplay : '-' }}</td>
+                        <td style="padding-left:12px; word-break: break-all; overflow-wrap: anywhere;">{{ $transactionId !== '' ? $transactionId : '-' }}</td>
+                        <td class="right">$ {{ number_format((float) $allocation->allocated_amount, 2) }}</td>
+                    </tr>
+                    @endforeach
+                    @foreach($taxAdjustments as $adjustment)
+                    <tr>
+                        <td>{{ $adjustment->issue_date?->format('d/m/Y') ?? '-' }}</td>
+                        <td>{{ (float) $adjustment->total_amount < 0 ? 'Credit' : 'Adjustment' }}</td>
+                        <td>-</td>
+                        <td style="padding-left:12px;">{{ $adjustment->adjustment_number }}</td>
+                        <td class="right">$ {{ number_format(abs((float) $adjustment->total_amount), 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
 
         @php
         $adjustmentDocuments = collect($adjustments ?? [])

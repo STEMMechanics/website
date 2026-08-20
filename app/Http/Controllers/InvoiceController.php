@@ -1838,6 +1838,11 @@ class InvoiceController extends Controller
             'creditAppliedAmount' => $creditAppliedAmount,
             'creditReferenceSummary' => $creditReferenceSummary,
             'orderTotalAmount' => round((float) $invoice->total_amount, 2),
+            'purchasedItems' => $invoice->lines()->orderBy('line_number')->get()->map(fn ($line): array => [
+                'description' => (string) $line->description,
+                'quantity' => (float) $line->quantity,
+                'line_total_inc_tax' => (float) $line->line_total_inc_tax,
+            ])->all(),
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
