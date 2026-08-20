@@ -46,7 +46,37 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('aria-label="View pick list PDF for order '.$order->order_number.'"', false)
             ->assertSee('fa-regular fa-file-pdf', false)
             ->assertSee('fa-solid fa-list-check', false)
+            ->assertSee('<th class="text-center">Actions</th>', false)
+            ->assertSee('flex items-center justify-center gap-3 whitespace-nowrap', false)
             ->assertDontSee('primary-outline-sm', false);
+    }
+
+    public function test_admin_navigation_badges_only_store_orders_that_still_require_action(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        foreach (StoreOrder::ACTION_REQUIRED_STATUSES as $status) {
+            StoreOrder::factory()->create(['status' => $status]);
+        }
+
+        foreach ([
+            StoreOrder::STATUS_PENDING_PAYMENT,
+            StoreOrder::STATUS_SHIPPED,
+            StoreOrder::STATUS_COLLECTED,
+            StoreOrder::STATUS_FULFILLED,
+            StoreOrder::STATUS_CANCELLED,
+        ] as $status) {
+            StoreOrder::factory()->create(['status' => $status]);
+        }
+
+        $expectedCount = count(StoreOrder::ACTION_REQUIRED_STATUSES);
+
+        $this->assertSame($expectedCount, StoreOrder::actionRequiredCount());
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.index'))
+            ->assertOk()
+            ->assertSee('title="'.$expectedCount.' store orders require action"', false);
     }
 
     public function test_collected_items_do_not_expose_bulk_selection_checkboxes(): void

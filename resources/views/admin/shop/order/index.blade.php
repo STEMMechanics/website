@@ -17,7 +17,7 @@
                     <th class="hidden md:table-cell">Customer</th>
                     <th>Status</th>
                     <th>Total</th>
-                    <th>Action</th>
+                    <th class="text-center">Actions</th>
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($orders as $order)
@@ -32,8 +32,8 @@
                             </td>
                             <td>{{ $order->statusLabel() }}</td>
                             <td>${{ number_format((float) $order->total_amount, 2) }}</td>
-                            <td>
-                                <div class="flex items-center gap-3 whitespace-nowrap">
+                            <td class="text-center">
+                                <div class="flex items-center justify-center gap-3 whitespace-nowrap">
                                     <a href="{{ route('admin.shop.order.edit', $order) }}" class="hover:text-primary-color" title="Edit order" aria-label="Edit order {{ $order->order_number }}"><i class="fa-solid fa-pen-to-square"></i></a>
                                     @if($order->invoice)
                                         <a href="{{ route('admin.invoice.pdf', $order->invoice) }}" target="_blank" class="hover:text-primary-color" title="View invoice PDF" aria-label="View invoice PDF for order {{ $order->order_number }}"><i class="fa-regular fa-file-pdf"></i></a>
