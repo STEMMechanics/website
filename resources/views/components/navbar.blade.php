@@ -33,6 +33,7 @@
                 ->count()
             : 0;
         $overdueInvoiceCount = $isAdmin ? \App\Models\Invoice::overdueCount() : 0;
+        $storeOrderActionCount = $isAdmin ? \App\Models\StoreOrder::actionRequiredCount() : 0;
         $mediaDuplicateCount = $isAdmin
             ? app(\App\Services\MediaDuplicateService::class)->attentionCount(app(\App\Services\ImagePerceptualHash::class))
             : 0;
@@ -47,7 +48,7 @@
                 [
                     'title' => 'Store',
                     'items' => [
-                    ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*']],
+                    ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*'], 'badge' => $storeOrderActionCount, 'badge_title' => $storeOrderActionCount.' store '.($storeOrderActionCount === 1 ? 'order requires' : 'orders require').' action'],
                     ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*']],
                     ['label' => 'Categories', 'route' => route('admin.shop.category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.category.*']],
                     ['label' => 'Vouchers', 'route' => route('admin.shop.coupon.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.coupon.*']],
@@ -214,7 +215,7 @@
                             >
                                 <i class="{{ $item['icon'] }} w-4 mr-2"></i>{{ $item['label'] }}
                                 @if((int) ($item['badge'] ?? 0) > 0)
-                                    <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">{{ (int) $item['badge'] }}</span>
+                                    <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white" @isset($item['badge_title']) title="{{ $item['badge_title'] }}" @endisset>{{ (int) $item['badge'] }}</span>
                                 @endif
                             </a>
                         @endforeach

@@ -56,6 +56,20 @@ class StoreOrder extends Model
         self::STATUS_FULFILLED,
     ];
 
+    public const ACTION_REQUIRED_STATUSES = [
+        self::STATUS_QUOTE_REQUESTED,
+        self::STATUS_PROCESSING,
+        self::STATUS_READY_FOR_PARTIAL_COLLECTION,
+        self::STATUS_READY_FOR_PICKUP,
+        self::STATUS_PARTIALLY_COLLECTED,
+        self::STATUS_PARTIALLY_SHIPPED,
+    ];
+
+    public static function actionRequiredCount(): int
+    {
+        return self::query()->whereIn('status', self::ACTION_REQUIRED_STATUSES)->count();
+    }
+
     protected $fillable = [
         'order_number',
         'access_token',
