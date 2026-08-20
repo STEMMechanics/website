@@ -411,8 +411,8 @@
                         </div>
 
                         <div class="flex justify-end">
-                            <x-ui.button type="button" x-bind:disabled="shippingStepButtonDisabled()" x-on:click="requiresManualQuote() ? submitManualQuote() : goToPayment()">
-                                <span x-text="requiresManualQuote() ? 'Request Quote' : @js($continueLabel)">{{ $continueLabel }}</span>
+                            <x-ui.button type="button" x-bind:disabled="shippingStepButtonDisabled()" x-on:click="continueCheckout()">
+                                <span x-text="checkoutContinueLabel()">{{ $continueLabel }}</span>
                             </x-ui.button>
                         </div>
                     </div>
@@ -540,7 +540,7 @@
                                 class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white inline-flex w-full items-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
                                 x-bind:disabled="placeOrderDisabled()"
                             >
-                                <span x-show="!isSubmitting" x-cloak>{{ $submitLabel }}</span>
+                                <span x-show="!isSubmitting" x-cloak x-text="checkoutSubmitLabel()">{{ $submitLabel }}</span>
                                 <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
                                     <span class="altcha-inline-spinner" aria-hidden="true"></span>
                                     <span>{{ $requiresManualQuote ? 'Requesting Quote...' : 'Processing...' }}</span>
@@ -652,6 +652,22 @@
             remainingDueAfterCredit() {
                 const total = Number(this.cartState?.summary?.total || 0);
                 return Math.max(0, total - this.accountCreditAppliedAmount());
+            },
+
+            checkoutContinueLabel() {
+                if (this.requiresManualQuote()) {
+                    return 'Request Quote';
+                }
+
+                return this.requiresPayment ? 'Enter Payment Details' : 'Complete Order';
+            },
+
+            checkoutSubmitLabel() {
+                if (this.requiresManualQuote()) {
+                    return 'Request Quote';
+                }
+
+                return this.requiresPayment ? 'Place Order' : 'Complete Order';
             },
 
             shipmentIconClass(shipment) {
@@ -1160,6 +1176,18 @@
                 }
 
                 this.setCartState(this.cartState);
+                if (
+                    window.SM?.shopCart
+                    && this.hasPhysicalItems()
+                    && String(this.shippingMethodCode || '').trim() !== ''
+                    && !Boolean(this.cartState?.has_selected_shipping_method)
+                ) {
+                    window.SM.shopCart.setState({
+                        ...this.cartState,
+                        shipping_method_code: this.shippingMethodCode,
+                        has_selected_shipping_method: true,
+                    });
+                }
                 this.alpineReady = true;
                 this.$nextTick(() => {
                     this.syncRecipientField('billing_name', 'shipping_name');
@@ -1227,6 +1255,23 @@
                 });
             },
 
+            async continueCheckout() {
+                if (this.requiresManualQuote()) {
+                    this.submitManualQuote();
+                    return;
+                }
+
+                if (this.requiresPayment) {
+                    await this.goToPayment();
+                    return;
+                }
+
+                const form = this.$refs.checkoutForm;
+                if (form instanceof HTMLFormElement) {
+                    await this.submitOrder({ target: form });
+                }
+            },
+
             editShipping() {
                 this.checkoutStep = 'shipping';
                 this.$nextTick(() => {
@@ -1265,6 +1310,10 @@
             checkoutSubmitDisabled() {
                 if (this.requiresManualQuote()) {
                     return this.isSubmitting || this.deliveryUpdateBusy;
+                }
+
+                if (!this.requiresPayment && this.checkoutStep !== 'payment') {
+                    return this.shippingStepButtonDisabled();
                 }
 
                 return this.placeOrderDisabled();
@@ -1380,9 +1429,30 @@
                     return;
                 }
 
-                if (this.checkoutStep !== 'payment') {
+                if (this.checkoutStep !== 'payment' && this.requiresPayment) {
                     await this.goToPayment();
                     return;
+                }
+
+                if (this.checkoutStep !== 'payment') {
+                    this.errorMessage = '';
+                    if (!form.reportValidity()) {
+                        return;
+                    }
+
+                    if (this.deliveryUpdateTimer !== null || this.quoteDirty) {
+                        const updated = await this.applyDeliveryUpdate();
+                        if (!updated || !this.canCheckout()) {
+                            this.errorMessage = this.checkoutBlockedReason() || this.deliveryUpdateError || 'Review the shipping details before placing the order.';
+                            return;
+                        }
+                    }
+
+                    if (!this.canCheckout()) {
+                        return;
+                    }
+
+                    this.checkoutStep = 'payment';
                 }
 
                 this.errorMessage = '';

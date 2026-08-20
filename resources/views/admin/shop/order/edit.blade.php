@@ -1396,6 +1396,7 @@
                                 $canTrack = $order->contains_physical && !$order->usesPickup() && !$item->isDigital() && ($remainingAvailable > 0 || $remainingDelayed > 0);
                                 $canReady = $pickupCollectionOpen && !$item->isDigital() && $remainingPickupToReady > 0;
                                 $canCollect = $pickupCollectionOpen && !$item->isDigital() && $readyPickup > 0;
+                                $canBulkSelect = ! $itemActionsLocked && $item->remainingOrderFulfillableQuantity() > 0;
                                 $cancelOpen = $cancelBag->isNotEmpty();
                                 $trackingOpen = $trackingBag->isNotEmpty();
                                 $collectionOpen = $collectionBag->isNotEmpty();
@@ -1422,15 +1423,18 @@
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                 @endphp
                                 <div class="space-y-4">
-                                    <div class="grid gap-4 grid-cols-[auto_minmax(0,1fr)_auto] items-start">
+                                    <div class="grid items-start gap-4 {{ $canBulkSelect ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]' }}">
+                                        @if($canBulkSelect)
                                         <label class="flex items-start pt-2">
                                             <input
                                                 type="checkbox"
+                                                data-bulk-select-item="{{ $item->id }}"
                                                 class="h-8 w-8 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                                                 x-bind:checked="isSelected({{ $item->id }})"
                                                 x-on:change="toggleSelected({{ $item->id }}, $event.target.checked)"
                                             >
                                         </label>
+                                        @endif
                                         <div class="min-w-0">
                                             <div class="flex flex-wrap items-start gap-4">
                                                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-lg font-bold text-sky-800 shadow-sm">
@@ -1956,8 +1960,15 @@
                             </div>
                         </div>
 
-                        <div x-show="bulkTrackingOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeBulkTracking()" x-on:keydown.escape.window="closeBulkTracking()">
-                            <div class="flex min-h-full items-center justify-center p-4">
+                        <div
+                            x-show="bulkTrackingOpen"
+                            x-cloak
+                            x-effect="document.body.classList.toggle('overflow-hidden', bulkTrackingOpen)"
+                            class="fixed inset-0 z-[180] overflow-y-auto overscroll-contain bg-black/55"
+                            x-on:click.self="closeBulkTracking()"
+                            x-on:keydown.escape.window="closeBulkTracking()"
+                        >
+                            <div class="flex min-h-full items-start justify-center p-4">
                                 <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                     <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
                                         <div>
@@ -1981,19 +1992,27 @@
                                             </div>
                                         </div>
                                         <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Shipment stage</label>
-                                                <select name="shipment_type" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0">
+                                            <x-ui.select
+                                                name="shipment_type"
+                                                label="Shipment stage"
+                                                class="mb-0!"
+                                                labelClass="pl-0 text-xs font-semibold uppercase tracking-wide text-gray-700"
+                                            >
                                                     <option value="{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}">Reserved items</option>
                                                     <option value="{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED }}">Backorder items</option>
-                                                </select>
-                                            </div>
+                                            </x-ui.select>
                                             <div>
-                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking mode</label>
-                                                <select name="tracking_mode" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" x-model="bulkTrackingMode" x-on:change="bulkTrackingModeTouched = true">
+                                                <x-ui.select
+                                                    name="tracking_mode"
+                                                    label="Tracking mode"
+                                                    class="mb-0!"
+                                                    labelClass="pl-0 text-xs font-semibold uppercase tracking-wide text-gray-700"
+                                                    x-model="bulkTrackingMode"
+                                                    x-on:change="bulkTrackingModeTouched = true"
+                                                >
                                                     <option value="none">No Tracking Number</option>
                                                     <option value="tracking_number">Tracking Number</option>
-                                                </select>
+                                                </x-ui.select>
                                                 <div class="mt-1 text-xs text-gray-500">Choose whether the parcels are recorded with a tracking number or only a parcel number.</div>
                                             </div>
                                             <x-ui.input

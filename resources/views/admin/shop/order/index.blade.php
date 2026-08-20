@@ -32,7 +32,15 @@
                             </td>
                             <td>{{ $order->statusLabel() }}</td>
                             <td>${{ number_format((float) $order->total_amount, 2) }}</td>
-                            <td><a href="{{ route('admin.shop.order.edit', $order) }}" class="hover:text-primary-color" title="Open order"><i class="fa-solid fa-pen-to-square"></i></a></td>
+                            <td>
+                                <div class="flex items-center gap-3 whitespace-nowrap">
+                                    <a href="{{ route('admin.shop.order.edit', $order) }}" class="hover:text-primary-color" title="Edit order" aria-label="Edit order {{ $order->order_number }}"><i class="fa-solid fa-pen-to-square"></i></a>
+                                    @if($order->invoice)
+                                        <a href="{{ route('admin.invoice.pdf', $order->invoice) }}" target="_blank" class="hover:text-primary-color" title="View invoice PDF" aria-label="View invoice PDF for order {{ $order->order_number }}"><i class="fa-regular fa-file-pdf"></i></a>
+                                    @endif
+                                    <a href="{{ route('admin.shop.order.pick-list.pdf', $order) }}" target="_blank" class="hover:text-primary-color" title="View pick list PDF" aria-label="View pick list PDF for order {{ $order->order_number }}"><i class="fa-solid fa-list-check"></i></a>
+                                </div>
+                            </td>
                         </tr>
                     @endforeach
                 </x-slot:body>

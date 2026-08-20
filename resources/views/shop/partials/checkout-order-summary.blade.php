@@ -201,7 +201,7 @@
             @endif
             {{ $resolvedSubmitButtonAttributes }}
         >
-            <span x-show="!isSubmitting" x-cloak x-text="requiresManualQuote() ? 'Request Quote' : @js($resolvedSubmitLabel)">{{ $resolvedSubmitLabel }}</span>
+            <span x-show="!isSubmitting" x-cloak x-text="checkoutSubmitLabel()">{{ $resolvedSubmitLabel }}</span>
             <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
                 <span class="altcha-inline-spinner" aria-hidden="true"></span>
                 <span x-text="requiresManualQuote() ? 'Requesting Quote...' : 'Processing...'">Processing...</span>
