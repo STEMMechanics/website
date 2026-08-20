@@ -3041,7 +3041,7 @@ class StoreOrderService
                 && $user->hasAccountTerms()
             )
                 ? InvoiceDueDate::fromIssueDate($invoice->issue_date, $user->accountTermsDays())
-                : Carbon::today()->addDays(7);
+                : Carbon::today();
             $invoice->subtotal_amount = $totals['invoice_subtotal'];
             $invoice->gst_amount = $totals['gst'];
             $invoice->total_amount = $totals['total'];

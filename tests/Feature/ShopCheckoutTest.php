@@ -213,7 +213,7 @@ class ShopCheckoutTest extends TestCase
             'shipping_country' => 'Australia',
         ]);
 
-        $order = StoreOrder::query()->sole();
+        $order = StoreOrder::query()->with('invoice')->sole();
 
         $response->assertRedirect(route('account.order.show', $order));
         $response->assertSessionHas(
@@ -221,6 +221,10 @@ class ShopCheckoutTest extends TestCase
             'Payment completed successfully. Your order email and receipt have been emailed.'
         );
         $this->assertTrue($order->isPaid());
+        $this->assertSame(
+            optional($order->invoice?->issue_date)->toDateString(),
+            optional($order->invoice?->due_date)->toDateString(),
+        );
         $this->assertSame(1, InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->count());
         $this->assertSame(19.95, (float) InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->sum('allocated_amount'));
 

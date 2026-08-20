@@ -72,6 +72,8 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertStringNotContainsString('payment history', $html);
         $this->assertStringContainsString('VISA ending 3255', $html);
         $this->assertStringContainsString('square-payment-transaction-123', $html);
+        $this->assertStringContainsString('<th style="width:12%;">METHOD</th>', $html);
+        $this->assertStringContainsString('<th style="width:26%;">CARD</th>', $html);
         $this->assertStringNotContainsString('<th style="width:13%;">RECEIPT</th>', $html);
         $this->assertStringNotContainsString('>STATUS</th>', $html);
         $this->assertSame(0.0, $invoice->fresh()->displayOutstandingAmount());
