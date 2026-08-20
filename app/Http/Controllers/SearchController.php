@@ -95,6 +95,7 @@ class SearchController extends Controller
                         ->orWhere('category', 'like', '%'.$word.'%')
                         ->orWhere('short_description', 'like', '%'.$word.'%')
                         ->orWhere('description', 'like', '%'.$word.'%')
+                        ->orWhere('search_terms', 'like', '%'.$word.'%')
                         ->orWhere('sku', 'like', '%'.$word.'%')
                         ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
                             ->where('name', 'like', '%'.$word.'%')

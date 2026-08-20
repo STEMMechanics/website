@@ -82,6 +82,7 @@
 <x-layout
         :title="$product->title"
         :description="$product->short_description ?: strip_tags((string) $product->description)"
+        :keywords="$product->search_terms"
         :canonical="route('shop.product.show', $product)"
         :body-class="'bg-white'"
 >

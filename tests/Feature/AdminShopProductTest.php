@@ -59,6 +59,7 @@ class AdminShopProductTest extends TestCase
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'short_description' => 'A build-at-home launcher kit.',
                 'description' => 'Includes all timber parts and instructions.',
+                'search_terms' => 'launcher, trebuchet catapult',
                 'product_details' => [
                     ['key' => 'Pack size', 'value' => '150 straws'],
                     ['key' => 'Material', 'value' => 'Paper'],
@@ -86,6 +87,7 @@ class AdminShopProductTest extends TestCase
             'sku' => 'CAT-100',
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'search_terms' => 'launcher, trebuchet catapult',
             'shipping_units' => 1.00,
             'min_satchel_rank' => 3,
             'weight_grams' => 820,

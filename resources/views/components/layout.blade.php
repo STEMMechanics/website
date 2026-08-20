@@ -3,6 +3,7 @@
     'bodyClass' => '',
     'title' => null,
     'description' => null,
+    'keywords' => null,
     'canonical' => null,
     'ogImage' => null,
     'noindex' => false,
@@ -31,6 +32,7 @@
     }
 
     $robots = filter_var($noindex, FILTER_VALIDATE_BOOL) ? 'noindex, nofollow' : 'index, follow';
+    $metaKeywords = trim((string) ($keywords ?? ''));
 
     $jsonLdBlocks = [];
     if (is_array($jsonLd)) {
@@ -75,6 +77,9 @@
 
     <title>{{ $fullTitle }}</title>
     <meta name="description" content="{{ $metaDescription }}">
+    @if($metaKeywords !== '')
+        <meta name="keywords" content="{{ $metaKeywords }}">
+    @endif
     <meta name="robots" content="{{ $robots }}">
     <link rel="canonical" href="{{ $canonicalUrl }}">
 

@@ -31,6 +31,7 @@ class ShopProductController extends Controller
                 $builder->where('title', 'like', '%'.$search.'%')
                     ->orWhere('slug', 'like', '%'.$search.'%')
                     ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhere('search_terms', 'like', '%'.$search.'%')
                     ->orWhere('category', 'like', '%'.$search.'%')
                     ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
                         ->where('name', 'like', '%'.$search.'%')
@@ -206,6 +207,7 @@ class ShopProductController extends Controller
             'backorder_shipping_offset_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
+            'search_terms' => ['nullable', 'string', 'max:2000'],
             'product_details' => ['nullable', 'array', 'max:30'],
             'product_details.*.key' => ['nullable', 'string', 'max:120'],
             'product_details.*.value' => ['nullable', 'string', 'max:500'],
@@ -332,6 +334,7 @@ class ShopProductController extends Controller
                 : null,
             'short_description' => trim((string) ($validated['short_description'] ?? '')) ?: null,
             'description' => trim((string) ($validated['description'] ?? '')) ?: null,
+            'search_terms' => trim((string) ($validated['search_terms'] ?? '')) ?: null,
             'product_details' => collect($validated['product_details'] ?? [])
                 ->map(fn (array $detail): array => [
                     'key' => trim((string) ($detail['key'] ?? '')),

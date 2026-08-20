@@ -71,6 +71,7 @@ class ShopController extends Controller
                     ->orWhere('category', 'like', '%'.$search.'%')
                     ->orWhere('short_description', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('search_terms', 'like', '%'.$search.'%')
                     ->orWhere('sku', 'like', '%'.$search.'%')
                     ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
                         ->where('name', 'like', '%'.$search.'%')
