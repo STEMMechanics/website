@@ -814,4 +814,29 @@ class ShopCheckoutTest extends TestCase
             ->assertSee('if (this.isSubmitting || this.busyLineKey || !window.SM?.shopCart)', false)
             ->assertSee('if (this.isSubmitting || this.couponBusy || !(form instanceof HTMLFormElement) || !window.SM?.shopCart)', false);
     }
+
+    public function test_checkout_buttons_follow_the_live_amount_due(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSee('x-text="checkoutContinueLabel()"', false)
+            ->assertSee('x-text="checkoutSubmitLabel()"', false)
+            ->assertSee("return this.requiresPayment ? 'Enter Payment Details' : 'Complete Order';", false)
+            ->assertSee("return this.requiresPayment ? 'Place Order' : 'Complete Order';", false)
+            ->assertSee('if (this.checkoutStep !== \'payment\' && this.requiresPayment)', false)
+            ->assertSee('has_selected_shipping_method: true', false);
+    }
 }

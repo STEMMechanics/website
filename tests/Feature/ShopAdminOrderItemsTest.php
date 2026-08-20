@@ -32,6 +32,53 @@ class ShopAdminOrderItemsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_order_list_exposes_invoice_and_pick_list_pdf_actions(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.index'))
+            ->assertOk()
+            ->assertSee(route('admin.invoice.pdf', $order->invoice), false)
+            ->assertSee(route('admin.shop.order.pick-list.pdf', $order), false)
+            ->assertSee('aria-label="View invoice PDF for order '.$order->order_number.'"', false)
+            ->assertSee('aria-label="View pick list PDF for order '.$order->order_number.'"', false)
+            ->assertSee('fa-regular fa-file-pdf', false)
+            ->assertSee('fa-solid fa-list-check', false)
+            ->assertDontSee('primary-outline-sm', false);
+    }
+
+    public function test_collected_items_do_not_expose_bulk_selection_checkboxes(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+        $order->update([
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+        ]);
+        $collectedItem = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => Product::factory()->create()->id,
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+        StoreOrderItemCollection::query()->create([
+            'store_order_item_id' => $collectedItem->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+            'quantity' => 1,
+            'collected_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.order.edit', $order))
+            ->assertOk()
+            ->assertDontSee('data-bulk-select-item="'.$collectedItem->id.'"', false);
+    }
+
     public function test_admin_order_page_exposes_item_cancellation_and_tracking_actions(): void
     {
         $admin = $this->makeAdminUser();
@@ -85,6 +132,9 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Tracking mode')
             ->assertSee('No Tracking Number')
             ->assertSee('Tracking Number')
+            ->assertSee('data-bulk-select-item="'.$item->id.'"', false)
+            ->assertSee("document.body.classList.toggle('overflow-hidden', bulkTrackingOpen)", false)
+            ->assertSee('overflow-y-auto overscroll-contain', false)
             ->assertSee('Private Notes')
             ->assertSee('Public Notes')
             ->assertSee('Partially Shipped')
