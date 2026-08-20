@@ -263,10 +263,10 @@
             <table class="items">
                 <thead>
                     <tr>
-                        <th style="width:14%;">DATE</th>
-                        <th style="width:18%;">METHOD</th>
-                        <th style="width:18%;">CARD</th>
-                        <th style="width:38%; padding-left:12px;">TRANSACTION ID</th>
+                        <th style="width:13%;">DATE</th>
+                        <th style="width:12%;">METHOD</th>
+                        <th style="width:26%;">CARD</th>
+                        <th style="width:37%; padding-left:12px;">TRANSACTION ID</th>
                         <th class="right" style="width:12%;">AMOUNT</th>
                     </tr>
                 </thead>
