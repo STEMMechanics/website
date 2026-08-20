@@ -3955,6 +3955,7 @@ class StoreOrderService
 
     private function buildInvoicePaymentReceiptPdf(Invoice $invoice, Payment $payment): PDF
     {
+        $invoice->loadMissing('lines');
         $gatewayProcessedAtRaw = trim((string) ($payment->square_gateway_updated_at ?? $payment->square_gateway_created_at ?? ''));
         $gatewayProcessedAtLabel = '';
         if ($gatewayProcessedAtRaw !== '') {
@@ -3986,6 +3987,11 @@ class StoreOrderService
             'squareReceiptUrl' => (string) ($payment->square_receipt_url ?? ''),
             'gatewayProcessedAt' => $gatewayProcessedAtLabel,
             'footerMessage' => $payment->isRefund() ? 'This receipt confirms the refund transaction.' : 'Thank you for your payment.',
+            'purchasedItems' => $invoice->lines->map(fn (InvoiceLine $line): array => [
+                'description' => (string) $line->description,
+                'quantity' => (float) $line->quantity,
+                'line_total_inc_tax' => (float) $line->line_total_inc_tax,
+            ])->all(),
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
