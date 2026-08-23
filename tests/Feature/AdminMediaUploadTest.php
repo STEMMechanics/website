@@ -59,8 +59,10 @@ class AdminMediaUploadTest extends TestCase
 
     public function test_admin_media_photo_view_renders_thumbnail_cards_and_preserves_view_when_filtering(): void
     {
+        Storage::fake('media');
+
         $admin = $this->makeAdminUser();
-        Media::query()->create([
+        $media = Media::query()->create([
             'name' => 'operation-photo.jpg',
             'title' => 'Operation Workshop Photo',
             'hash' => str_repeat('f', 64),
@@ -68,6 +70,13 @@ class AdminMediaUploadTest extends TestCase
             'size' => 2048,
             'user_id' => $admin->id,
         ]);
+        $media->variants = [
+            'thumbnail' => ['mime_type' => 'image/webp', 'extension' => 'webp'],
+            'md' => ['mime_type' => 'image/webp', 'extension' => 'webp'],
+        ];
+        $media->save();
+        Storage::disk('media')->put($media->hash.'-thumbnail', 'thumbnail-image');
+        Storage::disk('media')->put($media->hash.'-md', 'medium-image');
 
         $this->actingAs($admin)
             ->get(route('admin.media.index', ['view' => 'photos']))
@@ -77,6 +86,8 @@ class AdminMediaUploadTest extends TestCase
             ->assertSee('fa-solid fa-table-list', false)
             ->assertSee('admin-media-select-photos-', false)
             ->assertSee('class="flex aspect-square', false)
+            ->assertSee($media->url('md', true), false)
+            ->assertDontSee($media->url('thumbnail', true), false)
             ->assertSee('name="view" value="photos"', false)
             ->assertDontSee('<table', false);
     }
