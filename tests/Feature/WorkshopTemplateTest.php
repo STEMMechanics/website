@@ -26,8 +26,13 @@ class WorkshopTemplateTest extends TestCase
             ->get(route('admin.workshop-template.edit', $template))
             ->assertOk()
             ->assertSee('max-h-[calc(100dvh-2rem)]', false)
+            ->assertSee('max-w-4xl', false)
             ->assertSee('overscroll-contain', false)
+            ->assertSee('x-on:click.self="closeTaskEditor()"', false)
             ->assertSee("document.body.classList.toggle('overflow-hidden'", false)
+            ->assertSeeText('Details and Alerts')
+            ->assertSeeText('Subtask content')
+            ->assertSee('miniEditor', false)
             ->assertSeeText('{date-short}')
             ->assertSeeText('{date-long}')
             ->assertSeeText('{date-ddd dd/mm/yyyy}')
@@ -57,7 +62,15 @@ class WorkshopTemplateTest extends TestCase
             'run_sheet' => '<h2>Welcome</h2><p>Introduce the activity.</p>',
             'run_sheet_drawing_data' => 'data:image/png;base64,dGVzdA==',
             'tasks' => [
-                ['name' => 'Charge batteries', 'notes' => 'The day before', 'sort_order' => 20],
+                [
+                    'name' => 'Charge batteries',
+                    'notes' => '<p><strong>The day before</strong></p>',
+                    'subtasks' => json_encode([
+                        ['title' => 'Facebook', 'content' => '<p>Schedule the Facebook post.</p>'],
+                        ['title' => 'Instagram', 'content' => '<p>Prepare the Instagram caption.</p>'],
+                    ], JSON_THROW_ON_ERROR),
+                    'sort_order' => 20,
+                ],
                 ['name' => 'Print worksheets', 'notes' => null, 'sort_order' => 10],
             ],
             'items' => [
@@ -78,6 +91,11 @@ class WorkshopTemplateTest extends TestCase
         $this->assertSame('8-24', $template->participants);
         $this->assertCount(2, $template->tasks);
         $this->assertSame(['Charge batteries', 'Print worksheets'], $template->tasks->pluck('name')->all());
+        $this->assertSame('<p><strong>The day before</strong></p>', $template->tasks->first()->notes);
+        $this->assertSame([
+            ['title' => 'Facebook', 'content' => '<p>Schedule the Facebook post.</p>'],
+            ['title' => 'Instagram', 'content' => '<p>Prepare the Instagram caption.</p>'],
+        ], $template->tasks->first()->subtasks);
         $this->assertCount(1, $template->items);
         $this->assertSame([$attachment->name], $template->attachments()->pluck('media.name')->all());
     }
@@ -93,7 +111,11 @@ class WorkshopTemplateTest extends TestCase
             'participants' => '6-16',
             'run_sheet' => '<p>Advanced run sheet</p>',
         ]);
-        $template->tasks()->create(['name' => 'Prepare soldering stations', 'sort_order' => 10]);
+        $template->tasks()->create([
+            'name' => 'Prepare soldering stations',
+            'subtasks' => [['title' => 'Safety', 'content' => '<p>Check each station.</p>']],
+            'sort_order' => 10,
+        ]);
         $template->items()->create([
             'item_name' => 'Soldering iron',
             'quantity_type' => PickListTemplateItem::TYPE_FIXED,
@@ -109,6 +131,7 @@ class WorkshopTemplateTest extends TestCase
         $this->assertNotSame($template->id, $copy->id);
         $this->assertSame('2 hours', $copy->duration);
         $this->assertSame(['Prepare soldering stations'], $copy->tasks->pluck('name')->all());
+        $this->assertSame([['title' => 'Safety', 'content' => '<p>Check each station.</p>']], $copy->tasks->first()->subtasks);
         $this->assertSame(['Soldering iron'], $copy->items->pluck('item_name')->all());
         $this->assertSame([$attachment->name], $copy->attachments()->pluck('media.name')->all());
     }

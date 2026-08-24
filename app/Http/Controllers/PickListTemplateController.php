@@ -7,8 +7,8 @@ use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\WorkshopTemplateTask;
-use App\Services\ReminderService;
 use App\Services\PdfAttachmentAppender;
+use App\Services\ReminderService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +56,7 @@ class PickListTemplateController extends Controller
         ]));
 
         $template = DB::transaction(function () use ($validated): PickListTemplate {
-            $template = new PickListTemplate();
+            $template = new PickListTemplate;
             $this->fillTemplate($template, $validated);
             $this->syncItems($template, $validated['items'] ?? []);
             $this->syncTasks($template, $validated['tasks'] ?? []);
@@ -120,7 +120,7 @@ class PickListTemplateController extends Controller
     {
         $pickListTemplate->load(['items', 'tasks', 'attachments']);
 
-        $copy = new PickListTemplate();
+        $copy = new PickListTemplate;
         $copy->name = trim((string) $pickListTemplate->name).' (Copy)';
         $copy->description = $pickListTemplate->description;
         $copy->duration = $pickListTemplate->duration;
@@ -142,6 +142,7 @@ class PickListTemplateController extends Controller
             $copy->tasks()->create([
                 'name' => (string) $task->name,
                 'notes' => $task->notes,
+                'subtasks' => $task->subtasks,
                 'reminder_enabled' => (bool) $task->reminder_enabled,
                 'reminder_offset_days' => $task->reminder_offset_days,
                 'reminder_time' => $task->reminder_time,
@@ -193,6 +194,21 @@ class PickListTemplateController extends Controller
 
     private function validateRequest(Request $request, ?PickListTemplate $template = null): array
     {
+        $tasks = collect($request->input('tasks', []))
+            ->map(function ($task): array {
+                $task = is_array($task) ? $task : [];
+                $subtasks = $task['subtasks'] ?? [];
+                if (is_string($subtasks)) {
+                    $decoded = json_decode($subtasks, true);
+                    $subtasks = is_array($decoded) ? $decoded : [];
+                }
+                $task['subtasks'] = is_array($subtasks) ? $subtasks : [];
+
+                return $task;
+            })
+            ->all();
+        $request->merge(['tasks' => $tasks]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -214,6 +230,9 @@ class PickListTemplateController extends Controller
             ]),
             'tasks.*.name' => ['required', 'string', 'max:255'],
             'tasks.*.notes' => ['nullable', 'string'],
+            'tasks.*.subtasks' => ['nullable', 'array'],
+            'tasks.*.subtasks.*.title' => ['required', 'string', 'max:100'],
+            'tasks.*.subtasks.*.content' => ['nullable', 'string'],
             'tasks.*.reminder_enabled' => ['nullable', 'boolean'],
             'tasks.*.reminder_offset_days' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', 'integer', 'between:-365,365'],
             'tasks.*.reminder_time' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', Rule::in(['06:00', '12:00', '16:00'])],
@@ -251,6 +270,14 @@ class PickListTemplateController extends Controller
                 'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
                 'name' => trim((string) ($row['name'] ?? '')),
                 'notes' => trim((string) ($row['notes'] ?? '')) ?: null,
+                'subtasks' => collect($row['subtasks'] ?? [])
+                    ->map(fn (array $subtask): array => [
+                        'title' => trim((string) ($subtask['title'] ?? '')),
+                        'content' => trim((string) ($subtask['content'] ?? '')),
+                    ])
+                    ->filter(fn (array $subtask): bool => $subtask['title'] !== '')
+                    ->values()
+                    ->all(),
                 'reminder_enabled' => filter_var($row['reminder_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'reminder_offset_days' => isset($row['reminder_offset_days']) && $row['reminder_offset_days'] !== '' ? (int) $row['reminder_offset_days'] : null,
                 'reminder_time' => in_array(($row['reminder_time'] ?? null), ['06:00', '12:00', '16:00'], true) ? $row['reminder_time'] : null,
@@ -296,6 +323,7 @@ class PickListTemplateController extends Controller
                 $item->fill($payload);
                 $item->save();
                 $keptIds[] = $itemId;
+
                 continue;
             }
 
@@ -305,6 +333,7 @@ class PickListTemplateController extends Controller
 
         if ($keptIds === []) {
             $template->items()->delete();
+
             return;
         }
 
@@ -320,6 +349,7 @@ class PickListTemplateController extends Controller
             $payload = [
                 'name' => $row['name'],
                 'notes' => $row['notes'],
+                'subtasks' => $row['subtasks'],
                 'reminder_enabled' => $row['reminder_enabled'],
                 'reminder_offset_days' => $row['reminder_enabled'] ? $row['reminder_offset_days'] : null,
                 'reminder_time' => $row['reminder_enabled'] ? $row['reminder_time'] : null,
@@ -332,6 +362,7 @@ class PickListTemplateController extends Controller
                 $task->fill($payload);
                 $task->save();
                 $keptIds[] = $taskId;
+
                 continue;
             }
 
@@ -341,6 +372,7 @@ class PickListTemplateController extends Controller
 
         if ($keptIds === []) {
             $template->tasks()->delete();
+
             return;
         }
 

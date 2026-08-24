@@ -21,6 +21,10 @@
                 'id' => (int) $task->id,
                 'name' => (string) $task->name,
                 'notes' => (string) ($task->notes ?? ''),
+                'subtasks' => collect($task->subtasks ?? [])->map(fn ($subtask) => [
+                    'title' => (string) ($subtask['title'] ?? ''),
+                    'content' => (string) ($subtask['content'] ?? ''),
+                ])->values()->all(),
                 'reminder_enabled' => (bool) ($task->reminder_enabled ?? false),
                 'reminder_days' => abs((int) ($task->reminder_offset_days ?? 0)),
                 'reminder_direction' => (int) ($task->reminder_offset_days ?? 0) < 0 ? 'before' : 'after',
@@ -58,6 +62,7 @@
             attachmentDetails: @js($seedAttachmentDetails),
             pendingAttachments: [],
             taskEditorIndex: null,
+            taskEditorTab: 'details',
             submitting: false,
             drawingChanged: false,
             drawingContext: null,
@@ -119,7 +124,27 @@
                 this.drawingChanged = true;
             },
             seededBlankTask() {
-                return { id: null, name: '', notes: '', reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_time: '06:00', sort_order: 0 };
+                return { id: null, name: '', notes: '', subtasks: [], reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_time: '06:00', sort_order: 0 };
+            },
+            openTaskEditor(index) {
+                if (!Array.isArray(this.tasks[index].subtasks)) this.tasks[index].subtasks = [];
+                this.taskEditorTab = 'details';
+                this.taskEditorIndex = index;
+            },
+            closeTaskEditor() {
+                this.taskEditorIndex = null;
+                this.taskEditorTab = 'details';
+            },
+            addSubtask() {
+                if (this.taskEditorIndex === null) return;
+                const subtasks = this.tasks[this.taskEditorIndex].subtasks;
+                subtasks.push({ title: `Subtask ${subtasks.length + 1}`, content: '' });
+                this.taskEditorTab = `subtask-${subtasks.length - 1}`;
+            },
+            removeSubtask(index) {
+                if (this.taskEditorIndex === null) return;
+                this.tasks[this.taskEditorIndex].subtasks.splice(index, 1);
+                this.taskEditorTab = 'details';
             },
             isBlankTask(task) {
                 return String(task?.name || '').trim() === '';
@@ -304,13 +329,14 @@
                                 <input type="hidden" x-bind:name="!isBlankTask(task) && task.id ? `tasks[${index}][id]` : null" x-model="task.id">
                                 <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][sort_order]` : null" x-model="task.sort_order">
                                 <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][notes]` : null" x-model="task.notes">
+                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][subtasks]` : null" x-bind:value="JSON.stringify(task.subtasks || [])">
                                 <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_enabled]` : null" x-bind:value="task.reminder_enabled ? '1' : '0'">
                                 <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_offset_days]` : null" x-bind:value="task.reminder_direction === 'before' ? -Math.abs(Number(task.reminder_days || 0)) : Math.abs(Number(task.reminder_days || 0))">
                                 <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_time]` : null" x-model="task.reminder_time">
                                 <div class="flex gap-4 items-center">
                                     <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:name="!isBlankTask(task) ? `tasks[${index}][name]` : null" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)">
                                     <div class="flex items-center justify-end gap-3">
-                                        <button type="button" class="text-gray-700 hover:text-primary-color" x-on:click="taskEditorIndex = index" title="Notes and reminder"><i class="fa-solid fa-sliders"></i></button>
+                                        <button type="button" class="text-gray-700 hover:text-primary-color" x-on:click="openTaskEditor(index)" title="Notes, subtasks, and reminder"><i class="fa-solid fa-sliders"></i></button>
                                         <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
                                         <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
                                         <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeTask(index)" title="Remove"><i class="fa-solid fa-trash"></i></button>
@@ -326,42 +352,65 @@
                 </div>
             </div>
 
-            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="taskEditorIndex = null" x-effect="document.body.classList.toggle('overflow-hidden', taskEditorIndex !== null)">
-                <div class="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskEditorIndex = null" x-on:wheel.stop>
+            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="closeTaskEditor()" x-on:click.self="closeTaskEditor()" x-effect="document.body.classList.toggle('overflow-hidden', taskEditorIndex !== null)">
+                <div class="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:wheel.stop>
                     <template x-if="taskEditorIndex !== null && tasks[taskEditorIndex]">
                         <div>
                             <div class="mb-4 flex items-center justify-between gap-3">
                                 <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
-                                <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorIndex = null"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                            <label class="mb-1 block pl-1 text-sm">Notes</label>
-                            <textarea rows="5" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="tasks[taskEditorIndex].notes" placeholder="Plain text instructions included in the reminder email."></textarea>
-                            <div class="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
-                                <p class="font-semibold">Workshop placeholders</p>
-                                <p class="mt-1 leading-5">
-                                    <code>{date-short}</code>, <code>{date-long}</code>, <code>{date-ddd dd/mm/yyyy}</code>,
-                                    <code>{start-time}</code>, <code>{end-time}</code>, <code>{location}</code>,
-                                    <code>{ages}</code>, and <code>{cost}</code>
-                                </p>
-                                <p class="mt-1 text-sky-700">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
+                                <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()"><i class="fa-solid fa-xmark"></i></button>
                             </div>
 
-                            <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                                <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
-                                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
-                                    <x-ui.input type="number" min="0" max="365" step="1" label="Days" name="task_reminder_days_display" :noLabel="false" x-model="tasks[taskEditorIndex].reminder_days" />
-                                    <x-ui.select label="When" name="task_reminder_direction_display" x-model="tasks[taskEditorIndex].reminder_direction">
-                                        <option value="before">Before workshop</option>
-                                        <option value="after">After workshop</option>
-                                    </x-ui.select>
-                                    <x-ui.select label="Time" name="task_reminder_time_display" x-model="tasks[taskEditorIndex].reminder_time">
-                                        <option value="06:00">6:00am</option>
-                                        <option value="12:00">12:00pm</option>
-                                        <option value="16:00">4:00pm</option>
-                                    </x-ui.select>
+                            <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
+                                <button type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</button>
+                                <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-tab-${subtaskIndex}`">
+                                    <button type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === `subtask-${subtaskIndex}` ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = `subtask-${subtaskIndex}`" x-text="subtask.title || `Subtask ${subtaskIndex + 1}`"></button>
+                                </template>
+                                <button type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+
+                            <div x-show="taskEditorTab === 'details'">
+                                <label class="mb-1 block pl-1 text-sm">Notes</label>
+                                <x-ui.mini-editor x-model="tasks[taskEditorIndex].notes" />
+                                <div class="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                                    <p class="font-semibold">Workshop placeholders</p>
+                                    <p class="mt-1 leading-5">
+                                        <code>{date-short}</code>, <code>{date-long}</code>, <code>{date-ddd dd/mm/yyyy}</code>,
+                                        <code>{start-time}</code>, <code>{end-time}</code>, <code>{location}</code>,
+                                        <code>{ages}</code>, and <code>{cost}</code>
+                                    </p>
+                                    <p class="mt-1 text-sky-700">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
+                                </div>
+
+                                <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
+                                    <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
+                                        <x-ui.input type="number" min="0" max="365" step="1" label="Days" name="task_reminder_days_display" :noLabel="false" x-model="tasks[taskEditorIndex].reminder_days" />
+                                        <x-ui.select label="When" name="task_reminder_direction_display" x-model="tasks[taskEditorIndex].reminder_direction">
+                                            <option value="before">Before workshop</option>
+                                            <option value="after">After workshop</option>
+                                        </x-ui.select>
+                                        <x-ui.select label="Time" name="task_reminder_time_display" x-model="tasks[taskEditorIndex].reminder_time">
+                                            <option value="06:00">6:00am</option>
+                                            <option value="12:00">12:00pm</option>
+                                            <option value="16:00">4:00pm</option>
+                                        </x-ui.select>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="taskEditorIndex = null">Done</x-ui.button></div>
+
+                            <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-panel-${subtaskIndex}`">
+                                <div x-show="taskEditorTab === `subtask-${subtaskIndex}`">
+                                    <div class="mb-4 flex items-end gap-3">
+                                        <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><input type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title"></label>
+                                        <button type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                                    </div>
+                                    <label class="mb-1 block pl-1 text-sm">Subtask content</label>
+                                    <x-ui.mini-editor x-model="subtask.content" />
+                                </div>
+                            </template>
+
+                            <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="closeTaskEditor()">Done</x-ui.button></div>
                         </div>
                     </template>
                 </div>

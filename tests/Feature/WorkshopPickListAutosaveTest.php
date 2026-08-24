@@ -60,6 +60,31 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->assertSeeText($otherTask->name);
     }
 
+    public function test_run_sheet_displays_rich_task_notes_and_subtasks(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create(['name' => 'Social media template']);
+        $template->tasks()->create([
+            'name' => 'Publish campaign',
+            'notes' => '<p><strong>Main campaign notes</strong></p>',
+            'subtasks' => [
+                ['title' => 'Facebook', 'content' => '<p>Facebook copy</p>'],
+                ['title' => 'Instagram', 'content' => '<p>Instagram copy</p>'],
+            ],
+            'sort_order' => 10,
+        ]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.pick-list', $workshop))
+            ->assertOk()
+            ->assertSee('x-html="taskNote"', false)
+            ->assertSee('Main campaign notes', false)
+            ->assertSee('Facebook copy', false)
+            ->assertSee('Instagram copy', false);
+    }
+
     public function test_workshop_run_sheet_override_does_not_change_the_template(): void
     {
         $admin = $this->createAdminUser();

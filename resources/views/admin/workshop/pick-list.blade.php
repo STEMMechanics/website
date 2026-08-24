@@ -92,7 +92,7 @@
 
             @if($workshop->pickListTemplate)
                 <template x-teleport="#workshop-plan-tasks">
-                <div x-data="{ taskNote: null, taskName: '' }">
+                <div x-data="{ taskNote: null, taskName: '', taskSubtasks: [] }">
                     @if($workshop->pickListTemplate->tasks->isEmpty())
                         <p class="mt-2 text-sm text-gray-600">No template tasks.</p>
                     @else
@@ -118,8 +118,8 @@
                                                 />
                                                 <div class="min-w-0 flex-1 content-center">
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
-                                                    @if($task->notes)
-                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                                    @if($task->notes || count($task->subtasks ?? []) > 0)
+                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes ?? ''); taskSubtasks = @js($task->subtasks ?? [])"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
                                                     @endif
                                                 </div>
                                             </li>
@@ -132,7 +132,13 @@
                     <div x-show="taskNote !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskNote = null">
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
                             <div class="flex items-center justify-between gap-3"><h3 class="text-lg font-semibold" x-text="taskName"></h3><button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskNote = null"><i class="fa-solid fa-xmark"></i></button></div>
-                            <div class="mt-4 whitespace-pre-line text-sm text-gray-700" x-text="taskNote"></div>
+                            <div class="mt-4 text-sm text-gray-700 content" x-html="taskNote"></div>
+                            <template x-for="(subtask, index) in taskSubtasks" :key="`task-note-subtask-${index}`">
+                                <section class="mt-5 border-t border-gray-200 pt-4">
+                                    <h4 class="font-semibold" x-text="subtask.title"></h4>
+                                    <div class="mt-2 text-sm text-gray-700 content" x-html="subtask.content"></div>
+                                </section>
+                            </template>
                             <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="taskNote = null">Close</x-ui.button></div>
                         </div>
                     </div>
