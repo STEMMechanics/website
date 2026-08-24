@@ -98,7 +98,7 @@ class ReminderSystemTest extends TestCase
             'name' => 'Publish social post',
             'notes' => implode("\n", [
                 '{date-short}',
-                '{date-long}',
+                '<strong>{date-long}</strong>',
                 '{date-ddd dd/mm/yyyy}',
                 '{start-time}–{end-time}',
                 '{location}',
@@ -126,7 +126,7 @@ class ReminderSystemTest extends TestCase
 
         $this->assertSame(implode("\n", [
             '27/08/2026',
-            'Thursday 27 August',
+            '<strong>Thursday 27 August</strong>',
             'Thu 27/08/2026',
             '9:30am–11:00am',
             'Innovation Centre',

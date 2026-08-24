@@ -2,6 +2,7 @@ import './bootstrap';
 import './media-picker.js';
 import './tooltip.js';
 import './editor/TipTap.js';
+import './editor/MiniEditor.js';
 import './workshop-pick-list.js';
 
 document.addEventListener('click', (event) => {

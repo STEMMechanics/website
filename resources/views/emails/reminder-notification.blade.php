@@ -10,7 +10,7 @@
 @if(trim((string) $reminder->message) !== '')
 ## Task Notes
 
-{{ $reminder->message }}
+{!! $reminder->message !!}
 @endif
 
 @if($reminder->action_url)

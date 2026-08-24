@@ -14,6 +14,7 @@ class WorkshopTemplateTask extends Model
         'pick_list_template_id',
         'name',
         'notes',
+        'subtasks',
         'reminder_enabled',
         'reminder_offset_days',
         'reminder_time',
@@ -24,6 +25,7 @@ class WorkshopTemplateTask extends Model
         'sort_order' => 'integer',
         'reminder_enabled' => 'boolean',
         'reminder_offset_days' => 'integer',
+        'subtasks' => 'array',
     ];
 
     /**
