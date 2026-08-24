@@ -1,3 +1,5 @@
+@props(['contentClass' => 'min-h-80'])
+
 <div
     x-data="miniEditor"
     x-modelable="content"
@@ -15,5 +17,5 @@
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-on:click="undo()" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-on:click="redo()" title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
     </div>
-    <div x-ref="element"></div>
+    <div x-ref="element" class="{{ $contentClass }}"></div>
 </div>

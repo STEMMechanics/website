@@ -63,6 +63,7 @@
             pendingAttachments: [],
             taskEditorIndex: null,
             taskEditorTab: 'details',
+            taskEditorExpanded: false,
             submitting: false,
             drawingChanged: false,
             drawingContext: null,
@@ -129,11 +130,13 @@
             openTaskEditor(index) {
                 if (!Array.isArray(this.tasks[index].subtasks)) this.tasks[index].subtasks = [];
                 this.taskEditorTab = 'details';
+                this.taskEditorExpanded = false;
                 this.taskEditorIndex = index;
             },
             closeTaskEditor() {
                 this.taskEditorIndex = null;
                 this.taskEditorTab = 'details';
+                this.taskEditorExpanded = false;
             },
             addSubtask() {
                 if (this.taskEditorIndex === null) return;
@@ -353,12 +356,15 @@
             </div>
 
             <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="closeTaskEditor()" x-on:click.self="closeTaskEditor()" x-effect="document.body.classList.toggle('overflow-hidden', taskEditorIndex !== null)">
-                <div class="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:wheel.stop>
+                <div class="max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-bind:class="taskEditorExpanded ? 'h-[calc(100dvh-2rem)] max-w-none' : 'max-w-4xl'" x-on:wheel.stop>
                     <template x-if="taskEditorIndex !== null && tasks[taskEditorIndex]">
                         <div>
                             <div class="mb-4 flex items-center justify-between gap-3">
                                 <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
-                                <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()"><i class="fa-solid fa-xmark"></i></button>
+                                <div class="flex items-center gap-3">
+                                    <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></button>
+                                    <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
                             </div>
 
                             <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
@@ -370,17 +376,27 @@
                             </div>
 
                             <div x-show="taskEditorTab === 'details'">
-                                <label class="mb-1 block pl-1 text-sm">Notes</label>
-                                <x-ui.mini-editor x-model="tasks[taskEditorIndex].notes" />
-                                <div class="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
-                                    <p class="font-semibold">Workshop placeholders</p>
-                                    <p class="mt-1 leading-5">
-                                        <code>{date-short}</code>, <code>{date-long}</code>, <code>{date-ddd dd/mm/yyyy}</code>,
-                                        <code>{start-time}</code>, <code>{end-time}</code>, <code>{location}</code>,
-                                        <code>{ages}</code>, and <code>{cost}</code>
-                                    </p>
-                                    <p class="mt-1 text-sky-700">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
+                                <div class="mb-1 flex items-center gap-2 pl-1">
+                                    <label class="block text-sm">Notes</label>
+                                    <div class="relative" x-data="{ placeholderHelpOpen: false }">
+                                        <button type="button" class="text-sky-700 hover:text-sky-900" x-on:click="placeholderHelpOpen = !placeholderHelpOpen" title="Show workshop placeholders" aria-label="Show workshop placeholders"><i class="fa-solid fa-circle-info"></i></button>
+                                        <div x-show="placeholderHelpOpen" x-cloak x-on:click.outside="placeholderHelpOpen = false" class="absolute left-0 top-7 z-20 w-[min(34rem,calc(100vw-3rem))] rounded-xl border border-sky-200 bg-white p-4 text-xs text-gray-700 shadow-xl">
+                                            <div class="mb-3 flex items-center justify-between gap-3"><p class="text-sm font-semibold text-gray-900">Workshop placeholders</p><button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="placeholderHelpOpen = false" aria-label="Close placeholder help"><i class="fa-solid fa-xmark"></i></button></div>
+                                            <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
+                                                <code>{date-short}</code><span>27/08/2026</span>
+                                                <code>{date-long}</code><span>Thursday 27 August</span>
+                                                <code>{date-ddd dd/mm/yyyy}</code><span>Thu 27/08/2026</span>
+                                                <code>{start-time}</code><span>9:30am</span>
+                                                <code>{end-time}</code><span>11:00am</span>
+                                                <code>{location}</code><span>Innovation Centre</span>
+                                                <code>{ages}</code><span>8–12</span>
+                                                <code>{cost}</code><span>$25.00 or Free</span>
+                                            </div>
+                                            <p class="mt-3 border-t border-gray-100 pt-3 text-gray-500">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
+                                        </div>
+                                    </div>
                                 </div>
+                                <x-ui.mini-editor x-model="tasks[taskEditorIndex].notes" />
 
                                 <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
                                     <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />

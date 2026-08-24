@@ -22,7 +22,7 @@ document.addEventListener('alpine:init', () => {
                     content: this.content || '',
                     editorProps: {
                         attributes: {
-                            class: 'tiptap content min-h-40 px-3 py-2.5 focus:outline-none',
+                            class: 'tiptap content min-h-80 px-3 py-2.5 focus:outline-none',
                         },
                     },
                     onCreate: () => {
