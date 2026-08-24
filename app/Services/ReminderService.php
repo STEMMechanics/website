@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Reminder;
 use App\Models\PickListTemplate;
+use App\Models\Reminder;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
@@ -60,7 +60,7 @@ class ReminderService
                 'recipient_user_id' => $facilitator->id,
                 'recipient_email' => trim((string) $facilitator->email),
                 'subject' => 'Workshop task: '.trim((string) $task->name),
-                'message' => trim((string) ($task->notes ?? '')) ?: null,
+                'message' => $this->workshopTaskMessage($task, $workshop),
                 'action_url' => route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id,
                 'status' => Reminder::STATUS_PENDING,
                 'scheduled_at' => $scheduledAt,
@@ -127,5 +127,70 @@ class ReminderService
     private function sourceKey(mixed $type, mixed $id): string
     {
         return (string) $type.':'.(string) $id;
+    }
+
+    private function workshopTaskMessage(WorkshopTemplateTask $task, Workshop $workshop): ?string
+    {
+        $message = trim((string) ($task->notes ?? ''));
+        if ($message === '') {
+            return null;
+        }
+
+        $startsAt = $workshop->starts_at;
+        $endsAt = $workshop->ends_at;
+        $message = strtr($message, [
+            '{date-short}' => $startsAt?->format('d/m/Y') ?? 'Not specified',
+            '{date-long}' => $startsAt?->format('l j F') ?? 'Not specified',
+            '{start-time}' => $startsAt?->format('g:ia') ?? 'Not specified',
+            '{end-time}' => $endsAt?->format('g:ia') ?? 'Not specified',
+            '{location}' => $workshop->getLocationName() ?: 'Not specified',
+            '{ages}' => trim((string) ($workshop->ages ?? '')) ?: 'Not specified',
+            '{cost}' => $this->workshopCost($workshop),
+        ]);
+
+        if ($startsAt !== null) {
+            $message = (string) preg_replace_callback(
+                '/\{date-([dmy\s\/.,-]+)\}/',
+                fn (array $matches): string => $startsAt->format($this->phpDateFormat((string) $matches[1])),
+                $message,
+            );
+        }
+
+        return $message;
+    }
+
+    private function workshopCost(Workshop $workshop): string
+    {
+        $cost = trim((string) ($workshop->price ?? ''));
+        if ($cost === '' || preg_match('/^\$?0(?:\.0+)?$/', $cost) === 1 || strcasecmp($cost, 'free') === 0) {
+            return 'Free';
+        }
+
+        if (preg_match('/^\$?\s*([0-9]+(?:\.[0-9]+)?)$/', $cost, $matches) === 1) {
+            return '$'.number_format((float) $matches[1], 2);
+        }
+
+        return $cost;
+    }
+
+    private function phpDateFormat(string $format): string
+    {
+        return (string) preg_replace_callback(
+            '/yyyy|mmmm|dddd|mmm|ddd|yy|mm|dd|m|d/',
+            fn (array $matches): string => match ($matches[0]) {
+                'yyyy' => 'Y',
+                'yy' => 'y',
+                'mmmm' => 'F',
+                'mmm' => 'M',
+                'mm' => 'm',
+                'm' => 'n',
+                'dddd' => 'l',
+                'ddd' => 'D',
+                'dd' => 'd',
+                'd' => 'j',
+                default => $matches[0],
+            },
+            $format,
+        );
     }
 }

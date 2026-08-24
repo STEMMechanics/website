@@ -2,17 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Mail\ReminderNotification;
 use App\Jobs\SendReminder;
+use App\Mail\ReminderNotification;
+use App\Models\Location;
+use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\Reminder;
 use App\Models\User;
-use App\Models\Workshop;
 use App\Models\UserGroup;
-use App\Models\Location;
-use App\Models\Media;
+use App\Models\Workshop;
 use App\Services\ReminderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -75,6 +76,68 @@ class ReminderSystemTest extends TestCase
             ->get(route('admin.workshop.run-sheet.task.complete', [$workshop, $task]))
             ->assertRedirect(route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id);
         $this->assertSame([$task->id], $workshop->fresh()->run_sheet_completed_task_ids);
+    }
+
+    public function test_workshop_task_notes_replace_workshop_placeholders(): void
+    {
+        Carbon::setTestNow('2026-08-01 09:00:00');
+
+        $creator = User::factory()->create(['email' => 'creator@example.com']);
+        $facilitator = User::factory()->create(['email' => 'facilitator@example.com']);
+        $location = Location::factory()->create(['name' => 'Innovation Centre']);
+        Media::query()->create([
+            'name' => 'placeholder-workshop.png',
+            'title' => 'Placeholder Workshop',
+            'hash' => str_repeat('e', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $creator->id,
+        ]);
+        $template = PickListTemplate::query()->create(['name' => 'Social media tasks']);
+        $template->tasks()->create([
+            'name' => 'Publish social post',
+            'notes' => implode("\n", [
+                '{date-short}',
+                '{date-long}',
+                '{date-ddd dd/mm/yyyy}',
+                '{start-time}–{end-time}',
+                '{location}',
+                'Ages {ages}',
+                '{cost}',
+            ]),
+            'reminder_enabled' => true,
+            'reminder_offset_days' => -5,
+            'reminder_time' => '06:00',
+            'sort_order' => 10,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'user_id' => $creator->id,
+            'facilitator_user_id' => $facilitator->id,
+            'hero_media_name' => 'placeholder-workshop.png',
+            'pick_list_template_id' => $template->id,
+            'location_id' => $location->id,
+            'starts_at' => '2026-08-27 09:30:00',
+            'ends_at' => '2026-08-27 11:00:00',
+            'ages' => '8–12',
+            'price' => '25',
+        ]);
+
+        app(ReminderService::class)->syncWorkshop($workshop);
+
+        $this->assertSame(implode("\n", [
+            '27/08/2026',
+            'Thursday 27 August',
+            'Thu 27/08/2026',
+            '9:30am–11:00am',
+            'Innovation Centre',
+            'Ages 8–12',
+            '$25.00',
+        ]), Reminder::query()->sole()->message);
+
+        $workshop->update(['price' => 'Free']);
+        app(ReminderService::class)->syncWorkshop($workshop->fresh());
+
+        $this->assertStringEndsWith("\nFree", (string) Reminder::query()->sole()->message);
     }
 
     public function test_resync_updates_the_same_workshop_task_reminder_without_duplication(): void

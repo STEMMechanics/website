@@ -17,6 +17,27 @@ class WorkshopTemplateTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_task_editor_contains_scroll_containment_and_workshop_placeholder_help(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create(['name' => 'Social media template']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-template.edit', $template))
+            ->assertOk()
+            ->assertSee('max-h-[calc(100dvh-2rem)]', false)
+            ->assertSee('overscroll-contain', false)
+            ->assertSee("document.body.classList.toggle('overflow-hidden'", false)
+            ->assertSeeText('{date-short}')
+            ->assertSeeText('{date-long}')
+            ->assertSeeText('{date-ddd dd/mm/yyyy}')
+            ->assertSeeText('{start-time}')
+            ->assertSeeText('{end-time}')
+            ->assertSeeText('{location}')
+            ->assertSeeText('{ages}')
+            ->assertSeeText('{cost}');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

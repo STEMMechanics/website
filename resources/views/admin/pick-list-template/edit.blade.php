@@ -326,8 +326,8 @@
                 </div>
             </div>
 
-            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskEditorIndex = null">
-                <div class="w-full max-w-xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskEditorIndex = null">
+            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="taskEditorIndex = null" x-effect="document.body.classList.toggle('overflow-hidden', taskEditorIndex !== null)">
+                <div class="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskEditorIndex = null" x-on:wheel.stop>
                     <template x-if="taskEditorIndex !== null && tasks[taskEditorIndex]">
                         <div>
                             <div class="mb-4 flex items-center justify-between gap-3">
@@ -336,6 +336,15 @@
                             </div>
                             <label class="mb-1 block pl-1 text-sm">Notes</label>
                             <textarea rows="5" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="tasks[taskEditorIndex].notes" placeholder="Plain text instructions included in the reminder email."></textarea>
+                            <div class="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                                <p class="font-semibold">Workshop placeholders</p>
+                                <p class="mt-1 leading-5">
+                                    <code>{date-short}</code>, <code>{date-long}</code>, <code>{date-ddd dd/mm/yyyy}</code>,
+                                    <code>{start-time}</code>, <code>{end-time}</code>, <code>{location}</code>,
+                                    <code>{ages}</code>, and <code>{cost}</code>
+                                </p>
+                                <p class="mt-1 text-sky-700">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
+                            </div>
 
                             <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
