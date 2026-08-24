@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
+use App\Services\ReminderService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -67,9 +68,9 @@ class WorkshopPickListAutosaveTest extends TestCase
         $template = PickListTemplate::query()->create(['name' => 'Social media template']);
         $template->tasks()->create([
             'name' => 'Publish campaign',
-            'notes' => '<p><strong>Main campaign notes</strong></p>',
+            'notes' => '<p><strong>Main campaign notes at {time-range}</strong></p>',
             'subtasks' => [
-                ['title' => 'Facebook', 'content' => '<p>Facebook copy</p>'],
+                ['title' => 'Facebook', 'content' => '<p>Facebook copy for {date-long}</p>'],
                 ['title' => 'Instagram', 'content' => '<p>Instagram copy</p>'],
             ],
             'sort_order' => 10,
@@ -81,7 +82,9 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->assertOk()
             ->assertSee('x-html="taskNote"', false)
             ->assertSee('Main campaign notes', false)
+            ->assertSee(app(ReminderService::class)->renderWorkshopPlaceholders('{time-range}', $workshop), false)
             ->assertSee('Facebook copy', false)
+            ->assertSee(app(ReminderService::class)->renderWorkshopPlaceholders('{date-long}', $workshop), false)
             ->assertSee('Instagram copy', false);
     }
 

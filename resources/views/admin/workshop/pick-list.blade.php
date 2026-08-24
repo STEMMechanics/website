@@ -108,6 +108,11 @@
                                     <ul>
                                         @foreach($taskGroup['tasks'] as $presentedTask)
                                             @php($task = $presentedTask['task'])
+                                            @php($renderedTaskNote = app(\App\Services\ReminderService::class)->renderWorkshopPlaceholders($task->notes, $workshop) ?? '')
+                                            @php($renderedSubtasks = collect($task->subtasks ?? [])->map(fn ($subtask) => [
+                                                'title' => $subtask['title'] ?? '',
+                                                'content' => app(\App\Services\ReminderService::class)->renderWorkshopPlaceholders($subtask['content'] ?? '', $workshop) ?? '',
+                                            ])->values()->all())
                                             <li id="task-{{ $task->id }}" class="scroll-mt-24 flex gap-2 rounded-md px-1 py-1.5 target:ring-2 target:ring-primary-color/20">
                                                 <x-ui.checkbox
                                                     :noWrapper="true"
@@ -119,7 +124,7 @@
                                                 <div class="min-w-0 flex-1 content-center">
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
                                                     @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($task->notes ?? ''); taskSubtasks = @js($task->subtasks ?? [])"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($renderedTaskNote); taskSubtasks = @js($renderedSubtasks)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
                                                     @endif
                                                 </div>
                                             </li>

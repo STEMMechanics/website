@@ -22,8 +22,10 @@ class WorkshopTemplateTest extends TestCase
         $admin = $this->createAdminUser();
         $template = PickListTemplate::query()->create(['name' => 'Social media template']);
 
-        $this->actingAs($admin)
-            ->get(route('admin.workshop-template.edit', $template))
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop-template.edit', $template));
+
+        $response
             ->assertOk()
             ->assertSee('max-h-[calc(100dvh-2rem)]', false)
             ->assertSee('max-w-4xl', false)
@@ -43,9 +45,12 @@ class WorkshopTemplateTest extends TestCase
             ->assertSeeText('{date-ddd dd/mm/yyyy}')
             ->assertSeeText('{start-time}')
             ->assertSeeText('{end-time}')
+            ->assertSeeText('{time-range}')
             ->assertSeeText('{location}')
             ->assertSeeText('{ages}')
             ->assertSeeText('{cost}');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'aria-label="Show workshop placeholders"'));
     }
 
     protected function setUp(): void
@@ -91,6 +96,7 @@ class WorkshopTemplateTest extends TestCase
 
         $template = PickListTemplate::query()->where('name', 'Paper Speakers - Standard')->firstOrFail();
 
+        $response->assertSessionHasNoErrors();
         $response->assertRedirect(route('admin.workshop-template.edit', $template));
         $this->assertSame('1.5 hours', $template->duration);
         $this->assertSame('8-24', $template->participants);
@@ -103,6 +109,39 @@ class WorkshopTemplateTest extends TestCase
         ], $template->tasks->first()->subtasks);
         $this->assertCount(1, $template->items);
         $this->assertSame([$attachment->name], $template->attachments()->pluck('media.name')->all());
+    }
+
+    public function test_serialized_browser_task_payload_is_saved(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create(['name' => 'Task payload template']);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.workshop-template.edit', $template))
+            ->put(route('admin.workshop-template.update', $template), [
+                'name' => $template->name,
+                'tasks_payload' => json_encode([[
+                    'id' => null,
+                    'name' => 'Publish social post',
+                    'notes' => '<p>Join us {time-range}</p>',
+                    'subtasks' => [['title' => 'Facebook', 'content' => '<p>Post at {start-time}</p>']],
+                    'reminder_enabled' => '1',
+                    'reminder_days' => 0,
+                    'reminder_direction' => 'before',
+                    'reminder_offset_days' => -2,
+                    'reminder_time' => '06:00',
+                    'sort_order' => 10,
+                ]], JSON_THROW_ON_ERROR),
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('admin.workshop-template.edit', $template));
+        $task = $template->fresh()->tasks()->sole();
+        $this->assertSame('Publish social post', $task->name);
+        $this->assertSame('<p>Join us {time-range}</p>', $task->notes);
+        $this->assertSame([['title' => 'Facebook', 'content' => '<p>Post at {start-time}</p>']], $task->subtasks);
+        $this->assertTrue($task->reminder_enabled);
+        $this->assertSame(-2, $task->reminder_offset_days);
     }
 
     public function test_duplicate_creates_an_independent_workshop_template_variant(): void
