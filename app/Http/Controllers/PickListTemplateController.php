@@ -16,6 +16,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class PickListTemplateController extends Controller
@@ -194,7 +195,16 @@ class PickListTemplateController extends Controller
 
     private function validateRequest(Request $request, ?PickListTemplate $template = null): array
     {
-        $tasks = collect($request->input('tasks', []))
+        $submittedTasks = $request->input('tasks', []);
+        if ($request->filled('tasks_payload')) {
+            Validator::make($request->only('tasks_payload'), [
+                'tasks_payload' => ['required', 'json'],
+            ])->validate();
+            $decodedTasks = json_decode((string) $request->input('tasks_payload'), true);
+            $submittedTasks = is_array($decodedTasks) ? $decodedTasks : [];
+        }
+
+        $tasks = collect($submittedTasks)
             ->map(function ($task): array {
                 $task = is_array($task) ? $task : [];
                 $subtasks = $task['subtasks'] ?? [];

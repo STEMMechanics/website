@@ -187,6 +187,17 @@
             normalizeTaskSort() {
                 this.tasks.forEach((task, index) => task.sort_order = (index + 1) * 10);
             },
+            serializedTasks() {
+                return JSON.stringify(this.tasks
+                    .filter((task) => !this.isBlankTask(task))
+                    .map((task) => ({
+                        ...task,
+                        reminder_enabled: task.reminder_enabled ? '1' : '0',
+                        reminder_offset_days: task.reminder_direction === 'before'
+                            ? -Math.abs(Number(task.reminder_days || 0))
+                            : Math.abs(Number(task.reminder_days || 0)),
+                    })));
+            },
             chooseAttachments() {
                 window.SMMediaPicker.open(this.attachments, {
                     title: 'Select Workshop Template Attachments',
@@ -308,6 +319,8 @@
                 @method('PUT')
             @endif
 
+            <input type="hidden" name="tasks_payload" x-bind:value="serializedTasks()">
+
             <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
                 <h2 class="text-lg font-semibold mb-4">Overview</h2>
                 <x-ui.input label="Template Name" name="name" value="{{ old('name', $template->name ?? '') }}" />
@@ -329,15 +342,8 @@
                         <div class="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
                             <div>
                                 <label class="block text-sm pl-1 mb-1">Task</label>
-                                <input type="hidden" x-bind:name="!isBlankTask(task) && task.id ? `tasks[${index}][id]` : null" x-model="task.id">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][sort_order]` : null" x-model="task.sort_order">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][notes]` : null" x-model="task.notes">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][subtasks]` : null" x-bind:value="JSON.stringify(task.subtasks || [])">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_enabled]` : null" x-bind:value="task.reminder_enabled ? '1' : '0'">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_offset_days]` : null" x-bind:value="task.reminder_direction === 'before' ? -Math.abs(Number(task.reminder_days || 0)) : Math.abs(Number(task.reminder_days || 0))">
-                                <input type="hidden" x-bind:name="!isBlankTask(task) ? `tasks[${index}][reminder_time]` : null" x-model="task.reminder_time">
                                 <div class="flex gap-4 items-center">
-                                    <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:name="!isBlankTask(task) ? `tasks[${index}][name]` : null" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)">
+                                    <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)">
                                     <div class="flex items-center justify-end gap-3">
                                         <button type="button" class="text-gray-700 hover:text-primary-color" x-on:click="openTaskEditor(index)" title="Notes, subtasks, and reminder"><i class="fa-solid fa-sliders"></i></button>
                                         <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
@@ -376,26 +382,7 @@
                             </div>
 
                             <div x-show="taskEditorTab === 'details'">
-                                <div class="mb-1 flex items-center gap-2 pl-1">
-                                    <label class="block text-sm">Notes</label>
-                                    <div class="relative" x-data="{ placeholderHelpOpen: false }">
-                                        <button type="button" class="text-sky-700 hover:text-sky-900" x-on:click="placeholderHelpOpen = !placeholderHelpOpen" title="Show workshop placeholders" aria-label="Show workshop placeholders"><i class="fa-solid fa-circle-info"></i></button>
-                                        <div x-show="placeholderHelpOpen" x-cloak x-on:click.outside="placeholderHelpOpen = false" class="absolute left-0 top-7 z-20 w-[min(34rem,calc(100vw-3rem))] rounded-xl border border-sky-200 bg-white p-4 text-xs text-gray-700 shadow-xl">
-                                            <div class="mb-3 flex items-center justify-between gap-3"><p class="text-sm font-semibold text-gray-900">Workshop placeholders</p><button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="placeholderHelpOpen = false" aria-label="Close placeholder help"><i class="fa-solid fa-xmark"></i></button></div>
-                                            <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
-                                                <code>{date-short}</code><span>27/08/2026</span>
-                                                <code>{date-long}</code><span>Thursday 27 August</span>
-                                                <code>{date-ddd dd/mm/yyyy}</code><span>Thu 27/08/2026</span>
-                                                <code>{start-time}</code><span>9:30am</span>
-                                                <code>{end-time}</code><span>11:00am</span>
-                                                <code>{location}</code><span>Innovation Centre</span>
-                                                <code>{ages}</code><span>8–12</span>
-                                                <code>{cost}</code><span>$25.00 or Free</span>
-                                            </div>
-                                            <p class="mt-3 border-t border-gray-100 pt-3 text-gray-500">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Notes'])
                                 <x-ui.mini-editor x-model="tasks[taskEditorIndex].notes" />
 
                                 <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -421,7 +408,7 @@
                                         <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><input type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title"></label>
                                         <button type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
                                     </div>
-                                    <label class="mb-1 block pl-1 text-sm">Subtask content</label>
+                                    @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Subtask content'])
                                     <x-ui.mini-editor x-model="subtask.content" />
                                 </div>
                             </template>

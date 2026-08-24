@@ -7,8 +7,8 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 class ReminderService
 {
@@ -131,7 +131,12 @@ class ReminderService
 
     private function workshopTaskMessage(WorkshopTemplateTask $task, Workshop $workshop): ?string
     {
-        $message = trim((string) ($task->notes ?? ''));
+        return $this->renderWorkshopPlaceholders($task->notes, $workshop);
+    }
+
+    public function renderWorkshopPlaceholders(?string $content, Workshop $workshop): ?string
+    {
+        $message = trim((string) $content);
         if ($message === '') {
             return null;
         }
@@ -143,6 +148,7 @@ class ReminderService
             '{date-long}' => $startsAt?->format('l j F') ?? 'Not specified',
             '{start-time}' => $startsAt?->format('g:ia') ?? 'Not specified',
             '{end-time}' => $endsAt?->format('g:ia') ?? 'Not specified',
+            '{time-range}' => $this->workshopTimeRange($startsAt, $endsAt),
             '{location}' => $workshop->getLocationName() ?: 'Not specified',
             '{ages}' => trim((string) ($workshop->ages ?? '')) ?: 'Not specified',
             '{cost}' => $this->workshopCost($workshop),
@@ -157,6 +163,21 @@ class ReminderService
         }
 
         return $message;
+    }
+
+    private function workshopTimeRange(?Carbon $startsAt, ?Carbon $endsAt): string
+    {
+        if ($startsAt === null || $endsAt === null) {
+            return 'Not specified';
+        }
+
+        $start = $startsAt->format('g:ia');
+        $end = $endsAt->format('g:ia');
+        if ($startsAt->format('a') === $endsAt->format('a')) {
+            $start = preg_replace('/(am|pm)$/', '', $start) ?? $start;
+        }
+
+        return $start.'-'.$end;
     }
 
     private function workshopCost(Workshop $workshop): string
