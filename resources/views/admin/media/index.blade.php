@@ -233,6 +233,9 @@
                     @foreach ($media as $medium)
                         @php
                             $visibility = (string) ($medium->visibility ?? 'private');
+                            $previewUrl = str_starts_with((string) $medium->mime_type, 'image/')
+                                ? $medium->url('md')
+                                : $medium->thumbnail;
                             $statusLabel = match ($visibility) {
                                 'public' => 'Public',
                                 'protected' => 'Protected',
@@ -259,7 +262,7 @@
                             </div>
                             <a href="{{ route('admin.media.edit', $medium) }}" class="flex aspect-square items-center justify-center overflow-hidden bg-gray-100">
                                 <img
-                                    src="{{ $medium->thumbnail }}"
+                                    src="{{ $previewUrl }}"
                                     class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
                                     alt="{{ $medium->title }}"
                                     loading="lazy"
