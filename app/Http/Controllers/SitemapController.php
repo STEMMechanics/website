@@ -34,9 +34,11 @@ class SitemapController extends Controller
         $suburbPages = Location::query()
             ->whereNotNull('suburb')
             ->where('suburb', '!=', '')
-            ->whereHas('workshops', fn ($query) => $query
+            ->whereIn('id', Workshop::query()
                 ->publiclyVisible()
-                ->where('is_private', false))
+                ->where('is_private', false)
+                ->whereNotNull('location_id')
+                ->select('location_id'))
             ->get(['suburb', 'updated_at'])
             ->unique(fn (Location $location): string => Str::lower(trim((string) $location->suburb)))
             ->map(fn (Location $location): array => [

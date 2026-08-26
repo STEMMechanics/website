@@ -118,7 +118,7 @@ class WorkshopRecommendationService
             $sameOrganisation ? 0 : ($sameOrganisationFamily ? 1 : ($sameSuburb ? 2 : ($distance !== null ? 3 : 4))),
             $distance ?? 999999,
             -$sharedCategories,
-            $candidate->starts_at?->timestamp ?? PHP_INT_MAX,
+            $candidate->starts_at->timestamp,
         ];
     }
 
