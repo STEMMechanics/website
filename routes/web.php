@@ -15,8 +15,8 @@ use App\Http\Controllers\FinanceFileController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
-use App\Http\Controllers\NewsletterStoreThemeController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\NewsletterStoreThemeController;
 use App\Http\Controllers\OrganisationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PickListTemplateController;
@@ -47,6 +47,7 @@ use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\WorkshopHistoryController;
 use App\Http\Controllers\WorkshopPickListController;
 use App\Http\Controllers\WorkshopPromotionalFlyerController;
+use App\Http\Controllers\WorkshopRecommendationController;
 use App\Http\Controllers\WorkshopTicketFlowController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,9 @@ Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.x
 Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.index');
 Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('workshop.past.index');
 Route::get('workshops/feed', [WorkshopController::class, 'feed'])->name('workshop.feed');
+Route::get('workshops/near/{suburb}', [WorkshopController::class, 'suburb'])->name('workshop.suburb');
+Route::post('workshops/recommendations/impression', [WorkshopRecommendationController::class, 'impression'])->name('workshop.recommendation.impression');
+Route::get('workshops/{source}/recommendations/{workshop}', [WorkshopRecommendationController::class, 'click'])->name('workshop.recommendation.click');
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 Route::get('workshops/{workshop}/register', [WorkshopController::class, 'registrationRedirect'])->name('workshop.registration.redirect');
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');

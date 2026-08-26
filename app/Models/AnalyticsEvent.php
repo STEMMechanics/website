@@ -11,8 +11,14 @@ class AnalyticsEvent extends Model
     use HasFactory;
 
     public const TYPE_PAGE_VIEW = 'page_view';
+
     public const TYPE_REGISTRATION_CLICK = 'registration_click';
+
     public const TYPE_SEARCH = 'search';
+
+    public const TYPE_RECOMMENDATION_IMPRESSION = 'recommendation_view';
+
+    public const TYPE_RECOMMENDATION_CLICK = 'recommendation_click';
 
     public $timestamps = false;
 
@@ -23,6 +29,8 @@ class AnalyticsEvent extends Model
         'path',
         'route_name',
         'workshop_id',
+        'source_workshop_id',
+        'recommendation_placement',
         'search_term',
         'referrer_host',
         'http_method',

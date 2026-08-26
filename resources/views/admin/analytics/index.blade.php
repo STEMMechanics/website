@@ -62,6 +62,22 @@
             </div>
         </div>
 
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <h3 class="text-lg font-bold mb-3">Workshop Recommendations</h3>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div><div class="text-xs uppercase tracking-wide text-gray-500">Card impressions</div><div class="mt-1 text-2xl font-bold">{{ number_format((int) $recommendationAnalytics['impressions']) }}</div></div>
+                <div><div class="text-xs uppercase tracking-wide text-gray-500">Clicks</div><div class="mt-1 text-2xl font-bold">{{ number_format((int) $recommendationAnalytics['clicks']) }}</div></div>
+                <div><div class="text-xs uppercase tracking-wide text-gray-500">Click-through rate</div><div class="mt-1 text-2xl font-bold">{{ number_format((float) $recommendationAnalytics['click_through_rate'], 1) }}%</div></div>
+            </div>
+            @if($recommendationAnalytics['placements']->isNotEmpty())
+                <div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">
+                    @foreach($recommendationAnalytics['placements'] as $placement)
+                        <span class="rounded-full bg-gray-100 px-3 py-1">{{ str_replace('_', ' ', ucfirst((string) ($placement->recommendation_placement ?: 'unknown'))) }}: {{ number_format((int) $placement->clicks) }} / {{ number_format((int) $placement->impressions) }}</span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         <div id="analytics-daily-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Daily Activity</h3>
             <p class="text-sm text-gray-600 mb-3">Last 7 days, newest to oldest.</p>

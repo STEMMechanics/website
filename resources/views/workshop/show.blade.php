@@ -315,5 +315,10 @@
                 @endif
             </div>
         </div>
+        @include('workshop.partials.recommendations', [
+            'workshops' => $recommendedWorkshops,
+            'sourceWorkshop' => $workshop,
+            'placement' => 'workshop',
+        ])
     </x-container>
 </x-layout>

@@ -82,6 +82,13 @@ Tickets will be emailed after ticket holder details are confirmed.
 
 If you have a STEMMechanics account, you can manage your tickets and invoices from your account dashboard when logged in. You can also manage your tickets using the [My Tickets]({{ url('/tickets') }}) link.
 
+@if(count($recommendedWorkshops ?? []) > 0)
+### Other workshops you may like
+@foreach($recommendedWorkshops as $recommendedWorkshop)
+- [{{ $recommendedWorkshop['title'] }}]({{ $recommendedWorkshop['url'] }}) — {{ $recommendedWorkshop['date'] }}@if($recommendedWorkshop['location'] !== '') at {{ $recommendedWorkshop['location'] }}@endif
+@endforeach
+@endif
+
 Thanks,<br>
 {{ config('app.name') }}
 @endcomponent

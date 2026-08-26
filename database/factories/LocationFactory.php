@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Post;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Post>
+ * @extends Factory<Post>
  */
 class LocationFactory extends Factory
 {
@@ -19,7 +20,10 @@ class LocationFactory extends Factory
         return [
             'name' => fake()->company(),
             'address' => fake()->address(),
-            'address_url' => fake()->url()
+            'suburb' => fake()->city(),
+            'state' => 'QLD',
+            'postcode' => fake()->postcode(),
+            'address_url' => fake()->url(),
         ];
     }
 }

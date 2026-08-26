@@ -5,14 +5,16 @@ namespace App\Services;
 use App\Jobs\SendEmail;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketOrderConfirmation;
-use App\Models\InvoicePaymentAllocation;
 use App\Models\Invoice;
+use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Ticket;
 use App\Models\Workshop;
 use App\Models\WorkshopTicketEmail;
 use App\Providers\QRCodeProvider;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -34,6 +36,7 @@ class WorkshopTicketOrderEmailService
 
             if ($lockedDelivery->queued_at !== null) {
                 $lockedDelivery = null;
+
                 return;
             }
 
@@ -216,6 +219,7 @@ class WorkshopTicketOrderEmailService
         dispatch(new SendEmail($recipient, new TicketOrderConfirmation(
             recipientName: $recipientName,
             workshop: [
+                'id' => $workshop instanceof Workshop ? (string) $workshop->id : '',
                 'title' => $workshop instanceof Workshop ? (string) $workshop->title : '',
                 'time' => $workshop instanceof Workshop ? (string) $workshop->getTicketTimeRangeLabel() : '-',
                 'location' => $workshop instanceof Workshop ? (string) $workshop->getLocationDisplay(true) : '-',
@@ -241,7 +245,7 @@ class WorkshopTicketOrderEmailService
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Ticket>  $tickets
+     * @param  Collection<int, Ticket>  $tickets
      */
     private function dispatchHolderTicketEmails(
         WorkshopTicketEmail $delivery,
@@ -270,6 +274,7 @@ class WorkshopTicketOrderEmailService
                 ] : null;
 
                 $workshopInfo = [
+                    'id' => (string) ($ticket->workshop->id ?? ''),
                     'title' => (string) ($ticket->workshop->title ?? ''),
                     'time' => (string) ($ticket->workshop?->getTicketTimeRangeLabel() ?? '-'),
                     'location' => (string) ($ticket->workshop?->getLocationDisplay(true) ?? '-'),
@@ -349,7 +354,6 @@ class WorkshopTicketOrderEmailService
         ];
     }
 
-
     private function paymentMethodLabel(string $deliveryPaymentMethod, ?Payment $payment): string
     {
         if ($payment instanceof Payment) {
@@ -378,7 +382,7 @@ class WorkshopTicketOrderEmailService
         $ticketQrSvg = null;
         $ticketQrDataUri = null;
         try {
-            $ticketQrSvg = (new QRCodeProvider())->getQRCodeImage($referenceCode, 240);
+            $ticketQrSvg = (new QRCodeProvider)->getQRCodeImage($referenceCode, 240);
             if (trim((string) $ticketQrSvg) !== '') {
                 $ticketQrDataUri = 'data:image/svg+xml;base64,'.base64_encode($ticketQrSvg);
             }
@@ -446,7 +450,7 @@ class WorkshopTicketOrderEmailService
         $gatewayProcessedAtLabel = '';
         if ($gatewayProcessedAtRaw !== '') {
             try {
-                $gatewayProcessedAtLabel = \Illuminate\Support\Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+                $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
             } catch (Throwable) {
                 $gatewayProcessedAtLabel = '';
             }

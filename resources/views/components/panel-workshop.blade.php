@@ -1,4 +1,4 @@
-@props(['workshop'])
+@props(['workshop', 'href' => null])
 
 @php
     $statusClass = $workshop->publicStatus();
@@ -8,6 +8,9 @@
     $locationLabel = $showHostedFor
         ? $workshop->hostedFor->name
         : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());
+    if (!$showHostedFor && !$workshop->is_private && trim((string) $workshop->location?->suburb) !== '') {
+        $locationLabel .= ', '.$workshop->location->suburb;
+    }
     $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
     $cardStartLabel = $workshop->courseScheduleFirstStartLabel();
     $cardCadenceLabel = $workshop->courseScheduleCadenceLabel();
@@ -25,7 +28,7 @@
     }
 @endphp
 
-<a href="{{ route('workshop.show', $workshop) }}" class="relative overflow-hidden p-0.5 hover:scale-[101%] transition-all">
+<a href="{{ $href ?: route('workshop.show', $workshop) }}" class="relative overflow-hidden p-0.5 hover:scale-[101%] transition-all">
     <div class="flex flex-col bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all {{ $attributes->get('class') }}">
         <div class="z-10 shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white {{ $cardStartLabel === 'Anytime' ? 'w-auto min-w-20' : 'w-14' }}">
             @if($cardStartLabel === 'Anytime')
