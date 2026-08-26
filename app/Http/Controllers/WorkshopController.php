@@ -24,14 +24,15 @@ use App\Models\WorkshopAttendance;
 use App\Models\WorkshopCategory;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
-use App\Services\MediaImageEditor;
 use App\Services\DocumentNumberService;
 use App\Services\ManualWorkshopTicketEmailService;
+use App\Services\MediaImageEditor;
+use App\Services\ReminderService;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopPickListService;
-use App\Services\ReminderService;
+use App\Services\WorkshopRecommendationService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Barryvdh\DomPDF\PDF;
@@ -1083,7 +1084,7 @@ class WorkshopController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, Workshop $workshop, WorkshopTicketService $ticketService)
+    public function show(Request $request, Workshop $workshop, WorkshopTicketService $ticketService, WorkshopRecommendationService $recommendations)
     {
         $requestedSlug = trim((string) $request->segment(2));
         if ($requestedSlug !== '' && $requestedSlug !== (string) $workshop->slug) {
@@ -1111,6 +1112,7 @@ class WorkshopController extends Controller
             || (bool) (auth()->user()?->isAdmin() ?? false)
             || ($requiresPrivateAccessCode && (bool) session($privateAccessKey, false));
         $privateLockedNoCode = $workshop->isPrivate() && ! $requiresPrivateAccessCode;
+        $recommendedWorkshops = $recommendations->forWorkshop($workshop);
 
         return view('workshop.show', [
             'workshop' => $workshop,
@@ -1124,6 +1126,21 @@ class WorkshopController extends Controller
             'requiresPrivateAccessCode' => $requiresPrivateAccessCode,
             'hasPrivateAccess' => $hasPrivateAccess,
             'privateLockedNoCode' => $privateLockedNoCode,
+            'recommendedWorkshops' => $recommendedWorkshops,
+        ]);
+    }
+
+    public function suburb(string $suburb, WorkshopRecommendationService $recommendations): View
+    {
+        $resolvedSuburb = $recommendations->resolveSuburb($suburb);
+        abort_if($resolvedSuburb === null, 404);
+
+        $workshops = $recommendations->forSuburb($resolvedSuburb);
+
+        return view('workshop.suburb', [
+            'suburb' => $resolvedSuburb,
+            'workshops' => $workshops,
+            'nearbySuburbs' => $recommendations->nearbySuburbs($resolvedSuburb),
         ]);
     }
 
@@ -1591,7 +1608,7 @@ class WorkshopController extends Controller
             abort(500, 'Could not create zip file.');
         }
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         if ($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true) {
             abort(500, 'Could not open zip file.');
         }
@@ -1636,7 +1653,7 @@ class WorkshopController extends Controller
         }
     }
 
-    private function photoTakenAt(\Illuminate\Http\UploadedFile $file, ?Workshop $workshop = null): Carbon
+    private function photoTakenAt(UploadedFile $file, ?Workshop $workshop = null): Carbon
     {
         if (function_exists('exif_read_data') && is_file($file->path())) {
             try {
@@ -1645,7 +1662,7 @@ class WorkshopController extends Controller
                 if (is_string($date) && trim($date) !== '') {
                     return Carbon::createFromFormat('Y:m:d H:i:s', trim($date)) ?: now();
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 //
             }
         }
@@ -1728,7 +1745,7 @@ class WorkshopController extends Controller
         $orderedFiles = collect(json_decode((string) $request->input('files_staged_order', '[]'), true))
             ->map(function ($item) use ($pendingNameMap) {
                 if (! is_array($item)) {
-                    return null;
+                    return;
                 }
 
                 if (($item['kind'] ?? null) === 'existing') {
@@ -1743,7 +1760,6 @@ class WorkshopController extends Controller
                     return $pendingNameMap[$pendingId] ?? null;
                 }
 
-                return null;
             })
             ->filter()
             ->values()
@@ -3367,7 +3383,7 @@ class WorkshopController extends Controller
                         ]);
                     }
 
-                    $payment = new Payment();
+                    $payment = new Payment;
                     $payment->kind = Payment::KIND_PAYMENT;
                     $payment->user_id = $resolvedUserId;
                     $payment->created_by = auth()->id();
@@ -3929,7 +3945,7 @@ class WorkshopController extends Controller
         $gst = round((float) collect($creditLines)->sum('tax_amount'), 2);
         $total = round((float) collect($creditLines)->sum('line_total_inc_tax'), 2);
 
-        $adjustment = new TaxAdjustment();
+        $adjustment = new TaxAdjustment;
         $adjustment->invoice_id = $invoice->id;
         $adjustment->adjustment_number = $documentNumbers->nextTaxAdjustmentNumber();
         $adjustment->issue_date = now()->startOfDay();
@@ -4530,7 +4546,7 @@ class WorkshopController extends Controller
 
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
         if (! $user) {
-            $user = new User();
+            $user = new User;
             $user->email = $email;
             $user->firstname = $firstname !== '' ? $firstname : null;
             $user->surname = $surname !== '' ? $surname : null;
@@ -5032,7 +5048,7 @@ class WorkshopController extends Controller
     }
 
     /**
-     * @param iterable<int, Workshop> $workshops
+     * @param  iterable<int, Workshop>  $workshops
      * @return array<string, mixed>
      */
     /**

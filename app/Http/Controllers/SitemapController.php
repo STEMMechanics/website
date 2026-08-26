@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Location;
 use App\Models\Workshop;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 
 class SitemapController extends Controller
 {
@@ -28,6 +30,21 @@ class SitemapController extends Controller
             ->publiclyVisible()
             ->orderByDesc('updated_at')
             ->get();
+
+        $suburbPages = Location::query()
+            ->whereNotNull('suburb')
+            ->where('suburb', '!=', '')
+            ->whereHas('workshops', fn ($query) => $query
+                ->publiclyVisible()
+                ->where('is_private', false))
+            ->get(['suburb', 'updated_at'])
+            ->unique(fn (Location $location): string => Str::lower(trim((string) $location->suburb)))
+            ->map(fn (Location $location): array => [
+                'loc' => route('workshop.suburb', Str::slug((string) $location->suburb)),
+                'lastmod' => $location->updated_at,
+            ]);
+
+        $pages = $pages->concat($suburbPages);
 
         return response()
             ->view('sitemap.xml', [

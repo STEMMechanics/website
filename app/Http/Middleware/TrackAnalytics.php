@@ -93,6 +93,9 @@ class TrackAnalytics
         }
 
         $routeName = (string) ($request->route()?->getName() ?? '');
+        if ($routeName === 'workshop.recommendation.click') {
+            return false;
+        }
         if ($routeName === 'workshop.registration.redirect') {
             $location = trim((string) $response->headers->get('Location', ''));
             $scheme = strtolower((string) parse_url($location, PHP_URL_SCHEME));
@@ -134,11 +137,13 @@ class TrackAnalytics
 
         if (is_object($workshop) && method_exists($workshop, 'getKey')) {
             $id = trim((string) $workshop->getKey());
+
             return $id !== '' ? $id : null;
         }
 
         if (is_scalar($workshop)) {
             $id = trim((string) $workshop);
+
             return $id !== '' ? $id : null;
         }
 

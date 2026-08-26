@@ -41,6 +41,7 @@ class ManualWorkshopTicketEmailService
         dispatch(new SendEmail($recipient, new TicketOrderConfirmation(
             recipientName: $recipientName !== '' ? $recipientName : $recipient,
             workshop: [
+                'id' => (string) ($workshop->id ?? ''),
                 'title' => (string) ($workshop->title ?? ''),
                 'time' => (string) ($workshop->getTicketTimeRangeLabel() ?? '-'),
                 'location' => (string) ($workshop->getLocationDisplay(true) ?? '-'),
@@ -104,7 +105,7 @@ class ManualWorkshopTicketEmailService
         $ticketQrSvg = null;
         $ticketQrDataUri = null;
         try {
-            $ticketQrSvg = (new QRCodeProvider())->getQRCodeImage($referenceCode, 240);
+            $ticketQrSvg = (new QRCodeProvider)->getQRCodeImage($referenceCode, 240);
             if (trim((string) $ticketQrSvg) !== '') {
                 $ticketQrDataUri = 'data:image/svg+xml;base64,'.base64_encode($ticketQrSvg);
             }

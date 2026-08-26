@@ -11,7 +11,14 @@ class Location extends Model
 {
     use HasFactory, UUID;
 
-    protected $fillable = ['name', 'address', 'address_url', 'url'];
+    protected $fillable = [
+        'name', 'address', 'suburb', 'state', 'postcode', 'latitude', 'longitude', 'address_url', 'url',
+    ];
+
+    protected $casts = [
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
+    ];
 
     public function workshops(): HasMany
     {

@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Location;
-use App\Models\Post;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -16,15 +14,15 @@ class LocationController extends Controller
     {
         $query = Location::query();
 
-        if($request->has('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-            $query->orWhere('address', 'like', '%' . $request->search . '%');
+        if ($request->has('search')) {
+            $query->where('name', 'like', '%'.$request->search.'%');
+            $query->orWhere('address', 'like', '%'.$request->search.'%');
         }
 
         $locations = $query->orderBy('name')->paginate(12)->onEachSide(1);
 
         return view('admin.location.index', [
-            'locations' => $locations
+            'locations' => $locations,
         ]);
     }
 
@@ -44,19 +42,19 @@ class LocationController extends Controller
         $validated = $request->validate([
             'name' => 'required',
             'address' => 'nullable|string|max:255',
+            'suburb' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:40',
+            'postcode' => 'nullable|string|max:12',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'url' => 'nullable|url',
             'address_url' => 'nullable|url',
         ], [
-//            'firstname.required' => __('validation.custom_messages.firstname_required'),
-//            'surname.required' => __('validation.custom_messages.surname_required'),
+            //            'firstname.required' => __('validation.custom_messages.firstname_required'),
+            //            'surname.required' => __('validation.custom_messages.surname_required'),
         ]);
 
-        $location = Location::create([
-            'name' => trim((string) ($validated['name'] ?? '')),
-            'address' => trim((string) ($validated['address'] ?? '')),
-            'url' => trim((string) ($validated['url'] ?? '')),
-            'address_url' => trim((string) ($validated['address_url'] ?? '')),
-        ]);
+        $location = Location::create($this->normalizedLocationData($validated));
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -72,6 +70,7 @@ class LocationController extends Controller
         session()->flash('message', 'Location has been created');
         session()->flash('message-title', 'Location created');
         session()->flash('message-type', 'success');
+
         return redirect()->route('admin.location.index');
     }
 
@@ -88,19 +87,24 @@ class LocationController extends Controller
      */
     public function update(Request $request, Location $location)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required',
-            'address_url' => 'url',
-        ], [
-//            'firstname.required' => __('validation.custom_messages.firstname_required'),
-//            'surname.required' => __('validation.custom_messages.surname_required'),
+            'address' => 'nullable|string|max:255',
+            'suburb' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:40',
+            'postcode' => 'nullable|string|max:12',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'url' => 'nullable|url',
+            'address_url' => 'nullable|url',
         ]);
 
-        $location->update($request->all());
+        $location->update($this->normalizedLocationData($validated));
 
         session()->flash('message', 'Location has been updated');
         session()->flash('message-title', 'Location updated');
         session()->flash('message-type', 'success');
+
         return redirect()->route('admin.location.index');
     }
 
@@ -115,5 +119,14 @@ class LocationController extends Controller
         session()->flash('message-type', 'danger');
 
         return redirect()->route('admin.location.index');
+    }
+
+    private function normalizedLocationData(array $validated): array
+    {
+        foreach (['name', 'address', 'suburb', 'state', 'postcode', 'url', 'address_url'] as $field) {
+            $validated[$field] = trim((string) ($validated[$field] ?? '')) ?: null;
+        }
+
+        return $validated;
     }
 }

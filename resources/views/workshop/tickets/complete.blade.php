@@ -1,8 +1,8 @@
 <x-layout>
     <x-mast>Tickets Confirmed</x-mast>
 
-    <x-container class="max-w-3xl mt-6 mx-auto">
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+    <x-container class="mt-6 mx-auto">
+        <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
 
@@ -139,5 +139,11 @@
             </div>
             <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
         </div>
+        @include('workshop.partials.recommendations', [
+            'workshops' => $recommendedWorkshops,
+            'sourceWorkshop' => $workshop,
+            'placement' => 'checkout_complete',
+            'title' => 'Keep exploring',
+        ])
     </x-container>
 </x-layout>

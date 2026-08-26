@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Jobs\SendEmail;
+use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Mail\UserRegister;
 use App\Models\Coupon;
-use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Media;
+use App\Models\Payment;
 use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\Token;
@@ -17,15 +17,18 @@ use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopTicketEmail;
 use App\Providers\QRCodeProvider;
-use App\Services\DocumentNumberService;
 use App\Services\AccountCreditService;
-use App\Services\StoreCouponService;
+use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
+use App\Services\StoreCouponService;
+use App\Services\WorkshopRecommendationService;
 use App\Services\WorkshopRegistrationGroupService;
 use App\Services\WorkshopTicketOrderEmailService;
 use App\Services\WorkshopTicketService;
-use App\Support\InvoiceDueDate;
 use App\Support\AltchaTrust;
+use App\Support\InvoiceDueDate;
+use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
+use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,10 +37,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use GrantHolle\Altcha\Rules\ValidAltcha;
-use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 use ZipArchive;
 
@@ -50,9 +51,7 @@ class WorkshopTicketFlowController extends Controller
         private readonly WorkshopRegistrationGroupService $workshopRegistrationGroups,
         private readonly AccountCreditService $accountCredit,
         private readonly StoreCouponService $coupons
-    )
-    {
-    }
+    ) {}
 
     public function start(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
     {
@@ -82,8 +81,7 @@ class WorkshopTicketFlowController extends Controller
         Request $request,
         Workshop $workshop,
         WorkshopTicketService $ticketService
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $ticketService->cleanupExpiredHolds($workshop);
@@ -106,7 +104,7 @@ class WorkshopTicketFlowController extends Controller
             'private_code' => [$requiresPrivateCode ? 'required' : 'nullable', 'string', 'max:120'],
         ];
         if (AltchaTrust::shouldRequire($request)) {
-            $rules['altcha'] = ['required', new ValidAltcha()];
+            $rules['altcha'] = ['required', new ValidAltcha];
         }
 
         $validated = $request->validate($rules);
@@ -148,7 +146,7 @@ class WorkshopTicketFlowController extends Controller
 
             $ids = [];
             for ($i = 0; $i < (int) $validated['quantity']; $i++) {
-                $ticket = new Ticket();
+                $ticket = new Ticket;
                 $ticket->workshop_id = $workshop->id;
                 $ticket->user_id = $purchaserUserId;
                 $ticket->status = Ticket::STATUS_HOLD;
@@ -394,7 +392,7 @@ class WorkshopTicketFlowController extends Controller
                     ]);
                 }
 
-                $customerPayment = new Payment();
+                $customerPayment = new Payment;
                 $customerPayment->user_id = $purchaserUserId !== '' ? $purchaserUserId : $this->checkoutAccountUserId();
                 $customerPayment->created_by = $this->checkoutAccountUserId();
                 $customerPayment->kind = Payment::KIND_PAYMENT;
@@ -404,7 +402,7 @@ class WorkshopTicketFlowController extends Controller
                     ->map(fn (Ticket $ticket) => $ticket->ensureReferenceCode())
                     ->values()
                     ->all();
-                $customerPayment->reference = 'Workshop '.$workshop->title.' ticket' . (count($ticketReferences) > 1 ? 's' : '') . ' ['.implode(',', $ticketReferences).']';
+                $customerPayment->reference = 'Workshop '.$workshop->title.' ticket'.(count($ticketReferences) > 1 ? 's' : '').' ['.implode(',', $ticketReferences).']';
                 $customerPayment->total_amount = $remainingAmount;
                 $customerPayment->gst_amount = 0;
                 $customerPayment->notes = 'Workshop "'.$workshop->title.'" '.($workshop->usesClassroomRegistration() ? 'ticket' : 'ticket').' purchase';
@@ -412,7 +410,7 @@ class WorkshopTicketFlowController extends Controller
                 $amountCents = (int) round($remainingAmount * 100);
 
                 try {
-                $paymentResponse = $squareApi->createPayment([
+                    $paymentResponse = $squareApi->createPayment([
                         'idempotency_key' => 'tkt-'.$workshop->id.'-pay-'.$customerPayment->id.'-amt-'.$amountCents,
                         'source_id' => (string) $validated['source_id'],
                         'location_id' => $locationId,
@@ -464,7 +462,7 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->save();
 
                 if ($invoice) {
-                    $invoice->status = \App\Models\Invoice::STATUS_PAID;
+                    $invoice->status = Invoice::STATUS_PAID;
                     $invoice->save();
                     $customerPayment->allocations()->create([
                         'invoice_id' => $invoice->id,
@@ -473,10 +471,10 @@ class WorkshopTicketFlowController extends Controller
 
                 }
             } elseif ($invoice && $remainingAmount > 0.0001) {
-                $invoice->status = \App\Models\Invoice::STATUS_ISSUED;
+                $invoice->status = Invoice::STATUS_ISSUED;
                 $invoice->save();
             } elseif ($invoice) {
-                $invoice->status = \App\Models\Invoice::STATUS_PAID;
+                $invoice->status = Invoice::STATUS_PAID;
                 $invoice->save();
             }
 
@@ -1005,7 +1003,7 @@ class WorkshopTicketFlowController extends Controller
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if (! $session || !($session['payment_complete'] ?? false)) {
+        if (! $session || ! ($session['payment_complete'] ?? false)) {
             return $this->redirectToWorkshopWithCheckoutExpiredToast($workshop);
         }
 
@@ -1018,6 +1016,7 @@ class WorkshopTicketFlowController extends Controller
 
         if ($tickets->isEmpty()) {
             $this->clearFlowSession($workshop);
+
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
@@ -1066,7 +1065,7 @@ class WorkshopTicketFlowController extends Controller
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if (! $session || !($session['payment_complete'] ?? false) || (bool) ($session['details_complete'] ?? false)) {
+        if (! $session || ! ($session['payment_complete'] ?? false) || (bool) ($session['details_complete'] ?? false)) {
             return response()->json([
                 'ok' => false,
                 'reason' => 'checkout_session_missing',
@@ -1104,12 +1103,11 @@ class WorkshopTicketFlowController extends Controller
         Request $request,
         Workshop $workshop,
         WorkshopTicketOrderEmailService $emailService
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if (! $session || !($session['payment_complete'] ?? false)) {
+        if (! $session || ! ($session['payment_complete'] ?? false)) {
             return $this->redirectToWorkshopWithCheckoutExpiredToast($workshop);
         }
 
@@ -1196,12 +1194,12 @@ class WorkshopTicketFlowController extends Controller
         return redirect()->route('workshop.ticket.flow.complete', $workshop);
     }
 
-    public function complete(Workshop $workshop): View|RedirectResponse
+    public function complete(Workshop $workshop, WorkshopRecommendationService $recommendations): View|RedirectResponse
     {
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if (! $session || !($session['details_complete'] ?? false)) {
+        if (! $session || ! ($session['details_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
@@ -1239,6 +1237,7 @@ class WorkshopTicketFlowController extends Controller
             'sentToEmail' => $sentToEmail,
             'accessToken' => $accessToken,
             'ticketPricing' => $ticketPricing,
+            'recommendedWorkshops' => $recommendations->forWorkshop($workshop),
         ]);
     }
 
@@ -1247,7 +1246,7 @@ class WorkshopTicketFlowController extends Controller
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if (! $session || !($session['details_complete'] ?? false)) {
+        if (! $session || ! ($session['details_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
@@ -1269,7 +1268,7 @@ class WorkshopTicketFlowController extends Controller
             abort(500, 'Unable to prepare download archive.');
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
             @unlink($zipPath);
             abort(500, 'Unable to create download archive.');
@@ -1310,7 +1309,7 @@ class WorkshopTicketFlowController extends Controller
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
-        if ($session && !($session['payment_complete'] ?? false)) {
+        if ($session && ! ($session['payment_complete'] ?? false)) {
             Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $session['hold_ids'] ?? [])
@@ -1351,8 +1350,7 @@ class WorkshopTicketFlowController extends Controller
         ?int $termDays = null,
         ?string $voucherCode = null,
         float $voucherAmount = 0.0
-    ): Invoice
-    {
+    ): Invoice {
         $tickets = collect($holds)->values();
         $quantity = max(1, $tickets->count());
         $linePrices = $tickets->map(fn (Ticket $ticket): float => $this->ticketCheckoutUnitPrice($workshop, $ticket))->values();
@@ -1360,7 +1358,7 @@ class WorkshopTicketFlowController extends Controller
         $voucherAmount = round(min($subtotalAmount, max(0, $voucherAmount)), 2);
         $totalAmount = round(max(0, $subtotalAmount - $voucherAmount), 2);
 
-        $invoice = new Invoice();
+        $invoice = new Invoice;
         $effectiveStartsAt = $workshop->effectiveStartsAt();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->user_id = $purchaserUserId ?: $this->checkoutAccountUserId();
@@ -1395,7 +1393,7 @@ class WorkshopTicketFlowController extends Controller
             $taxAmount = round($lineTotalInc - $lineTotalEx, 2);
             $ticketReference = $ticket->ensureReferenceCode();
 
-            $line = new InvoiceLine();
+            $line = new InvoiceLine;
             $line->invoice_id = $invoice->id;
             $line->line_number = $index + 1;
             $line->kind = 'ticket';
@@ -1427,7 +1425,7 @@ class WorkshopTicketFlowController extends Controller
             $voucherExTax = round($voucherAmount / 1.1, 2);
             $voucherTax = round($voucherAmount - $voucherExTax, 2);
 
-            $discountLine = new InvoiceLine();
+            $discountLine = new InvoiceLine;
             $discountLine->invoice_id = $invoice->id;
             $discountLine->line_number = $lines->count() + 1;
             $discountLine->kind = 'discount';
@@ -1531,7 +1529,7 @@ class WorkshopTicketFlowController extends Controller
 
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
         if (! $user) {
-            $user = new User();
+            $user = new User;
             $user->email = $email;
             $user->firstname = $firstname !== '' ? $firstname : null;
             $user->surname = $surname !== '' ? $surname : null;
@@ -1759,7 +1757,7 @@ class WorkshopTicketFlowController extends Controller
 
         try {
             return Carbon::parse($raw)->setTimezone((string) config('app.timezone'));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
@@ -1777,7 +1775,7 @@ class WorkshopTicketFlowController extends Controller
         string $paymentMethod,
         float $amount
     ): WorkshopTicketEmail {
-            $normalizedTicketIds = collect($ticketIds)
+        $normalizedTicketIds = collect($ticketIds)
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)
             ->unique()
@@ -1788,7 +1786,7 @@ class WorkshopTicketFlowController extends Controller
             throw new RuntimeException('Cannot create a workshop ticket email without tickets.');
         }
 
-        $delivery = new WorkshopTicketEmail();
+        $delivery = new WorkshopTicketEmail;
         $delivery->workshop_id = (string) $workshop->id;
         $delivery->ticket_ids = $normalizedTicketIds;
         $delivery->invoice_id = $invoiceId;
@@ -1833,7 +1831,7 @@ class WorkshopTicketFlowController extends Controller
         if ($gatewayProcessedAtRaw !== '') {
             try {
                 $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 $gatewayProcessedAtLabel = '';
             }
         }
@@ -1953,7 +1951,7 @@ class WorkshopTicketFlowController extends Controller
         $ticketQrSvg = null;
         $ticketQrDataUri = null;
         try {
-            $ticketQrSvg = (new QRCodeProvider())->getQRCodeImage($referenceCode, 240);
+            $ticketQrSvg = (new QRCodeProvider)->getQRCodeImage($referenceCode, 240);
             if (trim((string) $ticketQrSvg) !== '') {
                 $ticketQrDataUri = 'data:image/svg+xml;base64,'.base64_encode($ticketQrSvg);
             }

@@ -155,6 +155,19 @@ class AnalyticsController extends Controller
             ->paginate(10, ['*'], 'returning_visitors_page')
             ->onEachSide(1);
 
+        $recommendationViews = (clone $baseQuery)
+            ->where('event_type', AnalyticsEvent::TYPE_RECOMMENDATION_IMPRESSION)
+            ->count();
+        $recommendationClicks = (clone $baseQuery)
+            ->where('event_type', AnalyticsEvent::TYPE_RECOMMENDATION_CLICK)
+            ->count();
+        $recommendationPlacements = (clone $baseQuery)
+            ->whereIn('event_type', [AnalyticsEvent::TYPE_RECOMMENDATION_IMPRESSION, AnalyticsEvent::TYPE_RECOMMENDATION_CLICK])
+            ->selectRaw('recommendation_placement, SUM(CASE WHEN event_type = ? THEN 1 ELSE 0 END) as impressions, SUM(CASE WHEN event_type = ? THEN 1 ELSE 0 END) as clicks', [AnalyticsEvent::TYPE_RECOMMENDATION_IMPRESSION, AnalyticsEvent::TYPE_RECOMMENDATION_CLICK])
+            ->groupBy('recommendation_placement')
+            ->orderByDesc('clicks')
+            ->get();
+
         $totalRecords = AnalyticsEvent::query()->count();
         $oldestRecordAt = AnalyticsEvent::query()->min('created_at');
         $tableSizeBytes = $this->analyticsTableSizeBytes();
@@ -176,6 +189,12 @@ class AnalyticsController extends Controller
             'topSearches' => $topSearches,
             'sessionFlows' => $sessionFlows,
             'returningVisitors' => $returningVisitors,
+            'recommendationAnalytics' => [
+                'impressions' => $recommendationViews,
+                'clicks' => $recommendationClicks,
+                'click_through_rate' => $recommendationViews > 0 ? ($recommendationClicks / $recommendationViews) * 100 : 0,
+                'placements' => $recommendationPlacements,
+            ],
         ]);
     }
 
