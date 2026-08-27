@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers;
 use App\Models\AnalyticsEvent;
+use App\Services\TrafficSourceNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -56,6 +57,53 @@ class AnalyticsController extends Controller
             ->groupBy('analytics_events.path')
             ->orderByDesc('views')
             ->paginate(10, ['*'], 'top_pages_page')
+            ->onEachSide(1);
+
+        $sessionEntries = DB::table('analytics_events as session_events')
+            ->selectRaw('MIN(session_events.id) as entry_id')
+            ->groupBy('session_events.session_token');
+        $attributionSql = $this->attributionSqlExpressions();
+
+        $attributedSessions = AnalyticsEvent::query()
+            ->joinSub($sessionEntries, 'session_entries', fn ($join) => $join->on('session_entries.entry_id', '=', 'analytics_events.id'))
+            ->where('analytics_events.created_at', '>=', $from)
+            ->selectRaw($attributionSql['source'].' as source', $attributionSql['bindings'])
+            ->selectRaw($attributionSql['medium'].' as medium', $attributionSql['bindings'])
+            ->selectRaw("NULLIF(analytics_events.utm_campaign, '') as campaign")
+            ->selectRaw("NULLIF(analytics_events.referrer_host, '') as raw_host");
+
+        $sourceRows = DB::query()
+            ->fromSub($attributedSessions, 'attributed_sessions')
+            ->select(['source', 'medium', 'campaign', 'raw_host'])
+            ->selectRaw('COUNT(*) as sessions')
+            ->groupBy(['source', 'medium', 'campaign', 'raw_host'])
+            ->get();
+        $normalizedSources = app(TrafficSourceNormalizer::class)->aggregate($sourceRows, true);
+        $trafficSourcesPage = max(1, (int) $request->query('traffic_sources_page', 1));
+        $trafficSources = new LengthAwarePaginator(
+            $normalizedSources->forPage($trafficSourcesPage, 10)->values(),
+            $normalizedSources->count(),
+            10,
+            $trafficSourcesPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+                'pageName' => 'traffic_sources_page',
+            ]
+        );
+
+        $sessionLandingPages = AnalyticsEvent::query()
+            ->joinSub($sessionEntries, 'session_entries', fn ($join) => $join->on('session_entries.entry_id', '=', 'analytics_events.id'))
+            ->where('analytics_events.created_at', '>=', $from)
+            ->selectRaw("COALESCE(NULLIF(analytics_events.landing_path, ''), analytics_events.path) as landing_path");
+
+        $landingPages = DB::query()
+            ->fromSub($sessionLandingPages, 'session_landing_pages')
+            ->select('landing_path')
+            ->selectRaw('COUNT(*) as sessions')
+            ->groupBy('landing_path')
+            ->orderByDesc('sessions')
+            ->paginate(10, ['*'], 'landing_pages_page')
             ->onEachSide(1);
 
         $topWorkshops = (clone $baseQuery)
@@ -185,6 +233,8 @@ class AnalyticsController extends Controller
             'daily' => $daily,
             'activeHours' => $activeHours,
             'topPages' => $topPages,
+            'trafficSources' => $trafficSources,
+            'landingPages' => $landingPages,
             'topWorkshops' => $topWorkshops,
             'topSearches' => $topSearches,
             'sessionFlows' => $sessionFlows,
@@ -246,5 +296,35 @@ class AnalyticsController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @return array{source: string, medium: string, bindings: array<int, string>}
+     */
+    private function attributionSqlExpressions(): array
+    {
+        $originExpression = "LOWER(COALESCE(NULLIF(analytics_events.acquisition_source, ''), NULLIF(analytics_events.referrer_host, '')))";
+        $conditions = [];
+        $bindings = [];
+        foreach ((array) config('analytics.internal_referrer_hosts', []) as $host) {
+            $host = strtolower(trim((string) $host, ". \t\n\r\0\x0B"));
+            if ($host === '') {
+                continue;
+            }
+
+            $conditions[] = '('.$originExpression.' = ? OR '.$originExpression.' LIKE ?)';
+            $bindings[] = $host;
+            $bindings[] = '%.'.$host;
+        }
+
+        $internalCondition = $conditions !== [] ? implode(' OR ', $conditions) : '0 = 1';
+        $internalCondition = '('.$internalCondition.') OR '.$originExpression." = 'stemmechanics' OR ".$originExpression." LIKE 'stemmechanics.%' OR ".$originExpression." LIKE '%.stemmechanics.%'";
+        $externalSource = "CASE WHEN ({$internalCondition}) THEN NULL ELSE COALESCE(NULLIF(analytics_events.acquisition_source, ''), NULLIF(analytics_events.referrer_host, '')) END";
+
+        return [
+            'source' => "COALESCE(NULLIF(analytics_events.utm_source, ''), {$externalSource}, 'Direct / unknown')",
+            'medium' => "COALESCE(NULLIF(analytics_events.utm_medium, ''), CASE WHEN {$externalSource} IS NULL OR analytics_events.acquisition_source = 'Direct / unknown' THEN 'direct' ELSE 'referral' END)",
+            'bindings' => $bindings,
+        ];
     }
 }

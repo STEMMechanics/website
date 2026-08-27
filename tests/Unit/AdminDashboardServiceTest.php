@@ -7,8 +7,8 @@ use App\Models\EmailSubscriptions;
 use App\Models\Expense;
 use App\Models\Location;
 use App\Models\Media;
-use App\Models\Product;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use App\Models\Ticket;
@@ -204,7 +204,7 @@ class AdminDashboardServiceTest extends TestCase
             'route_name' => 'workshop.index',
             'workshop_id' => $currentWorkshop->id,
             'search_term' => null,
-            'referrer_host' => null,
+            'referrer_host' => 'www.facebook.com',
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
@@ -228,7 +228,7 @@ class AdminDashboardServiceTest extends TestCase
             'route_name' => 'search.index',
             'workshop_id' => null,
             'search_term' => 'robotics',
-            'referrer_host' => null,
+            'referrer_host' => 'www.bing.com.au',
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
@@ -298,7 +298,7 @@ class AdminDashboardServiceTest extends TestCase
             'route_name' => 'shop.product.show',
             'workshop_id' => null,
             'search_term' => null,
-            'referrer_host' => null,
+            'referrer_host' => 'www.google.com.au',
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
@@ -324,7 +324,7 @@ class AdminDashboardServiceTest extends TestCase
             'route_name' => 'shop.product.show',
             'workshop_id' => null,
             'search_term' => null,
-            'referrer_host' => null,
+            'referrer_host' => 'www.google.com',
             'http_method' => 'GET',
             'created_at' => Carbon::now(),
         ]);
@@ -358,6 +358,11 @@ class AdminDashboardServiceTest extends TestCase
             'confirmed' => Carbon::now(),
         ]);
 
+        User::factory()->unverified()->create([
+            'firstname' => 'Ghost',
+            'surname' => 'Contact',
+        ]);
+
         Carbon::setTestNow('2026-06-06 12:00:01');
 
         $data = app(AdminDashboardService::class)->build('week');
@@ -374,9 +379,8 @@ class AdminDashboardServiceTest extends TestCase
         $growth = $this->cardByTitle($data, 'Growth');
 
         $this->assertSame('3', $this->metricByLabel($workshops, 'Workshop views')['current']);
-        $this->assertSame('2', $this->metricByLabel($workshops, 'Unique external registration clicks')['current']);
-
         $this->assertSame('3', $this->metricByLabel($tickets, 'Tickets sold')['current']);
+        $this->assertSame('2', $this->metricByLabel($tickets, 'Unique external registration clicks')['current']);
 
         $this->assertSame('1', $this->metricByLabel($store, 'Store views')['current']);
         $this->assertSame('2', $this->metricByLabel($store, 'Product views')['current']);
@@ -390,8 +394,8 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame('8', $this->metricByLabel($website, 'Page views')['current']);
         $this->assertSame('4', $this->metricByLabel($website, 'Unique visitors')['current']);
 
-        $this->assertSame('3', $this->metricByLabel($growth, 'New users')['current']);
-        $this->assertSame('1', $this->metricByLabel($growth, 'New subscriptions')['current']);
+        $this->assertSame('6', $this->metricByLabel($growth, 'Total users')['current']);
+        $this->assertSame('2', $this->metricByLabel($growth, 'Total subscriptions')['current']);
         $this->assertCount(2, $data['workshopSalesRows']);
         $this->assertSame('Current Workshop', $data['workshopSalesRows'][0]['workshop_title']);
         $this->assertSame(1, $data['workshopSalesRows'][0]['views']);
@@ -408,6 +412,38 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame('Store Item Two', $data['storeSalesRows'][1]['product_title']);
         $this->assertSame(1, $data['storeSalesRows'][1]['views']);
         $this->assertSame(2, $data['storeSalesRows'][1]['items_sold']);
+        $this->assertSame(['Workshop Activity', 'Ticket Activity', 'Store Activity', 'Website Traffic', 'Financial Performance', 'Audience Growth'], collect($data['charts'])->pluck('title')->all());
+        $this->assertCount(7, $data['charts'][0]['labels']);
+        $this->assertSame(3.0, array_sum($data['charts'][0]['series'][0]['values']));
+        $this->assertSame(3.0, array_sum($data['charts'][1]['series'][0]['values']));
+        $this->assertSame(2.0, array_sum($data['charts'][1]['series'][1]['values']));
+        $this->assertSame(8, array_sum($data['charts'][3]['series'][0]['values']));
+        $this->assertSame(4, array_sum($data['charts'][3]['series'][1]['values']));
+        $this->assertSame(105.0, array_sum($data['charts'][4]['series'][0]['values']));
+        $this->assertSame(40.0, array_sum($data['charts'][4]['series'][1]['values']));
+        $this->assertSame(65.0, array_sum($data['charts'][4]['series'][2]['values']));
+        $this->assertCount(3, $data['charts'][4]['series']);
+        $this->assertSame(6.0, $data['charts'][5]['series'][0]['values'][6]);
+        $this->assertSame(2.0, $data['charts'][5]['series'][1]['values'][6]);
+        $this->assertContains('Facebook', $data['trafficSourceRows']->pluck('source')->all());
+        $facebookSource = $data['trafficSourceRows']->firstWhere('source', 'Facebook');
+        $this->assertNotNull($facebookSource);
+        $this->assertSame(25.0, $facebookSource->percentage);
+        $this->assertSame(['www.facebook.com'], $facebookSource->source_urls);
+        $googleSource = $data['trafficSourceRows']->firstWhere('source', 'Google');
+        $this->assertNotNull($googleSource);
+        $this->assertSame(2, (int) $googleSource->sessions);
+        $this->assertSame(50.0, $googleSource->percentage);
+        $this->assertSame(['www.google.com', 'www.google.com.au'], $googleSource->source_urls);
+        $bingSource = $data['trafficSourceRows']->firstWhere('source', 'Bing');
+        $this->assertNotNull($bingSource);
+        $this->assertSame(1, (int) $bingSource->sessions);
+        $this->assertSame(['www.bing.com.au'], $bingSource->source_urls);
+
+        $overview = app(AdminDashboardService::class)->build();
+        $this->assertSame('overview', $overview['period']);
+        $this->assertSame('Overview', $overview['periodLabel']);
+        $this->assertCount(12, $overview['charts'][0]['labels']);
 
         Carbon::setTestNow();
     }

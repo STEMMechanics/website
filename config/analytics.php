@@ -2,6 +2,10 @@
 
 return [
     'enabled' => env('ANALYTICS_ENABLED', true),
+    'internal_referrer_hosts' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', env('ANALYTICS_INTERNAL_REFERRER_HOSTS', 'stemmechanics.com.au,stemmechanics.com,stemmechanics.net'))
+    ))),
     'ignore_path_prefixes' => [
         '/admin',
         '/up',
