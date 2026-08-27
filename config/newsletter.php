@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'forward_promotion' => [
+        'enabled' => true,
+        'heading' => "Know someone who'd love this?",
+        'message' => 'Forward this email to a friend, parent or fellow maker. They can subscribe for future workshop and STEM store updates.',
+        'button_label' => 'Join the newsletter',
+    ],
     'upcoming_workshops' => [
         'hero_messages' => [
             [
