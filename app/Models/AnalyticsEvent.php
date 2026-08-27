@@ -25,19 +25,28 @@ class AnalyticsEvent extends Model
     protected $fillable = [
         'event_type',
         'session_token',
+        'is_session_entry',
         'visitor_hash',
         'path',
+        'landing_path',
         'route_name',
         'workshop_id',
         'source_workshop_id',
         'recommendation_placement',
         'search_term',
         'referrer_host',
+        'acquisition_source',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_term',
+        'utm_content',
         'http_method',
         'created_at',
     ];
 
     protected $casts = [
+        'is_session_entry' => 'boolean',
         'created_at' => 'datetime',
     ];
 
