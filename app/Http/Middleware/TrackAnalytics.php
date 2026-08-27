@@ -21,9 +21,16 @@ class TrackAnalytics
 
         $session = $request->session();
         $sessionToken = (string) $session->get('analytics_session_token', '');
+        $isSessionEntry = $sessionToken === '';
         if ($sessionToken === '') {
             $sessionToken = Str::lower(Str::random(40));
             $session->put('analytics_session_token', $sessionToken);
+        }
+
+        $acquisition = $session->get('analytics_acquisition');
+        if (! is_array($acquisition)) {
+            $acquisition = $this->resolveAcquisition($request);
+            $session->put('analytics_acquisition', $acquisition);
         }
 
         $route = $request->route();
@@ -39,12 +46,20 @@ class TrackAnalytics
         AnalyticsEvent::create([
             'event_type' => $eventType,
             'session_token' => $sessionToken,
+            'is_session_entry' => $isSessionEntry,
             'visitor_hash' => $this->resolveVisitorHash($request),
             'path' => $request->getPathInfo() ?: '/',
+            'landing_path' => $acquisition['landing_path'],
             'route_name' => $routeName,
             'workshop_id' => $workshopId,
             'search_term' => $searchTerm,
             'referrer_host' => $this->resolveReferrerHost($request),
+            'acquisition_source' => $acquisition['source'],
+            'utm_source' => $acquisition['utm_source'],
+            'utm_medium' => $acquisition['utm_medium'],
+            'utm_campaign' => $acquisition['utm_campaign'],
+            'utm_term' => $acquisition['utm_term'],
+            'utm_content' => $acquisition['utm_content'],
             'http_method' => $request->method(),
             'created_at' => now(),
         ]);
@@ -175,6 +190,62 @@ class TrackAnalytics
         $host = trim((string) parse_url($referer, PHP_URL_HOST));
 
         return $host !== '' ? mb_substr($host, 0, 255) : null;
+    }
+
+    /**
+     * @return array{landing_path: string, source: string, utm_source: ?string, utm_medium: ?string, utm_campaign: ?string, utm_term: ?string, utm_content: ?string}
+     */
+    private function resolveAcquisition(Request $request): array
+    {
+        $referrerHost = $this->resolveReferrerHost($request);
+        $externalReferrer = $referrerHost !== null && ! $this->isInternalReferrerHost($referrerHost, $request)
+            ? $referrerHost
+            : null;
+        $utmSource = $this->campaignValue($request, 'utm_source');
+
+        return [
+            'landing_path' => mb_substr($request->getPathInfo() ?: '/', 0, 255),
+            'source' => $utmSource ?? $externalReferrer ?? 'Direct / unknown',
+            'utm_source' => $utmSource,
+            'utm_medium' => $this->campaignValue($request, 'utm_medium'),
+            'utm_campaign' => $this->campaignValue($request, 'utm_campaign'),
+            'utm_term' => $this->campaignValue($request, 'utm_term'),
+            'utm_content' => $this->campaignValue($request, 'utm_content'),
+        ];
+    }
+
+    private function isInternalReferrerHost(string $host, Request $request): bool
+    {
+        $host = strtolower(trim($host, ". \t\n\r\0\x0B"));
+        if (in_array('stemmechanics', explode('.', $host), true)) {
+            return true;
+        }
+
+        $internalHosts = array_merge(
+            [(string) $request->getHost()],
+            (array) config('analytics.internal_referrer_hosts', [])
+        );
+
+        foreach ($internalHosts as $internalHost) {
+            $internalHost = strtolower(trim((string) $internalHost, ". \t\n\r\0\x0B"));
+            if ($internalHost !== '' && ($host === $internalHost || str_ends_with($host, '.'.$internalHost))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function campaignValue(Request $request, string $key): ?string
+    {
+        $value = $request->query($key);
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $value = trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', (string) $value));
+
+        return $value !== '' ? mb_substr($value, 0, 255) : null;
     }
 
     private function resolveVisitorHash(Request $request): ?string
