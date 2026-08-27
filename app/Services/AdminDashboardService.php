@@ -393,11 +393,12 @@ class AdminDashboardService
             ->selectRaw($bucketSql['sql'].' as bucket_index', $bucketSql['bindings'])
             ->selectRaw($aggregate.' as aggregate_value')
             ->groupBy('bucket_index')
+            ->toBase()
             ->get()
             ->keyBy(fn ($row): int => (int) $row->bucket_index);
 
         return array_map(
-            fn (int $index): float|int => (float) ($rows->get($index)?->aggregate_value ?? 0),
+            fn (int $index): float => (float) ($rows->get($index)->aggregate_value ?? 0),
             array_keys($buckets)
         );
     }
@@ -415,6 +416,7 @@ class AdminDashboardService
             ->selectRaw($bucketSql['sql'].' as bucket_index', $bucketSql['bindings'])
             ->selectRaw('COUNT(*) as views, COUNT(DISTINCT visitor_hash) as visitors')
             ->groupBy('bucket_index')
+            ->toBase()
             ->get()
             ->keyBy(fn ($row): int => (int) $row->bucket_index);
 
@@ -425,8 +427,8 @@ class AdminDashboardService
             'valuePrefix' => '',
             'labels' => array_column($buckets, 'label'),
             'series' => [
-                ['label' => 'Page views', 'color' => 'sky', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)?->views ?? 0), array_keys($buckets))],
-                ['label' => 'Unique visitors', 'color' => 'violet', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)?->visitors ?? 0), array_keys($buckets))],
+                ['label' => 'Page views', 'color' => 'sky', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)->views ?? 0), array_keys($buckets))],
+                ['label' => 'Unique visitors', 'color' => 'violet', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)->visitors ?? 0), array_keys($buckets))],
             ],
         ];
     }
@@ -444,6 +446,7 @@ class AdminDashboardService
             ->selectRaw($paymentBucketSql['sql'].' as bucket_index', $paymentBucketSql['bindings'])
             ->selectRaw('SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as income, SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as refunds', [Payment::KIND_PAYMENT, Payment::KIND_REFUND])
             ->groupBy('bucket_index')
+            ->toBase()
             ->get()
             ->keyBy(fn ($row): int => (int) $row->bucket_index);
 
@@ -455,6 +458,7 @@ class AdminDashboardService
             ->selectRaw($expenseBucketSql['sql'].' as bucket_index', $expenseBucketSql['bindings'])
             ->selectRaw('SUM(total_amount) as expenses')
             ->groupBy('bucket_index')
+            ->toBase()
             ->get()
             ->keyBy(fn ($row): int => (int) $row->bucket_index);
 
@@ -462,9 +466,9 @@ class AdminDashboardService
         $expenseValues = [];
         $profit = [];
         foreach (array_keys($buckets) as $index) {
-            $bucketIncome = round((float) ($payments->get($index)?->income ?? 0), 2);
-            $bucketRefunds = round((float) ($payments->get($index)?->refunds ?? 0), 2);
-            $bucketExpenses = round((float) ($expenses->get($index)?->expenses ?? 0), 2);
+            $bucketIncome = round((float) ($payments->get($index)->income ?? 0), 2);
+            $bucketRefunds = round((float) ($payments->get($index)->refunds ?? 0), 2);
+            $bucketExpenses = round((float) ($expenses->get($index)->expenses ?? 0), 2);
             $netIncome[] = round($bucketIncome - $bucketRefunds, 2);
             $expenseValues[] = $bucketExpenses;
             $profit[] = round($bucketIncome - $bucketRefunds - $bucketExpenses, 2);

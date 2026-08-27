@@ -24,13 +24,13 @@ class TrafficSourceNormalizer
     }
 
     /**
-     * @param  Collection<int, object>  $rows
-     * @return Collection<int, object>
+     * @param  Collection<int, \stdClass>  $rows
+     * @return Collection<int, \stdClass>
      */
     public function aggregate(Collection $rows, bool $includeCampaign = false): Collection
     {
         return $rows
-            ->groupBy(function ($row) use ($includeCampaign): string {
+            ->groupBy(function (\stdClass $row) use ($includeCampaign): string {
                 $parts = [
                     $this->normalize((string) $row->source),
                     (string) $row->medium,
@@ -41,18 +41,20 @@ class TrafficSourceNormalizer
 
                 return implode("\0", $parts);
             })
-            ->map(function (Collection $group) use ($includeCampaign): object {
+            ->map(function (Collection $group) use ($includeCampaign): \stdClass {
+                /** @var \stdClass $first */
                 $first = $group->first();
 
-                return (object) [
-                    'source' => $this->normalize((string) $first->source),
-                    'medium' => (string) $first->medium,
-                    'campaign' => $includeCampaign ? ($first->campaign ?: null) : null,
-                    'sessions' => (int) $group->sum(fn ($row): int => (int) $row->sessions),
-                    'source_urls' => $this->sourceUrls($group->pluck('raw_host')->all()),
-                ];
+                $source = new \stdClass;
+                $source->source = $this->normalize((string) $first->source);
+                $source->medium = (string) $first->medium;
+                $source->campaign = $includeCampaign ? ($first->campaign ?: null) : null;
+                $source->sessions = (int) $group->sum(fn (\stdClass $row): int => (int) $row->sessions);
+                $source->source_urls = $this->sourceUrls($group->pluck('raw_host')->all());
+
+                return $source;
             })
-            ->sortByDesc('sessions')
+            ->sortByDesc(fn (\stdClass $source): int => $source->sessions)
             ->values();
     }
 
