@@ -62,6 +62,8 @@
 @include('emails.partials.newsletter-store-section', ['hideFirstStoreHeading' => false])
 @endif
 
+@include('emails.partials.newsletter-forward-promotion')
+
 @slot('subcopy')
     <h4>Why did I get this email?</h4>
     <p class="sub">You received this email as you are subscribed to our upcoming workshop email list. If you wish no longer receive this email, you can <a href="{{ $unsubscribeLink }}">unsubscribe here</a>.</p>
