@@ -16,9 +16,6 @@
 
     <x-container class="mt-4">
         <form id="expense-form" method="POST" enctype="multipart/form-data" action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}">
-            @isset($expense)
-                @method('PUT')
-            @endisset
             @csrf
 
             <x-ui.input

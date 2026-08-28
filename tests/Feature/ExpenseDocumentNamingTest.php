@@ -62,6 +62,41 @@ class ExpenseDocumentNamingTest extends TestCase
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 
+    public function test_expense_attachment_can_be_updated_with_a_real_multipart_post(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Mail Attachment Supplier',
+            'invoice_id' => 'MAIL-1',
+            'paid_on' => '2026-08-28',
+            'total_amount' => 44.00,
+            'gst_amount' => 4.00,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.expense.edit', $expense))
+            ->post(route('admin.expense.update', $expense), [
+                'supplier' => 'Mail Attachment Supplier',
+                'description' => 'Attachment dropped from iPad Mail',
+                'invoice_id' => 'MAIL-1',
+                'paid_on' => '2026-08-28',
+                'total_amount' => '44.00',
+                'gst_amount' => '4.00',
+                'receipt_document_file' => UploadedFile::fake()->create('mail-receipt.pdf', 12, 'application/pdf'),
+            ]);
+
+        $response->assertRedirect(route('admin.expense.edit', $expense));
+        $response->assertSessionHasNoErrors();
+
+        $expense->refresh();
+
+        $this->assertNotNull($expense->receipt_document_path);
+        Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
+    }
+
     public function test_expense_rename_command_suffixes_until_free_filename_is_found(): void
     {
         Storage::fake('local');
