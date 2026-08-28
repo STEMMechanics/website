@@ -624,8 +624,19 @@
         }
 
         if (expenseForm && saveButton && saveLabel && saveLoading && saveLoadingText) {
-            expenseForm.addEventListener('submit', () => {
+            expenseForm.addEventListener('submit', (event) => {
                 const hasNewUpload = !!(receiptInput && receiptInput.files && receiptInput.files.length > 0);
+                const upload = hasNewUpload ? receiptInput.files[0] : null;
+
+                // Recheck here because files dragged from iCloud/Files on iPad
+                // can report their final size after the initial change event.
+                if (upload && Number.isFinite(maxUploadBytes) && maxUploadBytes > 0 && upload.size > maxUploadBytes) {
+                    event.preventDefault();
+                    receiptInput.setCustomValidity(`File is too large. Maximum upload size is ${window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(maxUploadBytes) : `${Math.floor(maxUploadBytes / 1024 / 1024)} MB`}.`);
+                    receiptInput.reportValidity();
+                    return;
+                }
+
                 saveButton.disabled = true;
                 saveLabel.classList.add('hidden');
                 saveLoading.classList.remove('hidden');
