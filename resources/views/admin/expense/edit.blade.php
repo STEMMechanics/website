@@ -624,7 +624,14 @@
         }
 
         if (expenseForm && saveButton && saveLabel && saveLoading && saveLoadingText) {
-            expenseForm.addEventListener('submit', (event) => {
+            const resetSaveButton = () => {
+                saveButton.disabled = false;
+                saveLabel.classList.remove('hidden');
+                saveLoading.classList.add('hidden');
+                saveLoading.classList.remove('inline-flex');
+            };
+
+            expenseForm.addEventListener('submit', async (event) => {
                 const hasNewUpload = !!(receiptInput && receiptInput.files && receiptInput.files.length > 0);
                 const upload = hasNewUpload ? receiptInput.files[0] : null;
 
@@ -637,11 +644,61 @@
                     return;
                 }
 
+                if (hasNewUpload) {
+                    event.preventDefault();
+                }
+
                 saveButton.disabled = true;
                 saveLabel.classList.add('hidden');
                 saveLoading.classList.remove('hidden');
                 saveLoading.classList.add('inline-flex');
                 saveLoadingText.textContent = hasNewUpload ? 'Uploading...' : 'Saving...';
+
+                if (!hasNewUpload) {
+                    return;
+                }
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                try {
+                    const formData = new FormData(expenseForm);
+                    const isMailCidUpload = /^cid:/i.test(upload.name || '');
+
+                    if (isMailCidUpload) {
+                        const uploadBytes = await upload.arrayBuffer();
+                        const materializedName = upload.name.replace(/^cid:/i, '').replace(/[<>]/g, '') || 'attachment.pdf';
+                        const materializedUpload = new File([uploadBytes], materializedName, {
+                            type: upload.type || 'application/octet-stream',
+                            lastModified: upload.lastModified || Date.now(),
+                        });
+                        formData.set(receiptInput.name, materializedUpload, materializedName);
+                    }
+
+                    const response = await fetch(expenseForm.action, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: formData,
+                    });
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (!response.ok) {
+                        const firstError = payload.errors
+                            ? Object.values(payload.errors).flat().find((message) => typeof message === 'string')
+                            : null;
+                        throw new Error(firstError || payload.message || 'Unable to save the expense. Please try again.');
+                    }
+
+                    await clearReceiptDraft();
+                    window.location.assign(payload.redirect || expenseForm.action);
+                } catch (error) {
+                    resetSaveButton();
+                    setPreviewNote(error instanceof Error ? error.message : 'Unable to save the expense. Please try again.');
+                }
             });
         }
     })();
