@@ -97,6 +97,40 @@ class ExpenseDocumentNamingTest extends TestCase
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 
+    public function test_expense_attachment_ajax_update_returns_a_redirect_payload(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'iPad Mail Supplier',
+            'invoice_id' => 'MAIL-2',
+            'paid_on' => '2026-08-28',
+            'total_amount' => 22.00,
+            'gst_amount' => 2.00,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.expense.update', $expense), [
+                'supplier' => 'iPad Mail Supplier',
+                'description' => 'CID attachment dropped from iPad Mail',
+                'invoice_id' => 'MAIL-2',
+                'paid_on' => '2026-08-28',
+                'total_amount' => '22.00',
+                'gst_amount' => '2.00',
+                'receipt_document_file' => UploadedFile::fake()->create('cid:attachment-uuid.pdf', 12, 'application/pdf'),
+            ]);
+
+        $response->assertOk()->assertJson([
+            'success' => true,
+            'redirect' => route('admin.expense.edit', $expense),
+        ]);
+
+        $expense->refresh();
+        Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
+    }
+
     public function test_expense_rename_command_suffixes_until_free_filename_is_found(): void
     {
         Storage::fake('local');
