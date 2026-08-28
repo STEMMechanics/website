@@ -17,9 +17,18 @@ class Helpers
     {
         $user = $user ?: Auth::user();
 
+        $postMaxSize = self::stringToBytes(ini_get('post_max_size'));
+
+        // post_max_size applies to the complete multipart request, not just the
+        // uploaded file. Keep room for multipart headers and the other form
+        // fields so a file accepted by the browser is not discarded by PHP
+        // together with the CSRF and method-spoofing fields.
+        $multipartOverhead = min(1024 * 1024, max(64 * 1024, (int) ceil($postMaxSize * 0.01)));
+        $postFileLimit = max(0, $postMaxSize - $multipartOverhead);
+
         return min(
             self::roleUploadCap($user),
-            self::stringToBytes(ini_get('post_max_size')),
+            $postFileLimit,
             self::stringToBytes(ini_get('upload_max_filesize'))
         );
     }
