@@ -271,7 +271,7 @@ class NewsletterProductSelectionService
     {
         return [
             ['key' => 'kits', 'title' => 'New kits arrived', 'intro' => 'Fresh project ideas for curious makers.', 'category_slugs' => ['kits'], 'product_ids' => [], 'locked_product_ids' => [], 'suggestion_index' => 0, 'theme' => 'managed', 'theme_id' => $this->defaultThemeId(0)],
-            ['key' => 'extras', 'title' => 'Grab extras', 'intro' => 'Stock up on useful materials and parts for the next build.', 'category_slugs' => ['materials', 'parts'], 'product_ids' => [], 'locked_product_ids' => [], 'suggestion_index' => 0, 'theme' => 'managed', 'theme_id' => $this->defaultThemeId(1)],
+            ['key' => 'extras', 'title' => 'Grab some extras', 'intro' => 'Stock up on useful materials and parts for the next build.', 'category_slugs' => ['materials', 'parts'], 'product_ids' => [], 'locked_product_ids' => [], 'suggestion_index' => 0, 'theme' => 'managed', 'theme_id' => $this->defaultThemeId(1)],
         ];
     }
 
@@ -288,7 +288,7 @@ class NewsletterProductSelectionService
         }
 
         return [
-            ['title' => 'Grab extras', 'intro' => 'Stock up on useful materials and parts for the next build.'],
+            ['title' => 'Grab some extras', 'intro' => 'Stock up on useful materials and parts for the next build.'],
             ['title' => 'New materials and parts', 'intro' => 'Fresh supplies for prototypes, repairs and creative experiments.'],
             ['title' => 'Back in stock', 'intro' => 'Useful workshop favourites are available again.'],
             ['title' => 'Complete your next build', 'intro' => 'Handy components and materials to keep ideas moving.'],

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 class AdminDashboardService
 {
     private const PERIODS = [
+        'overview' => ['label' => 'Overview'],
         'day' => ['label' => 'This day'],
         'week' => ['label' => 'This week'],
         'month' => ['label' => 'This month'],
@@ -26,9 +27,9 @@ class AdminDashboardService
 
     private const INTERNAL_WORKSHOP_REGISTRATIONS = ['tickets'];
 
-    public function build(string $period = 'week'): array
+    public function build(string $period = 'overview'): array
     {
-        $periodKey = array_key_exists($period, self::PERIODS) ? $period : 'week';
+        $periodKey = array_key_exists($period, self::PERIODS) ? $period : 'overview';
         $periodConfig = self::PERIODS[$periodKey];
 
         $currentWindow = $this->periodWindow($periodKey, now());
@@ -66,13 +67,15 @@ class AdminDashboardService
         $analyticsVisitorsCurrent = $this->countAnalyticsVisitorsBetween($currentStart, $currentEnd);
         $analyticsVisitorsPrevious = $this->countAnalyticsVisitorsBetween($previousStart, $previousEnd);
 
-        $newUsersCurrent = $this->countUsersBetween($currentStart, $currentEnd);
-        $newUsersPrevious = $this->countUsersBetween($previousStart, $previousEnd);
-        $newSubscriptionsCurrent = $this->countSubscriptionsBetween($currentStart, $currentEnd);
-        $newSubscriptionsPrevious = $this->countSubscriptionsBetween($previousStart, $previousEnd);
+        $totalUsersCurrent = $this->countUsersAt($currentEnd);
+        $totalUsersPrevious = $this->countUsersAt($previousEnd);
+        $totalSubscriptionsCurrent = $this->countSubscriptionsAt($currentEnd);
+        $totalSubscriptionsPrevious = $this->countSubscriptionsAt($previousEnd);
 
         $workshopSalesRows = $this->topWorkshopSalesRows($currentStart, $currentEnd);
         $storeSalesRows = $this->topStoreSalesRows($currentStart, $currentEnd);
+        $trafficSourceRows = $this->topTrafficSourceRows($currentStart, $currentEnd);
+        $chartBuckets = $this->chartBuckets($periodKey, $currentStart, $currentEnd);
 
         return [
             'period' => $periodKey,
@@ -89,17 +92,17 @@ class AdminDashboardService
                     ],
                     'metrics' => [
                         $this->metric('Workshop views', $workshopViewsCurrent, $workshopViewsPrevious),
-                        $this->metric('Unique external registration clicks', $externalRegistrationClicksCurrent, $externalRegistrationClicksPrevious),
                     ],
                 ],
                 [
                     'title' => 'Tickets',
-                    'description' => 'Workshop ticket sales in the selected period.',
+                    'description' => 'Internal ticket sales and visits to external ticketing systems.',
                     'links' => [
                         ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket'],
                     ],
                     'metrics' => [
                         $this->metric('Tickets sold', $ticketsSoldCurrent, $ticketsSoldPrevious),
+                        $this->metric('Unique external registration clicks', $externalRegistrationClicksCurrent, $externalRegistrationClicksPrevious),
                     ],
                 ],
                 [
@@ -143,20 +146,388 @@ class AdminDashboardService
                 ],
                 [
                     'title' => 'Growth',
-                    'description' => 'New users and subscriptions recorded in the selected period.',
+                    'description' => 'Total verified users and confirmed email subscriptions.',
                     'links' => [
                         ['label' => 'Users', 'route' => route('admin.user.index'), 'icon' => 'fa-solid fa-users'],
                         ['label' => 'Subscriptions', 'route' => route('admin.subscription.index'), 'icon' => 'fa-solid fa-envelope-open-text'],
                     ],
                     'metrics' => [
-                        $this->metric('New users', $newUsersCurrent, $newUsersPrevious),
-                        $this->metric('New subscriptions', $newSubscriptionsCurrent, $newSubscriptionsPrevious),
+                        $this->metric('Total users', $totalUsersCurrent, $totalUsersPrevious),
+                        $this->metric('Total subscriptions', $totalSubscriptionsCurrent, $totalSubscriptionsPrevious),
                     ],
                 ],
             ],
+            'charts' => [
+                $this->workshopsChart($chartBuckets),
+                $this->ticketsChart($chartBuckets),
+                $this->storeChart($chartBuckets),
+                $this->websiteTrafficChart($chartBuckets),
+                $this->financeChart($chartBuckets),
+                $this->growthChart($chartBuckets),
+            ],
             'workshopSalesRows' => $workshopSalesRows,
             'storeSalesRows' => $storeSalesRows,
+            'trafficSourceRows' => $trafficSourceRows,
         ];
+    }
+
+    private function topTrafficSourceRows(Carbon $start, Carbon $end): Collection
+    {
+        $sessionEntries = DB::table('analytics_events as session_events')
+            ->selectRaw('MIN(session_events.id) as entry_id')
+            ->groupBy('session_events.session_token');
+        $attributionSql = $this->attributionSqlExpressions();
+
+        $attributedSessions = AnalyticsEvent::query()
+            ->joinSub($sessionEntries, 'session_entries', fn ($join) => $join->on('session_entries.entry_id', '=', 'analytics_events.id'))
+            ->where('analytics_events.created_at', '>=', $start)
+            ->where('analytics_events.created_at', '<', $end)
+            ->selectRaw($attributionSql['source'].' as source', $attributionSql['bindings'])
+            ->selectRaw($attributionSql['medium'].' as medium', $attributionSql['bindings'])
+            ->selectRaw("NULLIF(analytics_events.referrer_host, '') as raw_host");
+
+        $sourceRows = DB::query()
+            ->fromSub($attributedSessions, 'attributed_sessions')
+            ->select(['source', 'medium', 'raw_host'])
+            ->selectRaw('COUNT(*) as sessions')
+            ->groupBy(['source', 'medium', 'raw_host'])
+            ->get();
+        $sources = app(TrafficSourceNormalizer::class)->aggregate($sourceRows);
+        $totalSessions = (int) $sources->sum('sessions');
+
+        return $sources
+            ->map(function ($row) use ($totalSessions) {
+                $row->percentage = $totalSessions > 0
+                    ? round(((int) $row->sessions / $totalSessions) * 100, 1)
+                    : 0.0;
+
+                return $row;
+            })
+            ->take(10)
+            ->values();
+    }
+
+    /**
+     * @return array{source: string, medium: string, bindings: array<int, string>}
+     */
+    private function attributionSqlExpressions(): array
+    {
+        $originExpression = "LOWER(COALESCE(NULLIF(analytics_events.acquisition_source, ''), NULLIF(analytics_events.referrer_host, '')))";
+        $conditions = [];
+        $bindings = [];
+        foreach ((array) config('analytics.internal_referrer_hosts', []) as $host) {
+            $host = strtolower(trim((string) $host, ". \t\n\r\0\x0B"));
+            if ($host === '') {
+                continue;
+            }
+
+            $conditions[] = '('.$originExpression.' = ? OR '.$originExpression.' LIKE ?)';
+            $bindings[] = $host;
+            $bindings[] = '%.'.$host;
+        }
+
+        $internalCondition = $conditions !== [] ? implode(' OR ', $conditions) : '0 = 1';
+        $internalCondition = '('.$internalCondition.') OR '.$originExpression." = 'stemmechanics' OR ".$originExpression." LIKE 'stemmechanics.%' OR ".$originExpression." LIKE '%.stemmechanics.%'";
+        $externalSource = "CASE WHEN ({$internalCondition}) THEN NULL ELSE COALESCE(NULLIF(analytics_events.acquisition_source, ''), NULLIF(analytics_events.referrer_host, '')) END";
+
+        return [
+            'source' => "COALESCE(NULLIF(analytics_events.utm_source, ''), {$externalSource}, 'Direct / unknown')",
+            'medium' => "COALESCE(NULLIF(analytics_events.utm_medium, ''), CASE WHEN {$externalSource} IS NULL OR analytics_events.acquisition_source = 'Direct / unknown' THEN 'direct' ELSE 'referral' END)",
+            'bindings' => $bindings,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function workshopsChart(array $buckets): array
+    {
+        $views = $this->bucketedValues(
+            AnalyticsEvent::query()->whereIn('route_name', ['workshop.index', 'workshop.show']),
+            'analytics_events.created_at',
+            $buckets
+        );
+
+        return $this->chart('Workshops', 'Workshop Activity', 'Workshop page views throughout the selected period.', $buckets, [
+            ['label' => 'Workshop views', 'color' => 'sky', 'values' => $views],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function ticketsChart(array $buckets): array
+    {
+        $tickets = $this->bucketedValues(
+            Ticket::query()
+                ->join('workshops', 'workshops.id', '=', 'tickets.workshop_id')
+                ->whereIn('workshops.registration', self::INTERNAL_WORKSHOP_REGISTRATIONS)
+                ->whereIn('tickets.status', Ticket::activePurchasedStatuses()),
+            'tickets.created_at',
+            $buckets
+        );
+        $clicks = $this->bucketedValues(
+            AnalyticsEvent::query()
+                ->join('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
+                ->where('workshops.registration', 'link')
+                ->where('analytics_events.event_type', AnalyticsEvent::TYPE_REGISTRATION_CLICK),
+            'analytics_events.created_at',
+            $buckets,
+            'analytics_events.session_token'
+        );
+
+        return $this->chart('Tickets', 'Ticket Activity', 'Internal ticket sales and unique visits to external ticketing systems.', $buckets, [
+            ['label' => 'Tickets sold', 'color' => 'emerald', 'values' => $tickets],
+            ['label' => 'External clicks', 'color' => 'violet', 'values' => $clicks],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function storeChart(array $buckets): array
+    {
+        $storeViews = $this->bucketedValues(
+            AnalyticsEvent::query()->where('route_name', 'shop.index'),
+            'analytics_events.created_at',
+            $buckets
+        );
+        $productViews = $this->bucketedValues(
+            AnalyticsEvent::query()->where('route_name', 'shop.product.show'),
+            'analytics_events.created_at',
+            $buckets
+        );
+        $quantitySql = $this->storeItemSoldQuantitySql();
+        $itemsSold = $this->bucketedValues(
+            StoreOrderItem::query()
+                ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
+                ->whereNotNull('store_orders.paid_at')
+                ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED),
+            'store_orders.paid_at',
+            $buckets,
+            null,
+            'COALESCE(SUM('.$quantitySql.'), 0)'
+        );
+
+        return $this->chart('Store', 'Store Activity', 'Store visits, product views and items sold.', $buckets, [
+            ['label' => 'Store views', 'color' => 'sky', 'values' => $storeViews],
+            ['label' => 'Product views', 'color' => 'violet', 'values' => $productViews],
+            ['label' => 'Items sold', 'color' => 'emerald', 'values' => $itemsSold],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function growthChart(array $buckets): array
+    {
+        $users = $this->cumulativeBucketedValues(
+            User::query(),
+            'users.email_verified_at',
+            $buckets
+        );
+        $subscriptions = $this->cumulativeBucketedValues(
+            EmailSubscriptions::query(),
+            'email_subscriptions.confirmed',
+            $buckets
+        );
+
+        return $this->chart('Growth', 'Audience Growth', 'Cumulative verified users and confirmed email subscriptions.', $buckets, [
+            ['label' => 'Total users', 'color' => 'sky', 'values' => $users],
+            ['label' => 'Total subscriptions', 'color' => 'violet', 'values' => $subscriptions],
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     * @return array<int, float|int>
+     */
+    private function cumulativeBucketedValues($query, string $column, array $buckets): array
+    {
+        $baseline = (clone $query)
+            ->whereNotNull($column)
+            ->where($column, '<', $buckets[0]['start'])
+            ->count();
+        $additions = $this->bucketedValues(
+            (clone $query)->whereNotNull($column),
+            $column,
+            $buckets
+        );
+
+        $total = $baseline;
+
+        return array_map(function (float|int $addition) use (&$total): float|int {
+            $total += $addition;
+
+            return $total;
+        }, $additions);
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     * @param  array<int, array{label: string, color: string, type?: string, values: array<int, float|int>}>  $series
+     */
+    private function chart(string $card, string $title, string $description, array $buckets, array $series, string $valuePrefix = ''): array
+    {
+        return [
+            'card' => $card,
+            'title' => $title,
+            'description' => $description,
+            'valuePrefix' => $valuePrefix,
+            'labels' => array_column($buckets, 'label'),
+            'series' => $series,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     * @return array<int, float|int>
+     */
+    private function bucketedValues($query, string $column, array $buckets, ?string $distinct = null, string $aggregate = ''): array
+    {
+        $bucketSql = $this->bucketCaseSql($column, $buckets);
+        $aggregate = $aggregate !== '' ? $aggregate : ($distinct ? 'COUNT(DISTINCT '.$distinct.')' : 'COUNT(*)');
+        $rows = $query
+            ->where($column, '>=', $buckets[0]['start'])
+            ->where($column, '<', $buckets[array_key_last($buckets)]['end'])
+            ->selectRaw($bucketSql['sql'].' as bucket_index', $bucketSql['bindings'])
+            ->selectRaw($aggregate.' as aggregate_value')
+            ->groupBy('bucket_index')
+            ->toBase()
+            ->get()
+            ->keyBy(fn ($row): int => (int) $row->bucket_index);
+
+        return array_map(
+            fn (int $index): float => (float) ($rows->get($index)->aggregate_value ?? 0),
+            array_keys($buckets)
+        );
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function websiteTrafficChart(array $buckets): array
+    {
+        $bucketSql = $this->bucketCaseSql('created_at', $buckets);
+        $rows = AnalyticsEvent::query()
+            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->where('created_at', '>=', $buckets[0]['start'])
+            ->where('created_at', '<', $buckets[array_key_last($buckets)]['end'])
+            ->selectRaw($bucketSql['sql'].' as bucket_index', $bucketSql['bindings'])
+            ->selectRaw('COUNT(*) as views, COUNT(DISTINCT visitor_hash) as visitors')
+            ->groupBy('bucket_index')
+            ->toBase()
+            ->get()
+            ->keyBy(fn ($row): int => (int) $row->bucket_index);
+
+        return [
+            'card' => 'Website',
+            'title' => 'Website Traffic',
+            'description' => 'Page views and unique visitors throughout the selected period.',
+            'valuePrefix' => '',
+            'labels' => array_column($buckets, 'label'),
+            'series' => [
+                ['label' => 'Page views', 'color' => 'sky', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)->views ?? 0), array_keys($buckets))],
+                ['label' => 'Unique visitors', 'color' => 'violet', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)->visitors ?? 0), array_keys($buckets))],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     */
+    private function financeChart(array $buckets): array
+    {
+        $paymentBucketSql = $this->bucketCaseSql('received_on', $buckets);
+        $payments = Payment::query()
+            ->whereNotNull('received_on')
+            ->where('received_on', '>=', $buckets[0]['start'])
+            ->where('received_on', '<', $buckets[array_key_last($buckets)]['end'])
+            ->selectRaw($paymentBucketSql['sql'].' as bucket_index', $paymentBucketSql['bindings'])
+            ->selectRaw('SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as income, SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as refunds', [Payment::KIND_PAYMENT, Payment::KIND_REFUND])
+            ->groupBy('bucket_index')
+            ->toBase()
+            ->get()
+            ->keyBy(fn ($row): int => (int) $row->bucket_index);
+
+        $expenseBucketSql = $this->bucketCaseSql('paid_on', $buckets);
+        $expenses = Expense::query()
+            ->whereNotNull('paid_on')
+            ->where('paid_on', '>=', $buckets[0]['start']->toDateString())
+            ->where('paid_on', '<', $buckets[array_key_last($buckets)]['end']->toDateString())
+            ->selectRaw($expenseBucketSql['sql'].' as bucket_index', $expenseBucketSql['bindings'])
+            ->selectRaw('SUM(total_amount) as expenses')
+            ->groupBy('bucket_index')
+            ->toBase()
+            ->get()
+            ->keyBy(fn ($row): int => (int) $row->bucket_index);
+
+        $netIncome = [];
+        $expenseValues = [];
+        $profit = [];
+        foreach (array_keys($buckets) as $index) {
+            $bucketIncome = round((float) ($payments->get($index)->income ?? 0), 2);
+            $bucketRefunds = round((float) ($payments->get($index)->refunds ?? 0), 2);
+            $bucketExpenses = round((float) ($expenses->get($index)->expenses ?? 0), 2);
+            $netIncome[] = round($bucketIncome - $bucketRefunds, 2);
+            $expenseValues[] = $bucketExpenses;
+            $profit[] = round($bucketIncome - $bucketRefunds - $bucketExpenses, 2);
+        }
+
+        return [
+            'card' => 'Finance',
+            'title' => 'Financial Performance',
+            'description' => 'Income after refunds and expenses, with the resulting profit shown as a line.',
+            'valuePrefix' => '$',
+            'labels' => array_column($buckets, 'label'),
+            'series' => [
+                ['label' => 'Net income', 'color' => 'sky', 'type' => 'bar', 'values' => $netIncome],
+                ['label' => 'Expenses', 'color' => 'amber', 'type' => 'bar', 'values' => $expenseValues],
+                ['label' => 'Profit', 'color' => 'emerald', 'type' => 'line', 'values' => $profit],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, array{label: string, start: Carbon, end: Carbon}>
+     */
+    private function chartBuckets(string $period, Carbon $start, Carbon $end): array
+    {
+        $buckets = [];
+        $cursor = (clone $start);
+        $endExclusive = (clone $end)->addMicrosecond();
+
+        while ($cursor->lt($endExclusive)) {
+            $bucketStart = clone $cursor;
+            [$next, $label] = match ($period) {
+                'day' => [(clone $cursor)->addHours(4), $cursor->format('ga')],
+                'year', 'overview' => [(clone $cursor)->addMonth(), $cursor->format('M Y')],
+                'quarter' => [(clone $cursor)->addWeek(), $cursor->format('j M')],
+                default => [(clone $cursor)->addDay(), $cursor->format('D j')],
+            };
+            $bucketEnd = $next->min($endExclusive);
+            $buckets[] = ['label' => $label, 'start' => $bucketStart, 'end' => $bucketEnd];
+            $cursor = $next;
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * @param  array<int, array{label: string, start: Carbon, end: Carbon}>  $buckets
+     * @return array{sql: string, bindings: array<int, Carbon|string>}
+     */
+    private function bucketCaseSql(string $column, array $buckets): array
+    {
+        $parts = [];
+        $bindings = [];
+        foreach ($buckets as $index => $bucket) {
+            $parts[] = "WHEN {$column} >= ? AND {$column} < ? THEN {$index}";
+            $bindings[] = $column === 'paid_on' ? $bucket['start']->toDateString() : $bucket['start'];
+            $bindings[] = $column === 'paid_on' ? $bucket['end']->toDateString() : $bucket['end'];
+        }
+
+        return ['sql' => '(CASE '.implode(' ', $parts).' END)', 'bindings' => $bindings];
     }
 
     private function metric(string $label, float|int $current, float|int $previous, int $decimals = 0): array
@@ -231,9 +602,13 @@ class AdminDashboardService
      */
     private function periodWindow(string $period, Carbon $reference): array
     {
-        $period = array_key_exists($period, self::PERIODS) ? $period : 'week';
+        $period = array_key_exists($period, self::PERIODS) ? $period : 'overview';
 
         return match ($period) {
+            'overview' => [
+                'start' => (clone $reference)->startOfMonth()->subMonths(11),
+                'end' => (clone $reference)->endOfDay(),
+            ],
             'day' => [
                 'start' => (clone $reference)->startOfDay(),
                 'end' => (clone $reference)->endOfDay(),
@@ -319,19 +694,19 @@ class AdminDashboardService
             ->count('visitor_hash');
     }
 
-    private function countUsersBetween(Carbon $start, Carbon $end): int
+    private function countUsersAt(Carbon $end): int
     {
         return User::query()
-            ->where('created_at', '>=', $start)
-            ->where('created_at', '<', $end)
+            ->whereNotNull('email_verified_at')
+            ->where('email_verified_at', '<', $end)
             ->count();
     }
 
-    private function countSubscriptionsBetween(Carbon $start, Carbon $end): int
+    private function countSubscriptionsAt(Carbon $end): int
     {
         return EmailSubscriptions::query()
-            ->where('created_at', '>=', $start)
-            ->where('created_at', '<', $end)
+            ->whereNotNull('confirmed')
+            ->where('confirmed', '<', $end)
             ->count();
     }
 
@@ -420,7 +795,7 @@ class AdminDashboardService
             ->orderByDesc('tickets_sold')
             ->orderByDesc('unique_clicks')
             ->orderBy('workshops.starts_at')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(
                 /**
@@ -482,8 +857,8 @@ class AdminDashboardService
             ->where('analytics_events.created_at', '>=', $start)
             ->where('analytics_events.created_at', '<', $end)
             ->where('analytics_events.path', 'like', '/store/%')
-            ->selectRaw("SUBSTR(analytics_events.path, 8) as product_slug, COUNT(*) as views")
-            ->groupBy(DB::raw("SUBSTR(analytics_events.path, 8)"));
+            ->selectRaw('SUBSTR(analytics_events.path, 8) as product_slug, COUNT(*) as views')
+            ->groupBy(DB::raw('SUBSTR(analytics_events.path, 8)'));
 
         return DB::table('store_order_items')
             ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
@@ -505,7 +880,7 @@ class AdminDashboardService
             ->orderByDesc('items_sold')
             ->orderByDesc('views')
             ->orderBy('store_order_items.product_title')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(
                 /**

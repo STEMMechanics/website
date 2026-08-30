@@ -7,6 +7,7 @@
                 <div class="grid w-full gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
                     <div class="w-full min-w-0">
                         <x-ui.select label="Period" name="period" onchange="this.form.submit()">
+                            <option value="overview" {{ $period === 'overview' ? 'selected' : '' }}>Overview (12 months)</option>
                             <option value="day" {{ $period === 'day' ? 'selected' : '' }}>This day</option>
                             <option value="week" {{ $period === 'week' ? 'selected' : '' }}>This week</option>
                             <option value="month" {{ $period === 'month' ? 'selected' : '' }}>This month</option>
@@ -56,14 +57,62 @@
                             </div>
                         @endforeach
                     </div>
+                    @php $cardChart = collect($charts)->firstWhere('card', $card['title']); @endphp
+                    @if($cardChart)
+                        @include('admin.dashboard._chart', ['chart' => $cardChart])
+                    @endif
                 </section>
             @endforeach
         </div>
 
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Traffic Sources</h2>
+                    <p class="mt-1 text-sm text-gray-500">First-touch sources for sessions in the selected period.</p>
+                </div>
+                <a href="{{ route('admin.analytics.index') }}" class="text-sm font-semibold text-primary-color hover:underline">View full analytics report</a>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                <x-ui.table>
+                    <x-slot:header>
+                        <th>Source</th>
+                        <th>Medium</th>
+                        <th class="text-right">Sessions</th>
+                        <th class="text-right">Percentage</th>
+                    </x-slot:header>
+                    <x-slot:body>
+                        @forelse($trafficSourceRows as $source)
+                            <tr>
+                                <td>
+                                    <div class="font-semibold text-gray-900">{{ $source->source }}</div>
+                                    @if($source->source_urls !== [])
+                                        <div class="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs font-normal">
+                                            @foreach($source->source_urls as $sourceHost)
+                                                <a href="https://{{ $sourceHost }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline">{{ $sourceHost }}</a>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </td>
+                                <td>{{ $source->medium }}</td>
+                                <td class="text-right">{{ number_format((int) $source->sessions) }}</td>
+                                <td class="text-right font-semibold text-gray-900">{{ number_format((float) $source->percentage, 1) }}%</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-gray-500">No traffic source data yet.</td>
+                            </tr>
+                        @endforelse
+                    </x-slot:body>
+                </x-ui.table>
+            </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Top Workshop Activity</h2>
+                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Workshop Activity</h2>
                     <p class="mt-1 text-sm text-gray-500">Workshop views and registration activity in the selected period.</p>
                 </div>
             </div>
@@ -123,7 +172,7 @@
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Top Store Item Views and Sales</h2>
+                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Store Item Views and Sales</h2>
                     <p class="mt-1 text-sm text-gray-500">Store item views and item sales in the selected period.</p>
                 </div>
             </div>

@@ -424,7 +424,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/expenses/create', [ExpenseController::class, 'create'])->name('admin.expense.create');
     Route::post('/admin/expenses', [ExpenseController::class, 'store'])->name('admin.expense.store');
     Route::get('/admin/expenses/{expense}', [ExpenseController::class, 'edit'])->name('admin.expense.edit');
-    Route::put('/admin/expenses/{expense}', [ExpenseController::class, 'update'])->name('admin.expense.update');
+    Route::match(['post', 'put'], '/admin/expenses/{expense}', [ExpenseController::class, 'update'])->name('admin.expense.update');
     Route::delete('/admin/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('admin.expense.destroy');
     Route::get('/admin/expenses/{expense}/document', [ExpenseController::class, 'viewDocument'])->name('admin.expense.document.view');
     Route::get('/admin/expenses/{expense}/document/download', [ExpenseController::class, 'downloadDocument'])->name('admin.expense.document.download');

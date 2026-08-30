@@ -11,6 +11,6 @@ class DashboardController extends Controller
 {
     public function index(Request $request, AdminDashboardService $dashboard): View
     {
-        return view('admin.dashboard.index', $dashboard->build((string) $request->query('period', 'week')));
+        return view('admin.dashboard.index', $dashboard->build((string) $request->query('period', 'overview')));
     }
 }
