@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Organisation;
 use App\Models\User;
+use App\Services\InvoiceEmailTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -165,7 +166,9 @@ class OrganisationController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.organisation.edit', compact('organisation', 'organisations'));
+        $invoiceEmailSiteDefaults = app(InvoiceEmailTemplateService::class)->organisationDefaults();
+
+        return view('admin.organisation.edit', compact('organisation', 'organisations', 'invoiceEmailSiteDefaults'));
     }
 
     /**
@@ -181,6 +184,22 @@ class OrganisationController extends Controller
                 'exists:organisations,id',
                 Rule::notIn(array_filter([$organisation?->id])),
             ],
+            'billing_address' => ['nullable', 'string', 'max:255', 'required_with:billing_city,billing_postcode,billing_country,billing_state'],
+            'billing_address2' => ['nullable', 'string', 'max:255'],
+            'billing_city' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_postcode,billing_country,billing_state'],
+            'billing_state' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_city,billing_postcode,billing_country'],
+            'billing_postcode' => ['nullable', 'string', 'max:40', 'required_with:billing_address,billing_city,billing_country,billing_state'],
+            'billing_country' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_city,billing_postcode,billing_state'],
+            'shipping_address' => ['nullable', 'string', 'max:255', 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state'],
+            'shipping_address2' => ['nullable', 'string', 'max:255'],
+            'shipping_city' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state'],
+            'shipping_state' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country'],
+            'shipping_postcode' => ['nullable', 'string', 'max:40', 'required_with:shipping_address,shipping_city,shipping_country,shipping_state'],
+            'shipping_country' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state'],
+            'invoice_email_to' => ['nullable', 'string', 'max:2000', 'required_with:invoice_email_subject,invoice_email_message'],
+            'invoice_email_cc' => ['nullable', 'string', 'max:2000'],
+            'invoice_email_subject' => ['nullable', 'string', 'max:255', 'required_with:invoice_email_to,invoice_email_message'],
+            'invoice_email_message' => ['nullable', 'string', 'max:10000', 'required_with:invoice_email_to,invoice_email_subject'],
             'notes' => ['nullable', 'string'],
             'contact_ids' => ['nullable', 'array'],
             'contact_ids.*' => ['uuid', 'exists:users,id'],

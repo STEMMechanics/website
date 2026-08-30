@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
+use App\Jobs\SendScheduledInvoiceEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\InvoicePaymentLink;
@@ -18,6 +19,7 @@ use App\Models\Ticket;
 use App\Models\Token;
 use App\Models\User;
 use App\Services\DocumentNumberService;
+use App\Services\InvoiceEmailTemplateService;
 use App\Services\SquareApiService;
 use App\Services\StoreOrderService;
 use App\Support\EmailSignatureFormatter;
@@ -46,7 +48,7 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $query = Invoice::query()
-            ->with(['user', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets', 'storeOrders.items.trackingEntries']);
+            ->with(['user.primaryOrganisation', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets', 'storeOrders.items.trackingEntries']);
 
         $status = trim((string) $request->query('status', ''));
         if ($status !== '' && in_array($status, Invoice::STATUSES, true)) {
@@ -152,13 +154,16 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
             $invoice->updateFiles($request->input('private_files'), 'private');
         }
 
-        session()->flash('message', 'Invoice has been created');
-        session()->flash('message-title', 'Invoice created');
+        $sentScheduledNow = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
+
+        session()->flash('message', $sentScheduledNow ? 'Invoice has been finalised and its scheduled email has been queued.' : 'Invoice has been created');
+        session()->flash('message-title', $sentScheduledNow ? 'Invoice queued' : 'Invoice created');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.invoice.index');
@@ -219,6 +224,10 @@ class InvoiceController extends Controller
                 $invoice->updateFiles($request->input('private_files'), 'private');
             }
 
+            if ($request->boolean('save_and_email')) {
+                session()->flash('invoice-email-open', true);
+            }
+
             session()->flash('message', 'Purchase order number and notes have been updated');
             session()->flash('message-title', 'Invoice updated');
             session()->flash('message-type', 'success');
@@ -253,17 +262,20 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
             $invoice->updateFiles($request->input('private_files'), 'private');
         }
 
+        $sentScheduledNow = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
+
         if ($request->boolean('save_and_email') && (string) $invoice->status !== Invoice::STATUS_DRAFT) {
             session()->flash('invoice-email-open', true);
         }
 
-        session()->flash('message', 'Invoice has been updated');
-        session()->flash('message-title', 'Invoice updated');
+        session()->flash('message', $sentScheduledNow ? 'Invoice has been finalised and its scheduled email has been queued.' : 'Invoice has been updated');
+        session()->flash('message-title', $sentScheduledNow ? 'Invoice queued' : 'Invoice updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
@@ -737,15 +749,21 @@ class InvoiceController extends Controller
 
     public function emailPdf(Request $request, Invoice $invoice): RedirectResponse
     {
-        $invoice->loadMissing('user');
-        $emailMessage = trim((string) $request->input('email_message', ''));
-        if ($emailMessage === '') {
-            $emailMessage = $this->defaultInvoiceEmailMessage($invoice);
-        }
-        $subjectLine = trim((string) $request->input('subject_line', ''));
-        if ($subjectLine === '') {
-            $subjectLine = $this->defaultInvoiceEmailSubject($invoice);
-        }
+        $invoice->loadMissing('user.primaryOrganisation');
+        $templates = app(InvoiceEmailTemplateService::class);
+        $resolvedTemplate = $templates->resolve($invoice);
+        $template = [
+            'recipient_emails' => trim((string) $request->input('recipient_emails', $resolvedTemplate['recipient_emails'])),
+            'cc_emails' => trim((string) $request->input('cc_emails', $resolvedTemplate['cc_emails'])),
+            'subject_line' => trim((string) $request->input('subject_line', $resolvedTemplate['subject_line'])),
+            'email_message' => trim((string) $request->input('email_message', $resolvedTemplate['email_message'])),
+        ];
+        $emailMessage = $templates->expandContactEmail($template['email_message'], $invoice);
+        $subjectLine = $templates->expandContactEmail($template['subject_line'], $invoice);
+        $request->merge([
+            'recipient_emails' => $templates->expandContactEmail($template['recipient_emails'], $invoice),
+            'cc_emails' => $templates->expandContactEmail($template['cc_emails'], $invoice),
+        ]);
         $invoiceDueDate = $invoice->due_date?->format('M j, Y');
         $invoiceOutstanding = (float) $invoice->displayOutstandingAmount();
 
@@ -764,6 +782,15 @@ class InvoiceController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors($e->errors());
+        }
+
+        $templates->save($invoice, $template);
+        if ($request->boolean('save_template_only')) {
+            session()->flash('message', 'Invoice email template has been saved');
+            session()->flash('message-title', 'Email template saved');
+            session()->flash('message-type', 'success');
+
+            return redirect()->back();
         }
 
         $pdfBinary = $this->buildInvoicePdf($invoice)->output();
@@ -1331,61 +1358,20 @@ class InvoiceController extends Controller
         return array_values($normalized);
     }
 
-    private function defaultInvoiceEmailMessage(Invoice $invoice): string
-    {
-        $nameSource = trim((string) ($invoice->user?->getName() ?? $invoice->billing_name ?? ''));
-        $name = trim((string) strtok($nameSource, ' '));
-        if ($name === '') {
-            $name = $nameSource !== '' ? $nameSource : 'there';
-        }
-
-        $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
-        $total = money((float) ($invoice->total_amount ?? 0));
-        $due = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
-        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
-            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. This invoice has been cancelled and no amount is owing.\n\nPlease don't hesitate to reach out if you have any questions.";
-        }
-        if ((string) $invoice->status === Invoice::STATUS_WRITTEN_OFF) {
-            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. This invoice has been written off and no amount is owing.\n\nPlease don't hesitate to reach out if you have any questions.";
-        }
-
-        $outstanding = (float) $invoice->displayOutstandingAmount();
-        $isPaidInFull = $outstanding <= 0.0001;
-
-        if ($invoice->isTicketInvoice()) {
-            if ($isPaidInFull) {
-                return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for your workshop ticket booking. The total cost was {$total}, and this invoice has now been paid in full.\n\nPlease don't hesitate to reach out if you have any questions.";
-            }
-
-            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for your workshop ticket booking. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
-        }
-
-        if ($isPaidInFull) {
-            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost was {$total}, and this invoice has now been paid in full.\n\nPlease don't hesitate to reach out if you have any questions.";
-        }
-
-        return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
-    }
-
-    private function defaultInvoiceEmailSubject(Invoice $invoice): string
-    {
-        $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
-
-        return 'Your Invoice '.($invoiceNumber !== '' ? $invoiceNumber : 'TBD').' from STEMMechanics';
-    }
-
     /**
      * @return array{action:string, invoice_number:string, recipient_emails:string, subject_line:string, cc_emails:string, email_message:string}
      */
     private function invoiceEmailPayload(Invoice $invoice): array
     {
+        $template = app(InvoiceEmailTemplateService::class)->resolve($invoice);
+
         return [
             'action' => route('admin.invoice.email', $invoice),
             'invoice_number' => (string) ($invoice->invoice_number ?? ''),
-            'recipient_emails' => $this->resolveInvoiceContactEmail($invoice),
-            'subject_line' => $this->defaultInvoiceEmailSubject($invoice),
-            'cc_emails' => '',
-            'email_message' => $this->defaultInvoiceEmailMessage($invoice),
+            'recipient_emails' => $template['recipient_emails'],
+            'subject_line' => $template['subject_line'],
+            'cc_emails' => $template['cc_emails'],
+            'email_message' => $template['email_message'],
         ];
     }
 
@@ -1971,6 +1957,41 @@ class InvoiceController extends Controller
         return User::query()->find($userId)?->accountTermsDays() ?? 28;
     }
 
+    private function queueScheduledInvoiceNowIfRequested(Request $request, Invoice $invoice): bool
+    {
+        if (! $request->boolean('send_scheduled_now')
+            || ! $invoice->scheduled_email
+            || ! $invoice->issue_date?->lte(today())
+            || (string) $invoice->status !== Invoice::STATUS_DRAFT) {
+            return false;
+        }
+
+        $invoice->update([
+            'status' => Invoice::STATUS_ISSUED,
+            'issued_at' => now(),
+            'scheduled_email_queued_at' => now(),
+            'scheduled_email_failure' => null,
+            'scheduled_email_failed_at' => null,
+        ]);
+        SendScheduledInvoiceEmail::dispatch((int) $invoice->id);
+
+        return true;
+    }
+
+    private function saveSubmittedInvoiceEmailTemplate(Request $request, Invoice $invoice): void
+    {
+        if (! $request->boolean('email_template_pending')) {
+            return;
+        }
+
+        app(InvoiceEmailTemplateService::class)->save($invoice, [
+            'recipient_emails' => (string) $request->input('recipient_emails', ''),
+            'cc_emails' => (string) $request->input('cc_emails', ''),
+            'subject_line' => (string) $request->input('subject_line', ''),
+            'email_message' => (string) $request->input('email_message', ''),
+        ]);
+    }
+
     private function validateRequest(Request $request, ?Invoice $invoice = null): array
     {
         $isLocked = $invoice instanceof Invoice && ! $invoice->canEditContents();
@@ -1992,6 +2013,12 @@ class InvoiceController extends Controller
             'user_id' => ['nullable', 'exists:users,id'],
             'issue_now' => ['nullable', 'boolean'],
             'scheduled_email' => ['nullable', 'boolean'],
+            'send_scheduled_now' => ['nullable', 'boolean'],
+            'email_template_pending' => ['nullable', 'boolean'],
+            'recipient_emails' => ['nullable', 'string', 'max:2000', 'required_if:email_template_pending,1'],
+            'cc_emails' => ['nullable', 'string', 'max:2000'],
+            'subject_line' => ['nullable', 'string', 'max:255', 'required_if:email_template_pending,1'],
+            'email_message' => ['nullable', 'string', 'max:10000', 'required_if:email_template_pending,1'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'purchase_order_number' => ['nullable', 'string', 'max:120'],
@@ -2005,11 +2032,6 @@ class InvoiceController extends Controller
             'private_file_ids' => ['nullable', 'string'],
         ]);
 
-        if ($request->boolean('scheduled_email') && Carbon::parse($validated['issue_date'])->lte(today())) {
-            throw ValidationException::withMessages([
-                'issue_date' => 'A scheduled invoice must have a future issue date.',
-            ]);
-        }
         if ($request->boolean('scheduled_email')) {
             $recipient = trim((string) ($invoice?->billing_email ?: User::query()->find($validated['user_id'] ?? null)?->email));
             if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
