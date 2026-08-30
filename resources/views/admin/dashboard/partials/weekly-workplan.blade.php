@@ -76,17 +76,5 @@
             </section>
         </div>
 
-        <div class="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            @foreach([
-                ['Page views', number_format($workplan['stats']['page_views'])],
-                ['Visitors', number_format($workplan['stats']['visitors'])],
-                ['Store views', number_format($workplan['stats']['store_views'])],
-                ['Workshop views', number_format($workplan['stats']['workshop_views'])],
-                ['Orders', number_format($workplan['stats']['orders'])],
-                ['Tickets sold', number_format($workplan['stats']['tickets_sold'])],
-            ] as [$label, $value])
-                <div class="rounded-xl bg-gray-50 p-3"><div class="text-xs text-gray-500">Last week · {{ $label }}</div><div class="mt-1 font-bold text-gray-900">{{ $value }}</div></div>
-            @endforeach
-        </div>
     </div>
 </details>
