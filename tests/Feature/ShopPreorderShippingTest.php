@@ -56,6 +56,11 @@ class ShopPreorderShippingTest extends TestCase
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_method_code' => 'pickup',
             'notes' => 'Pickup please.',
         ]);
@@ -99,6 +104,11 @@ class ShopPreorderShippingTest extends TestCase
             'billing_name' => 'Taylor Example',
             'billing_email' => 'taylor@example.com',
             'billing_phone' => '0400789000',
+            'billing_address' => '42 Test Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_method_code' => 'pickup',
         ]);
 

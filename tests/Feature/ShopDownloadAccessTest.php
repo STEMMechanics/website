@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Media;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
+use App\Models\Media;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StoreOrder;
@@ -50,6 +50,11 @@ class ShopDownloadAccessTest extends TestCase
             'billing_name' => 'Jamie Example',
             'billing_email' => 'jamie@example.com',
             'billing_phone' => '0400654321',
+            'billing_address' => '12 Digital Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
         ])->assertRedirect();
 
         $order = StoreOrder::query()->with('items.downloads')->firstOrFail();

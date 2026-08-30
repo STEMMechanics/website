@@ -16,11 +16,14 @@
             </div>
             <p class="mt-1 pl-4 text-sm text-gray-500">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}.</p>
         </div>
+        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+            <a href="{{ route('admin.dashboard.workplan.pdf') }}" target="_blank" rel="noopener noreferrer" class="flex size-11 items-center justify-center text-2xl text-gray-700 transition hover:text-primary-color" title="Open printable PDF" aria-label="Open printable PDF"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></a>
+        </div>
     </summary>
 
     <div class="border-t border-gray-100 p-5">
-        <div class="grid gap-5 lg:grid-cols-2 xl:grid-cols-[14rem_minmax(0,1fr)_minmax(0,1fr)]">
-            <section class="grid self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
+        <div class="grid gap-5 lg:grid-cols-2">
+            <section class="grid self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 lg:grid-cols-5">
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-gray-200 bg-gray-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-gray-600">Invoices due</div><div class="text-3xl font-bold text-gray-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
@@ -93,6 +96,7 @@
             </section>
             </div>
 
+            <div class="space-y-5">
             <section>
                 <h3 class="font-semibold text-gray-900">Suggested follow-ups</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
@@ -125,6 +129,26 @@
                     @endif
                 </div>
             </section>
+
+            <section>
+                <h3 class="font-semibold text-gray-900">Website last week</h3>
+                <div class="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 p-3">
+                    @foreach([
+                        'page_views' => 'Page views',
+                        'visitors' => 'Unique visitors',
+                        'store_views' => 'Store views',
+                        'workshop_views' => 'Workshop views',
+                    ] as $statKey => $statLabel)
+                        @php($change = $workplan['websiteChanges'][$statKey])
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $statLabel }}</div>
+                            <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($workplan['stats'][$statKey]) }}</div>
+                            <div class="mt-1 text-xs font-semibold {{ $change['direction'] === 'growth' ? 'text-emerald-700' : ($change['direction'] === 'decline' ? 'text-rose-700' : 'text-gray-500') }}">{{ $change['label'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+            </div>
         </div>
 
     </div>

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\StoreOrder;
+use App\Models\StoreShippingMethod;
 use App\Models\TaxAdjustment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,6 +13,62 @@ use Tests\TestCase;
 class InvoicePdfPaymentDetailsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_invoice_only_shows_a_different_delivery_address_for_shipped_orders(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'billing_name' => 'Alex Billing',
+            'billing_address' => '10 Accounts Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
+        ]);
+        $order = StoreOrder::factory()->for($invoice)->create([
+            'contains_physical' => true,
+            'shipping_method_code' => 'regular',
+            'shipping_name' => 'Sam Recipient',
+            'shipping_address' => '22 Delivery Road',
+            'shipping_city' => 'Cairns',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4870',
+            'shipping_country' => 'Australia',
+        ]);
+        $render = fn (): string => view('pdf.invoice', [
+            'invoice' => $invoice->fresh(['user', 'storeOrders']),
+            'itemPages' => [[[
+                'kind' => 'shipping',
+                'description' => 'Regular shipping',
+                'quantity' => 1,
+                'unit_price_ex_tax' => 10,
+                'tax_rate' => 0.1,
+                'line_total_ex_tax' => 10,
+            ]]],
+            'adjustments' => collect(),
+        ])->render();
+
+        $html = $render();
+        $this->assertStringContainsString('Ship to', $html);
+        $this->assertStringContainsString('Sam Recipient', $html);
+        $this->assertStringContainsString('22 Delivery Road', $html);
+        $this->assertStringContainsString('Regular shipping', $html);
+        $this->assertLessThan(strpos($html, 'Ship to:'), strpos($html, 'Regular shipping'));
+
+        $order->update([
+            'shipping_name' => 'Alex Billing',
+            'shipping_address' => '10 Accounts Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+        ]);
+        $this->assertStringNotContainsString('Ship to', $render());
+
+        $order->update([
+            'shipping_method_code' => StoreShippingMethod::CODE_PICKUP,
+            'shipping_address' => '22 Delivery Road',
+        ]);
+        $this->assertStringNotContainsString('Ship to', $render());
+    }
 
     public function test_paid_invoice_uses_outstanding_balance_and_lists_each_payment(): void
     {

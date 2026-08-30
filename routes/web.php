@@ -220,6 +220,7 @@ Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock']
 Route::middleware(['admin', 'nocache'])->group(function () {
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
     Route::get('/admin/media/duplicates', [MediaController::class, 'admin_duplicates'])->name('admin.media.duplicates');
     Route::post('/admin/media/duplicates/merge', [MediaController::class, 'admin_merge_duplicates'])->name('admin.media.duplicates.merge');

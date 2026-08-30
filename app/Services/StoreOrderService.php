@@ -3032,6 +3032,13 @@ class StoreOrderService
             $invoice->billing_name = $customer['billing_name'];
             $invoice->billing_email = $customer['billing_email'];
             $invoice->billing_phone = $customer['billing_phone'];
+            $invoice->billing_company = $customer['billing_company'];
+            $invoice->billing_address = $customer['billing_address'];
+            $invoice->billing_address2 = $customer['billing_address2'];
+            $invoice->billing_city = $customer['billing_city'];
+            $invoice->billing_state = $customer['billing_state'];
+            $invoice->billing_postcode = $customer['billing_postcode'];
+            $invoice->billing_country = $customer['billing_country'];
             $invoice->status = $totals['total'] <= 0.0001 ? Invoice::STATUS_PAID : Invoice::STATUS_ISSUED;
             $invoice->issue_date = Carbon::today();
             $invoice->issued_at = now();
@@ -3661,6 +3668,14 @@ class StoreOrderService
                 $user->shipping_postcode = $customer['shipping_postcode'];
                 $user->shipping_country = $customer['shipping_country'];
             }
+            if ($customer['billing_address'] !== '') {
+                $user->billing_address = $customer['billing_address'];
+                $user->billing_address2 = $customer['billing_address2'];
+                $user->billing_city = $customer['billing_city'];
+                $user->billing_state = $customer['billing_state'];
+                $user->billing_postcode = $customer['billing_postcode'];
+                $user->billing_country = $customer['billing_country'];
+            }
             $user->save();
         }
     }
@@ -4243,6 +4258,12 @@ class StoreOrderService
             'billing_email' => strtolower(trim((string) ($payload['billing_email'] ?? ''))),
             'billing_phone' => trim((string) ($payload['billing_phone'] ?? '')),
             'billing_company' => trim((string) ($payload['billing_company'] ?? '')),
+            'billing_address' => trim((string) ($payload['billing_address'] ?? '')),
+            'billing_address2' => trim((string) ($payload['billing_address2'] ?? '')),
+            'billing_city' => trim((string) ($payload['billing_city'] ?? '')),
+            'billing_state' => trim((string) ($payload['billing_state'] ?? '')),
+            'billing_postcode' => trim((string) ($payload['billing_postcode'] ?? '')),
+            'billing_country' => trim((string) ($payload['billing_country'] ?? 'Australia')) ?: 'Australia',
             'shipping_name' => trim((string) ($payload['shipping_name'] ?? '')),
             'shipping_phone' => trim((string) ($payload['shipping_phone'] ?? '')),
             'shipping_address' => trim((string) ($payload['shipping_address'] ?? '')),

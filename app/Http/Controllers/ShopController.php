@@ -7,8 +7,8 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\User;
-use App\Services\StoreCartService;
 use App\Services\AccountCreditService;
+use App\Services\StoreCartService;
 use App\Services\StoreOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -39,9 +39,7 @@ class ShopController extends Controller
         'WA' => 'Western Australia',
     ];
 
-    public function __construct(private readonly AccountCreditService $accountCredit)
-    {
-    }
+    public function __construct(private readonly AccountCreditService $accountCredit) {}
 
     public function index(Request $request, StoreCartService $cart): View
     {
@@ -406,6 +404,7 @@ class ShopController extends Controller
             session()->flash('message', $summary['coupon_error']);
             session()->flash('message-title', 'Voucher not applied');
             session()->flash('message-type', 'danger');
+
             return redirect()->to($redirectUrl)->withInput([
                 'coupon_code' => $couponCode,
             ]);
@@ -478,6 +477,7 @@ class ShopController extends Controller
         $userShippingCity = $user instanceof User ? trim((string) $user->shipping_city) : '';
         $userShippingState = $user instanceof User ? trim((string) $user->shipping_state) : '';
         $userShippingPostcode = $user instanceof User ? trim((string) $user->shipping_postcode) : '';
+        $userBilling = $user instanceof User ? $user->resolvedBillingAddress() : ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
 
         if ($userShippingCountry !== '' && strcasecmp($userShippingCountry, self::AUSTRALIA_SHIPPING_COUNTRY) !== 0) {
             $userShippingAddress = '';
@@ -533,6 +533,13 @@ class ShopController extends Controller
                 'billing_email' => $billingEmail,
                 'billing_phone' => trim((string) old('billing_phone', $storedCustomer['billing_phone'] ?? $userPhone)),
                 'billing_company' => trim((string) old('billing_company', $storedCustomer['billing_company'] ?? $userCompany)),
+                'shipping_same_as_billing' => (bool) old('shipping_same_as_billing', $storedCustomer['shipping_same_as_billing'] ?? $storedCustomer['billing_same_as_shipping'] ?? true),
+                'billing_address' => trim((string) old('billing_address', $storedCustomer['billing_address'] ?? $userBilling['address'])),
+                'billing_address2' => trim((string) old('billing_address2', $storedCustomer['billing_address2'] ?? $userBilling['address2'])),
+                'billing_city' => trim((string) old('billing_city', $storedCustomer['billing_city'] ?? $userBilling['city'])),
+                'billing_state' => $this->normalizeAustralianState(old('billing_state', $storedCustomer['billing_state'] ?? $userBilling['state'])),
+                'billing_postcode' => trim((string) old('billing_postcode', $storedCustomer['billing_postcode'] ?? $userBilling['postcode'])),
+                'billing_country' => self::AUSTRALIA_SHIPPING_COUNTRY,
                 'shipping_name' => trim((string) old('shipping_name', $storedCustomer['shipping_name'] ?? $userName)),
                 'shipping_phone' => trim((string) old('shipping_phone', $storedCustomer['shipping_phone'] ?? $userPhone)),
                 'shipping_address' => trim((string) old('shipping_address', $storedCustomer['shipping_address'] ?? $userShippingAddress)),
@@ -580,12 +587,19 @@ class ShopController extends Controller
         $shippingRequired = (bool) ($checkoutPreview['contains_physical'] ?? false)
             && ! (bool) ($checkoutPreview['shipping_quote']['is_pickup'] ?? false);
         $normalizedShippingState = $this->normalizeAustralianState($request->input('shipping_state'));
+        $normalizedBillingState = $this->normalizeAustralianState($request->input('billing_state'));
 
         if ($normalizedShippingState !== '') {
             $request->merge([
                 'shipping_state' => $normalizedShippingState,
             ]);
         }
+        if ($normalizedBillingState !== '') {
+            $request->merge(['billing_state' => $normalizedBillingState]);
+        }
+
+        $shippingSameAsBilling = $shippingRequired && $request->boolean('shipping_same_as_billing');
+        $shippingDetailsRequired = $shippingRequired && ! $shippingSameAsBilling;
 
         $accountTermsDays = $request->user() instanceof User && $request->user()->hasAccountTerms()
             ? $request->user()->accountTermsDays()
@@ -601,16 +615,23 @@ class ShopController extends Controller
             'billing_email' => ['required', 'email', 'max:255'],
             'billing_phone' => ['required', 'string', 'max:60'],
             'billing_company' => ['nullable', 'string', 'max:120'],
+            'shipping_same_as_billing' => ['nullable', 'boolean'],
+            'billing_address' => ['required', 'string', 'max:255'],
+            'billing_address2' => ['nullable', 'string', 'max:255'],
+            'billing_city' => ['required', 'string', 'max:120'],
+            'billing_state' => ['required', 'string', Rule::in(array_keys(self::AUSTRALIAN_STATES))],
+            'billing_postcode' => ['required', 'regex:/^\d{4}$/'],
+            'billing_country' => $this->australianShippingCountryRules(true),
             'shipping_method_code' => ['nullable', 'string', 'max:40'],
             'consolidate_shipments' => ['nullable', 'boolean'],
-            'shipping_name' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
-            'shipping_phone' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:60'],
-            'shipping_address' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:255'],
+            'shipping_name' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'string', 'max:120'],
+            'shipping_phone' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'string', 'max:60'],
+            'shipping_address' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'string', 'max:255'],
             'shipping_address2' => ['nullable', 'string', 'max:255'],
-            'shipping_city' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
-            'shipping_state' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', Rule::in(array_keys(self::AUSTRALIAN_STATES))],
-            'shipping_postcode' => [Rule::requiredIf($shippingRequired), 'nullable', 'regex:/^\d{4}$/'],
-            'shipping_country' => $this->australianShippingCountryRules($shippingRequired),
+            'shipping_city' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'string', 'max:120'],
+            'shipping_state' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'string', Rule::in(array_keys(self::AUSTRALIAN_STATES))],
+            'shipping_postcode' => [Rule::requiredIf($shippingDetailsRequired), 'nullable', 'regex:/^\d{4}$/'],
+            'shipping_country' => $this->australianShippingCountryRules($shippingDetailsRequired),
             'notes' => ['nullable', 'string'],
             'payment_method' => ['nullable', 'string', Rule::in($paymentMethodOptions)],
         ]);
@@ -631,6 +652,8 @@ class ShopController extends Controller
         $validated['consolidate_shipments'] = (bool) ($checkoutPreview['shipping_quote']['offers_consolidation'] ?? false)
             && $request->boolean('consolidate_shipments');
         $validated['shipping_country'] = self::AUSTRALIA_SHIPPING_COUNTRY;
+        $validated['shipping_same_as_billing'] = $shippingSameAsBilling;
+        $validated['billing_country'] = self::AUSTRALIA_SHIPPING_COUNTRY;
 
         if (! $shippingRequired) {
             $validated['shipping_name'] = $validated['billing_name'];
@@ -640,6 +663,17 @@ class ShopController extends Controller
             $validated['shipping_city'] = '';
             $validated['shipping_state'] = '';
             $validated['shipping_postcode'] = '';
+        }
+
+        if ($shippingSameAsBilling) {
+            $validated['shipping_name'] = $validated['billing_name'];
+            $validated['shipping_phone'] = $validated['billing_phone'];
+            $validated['shipping_address'] = $validated['billing_address'];
+            $validated['shipping_address2'] = $validated['billing_address2'] ?? '';
+            $validated['shipping_city'] = $validated['billing_city'];
+            $validated['shipping_state'] = $validated['billing_state'];
+            $validated['shipping_postcode'] = $validated['billing_postcode'];
+            $validated['shipping_country'] = $validated['billing_country'];
         }
 
         $validated['coupon_code'] = $cart->couponCode();

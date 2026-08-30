@@ -430,7 +430,7 @@
 
                     <div class="border-t border-gray-200 px-6 py-4">
                         <div class="flex items-center justify-end">
-                            <x-ui.button type="button" color="outline" @click="closeDialog()">Close</x-ui.button>
+                            <x-ui.button type="link" href="{{ route('shop.cart.show') }}" class="rounded-md bg-primary-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-color-dark hover:text-white">View Cart</x-ui.button>
                         </div>
                     </div>
                 </div>

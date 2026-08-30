@@ -13,7 +13,15 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
     $customer = $invoice->user;
-    $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
+    $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '';
+    $billingAddress = $invoiceHasBillingSnapshot ? [
+        'address' => trim((string) $invoice->billing_address),
+        'address2' => trim((string) $invoice->billing_address2),
+        'city' => trim((string) $invoice->billing_city),
+        'state' => trim((string) $invoice->billing_state),
+        'postcode' => trim((string) $invoice->billing_postcode),
+        'country' => trim((string) $invoice->billing_country),
+    ] : ($customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => '']);
     $inlineLogoSvg = '';
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
@@ -29,13 +37,53 @@
     $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ((float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0))) <= 0.0001);
         $subtotalEx=(float) $invoice->subtotal_amount;
         $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
-        $billToCompany = trim((string) ($customer?->primaryOrganisation?->name ?? ''));
-        $billToPersonName = trim((string) ($customer?->getName() ?? ''));
+        $billToCompany = trim((string) ($invoice->billing_company ?: $customer?->primaryOrganisation?->name ?? ''));
+        $billToPersonName = $invoiceHasBillingSnapshot
+            ? trim((string) ($invoice->billing_name ?? ''))
+            : trim((string) ($customer?->getName() ?? ''));
         if ($billToPersonName === '') {
         $billToPersonName = trim((string) ($invoice->billing_name ?? ''));
         }
     $billingCountry = $billingAddress['country'];
     $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
+    $storeOrder = $invoice->relationLoaded('storeOrders')
+        ? $invoice->storeOrders->sortByDesc('id')->first()
+        : $invoice->storeOrders()->latest('id')->first();
+    $shippingAddress = $storeOrder ? [
+        'name' => trim((string) $storeOrder->shipping_name),
+        'address' => trim((string) $storeOrder->shipping_address),
+        'address2' => trim((string) $storeOrder->shipping_address2),
+        'city' => trim((string) $storeOrder->shipping_city),
+        'state' => trim((string) $storeOrder->shipping_state),
+        'postcode' => trim((string) $storeOrder->shipping_postcode),
+        'country' => trim((string) $storeOrder->shipping_country),
+    ] : null;
+    $normalizeAddress = fn (array $parts): string => mb_strtolower(trim((string) preg_replace('/\s+/', ' ', implode('|', $parts))));
+    $billingComparison = $normalizeAddress([
+        $billToPersonName,
+        $billingAddress['address'],
+        $billingAddress['address2'],
+        $billingAddress['city'],
+        $billingAddress['state'],
+        $billingAddress['postcode'],
+        $billingAddress['country'],
+    ]);
+    $shippingComparison = $shippingAddress ? $normalizeAddress(array_values($shippingAddress)) : '';
+    $showShippingAddress = $storeOrder
+        && (bool) $storeOrder->contains_physical
+        && (string) $storeOrder->shipping_method_code !== \App\Models\StoreShippingMethod::CODE_PICKUP
+        && $shippingAddress['address'] !== ''
+        && $shippingComparison !== $billingComparison;
+    $showShippingCountry = $showShippingAddress
+        && $shippingAddress['country'] !== ''
+        && ! in_array(strtolower($shippingAddress['country']), ['australia', 'au'], true);
+    $shippingNoteParts = $showShippingAddress ? array_filter([
+        $shippingAddress['name'],
+        $shippingAddress['address'],
+        $shippingAddress['address2'],
+        trim(implode(' ', array_filter([$shippingAddress['city'], $shippingAddress['state'], $shippingAddress['postcode']]))),
+        $showShippingCountry ? $shippingAddress['country'] : '',
+    ]) : [];
     $documentTitle = 'tax invoice';
     $documentType = 'invoice';
     $isCancelled = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED;
@@ -201,6 +249,9 @@
                             <div class="line-desc">{{ $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
+                            @endif
+                            @if($lineKind === 'shipping' && $shippingNoteParts !== [])
+                            <div class="line-note"><strong>Ship to:</strong> {{ implode(', ', $shippingNoteParts) }}</div>
                             @endif
                         </td>
                         <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
