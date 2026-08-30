@@ -198,3 +198,8 @@ Schedule::command('invoices:process-scheduled')
     ->dailyAt('08:00')
     ->timezone((string) config('app.timezone', 'UTC'))
     ->withoutOverlapping();
+
+Schedule::command('workplan:send-weekly')
+    ->weeklyOn(0, '08:00')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
