@@ -211,7 +211,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$195.00');
         $response->assertSeeText('Overdue');
         $response->assertSeeText('$75.00');
@@ -254,9 +254,11 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$75.00');
         $response->assertDontSeeText('$375.00');
+        $response->assertSeeText('Draft / scheduled');
+        $response->assertSeeText('$300.00');
         $response->assertSeeText('INV-DRAFT-1002');
         $response->assertSeeText('INV-SCHEDULED-1003');
     }
@@ -291,7 +293,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$75.00');
         $response->assertDontSeeText('$195.00');
         $response->assertSeeText('INV-CANCELLED-1002');
@@ -330,7 +332,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$75.00');
         $response->assertDontSeeText('$195.00');
         $response->assertSeeText('INV-WRITTEN-OFF-1102');

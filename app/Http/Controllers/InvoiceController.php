@@ -93,6 +93,11 @@ class InvoiceController extends Controller
         $summaryOverdueAmount = round($summaryInvoices->sum(function (Invoice $invoice): float {
             return $invoice->isOverdue() ? $this->outstandingAmountForIndexInvoice($invoice) : 0;
         }), 2);
+        $summaryDraftAmount = round($summaryInvoices->sum(function (Invoice $invoice): float {
+            return (string) $invoice->status === Invoice::STATUS_DRAFT
+                ? (float) $invoice->displayOutstandingAmount()
+                : 0;
+        }), 2);
 
         $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
         $invoiceEmailDefaults = $invoices->getCollection()
@@ -105,6 +110,7 @@ class InvoiceController extends Controller
             'invoices' => $invoices,
             'summaryOutstandingAmount' => $summaryOutstandingAmount,
             'summaryOverdueAmount' => $summaryOverdueAmount,
+            'summaryDraftAmount' => $summaryDraftAmount,
             'invoiceEmailDefaults' => $invoiceEmailDefaults,
         ]);
     }
