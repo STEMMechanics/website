@@ -2,6 +2,7 @@
     $selectedShippingMethodCode = (string) ($summary['shipping_method_code'] ?? ($prefill['shipping_method_code'] ?? ''));
     $canOfferConsolidation = (bool) ($summary['contains_physical'] ?? false) && (bool) ($summary['has_delayed_items'] ?? false);
     $selectedShippingState = trim((string) ($prefill['shipping_state'] ?? ''));
+    $selectedBillingState = trim((string) ($prefill['billing_state'] ?? ''));
     $consolidationSavingsAmount = (float) ($summary['shipping_quote']['consolidation_savings_amount'] ?? 0);
     $itemCount = (int) $lines->sum('quantity');
     $checkoutTotal = (float) ($summary['total'] ?? 0);
@@ -35,6 +36,7 @@
                 summaryCanCheckout: @js((bool) ($cartPayload['summary']['can_checkout'] ?? ($summary['can_checkout'] ?? false))),
                 shippingMethodCode: @js($cartPayload['summary']['shipping_method_code'] ?? $selectedShippingMethodCode),
                 shippingCountry: @js($cartPayload['shipping_country'] ?? $prefill['shipping_country']),
+                shippingSameAsBilling: @js((bool) $prefill['shipping_same_as_billing']),
                 consolidateShipments: @js((bool) ($cartPayload['summary']['consolidate_shipments'] ?? $prefill['consolidate_shipments'])),
                 canOfferConsolidation: @js($canOfferConsolidation),
                 requiresPayment: @js($amountDueAfterCredit > 0.0001),
@@ -167,67 +169,59 @@
                         </div>
 
                         <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
-                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-900">Billing Address</h4>
+                                <p class="mt-1 text-sm text-gray-600">This address appears on your tax invoice.</p>
+                            </div>
+                            <div class="mt-5">
+                                <x-ui.input name="billing_address" label="Address Line 1" :value="$prefill['billing_address']" required />
+                                <x-ui.input name="billing_address2" label="Address Line 2" :value="$prefill['billing_address2']" />
+                                <div class="grid gap-0 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <x-ui.input name="billing_city" label="City" :value="$prefill['billing_city']" required />
+                                    <x-ui.select name="billing_state" label="State" required>
+                                        <option value="">Select state</option>
+                                        @foreach($australianStates as $stateCode => $stateLabel)
+                                            <option value="{{ $stateCode }}" @selected($selectedBillingState === $stateCode)>{{ $stateLabel }}</option>
+                                        @endforeach
+                                    </x-ui.select>
+                                    <x-ui.input name="billing_postcode" label="Postcode" :value="$prefill['billing_postcode']" required maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$el.value = $el.value.replace(/\D+/g, '').slice(0, 4)" />
+                                    <x-ui.input name="billing_country" label="Country" :value="$prefill['billing_country']" readonly="true" required class="mb-0" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
+                            <div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                                 <div>
                                     <h4 class="text-lg font-bold text-gray-900">Shipping Address</h4>
                                     <p class="mt-1 text-sm text-gray-600" x-text="hasPhysicalItems() ? 'Shipping is only available within Australia.' : 'This order only contains digital items, so no shipping address is required.'">Shipping is only available within Australia.</p>
+                                    <div class="mt-4" x-show="needsShippingAddress()" x-cloak>
+                                        <x-ui.checkbox name="shipping_same_as_billing" label="Same as billing address" :checked="$prefill['shipping_same_as_billing']" :noWrapper="true" x-model="shippingSameAsBilling" />
+                                    </div>
                                 </div>
                                 <div x-show="hasPhysicalItems()" x-cloak class="text-sm font-medium text-gray-500" x-text="needsShippingAddress() ? 'Delivery selected' : 'Pickup selected'"></div>
                             </div>
 
-                            <div x-show="!hasPhysicalItems()" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-                                This order only contains digital items, so no shipping address is required.
-                            </div>
+                            <div x-show="!hasPhysicalItems()" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">This order only contains digital items, so no shipping address is required.</div>
+                            <div x-show="hasPhysicalItems() && !needsShippingAddress()" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">We will contact you when your order is available to collect.</div>
 
-                            <div x-show="hasPhysicalItems() && !needsShippingAddress()" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-                                We will contact you when your order is available to collect.
-                            </div>
-
-                            <div x-show="needsShippingAddress()" x-cloak class="mt-5">
+                            <div x-show="needsShippingAddress() && !shippingSameAsBilling" x-cloak class="mt-5">
                                 <div class="grid gap-0 sm:gap-4 md:grid-cols-2">
-                                    <x-ui.input
-                                        name="shipping_name"
-                                        label="Recipient Name"
-                                        :value="$prefill['shipping_name']"
-                                        x-bind:required="needsShippingAddress()"
-                                        x-bind:disabled="!needsShippingAddress()"
-                                        x-on:input="markRecipientFieldEdited('shipping_name', 'billing_name')"
-                                        x-on:change="markRecipientFieldEdited('shipping_name', 'billing_name')"
-                                    />
-                                    <x-ui.input
-                                        name="shipping_phone"
-                                        label="Recipient Phone"
-                                        :value="$prefill['shipping_phone']"
-                                        x-bind:required="needsShippingAddress()"
-                                        x-bind:disabled="!needsShippingAddress()"
-                                        x-on:input="markRecipientFieldEdited('shipping_phone', 'billing_phone')"
-                                        x-on:change="markRecipientFieldEdited('shipping_phone', 'billing_phone')"
-                                    />
+                                    <x-ui.input name="shipping_name" label="Recipient Name" :value="$prefill['shipping_name']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_name', 'billing_name')" x-on:change="markRecipientFieldEdited('shipping_name', 'billing_name')" />
+                                    <x-ui.input name="shipping_phone" label="Recipient Phone" :value="$prefill['shipping_phone']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_phone', 'billing_phone')" x-on:change="markRecipientFieldEdited('shipping_phone', 'billing_phone')" />
                                 </div>
-                                <x-ui.input name="shipping_address" label="Address Line 1" :value="$prefill['shipping_address']" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()" />
-                                <x-ui.input name="shipping_address2" label="Address Line 2" :value="$prefill['shipping_address2']" x-bind:disabled="!needsShippingAddress()" />
+                                <x-ui.input name="shipping_address" label="Address Line 1" :value="$prefill['shipping_address']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
+                                <x-ui.input name="shipping_address2" label="Address Line 2" :value="$prefill['shipping_address2']" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
                                 <div class="grid gap-0 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                    <x-ui.input name="shipping_city" label="City" :value="$prefill['shipping_city']" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()" />
-                                    <x-ui.select name="shipping_state" label="State" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()">
+                                    <x-ui.input name="shipping_city" label="City" :value="$prefill['shipping_city']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
+                                    <x-ui.select name="shipping_state" label="State" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling">
                                         <option value="">Select state</option>
                                         @foreach($australianStates as $stateCode => $stateLabel)
                                             <option value="{{ $stateCode }}" @selected($selectedShippingState === $stateCode)>{{ $stateLabel }}</option>
                                         @endforeach
                                     </x-ui.select>
-                                    <x-ui.input
-                                        name="shipping_postcode"
-                                        label="Postcode"
-                                        :value="$prefill['shipping_postcode']"
-                                        x-bind:required="needsShippingAddress()"
-                                        x-bind:disabled="!needsShippingAddress()"
-                                        maxlength="4"
-                                        inputmode="numeric"
-                                        pattern="\d{4}"
-                                        x-on:input="$el.value = $el.value.replace(/\D+/g, '').slice(0, 4)"
-                                    />
-                                    <div>
-                                        <x-ui.input name="shipping_country" label="Country" :value="$prefill['shipping_country']" x-model="shippingCountry" readonly="true" x-bind:required="needsShippingAddress()" x-bind:disabled="!needsShippingAddress()" class="mb-0" />
-                                    </div>
+                                    <x-ui.input name="shipping_postcode" label="Postcode" :value="$prefill['shipping_postcode']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$el.value = $el.value.replace(/\D+/g, '').slice(0, 4)" />
+                                    <x-ui.input name="shipping_country" label="Country" :value="$prefill['shipping_country']" x-model="shippingCountry" readonly="true" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" class="mb-0" />
                                 </div>
                             </div>
                         </div>
@@ -582,6 +576,7 @@
             summaryCanCheckout: Boolean(config.summaryCanCheckout),
             shippingMethodCode: config.shippingMethodCode || '',
             shippingCountry: config.shippingCountry || 'Australia',
+            shippingSameAsBilling: Boolean(config.shippingSameAsBilling),
             consolidateShipments: Boolean(config.consolidateShipments),
             canOfferConsolidation: Boolean(config.canOfferConsolidation),
             requiresPayment: Boolean(config.requiresPayment),

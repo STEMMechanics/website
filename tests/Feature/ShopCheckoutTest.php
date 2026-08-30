@@ -2,19 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\Product;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
-use App\Models\SiteOption;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
+use App\Models\SiteOption;
 use App\Models\StoreOrder;
 use App\Models\StoreShippingMethod;
 use App\Models\StoreShippingMethodPackage;
 use App\Models\User;
+use App\Services\SquareApiService;
 use App\Services\StoreCartService;
 use App\Support\ShopShippingSettings;
-use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
@@ -23,6 +23,40 @@ use Tests\TestCase;
 class ShopCheckoutTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_guest_checkout_saves_billing_address_to_user_and_invoice_snapshot(): void
+    {
+        Queue::fake();
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 0,
+        ]);
+        $this->post(route('shop.cart.add', $product), ['quantity' => 1]);
+
+        $this->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Avery Example',
+            'billing_email' => 'billing-guest@example.com',
+            'billing_phone' => '0400123456',
+            'billing_company' => 'Example Labs',
+            'billing_address' => '12 Invoice Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
+        ])->assertRedirect();
+
+        $user = User::query()->where('email', 'billing-guest@example.com')->firstOrFail();
+        $order = StoreOrder::query()->where('user_id', $user->id)->firstOrFail();
+        $invoice = $order->invoice()->firstOrFail();
+
+        $this->assertSame('12 Invoice Street', $user->billing_address);
+        $this->assertSame('12 Invoice Street', $invoice->billing_address);
+        $this->assertSame('Example Labs', $invoice->billing_company);
+        $this->assertSame('Brisbane', $invoice->billing_city);
+        $this->assertSame('QLD', $invoice->billing_state);
+        $this->assertSame('4000', $invoice->billing_postcode);
+    }
 
     public function test_request_quote_only_appears_when_no_qualifying_shipping_channel_can_fulfil_the_cart(): void
     {
@@ -111,6 +145,11 @@ class ShopCheckoutTest extends TestCase
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'notes' => 'Please email me once it is ready.',
         ]);
 
@@ -159,6 +198,11 @@ class ShopCheckoutTest extends TestCase
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_country' => 'Australia',
             'source_id' => 'cnon:card-nonce-ok',
         ]);
@@ -210,6 +254,11 @@ class ShopCheckoutTest extends TestCase
             'billing_name' => 'Credit Customer',
             'billing_email' => 'credit-customer@example.com',
             'billing_phone' => '0400111222',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_country' => 'Australia',
         ]);
 
@@ -258,6 +307,11 @@ class ShopCheckoutTest extends TestCase
             'billing_name' => 'Terms Customer',
             'billing_email' => 'terms-customer@example.com',
             'billing_phone' => '0400111222',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'payment_method' => 'account_terms',
         ]);
 
@@ -557,25 +611,32 @@ class ShopCheckoutTest extends TestCase
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
-            'shipping_name' => 'Avery Example',
-            'shipping_phone' => '0400123456',
-            'shipping_address' => '123 Example Street',
-            'shipping_city' => 'Brisbane',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
+            'shipping_same_as_billing' => '1',
+            'shipping_name' => 'Different Recipient',
+            'shipping_phone' => '0499999999',
+            'shipping_address' => '999 Different Road',
+            'shipping_city' => 'Cairns',
             'shipping_state' => 'QLD',
-            'shipping_postcode' => '4000',
+            'shipping_postcode' => '4870',
             'shipping_country' => 'Australia',
             'shipping_method_code' => 'request_quote',
         ]);
 
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('shop.index'));
         $quote = Quote::query()->firstOrFail();
 
-        $response->assertRedirect(route('shop.index'));
-
-        $this->assertSame(\App\Models\Quote::CONTEXT_STORE_MANUAL_SHIPPING, (string) $quote->context_type);
-        $this->assertSame(\App\Models\Quote::STATUS_DRAFT, (string) $quote->status);
+        $this->assertSame(Quote::CONTEXT_STORE_MANUAL_SHIPPING, (string) $quote->context_type);
+        $this->assertSame(Quote::STATUS_DRAFT, (string) $quote->status);
         $this->assertTrue((bool) $quote->acceptance_creates_order);
         $this->assertTrue((bool) $quote->acceptance_emails_invoice);
         $this->assertSame('avery@example.com', (string) data_get($quote->context_payload, 'customer.billing_email'));
+        $this->assertSame('123 Example Street', (string) data_get($quote->context_payload, 'customer.shipping_address'));
         $this->assertSame(0, StoreOrder::query()->count());
         $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
             ->assertOk()
@@ -789,7 +850,14 @@ class ShopCheckoutTest extends TestCase
             ->assertSee("syncRecipientField('billing_name', 'shipping_name')", false)
             ->assertSee("syncRecipientField('billing_phone', 'shipping_phone')", false)
             ->assertSee("markRecipientFieldEdited('shipping_name', 'billing_name')", false)
-            ->assertSee("markRecipientFieldEdited('shipping_phone', 'billing_phone')", false);
+            ->assertSee("markRecipientFieldEdited('shipping_phone', 'billing_phone')", false)
+            ->assertSeeText('Same as billing address')
+            ->assertSeeInOrder(['Billing Address', 'Shipping Address', 'Same as billing address'])
+            ->assertSee('class="sm-ui-checkbox', false)
+            ->assertSee('name="shipping_same_as_billing"', false)
+            ->assertSee('checked', false)
+            ->assertSee('x-model="shippingSameAsBilling"', false)
+            ->assertSee('x-show="needsShippingAddress() && !shippingSameAsBilling" x-cloak', false);
     }
 
     public function test_checkout_disables_cart_and_voucher_actions_while_payment_submit_is_running(): void

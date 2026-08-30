@@ -55,6 +55,8 @@ class ShopCartAjaxTest extends TestCase
             ->assertSeeText('Class Kit')
             ->assertSeeText('Add to Cart')
             ->assertSeeText('Choose a variant')
+            ->assertSeeText('View Cart')
+            ->assertSee('href="'.route('shop.cart.show').'"', false)
             ->assertSee('x-teleport="body"', false)
             ->assertSee('shop-catalog-option-control', false)
             ->assertSeeText('Class Kit')

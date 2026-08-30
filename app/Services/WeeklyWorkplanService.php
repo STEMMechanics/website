@@ -24,6 +24,8 @@ class WeeklyWorkplanService
         $weekEnd = today()->endOfWeek(Carbon::SATURDAY);
         $lastStart = today()->subWeek();
         $lastEnd = today()->subDay()->endOfDay();
+        $previousStart = today()->subWeeks(2);
+        $previousEnd = $lastStart->copy()->subDay()->endOfDay();
 
         $scheduledInvoices = Invoice::query()->where('scheduled_email', true)->where('status', Invoice::STATUS_DRAFT)
             ->whereBetween('issue_date', [$weekStart, $weekEnd])->with('user')->orderBy('issue_date')->get();
@@ -57,19 +59,47 @@ class WeeklyWorkplanService
         $pendingTransfers = Payment::query()->pendingBankTransfers()->where('received_on', '<', now()->subDays(2))
             ->with('user')->orderBy('received_on')->limit(10)->get();
         $newsletter = $this->newsletterPreview();
+        $stats = [
+            'page_views' => AnalyticsEvent::query()->where('event_type', AnalyticsEvent::TYPE_PAGE_VIEW)->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
+            'visitors' => AnalyticsEvent::query()->whereBetween('created_at', [$lastStart, $lastEnd])->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
+            'store_views' => AnalyticsEvent::query()->whereIn('route_name', ['shop.index', 'shop.product.show'])->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
+            'workshop_views' => AnalyticsEvent::query()->whereIn('route_name', ['workshop.index', 'workshop.show'])->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
+            'tickets_sold' => Ticket::query()->whereBetween('created_at', [$lastStart, $lastEnd])->whereIn('status', Ticket::activePurchasedStatuses())->count(),
+            'orders' => StoreOrder::query()->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', '!=', StoreOrder::STATUS_CANCELLED)->count(),
+            'income' => (float) Payment::query()->where('kind', Payment::KIND_PAYMENT)->whereBetween('received_on', [$lastStart, $lastEnd])->sum('total_amount'),
+            'refunds' => abs((float) Payment::query()->where('kind', Payment::KIND_REFUND)->whereBetween('received_on', [$lastStart, $lastEnd])->sum('total_amount')),
+            'expenses' => (float) Expense::query()->whereBetween('paid_on', [$lastStart, $lastEnd])->sum('total_amount'),
+        ];
+        $previousWebsiteStats = [
+            'page_views' => AnalyticsEvent::query()->where('event_type', AnalyticsEvent::TYPE_PAGE_VIEW)->whereBetween('created_at', [$previousStart, $previousEnd])->count(),
+            'visitors' => AnalyticsEvent::query()->whereBetween('created_at', [$previousStart, $previousEnd])->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
+            'store_views' => AnalyticsEvent::query()->whereIn('route_name', ['shop.index', 'shop.product.show'])->whereBetween('created_at', [$previousStart, $previousEnd])->count(),
+            'workshop_views' => AnalyticsEvent::query()->whereIn('route_name', ['workshop.index', 'workshop.show'])->whereBetween('created_at', [$previousStart, $previousEnd])->count(),
+        ];
+        $websiteChanges = collect($previousWebsiteStats)->mapWithKeys(fn (int $previous, string $key): array => [
+            $key => $this->percentageChange((int) $stats[$key], $previous),
+        ])->all();
 
         return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers', 'newsletter') + [
-            'stats' => [
-                'page_views' => AnalyticsEvent::query()->where('event_type', AnalyticsEvent::TYPE_PAGE_VIEW)->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
-                'visitors' => AnalyticsEvent::query()->whereBetween('created_at', [$lastStart, $lastEnd])->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
-                'store_views' => AnalyticsEvent::query()->whereIn('route_name', ['shop.index', 'shop.product.show'])->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
-                'workshop_views' => AnalyticsEvent::query()->whereIn('route_name', ['workshop.index', 'workshop.show'])->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
-                'tickets_sold' => Ticket::query()->whereBetween('created_at', [$lastStart, $lastEnd])->whereIn('status', Ticket::activePurchasedStatuses())->count(),
-                'orders' => StoreOrder::query()->whereBetween('created_at', [$lastStart, $lastEnd])->where('status', '!=', StoreOrder::STATUS_CANCELLED)->count(),
-                'income' => (float) Payment::query()->where('kind', Payment::KIND_PAYMENT)->whereBetween('received_on', [$lastStart, $lastEnd])->sum('total_amount'),
-                'refunds' => abs((float) Payment::query()->where('kind', Payment::KIND_REFUND)->whereBetween('received_on', [$lastStart, $lastEnd])->sum('total_amount')),
-                'expenses' => (float) Expense::query()->whereBetween('paid_on', [$lastStart, $lastEnd])->sum('total_amount'),
-            ],
+            'stats' => $stats,
+            'websiteChanges' => $websiteChanges,
+        ];
+    }
+
+    /** @return array{percentage: float, label: string, direction: string} */
+    private function percentageChange(int $current, int $previous): array
+    {
+        $percentage = $previous === 0
+            ? ($current === 0 ? 0.0 : 100.0)
+            : round((($current - $previous) / $previous) * 100, 1);
+        $direction = $percentage > 0 ? 'growth' : ($percentage < 0 ? 'decline' : 'neutral');
+
+        return [
+            'percentage' => $percentage,
+            'label' => $direction === 'neutral'
+                ? '0% - no change'
+                : number_format(abs($percentage), 1).'% '.$direction,
+            'direction' => $direction,
         ];
     }
 

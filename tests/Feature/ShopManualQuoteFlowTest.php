@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\SendEmail;
 use App\Jobs\SendDeferredStoreOrderEmail;
-use App\Models\Invoice;
+use App\Jobs\SendEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Mail\QuoteCustomerResponseAdminNotification;
 use App\Mail\StoreQuoteRequestAdminNotification;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
@@ -18,6 +18,7 @@ use App\Models\StoreOrderItem;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\QuoteWorkflowService;
+use App\Services\StoreOrderService;
 use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -70,6 +71,11 @@ class ShopManualQuoteFlowTest extends TestCase
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
+            'billing_address' => '123 Example Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_name' => 'Avery Example',
             'shipping_phone' => '0400123456',
             'shipping_address' => '123 Example Street',
@@ -356,7 +362,7 @@ class ShopManualQuoteFlowTest extends TestCase
         ]);
 
         $job = new SendDeferredStoreOrderEmail($order->id, (string) $scheduledEmail->id);
-        $job->handle(app(\App\Services\StoreOrderService::class));
+        $job->handle(app(StoreOrderService::class));
 
         $scheduledEmail->refresh();
 

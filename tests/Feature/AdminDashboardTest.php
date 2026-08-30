@@ -84,8 +84,8 @@ class AdminDashboardTest extends TestCase
             ->assertSee('Invoice email scheduled')
             ->assertSee('Payment due')
             ->assertSee('fa-arrow-up-right-from-square', false)
-            ->assertSee('lg:grid-cols-2 xl:grid-cols-[14rem_minmax(0,1fr)_minmax(0,1fr)]', false)
-            ->assertSee('self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 xl:col-span-1 xl:grid-cols-1', false)
+            ->assertSee('grid gap-5 lg:grid-cols-2', false)
+            ->assertSee('self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 lg:grid-cols-5', false)
             ->assertSee(route('workshop.show', $workshop), false)
             ->assertSee('onchange="this.form.submit()"', false)
             ->assertDontSee('g:ia', false);

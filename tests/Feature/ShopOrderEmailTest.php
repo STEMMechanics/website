@@ -41,6 +41,11 @@ class ShopOrderEmailTest extends TestCase
             'billing_name' => 'Jamie Example',
             'billing_email' => 'jamie@example.com',
             'billing_phone' => '0400654321',
+            'billing_address' => '12 Digital Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_country' => 'Australia',
         ])->assertRedirect();
 
@@ -114,6 +119,11 @@ class ShopOrderEmailTest extends TestCase
             'billing_name' => 'Morgan Example',
             'billing_email' => 'morgan@example.com',
             'billing_phone' => '0400555444',
+            'billing_address' => '14 Digital Street',
+            'billing_city' => 'Brisbane',
+            'billing_state' => 'QLD',
+            'billing_postcode' => '4000',
+            'billing_country' => 'Australia',
             'shipping_country' => 'Australia',
             'source_id' => 'cnon:card-nonce-ok',
         ]);
@@ -268,13 +278,7 @@ class ShopOrderEmailTest extends TestCase
 
     public function test_immediate_order_update_email_views_fall_back_when_intro_copy_is_missing(): void
     {
-        $customerMail = new class('Morgan Example', [[
-            'order_number' => '381465',
-            'status_label' => 'Shipped',
-            'notification_type' => 'shipped',
-            'order_url' => 'https://test.stemmechanics.com.au/tracking/example-token',
-            'updates' => [],
-        ]]) extends Mailable
+        $customerMail = new class('Morgan Example', [['order_number' => '381465', 'status_label' => 'Shipped', 'notification_type' => 'shipped', 'order_url' => 'https://test.stemmechanics.com.au/tracking/example-token', 'updates' => []]]) extends Mailable
         {
             public function __construct(
                 public string $recipientName,
@@ -289,15 +293,7 @@ class ShopOrderEmailTest extends TestCase
             }
         };
 
-        $adminMail = new class([[
-            'order_number' => '381465',
-            'status_label' => 'Shipped',
-            'notification_type' => 'shipped',
-            'admin_url' => 'https://test.stemmechanics.com.au/admin/store/orders/381465',
-            'customer_name' => 'Morgan Example',
-            'customer_email' => 'morgan@example.com',
-            'updates' => [],
-        ]]) extends Mailable
+        $adminMail = new class([['order_number' => '381465', 'status_label' => 'Shipped', 'notification_type' => 'shipped', 'admin_url' => 'https://test.stemmechanics.com.au/admin/store/orders/381465', 'customer_name' => 'Morgan Example', 'customer_email' => 'morgan@example.com', 'updates' => []]]) extends Mailable
         {
             public function __construct(
                 public array $orders,

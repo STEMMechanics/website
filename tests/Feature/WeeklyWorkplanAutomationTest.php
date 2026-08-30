@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\WeeklyWorkplan;
+use App\Models\AnalyticsEvent;
 use App\Models\Invoice;
+use App\Models\Location;
+use App\Models\Media;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Workshop;
 use App\Services\WeeklyWorkplanService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -30,12 +34,70 @@ class WeeklyWorkplanAutomationTest extends TestCase
 
     public function test_weekly_workplan_email_renders(): void
     {
+        $location = Location::factory()->create(['name' => 'Cairns Library']);
+        $owner = User::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'email-location-workshop.png',
+            'title' => 'Email location workshop',
+            'hash' => str_repeat('e', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $owner->id,
+        ]);
+        Workshop::factory()->create([
+            'title' => 'Email location workshop',
+            'starts_at' => now()->addDay(),
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
         $html = (new WeeklyWorkplan(app(WeeklyWorkplanService::class)->build()))->render();
 
         $this->assertStringContainsString('Weekly Workplan', $html);
+        $this->assertStringContainsString('font-size: 32px', $html);
+        $this->assertStringContainsString('font-size: 24px', $html);
+        $this->assertStringContainsString('Cairns Library', $html);
         $this->assertStringContainsString('Next newsletter', $html);
         $this->assertStringContainsString('Review or change the newsletter', $html);
         $this->assertStringContainsString('Last week at a glance', $html);
+        $this->assertStringContainsString('no change', $html);
+    }
+
+    public function test_website_stats_compare_with_the_previous_week(): void
+    {
+        AnalyticsEvent::factory()->count(2)->create([
+            'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+            'route_name' => 'shop.index',
+            'created_at' => now()->subDays(2),
+        ]);
+        AnalyticsEvent::factory()->create([
+            'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+            'route_name' => 'workshop.show',
+            'created_at' => now()->subDays(9),
+        ]);
+
+        $workplan = app(WeeklyWorkplanService::class)->build();
+
+        $this->assertSame(2, $workplan['stats']['page_views']);
+        $this->assertSame('100.0% growth', $workplan['websiteChanges']['page_views']['label']);
+        $this->assertSame('100.0% decline', $workplan['websiteChanges']['workshop_views']['label']);
+    }
+
+    public function test_admin_can_open_a_workplan_pdf_inline(): void
+    {
+        $admin = User::factory()->create(['email' => 'reviewer@example.com']);
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+
+        $this->actingAs($admin)->get(route('admin.dashboard.workplan.pdf'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename="weekly-workplan-'.today()->format('Y-m-d').'.pdf"');
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Website last week')
+            ->assertSee('no change');
+
     }
 
     public function test_quote_follow_ups_are_date_driven_and_can_be_snoozed(): void
