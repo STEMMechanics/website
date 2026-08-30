@@ -58,14 +58,18 @@
             </x-slot:right>
         </x-ui.toolbar>
 
-        <div class="mb-4 flex flex-rpw gap-3">
-            <div class="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Still outstanding</div>
+        <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Outstanding</div>
                 <div class="mt-1 text-2xl font-bold text-gray-900">{{ money((float) ($summaryOutstandingAmount ?? 0)) }}</div>
             </div>
-            <div class="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Overdue</div>
                 <div class="mt-1 text-2xl font-bold text-rose-700">{{ money((float) ($summaryOverdueAmount ?? 0)) }}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Draft / scheduled</div>
+                <div class="mt-1 text-2xl font-bold text-gray-900">{{ money((float) ($summaryDraftAmount ?? 0)) }}</div>
             </div>
         </div>
 

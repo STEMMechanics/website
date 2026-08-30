@@ -211,10 +211,56 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$195.00');
         $response->assertSeeText('Overdue');
         $response->assertSeeText('$75.00');
+    }
+
+    public function test_admin_invoice_index_does_not_count_draft_or_scheduled_invoices_in_outstanding_total(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-ACTIVE-1001',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 75.00,
+            'subtotal_amount' => 68.18,
+            'gst_amount' => 6.82,
+        ]);
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-DRAFT-1002',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_DRAFT,
+            'scheduled_email' => false,
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-SCHEDULED-1003',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_DRAFT,
+            'scheduled_email' => true,
+            'total_amount' => 180.00,
+            'subtotal_amount' => 163.64,
+            'gst_amount' => 16.36,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Outstanding');
+        $response->assertSeeText('$75.00');
+        $response->assertDontSeeText('$375.00');
+        $response->assertSeeText('Draft / scheduled');
+        $response->assertSeeText('$300.00');
+        $response->assertSeeText('INV-DRAFT-1002');
+        $response->assertSeeText('INV-SCHEDULED-1003');
     }
 
     public function test_admin_invoice_index_does_not_count_cancelled_invoices_in_outstanding_total(): void
@@ -247,7 +293,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$75.00');
         $response->assertDontSeeText('$195.00');
         $response->assertSeeText('INV-CANCELLED-1002');
@@ -286,7 +332,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('Outstanding');
         $response->assertSeeText('$75.00');
         $response->assertDontSeeText('$195.00');
         $response->assertSeeText('INV-WRITTEN-OFF-1102');
