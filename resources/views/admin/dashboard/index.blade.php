@@ -2,11 +2,13 @@
     <x-mast>Dashboard</x-mast>
 
     <x-container>
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <form method="GET" class="flex flex-col gap-4">
-                <div class="grid w-full gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-                    <div class="w-full min-w-0">
-                        <x-ui.select label="Period" name="period" onchange="this.form.submit()">
+        <div class="mt-4 flex flex-col items-start gap-4">
+            @include('admin.dashboard.partials.weekly-workplan', ['workplan' => $workplan])
+
+            <div class="w-full">
+                <form method="GET" class="flex flex-col items-end">
+                    <div class="min-w-0">
+                        <x-ui.select class="mb-1" select-class="pr-8" label="Period" name="period" onchange="this.form.submit()" inline-label>
                             <option value="overview" {{ $period === 'overview' ? 'selected' : '' }}>Overview (12 months)</option>
                             <option value="day" {{ $period === 'day' ? 'selected' : '' }}>This day</option>
                             <option value="week" {{ $period === 'week' ? 'selected' : '' }}>This week</option>
@@ -15,16 +17,11 @@
                             <option value="year" {{ $period === 'year' ? 'selected' : '' }}>This year</option>
                         </x-ui.select>
                     </div>
-                    <div class="w-full min-w-0">
-                        <div class="h-full rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                            <div class="font-semibold">Selected range</div>
-                            <div class="mt-1">
-                                {{ $periodLabel }}: {{ $periodStart->format('d M Y') }} to {{ $periodEnd->format('d M Y') }}
-                            </div>
-                        </div>
+                    <div class="text-xs italic text-gray-600">
+                        {{ $periodLabel }}: {{ $periodStart->format('d M Y') }} to {{ $periodEnd->format('d M Y') }}
                     </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
 
         <div class="mt-4 grid gap-4 xl:grid-cols-2">

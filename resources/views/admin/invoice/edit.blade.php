@@ -14,10 +14,25 @@
             $label .= ' ('.$email.')';
         }
 
+        $siteTemplate = app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults();
+        $organisation = $user->primaryOrganisation;
+        $organisationHasTemplate = $organisation && collect([
+            $organisation->invoice_email_to,
+            $organisation->invoice_email_cc,
+            $organisation->invoice_email_subject,
+            $organisation->invoice_email_message,
+        ])->contains(fn ($value) => trim((string) $value) !== '');
+
         return [
             'id' => (string) $user->id,
             'label' => $label,
             'account_terms_days' => $user->accountTermsDays(),
+            'email_template' => $organisationHasTemplate ? [
+                'recipient_emails' => html_entity_decode((string) $organisation->invoice_email_to, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                'cc_emails' => html_entity_decode((string) $organisation->invoice_email_cc, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                'subject_line' => html_entity_decode((string) $organisation->invoice_email_subject, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                'email_message' => html_entity_decode((string) $organisation->invoice_email_message, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            ] : $siteTemplate,
         ];
     })->values();
     $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] => $item['id']])->all();
@@ -25,6 +40,13 @@
     $selectedUser = $userLookupOptions->first(fn ($item) => $item['id'] === $selectedUserId);
     $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : '';
     $selectedQuoteId = (string) old('quote_id', isset($invoice) ? ($invoice->quote_id ?? '') : '');
+    $quoteLookupOptions = collect($quotes ?? [])->map(fn ($quote) => [
+        'id' => (string) $quote->id,
+        'label' => trim((string) $quote->quote_number).' - '.trim((string) ($quote->user?->getName() ?? $quote->user?->email ?? 'No user')),
+        'edit_url' => route('admin.quote.edit', $quote),
+    ])->values();
+    $selectedQuoteOption = $quoteLookupOptions->first(fn ($item) => $item['id'] === $selectedQuoteId);
+    $selectedQuoteLabel = is_array($selectedQuoteOption) ? (string) ($selectedQuoteOption['label'] ?? '') : '';
     if ($savedLineItems === null) {
         $savedLineItems = json_encode($lineItemsSeed ?? []);
     }
@@ -128,13 +150,25 @@
         invoiceEmailSubjectOpen: false,
         invoiceEmailCcOpen: false,
         invoiceEmailHelpOpen: false,
-        openInvoiceEmailModal(payload) {
+        invoiceEmailTemplateOnly: false,
+        selectedInvoiceUserId: @js($selectedUserId),
+        invoiceEmailTemplatesByUser: @js($userLookupOptions->mapWithKeys(fn ($item) => [$item['id'] => $item['email_template']])->all()),
+        newInvoiceEmailPayload() {
+            const template = this.invoiceEmailTemplatesByUser[this.selectedInvoiceUserId] || @js(app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults());
+            return {
+                action: '',
+                invoice_number: 'New invoice',
+                ...template,
+            };
+        },
+        openInvoiceEmailModal(payload, templateOnly = false) {
             this.invoiceEmailAction = payload?.action || this.invoiceEmailAction || '';
             this.invoiceEmailInvoiceNumber = payload?.invoice_number || this.invoiceEmailInvoiceNumber || '';
             this.invoiceEmailRecipientEmails = payload?.recipient_emails || this.invoiceEmailRecipientEmails || '';
             this.invoiceEmailSubjectLine = payload?.subject_line || this.invoiceEmailSubjectLine || '';
             this.invoiceEmailCcEmails = payload?.cc_emails || '';
             this.invoiceEmailMessage = payload?.email_message || this.invoiceEmailMessage || '';
+            this.invoiceEmailTemplateOnly = templateOnly;
             this.invoiceEmailModalOpen = true;
             this.invoiceEmailHelpOpen = false;
             this.invoiceEmailSubjectOpen = false;
@@ -145,6 +179,7 @@
             this.invoiceEmailHelpOpen = false;
         },
         }"
+        x-on:admin-linked-user-changed.window="selectedInvoiceUserId = String($event.detail?.userId || '')"
     >
         @isset($invoice)
             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
@@ -153,7 +188,6 @@
                         <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                             <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
                             <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
-                            <x-admin.invoice-email-modal />
                             @if($invoiceCanAcceptPayment)
                                 <x-ui.button
                                     type="button"
@@ -365,13 +399,39 @@
             @endif
         @endisset
 
+        <x-admin.invoice-email-modal :deferred="!isset($invoice)" form-id="invoice-edit-form" />
+
         <form
+            id="invoice-edit-form"
             method="POST"
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-data="{
                 isLocked: @js($isLocked),
                 invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
                 issueNow: @js((bool) old('issue_now', false)),
+                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->scheduled_email : false)),
+                scheduledSendModalOpen: false,
+                scheduledSendNow: true,
+                scheduledSendSubmitter: null,
+                openScheduledSendModal(submitter) {
+                    this.scheduledSendNow = true;
+                    this.scheduledSendSubmitter = submitter || null;
+                    this.scheduledSendModalOpen = true;
+                },
+                closeScheduledSendModal() {
+                    this.scheduledSendModalOpen = false;
+                    this.scheduledSendSubmitter = null;
+                },
+                confirmScheduledSend(form) {
+                    this.$refs.sendScheduledNow.value = this.scheduledSendNow ? '1' : '0';
+                    form.dataset.scheduledSendConfirmed = '1';
+                    this.scheduledSendModalOpen = false;
+                    if (this.scheduledSendSubmitter instanceof HTMLButtonElement) {
+                        form.requestSubmit(this.scheduledSendSubmitter);
+                        return;
+                    }
+                    form.requestSubmit();
+                },
                 canSaveAndEmail() {
                     return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
                 },
@@ -658,13 +718,57 @@
                 selectedUserTermsDays = selectedUserId === '' ? 28 : Number($event.detail?.accountTermsDays || 0);
                 setDueDateDefault(true);
             "
-            x-on:submit="serializeLineItems()">
+            x-on:submit="
+                serializeLineItems();
+                if (!$el.dataset.scheduledSendConfirmed) {
+                    $refs.sendScheduledNow.value = '0';
+                }
+                if (scheduledEmail
+                    && (issueDate < @js(today()->toDateString()) || (issueDate === @js(today()->toDateString()) && @js(now()->format('H:i') >= '08:00')))
+                    && !$el.dataset.scheduledSendConfirmed
+                ) {
+                    $event.preventDefault();
+                    openScheduledSendModal($event.submitter);
+                }
+            ">
             @isset($invoice)
                 @method('PUT')
             @endisset
             @csrf
 
+            <input type="hidden" name="send_scheduled_now" value="0" x-ref="sendScheduledNow" />
             <input type="hidden" name="line_items_json" x-ref="lineItemsJson" value="{{ $savedLineItems }}" />
+
+            <div
+                x-show="scheduledSendModalOpen"
+                x-cloak
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                x-on:keydown.escape.window="closeScheduledSendModal()"
+            >
+                <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-lg" x-on:click.outside="closeScheduledSendModal()">
+                    <div class="flex items-start gap-3">
+                        <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Scheduled invoice</h3>
+                            <p class="mt-2 text-sm text-gray-600">This invoice is scheduled to finalize today. As it is past the dispatch time, the invoice will be immediately finalized and sent to the person.</p>
+                        </div>
+                    </div>
+                    <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <x-ui.checkbox
+                            label="Send invoice to person now"
+                            :noWrapper="true"
+                            :inline="true"
+                            x-model="scheduledSendNow"
+                        />
+                    </div>
+                    <div class="mt-5 flex justify-end gap-2">
+                        <x-ui.button type="button" color="primary-outline" x-on:click.prevent="closeScheduledSendModal()">Cancel</x-ui.button>
+                        <x-ui.button type="button" x-on:click.prevent="confirmScheduledSend($el.closest('form'))">Save</x-ui.button>
+                    </div>
+                </div>
+            </div>
 
             @if($isLocked)
                 <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
@@ -695,7 +799,29 @@
                             :noWrapper="true"
                             :inline="true"
                             x-model="issueNow"
+                            x-bind:disabled="scheduledEmail"
+                            x-on:change="if (issueNow) scheduledEmail = false"
                         />
+                        <div class="mt-2">
+                            <x-ui.checkbox
+                                name="scheduled_email"
+                                value="1"
+                                label="Schedule this draft to issue and email automatically at 8:00 am on its issue date"
+                                :checked="old('scheduled_email', isset($invoice) ? $invoice->scheduled_email : false)"
+                                :noWrapper="true"
+                                :inline="true"
+                                x-model="scheduledEmail"
+                                x-bind:disabled="issueNow"
+                                x-on:change="if (scheduledEmail) issueNow = false"
+                            />
+                            <x-ui.button
+                                type="button"
+                                color="primary-outline-sm"
+                                class="ml-6 mt-2"
+                                x-show="scheduledEmail"
+                                x-on:click.prevent="openInvoiceEmailModal({{ isset($invoice) ? json_encode($invoiceEmailDefaultPayload) : 'newInvoiceEmailPayload()' }}, true)"
+                            >Edit scheduled email details</x-ui.button>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -724,48 +850,70 @@
                     <div class="text-xs text-gray-500 ml-2 mt-1">Open the linked store order to review fulfilment and tracking.</div>
                 </div>
             @endif
-            <div class="mb-4">
+            <div
+                class="mb-4"
+                x-data="{
+                    quoteLabel: @js($selectedQuoteLabel),
+                    quoteId: @js($selectedQuoteId),
+                    quoteOptions: @js($quoteLookupOptions->all()),
+                    filteredQuotes: [],
+                    quoteOpen: false,
+                    selectedQuoteIndex: -1,
+                    refreshQuotes() {
+                        const needle = String(this.quoteLabel || '').toLowerCase().trim();
+                        if (needle === '') {
+                            this.filteredQuotes = [];
+                            this.quoteOpen = false;
+                            this.quoteId = '';
+                            return;
+                        }
+                        const exact = this.quoteOptions.find((option) => option.label === this.quoteLabel);
+                        this.quoteId = exact?.id || '';
+                        this.filteredQuotes = this.quoteOptions.filter((option) => option.label.toLowerCase().includes(needle)).slice(0, 8);
+                        this.selectedQuoteIndex = this.filteredQuotes.length ? 0 : -1;
+                        this.quoteOpen = this.filteredQuotes.length > 0;
+                    },
+                    chooseQuote(option) {
+                        this.quoteLabel = option.label;
+                        this.quoteId = option.id;
+                        this.quoteOpen = false;
+                    },
+                    moveQuote(step) {
+                        if (!this.quoteOpen) { this.refreshQuotes(); return; }
+                        const length = this.filteredQuotes.length;
+                        if (length) this.selectedQuoteIndex = (this.selectedQuoteIndex + step + length) % length;
+                    },
+                    confirmQuote() {
+                        if (this.quoteOpen && this.selectedQuoteIndex >= 0) this.chooseQuote(this.filteredQuotes[this.selectedQuoteIndex]);
+                    },
+                    openQuote() {
+                        const option = this.quoteOptions.find((item) => item.id === this.quoteId);
+                        if (option?.edit_url) window.open(option.edit_url, '_blank', 'noopener,noreferrer');
+                    },
+                }"
+            >
                 <div class="flex items-center justify-between">
-                    <label for="quote_id" class="block text-sm pl-1">Linked Quote</label>
+                    <label for="invoice_linked_quote_lookup" class="block text-sm pl-1">Linked Quote</label>
                     <button
                         type="button"
-                        id="open-linked-quote-button"
                         class="text-xs text-primary-color hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
-                        @disabled($selectedQuoteId === '')
-                        onclick="
-                            const select = document.getElementById('quote_id');
-                            if (!select || !select.value) { return; }
-                            const option = select.options[select.selectedIndex];
-                            const url = option ? option.getAttribute('data-edit-url') : '';
-                            if (!url) { return; }
-                            window.open(url, '_blank', 'noopener,noreferrer');
-                        "
+                        x-bind:disabled="!quoteId"
+                        x-on:click.prevent="openQuote()"
                         >
                         Open linked quote
                     </button>
                 </div>
-                <x-ui.select
-                    name="quote_id"
-                    label="Linked Quote"
-                    noLabel="true"
-                    innerClass="mt-1"
-                    x-on:change="
-                        const button = document.getElementById('open-linked-quote-button');
-                        if (!button) { return; }
-                        button.disabled = this.value === '';
-                    "
-                >
-                    <option value="">None</option>
-                    @foreach(($quotes ?? collect()) as $quoteOption)
-                        <option
-                            value="{{ $quoteOption->id }}"
-                            data-edit-url="{{ route('admin.quote.edit', $quoteOption) }}"
-                            {{ $selectedQuoteId === (string) $quoteOption->id ? 'selected' : '' }}
-                        >
-                            {{ $quoteOption->quote_number }} - {{ trim((string) ($quoteOption->user?->getName() ?? $quoteOption->user?->email ?? 'No user')) }}
-                        </option>
-                    @endforeach
-                </x-ui.select>
+                <div class="relative mt-1" x-on:click.away="quoteOpen = false">
+                    <input id="invoice_linked_quote_lookup" type="text" x-model="quoteLabel" x-on:focus="refreshQuotes()" x-on:input="refreshQuotes()" x-on:keydown.arrow-down.prevent="moveQuote(1)" x-on:keydown.arrow-up.prevent="moveQuote(-1)" x-on:keydown.enter.prevent="confirmQuote()" x-on:keydown.escape.prevent="quoteOpen = false" autocomplete="off" placeholder="Search quote number or owner" class="disabled:bg-gray-100 bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 border-gray-300 focus:border-indigo-300 focus:ring-indigo-300" />
+                    <input type="hidden" name="quote_id" x-bind:value="quoteId">
+                    <div x-show="quoteOpen" x-cloak class="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-gray-300 bg-white shadow-lg">
+                        <ul class="max-h-60 overflow-auto py-1">
+                            <template x-for="(item, index) in filteredQuotes" :key="item.id">
+                                <li class="cursor-pointer px-3 py-2 text-sm" x-bind:class="index === selectedQuoteIndex ? 'bg-indigo-50 text-indigo-700' : 'text-gray-800 hover:bg-gray-100'" x-on:mouseenter="selectedQuoteIndex = index" x-on:mousedown.prevent="chooseQuote(item)" x-text="item.label"></li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
                 <div class="text-xs text-gray-500 ml-2 mt-1">Can only link quotes for the same user.</div>
                 @if($errors->has('quote_id'))
                     <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('quote_id') }}</div>

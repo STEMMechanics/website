@@ -13,6 +13,7 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
     $customer = $quote->user;
+    $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
@@ -30,7 +31,7 @@
     if ($billToPersonName === '') {
     $billToPersonName = trim((string) ($quote->billing_name ?? ''));
     }
-    $billingCountry = trim((string) ($customer?->billing_country ?? ''));
+    $billingCountry = $billingAddress['country'];
     $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
     $documentType = 'quote';
     $notes = trim((string) ($quote->notes ?? ''));
@@ -108,10 +109,10 @@
                     @else
                     <div style="font-size:14px; font-weight:700;">{{ $billToPersonName !== '' ? $billToPersonName : '-' }}</div>
                     @endif
-                    @if($customer?->billing_address)<div>{{ $customer->billing_address }}</div>@endif
-                    @if($customer?->billing_address2)<div>{{ $customer->billing_address2 }}</div>@endif
-                    @if($customer?->billing_city || $customer?->billing_state || $customer?->billing_postcode)
-                    <div>{{ trim(implode(', ', array_filter([$customer->billing_city ?? null, $customer->billing_state ?? null, $customer->billing_postcode ?? null]))) }}</div>
+                    @if($billingAddress['address'] !== '')<div>{{ $billingAddress['address'] }}</div>@endif
+                    @if($billingAddress['address2'] !== '')<div>{{ $billingAddress['address2'] }}</div>@endif
+                    @if($billingAddress['city'] !== '' || $billingAddress['state'] !== '' || $billingAddress['postcode'] !== '')
+                    <div>{{ trim(implode(', ', array_filter([$billingAddress['city'], $billingAddress['state'], $billingAddress['postcode']]))) }}</div>
                     @endif
                     @if($showBillingCountry)<div>{{ $billingCountry }}</div>@endif
                 </td>

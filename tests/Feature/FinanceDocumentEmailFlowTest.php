@@ -252,6 +252,30 @@ class FinanceDocumentEmailFlowTest extends TestCase
         $this->assertSame(Invoice::STATUS_ISSUED, (string) $invoice->fresh()->status);
     }
 
+    public function test_invoice_save_and_email_reopens_email_modal_for_finalized_invoice(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $owner->id,
+            'billing_email' => 'customer@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->put(route('admin.invoice.update', $invoice), [
+                'purchase_order_number' => $invoice->purchase_order_number,
+                'notes' => $invoice->notes,
+                'quote_id' => $invoice->quote_id,
+                'save_and_email' => 1,
+            ]);
+
+        $response->assertRedirect(route('admin.invoice.edit', $invoice));
+        $response->assertSessionHas('invoice-email-open', true);
+    }
+
     public function test_invoice_email_parses_dedupes_recipients_and_filters_cc(): void
     {
         Queue::fake();
@@ -278,6 +302,11 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
         $response->assertRedirect(route('admin.invoice.edit', $invoice));
         $response->assertSessionHasNoErrors();
+        $invoice->refresh();
+        $this->assertTrue($invoice->email_template_set);
+        $this->assertSame('first@example.com; second@example.com, FIRST@example.com', $invoice->email_template_to);
+        $this->assertSame('second@example.com; ops@example.com; OPS@example.com', $invoice->email_template_cc);
+        $this->assertSame('Custom invoice message', $invoice->email_template_message);
         Queue::assertPushed(SendEmail::class, 2);
 
         Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($admin) {

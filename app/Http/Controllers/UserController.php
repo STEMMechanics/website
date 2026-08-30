@@ -97,6 +97,8 @@ class UserController extends Controller
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
             'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
+            'use_organisation_billing_address' => ['nullable', 'boolean'],
+            'use_organisation_shipping_address' => ['nullable', 'boolean'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -218,6 +220,8 @@ class UserController extends Controller
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
             'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
+            'use_organisation_billing_address' => ['nullable', 'boolean'],
+            'use_organisation_shipping_address' => ['nullable', 'boolean'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -253,6 +257,16 @@ class UserController extends Controller
         ]);
 
         $payload = $this->userPayloadFromValidated($validated);
+        if ((bool) ($payload['use_organisation_billing_address'] ?? false)) {
+            foreach (['billing_address', 'billing_address2', 'billing_city', 'billing_postcode', 'billing_country', 'billing_state'] as $field) {
+                $payload[$field] = (string) ($user->{$field} ?? '');
+            }
+        }
+        if ((bool) ($payload['use_organisation_shipping_address'] ?? false)) {
+            foreach (['shipping_address', 'shipping_address2', 'shipping_city', 'shipping_postcode', 'shipping_country', 'shipping_state'] as $field) {
+                $payload[$field] = (string) ($user->{$field} ?? '');
+            }
+        }
         $email = trim((string) ($payload['email'] ?? ''));
         $payload['email_verified_at'] = $email !== '' ? now() : null;
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
@@ -454,6 +468,8 @@ class UserController extends Controller
             'billing_country' => trim((string) ($validated['billing_country'] ?? '')),
             'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
             'account_terms_days' => (int) ($validated['account_terms_days'] ?? 0),
+            'use_organisation_billing_address' => (bool) ($validated['use_organisation_billing_address'] ?? false),
+            'use_organisation_shipping_address' => (bool) ($validated['use_organisation_shipping_address'] ?? false),
         ];
     }
 

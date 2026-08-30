@@ -1,3 +1,5 @@
+@props(['deferred' => false, 'formId' => null])
+
 <div
     x-show="invoiceEmailModalOpen"
     x-cloak
@@ -10,7 +12,7 @@
     >
         <div class="mb-3 flex items-start justify-between gap-3">
             <div>
-                <h3 class="text-lg font-semibold">Email Invoice</h3>
+                <h3 class="text-lg font-semibold" x-text="invoiceEmailTemplateOnly ? 'Scheduled Invoice Email' : 'Email Invoice'">Email Invoice</h3>
                 <div class="mt-1 text-xs text-gray-500">
                     Invoice: <span x-text="invoiceEmailInvoiceNumber || 'Unknown'"></span>
                 </div>
@@ -40,14 +42,20 @@
             class="grid gap-6"
             x-bind:class="invoiceEmailHelpOpen ? 'lg:grid-cols-[minmax(0,1fr)_18rem]' : 'lg:grid-cols-1'"
         >
-            <form method="POST" x-bind:action="invoiceEmailAction" class="min-w-0">
-                @csrf
+            @if($deferred)
+                <div class="min-w-0">
+                    <input type="hidden" name="email_template_pending" value="0" x-ref="emailTemplatePending" form="{{ $formId }}">
+            @else
+                <form method="POST" x-bind:action="invoiceEmailAction" class="min-w-0">
+                    @csrf
+            @endif
                 <div class="grid gap-4">
                     <div>
                         <label class="block text-sm pl-1" for="invoice-email-recipient-emails">Recipient Email</label>
                         <input
                             id="invoice-email-recipient-emails"
                             name="recipient_emails"
+                            @if($deferred) form="{{ $formId }}" @endif
                             type="text"
                             autocomplete="email"
                             data-bwignore="true"
@@ -80,7 +88,7 @@
                                 x-model="invoiceEmailSubjectLine"
                                 placeholder="Your Invoice @{{id}} from STEMMechanics"
                             />
-                            <input type="hidden" name="subject_line" x-bind:value="invoiceEmailSubjectLine">
+                            <input type="hidden" name="subject_line" x-bind:value="invoiceEmailSubjectLine" @if($deferred) form="{{ $formId }}" @endif>
                             @if($errors->has('subject_line'))
                                 <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('subject_line') }}</div>
                             @endif
@@ -100,6 +108,7 @@
                             <input
                                 id="invoice-email-cc-emails"
                                 name="cc_emails"
+                                @if($deferred) form="{{ $formId }}" @endif
                                 type="text"
                                 autocomplete="email"
                                 data-bwignore="true"
@@ -119,6 +128,7 @@
                             <textarea
                                 id="invoice-email-message"
                                 name="email_message"
+                                @if($deferred) form="{{ $formId }}" @endif
                                 rows="8"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('email_message') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                                 x-model="invoiceEmailMessage"
@@ -130,11 +140,20 @@
                     </div>
 
                     <div class="flex justify-end gap-2">
-                        <x-ui.button type="button" color="secondary" x-on:click.prevent="closeInvoiceEmailModal()">Cancel</x-ui.button>
-                        <x-ui.button type="submit">Send Invoice Email</x-ui.button>
+                        <x-ui.button type="button" color="primary-outline" x-on:click.prevent="closeInvoiceEmailModal()">Cancel</x-ui.button>
+                        @if($deferred)
+                            <x-ui.button type="button" x-on:click.prevent="$refs.emailTemplatePending.value = '1'; closeInvoiceEmailModal()">Apply Template</x-ui.button>
+                        @else
+                            <x-ui.button type="submit" color="primary-outline" name="save_template_only" value="1" x-show="invoiceEmailTemplateOnly">Save Template</x-ui.button>
+                            <x-ui.button type="submit" x-show="!invoiceEmailTemplateOnly">Send Invoice Email</x-ui.button>
+                        @endif
                     </div>
                 </div>
-            </form>
+            @if($deferred)
+                </div>
+            @else
+                </form>
+            @endif
 
             <aside
                 x-show="invoiceEmailHelpOpen"
@@ -146,11 +165,11 @@
                     <span class="text-xs uppercase tracking-wide text-slate-500">Optional</span>
                 </div>
                 <p class="mt-2 text-sm text-slate-600">
-                    Subject and message fields can use the same placeholder values. The message also supports the payment button token.
+                    Invoice placeholders are available in both the subject and message. Recipient and CC fields support the contact email placeholder only.
                 </p>
                 <div class="mt-4 space-y-3">
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject and message</div>
                         <ul class="mt-2 space-y-1">
                             <li><code>@{{name}}</code> - recipient first name</li>
                             <li><code>@{{id}}</code> - invoice number</li>
@@ -161,14 +180,14 @@
                         </ul>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Message</div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">To, CC, subject and message</div>
                         <ul class="mt-2 space-y-1">
-                            <li><code>@{{name}}</code> - recipient first name</li>
-                            <li><code>@{{id}}</code> - invoice number</li>
-                            <li><code>@{{total}}</code> - invoice total</li>
-                            <li><code>@{{outstanding}}</code> - outstanding amount</li>
-                            <li><code>@{{due}}</code> - due date</li>
-                            <li><code>@{{po}}</code> - purchase order number</li>
+                            <li><code>@{{email}}</code> - linked invoice contact email</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Message only</div>
+                        <ul class="mt-2 space-y-1">
                             <li><code>@{{pay}}</code> - View and Pay Invoice button</li>
                         </ul>
                     </div>

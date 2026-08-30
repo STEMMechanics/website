@@ -57,6 +57,7 @@ class ReminderSystemTest extends TestCase
 
         $reminder = Reminder::query()->sole();
         $this->assertSame($facilitator->id, $reminder->recipient_user_id);
+        $this->assertSame('Workshop task: Publish before post — '.$workshop->title, $reminder->subject);
         $this->assertSame('facilitator@example.com', $reminder->recipient_email);
         $this->assertSame($task->id, (int) $reminder->source_id);
         $this->assertSame(

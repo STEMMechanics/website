@@ -252,7 +252,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{groupsRaw: @js($groupValue)}" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @method('PUT')
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
@@ -318,43 +318,65 @@
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">
                     <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Home Address</h3>
+                    <h3 class="text-lg font-bold mt-4 mb-3">Billing Address</h3>
                 </a>
                 <div x-show="open">
-                    <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
-                    <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" />
-                    <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" />
-                    <div class="flex gap-8">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" />
+                    @if($linkedOrganisation)
+                        <x-ui.checkbox
+                            label="Use {{ $linkedOrganisation->name }} billing address"
+                            name="use_organisation_billing_address"
+                            :checked="old('use_organisation_billing_address', $user->use_organisation_billing_address)"
+                            x-model="useOrganisationBillingAddress"
+                        />
+                    @endif
+                    <fieldset x-bind:disabled="useOrganisationBillingAddress">
+                        <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
+                        <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" />
+                        <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" />
+                        <div class="flex gap-8">
+                            <div class="flex-1">
+                                <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" />
+                            </div>
+                            <div class="flex-1">
+                                <x-ui.input label="Postcode" name="billing_postcode" value="{{ $user->billing_postcode }}" />
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="billing_postcode" value="{{ $user->billing_postcode }}" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="billing_country" value="{{ $user->billing_country }}" />
+                        <x-ui.input label="Country" name="billing_country" value="{{ $user->billing_country }}" />
+                    </fieldset>
                 </div>
             </section>
 
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">
                     <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Billing Address</h3>
+                    <h3 class="text-lg font-bold mt-4 mb-3">Shipping Address</h3>
                 </a>
                 <div x-show="open">
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="SM.updateShippingAddress" />
-                    <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
-                    <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
-                    <x-ui.input label="City" name="shipping_city" value="{{ $user->shipping_city }}" readonly="{{ $shipping_same_billing }}" />
-                    <div class="flex gap-8">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="shipping_state" value="{{ $user->shipping_state }}" readonly="{{ $shipping_same_billing }}" />
+                    @if($linkedOrganisation)
+                        <x-ui.checkbox
+                            label="Use {{ $linkedOrganisation->name }} shipping address"
+                            name="use_organisation_shipping_address"
+                            :checked="old('use_organisation_shipping_address', $user->use_organisation_shipping_address)"
+                            x-model="useOrganisationShippingAddress"
+                            x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false"
+                            x-bind:disabled="shippingSameBilling"
+                        />
+                    @endif
+                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; SM.updateShippingAddress()" />
+                    <fieldset x-bind:disabled="useOrganisationShippingAddress">
+                        <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
+                        <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
+                        <x-ui.input label="City" name="shipping_city" value="{{ $user->shipping_city }}" readonly="{{ $shipping_same_billing }}" />
+                        <div class="flex gap-8">
+                            <div class="flex-1">
+                                <x-ui.input label="State" name="shipping_state" value="{{ $user->shipping_state }}" readonly="{{ $shipping_same_billing }}" />
+                            </div>
+                            <div class="flex-1">
+                                <x-ui.input label="Postcode" name="shipping_postcode" value="{{ $user->shipping_postcode }}" readonly="{{ $shipping_same_billing }}" />
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="shipping_postcode" value="{{ $user->shipping_postcode }}" readonly="{{ $shipping_same_billing }}" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
+                        <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
+                    </fieldset>
                 </div>
             </section>
 
