@@ -22,14 +22,14 @@
     </summary>
 
     <div class="border-t border-gray-100 p-5">
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="mt-1 text-2xl font-bold text-sky-950">{{ $workplan['scheduledInvoices']->count() }}</div></div>
-            <div class="rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="mt-1 text-2xl font-bold text-violet-950">{{ $workplan['workshops']->count() }}</div></div>
-            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks and reminders</div><div class="mt-1 text-2xl font-bold text-emerald-950">{{ $workplan['reminders']->count() }}</div></div>
-            <div class="rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="mt-1 text-2xl font-bold text-amber-950">{{ $followUpCount }}</div></div>
-        </div>
+        <div class="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+            <section class="grid gap-3 lg:col-span-2 lg:grid-cols-4 xl:col-span-1 xl:grid-cols-1">
+                <div class="rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="mt-1 text-2xl font-bold text-sky-950">{{ $workplan['scheduledInvoices']->count() }}</div></div>
+                <div class="rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="mt-1 text-2xl font-bold text-violet-950">{{ $workplan['workshops']->count() }}</div></div>
+                <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks and reminders</div><div class="mt-1 text-2xl font-bold text-emerald-950">{{ $workplan['reminders']->count() }}</div></div>
+                <div class="rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="mt-1 text-2xl font-bold text-amber-950">{{ $followUpCount }}</div></div>
+            </section>
 
-        <div class="mt-5 grid gap-5 xl:grid-cols-2">
             <section>
                 <h3 class="font-semibold text-gray-900">Coming up this week</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
@@ -77,6 +77,5 @@
                 </div>
             </section>
         </div>
-
     </div>
 </details>
