@@ -306,7 +306,7 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->get(route('admin.workshop.pick-list', $workshop));
 
         $viewResponse->assertOk();
-        $viewResponse->assertSeeText('Participants');
+        $viewResponse->assertSeeText('Participant Count');
 
         $saveResponse = $this->actingAs($admin)
             ->postJson(route('admin.workshop.pick-list.save', $workshop), [

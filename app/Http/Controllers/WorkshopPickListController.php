@@ -29,7 +29,7 @@ class WorkshopPickListController extends Controller
 
     public function show(Workshop $workshop)
     {
-        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments');
+        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments', 'reminders.recipient');
 
         $pickListData = $this->pickListService->build($workshop);
         $participants = $pickListData['participants'];
@@ -54,12 +54,19 @@ class WorkshopPickListController extends Controller
             ->filter(fn (int $id) => in_array($id, $templateTaskIds, true))
             ->unique()->values()->all();
 
+        $taskRemindersBySourceId = $workshop->reminders
+            ->where('kind', \App\Services\ReminderService::WORKSHOP_TASK_KIND)
+            ->sortByDesc('id')
+            ->unique(fn ($reminder) => (string) $reminder->source_id)
+            ->keyBy(fn ($reminder) => (string) $reminder->source_id);
+
         return view('admin.workshop.pick-list', [
             'workshop' => $workshop,
             'participants' => $participants,
             'activeTicketCount' => $this->pickListService->activeTicketCount($workshop),
             'checkedItemIds' => $checkedItemIds,
             'completedTaskIds' => $completedTaskIds,
+            'taskRemindersBySourceId' => $taskRemindersBySourceId,
             'pickListCanvasDataJson' => is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null,
             'pickListCanvasThumbnailUrl' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
             'templateItems' => $resolvedItems->map(function (array $item): array {

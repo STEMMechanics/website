@@ -65,6 +65,14 @@ class ReminderSystemTest extends TestCase
         );
         $this->assertStringContainsString('#task-'.$task->id, (string) $reminder->action_url);
 
+        UserGroup::query()->create(['user_id' => $creator->id, 'slug' => 'admin']);
+        $this->actingAs($creator)
+            ->get(route('admin.workshop.run-sheet', $workshop))
+            ->assertOk()
+            ->assertSeeText($reminder->scheduled_at->format('D j M, g:ia'))
+            ->assertSeeText('Pending')
+            ->assertSeeText($facilitator->getName());
+
         $renderedEmail = (new ReminderNotification($reminder->load('remindable')))->render();
         $this->assertStringContainsString($workshop->title, $renderedEmail);
         $this->assertStringContainsString('Task Notes', $renderedEmail);
