@@ -17,6 +17,7 @@
         return [
             'id' => (string) $user->id,
             'label' => $label,
+            'account_terms_days' => $user->accountTermsDays(),
         ];
     })->values();
     $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] => $item['id']])->all();
@@ -376,6 +377,8 @@
                 },
                 issueDate: @js(old('issue_date', isset($invoice) && $invoice->issue_date ? $invoice->issue_date->format('Y-m-d') : now()->format('Y-m-d'))),
                 dueDate: @js(old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '')),
+                selectedUserId: @js($selectedUserId),
+                selectedUserTermsDays: @js(is_array($selectedUser) ? (int) ($selectedUser['account_terms_days'] ?? 0) : 28),
                 lineItems: (() => {
                     try {
                         const parsed = JSON.parse(@js($savedLineItems));
@@ -443,7 +446,7 @@
                     }
 
                     const dueDate = new Date(Date.UTC(year, month - 1, day));
-                    dueDate.setUTCDate(dueDate.getUTCDate() + 28);
+                    dueDate.setUTCDate(dueDate.getUTCDate() + this.selectedUserTermsDays);
                     while (dueDate.getUTCDay() === 0 || dueDate.getUTCDay() === 6) {
                         dueDate.setUTCDate(dueDate.getUTCDate() + 1);
                     }
@@ -650,6 +653,11 @@
                 },
             }"
             x-init="setDueDateDefault(); syncLinkedUserId()"
+            x-on:admin-linked-user-changed.window="
+                selectedUserId = String($event.detail?.userId || '');
+                selectedUserTermsDays = selectedUserId === '' ? 28 : Number($event.detail?.accountTermsDays || 0);
+                setDueDateDefault(true);
+            "
             x-on:submit="serializeLineItems()">
             @isset($invoice)
                 @method('PUT')
@@ -792,7 +800,9 @@
                         <div class="flex items-center justify-between">
                             <label for="due_date" class="block text-sm pl-1">Due Date</label>
                             @if(! $isLocked)
-                                <a href="#" class="text-xs text-primary-color hover:underline" x-on:click.prevent="setDueDateDefault(true)">Use default (+28 days, next business day)</a>
+                                <a href="#" class="text-xs text-primary-color hover:underline" x-on:click.prevent="setDueDateDefault(true)">
+                                    Use customer terms (<span x-text="selectedUserTermsDays === 0 ? 'Current' : '+' + selectedUserTermsDays + ' days'"></span>, next business day)
+                                </a>
                             @endif
                         </div>
                         <input

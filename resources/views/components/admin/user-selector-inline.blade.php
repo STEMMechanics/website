@@ -26,6 +26,7 @@ $displayLabel .= ' ('.$email.')';
 return [
 'id' => (string) $user->id,
 'label' => $displayLabel,
+'account_terms_days' => $user->accountTermsDays(),
 ];
 })->values();
 $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] => $item['id']])->all();
@@ -104,6 +105,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             detail: {
                 userId: option?.id || '',
                 label: option?.label || '',
+                accountTermsDays: Number(option?.account_terms_days || 0),
             },
         }));
     },
@@ -179,7 +181,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             }
             const user = payload.user;
             this.linkedUserMap[user.label] = user.id;
-            this.linkedUsers = [...this.linkedUsers, { id: user.id, label: user.label }]
+            this.linkedUsers = [...this.linkedUsers, { id: user.id, label: user.label, account_terms_days: 0 }]
                 .filter((value, index, array) => array.findIndex((item) => item.id === value.id) === index);
             this.linkedUserLabel = user.label;
             this.$refs.linkedUserId.value = user.id;
@@ -189,6 +191,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
                 detail: {
                     userId: user.id,
                     label: user.label,
+                    accountTermsDays: 0,
                 },
             }));
         } catch (error) {

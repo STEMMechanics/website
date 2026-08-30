@@ -127,6 +127,28 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $this->assertSame('2026-04-20', $invoice->due_date?->toDateString());
     }
 
+    public function test_invoice_store_defaults_due_date_from_the_linked_customers_terms(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create(['account_terms_days' => 14]);
+
+        $response = $this->actingAs($admin)->post(route('admin.invoice.store'), [
+            'invoice_number' => 'INV-TERMS-'.uniqid(),
+            'user_id' => $customer->id,
+            'issue_date' => '2026-03-21',
+            'due_date' => '',
+            'line_items_json' => json_encode([]),
+        ]);
+
+        $response->assertRedirect(route('admin.invoice.index'));
+        $response->assertSessionHasNoErrors();
+
+        $invoice = Invoice::query()->latest('id')->first();
+
+        $this->assertInstanceOf(Invoice::class, $invoice);
+        $this->assertSame('2026-04-06', $invoice->due_date?->toDateString());
+    }
+
     public function test_quote_private_files_are_saved_to_private_collection(): void
     {
         $admin = $this->createAdminUser();
@@ -308,7 +330,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => 'Q-TEST-'.uniqid(),
             'user_id' => $owner->id,
-            'status' => Quote::STATUS_OPEN,
+            'status' => \App\Models\Quote::STATUS_OPEN,
             'quote_date' => now()->toDateString(),
             'title' => 'Updated quote',
             'description' => 'Description',
@@ -406,7 +428,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => 'Q-TEST-'.uniqid(),
             'user_id' => $owner->id,
-            'status' => \App\Models\Quote::STATUS_OPEN,
+            'status' => Quote::STATUS_OPEN,
             'quote_date' => now()->toDateString(),
             'title' => 'Typed quote',
             'description' => 'Description',

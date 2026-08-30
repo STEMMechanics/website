@@ -138,7 +138,10 @@ class InvoiceController extends Controller
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
         if (! $invoice->due_date) {
-            $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
+            $invoice->due_date = InvoiceDueDate::fromIssueDate(
+                $invoice->issue_date,
+                $this->invoiceTermDays($invoice->user_id),
+            );
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -228,7 +231,10 @@ class InvoiceController extends Controller
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
         if (! $invoice->due_date) {
-            $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
+            $invoice->due_date = InvoiceDueDate::fromIssueDate(
+                $invoice->issue_date,
+                $this->invoiceTermDays($invoice->user_id),
+            );
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -1943,6 +1949,15 @@ class InvoiceController extends Controller
         }
 
         return Ticket::query()->where('invoice_id', $invoice->id)->exists();
+    }
+
+    private function invoiceTermDays(string|int|null $userId): int
+    {
+        if ($userId === null || $userId === '') {
+            return 28;
+        }
+
+        return User::query()->find($userId)?->accountTermsDays() ?? 28;
     }
 
     private function validateRequest(Request $request, ?Invoice $invoice = null): array
