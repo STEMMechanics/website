@@ -370,7 +370,7 @@ class Quote extends Model
         return match ($status) {
             self::STATUS_DRAFT => 'Draft',
             self::STATUS_OPEN => 'Open',
-            self::STATUS_AWAITING_DECISION => 'Awaiting funding/decision',
+            self::STATUS_AWAITING_DECISION => 'Pending',
             self::STATUS_ACCEPTED => 'Accepted',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_EXPIRED => 'Expired',
@@ -383,7 +383,7 @@ class Quote extends Model
         return match ($status) {
             self::STATUS_DRAFT => 'gray',
             self::STATUS_OPEN => 'warning',
-            self::STATUS_AWAITING_DECISION => 'purple',
+            self::STATUS_AWAITING_DECISION => 'sky',
             self::STATUS_ACCEPTED => 'success',
             self::STATUS_CANCELLED => 'danger',
             self::STATUS_EXPIRED => 'slate',
