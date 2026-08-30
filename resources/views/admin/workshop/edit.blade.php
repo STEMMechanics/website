@@ -881,6 +881,7 @@ if (isset($workshop)) {
                                     This will cancel the workshop and any active tickets linked to it.
                                     Refunds will be attempted automatically for Square payments.
                                     Tickets that need manual follow-up will be listed in Refunds.
+                                    Any pending workshop task reminders will be cancelled and will not be emailed.
                                 </p>
                             </div>
                             <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">

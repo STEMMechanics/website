@@ -29,6 +29,10 @@ class WeeklyWorkplanService
         $workshops = Workshop::query()->whereBetween('starts_at', [$weekStart, $weekEnd->copy()->endOfDay()])
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
+            ->where(function ($query): void {
+                $query->where('kind', '!=', ReminderService::WORKSHOP_TASK_KIND)
+                    ->orWhereHasMorph('remindable', [Workshop::class], fn ($query) => $query->where('status', '!=', 'cancelled'));
+            })
             ->whereBetween('scheduled_at', [$weekStart, $weekEnd->copy()->endOfDay()])->with('remindable')->orderBy('scheduled_at')->get();
         $quotes = Quote::query()->whereIn('status', [Quote::STATUS_OPEN, Quote::STATUS_AWAITING_DECISION])
             ->whereNotNull('follow_up_at')->whereDate('follow_up_at', '<=', today())
