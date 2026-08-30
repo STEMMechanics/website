@@ -27,6 +27,15 @@
             <form method="POST" action="{{ route('admin.subscription.store-promotion.update') }}" class="mt-5 space-y-6 border-t border-gray-200 pt-5">
                 @csrf
                 @method('PUT')
+                <div class="grid gap-4 lg:grid-cols-2">
+                    <x-ui.input name="subject" label="Subject" :value="$storePromotion->subject" />
+                    <x-ui.select name="content_order" label="Content order">
+                        <option value="store" @selected($storePromotion->content_order === 'store')>Store sections, then workshops</option>
+                        <option value="workshops" @selected($storePromotion->content_order === 'workshops')>Workshops, then store sections</option>
+                    </x-ui.select>
+                    <x-ui.input name="hero_header" label="Hero heading" :value="$storePromotion->hero_header" />
+                    <x-ui.input name="hero_cta" label="Hero introduction" :value="$storePromotion->hero_cta" />
+                </div>
                 @foreach(collect($storePromotion->sections ?? []) as $sectionIndex => $section)
                     @php
                         $previewSection = collect($currentStoreSelection['sections'] ?? [])->firstWhere('key', $section['key']);

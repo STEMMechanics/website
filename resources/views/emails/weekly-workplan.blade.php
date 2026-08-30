@@ -12,6 +12,13 @@ Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['we
 - None scheduled.
 @endforelse
 
+### Invoices due for payment ({{ $workplan['dueInvoices']->count() }})
+@forelse($workplan['dueInvoices'] as $invoice)
+- **Due {{ $invoice->due_date->format('D j M') }}:** [{{ $invoice->invoice_number }} – {{ $invoice->user?->getName() ?: $invoice->billing_name }}]({{ route('admin.invoice.edit', $invoice) }}) ({{ money((float) $invoice->displayOutstandingAmount()) }} outstanding)
+@empty
+- None due this week.
+@endforelse
+
 ### Workshops ({{ $workplan['workshops']->count() }})
 @forelse($workplan['workshops'] as $workshop)
 - **{{ $workshop->starts_at?->format('D j M, g:ia') }}:** [{{ $workshop->title }}]({{ route('admin.workshop.edit', $workshop) }})
@@ -27,6 +34,30 @@ Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['we
 @empty
 - No reminders scheduled.
 @endforelse
+
+### Next newsletter
+
+Scheduled for **{{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }}**.
+
+- **Subject:** {{ $workplan['newsletter']['subject'] }}
+- **Heading:** {{ $workplan['newsletter']['heading'] }}
+- **Introduction:** {{ $workplan['newsletter']['introduction'] }}
+
+**Workshops ({{ $workplan['newsletter']['workshops']->count() }})**
+@forelse($workplan['newsletter']['workshops'] as $workshop)
+- [{{ $workshop->title }}]({{ route('admin.workshop.edit', $workshop) }}) — {{ $workshop->starts_at?->format('D j M, g:ia') }}
+@empty
+- No workshops are currently included.
+@endforelse
+
+**Store sections ({{ $workplan['newsletter']['storeSections']->count() }})**
+@forelse($workplan['newsletter']['storeSections'] as $section)
+- **{{ $section['title'] }}:** {{ collect($section['products'] ?? [])->pluck('title')->join(', ') ?: 'No products selected' }}
+@empty
+- No store sections are currently included.
+@endforelse
+
+[Review or change the newsletter]({{ route('admin.subscription.index') }}) before it is sent. The subject and heading are selected when this preview is generated and may vary if the workplan is refreshed.
 
 ## Follow up
 

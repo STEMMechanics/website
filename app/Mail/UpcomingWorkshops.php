@@ -48,8 +48,43 @@ class UpcomingWorkshops extends Mailable
         $this->workshops = $upcomingWorkshops->whereNotNull('location_id')->values();
         $this->onlineWorkshops = $upcomingWorkshops->whereNull('location_id')->values();
         $this->storePromotion = $storeSelection ?? app(NewsletterProductSelectionService::class)->selection();
-        $this->contentOrder = $this->selectContentOrder();
-        [$this->heroHeader, $this->heroCta, $this->heroSubject] = $this->selectHeroCopy($this->contentOrder);
+        $this->contentOrder = in_array($this->storePromotion['content_order'] ?? null, ['store', 'workshops'], true)
+            ? $this->storePromotion['content_order']
+            : $this->selectContentOrder();
+        if (filled($this->storePromotion['subject'] ?? null) && filled($this->storePromotion['hero_header'] ?? null)
+            && filled($this->storePromotion['hero_cta'] ?? null) && in_array($this->storePromotion['content_order'] ?? null, ['store', 'workshops'], true)) {
+            $this->heroSubject = (string) $this->storePromotion['subject'];
+            $this->heroHeader = (string) $this->storePromotion['hero_header'];
+            $this->heroCta = (string) $this->storePromotion['hero_cta'];
+        } else {
+            [$this->heroHeader, $this->heroCta, $this->heroSubject] = $this->selectHeroCopy($this->contentOrder);
+            $this->persistPresentation();
+        }
+    }
+
+    private function persistPresentation(): void
+    {
+        $draftId = (int) ($this->storePromotion['draft_id'] ?? 0);
+        if ($draftId <= 0) {
+            return;
+        }
+
+        $selector = app(NewsletterProductSelectionService::class);
+        $promotion = $selector->draft();
+        if ((int) $promotion->getKey() !== $draftId) {
+            return;
+        }
+
+        $locked = $selector->lockPresentation($promotion, [
+            'subject' => $this->heroSubject,
+            'hero_header' => $this->heroHeader,
+            'hero_cta' => $this->heroCta,
+            'content_order' => $this->contentOrder,
+        ]);
+        $this->heroSubject = (string) $locked->subject;
+        $this->heroHeader = (string) $locked->hero_header;
+        $this->heroCta = (string) $locked->hero_cta;
+        $this->contentOrder = (string) $locked->content_order;
     }
 
     /**

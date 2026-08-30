@@ -47,6 +47,48 @@ class NewsletterStorePromotionTest extends TestCase
         $this->assertSame(['materials', 'parts'], $selection['sections'][1]['category_slugs']);
     }
 
+    public function test_newsletter_presentation_is_persisted_and_reused(): void
+    {
+        $first = new UpcomingWorkshops('first@example.com');
+        $promotion = NewsletterProductPromotion::query()->firstOrFail();
+
+        $this->assertSame($first->heroSubject, $promotion->subject);
+        $this->assertSame($first->heroHeader, $promotion->hero_header);
+        $this->assertSame($first->heroCta, $promotion->hero_cta);
+        $this->assertSame($first->contentOrder, $promotion->content_order);
+
+        $second = new UpcomingWorkshops('second@example.com');
+        $this->assertSame($first->heroSubject, $second->heroSubject);
+        $this->assertSame($first->heroHeader, $second->heroHeader);
+        $this->assertSame($first->heroCta, $second->heroCta);
+        $this->assertSame($first->contentOrder, $second->contentOrder);
+    }
+
+    public function test_admin_can_change_the_locked_newsletter_presentation(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        foreach (['kits', 'materials', 'parts'] as $slug) {
+            ProductCategory::factory()->create(['name' => ucfirst($slug), 'slug' => $slug]);
+        }
+        $selector = app(NewsletterProductSelectionService::class);
+        $draft = $selector->draft();
+
+        $this->actingAs($admin)->put(route('admin.subscription.store-promotion.update'), [
+            'subject' => 'Admin selected subject',
+            'hero_header' => 'Admin selected heading',
+            'hero_cta' => 'Admin selected introduction',
+            'content_order' => 'store',
+            'sections' => $draft->sections,
+        ])->assertRedirect(route('admin.subscription.index'));
+
+        $updated = $draft->fresh();
+        $this->assertSame('Admin selected subject', $updated->subject);
+        $this->assertSame('Admin selected heading', $updated->hero_header);
+        $this->assertSame('Admin selected introduction', $updated->hero_cta);
+        $this->assertSame('store', $updated->content_order);
+    }
+
     public function test_admin_can_edit_and_lock_store_sections_that_render_in_the_newsletter(): void
     {
         $admin = User::factory()->create();
@@ -99,7 +141,10 @@ class NewsletterStorePromotionTest extends TestCase
         $this->actingAs($admin)->post(route('admin.subscription.send-all-now'))->assertRedirect();
 
         Queue::assertPushed(SendEmail::class, 2);
-        $this->assertSame([], NewsletterProductPromotion::query()->firstOrFail()->sections[0]['locked_product_ids']);
+        $nextDraft = NewsletterProductPromotion::query()->firstOrFail();
+        $this->assertSame([], $nextDraft->sections[0]['locked_product_ids']);
+        $this->assertNotNull($nextDraft->subject);
+        $this->assertContains($nextDraft->content_order, ['store', 'workshops']);
     }
 
     public function test_admin_can_refresh_copy_independently_of_products(): void

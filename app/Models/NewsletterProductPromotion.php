@@ -12,6 +12,10 @@ class NewsletterProductPromotion extends Model
         'intro',
         'product_ids',
         'sections',
+        'subject',
+        'hero_header',
+        'hero_cta',
+        'content_order',
         'is_active',
     ];
 
