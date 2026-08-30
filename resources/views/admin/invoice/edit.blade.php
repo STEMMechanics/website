@@ -697,6 +697,7 @@
                             :inline="true"
                             x-model="issueNow"
                             x-bind:disabled="scheduledEmail"
+                            x-on:change="if (issueNow) scheduledEmail = false"
                         />
                         <div class="mt-2">
                             <x-ui.checkbox
@@ -707,9 +708,9 @@
                                 :noWrapper="true"
                                 :inline="true"
                                 x-model="scheduledEmail"
+                                x-bind:disabled="issueNow"
                                 x-on:change="if (scheduledEmail) issueNow = false"
                             />
-                            <p class="ml-6 mt-1 text-xs text-gray-500">You will receive a review email at 8:00 am the day before. Untick this option to cancel automatic sending.</p>
                         </div>
                     </div>
                 @endif

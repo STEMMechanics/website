@@ -165,7 +165,7 @@
                         <th class="hidden md:table-cell">Status</th>
                         <th class="hidden md:table-cell">Quote Date</th>
                         <th class="hidden lg:table-cell text-center">Linked Invoices</th>
-                        <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
+                        <th>Amount <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
                         <th>Actions</th>
                     </x-slot:header>
                     <x-slot:body>

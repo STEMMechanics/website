@@ -22,8 +22,8 @@
                             <tr class="border-b border-gray-200">
                                 <th class="text-left py-2 pr-3">Description</th>
                                 <th class="text-right py-2 pr-3">Qty</th>
-                                <th class="text-right py-2 pr-3">Unit (Ex GST)</th>
-                                <th class="text-right py-2">Total (incl GST)</th>
+                                <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
+                                <th class="text-right py-2">Total <span class="whitespace-nowrap">(incl GST)</span></th>
                             </tr>
                         </thead>
                         <tbody>

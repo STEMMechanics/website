@@ -105,8 +105,8 @@
                         <tr class="text-left text-gray-600">
                             <th class="px-6 py-3 font-medium">Item</th>
                             <th class="px-6 py-3 font-medium text-right">Qty</th>
-                            <th class="px-6 py-3 font-medium text-right">Unit <span class="text-xs font-normal">(ex GST)</span></th>
-                            <th class="px-6 py-3 font-medium text-right">Subtotal <span class="text-xs font-normal">(ex GST)</span></th>
+                            <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
+                            <th class="px-6 py-3 font-medium text-right">Subtotal <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
@@ -129,7 +129,7 @@
                     </tbody>
                     <tfoot class="bg-gray-50 text-sm">
                         <tr>
-                            <td colspan="3" class="px-6 py-2 text-right font-medium text-gray-600">Subtotal <span class="text-xs font-normal">(ex GST)</span></td>
+                            <td colspan="3" class="px-6 py-2 text-right font-medium text-gray-600">Subtotal <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></td>
                             <td class="px-6 py-2 text-right font-semibold text-gray-950">${{ number_format((float) $quote->subtotal_amount, 2) }}</td>
                         </tr>
                         <tr>
@@ -137,7 +137,7 @@
                             <td class="px-6 py-2 text-right font-semibold text-gray-950">${{ number_format((float) $quote->gst_amount, 2) }}</td>
                         </tr>
                         <tr>
-                            <td colspan="3" class="px-6 pb-4 text-right font-semibold text-gray-900 text-lg">Total <span class="text-xs font-normal">(inc GST)</span></td>
+                            <td colspan="3" class="px-6 pb-4 text-right font-semibold text-gray-900 text-lg">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></td>
                             <td class="px-6 pb-4 text-right font-semibold text-gray-950 text-lg">${{ number_format((float) $quote->total_amount, 2) }}</td>
                         </tr>
                     </tfoot>

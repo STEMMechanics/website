@@ -61,7 +61,7 @@ class AdminDashboardTest extends TestCase
             ->assertSee('Overview (12 months)')
             ->assertSee('value="overview" selected', false)
             ->assertSee('trend graph')
-            ->assertSee('Selected range')
+            ->assertDontSee('Selected range')
             ->assertSee('Weekly Workplan')
             ->assertSee('Suggested follow-ups')
             ->assertSee('Coming up this week')

@@ -94,7 +94,7 @@
                         <th class="hidden md:table-cell">Supplier</th>
                         <th class="hidden md:table-cell">Invoice ID</th>
                         <th class="hidden lg:table-cell">Description</th>
-                        <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
+                        <th>Amount <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
                         <th>Actions</th>
                     </x-slot:header>
                     <x-slot:body>

@@ -16,7 +16,7 @@
                     <th>Quote #</th>
                     <th>Status</th>
                     <th>Quote Date</th>
-                    <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
+                    <th>Total <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>

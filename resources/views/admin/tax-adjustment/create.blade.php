@@ -90,11 +90,11 @@
                         <th class="text-right py-2 pr-3">Original Qty</th>
                         <th class="text-right py-2 pr-3">Already Refunded</th>
                         <th class="text-right py-2 pr-3">Remaining</th>
-                        <th class="text-right py-2 pr-3">Unit (Ex GST)</th>
+                        <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
                         <th class="text-right py-2 pr-3">Refund Qty Now</th>
                         <th class="text-right py-2 pr-3">Refund Ex GST</th>
                         <th class="text-right py-2 pr-3">Refund GST</th>
-                        <th class="text-right py-2 pr-3">Refund Total (incl GST)</th>
+                        <th class="text-right py-2 pr-3">Refund Total <span class="whitespace-nowrap">(incl GST)</span></th>
                     </tr>
                     </thead>
                     <tbody>

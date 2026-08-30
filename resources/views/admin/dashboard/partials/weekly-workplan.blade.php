@@ -7,14 +7,14 @@
         + $workplan['pendingTransfers']->count();
 @endphp
 
-<details open class="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+<details open class="w-full group rounded-2xl border border-gray-200 bg-white shadow-sm">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
         <div>
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-chevron-right text-xs text-gray-400 transition-transform group-open:rotate-90"></i>
                 <h2 class="text-lg font-semibold text-gray-900">Weekly Workplan</h2>
             </div>
-            <p class="mt-1 pl-5 text-sm text-gray-500">Live view for {{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['weekEnd']->format('D j M Y') }}. This is the same information included in Sunday’s email.</p>
+            <p class="mt-1 pl-4 text-sm text-gray-500">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}.</p>
         </div>
         @if($followUpCount > 0)
             <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{{ $followUpCount }} follow-up{{ $followUpCount === 1 ? '' : 's' }}</span>
@@ -22,12 +22,12 @@
     </summary>
 
     <div class="border-t border-gray-100 p-5">
-        <div class="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            <section class="grid gap-3 lg:col-span-2 lg:grid-cols-4 xl:col-span-1 xl:grid-cols-1">
-                <div class="rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="mt-1 text-2xl font-bold text-sky-950">{{ $workplan['scheduledInvoices']->count() }}</div></div>
-                <div class="rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="mt-1 text-2xl font-bold text-violet-950">{{ $workplan['workshops']->count() }}</div></div>
-                <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks and reminders</div><div class="mt-1 text-2xl font-bold text-emerald-950">{{ $workplan['reminders']->count() }}</div></div>
-                <div class="rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="mt-1 text-2xl font-bold text-amber-950">{{ $followUpCount }}</div></div>
+        <div class="grid gap-5 lg:grid-cols-[14rem_minmax(0,1fr)_minmax(0,1fr)]">
+            <section class="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-1">
+                <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700">{{ $workplan['reminders']->count() }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="text-3xl font-bold text-amber-700">{{ $followUpCount }}</div></div>
             </section>
 
             <section>
@@ -37,12 +37,14 @@
                         <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-file-invoice-dollar mt-0.5 w-4 text-sky-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="text-xs text-gray-500">Emails {{ $invoice->issue_date?->format('D j M') }} · {{ money((float) $invoice->total_amount) }}</span></span></a>
                     @endforeach
                     @foreach($workplan['workshops'] as $workshop)
-                        <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}</span></span></a>
+                        @php($workshopLocation = trim((string) $workshop->getLocationName()))
+                        <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}{{ $workshopLocation !== '' ? ' · '.$workshopLocation : '' }}</span></span></a>
                     @endforeach
                     @foreach($workplan['reminders'] as $reminder)
                         @php($reminderTaskName = (string) str($reminder->subject)->after('Workshop task: ')->before(' — '))
                         @php($reminderWorkshopName = $reminder->remindable instanceof \App\Models\Workshop ? $reminder->remindable->title : '')
-                        <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}</span></span></a>
+                        @php($reminderWorkshopLocation = $reminder->remindable instanceof \App\Models\Workshop ? trim((string) $reminder->remindable->getLocationName()) : '')
+                        <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span></a>
                     @endforeach
                     @if($workplan['scheduledInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty())
                         <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this week.</p>

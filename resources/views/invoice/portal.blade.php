@@ -156,9 +156,9 @@
                                 <tr class="text-left text-gray-600">
                                     <th class="px-6 py-3 font-medium">Description</th>
                                     <th class="px-6 py-3 font-medium text-right">Qty</th>
-                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="text-xs font-normal">(ex GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
                                     <th class="px-6 py-3 font-medium text-right">GST</th>
-                                    <th class="px-6 py-3 font-medium text-right">Total <span class="text-xs font-normal">(inc GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-right">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
