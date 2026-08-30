@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Location;
+use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Workshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,6 +23,22 @@ class AdminDashboardTest extends TestCase
     public function test_admin_dashboard_is_visible_to_admin_users_and_admin_root_redirects(): void
     {
         $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'dashboard-workplan.png',
+            'title' => 'Dashboard workshop',
+            'hash' => str_repeat('d', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'title' => 'Public workplan workshop',
+            'starts_at' => now()->addHours(2),
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
 
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
@@ -46,6 +65,7 @@ class AdminDashboardTest extends TestCase
             ->assertSee('Weekly Workplan')
             ->assertSee('Suggested follow-ups')
             ->assertSee('Coming up this week')
+            ->assertSee(route('workshop.show', $workshop), false)
             ->assertSee('onchange="this.form.submit()"', false)
             ->assertDontSee('g:ia', false);
     }

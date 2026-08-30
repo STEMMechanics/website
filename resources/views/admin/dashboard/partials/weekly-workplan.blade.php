@@ -7,7 +7,7 @@
         + $workplan['pendingTransfers']->count();
 @endphp
 
-<details open class="group mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm">
+<details open class="group rounded-2xl border border-gray-200 bg-white shadow-sm">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-5 [&::-webkit-details-marker]:hidden">
         <div>
             <div class="flex items-center gap-2">
@@ -37,7 +37,7 @@
                         <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-file-invoice-dollar mt-0.5 w-4 text-sky-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="text-xs text-gray-500">Emails {{ $invoice->issue_date?->format('D j M') }} · {{ money((float) $invoice->total_amount) }}</span></span></a>
                     @endforeach
                     @foreach($workplan['workshops'] as $workshop)
-                        <a href="{{ route('admin.workshop.edit', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}</span></span></a>
+                        <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}</span></span></a>
                     @endforeach
                     @foreach($workplan['reminders'] as $reminder)
                         <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}</span></span></a>
