@@ -193,3 +193,8 @@ Schedule::command('payments:send-pending-bank-transfer-reminders')
     ->dailyAt('08:00')
     ->timezone((string) config('app.timezone', 'UTC'))
     ->withoutOverlapping();
+
+Schedule::command('invoices:process-scheduled')
+    ->dailyAt('08:00')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();

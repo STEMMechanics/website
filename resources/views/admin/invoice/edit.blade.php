@@ -372,6 +372,7 @@
                 isLocked: @js($isLocked),
                 invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
                 issueNow: @js((bool) old('issue_now', false)),
+                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->scheduled_email : false)),
                 canSaveAndEmail() {
                     return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
                 },
@@ -695,7 +696,21 @@
                             :noWrapper="true"
                             :inline="true"
                             x-model="issueNow"
+                            x-bind:disabled="scheduledEmail"
                         />
+                        <div class="mt-2">
+                            <x-ui.checkbox
+                                name="scheduled_email"
+                                value="1"
+                                label="Schedule this draft to issue and email automatically at 8:00 am on its issue date"
+                                :checked="old('scheduled_email', isset($invoice) ? $invoice->scheduled_email : false)"
+                                :noWrapper="true"
+                                :inline="true"
+                                x-model="scheduledEmail"
+                                x-on:change="if (scheduledEmail) issueNow = false"
+                            />
+                            <p class="ml-6 mt-1 text-xs text-gray-500">You will receive a review email at 8:00 am the day before. Untick this option to cancel automatic sending.</p>
+                        </div>
                     </div>
                 @endif
             </div>

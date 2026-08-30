@@ -131,9 +131,12 @@ class InvoiceController extends Controller
 
         $invoice = new Invoice();
         $invoice->fill($validated);
-        $invoice->status = $request->boolean('issue_now')
+        $invoice->scheduled_email = $request->boolean('scheduled_email');
+        $invoice->status = $invoice->scheduled_email
+            ? Invoice::STATUS_DRAFT
+            : ($request->boolean('issue_now')
             ? Invoice::STATUS_ISSUED
-            : Invoice::STATUS_DRAFT;
+            : Invoice::STATUS_DRAFT);
         $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
@@ -196,7 +199,7 @@ class InvoiceController extends Controller
             : ($invoice->user_id ?? null);
         $this->validateQuoteUserMatch($validated['quote_id'] ?? null, $quoteUserId);
         $nextStatus = $invoice->canEditContents()
-            ? ($request->boolean('issue_now') ? Invoice::STATUS_ISSUED : Invoice::STATUS_DRAFT)
+            ? ($request->boolean('scheduled_email') ? Invoice::STATUS_DRAFT : ($request->boolean('issue_now') ? Invoice::STATUS_ISSUED : Invoice::STATUS_DRAFT))
             : (string) $invoice->status;
         if (! $invoice->canTransitionTo($nextStatus)) {
             session()->flash('message', 'Invalid invoice status transition requested.');
@@ -226,6 +229,14 @@ class InvoiceController extends Controller
         $lineItems = $this->extractLineItems($request);
 
         $invoice->fill($validated);
+        $invoice->scheduled_email = $request->boolean('scheduled_email');
+        if ($invoice->isDirty(['scheduled_email', 'issue_date'])) {
+            $invoice->scheduled_review_sent_at = null;
+            $invoice->scheduled_email_queued_at = null;
+            $invoice->scheduled_email_sent_at = null;
+            $invoice->scheduled_email_failed_at = null;
+            $invoice->scheduled_email_failure = null;
+        }
         $invoice->status = $nextStatus;
         $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
         $invoice->gst_amount = $this->calculateGst($lineItems);
@@ -1976,10 +1987,11 @@ class InvoiceController extends Controller
             ]);
         }
 
-        return $request->validate([
+        $validated = $request->validate([
             'invoice_number' => ['required', 'string', 'max:100', Rule::unique('invoices')->ignore($invoice?->id)],
             'user_id' => ['nullable', 'exists:users,id'],
             'issue_now' => ['nullable', 'boolean'],
+            'scheduled_email' => ['nullable', 'boolean'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'purchase_order_number' => ['nullable', 'string', 'max:120'],
@@ -1992,6 +2004,22 @@ class InvoiceController extends Controller
             ],
             'private_file_ids' => ['nullable', 'string'],
         ]);
+
+        if ($request->boolean('scheduled_email') && Carbon::parse($validated['issue_date'])->lte(today())) {
+            throw ValidationException::withMessages([
+                'issue_date' => 'A scheduled invoice must have a future issue date.',
+            ]);
+        }
+        if ($request->boolean('scheduled_email')) {
+            $recipient = trim((string) ($invoice?->billing_email ?: User::query()->find($validated['user_id'] ?? null)?->email));
+            if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'scheduled_email' => 'Select a customer with a valid email address before scheduling this invoice.',
+                ]);
+            }
+        }
+
+        return $validated;
     }
 
     /**
