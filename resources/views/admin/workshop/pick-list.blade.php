@@ -99,15 +99,16 @@
                         @php($taskGroups = \App\Support\WorkshopTaskPresenter::grouped($workshop->pickListTemplate->tasks))
                         <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                             @foreach($taskGroups as $taskGroup)
-                                <section>
+                                <section class="pl-8">
                                     @if($taskGroup['heading'])
-                                        <h3 class="mb-2 font-semibold text-primary-color">{{ $taskGroup['heading'] }}</h3>
+                                        <h3 class="font-semibold text-primary-color">{{ $taskGroup['heading'] }}</h3>
                                     @elseif(count($taskGroups) > 1)
-                                        <h3 class="mb-2 font-semibold text-primary-color">Other Tasks</h3>
+                                        <h3 class="font-semibold text-primary-color">Other Tasks</h3>
                                     @endif
                                     <ul>
                                         @foreach($taskGroup['tasks'] as $presentedTask)
                                             @php($task = $presentedTask['task'])
+                                            @php($taskReminder = collect($taskRemindersBySourceId ?? [])->get((string) $task->id))
                                             @php($renderedTaskNote = app(\App\Services\ReminderService::class)->renderWorkshopPlaceholders($task->notes, $workshop) ?? '')
                                             @php($renderedSubtasks = collect($task->subtasks ?? [])->map(fn ($subtask) => [
                                                 'title' => $subtask['title'] ?? '',
@@ -123,9 +124,36 @@
                                                 />
                                                 <div class="min-w-0 flex-1 content-center">
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
-                                                    @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                        <button type="button" class="text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($renderedTaskNote); taskSubtasks = @js($renderedSubtasks)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
-                                                    @endif
+                                                    <div class="flex gap-3 items-center">
+                                                        @if($task->notes || count($task->subtasks ?? []) > 0)
+                                                            <button type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($renderedTaskNote); taskSubtasks = @js($renderedSubtasks)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                                        @endif
+
+                                                        @if(($task->notes || count($task->subtasks ?? []) > 0) && $taskReminder)
+                                                            <div class="border-r border-gray-300 h-4"></div>
+                                                        @endif
+
+                                                        @if($taskReminder)
+                                                            @php($reminderStatus = (string) $taskReminder->status)
+                                                            @php($reminderTone = match ($reminderStatus) { \App\Models\Reminder::STATUS_SENT => 'text-emerald-700', \App\Models\Reminder::STATUS_FAILED => 'text-red-700', \App\Models\Reminder::STATUS_CANCELLED => 'text-gray-500', default => 'text-amber-700' })
+                                                            @php($reminderStatusLabel = ucfirst($reminderStatus))
+                                                            @php($reminderRecipient = trim((string) ($taskReminder->recipient?->getName() ?: $taskReminder->recipient_email)))
+                                                            <div class="text-xs {{ $reminderTone }}" title="Reminder {{ strtolower($reminderStatusLabel) }}{{ $reminderRecipient !== '' ? ' for '.$reminderRecipient : '' }}">
+                                                                <i class="fa-regular fa-bell mr-1"></i>{{ $taskReminder->scheduled_at?->format('D j M, g:ia') ?? 'Date unavailable' }}
+                                                                <span class="font-medium">· {{ $reminderStatusLabel }}</span>
+                                                                @if($reminderRecipient !== '')
+                                                                    <span class="text-gray-500">· {{ $reminderRecipient }}</span>
+                                                                @endif
+                                                            </div>
+                                                        @elseif($task->reminder_enabled)
+                                                            @php($offsetDays = (int) ($task->reminder_offset_days ?? 0))
+                                                            @php($offsetLabel = $offsetDays === 0 ? 'on the workshop date' : abs($offsetDays).' day'.(abs($offsetDays) === 1 ? '' : 's').' '.($offsetDays < 0 ? 'before' : 'after'))
+                                                            @php($timeLabel = filled($task->reminder_time) ? \Illuminate\Support\Carbon::createFromFormat('H:i', (string) $task->reminder_time)->format('g:ia') : 'time not set')
+                                                            <div class="text-xs text-gray-500" title="This reminder is configured on the template but has not been scheduled for this workshop.">
+                                                                <i class="fa-regular fa-bell-slash mr-1"></i>Reminder configured: {{ $offsetLabel }} at {{ $timeLabel }} · Not scheduled
+                                                            </div>
+                                                        @endif
+                                                    </div>
                                                 </div>
                                             </li>
                                         @endforeach
@@ -154,15 +182,15 @@
             <details open class="group mb-8">
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                    <h2 class="text-lg font-semibold text-gray-900">Pick List</h2>
+                    <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Pick List</h2>
                 </summary>
 
                 <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
-                    <div class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div class="flex items-center justify-between">
                         <x-ui.checkbox
-                                label="All selected"
+                                label="Select all"
                                 :noWrapper="true"
                                 :inline="true"
                                 x-bind:checked="allItemsChecked()"
@@ -171,10 +199,11 @@
                                 x-on:change="setAllItemsChecked($event.target.checked)"
                         />
                     </div>
+                    <div class="border-gray-300 border-r h-8"></div>
 
                     @if($workshop->registration !== 'tickets')
                         <div class="flex gap-3 items-center">
-                            <span class="text-sm font-medium text-gray-700">Participants</span>
+                            <span class="text-sm font-medium text-gray-700">Participant Count</span>
                             <x-ui.input
                                     noLabel="true"
                                     type="number"
@@ -188,6 +217,7 @@
                                     x-on:change="scheduleAutosave()"
                             />
                         </div>
+                        <div class="border-gray-300 border-r h-8"></div>
                     @else
                         <div class="flex gap-2 items-center">
                             <span>Participants: </span>
@@ -205,7 +235,7 @@
                 <template x-if="currentItems().length > 0">
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         <template x-for="item in currentItems()" :key="item.id">
-                            <label class="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 select-none">
+                            <label class="flex items-center gap-3 p-3 select-none">
                                 <x-ui.checkbox
                                     :noWrapper="true"
                                     :inline="true"
@@ -335,7 +365,7 @@
                 <details open class="group mb-8">
                     <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                         <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                        <h2 class="text-lg font-semibold text-gray-900">Tasks</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Tasks</h2>
                     </summary>
                     <div id="workshop-plan-tasks" class="mt-3"></div>
                 </details>
@@ -344,7 +374,7 @@
             <details class="group mb-8">
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                    <h2 class="text-lg font-semibold text-gray-900">Run Sheet</h2>
+                    <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Run Sheet</h2>
                 </summary>
 
             <div class="mt-3">
@@ -365,7 +395,7 @@
             <details class="group mb-8">
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                    <h2 class="text-lg font-semibold text-gray-900">Drawing</h2>
+                    <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Drawing</h2>
                 </summary>
 
             <div class="mt-3 flex flex-wrap gap-2">
