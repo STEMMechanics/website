@@ -473,6 +473,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/quotes', [QuoteController::class, 'store'])->name('admin.quote.store');
     Route::get('/admin/quotes/{quote}', [QuoteController::class, 'edit'])->name('admin.quote.edit');
     Route::put('/admin/quotes/{quote}', [QuoteController::class, 'update'])->name('admin.quote.update');
+    Route::post('/admin/quotes/{quote}/snooze-follow-up', [QuoteController::class, 'snoozeFollowUp'])->name('admin.quote.snooze-follow-up');
     Route::post('/admin/quotes/{quote}/duplicate', [QuoteController::class, 'duplicate'])->name('admin.quote.duplicate');
     Route::delete('/admin/quotes/{quote}', [QuoteController::class, 'destroy'])->name('admin.quote.destroy');
     Route::get('/admin/quotes/{quote}/pdf', [QuoteController::class, 'pdf'])->name('admin.quote.pdf');

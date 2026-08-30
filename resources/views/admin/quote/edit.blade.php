@@ -516,6 +516,14 @@
             </x-ui.select>
 
             <x-ui.input type="date" label="Quote Date" name="quote_date" value="{{ old('quote_date', isset($quote) && $quote->quote_date ? $quote->quote_date->format('Y-m-d') : now()->format('Y-m-d')) }}" />
+            <div class="flex flex-col gap-4 sm:flex-row sm:gap-8">
+                <div class="flex-1">
+                    <x-ui.input type="date" label="Valid Until" name="valid_until" value="{{ old('valid_until', isset($quote) && $quote->valid_until ? $quote->valid_until->format('Y-m-d') : now()->addDays(28)->format('Y-m-d')) }}" info="The quote expires on this date." />
+                </div>
+                <div class="flex-1">
+                    <x-ui.input type="date" label="Follow Up On" name="follow_up_at" value="{{ old('follow_up_at', isset($quote) && $quote->follow_up_at ? $quote->follow_up_at->format('Y-m-d') : now()->addDays(3)->format('Y-m-d')) }}" info="Leave blank to keep it out of dashboard follow-ups." />
+                </div>
+            </div>
             <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', $quote->purchase_order_number ?? '') }}" />
 
             <x-ui.input label="Quote Title" name="title" value="{{ old('title', $quote->title ?? '') }}" />
