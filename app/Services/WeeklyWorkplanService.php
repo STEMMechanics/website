@@ -21,10 +21,10 @@ class WeeklyWorkplanService
     public function build(): array
     {
         $weekStart = today();
-        $weekEnd = today()->endOfWeek(Carbon::SATURDAY);
-        $lastStart = today()->subWeek();
+        $weekEnd = today()->addWeek()->endOfWeek(Carbon::SATURDAY);
+        $lastStart = today()->subWeeks(2);
         $lastEnd = today()->subDay()->endOfDay();
-        $previousStart = today()->subWeeks(2);
+        $previousStart = today()->subWeeks(4);
         $previousEnd = $lastStart->copy()->subDay()->endOfDay();
 
         $scheduledInvoices = Invoice::query()->where('scheduled_email', true)->where('status', Invoice::STATUS_DRAFT)

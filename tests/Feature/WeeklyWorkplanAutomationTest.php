@@ -21,18 +21,18 @@ class WeeklyWorkplanAutomationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_weekly_workplan_is_queued_for_admins(): void
+    public function test_fortnightly_workplan_is_queued_for_admins(): void
     {
         Queue::fake();
         $admin = User::factory()->create(['email' => 'admin@example.com']);
         UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
 
-        $this->artisan('workplan:send-weekly')->assertSuccessful();
+        $this->artisan('workplan:send-fortnightly')->assertSuccessful();
 
         Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof WeeklyWorkplan);
     }
 
-    public function test_weekly_workplan_email_renders(): void
+    public function test_fortnightly_workplan_email_renders(): void
     {
         $location = Location::factory()->create(['name' => 'Cairns Library']);
         $owner = User::factory()->create();
@@ -53,17 +53,17 @@ class WeeklyWorkplanAutomationTest extends TestCase
         ]);
         $html = (new WeeklyWorkplan(app(WeeklyWorkplanService::class)->build()))->render();
 
-        $this->assertStringContainsString('Weekly Workplan', $html);
+        $this->assertStringContainsString('Fortnightly Workplan', $html);
         $this->assertStringContainsString('font-size: 32px', $html);
         $this->assertStringContainsString('font-size: 24px', $html);
         $this->assertStringContainsString('Cairns Library', $html);
         $this->assertStringContainsString('Next newsletter', $html);
         $this->assertStringContainsString('Review or change the newsletter', $html);
-        $this->assertStringContainsString('Last week at a glance', $html);
+        $this->assertStringContainsString('Last fortnight at a glance', $html);
         $this->assertStringContainsString('no change', $html);
     }
 
-    public function test_website_stats_compare_with_the_previous_week(): void
+    public function test_website_stats_compare_with_the_previous_fortnight(): void
     {
         AnalyticsEvent::factory()->count(2)->create([
             'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
@@ -73,7 +73,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
         AnalyticsEvent::factory()->create([
             'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
             'route_name' => 'workshop.show',
-            'created_at' => now()->subDays(9),
+            'created_at' => now()->subDays(20),
         ]);
 
         $workplan = app(WeeklyWorkplanService::class)->build();
@@ -91,11 +91,11 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $this->actingAs($admin)->get(route('admin.dashboard.workplan.pdf'))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'inline; filename="weekly-workplan-'.today()->format('Y-m-d').'.pdf"');
+            ->assertHeader('content-disposition', 'inline; filename="fortnightly-workplan-'.today()->format('Y-m-d').'.pdf"');
 
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Website last week')
+            ->assertSee('Website last fortnight')
             ->assertSee('no change');
 
     }
@@ -127,7 +127,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $this->assertFalse(app(WeeklyWorkplanService::class)->build()['quotes']->contains($due));
     }
 
-    public function test_workplan_includes_unpaid_invoices_due_this_week(): void
+    public function test_workplan_includes_unpaid_invoices_due_this_fortnight(): void
     {
         $due = Invoice::factory()->create([
             'status' => Invoice::STATUS_SENT,

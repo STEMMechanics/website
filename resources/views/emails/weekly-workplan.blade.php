@@ -1,9 +1,9 @@
 @component('mail::message')
-<div style="margin:0 0 18px; color:#0f172a; font-size:32px; line-height:1.15; font-weight:800;">Weekly Workplan</div>
+<div style="margin:0 0 18px; color:#0f172a; font-size:32px; line-height:1.15; font-weight:800;">Fortnightly Workplan</div>
 
 Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['weekEnd']->format('D j M Y') }}**.
 
-<div style="margin:28px 0 14px; padding-bottom:8px; border-bottom:2px solid #0ea5e9; color:#0f172a; font-size:24px; line-height:1.2; font-weight:800;">Scheduled this week</div>
+<div style="margin:28px 0 14px; padding-bottom:8px; border-bottom:2px solid #0ea5e9; color:#0f172a; font-size:24px; line-height:1.2; font-weight:800;">Scheduled this fortnight</div>
 
 <div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Invoices to be sent ({{ $workplan['scheduledInvoices']->count() }})</div>
 
@@ -18,7 +18,7 @@ Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['we
 @forelse($workplan['dueInvoices'] as $invoice)
 - **Due {{ $invoice->due_date->format('D j M') }}:** [{{ $invoice->invoice_number }} – {{ $invoice->user?->getName() ?: $invoice->billing_name }}]({{ route('admin.invoice.edit', $invoice) }}) ({{ money((float) $invoice->displayOutstandingAmount()) }} outstanding)
 @empty
-- None due this week.
+- None due this fortnight.
 @endforelse
 
 <div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Workshops ({{ $workplan['workshops']->count() }})</div>
@@ -26,7 +26,7 @@ Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['we
 @forelse($workplan['workshops'] as $workshop)
 - **{{ $workshop->starts_at?->format('D j M, g:ia') }}:** [{{ $workshop->title }}]({{ route('admin.workshop.edit', $workshop) }}) · {{ $workshop->getLocationName() ?: 'Location not set' }}
 @empty
-- No workshops this week.
+- No workshops this fortnight.
 @endforelse
 
 <div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Workshop tasks and reminders ({{ $workplan['reminders']->count() }})</div>
@@ -114,7 +114,7 @@ Scheduled for **{{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }}**
 - None awaiting confirmation.
 @endforelse
 
-<div style="margin:30px 0 14px; padding-bottom:8px; border-bottom:2px solid #10b981; color:#0f172a; font-size:24px; line-height:1.2; font-weight:800;">Last week at a glance</div>
+<div style="margin:30px 0 14px; padding-bottom:8px; border-bottom:2px solid #10b981; color:#0f172a; font-size:24px; line-height:1.2; font-weight:800;">Last fortnight at a glance</div>
 
 - Page views: **{{ number_format($workplan['stats']['page_views']) }}** ({{ $workplan['websiteChanges']['page_views']['label'] }})
 - Unique visitors: **{{ number_format($workplan['stats']['visitors']) }}** ({{ $workplan['websiteChanges']['visitors']['label'] }})

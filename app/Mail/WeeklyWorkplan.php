@@ -17,7 +17,7 @@ class WeeklyWorkplan extends Mailable
     {
         $pdfs = app(WeeklyWorkplanPdfService::class);
 
-        return $this->subject('Your STEMMechanics weekly workplan – '.$this->workplan['weekStart']->format('j M Y'))
+        return $this->subject('Your STEMMechanics fortnightly workplan – '.$this->workplan['weekStart']->format('j M Y'))
             ->attachData($pdfs->render($this->workplan), $pdfs->filename($this->workplan), ['mime' => 'application/pdf'])
             ->markdown('emails.weekly-workplan');
     }

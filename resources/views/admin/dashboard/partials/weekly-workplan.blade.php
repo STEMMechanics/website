@@ -12,7 +12,7 @@
         <div>
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-chevron-right text-xs text-gray-400 transition-transform group-open:rotate-90"></i>
-                <h2 class="text-lg font-semibold text-gray-900">Weekly Workplan</h2>
+                <h2 class="text-lg font-semibold text-gray-900">Fortnightly Workplan</h2>
             </div>
             <p class="mt-1 pl-4 text-sm text-gray-500">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}.</p>
         </div>
@@ -33,7 +33,7 @@
 
             <div class="space-y-5">
             <section>
-                <h3 class="font-semibold text-gray-900">Coming up this week</h3>
+                <h3 class="font-semibold text-gray-900">Coming up this fortnight</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
                     @foreach($workplan['scheduledInvoices'] as $invoice)
                         <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-paper-plane mt-0.5 w-4 text-sky-600"></i><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">Invoice email scheduled · {{ $invoice->invoice_number }}</span><span class="text-xs text-gray-500">Sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} · {{ money((float) $invoice->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
@@ -52,7 +52,7 @@
                         <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
                     @if($workplan['scheduledInvoices']->isEmpty() && $workplan['dueInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty())
-                        <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this week.</p>
+                        <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this fortnight.</p>
                     @endif
                 </div>
             </section>
@@ -131,7 +131,7 @@
             </section>
 
             <section>
-                <h3 class="font-semibold text-gray-900">Website last week</h3>
+                <h3 class="font-semibold text-gray-900">Website last fortnight</h3>
                 <div class="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 p-3">
                     @foreach([
                         'page_views' => 'Page views',
