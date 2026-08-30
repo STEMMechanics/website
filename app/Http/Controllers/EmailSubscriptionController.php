@@ -49,13 +49,16 @@ class EmailSubscriptionController extends Controller
         }
 
         $selector = app(NewsletterProductSelectionService::class);
+        $currentStoreSelection = $selector->selection();
+        new UpcomingWorkshops('', storeSelection: $currentStoreSelection);
+        $currentStoreSelection = $selector->selection();
 
         return view('admin.subscription.index', [
             'subscriptions' => $subscriptions,
             'latestNewsletterByEmail' => $latestNewsletterByEmail,
             'storePromotion' => $selector->draft(),
             'storeProducts' => Product::query()->active()->orderBy('title')->get(['id', 'title', 'sku']),
-            'currentStoreSelection' => $selector->selection(),
+            'currentStoreSelection' => $currentStoreSelection,
             'storeThemes' => NewsletterStoreTheme::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
         ]);
     }
@@ -63,6 +66,10 @@ class EmailSubscriptionController extends Controller
     public function updateStorePromotion(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'subject' => ['sometimes', 'required', 'string', 'max:255'],
+            'hero_header' => ['sometimes', 'required', 'string', 'max:255'],
+            'hero_cta' => ['sometimes', 'required', 'string', 'max:500'],
+            'content_order' => ['sometimes', 'required', Rule::in(['store', 'workshops'])],
             'sections' => ['required', 'array', 'size:2'],
             'sections.*.key' => ['required', 'string', 'in:kits,extras'],
             'sections.*.title' => ['required', 'string', 'max:120'],
@@ -97,6 +104,14 @@ class EmailSubscriptionController extends Controller
         }
         unset($section);
         $draft = $selector->draft();
+        if (isset($validated['subject'], $validated['hero_header'], $validated['hero_cta'], $validated['content_order'])) {
+            $selector->savePresentation($draft, [
+                'subject' => $validated['subject'],
+                'hero_header' => $validated['hero_header'],
+                'hero_cta' => $validated['hero_cta'],
+                'content_order' => $validated['content_order'],
+            ]);
+        }
         $requestedThemeSection = isset($validated['apply_theme']) ? (int) $validated['apply_theme'] : null;
         $requestedTheme = $requestedThemeSection !== null
             ? NewsletterStoreTheme::query()->find((int) ($validated['sections'][$requestedThemeSection]['theme_id'] ?? 0))
@@ -292,12 +307,17 @@ class EmailSubscriptionController extends Controller
 
         $selector = app(NewsletterProductSelectionService::class);
         $storeSelection = $selector->selection();
+        new UpcomingWorkshops('', storeSelection: $storeSelection);
+        $storeSelection = $selector->selection();
 
         try {
             foreach ($emails as $email) {
                 $this->queueNewsletter($email, $storeSelection);
             }
-            $selector->clearLocks($selector->draft());
+            $draft = $selector->draft();
+            $selector->clearLocks($draft);
+            $selector->clearPresentation($draft);
+            new UpcomingWorkshops('', storeSelection: $selector->selection());
         } catch (Throwable $exception) {
             session()->flash('message', 'Unable to queue newsletters: '.$exception->getMessage());
             session()->flash('message-title', 'Newsletter failed');

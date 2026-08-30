@@ -11,15 +11,53 @@ class NewsletterProductSelectionService
 {
     public const PRODUCTS_PER_SECTION = 3;
 
-    /** @return array{source:string,sections:Collection<int, array<string, mixed>>} */
+    /** @return array<string, mixed> */
     public function selection(): array
     {
         $promotion = $this->draft();
 
         return [
             'source' => 'draft',
+            'draft_id' => $promotion->id,
             'sections' => $this->hydrateSections($promotion->sections ?? []),
+            'subject' => $promotion->subject,
+            'hero_header' => $promotion->hero_header,
+            'hero_cta' => $promotion->hero_cta,
+            'content_order' => $promotion->content_order,
         ];
+    }
+
+    /** @param array{subject:string,hero_header:string,hero_cta:string,content_order:string} $presentation */
+    public function lockPresentation(NewsletterProductPromotion $promotion, array $presentation): NewsletterProductPromotion
+    {
+        if (filled($promotion->subject) && filled($promotion->hero_header) && filled($promotion->hero_cta)
+            && in_array($promotion->content_order, ['store', 'workshops'], true)) {
+            return $promotion;
+        }
+
+        $promotion->update($presentation);
+
+        return $promotion->fresh();
+    }
+
+    /** @param array<string, string> $presentation */
+    public function savePresentation(NewsletterProductPromotion $promotion, array $presentation): NewsletterProductPromotion
+    {
+        $promotion->update($presentation);
+
+        return $promotion->fresh();
+    }
+
+    public function clearPresentation(NewsletterProductPromotion $promotion): NewsletterProductPromotion
+    {
+        $promotion->update([
+            'subject' => null,
+            'hero_header' => null,
+            'hero_cta' => null,
+            'content_order' => null,
+        ]);
+
+        return $promotion->fresh();
     }
 
     public function draft(): NewsletterProductPromotion

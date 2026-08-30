@@ -238,6 +238,7 @@ dist/
 ### This Project ###
 /public/uploads
 /public/build
+/output/
 *.key
 
 ### TinyMCE ###

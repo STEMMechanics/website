@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\WeeklyWorkplan;
+use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -32,6 +33,8 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $html = (new WeeklyWorkplan(app(WeeklyWorkplanService::class)->build()))->render();
 
         $this->assertStringContainsString('Weekly Workplan', $html);
+        $this->assertStringContainsString('Next newsletter', $html);
+        $this->assertStringContainsString('Review or change the newsletter', $html);
         $this->assertStringContainsString('Last week at a glance', $html);
     }
 
@@ -60,5 +63,24 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $this->actingAs($admin)->post(route('admin.quote.snooze-follow-up', $due))->assertRedirect();
         $this->assertSame(today()->addDays(7)->toDateString(), $due->fresh()->follow_up_at?->toDateString());
         $this->assertFalse(app(WeeklyWorkplanService::class)->build()['quotes']->contains($due));
+    }
+
+    public function test_workplan_includes_unpaid_invoices_due_this_week(): void
+    {
+        $due = Invoice::factory()->create([
+            'status' => Invoice::STATUS_SENT,
+            'due_date' => today()->addDay(),
+            'total_amount' => 125,
+        ]);
+        $later = Invoice::factory()->create([
+            'status' => Invoice::STATUS_SENT,
+            'due_date' => today()->addWeeks(2),
+            'total_amount' => 125,
+        ]);
+
+        $dueInvoices = app(WeeklyWorkplanService::class)->build()['dueInvoices'];
+
+        $this->assertTrue($dueInvoices->contains($due));
+        $this->assertFalse($dueInvoices->contains($later));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\UpcomingWorkshops;
 use App\Models\AnalyticsEvent;
 use App\Models\ContactEnquiry;
 use App\Models\Expense;
@@ -26,6 +27,9 @@ class WeeklyWorkplanService
 
         $scheduledInvoices = Invoice::query()->where('scheduled_email', true)->where('status', Invoice::STATUS_DRAFT)
             ->whereBetween('issue_date', [$weekStart, $weekEnd])->with('user')->orderBy('issue_date')->get();
+        $dueInvoices = Invoice::query()->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT])
+            ->whereBetween('due_date', [$weekStart, $weekEnd])->where('total_amount', '>', 0)
+            ->with('user')->orderBy('due_date')->get();
         $workshops = Workshop::query()->whereBetween('starts_at', [$weekStart, $weekEnd->copy()->endOfDay()])
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
@@ -52,8 +56,9 @@ class WeeklyWorkplanService
             ->orderByDesc('created_at')->limit(10)->get();
         $pendingTransfers = Payment::query()->pendingBankTransfers()->where('received_on', '<', now()->subDays(2))
             ->with('user')->orderBy('received_on')->limit(10)->get();
+        $newsletter = $this->newsletterPreview();
 
-        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers') + [
+        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers', 'newsletter') + [
             'stats' => [
                 'page_views' => AnalyticsEvent::query()->where('event_type', AnalyticsEvent::TYPE_PAGE_VIEW)->whereBetween('created_at', [$lastStart, $lastEnd])->count(),
                 'visitors' => AnalyticsEvent::query()->whereBetween('created_at', [$lastStart, $lastEnd])->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
@@ -65,6 +70,41 @@ class WeeklyWorkplanService
                 'refunds' => abs((float) Payment::query()->where('kind', Payment::KIND_REFUND)->whereBetween('received_on', [$lastStart, $lastEnd])->sum('total_amount')),
                 'expenses' => (float) Expense::query()->whereBetween('paid_on', [$lastStart, $lastEnd])->sum('total_amount'),
             ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function newsletterPreview(): array
+    {
+        $sendAt = now()->copy()->setTime(16, 0);
+        if ($sendAt->dayOfWeek !== Carbon::WEDNESDAY || $sendAt->isPast()) {
+            $sendAt->next(Carbon::WEDNESDAY)->setTime(16, 0);
+        }
+
+        $newsletter = new UpcomingWorkshops('', 'Upcoming Workshops 🌟');
+        $workshops = $newsletter->workshops->concat($newsletter->onlineWorkshops)->sortBy('starts_at')->values();
+        $storeSections = collect($newsletter->storePromotion['sections'] ?? []);
+        $workshopSection = collect([[
+            'type' => 'workshops',
+            'title' => 'Workshops',
+            'items' => $workshops,
+        ]]);
+        $productSections = $storeSections->map(fn (array $section): array => [
+            'type' => 'store',
+            'title' => $section['title'],
+            'items' => collect($section['products'] ?? []),
+        ]);
+
+        return [
+            'sendAt' => $sendAt,
+            'subject' => $newsletter->heroSubject ?: $newsletter->subject,
+            'heading' => $newsletter->heroHeader,
+            'introduction' => $newsletter->heroCta,
+            'workshops' => $workshops,
+            'storeSections' => $storeSections,
+            'contentSections' => $newsletter->contentOrder === 'store'
+                ? $productSections->concat($workshopSection)
+                : $workshopSection->concat($productSections),
         ];
     }
 }

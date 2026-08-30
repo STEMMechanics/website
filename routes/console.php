@@ -32,6 +32,8 @@ Artisan::command('email:send', function () {
     $subject = $subjects[array_rand($subjects)];
     $selector = app(NewsletterProductSelectionService::class);
     $storeSelection = $selector->selection();
+    new UpcomingWorkshops('', storeSelection: $storeSelection);
+    $storeSelection = $selector->selection();
 
     $subscribers = DB::table('email_subscriptions')
         ->whereNotNull('confirmed')
@@ -42,7 +44,10 @@ Artisan::command('email:send', function () {
     }
 
     if ($subscribers->isNotEmpty()) {
-        $selector->clearLocks($selector->draft());
+        $draft = $selector->draft();
+        $selector->clearLocks($draft);
+        $selector->clearPresentation($draft);
+        new UpcomingWorkshops('', storeSelection: $selector->selection());
     }
 })->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, '16:00');
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
@@ -39,6 +40,17 @@ class AdminDashboardTest extends TestCase
             'user_id' => $admin->id,
             'hero_media_name' => $media->name,
         ]);
+        Invoice::factory()->create([
+            'status' => Invoice::STATUS_SENT,
+            'due_date' => today()->addDay(),
+            'total_amount' => 125,
+        ]);
+        Invoice::factory()->create([
+            'status' => Invoice::STATUS_DRAFT,
+            'scheduled_email' => true,
+            'issue_date' => today()->addDay(),
+            'total_amount' => 125,
+        ]);
 
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
@@ -63,8 +75,17 @@ class AdminDashboardTest extends TestCase
             ->assertSee('trend graph')
             ->assertDontSee('Selected range')
             ->assertSee('Weekly Workplan')
+            ->assertSee('Next newsletter')
+            ->assertSee('Subject:')
+            ->assertSee('Review newsletter')
             ->assertSee('Suggested follow-ups')
             ->assertSee('Coming up this week')
+            ->assertSee('Invoices due')
+            ->assertSee('Invoice email scheduled')
+            ->assertSee('Payment due')
+            ->assertSee('fa-arrow-up-right-from-square', false)
+            ->assertSee('lg:grid-cols-2 xl:grid-cols-[14rem_minmax(0,1fr)_minmax(0,1fr)]', false)
+            ->assertSee('self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 xl:col-span-1 xl:grid-cols-1', false)
             ->assertSee(route('workshop.show', $workshop), false)
             ->assertSee('onchange="this.form.submit()"', false)
             ->assertDontSee('g:ia', false);
