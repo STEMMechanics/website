@@ -143,7 +143,7 @@
                                 <th class="hidden md:table-cell">Supplier</th>
                                 <th class="hidden md:table-cell">Invoice ID</th>
                                 <th>Description</th>
-                                <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
+                                <th>Total <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($expenses as $expense)

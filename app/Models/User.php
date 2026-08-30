@@ -42,6 +42,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'firstname',
         'surname',
         'primary_organisation_id',
+        'use_organisation_billing_address',
+        'use_organisation_shipping_address',
         'email',
         'password',
         'phone',
@@ -76,6 +78,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $attributes = [
         'account_terms_days' => 0,
+        'use_organisation_billing_address' => false,
+        'use_organisation_shipping_address' => false,
     ];
 
     /**
@@ -87,6 +91,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'account_terms_days' => 'integer',
+        'use_organisation_billing_address' => 'boolean',
+        'use_organisation_shipping_address' => 'boolean',
         'anonymized_at' => 'datetime',
     ];
 
@@ -290,6 +296,47 @@ class User extends Authenticatable implements MustVerifyEmail
     public function primaryOrganisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class, 'primary_organisation_id');
+    }
+
+    /** @return array{address:string,address2:string,city:string,state:string,postcode:string,country:string} */
+    public function resolvedBillingAddress(): array
+    {
+        $source = $this->use_organisation_billing_address && $this->primaryOrganisation instanceof Organisation
+            ? $this->primaryOrganisation
+            : $this;
+
+        return [
+            'address' => trim((string) $source->billing_address),
+            'address2' => trim((string) $source->billing_address2),
+            'city' => trim((string) $source->billing_city),
+            'state' => trim((string) $source->billing_state),
+            'postcode' => trim((string) $source->billing_postcode),
+            'country' => trim((string) $source->billing_country),
+        ];
+    }
+
+    /** @return array{address:string,address2:string,city:string,state:string,postcode:string,country:string} */
+    public function resolvedShippingAddress(): array
+    {
+        if ($this->use_organisation_shipping_address && $this->primaryOrganisation instanceof Organisation) {
+            return [
+                'address' => trim((string) $this->primaryOrganisation->shipping_address),
+                'address2' => trim((string) $this->primaryOrganisation->shipping_address2),
+                'city' => trim((string) $this->primaryOrganisation->shipping_city),
+                'state' => trim((string) $this->primaryOrganisation->shipping_state),
+                'postcode' => trim((string) $this->primaryOrganisation->shipping_postcode),
+                'country' => trim((string) $this->primaryOrganisation->shipping_country),
+            ];
+        }
+
+        return [
+            'address' => trim((string) $this->shipping_address),
+            'address2' => trim((string) $this->shipping_address2),
+            'city' => trim((string) $this->shipping_city),
+            'state' => trim((string) $this->shipping_state),
+            'postcode' => trim((string) $this->shipping_postcode),
+            'country' => trim((string) $this->shipping_country),
+        ];
     }
 
     public function syncPrimaryOrganisationByName(string $name): void

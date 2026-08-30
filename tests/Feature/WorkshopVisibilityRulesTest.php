@@ -732,6 +732,25 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertTrue($generatedWorkshop->isPubliclyVisible());
     }
 
+    public function test_newsletter_invites_forwarded_recipients_to_subscribe_without_recipient_data(): void
+    {
+        $this->createWorkshop(
+            title: 'Forward Friendly Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+
+        $rendered = (new UpcomingWorkshops('original-subscriber@example.com'))->render();
+
+        $this->assertStringContainsString("Know someone who'd love this?", $rendered);
+        $this->assertStringContainsString('Join the newsletter', $rendered);
+        $this->assertStringContainsString('/newsletter-share.png', $rendered);
+        $this->assertStringContainsString('utm_campaign=forward_to_friend', html_entity_decode($rendered));
+        $this->assertStringContainsString('#subscribe', $rendered);
+        $this->assertStringNotContainsString('original-subscriber%40example.com', $rendered);
+    }
+
     public function test_hidden_workshop_is_accessible_by_direct_url_even_before_publish_date(): void
     {
         $hiddenWorkshop = $this->createWorkshop(

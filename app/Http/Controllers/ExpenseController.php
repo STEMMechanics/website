@@ -70,6 +70,13 @@ class ExpenseController extends Controller
         session()->flash('message-title', 'Expense recorded');
         session()->flash('message-type', 'success');
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.expense.index'),
+            ]);
+        }
+
         return redirect()->route('admin.expense.index');
     }
 
@@ -95,6 +102,13 @@ class ExpenseController extends Controller
         session()->flash('message', 'Expense has been updated');
         session()->flash('message-title', 'Expense updated');
         session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.expense.edit', $expense),
+            ]);
+        }
 
         return redirect()->back();
     }

@@ -91,6 +91,55 @@
                 @endforeach
             </x-ui.select>
 
+            <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+                <div class="mb-3">
+                    <h3 class="font-semibold text-gray-900">Billing Address</h3>
+                    <p class="text-xs text-gray-500">Used on invoices and quotes when a contact inherits the organisation billing address.</p>
+                </div>
+                <x-ui.input label="Address" name="billing_address" value="{{ old('billing_address', $organisation->billing_address ?? '') }}" />
+                <x-ui.input label="Address 2" name="billing_address2" value="{{ old('billing_address2', $organisation->billing_address2 ?? '') }}" />
+                <x-ui.input label="City" name="billing_city" value="{{ old('billing_city', $organisation->billing_city ?? '') }}" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.input label="State" name="billing_state" value="{{ old('billing_state', $organisation->billing_state ?? '') }}" />
+                    <x-ui.input label="Postcode" name="billing_postcode" value="{{ old('billing_postcode', $organisation->billing_postcode ?? '') }}" />
+                </div>
+                <x-ui.input label="Country" name="billing_country" value="{{ old('billing_country', $organisation->billing_country ?? '') }}" />
+            </div>
+
+            <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+                <div class="mb-3">
+                    <h3 class="font-semibold text-gray-900">Shipping Address</h3>
+                    <p class="text-xs text-gray-500">Used for deliveries when a contact inherits the organisation shipping address.</p>
+                </div>
+                <x-ui.input label="Address" name="shipping_address" value="{{ old('shipping_address', $organisation->shipping_address ?? '') }}" />
+                <x-ui.input label="Address 2" name="shipping_address2" value="{{ old('shipping_address2', $organisation->shipping_address2 ?? '') }}" />
+                <x-ui.input label="City" name="shipping_city" value="{{ old('shipping_city', $organisation->shipping_city ?? '') }}" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.input label="State" name="shipping_state" value="{{ old('shipping_state', $organisation->shipping_state ?? '') }}" />
+                    <x-ui.input label="Postcode" name="shipping_postcode" value="{{ old('shipping_postcode', $organisation->shipping_postcode ?? '') }}" />
+                </div>
+                <x-ui.input label="Country" name="shipping_country" value="{{ old('shipping_country', $organisation->shipping_country ?? '') }}" />
+            </div>
+
+            @php
+                $invoiceContactEmailPlaceholder = '{'.'{email}'.'}';
+                $invoiceEmailToInfo = "Separate multiple addresses with commas. Use {$invoiceContactEmailPlaceholder} for the linked invoice contact.";
+                $invoiceEmailDefaultsOpen = $errors->hasAny(['invoice_email_to', 'invoice_email_cc', 'invoice_email_subject', 'invoice_email_message']);
+            @endphp
+            <x-ui.collapsible-section
+                class="mb-4"
+                title="Invoice Email Defaults"
+                subtitle="Customise invoice recipients and email content for this organisation"
+                :open="$invoiceEmailDefaultsOpen"
+            >
+                <p class="mb-4 text-xs text-gray-500">These fields start with the site defaults. Changes saved here are used for this organisation unless an invoice has its own saved email template.</p>
+                <x-ui.input label="To" name="invoice_email_to" :value="old('invoice_email_to', $organisation?->invoice_email_to ?: $invoiceEmailSiteDefaults['recipient_emails'])" :info="$invoiceEmailToInfo" />
+                <x-ui.input label="CC" name="invoice_email_cc" :value="old('invoice_email_cc', $organisation?->invoice_email_cc ?: $invoiceEmailSiteDefaults['cc_emails'])" info="Optional. Separate multiple addresses with commas." />
+                <x-ui.input label="Subject" name="invoice_email_subject" :value="old('invoice_email_subject', $organisation?->invoice_email_subject ?: $invoiceEmailSiteDefaults['subject_line'])" />
+                <x-ui.input type="textarea" label="Message" name="invoice_email_message" :value="old('invoice_email_message', $organisation?->invoice_email_message ?: $invoiceEmailSiteDefaults['email_message'])" />
+                <p class="text-xs text-gray-500">Available placeholders: <code>@{{name}}</code>, <code>@{{id}}</code>, <code>@{{total}}</code>, <code>@{{outstanding}}</code>, <code>@{{due}}</code>, <code>@{{po}}</code>, <code>@{{email}}</code>, and <code>@{{pay}}</code> in the message.</p>
+            </x-ui.collapsible-section>
+
             <x-ui.input label="Notes" name="notes" value="{{ old('notes', $organisation->notes ?? '') }}" />
 
             <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">

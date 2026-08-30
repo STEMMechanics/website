@@ -2,7 +2,7 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Create User</x-mast>
 
     <x-container>
-        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{groupsRaw: @js(old('groups', ''))}" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{ groupsRaw: @js(old('groups', '')), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', false)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', false)), shippingSameBilling: @js((bool) old('shipping_same_billing', true)) }" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">
@@ -46,18 +46,27 @@
                     <h3 class="text-lg font-bold mt-4 mb-3">Billing Address</h3>
                 </a>
                 <div x-show="open">
-                    <x-ui.input label="Address" name="billing_address" />
-                    <x-ui.input label="Address 2" name="billing_address2" />
-                    <x-ui.input label="City" name="billing_city" />
-                    <div class="flex gap-8">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="billing_state" />
+                    <x-ui.checkbox
+                        label="Use organisation billing address"
+                        name="use_organisation_billing_address"
+                        :checked="old('use_organisation_billing_address', false)"
+                        x-model="useOrganisationBillingAddress"
+                        info="Applies when the user is linked to an organisation. The address below is retained as an optional override."
+                    />
+                    <fieldset x-bind:disabled="useOrganisationBillingAddress">
+                        <x-ui.input label="Address" name="billing_address" />
+                        <x-ui.input label="Address 2" name="billing_address2" />
+                        <x-ui.input label="City" name="billing_city" />
+                        <div class="flex gap-8">
+                            <div class="flex-1">
+                                <x-ui.input label="State" name="billing_state" />
+                            </div>
+                            <div class="flex-1">
+                                <x-ui.input label="Postcode" name="billing_postcode" />
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="billing_postcode" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="billing_country" />
+                        <x-ui.input label="Country" name="billing_country" />
+                    </fieldset>
                 </div>
             </section>
 
@@ -67,19 +76,22 @@
                     <h3 class="text-lg font-bold mt-4 mb-3">Shipping Address</h3>
                 </a>
                 <div x-show="open">
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" checked="true" x-data x-on:click="SM.updateShippingAddress" />
-                    <x-ui.input label="Address" name="shipping_address" />
-                    <x-ui.input label="Address 2" name="shipping_address2" />
-                    <x-ui.input label="City" name="shipping_city" />
-                    <div class="flex gap-8">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="shipping_state" />
+                    <x-ui.checkbox label="Use organisation shipping address" name="use_organisation_shipping_address" :checked="old('use_organisation_shipping_address', false)" x-model="useOrganisationShippingAddress" x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false" info="Applies when the user is linked to an organisation." />
+                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="old('shipping_same_billing', true)" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; SM.updateShippingAddress()" />
+                    <fieldset x-bind:disabled="useOrganisationShippingAddress">
+                        <x-ui.input label="Address" name="shipping_address" />
+                        <x-ui.input label="Address 2" name="shipping_address2" />
+                        <x-ui.input label="City" name="shipping_city" />
+                        <div class="flex gap-8">
+                            <div class="flex-1">
+                                <x-ui.input label="State" name="shipping_state" />
+                            </div>
+                            <div class="flex-1">
+                                <x-ui.input label="Postcode" name="shipping_postcode" />
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="shipping_postcode" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="shipping_country" />
+                        <x-ui.input label="Country" name="shipping_country" />
+                    </fieldset>
                 </div>
             </section>
 

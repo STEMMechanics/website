@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
 use App\Mail\ContactMessage;
+use App\Models\ContactEnquiry;
 use App\Support\AltchaTrust;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
@@ -46,6 +47,14 @@ class ContactController extends Controller
         $email = strtolower(trim((string) $validated['email']));
         $subject = trim((string) $validated['subject']);
         $message = trim((string) $validated['message']);
+
+        ContactEnquiry::query()->create([
+            'user_id' => $request->user()?->id,
+            'name' => $name,
+            'email' => $email,
+            'subject' => $subject,
+            'message' => $message,
+        ]);
 
         dispatch(new SendEmail(
             $this->contactRecipientAddress(),

@@ -78,6 +78,71 @@
             @endif
         </div>
 
+        <div id="analytics-traffic-sources-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <h3 class="text-lg font-bold mb-1">Traffic Sources</h3>
+            <p class="mb-3 text-sm text-gray-600">First-touch source for sessions that began in the selected date range. UTM attribution takes precedence over the referring website.</p>
+            <x-ui.table>
+                <x-slot:header>
+                    <th>Source</th>
+                    <th>Medium</th>
+                    <th>Campaign</th>
+                    <th>Sessions</th>
+                </x-slot:header>
+                <x-slot:body>
+                    @forelse($trafficSources as $source)
+                        <tr>
+                            <td>
+                                <div class="font-semibold text-gray-900">{{ $source->source }}</div>
+                                @if($source->source_urls !== [])
+                                    <div class="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs font-normal">
+                                        @foreach($source->source_urls as $sourceHost)
+                                            <a href="https://{{ $sourceHost }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline">{{ $sourceHost }}</a>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </td>
+                            <td>{{ $source->medium }}</td>
+                            <td>{{ $source->campaign ?: '—' }}</td>
+                            <td>{{ number_format((int) $source->sessions) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="text-center text-gray-500">No traffic source data yet.</td>
+                        </tr>
+                    @endforelse
+                </x-slot:body>
+            </x-ui.table>
+            <div class="mt-4">
+                {{ $trafficSources->appends(request()->query())->links() }}
+            </div>
+        </div>
+
+        <div id="analytics-landing-pages-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <h3 class="text-lg font-bold mb-1">Landing Pages</h3>
+            <p class="mb-3 text-sm text-gray-600">The first page viewed in each session.</p>
+            <x-ui.table>
+                <x-slot:header>
+                    <th>Landing page</th>
+                    <th>Sessions</th>
+                </x-slot:header>
+                <x-slot:body>
+                    @forelse($landingPages as $landingPage)
+                        <tr>
+                            <td class="font-mono text-xs">{{ $landingPage->landing_path === '/' ? '/home' : $landingPage->landing_path }}</td>
+                            <td>{{ number_format((int) $landingPage->sessions) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="2" class="text-center text-gray-500">No landing page data yet.</td>
+                        </tr>
+                    @endforelse
+                </x-slot:body>
+            </x-ui.table>
+            <div class="mt-4">
+                {{ $landingPages->appends(request()->query())->links() }}
+            </div>
+        </div>
+
         <div id="analytics-daily-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Daily Activity</h3>
             <p class="text-sm text-gray-600 mb-3">Last 7 days, newest to oldest.</p>
