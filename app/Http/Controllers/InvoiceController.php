@@ -122,6 +122,10 @@ class InvoiceController extends Controller
 
     private function outstandingAmountForIndexInvoice(Invoice $invoice): float
     {
+        if ((string) $invoice->status === Invoice::STATUS_DRAFT) {
+            return 0.0;
+        }
+
         return round((float) $invoice->displayOutstandingAmount(), 2);
     }
 
