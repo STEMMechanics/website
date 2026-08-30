@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Jobs\SendReminder;
 use App\Models\Reminder;
+use App\Models\Workshop;
 use App\Services\ReminderService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,12 @@ class SendDueRemindersCommand extends Command
     public function handle(): int
     {
         $limit = max(1, min(500, (int) $this->option('limit')));
+        Reminder::query()
+            ->where('kind', ReminderService::WORKSHOP_TASK_KIND)
+            ->whereIn('status', [Reminder::STATUS_PENDING, Reminder::STATUS_QUEUED])
+            ->whereHasMorph('remindable', [Workshop::class], fn ($query) => $query->where('status', 'cancelled'))
+            ->update(['status' => Reminder::STATUS_CANCELLED]);
+
         Reminder::query()
             ->where('kind', ReminderService::WORKSHOP_TASK_KIND)
             ->where('status', Reminder::STATUS_PENDING)

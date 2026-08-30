@@ -85,6 +85,10 @@ class ReminderSystemTest extends TestCase
             ->get(route('admin.workshop.run-sheet.task.complete', [$workshop, $task]))
             ->assertRedirect(route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id);
         $this->assertSame([$task->id], $workshop->fresh()->run_sheet_completed_task_ids);
+
+        $workshop->update(['status' => 'cancelled']);
+        app(ReminderService::class)->syncWorkshop($workshop->fresh());
+        $this->assertSame(Reminder::STATUS_CANCELLED, $reminder->fresh()->status);
     }
 
     public function test_workshop_task_notes_replace_workshop_placeholders(): void

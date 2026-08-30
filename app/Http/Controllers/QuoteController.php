@@ -82,6 +82,8 @@ class QuoteController extends Controller
 
         $quote = new Quote();
         $quote->fill($validated);
+        $quote->valid_until ??= $quote->quote_date?->copy()->addDays(28);
+        $quote->follow_up_at ??= $quote->quote_date?->copy()->addDays(3);
         $quote->line_items = $lineItems;
         $quote->setAcceptanceSettings(
             $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems),
@@ -176,6 +178,16 @@ class QuoteController extends Controller
         }
 
         return redirect()->route('admin.quote.index');
+    }
+
+    public function snoozeFollowUp(Quote $quote): RedirectResponse
+    {
+        $quote->update(['follow_up_at' => today()->addDays(7)]);
+
+        return redirect()->back()
+            ->with('message', 'Quote follow-up snoozed for 7 days')
+            ->with('message-title', 'Follow-up snoozed')
+            ->with('message-type', 'success');
     }
 
     public function pdf(Quote $quote)
@@ -340,7 +352,7 @@ class QuoteController extends Controller
         if ($emailMessage === '') {
             $emailMessage = $this->defaultQuoteEmailMessage($quote);
         }
-        $quoteDueDate = $quote->quote_date->copy()->addDays(28)->format('M j, Y');
+        $quoteDueDate = $quote->expiresAt()?->format('M j, Y');
 
         $recipients = $this->resolveQuoteEmailRecipients($request, $quote);
         $ccRecipients = $this->resolveQuoteEmailCcRecipients($request);
@@ -472,6 +484,8 @@ class QuoteController extends Controller
             'user_id' => ['nullable', 'exists:users,id'],
             'status' => ['required', Rule::in(Quote::STATUSES)],
             'quote_date' => ['required', 'date'],
+            'valid_until' => ['nullable', 'date', 'after_or_equal:quote_date'],
+            'follow_up_at' => ['nullable', 'date'],
             'purchase_order_number' => ['nullable', 'string', 'max:120'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

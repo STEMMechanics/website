@@ -20,6 +20,7 @@ class Quote extends Model
     public const CONTEXT_STORE_MANUAL_SHIPPING = 'store_manual_shipping';
     public const STATUS_DRAFT = 'draft';
     public const STATUS_OPEN = 'open';
+    public const STATUS_AWAITING_DECISION = 'awaiting_decision';
     public const STATUS_ACCEPTED = 'accepted';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_EXPIRED = 'expired';
@@ -27,6 +28,7 @@ class Quote extends Model
     public const STATUSES = [
         self::STATUS_DRAFT,
         self::STATUS_OPEN,
+        self::STATUS_AWAITING_DECISION,
         self::STATUS_ACCEPTED,
         self::STATUS_CANCELLED,
         self::STATUS_EXPIRED,
@@ -38,6 +40,8 @@ class Quote extends Model
         'status',
         'context_type',
         'quote_date',
+        'valid_until',
+        'follow_up_at',
         'purchase_order_number',
         'title',
         'description',
@@ -52,6 +56,8 @@ class Quote extends Model
 
     protected $casts = [
         'quote_date' => 'date',
+        'valid_until' => 'date',
+        'follow_up_at' => 'date',
         'line_items' => 'array',
         'context_payload' => 'array',
         'subtotal_amount' => 'decimal:2',
@@ -164,22 +170,28 @@ class Quote extends Model
     public static function expireOpenQuotes(): void
     {
         static::query()
-            ->where('status', self::STATUS_OPEN)
-            ->whereDate('quote_date', '<=', Carbon::today()->subDays(28)->toDateString())
+            ->whereIn('status', [self::STATUS_OPEN, self::STATUS_AWAITING_DECISION])
+            ->where(function (Builder $query): void {
+                $query->whereDate('valid_until', '<=', Carbon::today())
+                    ->orWhere(function (Builder $query): void {
+                        $query->whereNull('valid_until')->whereDate('quote_date', '<=', Carbon::today()->subDays(28));
+                    });
+            })
             ->update(['status' => self::STATUS_EXPIRED]);
     }
 
     public function refreshLifecycleStatus(): void
     {
-        if ((string) $this->status !== self::STATUS_OPEN) {
+        if (! in_array((string) $this->status, [self::STATUS_OPEN, self::STATUS_AWAITING_DECISION], true)) {
             return;
         }
 
-        if (! $this->quote_date instanceof Carbon) {
+        $expiresAt = $this->expiresAt();
+        if (! $expiresAt instanceof Carbon) {
             return;
         }
 
-        if ($this->quote_date->copy()->addDays(28)->startOfDay()->gt(Carbon::today())) {
+        if ($expiresAt->startOfDay()->gt(Carbon::today())) {
             return;
         }
 
@@ -231,6 +243,10 @@ class Quote extends Model
 
     public function expiresAt(): ?Carbon
     {
+        if ($this->valid_until instanceof Carbon) {
+            return $this->valid_until->copy()->endOfDay();
+        }
+
         if (! $this->quote_date instanceof Carbon) {
             return null;
         }
@@ -354,6 +370,7 @@ class Quote extends Model
         return match ($status) {
             self::STATUS_DRAFT => 'Draft',
             self::STATUS_OPEN => 'Open',
+            self::STATUS_AWAITING_DECISION => 'Pending',
             self::STATUS_ACCEPTED => 'Accepted',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_EXPIRED => 'Expired',
@@ -366,6 +383,7 @@ class Quote extends Model
         return match ($status) {
             self::STATUS_DRAFT => 'gray',
             self::STATUS_OPEN => 'warning',
+            self::STATUS_AWAITING_DECISION => 'sky',
             self::STATUS_ACCEPTED => 'success',
             self::STATUS_CANCELLED => 'danger',
             self::STATUS_EXPIRED => 'slate',

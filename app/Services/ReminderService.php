@@ -28,7 +28,7 @@ class ReminderService
 
         $facilitator = $workshop->facilitator;
         $template = $workshop->pickListTemplate;
-        if (! $workshop->starts_at || ! $facilitator || ! $template instanceof PickListTemplate || trim((string) $facilitator->email) === '') {
+        if ((string) $workshop->status === 'cancelled' || ! $workshop->starts_at || ! $facilitator || ! $template instanceof PickListTemplate || trim((string) $facilitator->email) === '') {
             $activeReminders->flatten()->each->update(['status' => Reminder::STATUS_CANCELLED]);
 
             return;

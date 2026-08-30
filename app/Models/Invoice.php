@@ -437,6 +437,10 @@ class Invoice extends Model
 
     public function displayStatusLabel(): string
     {
+        if ($this->isScheduledDraft()) {
+            return 'Scheduled';
+        }
+
         return $this->isOverdue()
             ? self::statusLabel(self::STATUS_OVERDUE)
             : self::statusLabel((string) $this->status);
@@ -444,6 +448,10 @@ class Invoice extends Model
 
     public function displayStatusBadgeClass(): string
     {
+        if ($this->isScheduledDraft()) {
+            return 'border-blue-200 bg-blue-50 text-blue-800';
+        }
+
         return $this->isOverdue()
             ? 'border-rose-300 bg-rose-100 text-rose-900 ring-rose-200'
             : $this->statusBadgeClass();
@@ -451,9 +459,18 @@ class Invoice extends Model
 
     public function displayStatusTone(): string
     {
+        if ($this->isScheduledDraft()) {
+            return 'sky';
+        }
+
         return $this->isOverdue()
             ? 'danger'
             : $this->statusBadgeTone();
+    }
+
+    public function isScheduledDraft(): bool
+    {
+        return (string) $this->status === self::STATUS_DRAFT && (bool) $this->scheduled_email;
     }
 
     public function syncPaidState(): bool

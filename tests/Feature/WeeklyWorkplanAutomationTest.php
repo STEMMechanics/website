@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\WeeklyWorkplan;
+use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\WeeklyWorkplanService;
@@ -32,5 +33,32 @@ class WeeklyWorkplanAutomationTest extends TestCase
 
         $this->assertStringContainsString('Weekly Workplan', $html);
         $this->assertStringContainsString('Last week at a glance', $html);
+    }
+
+    public function test_quote_follow_ups_are_date_driven_and_can_be_snoozed(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $due = Quote::factory()->create([
+            'status' => Quote::STATUS_AWAITING_DECISION,
+            'follow_up_at' => today(),
+            'valid_until' => today()->addMonths(6),
+        ]);
+        $later = Quote::factory()->create([
+            'status' => Quote::STATUS_OPEN,
+            'follow_up_at' => today()->addMonth(),
+        ]);
+        Quote::factory()->create([
+            'status' => Quote::STATUS_OPEN,
+            'follow_up_at' => null,
+        ]);
+
+        $quotes = app(WeeklyWorkplanService::class)->build()['quotes'];
+        $this->assertTrue($quotes->contains($due));
+        $this->assertFalse($quotes->contains($later));
+
+        $this->actingAs($admin)->post(route('admin.quote.snooze-follow-up', $due))->assertRedirect();
+        $this->assertSame(today()->addDays(7)->toDateString(), $due->fresh()->follow_up_at?->toDateString());
+        $this->assertFalse(app(WeeklyWorkplanService::class)->build()['quotes']->contains($due));
     }
 }

@@ -17,6 +17,8 @@ class QuoteFactory extends Factory
             'user_id' => User::query()->value('id') ?? User::factory(),
             'status' => Quote::STATUS_OPEN,
             'quote_date' => fake()->date(),
+            'valid_until' => null,
+            'follow_up_at' => null,
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(),
             'line_items' => [],
