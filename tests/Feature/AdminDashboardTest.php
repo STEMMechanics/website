@@ -43,6 +43,9 @@ class AdminDashboardTest extends TestCase
             ->assertSee('value="overview" selected', false)
             ->assertSee('trend graph')
             ->assertSee('Selected range')
+            ->assertSee('Weekly Workplan')
+            ->assertSee('Suggested follow-ups')
+            ->assertSee('Coming up this week')
             ->assertSee('onchange="this.form.submit()"', false)
             ->assertDontSee('g:ia', false);
     }

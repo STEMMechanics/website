@@ -27,6 +27,8 @@
             </form>
         </div>
 
+        @include('admin.dashboard.partials.weekly-workplan', ['workplan' => $workplan])
+
         <div class="mt-4 grid gap-4 xl:grid-cols-2">
             @foreach($cards as $card)
                 <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
