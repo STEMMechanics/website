@@ -21,7 +21,9 @@ Your plan for **{{ $workplan['weekStart']->format('D j M') }}–{{ $workplan['we
 
 ### Workshop tasks and reminders ({{ $workplan['reminders']->count() }})
 @forelse($workplan['reminders'] as $reminder)
-- **{{ $reminder->scheduled_at->format('D j M, g:ia') }}:** [{{ $reminder->subject }}]({{ $reminder->action_url }})
+@php($reminderTaskName = (string) str($reminder->subject)->after('Workshop task: ')->before(' — '))
+@php($reminderWorkshopName = $reminder->remindable instanceof \App\Models\Workshop ? $reminder->remindable->title : '')
+- **{{ $reminder->scheduled_at->format('D j M, g:ia') }}:** [{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}]({{ $reminder->action_url }})
 @empty
 - No reminders scheduled.
 @endforelse

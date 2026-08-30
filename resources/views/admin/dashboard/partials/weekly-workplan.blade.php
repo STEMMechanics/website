@@ -40,7 +40,9 @@
                         <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}</span></span></a>
                     @endforeach
                     @foreach($workplan['reminders'] as $reminder)
-                        <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}</span></span></a>
+                        @php($reminderTaskName = (string) str($reminder->subject)->after('Workshop task: ')->before(' — '))
+                        @php($reminderWorkshopName = $reminder->remindable instanceof \App\Models\Workshop ? $reminder->remindable->title : '')
+                        <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600"></i><span class="min-w-0"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}</span></span></a>
                     @endforeach
                     @if($workplan['scheduledInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty())
                         <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this week.</p>

@@ -9,6 +9,7 @@ use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class ReminderService
 {
@@ -59,7 +60,7 @@ class ReminderService
             $attributes = [
                 'recipient_user_id' => $facilitator->id,
                 'recipient_email' => trim((string) $facilitator->email),
-                'subject' => 'Workshop task: '.trim((string) $task->name),
+                'subject' => Str::limit('Workshop task: '.trim((string) $task->name).' — '.trim((string) $workshop->title), 255, ''),
                 'message' => $this->workshopTaskMessage($task, $workshop),
                 'action_url' => route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id,
                 'status' => Reminder::STATUS_PENDING,
