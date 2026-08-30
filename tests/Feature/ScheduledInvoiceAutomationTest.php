@@ -20,6 +20,18 @@ class ScheduledInvoiceAutomationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_scheduled_draft_uses_a_scheduled_display_status(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'status' => Invoice::STATUS_DRAFT,
+            'scheduled_email' => true,
+        ]);
+
+        $this->assertTrue($invoice->isScheduledDraft());
+        $this->assertSame('Scheduled', $invoice->displayStatusLabel());
+        $this->assertSame('sky', $invoice->displayStatusTone());
+    }
+
     public function test_scheduled_invoice_sends_an_admin_review_notice_the_day_before(): void
     {
         Queue::fake();
