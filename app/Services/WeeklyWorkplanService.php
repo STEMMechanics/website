@@ -30,8 +30,9 @@ class WeeklyWorkplanService
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
             ->whereBetween('scheduled_at', [$weekStart, $weekEnd->copy()->endOfDay()])->with('remindable')->orderBy('scheduled_at')->get();
-        $quotes = Quote::query()->where('status', Quote::STATUS_OPEN)->where('updated_at', '<', now()->subDays(3))
-            ->with('user')->orderBy('updated_at')->limit(10)->get();
+        $quotes = Quote::query()->whereIn('status', [Quote::STATUS_OPEN, Quote::STATUS_AWAITING_DECISION])
+            ->whereNotNull('follow_up_at')->whereDate('follow_up_at', '<=', today())
+            ->with('user')->orderBy('follow_up_at')->limit(10)->get();
         $orders = StoreOrder::query()->whereIn('status', [StoreOrder::STATUS_PENDING_PAYMENT, StoreOrder::STATUS_QUOTE_REQUESTED])
             ->where('created_at', '<', now()->subDay())->with('user')->orderBy('created_at')->limit(10)->get();
         $interests = WorkshopInterest::query()->where('created_at', '>=', now()->subDays(30))->with('workshop')

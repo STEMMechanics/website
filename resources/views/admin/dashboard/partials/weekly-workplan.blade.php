@@ -16,9 +16,6 @@
             </div>
             <p class="mt-1 pl-4 text-sm text-gray-500">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}.</p>
         </div>
-        @if($followUpCount > 0)
-            <span class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">{{ $followUpCount }} follow-up{{ $followUpCount === 1 ? '' : 's' }}</span>
-        @endif
     </summary>
 
     <div class="border-t border-gray-100 p-5">
@@ -56,7 +53,13 @@
                 <h3 class="font-semibold text-gray-900">Suggested follow-ups</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
                     @foreach($workplan['quotes'] as $quote)
-                        <a href="{{ route('admin.quote.edit', $quote) }}" class="block p-3 text-sm hover:bg-gray-50"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">Open · last updated {{ $quote->updated_at->diffForHumans() }}</span></a>
+                        <div class="flex items-center gap-2 p-3 text-sm hover:bg-gray-50">
+                            <a href="{{ route('admin.quote.edit', $quote) }}" class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">{{ $quote->statusLabel() }} · follow-up due {{ $quote->follow_up_at?->format('j M Y') }}</span></a>
+                            <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}">
+                                @csrf
+                                <button type="submit" class="whitespace-nowrap text-xs text-primary-color hover:underline">Snooze 7 days</button>
+                            </form>
+                        </div>
                     @endforeach
                     @foreach($workplan['orders'] as $order)
                         <a href="{{ route('admin.shop.order.edit', $order) }}" class="block p-3 text-sm hover:bg-gray-50"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ str($order->status)->replace('_', ' ')->title() }} · {{ money((float) $order->total_amount) }}</span></a>
