@@ -99,6 +99,7 @@ class UserController extends Controller
             'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
             'use_organisation_billing_address' => ['nullable', 'boolean'],
             'use_organisation_shipping_address' => ['nullable', 'boolean'],
+            'use_organisation_account_terms' => ['nullable', 'boolean'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -222,6 +223,7 @@ class UserController extends Controller
             'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
             'use_organisation_billing_address' => ['nullable', 'boolean'],
             'use_organisation_shipping_address' => ['nullable', 'boolean'],
+            'use_organisation_account_terms' => ['nullable', 'boolean'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -470,6 +472,7 @@ class UserController extends Controller
             'account_terms_days' => (int) ($validated['account_terms_days'] ?? 0),
             'use_organisation_billing_address' => (bool) ($validated['use_organisation_billing_address'] ?? false),
             'use_organisation_shipping_address' => (bool) ($validated['use_organisation_shipping_address'] ?? false),
+            'use_organisation_account_terms' => (bool) ($validated['use_organisation_account_terms'] ?? false),
         ];
     }
 

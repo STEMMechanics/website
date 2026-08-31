@@ -176,7 +176,7 @@ class OrganisationController extends Controller
      */
     private function validated(Request $request, ?Organisation $organisation = null): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', Rule::in(array_keys(Organisation::TYPES))],
             'parent_id' => [
@@ -196,6 +196,8 @@ class OrganisationController extends Controller
             'shipping_state' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country'],
             'shipping_postcode' => ['nullable', 'string', 'max:40', 'required_with:shipping_address,shipping_city,shipping_country,shipping_state'],
             'shipping_country' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state'],
+            'shipping_same_billing' => ['nullable', 'boolean'],
+            'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
             'invoice_email_to' => ['nullable', 'string', 'max:2000', 'required_with:invoice_email_subject,invoice_email_message'],
             'invoice_email_cc' => ['nullable', 'string', 'max:2000'],
             'invoice_email_subject' => ['nullable', 'string', 'max:255', 'required_with:invoice_email_to,invoice_email_message'],
@@ -204,5 +206,14 @@ class OrganisationController extends Controller
             'contact_ids' => ['nullable', 'array'],
             'contact_ids.*' => ['uuid', 'exists:users,id'],
         ]);
+
+        if ((bool) ($validated['shipping_same_billing'] ?? false)) {
+            foreach (['address', 'address2', 'city', 'state', 'postcode', 'country'] as $field) {
+                $validated['shipping_'.$field] = $validated['billing_'.$field] ?? null;
+            }
+        }
+        unset($validated['shipping_same_billing']);
+
+        return $validated;
     }
 }

@@ -295,6 +295,9 @@
                     <option value="{{ $days }}" @selected((int) old('account_terms_days', $user->accountTermsDays()) === (int) $days)>{{ $label }}</option>
                 @endforeach
             </x-ui.select>
+            @if($linkedOrganisation)
+                <x-ui.checkbox label="Use {{ $linkedOrganisation->name }} account terms ({{ $linkedOrganisation->accountTermsDays() === 0 ? 'Current' : $linkedOrganisation->accountTermsDays().' days' }})" name="use_organisation_account_terms" :checked="old('use_organisation_account_terms', $user->use_organisation_account_terms)" />
+            @endif
             <x-ui.input
                 label="Groups (comma or space separated)"
                 name="groups"
