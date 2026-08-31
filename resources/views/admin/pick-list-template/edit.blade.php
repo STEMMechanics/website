@@ -68,20 +68,30 @@
             drawingChanged: false,
             drawingContext: null,
             drawingActive: false,
+            drawingTool: 'draw',
+            drawingColor: '#111827',
+            drawingLineWidth: 3,
+            drawingStart: null,
+            drawingSnapshot: null,
             initDrawing() {
                 const canvas = this.$refs.runSheetCanvas;
                 if (!(canvas instanceof HTMLCanvasElement)) return;
                 this.drawingContext = canvas.getContext('2d');
-                this.drawingContext.lineCap = 'round';
-                this.drawingContext.lineJoin = 'round';
-                this.drawingContext.lineWidth = 3;
-                this.drawingContext.strokeStyle = '#111827';
+                this.configureDrawingContext();
                 const saved = String(this.$refs.runSheetDrawingInput?.value || '');
                 if (saved !== '') {
                     const image = new Image();
                     image.onload = () => this.drawingContext.drawImage(image, 0, 0, canvas.width, canvas.height);
                     image.src = saved;
                 }
+            },
+            configureDrawingContext() {
+                if (!this.drawingContext) return;
+                this.drawingContext.lineCap = 'round';
+                this.drawingContext.lineJoin = 'round';
+                this.drawingContext.lineWidth = Number(this.drawingLineWidth);
+                this.drawingContext.strokeStyle = this.drawingColor;
+                this.drawingContext.globalCompositeOperation = this.drawingTool === 'erase' ? 'destination-out' : 'source-over';
             },
             drawingPoint(event) {
                 const canvas = this.$refs.runSheetCanvas;
@@ -95,20 +105,46 @@
                 if (!this.drawingContext) return;
                 const point = this.drawingPoint(event);
                 this.drawingActive = true;
-                this.drawingContext.beginPath();
-                this.drawingContext.moveTo(point.x, point.y);
+                this.drawingStart = point;
+                this.configureDrawingContext();
+                if (['line', 'rectangle', 'circle'].includes(this.drawingTool)) {
+                    const canvas = this.$refs.runSheetCanvas;
+                    this.drawingSnapshot = this.drawingContext.getImageData(0, 0, canvas.width, canvas.height);
+                } else {
+                    this.drawingContext.beginPath();
+                    this.drawingContext.moveTo(point.x, point.y);
+                }
                 event.currentTarget.setPointerCapture?.(event.pointerId);
             },
             draw(event) {
                 if (!this.drawingActive || !this.drawingContext) return;
                 const point = this.drawingPoint(event);
-                this.drawingContext.lineTo(point.x, point.y);
-                this.drawingContext.stroke();
+                this.configureDrawingContext();
+                if (['draw', 'erase'].includes(this.drawingTool)) {
+                    this.drawingContext.lineTo(point.x, point.y);
+                    this.drawingContext.stroke();
+                } else if (this.drawingSnapshot && this.drawingStart) {
+                    this.drawingContext.putImageData(this.drawingSnapshot, 0, 0);
+                    this.drawingContext.beginPath();
+                    if (this.drawingTool === 'line') {
+                        this.drawingContext.moveTo(this.drawingStart.x, this.drawingStart.y);
+                        this.drawingContext.lineTo(point.x, point.y);
+                    } else if (this.drawingTool === 'rectangle') {
+                        this.drawingContext.rect(this.drawingStart.x, this.drawingStart.y, point.x - this.drawingStart.x, point.y - this.drawingStart.y);
+                    } else {
+                        const x = (this.drawingStart.x + point.x) / 2;
+                        const y = (this.drawingStart.y + point.y) / 2;
+                        this.drawingContext.ellipse(x, y, Math.abs(point.x - this.drawingStart.x) / 2, Math.abs(point.y - this.drawingStart.y) / 2, 0, 0, Math.PI * 2);
+                    }
+                    this.drawingContext.stroke();
+                }
                 this.drawingChanged = true;
             },
             stopDrawing() {
                 if (!this.drawingActive) return;
                 this.drawingActive = false;
+                this.drawingStart = null;
+                this.drawingSnapshot = null;
                 this.saveDrawing();
             },
             saveDrawing() {
@@ -123,6 +159,11 @@
                 this.drawingContext.clearRect(0, 0, canvas.width, canvas.height);
                 this.$refs.runSheetDrawingInput.value = '';
                 this.drawingChanged = true;
+            },
+            drawingToolClass(tool) {
+                return this.drawingTool === tool
+                    ? 'inline-flex items-center gap-2 rounded-lg bg-primary-color px-3 py-2 text-sm font-semibold text-white'
+                    : 'inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50';
             },
             seededBlankTask() {
                 return { id: null, name: '', notes: '', subtasks: [], reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_time: '06:00', sort_order: 0 };
@@ -434,15 +475,15 @@
                     <table class="min-w-full border border-gray-200 rounded-md">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="text-left p-2 border-b">Item</th>
-                                <th class="text-left p-2 border-b hidden md:table-cell">Type</th>
-                                <th class="text-left p-2 border-b hidden md:table-cell">Quantity</th>
-                                <th class="text-left p-2 border-b">Actions</th>
+                                <th class="text-left p-2 border-b border-gray-300">Item</th>
+                                <th class="text-left p-2 border-b border-gray-300 hidden md:table-cell">Type</th>
+                                <th class="text-left p-2 border-b border-gray-300 hidden md:table-cell">Quantity</th>
+                                <th class="text-left p-2 border-b border-gray-300">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(item, index) in items" :key="index">
-                                <tr class="border-b last:border-b-0">
+                                <tr class="border-b border-gray-300 last:border-b-0">
                                     <td class="p-2 align-top">
                                         <input type="hidden" x-model="item.id" :name="!isBlankItem(item) && item.id ? `items[${index}][id]` : null">
                                         <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
@@ -515,7 +556,7 @@
                                             name="quantity_type_placeholder_desktop"
                                             label="Type"
                                             :noLabel="true"
-                                            class="mx-0"
+                                            class="mb-0"
                                             x-model="item.quantity_type"
                                             x-on:change="item.quantity_type = $event.target.value; handleRowChange(index)">
                                             <option value="per_participant">Per Participant</option>
@@ -575,6 +616,15 @@
                             <p class="text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
                         </div>
                         <x-ui.button type="button" color="outline" x-on:click="clearDrawing()">Clear Drawing</x-ui.button>
+                    </div>
+                    <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <button type="button" x-bind:class="drawingToolClass('draw')" x-on:click="drawingTool = 'draw'"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
+                        <button type="button" x-bind:class="drawingToolClass('erase')" x-on:click="drawingTool = 'erase'"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
+                        <button type="button" x-bind:class="drawingToolClass('line')" x-on:click="drawingTool = 'line'"><i class="fa-solid fa-slash"></i><span>Line</span></button>
+                        <button type="button" x-bind:class="drawingToolClass('rectangle')" x-on:click="drawingTool = 'rectangle'"><i class="fa-regular fa-square"></i><span>Rectangle</span></button>
+                        <button type="button" x-bind:class="drawingToolClass('circle')" x-on:click="drawingTool = 'circle'"><i class="fa-regular fa-circle"></i><span>Circle</span></button>
+                        <label class="ml-auto flex items-center gap-2 text-sm font-medium text-gray-700"><span>Colour</span><input type="color" x-model="drawingColor" class="h-9 w-11 rounded border border-gray-300 p-1" aria-label="Drawing colour"></label>
+                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700"><span>Width</span><input type="range" min="1" max="24" x-model.number="drawingLineWidth" class="w-28" aria-label="Drawing line width"><span x-text="drawingLineWidth + 'px'"></span></label>
                     </div>
                     <input
                         type="hidden"
