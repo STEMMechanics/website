@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ReminderService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +13,13 @@ class Reminder extends Model
     use HasFactory;
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_QUEUED = 'queued';
+
     public const STATUS_SENT = 'sent';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
@@ -59,5 +64,18 @@ class Reminder extends Model
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recipient_user_id');
+    }
+
+    public function isCompletedWorkshopTask(): bool
+    {
+        if ($this->kind !== ReminderService::WORKSHOP_TASK_KIND
+            || ! $this->remindable instanceof Workshop
+            || ! is_numeric($this->source_id)) {
+            return false;
+        }
+
+        return collect($this->remindable->run_sheet_completed_task_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->contains((int) $this->source_id);
     }
 }

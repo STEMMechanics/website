@@ -9,9 +9,12 @@ use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Quote;
+use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopTemplateTask;
+use App\Services\ReminderService;
 use App\Services\WeeklyWorkplanService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -131,6 +134,50 @@ class WeeklyWorkplanAutomationTest extends TestCase
             ->assertSee('Website last fortnight')
             ->assertSee('no change');
 
+    }
+
+    public function test_completed_workshop_tasks_are_crossed_out_on_the_dashboard_and_workplan_pdf(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $location = Location::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'completed-task-workshop.png',
+            'title' => 'Completed task workshop',
+            'hash' => str_repeat('c', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'status' => 'open',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+            'run_sheet_completed_task_ids' => [321],
+        ]);
+        Reminder::query()->create([
+            'kind' => ReminderService::WORKSHOP_TASK_KIND,
+            'remindable_type' => $workshop->getMorphClass(),
+            'remindable_id' => $workshop->id,
+            'source_type' => (new WorkshopTemplateTask)->getMorphClass(),
+            'source_id' => 321,
+            'recipient_user_id' => $admin->id,
+            'recipient_email' => $admin->email,
+            'subject' => 'Workshop task: Pack robots — Test workshop',
+            'status' => Reminder::STATUS_PENDING,
+            'scheduled_at' => today()->addDay()->setTime(6, 0),
+        ]);
+
+        $workplan = app(WeeklyWorkplanService::class)->build();
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('text-gray-400 line-through', false);
+        $this->assertStringContainsString(
+            '<li class="completed">Workshop task: Pack robots',
+            view('pdf.weekly-workplan', ['workplan' => $workplan])->render(),
+        );
     }
 
     public function test_quote_follow_ups_are_date_driven_and_can_be_snoozed(): void
