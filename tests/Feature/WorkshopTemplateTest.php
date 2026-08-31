@@ -48,7 +48,13 @@ class WorkshopTemplateTest extends TestCase
             ->assertSeeText('{time-range}')
             ->assertSeeText('{location}')
             ->assertSeeText('{ages}')
-            ->assertSeeText('{cost}');
+            ->assertSeeText('{cost}')
+            ->assertSee('Drawing colour', false)
+            ->assertSee('Drawing line width', false)
+            ->assertSeeText('Erase')
+            ->assertSeeText('Line')
+            ->assertSeeText('Rectangle')
+            ->assertSeeText('Circle');
 
         $this->assertSame(2, substr_count($response->getContent(), 'aria-label="Show workshop placeholders"'));
     }
