@@ -9,6 +9,13 @@
             'edit_url' => route('admin.user.edit', $contact),
         ])->values()->all()
         : [];
+    $shippingSameBilling = old('shipping_same_billing', $editing
+        && $organisation->shipping_address === $organisation->billing_address
+        && $organisation->shipping_address2 === $organisation->billing_address2
+        && $organisation->shipping_city === $organisation->billing_city
+        && $organisation->shipping_state === $organisation->billing_state
+        && $organisation->shipping_postcode === $organisation->billing_postcode
+        && $organisation->shipping_country === $organisation->billing_country);
 @endphp
 
 <x-layout>
@@ -33,6 +40,7 @@
                 results: [],
                 search: '',
                 searching: false,
+                shippingSameBilling: @js((bool) $shippingSameBilling),
                 searchSequence: 0,
                 isLinked(id) {
                     return this.contacts.some((contact) => contact.id === String(id));
@@ -91,6 +99,12 @@
                 @endforeach
             </x-ui.select>
 
+            <x-ui.select label="Account Terms" name="account_terms_days" info="Default payment terms that linked users can inherit.">
+                @foreach(\App\Models\User::accountTermsOptions() as $days => $label)
+                    <option value="{{ $days }}" @selected((int) old('account_terms_days', $organisation->account_terms_days ?? 0) === (int) $days)>{{ $label }}</option>
+                @endforeach
+            </x-ui.select>
+
             <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
                 <div class="mb-3">
                     <h3 class="font-semibold text-gray-900">Billing Address</h3>
@@ -111,6 +125,8 @@
                     <h3 class="font-semibold text-gray-900">Shipping Address</h3>
                     <p class="text-xs text-gray-500">Used for deliveries when a contact inherits the organisation shipping address.</p>
                 </div>
+                <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shippingSameBilling" x-model="shippingSameBilling" />
+                <div x-show="!shippingSameBilling" x-cloak>
                 <x-ui.input label="Address" name="shipping_address" value="{{ old('shipping_address', $organisation->shipping_address ?? '') }}" />
                 <x-ui.input label="Address 2" name="shipping_address2" value="{{ old('shipping_address2', $organisation->shipping_address2 ?? '') }}" />
                 <x-ui.input label="City" name="shipping_city" value="{{ old('shipping_city', $organisation->shipping_city ?? '') }}" />
@@ -119,6 +135,7 @@
                     <x-ui.input label="Postcode" name="shipping_postcode" value="{{ old('shipping_postcode', $organisation->shipping_postcode ?? '') }}" />
                 </div>
                 <x-ui.input label="Country" name="shipping_country" value="{{ old('shipping_country', $organisation->shipping_country ?? '') }}" />
+                </div>
             </div>
 
             @php

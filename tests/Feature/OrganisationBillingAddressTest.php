@@ -75,4 +75,22 @@ class OrganisationBillingAddressTest extends TestCase
         $this->assertSame('Accounts office', $user->resolvedBillingAddress()['address']);
         $this->assertSame('PO Box 359', $user->resolvedShippingAddress()['address']);
     }
+
+    public function test_user_can_inherit_or_override_primary_organisation_account_terms(): void
+    {
+        $organisation = Organisation::factory()->create(['account_terms_days' => 21]);
+        $inheritingUser = User::factory()->create([
+            'primary_organisation_id' => $organisation->id,
+            'account_terms_days' => 7,
+            'use_organisation_account_terms' => true,
+        ]);
+        $overridingUser = User::factory()->create([
+            'primary_organisation_id' => $organisation->id,
+            'account_terms_days' => 14,
+            'use_organisation_account_terms' => false,
+        ]);
+
+        $this->assertSame(21, $inheritingUser->accountTermsDays());
+        $this->assertSame(14, $overridingUser->accountTermsDays());
+    }
 }
