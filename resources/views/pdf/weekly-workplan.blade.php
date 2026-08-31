@@ -28,7 +28,7 @@
         .summary strong { display: block; font-size: 24px; }
         .summary span { font-size: 7.5px; font-weight: 700; text-transform: uppercase; }
         .sky { background: #e0f2fe; color: #0369a1; }
-        .slate { background: #f1f5f9; color: #475569; }
+        .pink { background: #fce7f3; color: #be185d; }
         .violet { background: #ede9fe; color: #6d28d9; }
         .emerald { background: #d1fae5; color: #047857; }
         .amber { background: #fef3c7; color: #b45309; }
@@ -76,7 +76,7 @@
     <table class="summary">
         <tr>
             <td class="sky"><strong>{{ $workplan['scheduledInvoices']->count() }}</strong><span>Invoice emails</span></td>
-            <td class="slate"><strong>{{ $workplan['dueInvoices']->count() }}</strong><span>Invoices due</span></td>
+            <td class="pink"><strong>{{ $workplan['dueInvoices']->count() }}</strong><span>Invoices due</span></td>
             <td class="violet"><strong>{{ $workplan['workshops']->count() }}</strong><span>Workshops</span></td>
             <td class="emerald"><strong>{{ $workplan['reminders']->count() }}</strong><span>Reminders</span></td>
             <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() }}</strong><span>Follow-ups</span></td>
