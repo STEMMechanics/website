@@ -89,7 +89,7 @@
     <div class="section coming">
         <h2>Coming up this fortnight</h2>
         <h3>Invoice emails scheduled</h3>
-        <ul>@forelse($workplan['scheduledInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} ({{ money((float) $invoice->total_amount) }})</li>@empty<li>None scheduled.</li>@endforelse</ul>
+        <ul>@forelse($workplan['scheduledInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - Sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} ({{ money((float) $invoice->total_amount) }})</li>@empty<li>None scheduled.</li>@endforelse</ul>
         <h3>Invoices due for payment</h3>
         <ul>@forelse($workplan['dueInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }}, due {{ $invoice->due_date?->format('D j M') }} ({{ money((float) $invoice->displayOutstandingAmount()) }} outstanding)</li>@empty<li>None due.</li>@endforelse</ul>
         <h3>Workshops</h3>
@@ -119,7 +119,7 @@
     <div class="section newsletter">
         <h2>Next newsletter</h2>
         <p><strong>Subject:</strong> {{ $workplan['newsletter']['subject'] }}</p>
-        <p class="muted">Sends {{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }} - {{ $workplan['newsletter']['heading'] }}</p>
+        <ul class="muted"><li>Sends {{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }} - {{ $workplan['newsletter']['heading'] }}</li></ul>
         @foreach($workplan['newsletter']['contentSections'] as $newsletterSection)
             <h3>{{ $newsletterSection['title'] }}</h3>
             <ul>@forelse($newsletterSection['items'] as $item)<li>{{ $item->title }}@if($newsletterSection['type'] === 'workshops') - {{ $item->starts_at?->format('D j M, g:ia') }}{{ trim((string) $item->getLocationName()) !== '' ? ' - '.$item->getLocationName() : '' }}@endif</li>@empty<li>No items selected.</li>@endforelse</ul>

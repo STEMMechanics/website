@@ -22,8 +22,8 @@
     </summary>
 
     <div class="border-t border-gray-100 p-5">
-        <div class="grid gap-5 lg:grid-cols-2">
-            <section class="grid self-start grid-cols-2 gap-3 md:grid-cols-5">
+        <div class="grid gap-5 md:grid-cols-2">
+            <section class="grid self-start grid-cols-2 gap-3 md:col-span-2 md:grid-cols-5">
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-gray-200 bg-gray-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-gray-600">Invoices due</div><div class="text-3xl font-bold text-gray-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
@@ -101,11 +101,11 @@
                 <h3 class="font-semibold text-gray-900">Suggested follow-ups</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
                     @foreach($workplan['quotes'] as $quote)
-                        <div class="flex items-center gap-2 p-3 text-sm hover:bg-gray-50">
+                        <div class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50">
                             <a href="{{ route('admin.quote.edit', $quote) }}" class="flex min-w-0 flex-1 items-start gap-2"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">{{ $quote->statusLabel() }} · follow-up due {{ $quote->follow_up_at?->format('j M Y') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                            <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}">
+                            <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}" class="shrink-0">
                                 @csrf
-                                <button type="submit" class="whitespace-nowrap text-xs text-primary-color hover:underline">Snooze 7 days</button>
+                                <button type="submit" class="flex size-5 items-center justify-center text-xs text-gray-400 transition hover:text-primary-color" title="Snooze follow-up for 7 days" aria-label="Snooze follow-up for 7 days"><i class="fa-solid fa-clock" aria-hidden="true"></i></button>
                             </form>
                         </div>
                     @endforeach
