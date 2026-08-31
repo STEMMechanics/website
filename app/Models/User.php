@@ -44,6 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'primary_organisation_id',
         'use_organisation_billing_address',
         'use_organisation_shipping_address',
+        'use_organisation_account_terms',
         'email',
         'password',
         'phone',
@@ -80,6 +81,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'account_terms_days' => 0,
         'use_organisation_billing_address' => false,
         'use_organisation_shipping_address' => false,
+        'use_organisation_account_terms' => false,
     ];
 
     /**
@@ -93,6 +95,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'account_terms_days' => 'integer',
         'use_organisation_billing_address' => 'boolean',
         'use_organisation_shipping_address' => 'boolean',
+        'use_organisation_account_terms' => 'boolean',
         'anonymized_at' => 'datetime',
     ];
 
@@ -167,7 +170,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public static function hasDatabaseColumn(string $column): bool
     {
-        $table = (new self())->getTable();
+        $table = (new self)->getTable();
         $cacheKey = $table.'.'.$column;
 
         if (! array_key_exists($cacheKey, static::$databaseColumnCache)) {
@@ -206,6 +209,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function accountTermsDays(): int
     {
+        if ($this->use_organisation_account_terms && $this->primaryOrganisation instanceof Organisation) {
+            return $this->primaryOrganisation->accountTermsDays();
+        }
+
         $days = (int) ($this->account_terms_days ?? 0);
 
         return in_array($days, self::ACCOUNT_TERMS_OPTIONS, true) ? $days : 0;

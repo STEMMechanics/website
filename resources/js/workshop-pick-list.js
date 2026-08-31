@@ -24,6 +24,7 @@ class PickListCanvasController {
         this.canvasElement = config.canvasElement;
         this.viewportElement = config.viewportElement;
         this.initialData = normalizedString(config.initialData);
+        this.initialImage = normalizedString(config.initialImage);
         this.initialColor = normalizedString(config.initialColor) || '#dc2626';
         this.initialBrushSize = Number.parseInt(String(config.initialBrushSize ?? 4), 10) || 4;
         this.onDirty = typeof config.onDirty === 'function' ? config.onDirty : () => {};
@@ -48,6 +49,13 @@ class PickListCanvasController {
         this.pointerDownHandler = null;
         this.pointerMoveHandler = null;
         this.pointerUpHandler = null;
+        this.draftObject = null;
+        this.shapeStart = null;
+        this.clipboardObjects = [];
+        this.pasteOffset = 0;
+        this.keyboardActive = false;
+        this.keyboardHandler = null;
+        this.documentPointerHandler = null;
     }
 
     async init() {
@@ -70,6 +78,7 @@ class PickListCanvasController {
 
         this.canvas.skipTargetFind = true;
         this.decorateCanvasSurface();
+        this.bindKeyboardShortcuts();
         this.bindCanvasEvents();
         this.bindTouchGestures();
         this.bindResizeHandling();
@@ -77,6 +86,8 @@ class PickListCanvasController {
 
         if (this.initialData !== '') {
             await this.loadSerializedData(this.initialData);
+        } else if (this.initialImage !== '') {
+            await this.loadInitialImage(this.initialImage);
         } else {
             this.resetView({ markDirty: false });
         }
@@ -102,6 +113,87 @@ class PickListCanvasController {
             element.style.webkitUserSelect = 'none';
             element.style.userSelect = 'none';
         });
+
+        this.canvas.upperCanvasEl.tabIndex = 0;
+    }
+
+    bindKeyboardShortcuts() {
+        this.documentPointerHandler = (event) => {
+            this.keyboardActive = this.viewportElement?.contains(event.target) === true;
+            if (this.keyboardActive) {
+                this.canvas.upperCanvasEl.focus({ preventScroll: true });
+            }
+        };
+        this.keyboardHandler = async (event) => {
+            if (!this.keyboardActive || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
+            if (this.canvas.getActiveObject()?.isEditing) return;
+
+            const key = String(event.key || '').toLowerCase();
+            if (!['z', 'x', 'c', 'v', 'y'].includes(key)) return;
+            event.preventDefault();
+
+            if (key === 'z') {
+                event.shiftKey ? this.redo() : this.undo();
+            } else if (key === 'y') {
+                this.redo();
+            } else if (key === 'c') {
+                this.copySelection();
+            } else if (key === 'x') {
+                this.cutSelection();
+            } else if (key === 'v') {
+                await this.pasteSelection();
+            }
+        };
+        document.addEventListener('pointerdown', this.documentPointerHandler, true);
+        document.addEventListener('keydown', this.keyboardHandler);
+    }
+
+    copySelection() {
+        const selected = this.canvas.getActiveObjects();
+        if (selected.length === 0) return;
+        this.clipboardObjects = selected.map((object) => object.toObject([
+            'globalCompositeOperation',
+            'smIsEraser',
+            'selectable',
+            'evented',
+            'hasControls',
+            'hasBorders',
+        ]));
+        this.pasteOffset = 0;
+    }
+
+    cutSelection() {
+        const selected = [...this.canvas.getActiveObjects()];
+        if (selected.length === 0) return;
+        this.copySelection();
+        this.canvas.discardActiveObject();
+        selected.forEach((object) => this.canvas.remove(object));
+        this.markObjectChange();
+    }
+
+    async pasteSelection() {
+        if (this.clipboardObjects.length === 0) return;
+        const objects = await this.fabric.util.enlivenObjects(cloneJson(this.clipboardObjects));
+        this.pasteOffset += 16;
+        objects.forEach((object) => {
+            object.set({
+                left: Number(object.left || 0) + this.pasteOffset,
+                top: Number(object.top || 0) + this.pasteOffset,
+                selectable: true,
+                evented: true,
+                hasControls: true,
+                hasBorders: true,
+            });
+            object.setCoords();
+            this.canvas.add(object);
+        });
+        this.setTool('select', { markDirty: false });
+        if (objects.length === 1) {
+            this.canvas.setActiveObject(objects[0]);
+        } else {
+            this.canvas.setActiveObject(new this.fabric.ActiveSelection(objects, { canvas: this.canvas }));
+        }
+        this.markObjectChange();
     }
 
     bindCanvasEvents() {
@@ -160,6 +252,11 @@ class PickListCanvasController {
         });
 
         this.canvas.on('mouse:down', (event) => {
+            if (['line', 'rectangle', 'circle', 'text'].includes(this.tool)) {
+                this.beginObjectTool(event);
+                return;
+            }
+
             if (this.tool !== 'pan' || this.pinchState) {
                 return;
             }
@@ -179,6 +276,11 @@ class PickListCanvasController {
         });
 
         this.canvas.on('mouse:move', (event) => {
+            if (this.draftObject && this.shapeStart) {
+                this.updateDraftObject(event);
+                return;
+            }
+
             if (!this.isPanning || this.tool !== 'pan' || this.pinchState) {
                 return;
             }
@@ -206,6 +308,11 @@ class PickListCanvasController {
         });
 
         this.canvas.on('mouse:up', () => {
+            if (this.draftObject) {
+                this.finishDraftObject();
+                return;
+            }
+
             if (!this.isPanning) {
                 return;
             }
@@ -217,6 +324,94 @@ class PickListCanvasController {
             this.onDirty();
             this.emitState();
         });
+
+        this.canvas.on('text:changed', () => this.markObjectChange());
+        this.canvas.on('object:modified', () => this.markObjectChange());
+    }
+
+    beginObjectTool(event) {
+        const point = this.canvas.getScenePoint(event.e);
+
+        if (this.tool === 'text') {
+            if (event.target instanceof this.fabric.IText) {
+                this.canvas.setActiveObject(event.target);
+                event.target.enterEditing();
+                return;
+            }
+            const text = new this.fabric.IText('Type here', {
+                left: point.x,
+                top: point.y,
+                fill: this.brushColor,
+                fontSize: Math.max(16, this.brushSize * 4),
+                fontFamily: 'Arial',
+                selectable: true,
+                evented: true,
+            });
+            this.canvas.add(text);
+            this.canvas.setActiveObject(text);
+            text.enterEditing();
+            text.selectAll();
+            this.markObjectChange();
+            return;
+        }
+
+        this.shapeStart = point;
+        const common = {
+            fill: 'transparent',
+            stroke: this.brushColor,
+            strokeWidth: this.brushSize,
+            selectable: false,
+            evented: false,
+            smDrawingObject: true,
+        };
+        if (this.tool === 'line') {
+            this.draftObject = new this.fabric.Line([point.x, point.y, point.x, point.y], common);
+        } else if (this.tool === 'rectangle') {
+            this.draftObject = new this.fabric.Rect({
+                ...common,
+                left: point.x,
+                top: point.y,
+                width: 1,
+                height: 1,
+                originX: 'left',
+                originY: 'top',
+            });
+        } else {
+            this.draftObject = new this.fabric.Ellipse({ ...common, left: point.x, top: point.y, rx: 1, ry: 1, originX: 'left', originY: 'top' });
+        }
+        this.canvas.add(this.draftObject);
+    }
+
+    updateDraftObject(event) {
+        const point = this.canvas.getScenePoint(event.e);
+        const start = this.shapeStart;
+        if (this.tool === 'line') {
+            this.draftObject.set({ x2: point.x, y2: point.y });
+        } else {
+            const left = Math.min(start.x, point.x);
+            const top = Math.min(start.y, point.y);
+            const width = Math.abs(point.x - start.x);
+            const height = Math.abs(point.y - start.y);
+            this.draftObject.set(this.tool === 'rectangle'
+                ? { left, top, width, height }
+                : { left, top, rx: width / 2, ry: height / 2 });
+        }
+        this.draftObject.setCoords();
+        this.canvas.requestRenderAll();
+    }
+
+    finishDraftObject() {
+        this.draftObject = null;
+        this.shapeStart = null;
+        this.markObjectChange();
+    }
+
+    markObjectChange() {
+        this.canvas.requestRenderAll();
+        this.invalidateExportCache();
+        this.captureHistorySnapshot();
+        this.onDirty();
+        this.emitState();
     }
 
     bindTouchGestures() {
@@ -347,8 +542,21 @@ class PickListCanvasController {
     }
 
     setTool(tool, options = {}) {
-        const nextTool = ['draw', 'erase', 'pan'].includes(tool) ? tool : 'draw';
+        const nextTool = ['select', 'draw', 'erase', 'line', 'rectangle', 'circle', 'text', 'pan'].includes(tool) ? tool : 'draw';
         this.tool = nextTool;
+        this.userObjects().forEach((object) => {
+            const editableObject = nextTool === 'select'
+                || (nextTool === 'text' && object instanceof this.fabric.IText);
+            object.set({
+                selectable: editableObject,
+                evented: editableObject,
+                hasControls: editableObject,
+                hasBorders: editableObject,
+            });
+        });
+        if (nextTool !== 'select' && nextTool !== 'text') {
+            this.canvas.discardActiveObject();
+        }
         this.applyToolMode();
 
         if (options.markDirty !== false) {
@@ -504,6 +712,16 @@ class PickListCanvasController {
         this.suspendHistory = false;
     }
 
+    async loadInitialImage(dataUrl) {
+        const image = await this.fabric.FabricImage.fromURL(dataUrl);
+        const availableWidth = Math.max(1, this.canvas.getWidth() - 128);
+        const availableHeight = Math.max(1, this.canvas.getHeight() - 128);
+        image.scale(Math.min(availableWidth / image.width, availableHeight / image.height, 1));
+        image.set({ left: 64, top: 64, selectable: false, evented: false });
+        this.canvas.add(image);
+        this.resetView({ markDirty: false });
+    }
+
     serializeCanvasState() {
         if (!this.hasContent()) {
             return null;
@@ -564,7 +782,7 @@ class PickListCanvasController {
     }
 
     applyBrushSettings() {
-        if (!this.canvas || this.tool === 'pan') {
+        if (!this.canvas || !['draw', 'erase'].includes(this.tool)) {
             return;
         }
 
@@ -579,15 +797,19 @@ class PickListCanvasController {
             return;
         }
 
-        if (this.tool === 'pan' || this.isTouchGestureActive) {
+        if (!['draw', 'erase'].includes(this.tool) || this.isTouchGestureActive) {
             this.canvas.isDrawingMode = false;
-            this.canvas.defaultCursor = this.tool === 'pan' ? 'grab' : 'crosshair';
-            this.canvas.hoverCursor = this.tool === 'pan' ? 'grab' : 'crosshair';
+            this.canvas.selection = this.tool === 'select';
+            this.canvas.skipTargetFind = !['select', 'text'].includes(this.tool);
+            this.canvas.defaultCursor = this.tool === 'pan' ? 'grab' : (this.tool === 'select' ? 'default' : 'crosshair');
+            this.canvas.hoverCursor = this.tool === 'pan' ? 'grab' : (this.tool === 'select' ? 'move' : 'crosshair');
             this.canvas.freeDrawingCursor = this.tool === 'erase' ? 'cell' : 'crosshair';
             return;
         }
 
         this.canvas.isDrawingMode = true;
+        this.canvas.selection = false;
+        this.canvas.skipTargetFind = true;
         this.canvas.defaultCursor = 'crosshair';
         this.canvas.hoverCursor = 'crosshair';
         this.canvas.freeDrawingCursor = this.tool === 'erase' ? 'cell' : 'crosshair';
@@ -738,6 +960,14 @@ class PickListCanvasController {
     }
 
     dispose() {
+        if (this.documentPointerHandler) {
+            document.removeEventListener('pointerdown', this.documentPointerHandler, true);
+            this.documentPointerHandler = null;
+        }
+        if (this.keyboardHandler) {
+            document.removeEventListener('keydown', this.keyboardHandler);
+            this.keyboardHandler = null;
+        }
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
@@ -771,7 +1001,7 @@ class PickListCanvasController {
 }
 
 const pickListToolbarButtonClasses = (isActive = false) => {
-    const base = 'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition';
+    const base = 'inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm transition disabled:cursor-not-allowed disabled:opacity-40';
 
     if (isActive) {
         return `${base} border-primary-color bg-primary-color text-white`;
@@ -779,6 +1009,75 @@ const pickListToolbarButtonClasses = (isActive = false) => {
 
     return `${base} border-gray-300 bg-white text-gray-700 hover:bg-gray-50`;
 };
+
+window.SM = window.SM || {};
+window.SM.drawingCanvas = (config = {}) => ({
+    canvasController: null,
+    canvasLoading: false,
+    canvasReady: false,
+    canvasError: '',
+    canvasTool: 'draw',
+    canvasColor: '#111827',
+    canvasBrushSize: 3,
+    canvasCanUndo: false,
+    canvasCanRedo: false,
+    canvasZoomPercent: 100,
+    async initCanvas() {
+        if (this.canvasController || this.canvasLoading) return;
+        this.canvasLoading = true;
+        try {
+            this.canvasController = await new PickListCanvasController({
+                canvasElement: this.$refs.pickListCanvas,
+                viewportElement: this.$refs.pickListCanvasViewport,
+                initialData: config.initialData,
+                initialImage: config.initialImage,
+                initialColor: this.canvasColor,
+                initialBrushSize: this.canvasBrushSize,
+                onDirty: () => {},
+                onStateChange: (state) => this.syncCanvasUiState(state),
+            }).init();
+            this.canvasReady = true;
+        } catch (error) {
+            console.error(error);
+            this.canvasError = 'Could not load the drawing editor.';
+        } finally {
+            this.canvasLoading = false;
+        }
+    },
+    syncCanvasUiState(state = {}) {
+        this.canvasTool = String(state.tool || this.canvasTool);
+        this.canvasColor = normalizedString(state.color) || this.canvasColor;
+        this.canvasBrushSize = Number(state.brushSize || this.canvasBrushSize);
+        this.canvasCanUndo = Boolean(state.canUndo);
+        this.canvasCanRedo = Boolean(state.canRedo);
+        this.canvasZoomPercent = Number(state.zoomPercent || 100);
+    },
+    canvasToolButtonClass(tool) { return pickListToolbarButtonClasses(this.canvasTool === tool); },
+    canvasActionButtonClass() { return pickListToolbarButtonClasses(false); },
+    setCanvasTool(tool) { this.canvasController?.setTool(tool); },
+    setCanvasColor(color) { this.canvasColor = color; this.canvasController?.setColor(color); },
+    setCanvasBrushSize(size) { this.canvasBrushSize = Number(size); this.canvasController?.setBrushSize(size); },
+    zoomCanvasIn() { this.canvasController?.zoomIn(); },
+    zoomCanvasOut() { this.canvasController?.zoomOut(); },
+    resetCanvasView() { this.canvasController?.resetView(); },
+    clearCanvasDrawing() { this.canvasController?.clearCanvas(); },
+    undoCanvas() { this.canvasController?.undo(); },
+    redoCanvas() { this.canvasController?.redo(); },
+    exportCanvasPng() {
+        const dataUrl = this.canvasController?.exportImageDataUrl() || '';
+        if (!dataUrl) return;
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `${String(config.exportName || 'drawing').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'drawing'}.png`;
+        link.click();
+    },
+    async saveDrawing() {
+        if (!this.canvasController) return;
+        const exported = await this.canvasController.exportForSave();
+        if (this.$refs.canvasDataInput) this.$refs.canvasDataInput.value = exported.json || '';
+        if (this.$refs.canvasImageInput) this.$refs.canvasImageInput.value = this.canvasController.exportImageDataUrl();
+    },
+});
 
 const registerWorkshopPickListPage = () => {
     window.SM = window.SM || {};
@@ -1240,7 +1539,7 @@ const registerWorkshopPickListPage = () => {
             }
         },
         syncCanvasUiState(state = {}) {
-            this.canvasTool = ['draw', 'erase', 'pan'].includes(String(state.tool ?? ''))
+            this.canvasTool = ['select', 'draw', 'erase', 'line', 'rectangle', 'circle', 'text', 'pan'].includes(String(state.tool ?? ''))
                 ? String(state.tool)
                 : this.canvasTool;
             this.canvasColor = normalizedString(state.color) || this.canvasColor;
