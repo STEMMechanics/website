@@ -83,6 +83,39 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $this->assertSame('100.0% decline', $workplan['websiteChanges']['workshop_views']['label']);
     }
 
+    public function test_cancelled_workshops_are_excluded_from_coming_up_this_fortnight(): void
+    {
+        $location = Location::factory()->create();
+        $owner = User::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'workplan-workshop.png',
+            'title' => 'Workplan workshop',
+            'hash' => str_repeat('w', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $owner->id,
+        ]);
+        $upcoming = Workshop::factory()->create([
+            'starts_at' => now()->addDay(),
+            'status' => 'open',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
+        $cancelled = Workshop::factory()->create([
+            'starts_at' => now()->addDays(2),
+            'status' => 'cancelled',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
+
+        $workshops = app(WeeklyWorkplanService::class)->build()['workshops'];
+
+        $this->assertTrue($workshops->contains($upcoming));
+        $this->assertFalse($workshops->contains($cancelled));
+    }
+
     public function test_admin_can_open_a_workplan_pdf_inline(): void
     {
         $admin = User::factory()->create(['email' => 'reviewer@example.com']);
