@@ -21,6 +21,7 @@ class PickListTemplate extends Model
         'participants',
         'run_sheet',
         'run_sheet_drawing_data',
+        'run_sheet_canvas_data',
     ];
 
     /**
