@@ -398,64 +398,8 @@
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Drawing</h2>
                 </summary>
 
-            <div class="mt-3 flex flex-wrap gap-2">
-                <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
-                <button type="button" x-bind:class="canvasToolButtonClass('erase')" x-on:click="setCanvasTool('erase')"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
-                <button type="button" x-bind:class="canvasToolButtonClass('pan')" x-on:click="setCanvasTool('pan')"><i class="fa-solid fa-hand"></i><span>Pan</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()"><i class="fa-solid fa-rotate-left"></i><span>Undo</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()"><i class="fa-solid fa-rotate-right"></i><span>Redo</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()"><i class="fa-solid fa-magnifying-glass-plus"></i><span>Zoom In</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()"><i class="fa-solid fa-magnifying-glass-minus"></i><span>Zoom Out</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()"><i class="fa-solid fa-arrows-to-dot"></i><span>Reset View</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()"><i class="fa-solid fa-trash-can"></i><span>Clear</span></button>
-                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()"><i class="fa-solid fa-file-arrow-down"></i><span>Export</span></button>
-            </div>
-
-            <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Colour</span>
-                    <input
-                        type="color"
-                        class="h-11 w-20 rounded-md border border-gray-300 bg-white p-1"
-                        x-model="canvasColor"
-                        x-on:input="setCanvasColor($event.target.value)"
-                    >
-                </label>
-                <label class="block grow lg:max-w-xs">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Brush Size</span>
-                    <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
-                        <input
-                            type="range"
-                            min="1"
-                            max="48"
-                            step="1"
-                            class="w-full"
-                            x-model="canvasBrushSize"
-                            x-on:input="setCanvasBrushSize($event.target.value)"
-                        >
-                        <span class="w-12 shrink-0 text-right text-sm font-semibold text-gray-700" x-text="canvasBrushSize + 'px'"></span>
-                    </div>
-                </label>
-                <div class="text-sm text-gray-500 lg:ml-auto">
-                    Zoom <span class="font-semibold text-gray-700" x-text="canvasZoomPercent + '%'"></span>
-                </div>
-            </div>
-
-            <div class="mt-4 rounded-2xl border border-gray-300 bg-white p-3 shadow-sm">
-                <div class="mb-3 flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-                    <div>Apple Pencil, touch, and mouse are supported. Use Pan mode to move around the canvas, and the zoom controls to change scale.</div>
-                    <div class="font-medium text-gray-600" x-show="canvasLoading">Loading canvas...</div>
-                </div>
-
-                <div x-show="canvasError" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="canvasError"></div>
-
-                <div
-                    x-ref="pickListCanvasViewport"
-                    class="relative h-[72vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white"
-                    style="touch-action: none; overscroll-behavior: contain;"
-                >
-                    <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
-                </div>
+            <div class="mt-3">
+                @include('admin.shared.drawing-canvas')
             </div>
             </details>
 

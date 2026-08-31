@@ -128,6 +128,7 @@ class PickListTemplateController extends Controller
         $copy->participants = $pickListTemplate->participants;
         $copy->run_sheet = $pickListTemplate->run_sheet;
         $copy->run_sheet_drawing_data = $pickListTemplate->run_sheet_drawing_data;
+        $copy->run_sheet_canvas_data = $pickListTemplate->run_sheet_canvas_data;
         $copy->save();
 
         foreach ($pickListTemplate->items as $item) {
@@ -226,6 +227,7 @@ class PickListTemplateController extends Controller
             'participants' => ['nullable', 'string', 'max:255'],
             'run_sheet' => ['nullable', 'string'],
             'run_sheet_drawing_data' => ['nullable', 'string'],
+            'run_sheet_canvas_data' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['string', Rule::exists('media', 'name')],
             'attachment_uploads' => ['nullable', 'array'],
@@ -310,6 +312,7 @@ class PickListTemplateController extends Controller
             'participants' => trim((string) ($validated['participants'] ?? '')) ?: null,
             'run_sheet' => $validated['run_sheet'] ?? null,
             'run_sheet_drawing_data' => $validated['run_sheet_drawing_data'] ?? null,
+            'run_sheet_canvas_data' => $validated['run_sheet_canvas_data'] ?? null,
         ]);
         $template->save();
     }
