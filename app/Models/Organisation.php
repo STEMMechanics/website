@@ -39,12 +39,22 @@ class Organisation extends Model
         'shipping_state',
         'shipping_postcode',
         'shipping_country',
+        'account_terms_days',
         'invoice_email_to',
         'invoice_email_cc',
         'invoice_email_subject',
         'invoice_email_message',
         'notes',
     ];
+
+    protected $casts = ['account_terms_days' => 'integer'];
+
+    public function accountTermsDays(): int
+    {
+        $days = (int) $this->account_terms_days;
+
+        return in_array($days, User::ACCOUNT_TERMS_OPTIONS, true) ? $days : 0;
+    }
 
     /**
      * @return BelongsTo<Organisation, $this>
