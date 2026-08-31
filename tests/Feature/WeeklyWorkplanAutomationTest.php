@@ -59,6 +59,14 @@ class WeeklyWorkplanAutomationTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $media->name,
         ]);
+        Workshop::factory()->create([
+            'title' => 'Draft workshop should be hidden',
+            'starts_at' => now()->addDay(),
+            'status' => 'draft',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
         $html = (new WeeklyWorkplan(app(WeeklyWorkplanService::class)->build()))->render();
 
         $this->assertStringContainsString('Fortnightly Workplan', $html);
@@ -66,6 +74,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
         $this->assertStringContainsString('font-size: 24px', $html);
         $this->assertStringContainsString('Cairns Library', $html);
         $this->assertStringNotContainsString('Cancelled workshop should be hidden', $html);
+        $this->assertStringNotContainsString('Draft workshop should be hidden', $html);
         $this->assertStringContainsString('Next newsletter', $html);
         $this->assertStringContainsString('Review or change the newsletter', $html);
         $this->assertStringContainsString('Last fortnight at a glance', $html);

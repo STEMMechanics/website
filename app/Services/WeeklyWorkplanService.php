@@ -32,7 +32,7 @@ class WeeklyWorkplanService
         $dueInvoices = Invoice::query()->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT])
             ->whereBetween('due_date', [$weekStart, $weekEnd])->where('total_amount', '>', 0)
             ->with('user')->orderBy('due_date')->get();
-        $workshops = Workshop::query()->where('status', '!=', 'cancelled')
+        $workshops = Workshop::query()->whereNotIn('status', ['draft', 'cancelled'])
             ->whereBetween('starts_at', [$weekStart, $weekEnd->copy()->endOfDay()])
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
