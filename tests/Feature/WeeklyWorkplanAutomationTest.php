@@ -140,7 +140,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
     {
         $admin = User::factory()->create();
         UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
-        $location = Location::factory()->create();
+        $location = Location::factory()->create(['name' => 'Cairns Library']);
         $media = Media::query()->create([
             'name' => 'completed-task-workshop.png',
             'title' => 'Completed task workshop',
@@ -150,6 +150,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
             'user_id' => $admin->id,
         ]);
         $workshop = Workshop::factory()->create([
+            'title' => 'Robotics Lab',
             'status' => 'open',
             'location_id' => $location->id,
             'user_id' => $admin->id,
@@ -164,7 +165,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
             'source_id' => 321,
             'recipient_user_id' => $admin->id,
             'recipient_email' => $admin->email,
-            'subject' => 'Workshop task: Pack robots — Test workshop',
+            'subject' => 'Workshop task: Pack robots',
             'status' => Reminder::STATUS_PENDING,
             'scheduled_at' => today()->addDay()->setTime(6, 0),
         ]);
@@ -175,7 +176,7 @@ class WeeklyWorkplanAutomationTest extends TestCase
             ->assertOk()
             ->assertSee('text-gray-400 line-through', false);
         $this->assertStringContainsString(
-            '<li class="completed">Workshop task: Pack robots',
+            '<li class="completed">Robotics Lab · Pack robots — '.today()->addDay()->format('D j M').', 6:00am · Cairns Library</li>',
             view('pdf.weekly-workplan', ['workplan' => $workplan])->render(),
         );
     }

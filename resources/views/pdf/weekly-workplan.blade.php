@@ -96,7 +96,22 @@
         <h3>Workshops</h3>
         <ul>@forelse($workplan['workshops'] as $workshop)<li>{{ $workshop->title }} - {{ $workshop->starts_at?->format('D j M, g:ia') }}{{ trim((string) $workshop->getLocationName()) !== '' ? ' - '.$workshop->getLocationName() : '' }}</li>@empty<li>No workshops.</li>@endforelse</ul>
         <h3>Tasks and reminders</h3>
-        <ul>@forelse($workplan['reminders'] as $reminder)<li class="{{ $reminder->isCompletedWorkshopTask() ? 'completed' : '' }}">{{ $reminder->subject }} - {{ $reminder->scheduled_at?->format('D j M, g:ia') }}</li>@empty<li>No reminders.</li>@endforelse</ul>
+        <ul>
+            @forelse($workplan['reminders'] as $reminder)
+                @php
+                    $reminderWorkshop = $reminder->kind === \App\Services\ReminderService::WORKSHOP_TASK_KIND && $reminder->remindable instanceof \App\Models\Workshop
+                        ? $reminder->remindable
+                        : null;
+                    $reminderTaskName = $reminderWorkshop
+                        ? trim((string) str($reminder->subject)->after('Workshop task: ')->before(' — '))
+                        : (string) $reminder->subject;
+                    $reminderLocation = $reminderWorkshop ? trim((string) $reminderWorkshop->getLocationName()) : '';
+                @endphp
+                <li class="{{ $reminder->isCompletedWorkshopTask() ? 'completed' : '' }}">@if($reminderWorkshop){{ $reminderWorkshop->title }} · {{ $reminderTaskName }}@else{{ $reminderTaskName }}@endif — {{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderLocation !== '' ? ' · '.$reminderLocation : '' }}</li>
+            @empty
+                <li>No reminders.</li>
+            @endforelse
+        </ul>
     </div>
     <div class="section website">
         <h2>Website last fortnight</h2>
