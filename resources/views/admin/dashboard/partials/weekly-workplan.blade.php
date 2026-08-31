@@ -23,7 +23,7 @@
 
     <div class="border-t border-gray-100 p-5">
         <div class="grid gap-5 lg:grid-cols-2">
-            <section class="grid self-start grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2 lg:grid-cols-5">
+            <section class="grid self-start grid-cols-2 gap-3 md:grid-cols-5">
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-gray-200 bg-gray-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-gray-600">Invoices due</div><div class="text-3xl font-bold text-gray-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
