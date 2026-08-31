@@ -10,9 +10,9 @@ use Illuminate\Console\Command;
 
 class SendWeeklyWorkplanCommand extends Command
 {
-    protected $signature = 'workplan:send-weekly';
+    protected $signature = 'workplan:send-fortnightly';
 
-    protected $description = 'Send admins the consolidated Sunday workplan';
+    protected $description = 'Send admins the rolling fortnightly workplan each Sunday';
 
     public function handle(AdminRecipientService $admins, WeeklyWorkplanService $workplans): int
     {
@@ -20,7 +20,7 @@ class SendWeeklyWorkplanCommand extends Command
         foreach ($admins->emails() as $email) {
             dispatch(new SendEmail($email, new WeeklyWorkplan($workplan)))->onQueue('mail');
         }
-        $this->info('Queued weekly workplan for '.count($admins->emails()).' admin recipient(s).');
+        $this->info('Queued fortnightly workplan for '.count($admins->emails()).' admin recipient(s).');
 
         return self::SUCCESS;
     }

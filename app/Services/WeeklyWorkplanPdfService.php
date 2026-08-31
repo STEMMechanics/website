@@ -15,6 +15,6 @@ class WeeklyWorkplanPdfService
 
     public function filename(array $workplan): string
     {
-        return 'weekly-workplan-'.$workplan['weekStart']->format('Y-m-d').'.pdf';
+        return 'fortnightly-workplan-'.$workplan['weekStart']->format('Y-m-d').'.pdf';
     }
 }

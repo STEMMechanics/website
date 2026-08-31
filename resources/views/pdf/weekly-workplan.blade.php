@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Weekly Workplan</title>
+    <title>Fortnightly Workplan</title>
     <style>
         @page { margin: 30px; size: A4; }
         @font-face { font-family: 'Poppins'; font-style: normal; font-weight: 400; src: url('{{ resource_path('fonts/Poppins-Regular.ttf') }}') format('truetype'); }
@@ -68,7 +68,7 @@
         <tr>
             <td class="logo-wrap">@if(file_exists($logoPath))<img class="logo" src="{{ $logoPath }}" alt="STEMMechanics">@endif</td>
             <td class="company">{!! $businessInfoHtml !!}</td>
-            <td class="headline">hello.<br>this is your <span class="underline">weekly workplan</span>.</td>
+            <td class="headline">hello.<br>this is your <span class="underline">fortnightly workplan</span>.</td>
         </tr>
     </table>
     <div class="period">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}</div>
@@ -87,7 +87,7 @@
         <tr>
             <td class="left-column">
     <div class="section coming">
-        <h2>Coming up this week</h2>
+        <h2>Coming up this fortnight</h2>
         <h3>Invoice emails scheduled</h3>
         <ul>@forelse($workplan['scheduledInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} ({{ money((float) $invoice->total_amount) }})</li>@empty<li>None scheduled.</li>@endforelse</ul>
         <h3>Invoices due for payment</h3>
@@ -98,7 +98,7 @@
         <ul>@forelse($workplan['reminders'] as $reminder)<li>{{ $reminder->subject }} - {{ $reminder->scheduled_at?->format('D j M, g:ia') }}</li>@empty<li>No reminders.</li>@endforelse</ul>
     </div>
     <div class="section website">
-        <h2>Website last week</h2>
+        <h2>Website last fortnight</h2>
         <table class="website-stats">
             @foreach(array_chunk([
                 'page_views' => 'Page views',
