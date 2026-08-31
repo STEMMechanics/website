@@ -33,6 +33,7 @@ class WeeklyWorkplanService
             ->whereBetween('due_date', [$weekStart, $weekEnd])->where('total_amount', '>', 0)
             ->with('user')->orderBy('due_date')->get();
         $workshops = Workshop::query()->whereBetween('starts_at', [$weekStart, $weekEnd->copy()->endOfDay()])
+            ->whereIn('status', ['open', 'scheduled'])
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
             ->where(function ($query): void {
