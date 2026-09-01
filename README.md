@@ -10,10 +10,64 @@ Public website for STEMMechanics, showcasing programs, workshops, and resources.
 
 ## Requirements
 
-- PHP 8.x
+- PHP 8.4+
 - Composer
 - Node.js 18+ (22 recommended for builds in deploy script)
 - A database supported by Laravel (MySQL recommended)
+
+### System dependencies
+
+Composer installs the PHP libraries, but it does not install PHP extensions or
+the operating-system tools used for media processing, PDF search, archives, and
+backups.
+
+| Dependency | Used for |
+| --- | --- |
+| PHP extensions: `fileinfo`, `imagick`, `mbstring`, `zip` | Required by `composer.json` |
+| ImageMagick and Ghostscript | Image variants, PDF previews, and combining PDF/image attachments |
+| FFmpeg and FFprobe | Video thumbnails and metadata |
+| Poppler (`pdftotext`) | Searchable text extraction from expense PDFs |
+| `zip` and `unzip` | File and media backup archives |
+| MySQL client and `gzip` | Database backup and restore |
+
+On Debian or Ubuntu, install the common runtime dependencies with:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+    php-cli php-fpm php-mysql php-curl php-mbstring php-xml php-zip php-imagick php-intl php-bcmath \
+    imagemagick ghostscript ffmpeg poppler-utils \
+    zip unzip default-mysql-client gzip git curl
+```
+
+PHP package names may include the installed PHP version on distributions using
+an external PHP repository, for example `php8.4-imagick` instead of
+`php-imagick`.
+
+On macOS with Homebrew:
+
+```bash
+brew install php composer node imagemagick ghostscript ffmpeg poppler zip mysql-client
+pecl install imagick
+```
+
+Confirm the important PHP extensions and external tools are available:
+
+```bash
+php -m | grep -E 'fileinfo|imagick|mbstring|zip'
+magick -version || convert -version
+gs --version
+ffmpeg -version
+ffprobe -version
+pdftotext -v
+zip -v
+mysqldump --version
+gzip --version
+```
+
+Production also requires a process manager such as Supervisor or systemd to
+keep `php artisan queue:work` running. Search-document indexing and other
+queued jobs depend on those workers.
 
 ## Quick Start (Local)
 
@@ -25,6 +79,23 @@ php artisan key:generate
 php artisan migrate
 php artisan serve
 ```
+
+Run the queue worker in a separate terminal:
+
+```bash
+php artisan queue:work
+```
+
+After importing an existing expense database and its stored attachments into a
+development environment, dispatch the one-time PDF text indexing backlog:
+
+```bash
+php artisan search:index-documents
+```
+
+Starting a queue worker processes jobs that have already been dispatched; it
+does not create document-indexing jobs. Production deployment runs this
+dispatch command automatically.
 
 ## Configuration
 
@@ -60,7 +131,7 @@ Standard Laravel deployment. This repo uses a release‑tag based flow. The serv
 
 - Checks the latest tag
 - Checks out that tag
-- Runs `composer install`, migrations, and `npm run build`
+- Runs `composer install`, migrations, `npm run build`, and queues the expense PDF text backfill for the normal queue workers
 - Updates `APP_VERSION` and `APP_COMMIT` in `.env`
 - Uses `scripts/deploy.sh` by default, with `DEPLOY_SCRIPT_PATH` available if you need to override the location.
 

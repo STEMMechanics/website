@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\IndexSearchableDocument;
 use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\PdfTextExtractor;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Tests\TestCase;
 
 class ExpenseDocumentNamingTest extends TestCase
@@ -66,6 +70,13 @@ class ExpenseDocumentNamingTest extends TestCase
     {
         Storage::fake('local');
 
+        $extractor = Mockery::mock(PdfTextExtractor::class);
+        $extractor->shouldReceive('extract')
+            ->once()
+            ->with(Mockery::pattern('/\.pdf$/'))
+            ->andReturn('ARLEC security light receipt');
+        $this->app->instance(PdfTextExtractor::class, $extractor);
+
         $admin = $this->createAdminUser();
         $expense = Expense::factory()->create([
             'created_by' => $admin->id,
@@ -94,6 +105,7 @@ class ExpenseDocumentNamingTest extends TestCase
         $expense->refresh();
 
         $this->assertNotNull($expense->receipt_document_path);
+        $this->assertSame('ARLEC security light receipt', $expense->receipt_document_text);
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 
@@ -203,6 +215,35 @@ class ExpenseDocumentNamingTest extends TestCase
         $response->assertDontSeeText('No attached invoice');
     }
 
+    public function test_expense_index_distinguishes_a_missing_attachment_file_from_no_attachment(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Offline Storage Supplier',
+            'receipt_document_path' => 'finance/expenses/temporarily-offline.pdf',
+            'receipt_document_name' => 'temporarily-offline.pdf',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.expense.index'))
+            ->assertOk()
+            ->assertSeeText('Attachment missing')
+            ->assertDontSeeText('No attached invoice');
+
+        $this->actingAs($admin)->post(route('admin.expense.update', $expense), [
+            'supplier' => 'Offline Storage Supplier',
+            'description' => 'Record remains recoverable',
+            'invoice_id' => 'OFFLINE-1',
+            'paid_on' => '2026-09-02',
+            'total_amount' => '20.00',
+            'gst_amount' => '1.82',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('finance/expenses/temporarily-offline.pdf', $expense->fresh()->receipt_document_path);
+        $this->assertSame('temporarily-offline.pdf', $expense->fresh()->receipt_document_name);
+    }
+
     public function test_expense_index_can_filter_to_expenses_without_attachments(): void
     {
         $admin = $this->createAdminUser();
@@ -304,6 +345,138 @@ class ExpenseDocumentNamingTest extends TestCase
         $response->assertOk();
         $response->assertSeeText('GST Match Supplier');
         $response->assertDontSeeText('GST Miss Supplier');
+    }
+
+    public function test_expense_index_can_search_extracted_attachment_text(): void
+    {
+        $admin = $this->createAdminUser();
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Attachment Match Supplier',
+            'description' => 'Electrical supplies',
+            'invoice_id' => 'INV-PDF-1',
+            'receipt_document_text' => 'ARLEC twin-head security light and sensor',
+        ]);
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Attachment Miss Supplier',
+            'description' => 'Electrical supplies',
+            'invoice_id' => 'INV-PDF-2',
+            'receipt_document_text' => 'Outdoor extension lead',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.expense.index', [
+            'search' => 'arlec',
+        ]))
+            ->assertOk()
+            ->assertDontSeeText('Attachment Match Supplier');
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index', [
+            'attachment' => 'arlec',
+        ]));
+
+        $response->assertOk();
+        $response->assertSeeText('Attachment Match Supplier');
+        $response->assertDontSeeText('Attachment Miss Supplier');
+    }
+
+    public function test_empty_advanced_search_uses_an_advanced_filter_message(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)->get(route('admin.expense.index', [
+            'attachment' => 'term-that-does-not-exist',
+        ]))
+            ->assertOk()
+            ->assertSeeText("We couldn't find any expenses matching the advanced filters.")
+            ->assertDontSeeText('matching "term-that-does-not-exist"');
+    }
+
+    public function test_expense_document_text_command_backfills_existing_attachments(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'receipt_document_path' => 'finance/expenses/existing.pdf',
+            'receipt_document_text' => null,
+        ]);
+
+        $this->artisan('search:index-documents')
+            ->expectsOutput('Queued 1 document(s) for search indexing.')
+            ->assertExitCode(0);
+
+        $extractor = Mockery::mock(PdfTextExtractor::class);
+        $extractor->shouldReceive('extract')
+            ->once()
+            ->with('finance/expenses/existing.pdf')
+            ->andReturn('ARLEC product details');
+
+        Queue::assertPushed(IndexSearchableDocument::class, fn (IndexSearchableDocument $job): bool => $job->documentType === IndexSearchableDocument::TYPE_EXPENSE && $job->documentId === $expense->id);
+        $this->assertNotNull($expense->fresh()->receipt_document_index_queued_at);
+
+        (new IndexSearchableDocument(IndexSearchableDocument::TYPE_EXPENSE, (int) $expense->id))->handle($extractor);
+
+        $expense->refresh();
+        $this->assertSame('ARLEC product details', $expense->receipt_document_text);
+        $this->assertNull($expense->receipt_document_index_queued_at);
+        $this->assertNotNull($expense->receipt_document_indexed_at);
+    }
+
+    public function test_expense_document_text_command_does_not_requeue_existing_text(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'receipt_document_path' => 'finance/expenses/already-indexed.pdf',
+            'receipt_document_text' => 'Existing extracted text',
+            'receipt_document_indexed_at' => null,
+        ]);
+
+        $this->artisan('search:index-documents')
+            ->expectsOutput('Queued 0 document(s) for search indexing.')
+            ->assertExitCode(0);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_selected_expenses_and_attachments_can_be_exported_as_zip(): void
+    {
+        Storage::fake('local');
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'ZIP Supplier',
+            'receipt_document_path' => 'finance/expenses/receipt.pdf',
+            'receipt_document_name' => 'receipt.pdf',
+        ]);
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Not Exported Supplier',
+        ]);
+        Storage::disk('local')->put('finance/expenses/receipt.pdf', 'PDF attachment contents');
+
+        $response = $this->actingAs($admin)->post(route('admin.expense.export.zip'), [
+            'expense_ids' => [$expense->id],
+        ]);
+
+        $response->assertOk();
+        $zipPath = $response->baseResponse->getFile()->getPathname();
+        $downloadName = (string) $response->headers->get('content-disposition');
+        preg_match('/filename=expenses-(\d{8}-\d{6})\.zip/', $downloadName, $matches);
+        $exportFolder = 'expenses-'.($matches[1] ?? '');
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($zipPath) === true);
+        $this->assertMatchesRegularExpression('/^expenses-\d{8}-\d{6}$/', $exportFolder);
+        $this->assertNotFalse($zip->locateName($exportFolder.'/expenses.csv'));
+        $this->assertNotFalse($zip->locateName($exportFolder.'/attachments/EXP'.$expense->id.'-receipt.pdf'));
+        $this->assertStringContainsString('ZIP Supplier', (string) $zip->getFromName($exportFolder.'/expenses.csv'));
+        $this->assertStringNotContainsString('Not Exported Supplier', (string) $zip->getFromName($exportFolder.'/expenses.csv'));
+        $zip->close();
+        @unlink($zipPath);
     }
 
     private function createAdminUser(): User

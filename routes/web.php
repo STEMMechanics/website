@@ -422,6 +422,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::delete('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_destroy'])->name('admin.workshop.destroy');
 
     Route::get('/admin/expenses', [ExpenseController::class, 'index'])->name('admin.expense.index');
+    Route::post('/admin/expenses/export/zip', [ExpenseController::class, 'exportZip'])->name('admin.expense.export.zip');
     Route::get('/admin/expenses/create', [ExpenseController::class, 'create'])->name('admin.expense.create');
     Route::post('/admin/expenses', [ExpenseController::class, 'store'])->name('admin.expense.store');
     Route::get('/admin/expenses/{expense}', [ExpenseController::class, 'edit'])->name('admin.expense.edit');
