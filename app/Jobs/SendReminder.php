@@ -39,6 +39,12 @@ class SendReminder implements ShouldQueue
             $reminder->remindable->loadMissing('location');
         }
 
+        if ($reminder->isCompletedWorkshopTask()) {
+            $reminder->update(['status' => Reminder::STATUS_CANCELLED]);
+
+            return;
+        }
+
         Mail::to($reminder->recipient_email)->send(new ReminderNotification($reminder));
 
         $reminder->update([

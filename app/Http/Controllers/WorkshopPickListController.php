@@ -6,6 +6,7 @@ use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
+use App\Services\ReminderService;
 use App\Services\WorkshopPickListService;
 use App\Services\PdfAttachmentAppender;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
@@ -103,6 +104,7 @@ class WorkshopPickListController extends Controller
             ->all();
 
         $workshop->update(['run_sheet_completed_task_ids' => $completedTaskIds]);
+        app(ReminderService::class)->syncWorkshop($workshop->fresh());
 
         session()->flash('message', '“'.$task->name.'” has been marked as complete.');
         session()->flash('message-title', 'Task complete');
@@ -209,6 +211,7 @@ class WorkshopPickListController extends Controller
             }
         }
         $workshop->save();
+        app(ReminderService::class)->syncWorkshop($workshop->fresh());
 
         if ($request->expectsJson()) {
             return response()->json([
