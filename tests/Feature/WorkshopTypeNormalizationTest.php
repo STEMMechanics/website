@@ -25,6 +25,16 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
+    public function test_admin_can_open_the_create_workshop_form(): void
+    {
+        $response = $this->actingAs($this->createAdminUser())
+            ->get(route('admin.workshop.create'));
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Create Workshop');
+    }
+
     public function test_changing_workshop_to_online_clears_location_id(): void
     {
         $admin = $this->createAdminUser();
