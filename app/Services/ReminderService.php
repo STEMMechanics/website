@@ -34,6 +34,10 @@ class ReminderService
             return;
         }
 
+        $completedTaskIds = collect($workshop->run_sheet_completed_task_ids ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
         foreach ($template->tasks as $task) {
             if (! $task->reminder_enabled || $task->reminder_offset_days === null || ! in_array($task->reminder_time, ['06:00', '12:00', '16:00'], true)) {
                 continue;
@@ -47,6 +51,15 @@ class ReminderService
             $key = $this->sourceKey($task->getMorphClass(), $task->getKey());
             $matching = $activeReminders->pull($key, collect());
             $existing = $matching->shift();
+
+            if (in_array((int) $task->id, $completedTaskIds, true)) {
+                if ($existing instanceof Reminder) {
+                    $existing->update(['status' => Reminder::STATUS_CANCELLED]);
+                }
+                $matching->each->update(['status' => Reminder::STATUS_CANCELLED]);
+
+                continue;
+            }
 
             if ($scheduledAt->lt(now()->subMinutes(5))) {
                 if ($existing instanceof Reminder) {

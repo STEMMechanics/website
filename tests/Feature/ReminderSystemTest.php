@@ -71,7 +71,7 @@ class ReminderSystemTest extends TestCase
             ->get(route('admin.workshop.run-sheet', $workshop))
             ->assertOk()
             ->assertSeeText($reminder->scheduled_at->format('D j M, g:ia'))
-            ->assertSeeText('Pending')
+            ->assertDontSee('· Pending', false)
             ->assertSeeText($facilitator->getName());
 
         $renderedEmail = (new ReminderNotification($reminder->load('remindable')))->render();
@@ -85,6 +85,7 @@ class ReminderSystemTest extends TestCase
             ->get(route('admin.workshop.run-sheet.task.complete', [$workshop, $task]))
             ->assertRedirect(route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id);
         $this->assertSame([$task->id], $workshop->fresh()->run_sheet_completed_task_ids);
+        $this->assertSame(Reminder::STATUS_CANCELLED, $reminder->fresh()->status);
 
         $workshop->update(['status' => 'cancelled']);
         app(ReminderService::class)->syncWorkshop($workshop->fresh());
@@ -233,6 +234,54 @@ class ReminderSystemTest extends TestCase
         Mail::assertSent(ReminderNotification::class, fn (ReminderNotification $mail) => $mail->hasTo('facilitator@example.com'));
         $this->assertSame(Reminder::STATUS_SENT, $reminder->fresh()->status);
         $this->assertNotNull($reminder->fresh()->sent_at);
+    }
+
+    public function test_queued_workshop_task_reminder_is_not_sent_after_task_is_completed(): void
+    {
+        Mail::fake();
+        $recipient = User::factory()->create(['email' => 'facilitator@example.com']);
+        Location::factory()->create();
+        Media::query()->create([
+            'name' => 'completed-task-workshop.png',
+            'title' => 'Completed Task Workshop',
+            'hash' => str_repeat('f', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $recipient->id,
+        ]);
+        $template = PickListTemplate::query()->create(['name' => 'Completed task template']);
+        $task = $template->tasks()->create([
+            'name' => 'Already completed',
+            'reminder_enabled' => true,
+            'reminder_offset_days' => -1,
+            'reminder_time' => '06:00',
+            'sort_order' => 10,
+        ]);
+        $workshop = Workshop::factory()->create([
+            'user_id' => $recipient->id,
+            'hero_media_name' => 'completed-task-workshop.png',
+            'facilitator_user_id' => $recipient->id,
+            'pick_list_template_id' => $template->id,
+            'run_sheet_completed_task_ids' => [$task->id],
+        ]);
+        $reminder = Reminder::query()->create([
+            'kind' => ReminderService::WORKSHOP_TASK_KIND,
+            'remindable_type' => $workshop->getMorphClass(),
+            'remindable_id' => $workshop->id,
+            'source_type' => $task->getMorphClass(),
+            'source_id' => $task->id,
+            'recipient_user_id' => $recipient->id,
+            'recipient_email' => $recipient->email,
+            'subject' => 'Workshop task: Already completed',
+            'status' => Reminder::STATUS_QUEUED,
+            'scheduled_at' => now(),
+            'queued_at' => now(),
+        ]);
+
+        (new SendReminder((int) $reminder->id))->handle();
+
+        Mail::assertNothingSent();
+        $this->assertSame(Reminder::STATUS_CANCELLED, $reminder->fresh()->status);
     }
 
     public function test_historical_workshop_task_reminder_is_cancelled_instead_of_sent_late(): void
