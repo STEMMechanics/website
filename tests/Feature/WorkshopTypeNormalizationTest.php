@@ -27,12 +27,15 @@ class WorkshopTypeNormalizationTest extends TestCase
 
     public function test_admin_can_open_the_create_workshop_form(): void
     {
-        $response = $this->actingAs($this->createAdminUser())
+        $admin = $this->createAdminUser();
+
+        $response = $this->actingAs($admin)
             ->get(route('admin.workshop.create'));
 
         $response
             ->assertOk()
-            ->assertSeeText('Create Workshop');
+            ->assertSeeText('Create Workshop')
+            ->assertSeeText($admin->getName().' · '.$admin->email);
     }
 
     public function test_changing_workshop_to_online_clears_location_id(): void
