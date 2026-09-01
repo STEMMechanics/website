@@ -123,7 +123,9 @@ if (isset($workshop)) {
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
         <x-slot>{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-slot>
-        <x-slot:backTitleExtra><span class="text-sm">(<a href="{{ route('workshop.show', $workshop) }}" target="_blank" class="hover:text-primary-color-dark transition-colors">View</a>)</span></x-slot:backTitleExtra>
+        @isset($workshop)
+            <x-slot:backTitleExtra><span class="text-sm">(<a href="{{ route('workshop.show', $workshop) }}" target="_blank" class="hover:text-primary-color-dark transition-colors">View</a>)</span></x-slot:backTitleExtra>
+        @endisset
     </x-mast>
 
     <x-container class="mt-4">
@@ -1080,7 +1082,9 @@ if (isset($workshop)) {
                                 @if(isset($workshop) && $workshop->pick_list_template_id)
                                     <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
                                 @endif
-                                <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open Run Sheet</a>
+                                @isset($workshop)
+                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open Run Sheet</a>
+                                @endisset
                             </x-slot>
                             @if($hasCustomPickList)
                                 <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>
