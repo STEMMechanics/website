@@ -943,6 +943,7 @@ class WorkshopController extends Controller
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
+            'facilitatorOptions' => $this->facilitatorOptions(),
         ]);
     }
 
