@@ -134,15 +134,11 @@
                                                         @endif
 
                                                         @if($taskReminder)
-                                                            @php($reminderStatus = (string) $taskReminder->status)
-                                                            @php($reminderTone = match ($reminderStatus) { \App\Models\Reminder::STATUS_SENT => 'text-emerald-700', \App\Models\Reminder::STATUS_FAILED => 'text-red-700', \App\Models\Reminder::STATUS_CANCELLED => 'text-gray-500', default => 'text-amber-700' })
-                                                            @php($reminderStatusLabel = ucfirst($reminderStatus))
                                                             @php($reminderRecipient = trim((string) ($taskReminder->recipient?->getName() ?: $taskReminder->recipient_email)))
-                                                            <div class="text-xs {{ $reminderTone }}" title="Reminder {{ strtolower($reminderStatusLabel) }}{{ $reminderRecipient !== '' ? ' for '.$reminderRecipient : '' }}">
+                                                            <div class="text-xs text-gray-500" title="Email reminder{{ $reminderRecipient !== '' ? ' for '.$reminderRecipient : '' }}">
                                                                 <i class="fa-regular fa-bell mr-1"></i>{{ $taskReminder->scheduled_at?->format('D j M, g:ia') ?? 'Date unavailable' }}
-                                                                <span class="font-medium">· {{ $reminderStatusLabel }}</span>
                                                                 @if($reminderRecipient !== '')
-                                                                    <span class="text-gray-500">· {{ $reminderRecipient }}</span>
+                                                                    <span>· {{ $reminderRecipient }}</span>
                                                                 @endif
                                                             </div>
                                                         @elseif($task->reminder_enabled)
