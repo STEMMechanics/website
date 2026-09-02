@@ -20,6 +20,7 @@ use App\Services\DatabaseBackupService;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareWebhookSyncService;
+use App\Services\ServerDependencyService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +45,7 @@ class ServerController extends Controller
         private readonly FileBackupService $fileBackupService
     ) {}
 
-    public function admin_index(): View
+    public function admin_index(ServerDependencyService $serverDependencyService): View
     {
         $logPath = $this->getLaravelLogPath();
         $logData = $this->getFileData($logPath, 300);
@@ -53,6 +54,7 @@ class ServerController extends Controller
 
         return view('admin.server.index', [
             'serverInfo' => $this->getServerInfo(),
+            'serverDependencies' => $serverDependencyService->statuses(),
             'logPath' => $logPath,
             'logExists' => $logData['exists'],
             'logSize' => $logData['size'],

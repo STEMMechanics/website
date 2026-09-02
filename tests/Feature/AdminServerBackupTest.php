@@ -106,6 +106,11 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('Node Version')
             ->assertSee('npm Version')
             ->assertSee('Composer Version')
+            ->assertSee('Site Dependencies')
+            ->assertSee('ImageMagick')
+            ->assertSee('Poppler PDF text')
+            ->assertSee('Database dump client')
+            ->assertSee('Feature dependency')
             ->assertSee('Media Download Offload')
             ->assertSee('Disabled; Laravel will serve files directly')
             ->assertSee('Backups &amp; Downloads', false)
@@ -114,7 +119,8 @@ class AdminServerBackupTest extends TestCase
 
         $content = $response->getContent();
         self::assertIsString($content);
-        self::assertLessThan(strpos($content, 'Deployment'), strpos($content, 'Runtime'));
+        self::assertLessThan(strpos($content, 'Site Dependencies'), strpos($content, 'Runtime'));
+        self::assertLessThan(strpos($content, 'Deployment'), strpos($content, 'Site Dependencies'));
     }
 
     public function test_admin_can_queue_database_and_file_backups_without_waiting_for_them(): void
