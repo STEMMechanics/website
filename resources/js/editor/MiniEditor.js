@@ -1,4 +1,5 @@
 import { Editor } from '@tiptap/core';
+import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
@@ -16,6 +17,7 @@ document.addEventListener('alpine:init', () => {
                     element: this.$refs.element,
                     extensions: [
                         StarterKit.configure({ link: false, underline: false }),
+                        Highlight,
                         Link.configure({ openOnClick: false }),
                         Underline,
                     ],
@@ -64,6 +66,9 @@ document.addEventListener('alpine:init', () => {
             },
             toggleUnderline() {
                 editor?.chain().focus().toggleUnderline().run();
+            },
+            toggleHighlight() {
+                editor?.chain().focus().toggleHighlight().run();
             },
             toggleBulletList() {
                 editor?.chain().focus().toggleBulletList().run();

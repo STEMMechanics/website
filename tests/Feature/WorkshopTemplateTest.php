@@ -44,6 +44,7 @@ class WorkshopTemplateTest extends TestCase
             ->assertSeeText('{date-long}')
             ->assertSeeText('{date-ddd dd/mm/yyyy}')
             ->assertSeeText('{start-time}')
+            ->assertSeeText('{workshop-url}')
             ->assertSeeText('{end-time}')
             ->assertSeeText('{time-range}')
             ->assertSeeText('{location}')

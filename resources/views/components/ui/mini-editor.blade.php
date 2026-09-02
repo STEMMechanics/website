@@ -9,6 +9,7 @@
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('bold') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleBold()" title="Bold"><i class="fa-solid fa-bold"></i></button>
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('italic') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleItalic()" title="Italic"><i class="fa-solid fa-italic"></i></button>
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('underline') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleUnderline()" title="Underline"><i class="fa-solid fa-underline"></i></button>
+        <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('highlight') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleHighlight()" title="Highlight"><i class="fa-solid fa-highlighter"></i></button>
         <span class="mx-1 h-5 border-l border-gray-300"></span>
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('bulletList') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleBulletList()" title="Bulleted list"><i class="fa-solid fa-list-ul"></i></button>
         <button type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:class="isActive('orderedList') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleOrderedList()" title="Numbered list"><i class="fa-solid fa-list-ol"></i></button>
