@@ -79,7 +79,7 @@
             <td class="sky"><strong>{{ $workplan['scheduledInvoices']->count() }}</strong><span>Invoice emails</span></td>
             <td class="pink"><strong>{{ $workplan['dueInvoices']->count() }}</strong><span>Invoices due</span></td>
             <td class="violet"><strong>{{ $workplan['workshops']->count() }}</strong><span>Workshops</span></td>
-            <td class="emerald"><strong>{{ $workplan['reminders']->count() }}</strong><span>Reminders</span></td>
+            <td class="emerald"><strong>{{ $workplan['reminders']->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())->count() }}</strong><span>Reminders</span></td>
             <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() }}</strong><span>Follow-ups</span></td>
         </tr>
     </table>
