@@ -16,6 +16,76 @@
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div>
+                    <h3 class="text-lg font-bold">Site Dependencies</h3>
+                    <p class="mt-1 text-sm text-gray-600">Detected using the same PHP process and command path as this admin page.</p>
+                </div>
+                @php($missingDependencyCount = collect($serverDependencies)->where('installed', false)->count())
+                <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                    {{ $missingDependencyCount === 0 ? 'All detected' : $missingDependencyCount.' missing' }}
+                </span>
+            </div>
+
+            <div class="space-y-3 md:hidden">
+                @foreach($serverDependencies as $dependency)
+                    <article class="rounded-lg border border-gray-200 bg-white p-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
+                                <div class="mt-0.5 break-words text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+                            </div>
+                            <span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                            </span>
+                        </div>
+                        <dl class="mt-3 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+                            <dt class="font-semibold text-gray-500">Requirement</dt>
+                            <dd class="text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</dd>
+                            <dt class="font-semibold text-gray-500">Version</dt>
+                            <dd class="break-words text-gray-700">{{ $dependency['version'] }}</dd>
+                            <dt class="font-semibold text-gray-500">Used for</dt>
+                            <dd class="text-gray-700">{{ $dependency['purpose'] }}</dd>
+                        </dl>
+                    </article>
+                @endforeach
+            </div>
+
+            <div class="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                        <tr>
+                            <th class="px-3 py-2">Dependency</th>
+                            <th class="px-3 py-2">Requirement</th>
+                            <th class="px-3 py-2">Status</th>
+                            <th class="px-3 py-2">Version</th>
+                            <th class="px-3 py-2">Used for</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        @foreach($serverDependencies as $dependency)
+                            <tr>
+                                <td class="px-3 py-2 align-top">
+                                    <div class="font-semibold text-gray-900">{{ $dependency['name'] }}</div>
+                                    <div class="text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+                                </td>
+                                <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
+                                <td class="px-3 py-2 align-top">
+                                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                        {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                                    </span>
+                                </td>
+                                <td class="max-w-sm break-words px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
+                                <td class="max-w-md px-3 py-2 align-top text-gray-700">{{ $dependency['purpose'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 text-xs text-gray-500">Feature dependencies are required when their related site feature is used. A missing command may also mean it is not available on the web server process PATH.</p>
+        </div>
+
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
                 <form method="POST" action="{{ route('admin.server.deploy') }}" data-sm-confirm="Run website updater with selected options? You may need to refresh the page afterward the update completes." data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
