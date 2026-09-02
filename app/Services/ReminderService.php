@@ -166,6 +166,7 @@ class ReminderService
             '{location}' => $workshop->getLocationName() ?: 'Not specified',
             '{ages}' => trim((string) ($workshop->ages ?? '')) ?: 'Not specified',
             '{cost}' => $this->workshopCost($workshop),
+            '{workshop-url}' => route('workshop.show', $workshop),
         ]);
 
         if ($startsAt !== null) {
