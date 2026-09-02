@@ -22,8 +22,14 @@ class ShopProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Product::query()->with(['hero', 'variants', 'categories']);
+        $query = Product::query()->with(['hero', 'variants', 'categories'])->withExists('storeOrderItems');
         $selectedFilter = $this->normalizeIndexFilter($request->query('filter'));
+
+        if ($selectedFilter === 'archived') {
+            $query->where('status', Product::STATUS_ARCHIVED);
+        } else {
+            $query->where('status', '!=', Product::STATUS_ARCHIVED);
+        }
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
@@ -84,7 +90,7 @@ class ShopProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants', 'categories']);
+        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants', 'categories'])->loadExists('storeOrderItems');
 
         return view('admin.shop.product.edit', [
             'product' => $product,
@@ -168,6 +174,31 @@ class ShopProductController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.shop.product.index');
+    }
+
+    public function archive(Product $product): RedirectResponse
+    {
+        $product->update([
+            'status' => Product::STATUS_ARCHIVED,
+            'is_featured' => false,
+        ]);
+
+        session()->flash('message', 'Product archived. It is no longer available in the store.');
+        session()->flash('message-title', 'Product archived');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.shop.product.index');
+    }
+
+    public function restore(Product $product): RedirectResponse
+    {
+        $product->update(['status' => Product::STATUS_DRAFT]);
+
+        session()->flash('message', 'Product restored as a draft. Review it before making it active.');
+        session()->flash('message-title', 'Product restored');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.shop.product.edit', $product);
     }
 
     private function saveProduct(Request $request, Product $product, StoreInventoryAllocatorService $allocator): void
@@ -940,7 +971,7 @@ class ShopProductController extends Controller
     {
         $normalized = trim((string) $filter);
 
-        return in_array($normalized, ['all', 'actionable'], true) ? $normalized : 'all';
+        return in_array($normalized, ['all', 'actionable', 'archived'], true) ? $normalized : 'all';
     }
 
     /**

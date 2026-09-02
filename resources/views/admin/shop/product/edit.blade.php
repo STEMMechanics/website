@@ -905,14 +905,36 @@
                     <x-ui.button type="submit">Save Product</x-ui.button>
                 </div>
                 @isset($product)
-                    <button
-                        type="button"
-                        class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
-                        x-data
-                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Are you sure you want to delete this product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
-                    >Delete Product</button>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                            <x-ui.button type="submit" color="outline" form="restore-product-form">Restore as Draft</x-ui.button>
+                        @else
+                            <x-ui.button type="submit" color="outline" form="archive-product-form">Archive Product</x-ui.button>
+                        @endif
+                        @if(! $product->store_order_items_exists)
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
+                                x-data
+                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
+                            >Delete Product</button>
+                        @endif
+                    </div>
                 @endisset
             </div>
         </form>
+        @isset($product)
+            @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                <form id="restore-product-form" method="POST" action="{{ route('admin.shop.product.restore', $product) }}">
+                    @csrf
+                    @method('PATCH')
+                </form>
+            @else
+                <form id="archive-product-form" method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                    @csrf
+                    @method('PATCH')
+                </form>
+            @endif
+        @endisset
     </x-container>
 </x-layout>
