@@ -19,7 +19,7 @@
 
         return ['value' => (string) $key, 'label' => (string) $option];
     })->values();
-    $selectedValues = collect(old($name, is_array($value) ? $value : []))->map(fn ($item) => (string) $item)->values()->all();
+    $selectedValues = collect(is_array($value) ? $value : [])->map(fn ($item) => (string) $item)->values()->all();
 @endphp
 
 <div class="{{ twMerge(['mb-4'], $inlineLabel ? ['flex', 'items-center'] : '', $attributes->get('class')) }} {{ $attributes->only('x-show') }}">
