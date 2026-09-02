@@ -19,6 +19,75 @@ class AdminShopProductTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_current_and_archived_product_filters_are_separate(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $current = Product::factory()->create(['title' => 'Current Kit', 'status' => Product::STATUS_ACTIVE]);
+        $archived = Product::factory()->create(['title' => 'Archived Kit', 'status' => Product::STATUS_ARCHIVED]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.index'))
+            ->assertOk()
+            ->assertSeeText($current->title)
+            ->assertDontSeeText($archived->title)
+            ->assertSeeText('Archived');
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.index', ['filter' => 'archived']))
+            ->assertOk()
+            ->assertSeeText($archived->title)
+            ->assertDontSeeText($current->title);
+    }
+
+    public function test_admin_can_archive_and_restore_a_product(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'is_featured' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.shop.product.archive', $product))
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'status' => Product::STATUS_ARCHIVED,
+            'is_featured' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.shop.product.restore', $product))
+            ->assertRedirect(route('admin.shop.product.edit', $product));
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'status' => Product::STATUS_DRAFT,
+        ]);
+    }
+
+    public function test_delete_action_is_only_shown_for_products_without_orders(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $unused = Product::factory()->create(['title' => 'Unused Kit']);
+        $ordered = Product::factory()->create(['title' => 'Ordered Kit']);
+        $order = StoreOrder::factory()->create();
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $ordered->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.shop.product.index'));
+
+        $response->assertOk()
+            ->assertSee('aria-label="Delete '.$unused->title.'"', false)
+            ->assertDontSee('aria-label="Delete '.$ordered->title.'"', false);
+    }
+
     public function test_admin_can_create_a_shop_product(): void
     {
         $admin = User::factory()->create();
