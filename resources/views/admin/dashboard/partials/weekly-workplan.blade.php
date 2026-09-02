@@ -5,6 +5,9 @@
         + $workplan['enquiries']->count()
         + $workplan['overdue']->count()
         + $workplan['pendingTransfers']->count();
+    $outstandingReminderCount = $workplan['reminders']
+        ->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())
+        ->count();
 @endphp
 
 <details open class="w-full group rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -27,7 +30,7 @@
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-pink-100 bg-pink-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-pink-700">Invoices due</div><div class="text-3xl font-bold text-pink-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
-                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700">{{ $workplan['reminders']->count() }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700">{{ $outstandingReminderCount }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="text-3xl font-bold text-amber-700">{{ $followUpCount }}</div></div>
             </section>
 
