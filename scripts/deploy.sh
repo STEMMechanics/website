@@ -129,6 +129,7 @@ check_runtime_tools() {
   command -v node >/dev/null 2>&1 || abort_deploy "Deploy aborted: node not found"
   command -v npm >/dev/null 2>&1 || abort_deploy "Deploy aborted: npm not found"
   command -v git >/dev/null 2>&1 || abort_deploy "Deploy aborted: git not found"
+  command -v pdftotext >/dev/null 2>&1 || abort_deploy "Deploy aborted: pdftotext not found (install poppler-utils)"
 }
 
 ensure_tool_caches() {
@@ -386,6 +387,7 @@ fix_permissions
 run_app "cd $WORKDIR && php artisan optimize:clear"
 run_app "cd $WORKDIR && php artisan optimize"
 run_app "cd $WORKDIR && php artisan queue:restart"
+run_app "cd $WORKDIR && php artisan search:index-documents"
 
 # Bring app back up
 run_app "cd $WORKDIR && php artisan up"

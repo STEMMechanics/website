@@ -5,9 +5,7 @@
         $defaultPaidOn = isset($expense) && $expense->paid_on
             ? $expense->paid_on->format('Y-m-d')
             : now()->format('Y-m-d');
-        $documentExists = isset($expense) && $expense->receipt_document_path
-            ? Storage::disk('local')->exists($expense->receipt_document_path)
-            : false;
+        $documentExists = isset($expense) && $expense->hasReceiptDocument();
         $documentViewUrl = isset($expense) && $expense->receipt_document_path
             ? route('admin.expense.document.view', $expense)
             : null;
