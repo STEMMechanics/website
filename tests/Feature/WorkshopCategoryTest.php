@@ -15,6 +15,24 @@ class WorkshopCategoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_create_form_renders_category_old_input_after_validation_failure(): void
+    {
+        $admin = $this->createAdminUser();
+        $category = WorkshopCategory::factory()->create();
+
+        $this->actingAs($admin)
+            ->withSession([
+                '_old_input' => [
+                    'title' => 'Robot Builders',
+                    'category_ids' => [$category->id],
+                ],
+            ])
+            ->get(route('admin.workshop.create'))
+            ->assertOk()
+            ->assertSee('name="category_ids[]"', false)
+            ->assertSee('checked', false);
+    }
+
     public function test_admin_can_create_a_workshop_category_with_an_icon(): void
     {
         $admin = $this->createAdminUser();
