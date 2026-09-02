@@ -485,6 +485,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/products/create', [ShopProductController::class, 'create'])->name('admin.shop.product.create');
     Route::post('/admin/store/products', [ShopProductController::class, 'store'])->name('admin.shop.product.store');
     Route::post('/admin/store/products/{product}/duplicate', [ShopProductController::class, 'duplicate'])->name('admin.shop.product.duplicate');
+    Route::patch('/admin/store/products/{product}/archive', [ShopProductController::class, 'archive'])->name('admin.shop.product.archive');
+    Route::patch('/admin/store/products/{product}/restore', [ShopProductController::class, 'restore'])->name('admin.shop.product.restore');
     Route::get('/admin/store/products/{product}', [ShopProductController::class, 'edit'])->name('admin.shop.product.edit');
     Route::put('/admin/store/products/{product}', [ShopProductController::class, 'update'])->name('admin.shop.product.update');
     Route::delete('/admin/store/products/{product}', [ShopProductController::class, 'destroy'])->name('admin.shop.product.destroy');

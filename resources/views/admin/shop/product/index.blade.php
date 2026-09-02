@@ -9,8 +9,9 @@
         <x-ui.toolbar>
             <x-slot:left>
                 <x-ui.button href="{{ route('admin.shop.product.create') }}">Create</x-ui.button>
-                <x-ui.button href="{{ route('admin.shop.product.index', $baseIndexQuery) }}" :color="$selectedFilter === 'all' ? 'primary-outline' : 'outline'">All Products</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.product.index', $baseIndexQuery) }}" :color="$selectedFilter === 'all' ? 'primary-outline' : 'outline'">Current Products</x-ui.button>
                 <x-ui.button href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'actionable'])) }}" :color="$selectedFilter === 'actionable' ? 'primary-outline' : 'outline'">Actionable</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'archived'])) }}" :color="$selectedFilter === 'archived' ? 'primary-outline' : 'outline'">Archived</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />
@@ -108,6 +109,33 @@
                                             <i class="fa-solid fa-copy"></i>
                                         </button>
                                     </form>
+                                    @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                                        <form method="POST" action="{{ route('admin.shop.product.restore', $product) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="hover:text-primary-color" title="Restore as draft" aria-label="Restore {{ $product->title }} as draft">
+                                                <i class="fa-solid fa-box-open"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" class="hover:text-primary-color" title="Archive" aria-label="Archive {{ $product->title }}">
+                                                <i class="fa-solid fa-box-archive"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if(! $product->store_order_items_exists)
+                                        <button
+                                            type="button"
+                                            class="hover:text-danger-color"
+                                            title="Delete"
+                                            aria-label="Delete {{ $product->title }}"
+                                            x-data
+                                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
+                                        ><i class="fa-solid fa-trash"></i></button>
+                                    @endif
                                     @if($product->isActive())
                                         <a href="{{ route('shop.product.show', $product) }}" class="hover:text-primary-color" title="View"><i class="fa-solid fa-up-right-from-square"></i></a>
                                     @endif
