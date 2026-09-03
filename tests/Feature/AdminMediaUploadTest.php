@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Helpers;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
@@ -11,6 +12,7 @@ use App\Jobs\Media\GenerateVariants;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -160,6 +162,7 @@ class AdminMediaUploadTest extends TestCase
     public function test_workshop_media_upload_accepts_mov_video_files(): void
     {
         Storage::fake('media');
+        Queue::fake([GenerateVariants::class]);
 
         $admin = $this->makeAdminUser();
         $location = Location::factory()->create();
@@ -216,6 +219,9 @@ class AdminMediaUploadTest extends TestCase
             ->assertOk()
             ->assertSeeText('Select Local Files')
             ->assertSeeText('Browse Existing Media')
+            ->assertDontSeeText('Selected Files & Metadata')
+            ->assertDontSeeText('Add Media')
+            ->assertSee('Uploading files', false)
             ->assertSee('workshop_files_pending', false);
 
         $this->actingAs($admin)
@@ -223,9 +229,70 @@ class AdminMediaUploadTest extends TestCase
             ->assertOk()
             ->assertSeeText('Select Local Files')
             ->assertSeeText('Browse Existing Media')
+            ->assertDontSeeText('Selected Media & Metadata')
             ->assertViewHas('attachedPhotoNames', ['stemmechanics-logo.png'])
+            ->assertSeeText('Original Name')
+            ->assertSee('value="stemmechanics-logo.png"', false)
             ->assertSee('x-on:change="appendFiles($event.target.files)"', false)
+            ->assertSeeText('Select')
+            ->assertSeeText('Actions')
+            ->assertSee("variant=thumbnail", false)
+            ->assertSee('class="hidden text-center lg:table-cell">Tags</th>', false)
+            ->assertSee('class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"', false)
+            ->assertSeeText('Hatched tags are currently present on only some selected items.')
+            ->assertDontSeeText('Add Tags')
+            ->assertDontSeeText('Remove Tags')
+            ->assertSee('workshop-photos-progress-title', false)
             ->assertSee("require_mime_type: 'image/*,video/*'", false);
+    }
+
+    public function test_workshop_file_queue_uploads_and_attaches_one_file(): void
+    {
+        Storage::fake('archive');
+
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $file = UploadedFile::fake()->createWithContent('animation-project.sb3', 'scratch-project');
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.files.upload', $workshop), [
+                'pending_files' => [$file],
+                'pending_file_keys' => json_encode([17]),
+                'pending_files_meta' => [
+                    17 => [
+                        'title' => 'Animation Project',
+                        'visibility' => 'public',
+                        'notes' => 'Student project file',
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('file.title', 'Animation Project')
+            ->assertJsonPath('file.visibility', 'public')
+            ->assertJsonPath('file.storage_disk', 'archive');
+
+        $this->assertDatabaseHas('media', [
+            'title' => 'Animation Project',
+            'visibility' => 'public',
+            'consent_notes' => 'Student project file',
+        ]);
+        $this->assertDatabaseHas('mediables', [
+            'mediable_id' => $workshop->id,
+            'mediable_type' => Workshop::class,
+            'collection' => null,
+        ]);
+    }
+
+    public function test_mac_stopmotion_archive_suffix_is_not_included_in_generated_title(): void
+    {
+        $this->assertSame(
+            '2022 09 I Am Spooder Dave',
+            Helpers::filenameToTitle('2022-09-i-am-spooder-dave.stopmotion.zip')
+        );
     }
 
     public function test_existing_image_can_be_added_to_workshop_photos(): void
@@ -259,6 +326,88 @@ class AdminMediaUploadTest extends TestCase
             'mediable_type' => Workshop::class,
             'collection' => 'workshop_photos',
         ]);
+    }
+
+    public function test_attached_workshop_photo_can_be_moved_to_archive_storage(): void
+    {
+        Storage::fake('media');
+        Storage::fake('archive');
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create(['location_id' => Location::factory()->create()->id, 'user_id' => $admin->id]);
+        $hash = str_repeat('9', 64);
+        $media = Media::query()->create([
+            'name' => 'storage-move.jpg', 'title' => 'Storage Move', 'hash' => $hash,
+            'mime_type' => 'image/jpeg', 'size' => 12, 'user_id' => $admin->id, 'storage_disk' => 'media',
+            'visibility' => 'private',
+        ]);
+        Storage::disk('media')->put($hash, 'photo-bytes');
+        $workshop->photos()->attach($media->name, ['collection' => 'workshop_photos']);
+
+        $this->actingAs($admin)->put(route('admin.workshop.photos.bulk-update', $workshop), [
+            'photos' => [$media->name => [
+                'title' => 'Storage Move', 'visibility' => 'private', 'storage_disk' => 'archive',
+                'caption' => '', 'consent_notes' => '', 'tags' => '', 'photographed_at' => '',
+            ]],
+        ])->assertRedirect(route('admin.workshop.photos', $workshop));
+
+        $this->assertDatabaseHas('media', ['name' => $media->name, 'storage_disk' => 'archive']);
+        Storage::disk('archive')->assertExists($hash);
+        Storage::disk('media')->assertMissing($hash);
+    }
+
+    public function test_attached_workshop_files_can_be_bulk_updated(): void
+    {
+        Storage::fake('media');
+        Storage::fake('archive');
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create(['location_id' => Location::factory()->create()->id, 'user_id' => $admin->id]);
+        $hash = str_repeat('8', 64);
+        $media = Media::query()->create([
+            'name' => 'workshop-notes.pdf', 'title' => 'Workshop Notes', 'hash' => $hash,
+            'mime_type' => 'application/pdf', 'size' => 12, 'user_id' => $admin->id,
+            'storage_disk' => 'media', 'visibility' => 'private',
+        ]);
+        Storage::disk('media')->put($hash, 'file-bytes');
+        $workshop->files()->attach($media->name, ['collection' => null]);
+
+        $this->actingAs($admin)->putJson(route('admin.workshop.files.bulk-update', $workshop), [
+            'media_names' => [$media->name],
+            'storage_disk' => 'archive',
+            'visibility' => 'protected',
+        ])->assertOk()->assertJsonPath('updated', 1);
+
+        $this->assertDatabaseHas('media', [
+            'name' => $media->name,
+            'storage_disk' => 'archive',
+            'visibility' => 'protected',
+        ]);
+        Storage::disk('archive')->assertExists($hash);
+        Storage::disk('media')->assertMissing($hash);
+    }
+
+    public function test_existing_media_can_be_attached_to_workshop_files_without_replacing_existing_files(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create(['location_id' => Location::factory()->create()->id, 'user_id' => $admin->id]);
+        $existing = Media::query()->create([
+            'name' => 'already-attached.pdf', 'title' => 'Already Attached', 'hash' => str_repeat('6', 64),
+            'mime_type' => 'application/pdf', 'size' => 10, 'user_id' => $admin->id,
+        ]);
+        $added = Media::query()->create([
+            'name' => 'newly-attached.pdf', 'title' => 'Newly Attached', 'hash' => str_repeat('7', 64),
+            'mime_type' => 'application/pdf', 'size' => 10, 'user_id' => $admin->id,
+        ]);
+        $workshop->files()->attach($existing->name, ['collection' => null]);
+
+        $this->actingAs($admin)->postJson(route('admin.workshop.files.attach', $workshop), [
+            'media_names' => [$added->name],
+        ])->assertOk()->assertJsonPath('attached', 1);
+
+        $this->assertTrue($workshop->files()->where('media.name', $existing->name)->exists());
+        $this->assertTrue($workshop->files()->where('media.name', $added->name)->exists());
     }
 
     public function test_non_visual_existing_media_cannot_be_added_to_workshop_photos(): void
