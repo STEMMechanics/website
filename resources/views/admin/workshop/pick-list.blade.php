@@ -381,11 +381,6 @@
                 />
                 <p class="mt-1 text-xs text-gray-500">Changes apply only to this workshop and do not alter the workshop template.</p>
             </div>
-            @if(trim((string) ($workshop->pickListTemplate?->run_sheet_drawing_data ?? '')) !== '')
-                <div class="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-3">
-                    <img src="{{ $workshop->pickListTemplate->run_sheet_drawing_data }}" alt="Template run sheet drawing" class="max-h-[32rem] w-full object-contain">
-                </div>
-            @endif
             </details>
 
             <details class="group mb-8">
