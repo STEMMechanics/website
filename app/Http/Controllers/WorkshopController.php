@@ -1288,6 +1288,11 @@ class WorkshopController extends Controller
         ]);
 
         $before = $workshop->files()->pluck('media.name');
+        $uploadedFile = collect($request->file('pending_files', []))->first();
+        $duplicateMedia = $uploadedFile instanceof UploadedFile
+            ? Media::query()->where('hash', hash_file('sha256', $uploadedFile->path()))->oldest()->first()
+            : null;
+        $alreadyAttached = $duplicateMedia instanceof Media && $before->contains($duplicateMedia->name);
         $pendingId = trim((string) collect(json_decode((string) $request->input('pending_file_keys'), true))->first());
         $order = $before->map(fn ($name) => ['kind' => 'existing', 'name' => $name])->push([
             'kind' => 'pending',
@@ -1300,10 +1305,15 @@ class WorkshopController extends Controller
         ]);
         $this->syncWorkshopFilesFromRequest($workshop, $request);
 
-        $media = $workshop->files()->whereNotIn('media.name', $before)->latest('media.created_at')->first();
+        $media = $duplicateMedia instanceof Media
+            ? $duplicateMedia
+            : $workshop->files()->whereNotIn('media.name', $before)->latest('media.created_at')->first();
         abort_unless($media, 422, 'The uploaded file could not be saved.');
 
         return response()->json([
+            'reused' => $duplicateMedia instanceof Media,
+            'already_attached' => $alreadyAttached,
+            'uploaded_name' => (string) $request->input('filename', $uploadedFile?->getClientOriginalName() ?? 'upload'),
             'file' => [
                 'kind' => 'existing',
                 'key' => 'existing:'.$media->name,
