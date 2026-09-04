@@ -1629,6 +1629,12 @@ class ServerController extends Controller
         $rootPath = '/';
         $storagePublicPath = storage_path('app');
         $diskFree = @disk_free_space($rootPath);
+        $forwarded = trim((string) request()->header('Forwarded', ''));
+        $forwardedFor = trim((string) request()->header('X-Forwarded-For', ''));
+        $forwardedProto = trim((string) request()->header('X-Forwarded-Proto', ''));
+        $forwardedHost = trim((string) request()->header('X-Forwarded-Host', ''));
+        $via = trim((string) request()->header('Via', ''));
+        $proxyDetected = $forwarded !== '' || $forwardedFor !== '' || $forwardedProto !== '' || $forwardedHost !== '' || $via !== '';
 
         return [
             'App Environment' => app()->environment(),
@@ -1641,6 +1647,13 @@ class ServerController extends Controller
             'Composer Version' => $this->commandVersion(['composer', '--version', '--no-ansi']),
             'PHP SAPI' => PHP_SAPI,
             'Web Server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+            'Reverse Proxy Detected' => $proxyDetected ? 'Likely (forwarding headers received)' : 'No forwarding headers received',
+            'Request Remote Address' => request()->server('REMOTE_ADDR', 'Unknown'),
+            'Forwarded' => $forwarded ?: 'Not reported',
+            'X-Forwarded-For' => $forwardedFor ?: 'Not reported',
+            'X-Forwarded-Proto' => $forwardedProto ?: 'Not reported',
+            'X-Forwarded-Host' => $forwardedHost ?: 'Not reported',
+            'Via' => $via ?: 'Not reported',
             'Operating System' => php_uname(),
             'Server Time' => date('Y-m-d H:i:s'),
             'IP Address' => $_SERVER['SERVER_ADDR'] ?? 'Unknown',

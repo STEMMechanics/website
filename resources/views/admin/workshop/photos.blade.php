@@ -841,10 +841,17 @@
                                 } catch (error) {
                                     let message = 'Upload failed.';
                                     const payload = error?.response?.data;
+                                    const responseHeaders = error?.response?.headers;
+                                    const responseServer = String(
+                                        typeof responseHeaders?.get === 'function'
+                                            ? (responseHeaders.get('server') || '')
+                                            : (responseHeaders?.server || '')
+                                    ).trim();
+                                    const responderDetails = responseServer !== '' ? ` Responding server: ${responseServer}.` : '';
                                     if (uploadController.signal.aborted) {
                                         message = 'The server stopped responding for 90 seconds. This file may still have been saved; refresh the page to check before trying it again.';
                                     } else if (error?.response?.status === 413) {
-                                        message = 'This file was rejected because it exceeds the server or proxy upload limit.';
+                                        message = `This file was rejected because it exceeds the server or proxy upload limit.${responderDetails}`;
                                     } else if (payload) {
                                         message = payload.message || Object.values(payload.errors || {}).flat().join(' ') || message;
                                     } else if (error?.code === 'ERR_NETWORK') {
