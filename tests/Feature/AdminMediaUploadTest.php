@@ -298,6 +298,7 @@ class AdminMediaUploadTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.files', $workshop))
             ->assertOk()
+            ->assertSeeText('All public files are displayed on the workshop page.')
             ->assertSeeText('Select Local Files')
             ->assertSeeText('Browse Existing Media')
             ->assertDontSeeText('Selected Files & Metadata')
@@ -308,6 +309,7 @@ class AdminMediaUploadTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.photos', $workshop))
             ->assertOk()
+            ->assertSeeText('Photos are not displayed on the workshop page.')
             ->assertSeeText('Select Local Files')
             ->assertSeeText('Browse Existing Media')
             ->assertDontSeeText('Selected Media & Metadata')
@@ -365,6 +367,81 @@ class AdminMediaUploadTest extends TestCase
             'mediable_id' => $workshop->id,
             'mediable_type' => Workshop::class,
             'collection' => null,
+        ]);
+    }
+
+    public function test_workshop_file_upload_reuses_an_exact_duplicate(): void
+    {
+        Storage::fake('archive');
+
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $contents = 'the-same-large-archive-content';
+        $hash = hash('sha256', $contents);
+        $existing = Media::query()->create([
+            'name' => 'original-project.zip',
+            'title' => 'Original Project',
+            'hash' => $hash,
+            'mime_type' => 'application/zip',
+            'size' => strlen($contents),
+            'user_id' => $admin->id,
+            'storage_disk' => 'archive',
+        ]);
+        Storage::disk('archive')->put($hash, $contents);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.files.upload', $workshop), [
+                'pending_files' => [UploadedFile::fake()->createWithContent('retried-project.zip', $contents)],
+                'pending_file_keys' => json_encode([17]),
+                'pending_files_meta' => [17 => ['title' => 'Retried Project']],
+            ])
+            ->assertOk()
+            ->assertJsonPath('file.name', $existing->name);
+
+        $this->assertDatabaseCount('media', 2); // The duplicate plus the default workshop hero.
+        $this->assertTrue($workshop->files()->where('media.name', $existing->name)->exists());
+    }
+
+    public function test_chunked_upload_can_be_finalized_as_a_workshop_file(): void
+    {
+        Storage::fake('archive');
+
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $contents = 'chunked-workshop-file';
+
+        $chunkResponse = $this->actingAs($admin)->postJson(route('media.store'), [
+            'file' => UploadedFile::fake()->createWithContent('chunk', $contents),
+            'filename' => 'large-project.zip',
+            'filesize' => strlen($contents),
+            'filestart' => 'true',
+        ])->assertOk()->assertJsonStructure(['upload_token']);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.files.upload', $workshop), [
+                'upload_token' => $chunkResponse->json('upload_token'),
+                'filename' => 'large-project.zip',
+                'pending_file_keys' => json_encode([17]),
+                'pending_files_meta' => [17 => [
+                    'title' => 'Large Project',
+                    'visibility' => 'public',
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('file.title', 'Large Project');
+
+        $this->assertDatabaseHas('media', [
+            'title' => 'Large Project',
+            'hash' => hash('sha256', $contents),
+            'storage_disk' => 'archive',
         ]);
     }
 

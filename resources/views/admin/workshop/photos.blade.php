@@ -37,12 +37,12 @@
                         <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
                     </div>
                 </div>
-                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:flex" role="note">
+                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:flex" role="note">
                     <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
                     <p>Photos are not displayed on the workshop page.</p>
                 </div>
             </div>
-            <div class="mt-4 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:hidden" role="note">
+            <div class="mt-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:hidden" role="note">
                 <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
                 <p>Photos are not displayed on the workshop page.</p>
             </div>
@@ -800,74 +800,58 @@
                                 this.uploadIndex = index + 1;
                                 this.currentFileName = file.name;
 
-                                const formData = new FormData();
-                                formData.append('_token', @js(csrf_token()));
-                                formData.append('photos[0]', file);
-                                formData.append('photos_meta[0][title]', preview.title || '');
-                                formData.append('photos_meta[0][visibility]', preview.visibility || 'private');
-                                formData.append('photos_meta[0][storage_disk]', preview.storageDisk || 'media');
-                                formData.append('photos_meta[0][photographed_at]', preview.photographedAt || '');
-                                formData.append('photos_meta[0][tags]', preview.tags.join(', '));
-                                formData.append('photos_meta[0][caption]', preview.caption || '');
-                                formData.append('photos_meta[0][consent_notes]', preview.consentNotes || '');
-                                formData.append('photos_meta[0][edit_rotation]', preview.editRotation || 0);
-                                formData.append('photos_meta[0][edit_crop_top]', preview.editCropTop || 0);
-                                formData.append('photos_meta[0][edit_crop_right]', preview.editCropRight || 0);
-                                formData.append('photos_meta[0][edit_crop_bottom]', preview.editCropBottom || 0);
-                                formData.append('photos_meta[0][edit_crop_left]', preview.editCropLeft || 0);
+                                const uploaded = await new Promise((resolve, reject) => {
+                                    let settled = false;
+                                    const rejectOnce = (message) => {
+                                        if (settled) return;
+                                        settled = true;
+                                        reject(new Error(`${file.name}: ${message || 'Upload failed.'}`));
+                                    };
 
-                                const stallTimeoutMs = 90 * 1000;
-                                const uploadController = new AbortController();
-                                let lastUploadActivityAt = Date.now();
-                                const stallTimer = window.setInterval(() => {
-                                    if (Date.now() - lastUploadActivityAt >= stallTimeoutMs) {
-                                        uploadController.abort('upload-stalled');
-                                    }
-                                }, 5000);
-
-                                try {
-                                    const response = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
-                                        headers: {
-                                            'Accept': 'application/json',
-                                            'X-Requested-With': 'XMLHttpRequest',
-                                        },
-                                        signal: uploadController.signal,
-                                        onUploadProgress: (progressEvent) => {
-                                            lastUploadActivityAt = Date.now();
-                                            const currentLoaded = Math.max(0, Math.min(Number(progressEvent.loaded) || 0, file.size));
+                                    SM.upload([file], (result) => {
+                                        if (settled) return;
+                                        if (!result?.success || !result.files?.[0]?.data?.upload_token) {
+                                            rejectOnce(result?.message || 'Upload failed.');
+                                            return;
+                                        }
+                                        settled = true;
+                                        resolve(result.files[0].data);
+                                    }, [preview.title || ''], {
+                                        showModal: false,
+                                        successDelayMs: 0,
+                                        deferFinalization: true,
+                                        onProgress: (progress) => {
+                                            const currentLoaded = Math.max(0, Math.min(Number(progress.loaded) || 0, file.size));
                                             const percent = totalBytes > 0
                                                 ? Math.round(((uploadedBytes + currentLoaded) / totalBytes) * 100)
                                                 : 0;
                                             this.uploadProgress = Math.max(0, Math.min(100, percent));
                                         },
+                                        onError: rejectOnce,
                                     });
-                                    addedCount += Number(response?.data?.created || 0) + Number(response?.data?.attached || 0);
-                                    reusedCount += Number(response?.data?.reused || 0);
-                                    alreadyAttachedCount += Number(response?.data?.already_attached || 0);
-                                } catch (error) {
-                                    let message = 'Upload failed.';
-                                    const payload = error?.response?.data;
-                                    const responseHeaders = error?.response?.headers;
-                                    const responseServer = String(
-                                        typeof responseHeaders?.get === 'function'
-                                            ? (responseHeaders.get('server') || '')
-                                            : (responseHeaders?.server || '')
-                                    ).trim();
-                                    const responderDetails = responseServer !== '' ? ` Responding server: ${responseServer}.` : '';
-                                    if (uploadController.signal.aborted) {
-                                        message = 'The server stopped responding for 90 seconds. This file may still have been saved; refresh the page to check before trying it again.';
-                                    } else if (error?.response?.status === 413) {
-                                        message = `This file was rejected because it exceeds the server or proxy upload limit.${responderDetails}`;
-                                    } else if (payload) {
-                                        message = payload.message || Object.values(payload.errors || {}).flat().join(' ') || message;
-                                    } else if (error?.code === 'ERR_NETWORK') {
-                                        message = 'The server did not return a usable response. This file may still have been saved; refresh the page to check before trying it again.';
-                                    }
+                                });
 
-                                    throw new Error(`${file.name}: ${message}`);
-                                } finally {
-                                    window.clearInterval(stallTimer);
-                                }
+                                const attachResponse = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), {
+                                    upload_token: uploaded.upload_token,
+                                    filename: file.name,
+                                    photos_meta: [{
+                                        title: preview.title || '',
+                                        visibility: preview.visibility || 'private',
+                                        storage_disk: preview.storageDisk || 'media',
+                                        photographed_at: preview.photographedAt || '',
+                                        tags: preview.tags.join(', '),
+                                        caption: preview.caption || '',
+                                        consent_notes: preview.consentNotes || '',
+                                        edit_rotation: preview.editRotation || 0,
+                                        edit_crop_top: preview.editCropTop || 0,
+                                        edit_crop_right: preview.editCropRight || 0,
+                                        edit_crop_bottom: preview.editCropBottom || 0,
+                                        edit_crop_left: preview.editCropLeft || 0,
+                                    }],
+                                }, { headers: { Accept: 'application/json' } });
+                                addedCount += Number(attachResponse?.data?.created || 0) + Number(attachResponse?.data?.attached || 0);
+                                reusedCount += Number(attachResponse?.data?.reused || 0);
+                                alreadyAttachedCount += Number(attachResponse?.data?.already_attached || 0);
 
                                 uploadedBytes += file.size;
                                 this.uploadProgress = totalBytes > 0
@@ -911,8 +895,9 @@
                             window.location.href = @js(route('admin.workshop.photos', $workshop));
                         } catch (error) {
                             this.uploadError = error?.response?.status === 413
-                                ? 'The upload is too large for the server request limit. The PHP post_max_size must be larger than upload_max_filesize.'
+                                ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
                                 : (error.message || 'Upload failed.');
+                            window.SM?.notice?.('Upload failed', this.uploadError, 'danger');
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
                             this.previews = [];
                             this.existingMedia = [];

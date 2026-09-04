@@ -41,12 +41,12 @@
                         <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
                     </div>
                 </div>
-                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:flex" role="note">
+                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:flex" role="note">
                     <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
                     <p>All public files are displayed on the workshop page.</p>
                 </div>
             </div>
-            <div class="mt-4 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:hidden" role="note">
+            <div class="mt-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:hidden" role="note">
                 <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
                 <p>All public files are displayed on the workshop page.</p>
             </div>
@@ -193,7 +193,10 @@
                             return;
                         }
 
+                        this.workshopFilesUploading = true;
                         this.workshopFilesUploadProgress = 0;
+                        this.workshopFilesUploadMessage = `Preparing ${files.length} file${files.length === 1 ? '' : 's'}…`;
+                        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                         const prepared = files.map((file) => {
                             const id = this.nextWorkshopFileId++;
                             const previewUrl = String(file.type || '').startsWith('image/') ? URL.createObjectURL(file) : '';
@@ -221,6 +224,7 @@
 
                         this.stagedWorkshopFiles = [...this.stagedWorkshopFiles, ...prepared];
                         this.syncWorkshopFilesPayload();
+                        this.workshopFilesUploading = false;
                         await this.handleSubmit();
                     },
                     syncWorkshopPendingInput() {
@@ -375,32 +379,53 @@
                             await new Promise((resolve) => requestAnimationFrame(resolve));
                             for (let index = 0; index < pending.length; index++) {
                                 const item = pending[index];
-                                const data = new FormData();
-                                data.append('_token', @js(csrf_token()));
-                                data.append('pending_files[]', item.file, item.name);
-                                data.append('pending_file_keys', JSON.stringify([item.pending_id]));
-                                data.append(`pending_files_meta[${item.pending_id}][title]`, item.title || '');
-                                data.append(`pending_files_meta[${item.pending_id}][visibility]`, item.visibility || 'public');
-                                data.append(`pending_files_meta[${item.pending_id}][notes]`, item.notes || '');
                                 this.workshopFilesUploadMessage = `Uploading: ${item.name}`;
                                 this.workshopFilesUploadIndex = `${index + 1}`;
                                 this.workshopFilesUploadTotal = `${pending.length}`;
 
-                                const response = await axios.post(@js(route('admin.workshop.files.upload', $workshop)), data, {
-                                    headers: { 'Content-Type': 'multipart/form-data', 'Accept': 'application/json' },
-                                    onUploadProgress: (event) => {
-                                        const loaded = Math.min(Number(event.loaded || 0), Number(item.size || 0));
-                                        this.workshopFilesUploadProgress = totalBytes > 0
-                                            ? Math.min(99, Math.round(((uploadedBytes + loaded) / totalBytes) * 100))
-                                            : 0;
-                                    },
+                                const uploaded = await new Promise((resolve, reject) => {
+                                    let settled = false;
+                                    const rejectOnce = (message) => {
+                                        if (settled) return;
+                                        settled = true;
+                                        reject(new Error(message || 'The file could not be uploaded.'));
+                                    };
+
+                                    SM.upload([item.file], (result) => {
+                                        if (settled) return;
+                                        if (!result?.success || !result.files?.[0]?.data?.upload_token) {
+                                            rejectOnce(result?.message || 'The file could not be uploaded.');
+                                            return;
+                                        }
+                                        settled = true;
+                                        resolve(result.files[0].data);
+                                    }, [item.title || ''], {
+                                        showModal: false,
+                                        successDelayMs: 0,
+                                        deferFinalization: true,
+                                        onProgress: (progress) => {
+                                            const loaded = Math.min(Number(progress.loaded || 0), Number(item.size || 0));
+                                            this.workshopFilesUploadProgress = totalBytes > 0
+                                                ? Math.min(99, Math.round(((uploadedBytes + loaded) / totalBytes) * 100))
+                                                : 0;
+                                        },
+                                        onError: rejectOnce,
+                                    });
                                 });
+
+                                await axios.post(@js(route('admin.workshop.files.upload', $workshop)), {
+                                    upload_token: uploaded.upload_token,
+                                    filename: item.name,
+                                    pending_file_keys: JSON.stringify([item.pending_id]),
+                                    pending_files_meta: {
+                                        [item.pending_id]: {
+                                            title: item.title || '',
+                                            visibility: item.visibility || 'public',
+                                            notes: item.notes || '',
+                                        },
+                                    },
+                                }, { headers: { Accept: 'application/json' } });
                                 uploadedBytes += Number(item.size || 0);
-                                const stagedIndex = this.stagedWorkshopFiles.findIndex((candidate) => candidate.key === item.key);
-                                if (stagedIndex !== -1 && response.data?.file) {
-                                    if (item.preview_url) URL.revokeObjectURL(item.preview_url);
-                                    this.stagedWorkshopFiles.splice(stagedIndex, 1, response.data.file);
-                                }
                             }
 
                             this.workshopFilesUploadProgress = 100;
@@ -409,12 +434,11 @@
                             window.location.href = @js(route('admin.workshop.files', $workshop));
                         } catch (error) {
                             this.workshopFilesUploading = false;
-                            if (error?.response?.status === 413) {
-                                this.workshopFilesUploadError = 'The file is too large for the server request limit. The PHP post_max_size must be larger than upload_max_filesize.';
-                            } else {
-                                const payload = error?.response?.data;
-                                this.workshopFilesUploadError = payload?.message || Object.values(payload?.errors || {}).flat().join(' ') || error.message || 'Upload failed.';
-                            }
+                            const payload = error?.response?.data;
+                            this.workshopFilesUploadError = error?.response?.status === 413
+                                ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
+                                : (payload?.message || Object.values(payload?.errors || {}).flat().join(' ') || error.message || 'Upload failed.');
+                            window.SM?.notice?.('Upload failed', this.workshopFilesUploadError, 'danger');
                             [...this.stagedWorkshopFiles].filter((item) => item.kind === 'pending').forEach((item) => this.removeWorkshopFileByKey(item.key));
                         }
                     }

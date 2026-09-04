@@ -7,6 +7,7 @@
     'advancedOpen' => false,
     'advancedExternal' => false,
     'advancedActive' => false,
+    'action' => null,
 ])
 
 @php
@@ -22,7 +23,7 @@
 
 <form
     method="GET"
-    action="{{ url()->current() }}"
+    action="{{ $action ?? url()->current() }}"
     class="{{ $attributes->get('class') }}"
     x-data="{ search: {{ \Illuminate\Support\Js::from($currentValue) }}, advancedOpen: {{ \Illuminate\Support\Js::from((bool) $advancedOpen) }}, advancedActive: {{ \Illuminate\Support\Js::from((bool) $advancedActive) }} }"
 >
