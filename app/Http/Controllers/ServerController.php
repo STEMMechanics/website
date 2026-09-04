@@ -1649,6 +1649,7 @@ class ServerController extends Controller
             'Max Execution Time' => ini_get('max_execution_time') . 's',
             'Upload Max Filesize' => ini_get('upload_max_filesize'),
             'Post Max Size' => ini_get('post_max_size'),
+            'Max File Uploads Per Request' => ini_get('max_file_uploads'),
             'Media Download Offload' => Helpers::mediaDownloadOffloadStatus(),
             'PHP INI File' => php_ini_loaded_file() ?: 'Unknown',
             'OPcache Enabled' => extension_loaded('Zend OPcache') ? 'Yes' : 'No',
