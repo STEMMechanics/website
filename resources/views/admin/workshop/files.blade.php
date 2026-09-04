@@ -32,11 +32,23 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Files</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
-            <div class="mt-2 grid gap-1 text-sm text-gray-700">
-                <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
-                <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
+        <div class="mb-4">
+            <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
+                    <div class="mt-2 grid gap-1 text-sm text-gray-700">
+                        <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
+                        <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
+                    </div>
+                </div>
+                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:flex" role="note">
+                    <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                    <p>All public files are displayed on the workshop page.</p>
+                </div>
+            </div>
+            <div class="mt-4 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:hidden" role="note">
+                <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                <p>All public files are displayed on the workshop page.</p>
             </div>
         </div>
 
