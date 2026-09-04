@@ -203,7 +203,8 @@
 
                         this.workshopFilesUploading = true;
                         this.workshopFilesUploadProgress = 0;
-                        this.workshopFilesUploadMessage = `Preparing ${files.length} file${files.length === 1 ? '' : 's'}…`;
+                        this.workshopFilesUploadMessage = `Preparing ${files.length} file${files.length === 1 ? '' : 's'}… This page may be temporarily unresponsive.`;
+                        this.workshopFilesUploadTotal = files.length;
                         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
                         const prepared = files.map((file) => {
                             const id = this.nextWorkshopFileId++;
