@@ -85,6 +85,7 @@
                     workshopFilesUploadTotal: 0,
                     workshopFilesUploading: false,
                     workshopFilesUploadError: '',
+                    workshopFilesUploadNotices: [],
                     editingWorkshopFile: null,
                     bulkPendingOpen: false,
                     bulkPendingVisibility: '',
@@ -380,6 +381,7 @@
                         this.workshopFilesUploading = true;
                         this.workshopFilesUploadProgress = 0;
                         this.workshopFilesUploadError = '';
+                        this.workshopFilesUploadNotices = [];
                         const pending = this.stagedWorkshopFiles.filter((item) => item.kind === 'pending' && item.file instanceof File);
                         const totalBytes = pending.reduce((sum, item) => sum + Number(item.size || 0), 0);
                         let uploadedBytes = 0;
@@ -422,7 +424,7 @@
                                     });
                                 });
 
-                                await axios.post(@js(route('admin.workshop.files.upload', $workshop)), {
+                                const response = await axios.post(@js(route('admin.workshop.files.upload', $workshop)), {
                                     upload_token: uploaded.upload_token,
                                     filename: item.name,
                                     pending_file_keys: JSON.stringify([item.pending_id]),
@@ -434,12 +436,27 @@
                                         },
                                     },
                                 }, { headers: { Accept: 'application/json' } });
+                                if (response?.data?.already_attached && response?.data?.file?.name) {
+                                    this.workshopFilesUploadNotices.push(
+                                        `${item.name} was discarded because the same file is already linked as ${response.data.file.name}.`
+                                    );
+                                }
                                 uploadedBytes += Number(item.size || 0);
                             }
 
                             this.workshopFilesUploadProgress = 100;
                             this.workshopFilesUploadMessage = 'Finishing…';
                             await new Promise((resolve) => requestAnimationFrame(resolve));
+                            if (this.workshopFilesUploadNotices.length > 0) {
+                                this.workshopFilesUploading = false;
+                                await Swal.fire({
+                                    icon: 'info',
+                                    title: this.workshopFilesUploadNotices.length === 1 ? 'File already linked' : 'Files already linked',
+                                    text: this.workshopFilesUploadNotices.join('\n'),
+                                    confirmButtonText: 'Continue',
+                                    confirmButtonColor: '#0284c7',
+                                });
+                            }
                             window.location.href = @js(route('admin.workshop.files', $workshop));
                         } catch (error) {
                             this.workshopFilesUploading = false;

@@ -406,6 +406,46 @@ class AdminMediaUploadTest extends TestCase
         $this->assertTrue($workshop->files()->where('media.name', $existing->name)->exists());
     }
 
+    public function test_workshop_file_upload_reports_an_exact_duplicate_already_linked_to_the_workshop(): void
+    {
+        Storage::fake('archive');
+
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create([
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+        ]);
+        $contents = 'already-linked-archive-content';
+        $hash = hash('sha256', $contents);
+        $existing = Media::query()->create([
+            'name' => 'linked-project.zip',
+            'title' => 'Linked Project',
+            'hash' => $hash,
+            'mime_type' => 'application/zip',
+            'size' => strlen($contents),
+            'user_id' => $admin->id,
+            'storage_disk' => 'archive',
+        ]);
+        Storage::disk('archive')->put($hash, $contents);
+        $workshop->files()->attach($existing->name, ['collection' => null]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.files.upload', $workshop), [
+                'pending_files' => [UploadedFile::fake()->createWithContent('renamed-project.zip', $contents)],
+                'pending_file_keys' => json_encode([17]),
+                'pending_files_meta' => [17 => ['title' => 'Renamed Project']],
+            ])
+            ->assertOk()
+            ->assertJsonPath('reused', true)
+            ->assertJsonPath('already_attached', true)
+            ->assertJsonPath('uploaded_name', 'renamed-project.zip')
+            ->assertJsonPath('file.name', $existing->name);
+
+        $this->assertDatabaseCount('media', 2);
+        $this->assertSame(1, $workshop->files()->where('media.name', $existing->name)->count());
+    }
+
     public function test_chunked_upload_can_be_finalized_as_a_workshop_file(): void
     {
         Storage::fake('archive');
