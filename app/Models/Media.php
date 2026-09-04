@@ -186,7 +186,10 @@ class Media extends Model
             }
         }
 
-        $thumbnail = '/thumbnails/' . pathinfo($this->name, PATHINFO_EXTENSION) . '.webp';
+        $extension = str_ends_with(strtolower($this->name), '.stopmotion.zip')
+            ? 'stopmotionstudiomobile'
+            : strtolower(pathinfo($this->name, PATHINFO_EXTENSION));
+        $thumbnail = '/thumbnails/' . $extension . '.webp';
 
         if(file_exists(public_path($thumbnail))) {
             return asset($thumbnail);
@@ -198,6 +201,7 @@ class Media extends Model
     public function getFileTypeAttribute(): string
     {
         $extension = strtolower(pathinfo($this->name, PATHINFO_EXTENSION));
+        $isStopMotionBundle = str_ends_with(strtolower($this->name), '.stopmotion.zip');
 
         if(str_starts_with($this->mime_type, 'image/')) {
             return 'Image (' . $extension . ')';
@@ -211,7 +215,7 @@ class Media extends Model
             return 'Text Document';
         } else if($extension === 'sb3') {
             return 'Scratch 3 Project';
-        } else if($extension === 'stopmotionstudio' || $extension === 'stopmotionstudiomobile') {
+        } else if($isStopMotionBundle || $extension === 'stopmotionstudio' || $extension === 'stopmotionstudiomobile') {
             return 'Stop Motion Studio Project';
         }
 

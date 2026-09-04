@@ -122,6 +122,10 @@
                             return this.workshopFilesFallbackThumbnail;
                         }
 
+                        if (/\.stopmotion\.zip$/i.test(fileName)) {
+                            return '/thumbnails/stopmotionstudiomobile.webp';
+                        }
+
                         const parts = fileName.split('.');
                         const extension = parts.length > 1 ? String(parts.pop() || '').trim().toLowerCase() : '';
                         return extension !== '' ? `/thumbnails/${extension}.webp` : this.workshopFilesFallbackThumbnail;
@@ -146,6 +150,10 @@
                         const mimeType = String(file?.type || '').trim().toLowerCase();
                         const fileName = String(file?.name || '').trim();
                         const extension = fileName.includes('.') ? String(fileName.split('.').pop() || '').trim().toLowerCase() : '';
+
+                        if (/\.stopmotion\.zip$/i.test(fileName)) {
+                            return 'Stop Motion Studio Project';
+                        }
 
                         if (mimeType.startsWith('image/')) {
                             return `Image (${extension || 'file'})`;
