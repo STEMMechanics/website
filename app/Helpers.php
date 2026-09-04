@@ -256,6 +256,7 @@ class Helpers
 
     public static function filenameToTitle(string $filename): string
     {
+        $filename = preg_replace('/\.stopmotion\.zip$/i', '', $filename) ?? $filename;
         $title = pathinfo($filename, PATHINFO_FILENAME);
         $title = str_replace(['-', '_', '.'], ' ', $title);
         $title = ucwords($title);

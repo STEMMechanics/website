@@ -60,16 +60,28 @@
                         'download_url' => (string) (($file->download_url ?? null) ?: (($file->url ?? ('/media/'.rawurlencode((string) $file->name))).'?download=1')),
                         'edit_url' => auth()->user()?->isAdmin() ? route('admin.media.edit', $file) : null,
                         'visibility' => in_array((string) ($file->visibility ?? 'private'), ['private', 'protected', 'public'], true) ? (string) $file->visibility : 'private',
+                        'storage_disk' => (string) $file->storageDiskName(),
                         'file_type' => (string) ($file->file_type ?? 'File'),
                         'notes' => (string) ($file->consent_notes ?? ''),
+                        'selected' => false,
                     ])->values()->all()),
                     workshopFilesFallbackThumbnail: @js(asset('/thumbnails/unknown.webp')),
                     nextWorkshopFileId: 1,
                     workshopFilesUploadProgress: 0,
                     workshopFilesUploadMessage: '',
+                    workshopFilesUploadIndex: 0,
+                    workshopFilesUploadTotal: 0,
                     workshopFilesUploading: false,
+                    workshopFilesUploadError: '',
+                    editingWorkshopFile: null,
+                    bulkPendingOpen: false,
+                    bulkPendingVisibility: '',
+                    openWorkshopFileEditor(item) { this.editingWorkshopFile = item; },
+                    closeWorkshopFileEditor() { this.editingWorkshopFile = null; },
+                    selectedPendingFileCount() { return this.pendingWorkshopFiles().filter((item) => item.selected).length; },
+                    selectAllPendingFiles(checked) { this.pendingWorkshopFiles().forEach((item) => item.selected = checked); },
+                    applyPendingBulkEdit() { if (this.bulkPendingVisibility) this.pendingWorkshopFiles().filter((item) => item.selected && item.kind === 'pending').forEach((item) => item.visibility = this.bulkPendingVisibility); this.bulkPendingOpen = false; },
                     init() {
-                        this.syncWorkshopPendingInput();
                         this.syncWorkshopFilesPayload();
                     },
                     titleFromFileName(value) {
@@ -78,7 +90,9 @@
                             return '';
                         }
 
-                        const withoutExtension = fileName.replace(/\.[^.]+$/, '');
+                        const withoutExtension = fileName
+                            .replace(/\.stopmotion\.zip$/i, '')
+                            .replace(/\.[^.]+$/, '');
                         const normalized = withoutExtension
                             .replace(/[_-]+/g, ' ')
                             .replace(/\s+/g, ' ')
@@ -161,18 +175,17 @@
                     pendingWorkshopFiles() {
                         return this.stagedWorkshopFiles.filter((item) => item.kind === 'pending' || item.is_pending_attachment === true);
                     },
-                    addWorkshopPendingFiles(fileList) {
+                    async addWorkshopPendingFiles(fileList) {
                         const files = Array.from(fileList || []).filter((file) => file instanceof File);
                         if (files.length === 0) {
                             return;
                         }
 
-                        const attachedNames = new Set(this.stagedWorkshopFiles.filter((item) => item.kind === 'existing').map((item) => item.name));
-
-                        files.forEach((file) => {
+                        this.workshopFilesUploadProgress = 0;
+                        const prepared = files.map((file) => {
                             const id = this.nextWorkshopFileId++;
                             const previewUrl = String(file.type || '').startsWith('image/') ? URL.createObjectURL(file) : '';
-                            this.stagedWorkshopFiles.push({
+                            return {
                                 kind: 'pending',
                                 key: `pending:${id}`,
                                 pending_id: id,
@@ -187,13 +200,16 @@
                                 download_url: '',
                                 edit_url: '',
                                 visibility: 'public',
+                                storage_disk: 'archive',
                                 file_type: this.fileTypeFromFile(file),
                                 notes: '',
-                            });
+                                selected: false,
+                            };
                         });
 
-                        this.syncWorkshopPendingInput();
+                        this.stagedWorkshopFiles = [...this.stagedWorkshopFiles, ...prepared];
                         this.syncWorkshopFilesPayload();
+                        await this.handleSubmit();
                     },
                     syncWorkshopPendingInput() {
                         if (!(this.$refs.workshopFilesPendingInput instanceof HTMLInputElement)) {
@@ -237,7 +253,6 @@
                         if (removed?.kind === 'pending' && removed.preview_url) {
                             URL.revokeObjectURL(removed.preview_url);
                         }
-                        this.syncWorkshopPendingInput();
                         this.syncWorkshopFilesPayload();
                     },
                     removeWorkshopFileByKey(fileKey) {
@@ -268,8 +283,9 @@
                             confirm_button_text: 'Add Files',
                         }, (result) => this.attachExistingWorkshopFiles(result));
                     },
-                    attachExistingWorkshopFiles(result) {
+                    async attachExistingWorkshopFiles(result) {
                         const names = Array.isArray(result) ? result : [result];
+                        const attachNames = [];
                         names.forEach((name) => {
                             const fileName = String(name || '').trim();
                             if (fileName === '' || this.stagedWorkshopFiles.some((item) => item.kind === 'existing' && item.name === fileName)) {
@@ -289,11 +305,14 @@
                                 download_url: '/media/' + encodeURIComponent(fileName) + '?download=1',
                                 edit_url: '',
                                 visibility: 'private',
+                                storage_disk: 'media',
                                 file_type: 'File',
                                 notes: '',
+                                selected: false,
                             };
 
                             this.stagedWorkshopFiles.push(placeholder);
+                            attachNames.push(fileName);
                             SM.mediaDetails(fileName, (details) => {
                                 if (!details || typeof details !== 'object') {
                                     return;
@@ -313,23 +332,79 @@
                                     download_url: String(details.download_url || ((details.url || ('/media/' + encodeURIComponent(fileName))) + '?download=1')),
                                     edit_url: String(details.edit_url || ''),
                                     visibility: ['private', 'protected', 'public'].includes(String(details.visibility || '')) ? String(details.visibility) : 'private',
+                                    storage_disk: ['media', 'archive'].includes(String(details.storage_disk || '')) ? String(details.storage_disk) : 'media',
                                     file_type: String(details.file_type || 'File'),
                                     notes: String(details.consent_notes || ''),
                                 };
                             });
                         });
                         this.syncWorkshopFilesPayload();
+                        if (attachNames.length === 0) return;
+                        this.workshopFilesUploading = true;
+                        this.workshopFilesUploadMessage = `Attaching ${attachNames.length} existing file${attachNames.length === 1 ? '' : 's'}…`;
+                        try {
+                            await axios.post(@js(route('admin.workshop.files.attach', $workshop)), { media_names: attachNames }, { headers: { Accept: 'application/json' } });
+                            window.location.href = @js(route('admin.workshop.files', $workshop));
+                        } catch (error) {
+                            this.workshopFilesUploading = false;
+                            this.workshopFilesUploadError = error?.response?.data?.message || 'The selected files could not be attached.';
+                        }
                     },
                     async handleSubmit() {
+                        if (this.workshopFilesUploading) return;
                         this.workshopFilesUploading = true;
-                        this.workshopFilesUploadProgress = 15;
-                        this.workshopFilesUploadMessage = 'Preparing files…';
-                        this.syncWorkshopPendingInput();
-                        this.syncWorkshopFilesPayload();
-                        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-                        this.workshopFilesUploadProgress = 65;
-                        this.workshopFilesUploadMessage = 'Uploading files…';
-                        this.$refs.workshopFilesForm.submit();
+                        this.workshopFilesUploadProgress = 0;
+                        this.workshopFilesUploadError = '';
+                        const pending = this.stagedWorkshopFiles.filter((item) => item.kind === 'pending' && item.file instanceof File);
+                        const totalBytes = pending.reduce((sum, item) => sum + Number(item.size || 0), 0);
+                        let uploadedBytes = 0;
+
+                        try {
+                            await new Promise((resolve) => requestAnimationFrame(resolve));
+                            for (let index = 0; index < pending.length; index++) {
+                                const item = pending[index];
+                                const data = new FormData();
+                                data.append('_token', @js(csrf_token()));
+                                data.append('pending_files[]', item.file, item.name);
+                                data.append('pending_file_keys', JSON.stringify([item.pending_id]));
+                                data.append(`pending_files_meta[${item.pending_id}][title]`, item.title || '');
+                                data.append(`pending_files_meta[${item.pending_id}][visibility]`, item.visibility || 'public');
+                                data.append(`pending_files_meta[${item.pending_id}][notes]`, item.notes || '');
+                                this.workshopFilesUploadMessage = `Uploading: ${item.name}`;
+                                this.workshopFilesUploadIndex = `${index + 1}`;
+                                this.workshopFilesUploadTotal = `${pending.length}`;
+
+                                const response = await axios.post(@js(route('admin.workshop.files.upload', $workshop)), data, {
+                                    headers: { 'Content-Type': 'multipart/form-data', 'Accept': 'application/json' },
+                                    onUploadProgress: (event) => {
+                                        const loaded = Math.min(Number(event.loaded || 0), Number(item.size || 0));
+                                        this.workshopFilesUploadProgress = totalBytes > 0
+                                            ? Math.min(99, Math.round(((uploadedBytes + loaded) / totalBytes) * 100))
+                                            : 0;
+                                    },
+                                });
+                                uploadedBytes += Number(item.size || 0);
+                                const stagedIndex = this.stagedWorkshopFiles.findIndex((candidate) => candidate.key === item.key);
+                                if (stagedIndex !== -1 && response.data?.file) {
+                                    if (item.preview_url) URL.revokeObjectURL(item.preview_url);
+                                    this.stagedWorkshopFiles.splice(stagedIndex, 1, response.data.file);
+                                }
+                            }
+
+                            this.workshopFilesUploadProgress = 100;
+                            this.workshopFilesUploadMessage = 'Finishing…';
+                            await new Promise((resolve) => requestAnimationFrame(resolve));
+                            window.location.href = @js(route('admin.workshop.files', $workshop));
+                        } catch (error) {
+                            this.workshopFilesUploading = false;
+                            if (error?.response?.status === 413) {
+                                this.workshopFilesUploadError = 'The file is too large for the server request limit. The PHP post_max_size must be larger than upload_max_filesize.';
+                            } else {
+                                const payload = error?.response?.data;
+                                this.workshopFilesUploadError = payload?.message || Object.values(payload?.errors || {}).flat().join(' ') || error.message || 'Upload failed.';
+                            }
+                            [...this.stagedWorkshopFiles].filter((item) => item.kind === 'pending').forEach((item) => this.removeWorkshopFileByKey(item.key));
+                        }
                     }
                 }"
                 x-init="init()"
@@ -358,109 +433,38 @@
                     on-files="addWorkshopPendingFiles"
                     on-browse-existing="openWorkshopExistingFilePicker"
                     disabled="workshopFilesUploading"
+                    :showSubmit="false"
                 >
 
-                    <div class="flex flex-col gap-4">
-                        <div x-show="pendingWorkshopFiles().length" x-cloak class="mt-4">
-                            <div class="mb-2 flex items-center justify-between gap-3">
-                                <div class="text-sm font-semibold text-gray-700">Selected Files & Metadata</div>
-                                <button type="button" class="text-xs font-medium text-gray-500 hover:text-danger-color" x-on:click.prevent="clearPendingFiles()">Clear files</button>
-                            </div>
-                            <input type="hidden" name="files" x-ref="workshopFilesExisting">
-                            <input type="hidden" name="files_staged_order" x-ref="workshopFilesOrder">
-                            <input type="hidden" name="pending_file_keys" x-ref="workshopFilesPendingKeys">
-                            <div class="space-y-4">
-                                <template x-for="(item, fileIndex) in pendingWorkshopFiles()" :key="workshopFileRowKey(item, fileIndex)">
-                                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                                        <div class="flex flex-col">
-                                            <div class="flex flex-col sm:flex-row gap-4">
-                                                <div class="mx-auto shrink">
-                                                    <div class="w-32">
-                                                        <div class="block overflow-hidden">
-                                                            <div class="flex h-24 w-32 items-center justify-center overflow-hidden">
-                                                                <img :src="workshopFileThumbnail(item)" x-on:error="if ($el.src !== workshopFilesFallbackThumbnail) { $el.src = workshopFilesFallbackThumbnail }" alt="" class="h-24 w-32 rounded-lg bg-white object-contain p-1" />
-                                                            </div>
-                                                            <div class="space-y-0.5 px-2 py-1 text-[11px]">
-                                                                <div class="text-gray-500" x-text="SM.bytesToString(item.size || 0)"></div>
-                                                                <div class="text-gray-500" x-text="workshopFileTypeLabel(item)"></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="flex flex-col grow md:flex-row md:gap-4">
-                                                    <div class="flex-1">
-                                                        <template x-if="item.kind === 'pending'">
-                                                            <div>
-                                                                <x-ui.input label="Title" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][title]`" x-model="item.title" />
-                                                                <x-ui.select label="Visibility" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][visibility]`" x-model="item.visibility">
-                                                                    <option value="public">Public</option>
-                                                                    <option value="protected">Protected</option>
-                                                                    <option value="private">Private</option>
-                                                                </x-ui.select>
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="item.kind === 'existing'">
-                                                            <div>
-                                                                <x-ui.input label="Title" :name="null" x-bind:value="item.title || item.name" disabled="true" />
-                                                                <x-ui.select label="Visibility" :name="null" x-bind:value="item.visibility" disabled="true" info="File visibility can be changed for existing files from the media editor.">
-                                                                    <option value="public">Public</option>
-                                                                    <option value="protected">Protected</option>
-                                                                    <option value="private">Private</option>
-                                                                </x-ui.select>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <template x-if="item.kind === 'pending'">
-                                                            <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:name="`pending_files_meta[${item.pending_id}][notes]`" x-model="item.notes" />
-                                                        </template>
-                                                        <template x-if="item.kind === 'existing'">
-                                                            <x-ui.input label="File Notes" type="textarea" :name="null" x-bind:value="item.notes || ''" disabled="true" />
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex justify-between items-center">
-                                                <div>
-                                                    <template x-if="item.kind === 'pending'">
-                                                        <x-ui.badge color="sky" icon="fa-solid fa-cloud-arrow-up">To be uploaded</x-ui.badge>
-                                                    </template>
-                                                    <template x-if="item.kind === 'existing'">
-                                                        <x-ui.badge color="gray" icon="fa-solid fa-photo-film">Existing media</x-ui.badge>
-                                                    </template>
-                                                </div>
-                                                <div class="flex items-center gap-3 pt-1">
-                                                    <a x-show="item.kind === 'existing' && item.edit_url" :href="item.edit_url" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
-                                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                                    </a>
-                                                    <a x-show="item.kind === 'existing' && item.download_url" :href="item.download_url" class="text-primary-color hover:text-primary-color-dark" title="Download file">
-                                                        <i class="fa-solid fa-download"></i>
-                                                    </a>
-                                                    <button type="button" class="text-red-600 hover:text-red-800" title="Delete row" x-on:click.prevent="removeWorkshopFileByKey(workshopFileRowKey(item))">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
+                    <div x-show="workshopFilesUploadError" x-cloak class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="workshopFilesUploadError"></div>
+                </x-ui.media-uploader>
 
-                        <div x-show="workshopFilesUploading" x-cloak class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-                            <div class="mb-2 flex items-center justify-between gap-3">
-                                <div class="font-medium">
-                                    <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-                                    Uploading files
+                <template x-teleport="body">
+                    <div
+                        x-show="workshopFilesUploading"
+                        x-cloak
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-files-progress-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-files-progress-title" class="text-lg font-semibold text-gray-900">Uploading files</div>
+                                    <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
                                 </div>
                             </div>
-                            <div class="mb-2 text-xs text-sky-900" x-text="workshopFilesUploadMessage || ''"></div>
-                            <div class="h-2 w-full overflow-hidden rounded bg-sky-100">
-                                <div class="h-2 rounded bg-primary-color transition-all" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
+                            <div class="mb-2 min-h-10 break-words text-sm text-gray-700" x-text="workshopFilesUploadMessage || ''"></div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
                             </div>
+                            <div class="mt-2 flex items-center justify-between text-sm font-semibold text-gray-700"><span x-text="`${workshopFilesUploadIndex} of ${workshopFilesUploadTotal}`"></span><span x-text="`${workshopFilesUploadProgress}%`"></span></div>
                         </div>
                     </div>
-                </x-ui.media-uploader>
+                </template>
             </form>
         </div>
 
@@ -482,81 +486,26 @@
         @if($attachedFiles->isEmpty())
             <x-none-found item="files" search="{{ request()->get('search') }}" />
         @else
-            <div class="space-y-4">
-                @foreach($attachedFiles as $file)
-                    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                        <div class="flex flex-col">
-                            <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                                <div class="mx-auto shrink">
-                                    <div class="w-32">
-                                        <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="block overflow-hidden">
-                                            <img src="{{ $file->thumbnail ?: asset('/thumbnails/unknown.webp') }}" onerror="this.onerror=null;this.src='{{ asset('/thumbnails/unknown.webp') }}';" alt="{{ $file->title }}" class="max-w-32 h-32 object-cover rounded-lg mx-auto">
-                                        </a>
-                                        <div class="space-y-0.5 px-2 py-1 text-[11px]">
-                                            <div class="text-gray-500">{{ \App\Helpers::bytesToString((int) ($file->size ?? 0)) }}</div>
-                                            <div class="text-gray-500">{{ $file->file_type }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col grow md:flex-row gap-4">
-                                    <div class="flex-1">
-                                        <div class="mb-4">
-                                            <div class="mb-1 text-sm font-medium text-gray-700">Title</div>
-                                            <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                                                {{ trim((string) ($file->title ?? '')) !== '' ? (string) $file->title : (string) $file->name }}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="mb-1 text-sm font-medium text-gray-700">Visibility</div>
-                                            <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                                                {{ in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true)
-                                                    ? ucfirst((string) $file->visibility)
-                                                    : 'Private' }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex-1">
-                                        <div>
-                                            <div class="mb-1 text-sm font-medium text-gray-700">Notes</div>
-                                            <div class="min-h-24 whitespace-pre-wrap rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 text-left flex items-start justify-start">
-                                                @if(trim((string) ($file->consent_notes ?? '')) !== '')
-                                                    <span>{{ (string) $file->consent_notes }}</span>
-                                                @else
-                                                    <span class="italic text-gray-500">No file notes.</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex justify-end items-center">
-                                <div class="flex items-center gap-3 pt-1">
-                                    <a href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
-                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                    </a>
-                                    <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" class="text-primary-color hover:text-primary-color-dark" title="Download file">
-                                        <i class="fa-solid fa-download"></i>
-                                    </a>
-                                    <button
-                                        type="button"
-                                        class="text-amber-600 hover:text-amber-800"
-                                        title="Remove from this workshop only"
-                                        x-data
-                                        x-on:click.prevent="SM.confirmDelete(
-                                            '{{ csrf_token() }}',
-                                            'Remove file from workshop?',
-                                            'This will remove the file from this workshop only. The media item will remain in the media library.',
-                                            '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}',
-                                            'Remove from workshop'
-                                        )"
-                                    >
-                                        <i class="fa-solid fa-ban"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
+            <div x-data="{ selected: [], allNames: @js($attachedFilesValue->pluck('name')->values()), bulkOpen: false, bulkStorage: '', bulkVisibility: '', bulkSaving: false, toggleAll(checked) { this.selected = checked ? [...this.allNames] : []; }, zipUrl() { const query = new URLSearchParams(); this.selected.forEach((name) => query.append('media_names[]', name)); return @js(route('admin.workshop.files.zip', $workshop)) + '?' + query.toString(); }, async applyBulk() { this.bulkSaving = true; try { await axios.put(@js(route('admin.workshop.files.bulk-update', $workshop)), { media_names: this.selected, storage_disk: this.bulkStorage || null, visibility: this.bulkVisibility || null }, { headers: { Accept: 'application/json' } }); window.location.reload(); } catch (error) { window.SM?.notice?.('Update failed', error.response?.data?.message || 'Could not update selected files.', 'danger'); } finally { this.bulkSaving = false; } } }">
+                <div class="w-full overflow-x-auto">
+                    <table class="table">
+                        <thead><tr><th class="w-10 text-center !border-r-0"><x-ui.checkbox aria-label="Select all existing files" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="selected.length > 0 && selected.length === allNames.length" x-effect="$el.indeterminate = selected.length > 0 && selected.length < allNames.length" x-on:change="toggleAll($el.checked)" /></th><th class="!border-l-0">Media</th><th class="hidden w-24 text-center md:table-cell">Storage</th><th class="hidden w-24 text-center md:table-cell">Visibility</th><th class="w-36 text-center">Actions</th></tr></thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            @foreach($attachedFiles as $file)
+                                @php($fileVisibility = in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true) ? (string) $file->visibility : 'private')
+                                <tr>
+                                    <td class="text-center !border-r-0"><x-ui.checkbox aria-label="Select {{ $file->title }}" value="{{ $file->name }}" :small="true" :noWrapper="true" inputClass="mx-auto" x-model="selected" /></td>
+                                    <td class="px-3 py-3"><div class="flex min-w-0 items-center gap-3"><a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="shrink-0"><img src="{{ $file->thumbnail ?: asset('/thumbnails/unknown.webp') }}" onerror="this.onerror=null;this.src='{{ asset('/thumbnails/unknown.webp') }}';" alt="{{ $file->title }}" class="h-12 w-16 rounded bg-white object-contain p-1"></a><div class="min-w-0"><div class="font-medium text-gray-900">{{ trim((string) ($file->title ?? '')) !== '' ? $file->title : $file->name }}</div><div class="max-w-xs truncate text-xs text-gray-500">{{ $file->name }}</div><div class="text-xs text-gray-400">{{ \App\Helpers::bytesToString((int) ($file->size ?? 0)) }} · {{ $file->file_type }}</div><div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize">{{ $file->storageDiskName() }}</span></div><div class="md:hidden"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize {{ $fileVisibility === 'public' ? 'bg-emerald-100 text-emerald-800' : ($fileVisibility === 'protected' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700') }}">{{ $fileVisibility }}</span></div></div></div></td>
+                                    <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
+                                    <td class="hidden px-3 py-3 text-center md:table-cell"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize {{ $fileVisibility === 'public' ? 'bg-emerald-100 text-emerald-800' : ($fileVisibility === 'protected' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700') }}">{{ $fileVisibility }}</span></td>
+                                    <td class="px-3 py-3"><div class="flex justify-end gap-3"><a href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color" title="Edit file"><i class="fa-solid fa-pen-to-square"></i></a><a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" class="text-primary-color" title="Download file"><i class="fa-solid fa-download"></i></a><button type="button" class="text-amber-600" title="Remove from this workshop only" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')"><i class="fa-solid fa-ban"></i></button></div></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-bind:disabled="selected.length === 0" x-on:click="bulkStorage = ''; bulkVisibility = ''; bulkOpen = true">Bulk edit selected</x-ui.button><x-ui.button type="button" color="outline" x-bind:disabled="selected.length === 0" x-on:click="window.location.href = zipUrl()">Download ZIP</x-ui.button></div>
+                <template x-teleport="body"><div x-show="bulkOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="bulkOpen = false"><div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="bulkOpen = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Bulk edit selected files</h3><div class="text-xs text-gray-500"><span x-text="selected.length"></span> selected</div></div><button type="button" x-on:click="bulkOpen = false"><i class="fa-solid fa-xmark"></i></button></div><x-ui.select label="Storage" :name="null" x-model="bulkStorage"><option value="">Leave unchanged</option><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="bulkVisibility"><option value="">Leave unchanged</option><option value="public">Public</option><option value="protected">Protected</option><option value="private">Private</option></x-ui.select><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="bulkOpen = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="bulkSaving || (!bulkStorage && !bulkVisibility)" x-on:click="applyBulk()"><span x-show="!bulkSaving">Apply changes</span><span x-show="bulkSaving">Saving…</span></x-ui.button></div></div></div></template>
             </div>
 
             <div class="mt-6">{{ $attachedFiles->links() }}</div>
