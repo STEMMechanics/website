@@ -60,6 +60,8 @@
                     previews: [],
                     existingMedia: [],
                     preparing: false,
+                    preparationIndex: 0,
+                    preparationTotal: 0,
                     uploading: false,
                     uploadIndex: 0,
                     uploadProgress: 0,
@@ -246,46 +248,73 @@
                             imageHeight: 0,
                         };
                     },
+                    nextPaint() {
+                        return new Promise((resolve) => {
+                            requestAnimationFrame(() => requestAnimationFrame(resolve));
+                        });
+                    },
                     async appendFiles(files) {
                         const incoming = Array.from(files || []);
-                        if (incoming.length === 0) {
+                        if (incoming.length === 0 || this.preparing || this.uploading) {
                             return;
                         }
 
                         this.uploadProgress = 0;
                         this.currentFileName = '';
-                        const nextPreviews = incoming.map((file, offset) => this.buildPreview(file, this.previews.length + offset));
-                        this.previews = [...this.previews, ...nextPreviews].map((preview, nextIndex) => ({
-                            ...preview,
-                            index: nextIndex,
-                        }));
+                        this.preparing = true;
+                        this.preparationIndex = 0;
+                        this.preparationTotal = incoming.length;
+                        await this.nextPaint();
+
+                        const batchSize = 3;
+                        try {
+                            for (let offset = 0; offset < incoming.length; offset += batchSize) {
+                                const files = incoming.slice(offset, offset + batchSize);
+                                const startIndex = this.previews.length;
+                                const batch = files.map((file, index) => this.buildPreview(file, startIndex + index));
+                                this.previews = [...this.previews, ...batch];
+                                await Promise.all(batch.map((preview) => this.populatePreviewMetadata(preview)));
+                                this.preparationIndex = Math.min(offset + batch.length, this.preparationTotal);
+                                await this.nextPaint();
+                            }
+                        } finally {
+                            this.preparing = false;
+                        }
+
                         await this.uploadAll();
                     },
-                    update(files) {
+                    async update(files) {
                         this.clear();
-                        this.appendFiles(files);
+                        await this.appendFiles(files);
                     },
-                    populatePreviewMetadata(preview) {
+                    async populatePreviewMetadata(preview) {
                         if (!(preview?.file instanceof File)) {
                             return;
                         }
 
+                        let dimensionsPromise = Promise.resolve();
                         if (this.isImage(preview)) {
-                            const img = new Image();
-                            img.onload = () => {
-                                preview.imageWidth = Number(img.naturalWidth || 0);
-                                preview.imageHeight = Number(img.naturalHeight || 0);
-                            };
-                            img.src = preview.url;
+                            dimensionsPromise = new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    preview.imageWidth = Number(img.naturalWidth || 0);
+                                    preview.imageHeight = Number(img.naturalHeight || 0);
+                                    resolve();
+                                };
+                                img.onerror = resolve;
+                                img.src = preview.url;
+                            });
                         }
 
-                        this.readPhotographedAt(preview.file).then((date) => {
-                            if (!date) {
-                                return;
-                            }
+                        const photographedAtPromise = this.readPhotographedAt(preview.file)
+                            .then((date) => {
+                                if (date) {
+                                    preview.photographedAt = date;
+                                }
+                            })
+                            .catch(() => {});
 
-                            preview.photographedAt = date;
-                        }).catch(() => {});
+                        await Promise.all([dimensionsPromise, photographedAtPromise]);
                     },
                     async readPhotographedAt(file) {
                         const mimeType = String(file?.type || '').toLowerCase();
@@ -873,7 +902,7 @@
                         supported-types="Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files."
                         on-files="appendFiles"
                         on-browse-existing="openExistingMediaPicker"
-                        disabled="uploading"
+                        disabled="uploading || preparing"
                         clear-after-change="false"
                         :showSubmit="false"
                     >
@@ -885,6 +914,35 @@
                         </div>
                     </x-ui.media-uploader>
                 </div>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="preparing"
+                        x-cloak
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-photos-preparing-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-photos-preparing-title" class="text-lg font-semibold text-gray-900">Preparing media</div>
+                                    <div class="mt-1 text-sm text-gray-500">Reading photo details and creating previews.</div>
+                                </div>
+                            </div>
+                            <div class="mb-2 flex justify-between text-sm text-gray-700">
+                                <span>Please keep this page open</span>
+                                <span x-text="`${preparationIndex} of ${preparationTotal}`"></span>
+                            </div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
                 <template x-teleport="body">
                     <div
