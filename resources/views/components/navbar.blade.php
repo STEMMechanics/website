@@ -429,9 +429,7 @@
         })">
         <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
-            <form action="{{ route('search.index') }}" method="GET">
-                <x-ui.search type="text" name="q" label="Search..." />
-            </form>
+            <x-ui.search type="text" name="q" label="Search..." :action="route('search.index')" />
         </div>
     </div>
 </div>

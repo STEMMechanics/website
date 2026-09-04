@@ -1271,6 +1271,12 @@ class WorkshopController extends Controller
 
     public function admin_files_upload(Request $request, Workshop $workshop): \Illuminate\Http\JsonResponse
     {
+        if ($request->filled('upload_token')) {
+            $request->files->set('pending_files', [
+                $this->consumeChunkUpload($request, (string) $request->input('upload_token'), (string) $request->input('filename', 'upload')),
+            ]);
+        }
+
         $request->validate([
             'pending_file_keys' => 'required|string',
             'pending_files' => 'required|array|size:1',
@@ -1434,6 +1440,12 @@ class WorkshopController extends Controller
 
     public function admin_photos_store(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
+        if ($request->filled('upload_token')) {
+            $request->files->set('photos', [
+                $this->consumeChunkUpload($request, (string) $request->input('upload_token'), (string) $request->input('filename', 'upload')),
+            ]);
+        }
+
         $maxSize = Helpers::getMaxUploadSize(auth()->user());
         $validated = $request->validate([
             'photos' => ['nullable', 'array', 'required_without:existing_media_names'],
@@ -1860,6 +1872,33 @@ class WorkshopController extends Controller
         return $fileName;
     }
 
+    private function consumeChunkUpload(Request $request, string $uploadToken, string $originalName): UploadedFile
+    {
+        $chunkUploads = $request->session()->get('chunk_uploads', []);
+        $path = $chunkUploads[$uploadToken] ?? null;
+        if (! is_string($path) || ! is_file($path)) {
+            throw ValidationException::withMessages([
+                'upload_token' => 'The uploaded file could not be found. Please select it again.',
+            ]);
+        }
+
+        unset($chunkUploads[$uploadToken]);
+        $request->session()->put('chunk_uploads', $chunkUploads);
+        app()->terminating(static function () use ($path): void {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        });
+
+        $fileName = Helpers::cleanFileName($originalName);
+        if ($fileName === '') {
+            $fileName = 'upload';
+        }
+        $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+
+        return new UploadedFile($path, $fileName, $mimeType, null, true);
+    }
+
     private function ensureWorkshopPhoto(Workshop $workshop, Media $media): void
     {
         if (! $workshop->photos()->where('media.name', $media->name)->exists()) {
@@ -1918,8 +1957,14 @@ class WorkshopController extends Controller
 
             $pendingId = $pendingFileKeys->get((int) $index, trim((string) ($index ?? '')));
             $meta = (array) ($pendingMeta->get($pendingId) ?? []);
-            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $hash = hash_file('sha256', $file->path());
+            $duplicateMedia = Media::query()->where('hash', $hash)->oldest()->first();
+            if ($duplicateMedia instanceof Media) {
+                $pendingNameMap[$pendingId] = $duplicateMedia->name;
+                continue;
+            }
+
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $storage = Storage::disk('archive');
             $exists = $storage->exists($hash);
 

@@ -725,6 +725,7 @@ let SM = {
         const onSuccess = typeof options.onSuccess === 'function' ? options.onSuccess : null;
         const onError = typeof options.onError === 'function' ? options.onError : null;
         const fields = options.fields && typeof options.fields === 'object' ? options.fields : {};
+        const deferFinalization = options.deferFinalization === true;
 
         if(files.length === 0) {
             return;
@@ -811,7 +812,7 @@ let SM = {
                 formData.append('fileappend', 'true');
             }
 
-            if (title !== '') {
+            if (title !== '' && !deferFinalization) {
                 formData.append('title', title);
             }
 
@@ -822,6 +823,7 @@ let SM = {
                     'Content-Type': 'multipart/form-data',
                     'Accept': 'application/json'
                 },
+                timeout: 90000,
                 onUploadProgress: (progressEvent) => {
                     let percent = ((start + progressEvent.loaded) / file.size) * 100;
 
@@ -902,7 +904,11 @@ let SM = {
                     showError(response.data.message);
                 }
             }).catch((error) => {
-                const message = error?.response?.data?.message
+                const message = error?.response?.status === 413
+                    ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
+                    : error?.code === 'ECONNABORTED'
+                    ? 'The upload stopped responding for 90 seconds. You can retry without creating a duplicate media record.'
+                    : error?.response?.data?.message
                     || error?.response?.data?.errors?.file
                     || error?.message
                     || 'An error occurred while uploading the file.';
