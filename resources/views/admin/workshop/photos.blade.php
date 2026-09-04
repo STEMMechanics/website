@@ -781,6 +781,9 @@
                         const files = this.previews.map((preview) => preview.file).filter((file) => file instanceof File);
                         const totalBytes = files.reduce((sum, file) => sum + (Number(file?.size) || 0), 0);
                         let uploadedBytes = 0;
+                        let addedCount = 0;
+                        let reusedCount = 0;
+                        let alreadyAttachedCount = 0;
 
                         try {
                             await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -823,7 +826,7 @@
                                 }, 5000);
 
                                 try {
-                                    await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
+                                    const response = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
                                         headers: {
                                             'Accept': 'application/json',
                                             'X-Requested-With': 'XMLHttpRequest',
@@ -838,6 +841,9 @@
                                             this.uploadProgress = Math.max(0, Math.min(100, percent));
                                         },
                                     });
+                                    addedCount += Number(response?.data?.created || 0) + Number(response?.data?.attached || 0);
+                                    reusedCount += Number(response?.data?.reused || 0);
+                                    alreadyAttachedCount += Number(response?.data?.already_attached || 0);
                                 } catch (error) {
                                     let message = 'Upload failed.';
                                     const payload = error?.response?.data;
@@ -878,18 +884,27 @@
                                     formData.append(`existing_media_meta[${index}][visibility]`, item.visibility || 'public');
                                     formData.append(`existing_media_meta[${index}][tags]`, item.tags || '');
                                 });
-                                await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
+                                const response = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
                                     headers: {
                                         'Accept': 'application/json',
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
                                 });
+                                addedCount += Number(response?.data?.created || 0) + Number(response?.data?.attached || 0);
+                                reusedCount += Number(response?.data?.reused || 0);
+                                alreadyAttachedCount += Number(response?.data?.already_attached || 0);
                             }
 
-                            const addedCount = files.length + this.existingMedia.length;
+                            const resultParts = [`${addedCount} workshop media item${addedCount === 1 ? '' : 's'} added`];
+                            if (reusedCount > 0) {
+                                resultParts.push(`${reusedCount} existing media item${reusedCount === 1 ? '' : 's'} reused`);
+                            }
+                            if (alreadyAttachedCount > 0) {
+                                resultParts.push(`${alreadyAttachedCount} already attached`);
+                            }
                             sessionStorage.setItem('workshop-media-upload-toast', JSON.stringify({
-                                title: 'Media added',
-                                message: `${addedCount} workshop media item${addedCount === 1 ? '' : 's'} added.`,
+                                title: addedCount > 0 ? 'Media added' : 'No new media added',
+                                message: resultParts.join(' · ') + '.',
                                 type: 'success',
                             }));
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));

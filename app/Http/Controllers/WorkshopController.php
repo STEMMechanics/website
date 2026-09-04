@@ -1465,6 +1465,8 @@ class WorkshopController extends Controller
 
         $created = 0;
         $attached = 0;
+        $reused = 0;
+        $alreadyAttached = 0;
 
         $existingMedia = Media::query()
             ->whereIn('name', $validated['existing_media_names'] ?? [])
@@ -1502,6 +1504,8 @@ class WorkshopController extends Controller
 
             if (! $wasAttached) {
                 $attached++;
+            } else {
+                $alreadyAttached++;
             }
         }
 
@@ -1524,8 +1528,33 @@ class WorkshopController extends Controller
                 ]);
             }
 
-            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $hash = hash_file('sha256', $file->path());
+            $duplicateMedia = Media::query()
+                ->where('hash', $hash)
+                ->oldest()
+                ->first();
+
+            if ($duplicateMedia instanceof Media) {
+                $wasAttached = $workshop->photos()
+                    ->where('media.name', $duplicateMedia->name)
+                    ->wherePivot('collection', 'workshop_photos')
+                    ->exists();
+
+                $workshop->photos()->syncWithoutDetaching([
+                    $duplicateMedia->name => ['collection' => 'workshop_photos'],
+                ]);
+
+                if ($wasAttached) {
+                    $alreadyAttached++;
+                } else {
+                    $attached++;
+                    $reused++;
+                }
+
+                continue;
+            }
+
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $storageDisk = in_array((string) ($meta['storage_disk'] ?? 'media'), ['media', 'archive'], true)
                 ? (string) ($meta['storage_disk'] ?? 'media')
                 : 'media';
@@ -1582,6 +1611,8 @@ class WorkshopController extends Controller
                 'message' => $total.' workshop media item'.($total === 1 ? '' : 's').' added.',
                 'created' => $created,
                 'attached' => $attached,
+                'reused' => $reused,
+                'already_attached' => $alreadyAttached,
             ]);
         }
 

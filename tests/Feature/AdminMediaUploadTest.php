@@ -202,6 +202,87 @@ class AdminMediaUploadTest extends TestCase
         ]);
     }
 
+    public function test_workshop_media_upload_reuses_an_exact_duplicate_across_workshops(): void
+    {
+        Storage::fake('media');
+        Queue::fake([GenerateVariants::class]);
+
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $location = Location::factory()->create();
+        $sourceWorkshop = Workshop::factory()->create([
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+        ]);
+        $targetWorkshop = Workshop::factory()->create([
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+        ]);
+        $originalUpload = UploadedFile::fake()->image('existing-stopmotion.png', 120, 80);
+        $fileContents = $originalUpload->getContent();
+        $hash = hash_file('sha256', $originalUpload->path());
+        $existingMedia = Media::query()->create([
+            'name' => 'existing-stopmotion.png',
+            'title' => 'Existing Stopmotion',
+            'hash' => $hash,
+            'mime_type' => 'image/png',
+            'size' => $originalUpload->getSize(),
+            'user_id' => $admin->id,
+            'storage_disk' => 'media',
+            'visibility' => 'private',
+            'tags' => 'existing-tag',
+        ]);
+        $sourceWorkshop->photos()->attach($existingMedia->name, ['collection' => 'workshop_photos']);
+        $initialMediaCount = Media::query()->count();
+
+        $metadata = [[
+            'title' => 'Replacement title',
+            'visibility' => 'public',
+            'storage_disk' => 'archive',
+            'photographed_at' => now()->toDateString(),
+            'tags' => 'replacement-tag',
+            'caption' => '',
+            'consent_notes' => '',
+        ]];
+
+        $retryUpload = UploadedFile::fake()->createWithContent('retried-stopmotion.png', $fileContents);
+        $this->assertSame($hash, hash_file('sha256', $retryUpload->path()));
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $targetWorkshop), [
+                'photos' => [$retryUpload],
+                'photos_meta' => $metadata,
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', 0)
+            ->assertJsonPath('attached', 1)
+            ->assertJsonPath('reused', 1)
+            ->assertJsonPath('already_attached', 0);
+
+        $this->assertDatabaseCount('media', $initialMediaCount);
+        $this->assertTrue($targetWorkshop->photos()->where('media.name', $existingMedia->name)->exists());
+        $this->assertDatabaseHas('media', [
+            'name' => $existingMedia->name,
+            'title' => 'Existing Stopmotion',
+            'visibility' => 'private',
+            'storage_disk' => 'media',
+            'tags' => 'existing-tag',
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.workshop.photos.store', $targetWorkshop), [
+                'photos' => [UploadedFile::fake()->createWithContent('retried-again-stopmotion.png', $fileContents)],
+                'photos_meta' => $metadata,
+            ])
+            ->assertOk()
+            ->assertJsonPath('created', 0)
+            ->assertJsonPath('attached', 0)
+            ->assertJsonPath('reused', 0)
+            ->assertJsonPath('already_attached', 1);
+
+        $this->assertDatabaseCount('media', $initialMediaCount);
+    }
+
     public function test_workshop_files_and_photos_use_the_shared_existing_media_uploader(): void
     {
         $admin = $this->makeAdminUser();
