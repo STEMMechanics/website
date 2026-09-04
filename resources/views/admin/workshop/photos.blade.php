@@ -813,13 +813,24 @@
                                 formData.append('photos_meta[0][edit_crop_bottom]', preview.editCropBottom || 0);
                                 formData.append('photos_meta[0][edit_crop_left]', preview.editCropLeft || 0);
 
+                                const stallTimeoutMs = 90 * 1000;
+                                const uploadController = new AbortController();
+                                let lastUploadActivityAt = Date.now();
+                                const stallTimer = window.setInterval(() => {
+                                    if (Date.now() - lastUploadActivityAt >= stallTimeoutMs) {
+                                        uploadController.abort('upload-stalled');
+                                    }
+                                }, 5000);
+
                                 try {
                                     await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
                                         headers: {
                                             'Accept': 'application/json',
                                             'X-Requested-With': 'XMLHttpRequest',
                                         },
+                                        signal: uploadController.signal,
                                         onUploadProgress: (progressEvent) => {
+                                            lastUploadActivityAt = Date.now();
                                             const currentLoaded = Math.max(0, Math.min(Number(progressEvent.loaded) || 0, file.size));
                                             const percent = totalBytes > 0
                                                 ? Math.round(((uploadedBytes + currentLoaded) / totalBytes) * 100)
@@ -830,13 +841,19 @@
                                 } catch (error) {
                                     let message = 'Upload failed.';
                                     const payload = error?.response?.data;
-                                    if (error?.response?.status === 413) {
-                                        message = 'This file is too large for the server upload limit. The PHP post_max_size must be larger than upload_max_filesize.';
+                                    if (uploadController.signal.aborted) {
+                                        message = 'The server stopped responding for 90 seconds. This file may still have been saved; refresh the page to check before trying it again.';
+                                    } else if (error?.response?.status === 413) {
+                                        message = 'This file was rejected because it exceeds the server or proxy upload limit.';
                                     } else if (payload) {
                                         message = payload.message || Object.values(payload.errors || {}).flat().join(' ') || message;
+                                    } else if (error?.code === 'ERR_NETWORK') {
+                                        message = 'The server did not return a usable response. This file may still have been saved; refresh the page to check before trying it again.';
                                     }
 
                                     throw new Error(`${file.name}: ${message}`);
+                                } finally {
+                                    window.clearInterval(stallTimer);
                                 }
 
                                 uploadedBytes += file.size;
