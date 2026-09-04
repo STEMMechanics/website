@@ -28,11 +28,23 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Media</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
-            <div class="mt-2 grid gap-1 text-sm text-gray-700">
-                <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
-                <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
+        <div class="mb-4">
+            <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
+                    <div class="mt-2 grid gap-1 text-sm text-gray-700">
+                        <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
+                        <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
+                    </div>
+                </div>
+                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:flex" role="note">
+                    <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                    <p>Photos are not displayed on the workshop page.</p>
+                </div>
+            </div>
+            <div class="mt-4 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:hidden" role="note">
+                <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+                <p>Photos are not displayed on the workshop page.</p>
             </div>
         </div>
 
@@ -48,6 +60,8 @@
                     previews: [],
                     existingMedia: [],
                     preparing: false,
+                    preparationIndex: 0,
+                    preparationTotal: 0,
                     uploading: false,
                     uploadIndex: 0,
                     uploadProgress: 0,
@@ -234,46 +248,73 @@
                             imageHeight: 0,
                         };
                     },
+                    nextPaint() {
+                        return new Promise((resolve) => {
+                            requestAnimationFrame(() => requestAnimationFrame(resolve));
+                        });
+                    },
                     async appendFiles(files) {
                         const incoming = Array.from(files || []);
-                        if (incoming.length === 0) {
+                        if (incoming.length === 0 || this.preparing || this.uploading) {
                             return;
                         }
 
                         this.uploadProgress = 0;
                         this.currentFileName = '';
-                        const nextPreviews = incoming.map((file, offset) => this.buildPreview(file, this.previews.length + offset));
-                        this.previews = [...this.previews, ...nextPreviews].map((preview, nextIndex) => ({
-                            ...preview,
-                            index: nextIndex,
-                        }));
+                        this.preparing = true;
+                        this.preparationIndex = 0;
+                        this.preparationTotal = incoming.length;
+                        await this.nextPaint();
+
+                        const batchSize = 3;
+                        try {
+                            for (let offset = 0; offset < incoming.length; offset += batchSize) {
+                                const files = incoming.slice(offset, offset + batchSize);
+                                const startIndex = this.previews.length;
+                                const batch = files.map((file, index) => this.buildPreview(file, startIndex + index));
+                                this.previews = [...this.previews, ...batch];
+                                await Promise.all(batch.map((preview) => this.populatePreviewMetadata(preview)));
+                                this.preparationIndex = Math.min(offset + batch.length, this.preparationTotal);
+                                await this.nextPaint();
+                            }
+                        } finally {
+                            this.preparing = false;
+                        }
+
                         await this.uploadAll();
                     },
-                    update(files) {
+                    async update(files) {
                         this.clear();
-                        this.appendFiles(files);
+                        await this.appendFiles(files);
                     },
-                    populatePreviewMetadata(preview) {
+                    async populatePreviewMetadata(preview) {
                         if (!(preview?.file instanceof File)) {
                             return;
                         }
 
+                        let dimensionsPromise = Promise.resolve();
                         if (this.isImage(preview)) {
-                            const img = new Image();
-                            img.onload = () => {
-                                preview.imageWidth = Number(img.naturalWidth || 0);
-                                preview.imageHeight = Number(img.naturalHeight || 0);
-                            };
-                            img.src = preview.url;
+                            dimensionsPromise = new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    preview.imageWidth = Number(img.naturalWidth || 0);
+                                    preview.imageHeight = Number(img.naturalHeight || 0);
+                                    resolve();
+                                };
+                                img.onerror = resolve;
+                                img.src = preview.url;
+                            });
                         }
 
-                        this.readPhotographedAt(preview.file).then((date) => {
-                            if (!date) {
-                                return;
-                            }
+                        const photographedAtPromise = this.readPhotographedAt(preview.file)
+                            .then((date) => {
+                                if (date) {
+                                    preview.photographedAt = date;
+                                }
+                            })
+                            .catch(() => {});
 
-                            preview.photographedAt = date;
-                        }).catch(() => {});
+                        await Promise.all([dimensionsPromise, photographedAtPromise]);
                     },
                     async readPhotographedAt(file) {
                         const mimeType = String(file?.type || '').toLowerCase();
@@ -740,6 +781,9 @@
                         const files = this.previews.map((preview) => preview.file).filter((file) => file instanceof File);
                         const totalBytes = files.reduce((sum, file) => sum + (Number(file?.size) || 0), 0);
                         let uploadedBytes = 0;
+                        let addedCount = 0;
+                        let reusedCount = 0;
+                        let alreadyAttachedCount = 0;
 
                         try {
                             await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -772,13 +816,24 @@
                                 formData.append('photos_meta[0][edit_crop_bottom]', preview.editCropBottom || 0);
                                 formData.append('photos_meta[0][edit_crop_left]', preview.editCropLeft || 0);
 
+                                const stallTimeoutMs = 90 * 1000;
+                                const uploadController = new AbortController();
+                                let lastUploadActivityAt = Date.now();
+                                const stallTimer = window.setInterval(() => {
+                                    if (Date.now() - lastUploadActivityAt >= stallTimeoutMs) {
+                                        uploadController.abort('upload-stalled');
+                                    }
+                                }, 5000);
+
                                 try {
-                                    await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
+                                    const response = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
                                         headers: {
                                             'Accept': 'application/json',
                                             'X-Requested-With': 'XMLHttpRequest',
                                         },
+                                        signal: uploadController.signal,
                                         onUploadProgress: (progressEvent) => {
+                                            lastUploadActivityAt = Date.now();
                                             const currentLoaded = Math.max(0, Math.min(Number(progressEvent.loaded) || 0, file.size));
                                             const percent = totalBytes > 0
                                                 ? Math.round(((uploadedBytes + currentLoaded) / totalBytes) * 100)
@@ -786,16 +841,32 @@
                                             this.uploadProgress = Math.max(0, Math.min(100, percent));
                                         },
                                     });
+                                    addedCount += Number(response?.data?.created || 0) + Number(response?.data?.attached || 0);
+                                    reusedCount += Number(response?.data?.reused || 0);
+                                    alreadyAttachedCount += Number(response?.data?.already_attached || 0);
                                 } catch (error) {
                                     let message = 'Upload failed.';
                                     const payload = error?.response?.data;
-                                    if (error?.response?.status === 413) {
-                                        message = 'This file is too large for the server upload limit. The PHP post_max_size must be larger than upload_max_filesize.';
+                                    const responseHeaders = error?.response?.headers;
+                                    const responseServer = String(
+                                        typeof responseHeaders?.get === 'function'
+                                            ? (responseHeaders.get('server') || '')
+                                            : (responseHeaders?.server || '')
+                                    ).trim();
+                                    const responderDetails = responseServer !== '' ? ` Responding server: ${responseServer}.` : '';
+                                    if (uploadController.signal.aborted) {
+                                        message = 'The server stopped responding for 90 seconds. This file may still have been saved; refresh the page to check before trying it again.';
+                                    } else if (error?.response?.status === 413) {
+                                        message = `This file was rejected because it exceeds the server or proxy upload limit.${responderDetails}`;
                                     } else if (payload) {
                                         message = payload.message || Object.values(payload.errors || {}).flat().join(' ') || message;
+                                    } else if (error?.code === 'ERR_NETWORK') {
+                                        message = 'The server did not return a usable response. This file may still have been saved; refresh the page to check before trying it again.';
                                     }
 
                                     throw new Error(`${file.name}: ${message}`);
+                                } finally {
+                                    window.clearInterval(stallTimer);
                                 }
 
                                 uploadedBytes += file.size;
@@ -813,18 +884,27 @@
                                     formData.append(`existing_media_meta[${index}][visibility]`, item.visibility || 'public');
                                     formData.append(`existing_media_meta[${index}][tags]`, item.tags || '');
                                 });
-                                await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
+                                const response = await axios.post(@js(route('admin.workshop.photos.store', $workshop)), formData, {
                                     headers: {
                                         'Accept': 'application/json',
                                         'X-Requested-With': 'XMLHttpRequest',
                                     },
                                 });
+                                addedCount += Number(response?.data?.created || 0) + Number(response?.data?.attached || 0);
+                                reusedCount += Number(response?.data?.reused || 0);
+                                alreadyAttachedCount += Number(response?.data?.already_attached || 0);
                             }
 
-                            const addedCount = files.length + this.existingMedia.length;
+                            const resultParts = [`${addedCount} workshop media item${addedCount === 1 ? '' : 's'} added`];
+                            if (reusedCount > 0) {
+                                resultParts.push(`${reusedCount} existing media item${reusedCount === 1 ? '' : 's'} reused`);
+                            }
+                            if (alreadyAttachedCount > 0) {
+                                resultParts.push(`${alreadyAttachedCount} already attached`);
+                            }
                             sessionStorage.setItem('workshop-media-upload-toast', JSON.stringify({
-                                title: 'Media added',
-                                message: `${addedCount} workshop media item${addedCount === 1 ? '' : 's'} added.`,
+                                title: addedCount > 0 ? 'Media added' : 'No new media added',
+                                message: resultParts.join(' · ') + '.',
                                 type: 'success',
                             }));
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
@@ -861,7 +941,7 @@
                         supported-types="Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files."
                         on-files="appendFiles"
                         on-browse-existing="openExistingMediaPicker"
-                        disabled="uploading"
+                        disabled="uploading || preparing"
                         clear-after-change="false"
                         :showSubmit="false"
                     >
@@ -873,6 +953,35 @@
                         </div>
                     </x-ui.media-uploader>
                 </div>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="preparing"
+                        x-cloak
+                        class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-photos-preparing-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-photos-preparing-title" class="text-lg font-semibold text-gray-900">Preparing media</div>
+                                    <div class="mt-1 text-sm text-gray-500">Reading photo details and creating previews.</div>
+                                </div>
+                            </div>
+                            <div class="mb-2 flex justify-between text-sm text-gray-700">
+                                <span>Please keep this page open</span>
+                                <span x-text="`${preparationIndex} of ${preparationTotal}`"></span>
+                            </div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
                 <template x-teleport="body">
                     <div
