@@ -14,3 +14,5 @@ document.addEventListener('click', (event) => {
 
     spoiler.classList.toggle('is-revealed');
 });
+
+import './device-preferences.js';

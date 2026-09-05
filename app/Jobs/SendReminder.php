@@ -53,6 +53,10 @@ class SendReminder implements ShouldQueue
             'failed_at' => null,
             'failure_message' => null,
         ]);
+
+        if ($reminder->recipient_user_id) {
+            SendAdminPush::dispatch($reminder->recipient_user_id, 'Task reminder', $reminder->action_url ?: route('admin.dashboard'), 'reminder-'.$reminder->id);
+        }
     }
 
     public function failed(?Throwable $exception): void

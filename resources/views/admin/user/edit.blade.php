@@ -21,6 +21,9 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
+        @if($user->id === auth()->id())
+            <x-push-settings />
+        @endif
         <div x-data="{
             mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
             mergeSearch: '',

@@ -2,6 +2,7 @@
     'type' => 'text',
     'name',
     'label',
+    'action' => null,
     'value' => old($name),
     'advancedFields' => [],
     'advancedOpen' => false,

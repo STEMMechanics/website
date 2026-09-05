@@ -67,7 +67,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             <p class="mt-1 text-sm text-gray-600">Keep your billing and shipping details current for orders and invoices.</p>
                         </div>
 
-                        <div class="mt-6 grid gap-6 grid-cols-2">
+                        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                             <div class="rounded-2xl bg-gray-50 p-4 flex flex-col justify-between">
                                 <h3 class="text-sm font-semibold text-gray-900">Billing address</h3>
                                 <div class="mt-4">
@@ -112,21 +112,26 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                     </section>
                 </div>
 
-                <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+                <div class="space-y-6">
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-gray-900">Email Notifications</h2>
+                                <h2 class="text-lg font-semibold text-gray-900">Notifications</h2>
                             </div>
                         </div>
 
-                        <div class="mt-6 grid gap-6">
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <h3 class="text-sm font-semibold text-gray-900">Receive Email subscriptions</h3>
-                                <div class="mt-4">
-                                    <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-1">
+                            <div>
+                                <div class="rounded-2xl bg-gray-50 p-4">
+                                    <h3 class="text-sm font-semibold text-gray-900">Email notifications</h3>
+                                    <div class="mt-4">
+                                        <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                                    </div>
                                 </div>
                             </div>
+                            @if($user->isAdmin())
+                                <x-push-settings :embedded="true" />
+                            @endif
                         </div>
                     </section>
                 </div>
@@ -139,7 +144,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
                             <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
                         </div>
-                        <div class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
+                        <div data-remembered-devices-count class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
                     </div>
 
                     <div class="rounded-2xl mt-4 bg-gray-50 p-4">
@@ -358,6 +363,8 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             }
 
             const remainingRows = devicesList.querySelectorAll('[data-device-row]').length;
+            const count = document.querySelector('[data-remembered-devices-count]');
+            if (count) count.textContent = `${remainingRows} saved`;
             const hasRows = remainingRows > 0;
             devicesList.classList.toggle('hidden', !hasRows);
             emptyState.classList.toggle('hidden', hasRows);
@@ -444,15 +451,23 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                 return;
             }
 
-            const deleteRequest = () => {
+            const deleteRequest = async () => {
+                if (button.disabled) return;
                 button.disabled = true;
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
 
-                axios.delete(`/account/devices/${encodeURIComponent(deviceId)}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }).then((response) => {
-                    if (!response.data || !response.data.success) {
+                try {
+                    const response = await fetch(`/account/devices/${encodeURIComponent(deviceId)}`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                        signal: controller.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                    });
+                    if (!response.ok || !(await response.json())?.success) {
                         throw new Error('Device removal failed.');
                     }
 
@@ -471,10 +486,12 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
 
                     updateEmptyState();
                     SM.alert('Device removed', 'The device has been removed.', 'success');
-                }).catch(() => {
+                } catch {
                     SM.alert('Remove failed', 'Could not remove the device right now.', 'danger');
+                } finally {
+                    clearTimeout(timeout);
                     button.disabled = false;
-                });
+                }
             };
 
             if (window.SM && typeof window.SM.confirm === 'function') {
@@ -483,7 +500,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                         return;
                     }
 
-                    deleteRequest();
+                    return deleteRequest();
                 });
             }
         };
