@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\PushDevice;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\PushDeliveryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -64,5 +65,71 @@ class PushDeviceTest extends TestCase
             'subscription' => ['endpoint' => 'https://127.0.0.1/private', 'keys' => ['p256dh' => str_repeat('a', 87), 'auth' => str_repeat('b', 22)]],
         ])->assertUnprocessable();
         $this->assertDatabaseCount('push_devices', 0);
+    }
+
+    public function test_removing_device_deletes_subscription_and_only_affects_its_owner(): void
+    {
+        $owner = $this->admin();
+        $other = $this->admin();
+        $deviceId = (string) Str::uuid();
+        $device = PushDevice::create([
+            'user_id' => $owner->id, 'device_id' => $deviceId,
+            'name' => 'Phone', 'enabled' => true,
+            'subscription' => ['endpoint' => 'https://web.push.apple.com/example'],
+            'endpoint_hash' => hash('sha256', 'https://web.push.apple.com/example'),
+        ]);
+
+        $this->actingAs($other)->deleteJson(route('admin.push-devices.destroy'), ['device_id' => $deviceId])->assertNotFound();
+        $this->assertDatabaseHas('push_devices', ['id' => $device->id]);
+
+        $this->actingAs($owner)->deleteJson(route('admin.push-devices.destroy'), ['device_id' => $deviceId])
+            ->assertOk()->assertJson(['success' => true]);
+        $this->assertDatabaseMissing('push_devices', ['id' => $device->id]);
+        $this->getJson(route('admin.push-devices.index'))->assertJsonCount(0, 'devices');
+    }
+
+    public function test_non_admin_cannot_remove_notification_devices(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->deleteJson(route('admin.push-devices.destroy'), ['device_id' => (string) Str::uuid()])
+            ->assertForbidden();
+    }
+
+    public function test_test_notification_targets_only_the_selected_owned_device(): void
+    {
+        config(['webpush.public_key' => 'public', 'webpush.private_key' => 'private']);
+        $owner = $this->admin();
+        $device = PushDevice::create([
+            'user_id' => $owner->id, 'device_id' => (string) Str::uuid(),
+            'name' => 'Phone', 'enabled' => true, 'subscription' => ['endpoint' => 'https://web.push.apple.com/example'],
+        ]);
+        $this->mock(PushDeliveryService::class)->shouldReceive('send')->once()
+            ->withArgs(fn ($selected, $title, $url, $tag, $body) => $selected->id === $device->id && $url === route('account.show'))
+            ->andReturn(true);
+        $this->actingAs($this->admin())->postJson(route('admin.push-devices.test'), ['device_id' => $device->device_id])->assertNotFound();
+        $this->actingAs(User::factory()->create())->postJson(route('admin.push-devices.test'), ['device_id' => $device->device_id])->assertForbidden();
+        $this->actingAs($owner)->postJson(route('admin.push-devices.test'), ['device_id' => $device->device_id])->assertOk()->assertJson(['success' => true]);
+    }
+
+    public function test_inactive_device_cannot_receive_a_test(): void
+    {
+        $owner = $this->admin();
+        $device = PushDevice::create([
+            'user_id' => $owner->id, 'device_id' => (string) Str::uuid(), 'name' => 'Phone', 'enabled' => false,
+        ]);
+        $this->mock(PushDeliveryService::class)->shouldNotReceive('send');
+        $this->actingAs($owner)->postJson(route('admin.push-devices.test'), ['device_id' => $device->device_id])->assertUnprocessable();
+    }
+
+    public function test_failed_delivery_is_not_reported_as_success(): void
+    {
+        config(['webpush.public_key' => 'public', 'webpush.private_key' => 'private']);
+        $owner = $this->admin();
+        $device = PushDevice::create([
+            'user_id' => $owner->id, 'device_id' => (string) Str::uuid(),
+            'name' => 'Phone', 'enabled' => true, 'subscription' => ['endpoint' => 'https://web.push.apple.com/example'],
+        ]);
+        $this->mock(PushDeliveryService::class)->shouldReceive('send')->once()->andReturn(false);
+        $this->actingAs($owner)->postJson(route('admin.push-devices.test'), ['device_id' => $device->device_id])->assertStatus(502);
     }
 }

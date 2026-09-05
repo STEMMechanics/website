@@ -15,4 +15,4 @@ document.addEventListener('click', (event) => {
     spoiler.classList.toggle('is-revealed');
 });
 
-import './push-notifications.js';
+import './device-preferences.js';
