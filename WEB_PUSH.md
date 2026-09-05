@@ -12,8 +12,9 @@ The dashboard prompt appears only when the server has keys configured and the
 browser supports push. Not now / close dismisses for the browser session. Don't
 remind me again records an off preference for that account and browser. Account
 Settings and the admin's own Edit User page provide device controls. Clearing
-browser storage creates a new device identity. Other registered devices can be
-turned off remotely; enabling a new subscription requires using that device.
+browser storage creates a new device identity. Each saved device has Test and
+Remove controls. Test sends directly to the selected enabled device; Remove deletes
+its saved subscription. Adding it again requires enabling from that device.
 
 On iOS/iPadOS, add the site to the Home Screen and open it there. Browser permission
 must be granted separately on each device. Browser-level blocking takes precedence
@@ -23,6 +24,7 @@ subscriptions are disabled. Subscription secrets are encrypted with APP_KEY.
 
 For a deployment smoke test: enable from an admin profile, confirm the browser
 permission, trigger a due reminder for that admin, close the tab, and verify the
-notification and destination. Check a second device, remote disable, Not now,
+notification and destination. Check the per-device Test button, a second device,
+remote removal, Not now,
 Don't remind me again, and denied browser permission. Automated tests do not
 contact real browser push services.

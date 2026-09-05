@@ -2,6 +2,7 @@
     'type' => 'text',
     'name',
     'label',
+    'action' => null,
     'value' => old($name),
     'advancedFields' => [],
     'advancedOpen' => false,
@@ -22,7 +23,7 @@
 
 <form
     method="GET"
-    action="{{ url()->current() }}"
+    action="{{ $action ?? url()->current() }}"
     class="{{ $attributes->get('class') }}"
     x-data="{ search: {{ \Illuminate\Support\Js::from($currentValue) }}, advancedOpen: {{ \Illuminate\Support\Js::from((bool) $advancedOpen) }}, advancedActive: {{ \Illuminate\Support\Js::from((bool) $advancedActive) }} }"
 >
