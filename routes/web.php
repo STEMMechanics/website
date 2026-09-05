@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\PushDeviceController;
 use App\Http\Controllers\AdminStemcraftContentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
@@ -218,6 +219,8 @@ Route::get('/media/download/{media}', [MediaController::class, 'download'])->nam
 Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
+    Route::get('/admin/push-devices', [PushDeviceController::class, 'index'])->name('admin.push-devices.index');
+    Route::put('/admin/push-devices', [PushDeviceController::class, 'update'])->middleware('throttle:30,1')->name('admin.push-devices.update');
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');

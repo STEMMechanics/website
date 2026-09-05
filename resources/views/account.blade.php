@@ -211,6 +211,9 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
         </form>
 
         <div class="mb-8 space-y-6">
+            @if($user->isAdmin())
+                <x-push-settings />
+            @endif
             @include('account.partials.two-factor-card')
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
