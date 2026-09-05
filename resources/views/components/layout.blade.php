@@ -70,6 +70,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="/manifest.webmanifest">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="smid" content="AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC3">
     <meta name="max-upload-size" content="{{ \App\Helpers::getMaxUploadSize(auth()->user()) }}">
@@ -134,6 +135,9 @@
     <script>
         SM.alert('{{ session('message-title') }}', '{{ session('message') }}', '{{ session('message-type') }}');
     </script>
+@endif
+@if(auth()->user()?->isAdmin())
+    <x-push-prompt />
 @endif
 @stack('scripts')
 @livewireScripts
