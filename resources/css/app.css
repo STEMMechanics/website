@@ -1497,7 +1497,9 @@ table tr.highlight-row {
 .sm-feedback-host.success, .sm-feedback-inline[data-tone="success"] { --feedback-accent: #166534; --feedback-tint: #f0fdf4; --feedback-border: #86efac; }
 .sm-feedback-host.warning, .sm-feedback-inline[data-tone="warning"] { --feedback-accent: #92400e; --feedback-tint: #fffbeb; --feedback-border: #fcd34d; }
 .sm-feedback-host.danger, .sm-feedback-host.error, .sm-feedback-inline[data-tone="danger"], .sm-feedback-inline[data-tone="error"] { --feedback-accent: #9f1239; --feedback-tint: #fff1f2; --feedback-border: #fda4af; }
-body.swal2-toast-shown .swal2-container.sm-feedback-host {
+/* SweetAlert injects its top-position rule at runtime (after CSS with Rocket Loader).
+   Include its position class so this offset wins regardless of stylesheet order. */
+body.swal2-toast-shown .swal2-container.swal2-top.sm-feedback-host {
     top: var(--sm-feedback-top, 5rem);
     padding: 0;
     z-index: 1100;
