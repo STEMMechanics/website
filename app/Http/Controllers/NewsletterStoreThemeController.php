@@ -12,7 +12,7 @@ class NewsletterStoreThemeController extends Controller
 {
     public function index(): View
     {
-        return view('admin.subscription.theme.index', ['themes' => NewsletterStoreTheme::query()->orderBy('sort_order')->orderBy('name')->get()]);
+        return view('admin.subscription.theme.index', ['themes' => NewsletterStoreTheme::query()->orderBy('sort_order')->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get()]);
     }
 
     public function create(): View
@@ -23,7 +23,7 @@ class NewsletterStoreThemeController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $theme = NewsletterStoreTheme::query()->create($this->validated($request));
-        $this->flash('Subscription store theme created.');
+        $this->flash('Newsletter theme created.');
 
         return redirect()->route('admin.subscription.theme.edit', $theme);
     }
@@ -36,7 +36,7 @@ class NewsletterStoreThemeController extends Controller
     public function update(Request $request, NewsletterStoreTheme $theme): RedirectResponse
     {
         $theme->update($this->validated($request));
-        $this->flash('Subscription store theme updated.');
+        $this->flash('Newsletter theme updated.');
 
         return redirect()->back();
     }
@@ -44,7 +44,7 @@ class NewsletterStoreThemeController extends Controller
     public function destroy(NewsletterStoreTheme $theme): RedirectResponse
     {
         $theme->delete();
-        $this->flash('Subscription store theme deleted.');
+        $this->flash('Newsletter theme deleted.');
 
         return redirect()->route('admin.subscription.theme.index');
     }
@@ -82,7 +82,7 @@ class NewsletterStoreThemeController extends Controller
     private function flash(string $message): void
     {
         session()->flash('message', $message);
-        session()->flash('message-title', 'Store theme updated');
+        session()->flash('message-title', 'Newsletter theme updated');
         session()->flash('message-type', 'success');
     }
 }

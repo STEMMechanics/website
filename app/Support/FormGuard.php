@@ -104,7 +104,7 @@ class FormGuard
             'reason' => $reason,
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'url' => $request->fullUrl(),
+            'url' => $request->url(),
         ]);
 
         throw ValidationException::withMessages([

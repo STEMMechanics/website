@@ -71,7 +71,7 @@ class AdminDashboardTest extends TestCase
             ->assertSee('Total users')
             ->assertSee('Total subscriptions')
             ->assertSee('Overview (12 months)')
-            ->assertSee('value="overview" selected', false)
+            ->assertSee('aria-label="Overview (12 months)"', false)
             ->assertSee('trend graph')
             ->assertDontSee('Selected range')
             ->assertSee('Fortnightly Workplan')
@@ -87,7 +87,7 @@ class AdminDashboardTest extends TestCase
             ->assertSee('grid gap-5 md:grid-cols-2', false)
             ->assertSee('self-start grid-cols-2 gap-3 md:col-span-2 md:grid-cols-5', false)
             ->assertSee(route('workshop.show', $workshop), false)
-            ->assertSee('onchange="this.form.submit()"', false)
+            ->assertSee('data-view-tabs', false)
             ->assertDontSee('g:ia', false);
     }
 

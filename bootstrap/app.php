@@ -13,7 +13,6 @@ use App\Services\SiteErrorNotificationService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,13 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->trustProxies(
-            at: '*',
-            headers: Request::HEADER_X_FORWARDED_FOR |
-            Request::HEADER_X_FORWARDED_HOST |
-            Request::HEADER_X_FORWARDED_PORT |
-            Request::HEADER_X_FORWARDED_PROTO
-        );
+        $middleware->replace(\Illuminate\Http\Middleware\TrustProxies::class, \App\Http\Middleware\TrustedIngress::class);
+        $middleware->trustHosts(at: fn () => array_map(
+            fn (string $host): string => '^'.preg_quote($host, '/').'$',
+            config('security.trusted_hosts', [])
+        ), subdomains: false);
         $middleware->alias([
             'admin' => Admin::class,
             'auth' => Authenticate::class,
@@ -38,11 +35,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'nocache' => NoCache::class,
             'shop.public' => EnsurePublicShopAvailable::class,
         ]);
+        $middleware->prependToPriorityList(
+            \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+            \App\Http\Middleware\RestoreRememberedDevice::class,
+        );
         $middleware->web(append: [
-            LogoutAnonymizedUser::class,
             SecurityHeaders::class,
-            TrackAnalytics::class,
             NoCache::class,
+            \App\Http\Middleware\RestoreRememberedDevice::class,
+            LogoutAnonymizedUser::class,
+            \App\Http\Middleware\RequirePrivilegedMfa::class,
+            \App\Http\Middleware\CanonicalHost::class,
+            TrackAnalytics::class,
+            \App\Http\Middleware\ProfileRequests::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'webhooks/square',
@@ -50,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/minecraft/server',
             'webhooks/livekit',
             'webhooks/smsflow',
+            'security/csp-reports',
             'unsubscribe/*',
         ]);
     })

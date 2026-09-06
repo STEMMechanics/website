@@ -315,9 +315,9 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     </div>
                     @if($isEditableImage)
                         <div class="mt-4 flex justify-end">
-                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click.prevent="openEditor()">
+                            <x-ui.button variant="plain" type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click.prevent="openEditor()">
                                 <i class="fa-solid fa-pen-to-square mr-2"></i>Edit Image
-                            </button>
+                            </x-ui.button>
                         </div>
                         <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeEditor()">
                             <div class="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" x-on:click.away="closeEditor()">
@@ -326,9 +326,9 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <div class="text-base font-semibold text-gray-900">Edit Image</div>
                                         <div class="text-xs text-gray-500">Saving applies these edits to the original image and regenerates variants.</div>
                                     </div>
-                                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
                                         <i class="fa-solid fa-xmark"></i>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
                                 <div class="overflow-y-auto p-4">
                                     <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem]">
@@ -341,25 +341,25 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('bottom')"></div>
                                         <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('left')"></div>
                                         <div class="sm-image-crop-preview__focus" :style="cropFocusStyle()" x-on:mousedown.prevent="startCropDrag('move', $event)">
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></button>
-                                            <button type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></x-ui.button>
                                         </div>
                                     </div>
                                     <div class="space-y-4 md:max-w-72">
-                                        <div class="flex items-center gap-2">
-                                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate left" x-on:click.prevent="rotate(-90)"><i class="fa-solid fa-rotate-left"></i></button>
-                                            <button type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" title="Rotate right" x-on:click.prevent="rotate(90)"><i class="fa-solid fa-rotate-right"></i></button>
-                                        </div>
+                                        <x-ui.row-actions>
+                                            <x-ui.row-action label="Rotate left" icon="fa-solid fa-rotate-left" tone="neutral" type="button" x-on:click.prevent="rotate(-90)" />
+                                            <x-ui.row-action label="Rotate right" icon="fa-solid fa-rotate-right" tone="neutral" type="button" x-on:click.prevent="rotate(90)" />
+                                        </x-ui.row-actions>
                                         <div class="text-xs text-gray-500">Drag the crop box or its handles directly on the image.</div>
                                         <div class="flex justify-between gap-2">
-                                            <button type="button" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" x-on:click.prevent="resetEdits()">Reset</button>
-                                            <button type="button" class="rounded bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" x-on:click.prevent="applyEditor()">Done</button>
+                                            <x-ui.button variant="plain" type="button" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" x-on:click.prevent="resetEdits()">Reset</x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="rounded bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" x-on:click.prevent="applyEditor()">Done</x-ui.button>
                                         </div>
                                     </div>
                                 </div>
@@ -372,14 +372,14 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 
             <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
                 <h3 class="mb-3 text-base font-semibold">Usage</h3>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <x-ui.grid class="gap-4 md:grid-cols-2">
                     <x-ui.select
                         label="Visibility"
                         name="visibility"
                         value="{{ $visibilityValue }}"
                         x-model="visibilityValue"
                         class="mb-0"
-                        info="{{ $visibilityInfoExpression }}"
+                        :info-expression="$visibilityInfoExpression"
                     >
                             <option value="private" @selected($visibilityValue === 'private')>Private</option>
                             <option value="protected" @selected($visibilityValue === 'protected')>Protected</option>
@@ -409,7 +409,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     <div class="md:col-span-2">
                         <x-ui.input class="mb-0" label="Notes" name="consent_notes" type="textarea" value="{{ old('consent_notes', $medium->consent_notes ?? '') }}" />
                     </div>
-                </div>
+                </x-ui.grid>
             </div>
 
             @isset($medium)
@@ -432,12 +432,12 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 
                     @if($protectedDownloadLink)
                         <div class="mt-4 overflow-x-auto rounded-lg border border-gray-200">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                                     <tr>
                                         <th class="px-3 py-2">URL</th>
                                         <th class="px-3 py-2">Expires</th>
-                                        <th class="px-3 py-2 text-center">Actions</th>
+                                        <th class="text-center! px-3 py-2">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 bg-white">
@@ -451,30 +451,22 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                             {{ $protectedDownloadTokenExpiry ?? '-' }}
                                         </td>
                                         <td class="px-3 py-2 align-top">
-                                            <div class="flex items-center justify-center gap-3">
-                                                <a
-                                                    href="#"
-                                                    class="hover:text-primary-color"
-                                                    title="Copy protected URL"
+                                            <x-ui.row-actions>
+                                                <x-ui.row-action label="Copy protected URL" icon="fa-solid fa-copy" tone="neutral"
+
                                                     x-on:click.prevent="SM.copyToClipboard(@js($protectedDownloadLink))"
                                                     x-bind:class="protectedLinkActionsDisabled() ? 'pointer-events-none opacity-50' : ''"
-                                                >
-                                                    <i class="fa-solid fa-copy"></i>
-                                                </a>
-                                                <button
+                                                 />
+                                                <x-ui.row-action label="Revoke protected URL" icon="fa-solid fa-trash" tone="danger"
                                                     type="submit"
-                                                    class="hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title="Revoke protected URL"
                                                     form="revoke-protected-link-form"
                                                     x-bind:disabled="protectedLinkActionsDisabled()"
-                                                >
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
+                                                 />
+                                            </x-ui.row-actions>
                                         </td>
                                     </tr>
                                 </tbody>
-                            </table>
+                            </x-ui.table>
                         </div>
                     @else
                         <div class="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500">
@@ -541,10 +533,10 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
             >
                 <h3 class="mb-3 text-base font-semibold">Links &amp; Usage</h3>
                 <div class="mb-4 overflow-x-auto rounded-lg border border-gray-200" x-show="links.length > 0 || @js(! empty($mediaUsages ?? []))">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                             <tr>
-                                <th class="px-3 py-2">Type</th>
+                                <th class="px-3 py-2 text-center!">Type</th>
                                 <th class="px-3 py-2">Workshop</th>
                                 <th class="w-12 px-3 py-2"><span class="sr-only">Action</span></th>
                             </tr>
@@ -552,7 +544,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         <tbody class="divide-y divide-gray-100">
                             @foreach($mediaUsages ?? [] as $usage)
                                 <tr>
-                                    <td class="px-3 py-2">{{ $usage['type'] }}</td>
+                                    <td class="px-3 py-2 text-center!">{{ $usage['type'] }}</td>
                                     <td class="px-3 py-2">
                                         @if(! empty($usage['url']))
                                             <a href="{{ $usage['url'] }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline">{{ $usage['label'] }}</a>
@@ -568,7 +560,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                             @endforeach
                             <template x-for="(link, index) in links" :key="link.workshop_id">
                                 <tr>
-                                    <td class="px-3 py-2">
+                                    <td class="px-3 py-2 text-center!">
                                         <x-ui.select
                                             name=""
                                             label="Workshop link type"
@@ -587,15 +579,13 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <a :href="linkUrl(link)" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline" x-text="workshopFor(link.workshop_id)?.title || link.workshop_id"></a>
                                         <span class="text-gray-500" x-text="workshopFor(link.workshop_id) ? ` - ${workshopFor(link.workshop_id).date} · ${workshopFor(link.workshop_id).location}` : ''"></span>
                                     </td>
-                                    <td class="px-3 py-2 text-center">
-                                        <button type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(link.workshop_id)" title="Disassociate from workshop" aria-label="Disassociate from workshop">
-                                            <i class="fa-solid fa-link-slash"></i>
-                                        </button>
+                                    <td class="text-center! px-3 py-2">
+                                        <x-ui.row-action label="Disassociate from workshop" icon="fa-solid fa-link-slash" tone="neutral" type="button" x-on:click.prevent="remove(link.workshop_id)" aria-label="Disassociate from workshop" />
                                     </td>
                                 </tr>
                             </template>
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 <div class="mb-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="links.length === 0 && @js(empty($mediaUsages ?? []))" x-cloak>
@@ -618,13 +608,13 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 
                 <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50" x-show="search.trim().length >= 2" x-cloak>
                     <template x-for="workshop in filtered()" :key="workshop.id">
-                        <button type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(workshop.id)">
+                        <x-ui.button variant="plain" type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(workshop.id)">
                             <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="workshop.title"></span>
                                 <span class="block text-xs text-gray-500" x-text="`${workshop.location} · ${workshop.date}`"></span>
                             </span>
-                        </button>
+                        </x-ui.button>
                     </template>
                     <div class="px-3 py-3 text-sm text-gray-500" x-show="filtered().length === 0" x-cloak>No unlinked workshops found.</div>
                 </div>
@@ -660,7 +650,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                             </div>
                         </div>
                     @endif
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <x-ui.grid class="md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
                             <x-ui.input
                                 label="Original Name"
@@ -701,7 +691,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                 value="{{ (string) (($originalFileInfo['path'] ?? '') !== '' ? $originalFileInfo['path'] : ($medium->path() ?? '-')) }}"
                                 disabled />
                         </div>
-                    </div>
+                    </x-ui.grid>
                 </div>
 
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
@@ -720,9 +710,9 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                 <th>Variant</th>
                                 <th class="text-center">Format</th>
                                 <th class="text-center">Dimensions</th>
-                                <th class="text-center">Size</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-center">Actions</th>
+                                <th class="text-center!">Size</th>
+                                <th class="text-center!">Status</th>
+                                <th class="text-center!">Actions</th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($variantFilesInfo as $fileInfo)
@@ -730,37 +720,29 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <td class="font-semibold">{{ $fileInfo['label'] }}</td>
                                         <td class="text-center">{{ $fileInfo['format'] ?? '-' }}</td>
                                         <td class="text-center">{{ $fileInfo['dimensions'] ?? '-' }}</td>
-                                        <td class="text-center">{{ $fileInfo['size_human'] ?? '-' }}</td>
-                                        <td class="text-center">
-                                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xxs font-semibold {{ $fileInfo['exists'] ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200' }}">
+                                        <td class="text-center!"><x-ui.nonbreaking>{{ $fileInfo['size_human'] ?? '-' }}</x-ui.nonbreaking></td>
+                                        <td class="text-center!">
+                                            <x-ui.badge class="inline-flex items-center {{ $fileInfo['exists'] ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200' }}">
                                                 {{ $fileInfo['exists'] ? 'Exists' : 'Missing' }}
-                                            </span>
+                                            </x-ui.badge>
                                         </td>
-                                        <td class="text-center">
-                                            <div class="flex items-center justify-center gap-3">
+                                        <td class="">
+                                            <x-ui.row-actions>
                                                 @if(($fileInfo['url'] ?? '-') !== '-' && ($fileInfo['exists'] ?? false))
-                                                    <a
+                                                    <x-ui.row-action label="Open variant" icon="fa-solid fa-up-right-from-square" tone="neutral"
                                                         href="{{ $fileInfo['url'] }}"
-                                                        title="Open variant"
-                                                        class="hover:text-primary-color"
                                                         target="_blank"
-                                                        rel="noopener noreferrer">
-                                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                                    </a>
+                                                        rel="noopener noreferrer" />
                                                 @else
                                                     <span class="text-gray-400" title="Variant file missing">
                                                         <i class="fa-solid fa-up-right-from-square"></i>
                                                     </span>
                                                 @endif
-                                                <a
-                                                    href="#"
-                                                    title="Delete this variant"
-                                                    class="hover:text-red-600"
+                                                <x-ui.row-action label="Delete this variant" icon="fa-solid fa-trash" tone="danger"
+
                                                     x-data
-                                                    x-on:click.prevent="confirmDeleteSingleVariant('{{ (string) ($fileInfo['variant'] ?? '') }}')">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </a>
-                                            </div>
+                                                    x-on:click.prevent="confirmDeleteSingleVariant('{{ (string) ($fileInfo['variant'] ?? '') }}')" />
+                                            </x-ui.row-actions>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -775,12 +757,12 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 <x-ui.file name="file" onchange="updateTitle" value="" />
             @endunless
 
-            <div class="flex justify-end gap-4 mt-8">
+            <x-ui.editor-actions>
                 @isset($medium)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this file? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this file? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
-            </div>
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

@@ -208,3 +208,12 @@ Schedule::command('workplan:send-fortnightly')
     ->weeklyOn(0, '08:00')
     ->timezone((string) config('app.timezone', 'UTC'))
     ->withoutOverlapping();
+
+Artisan::command('analytics:snapshot', function () {
+    foreach (\App\Services\DashboardSnapshot::PERIODS as $period) {
+        app(\App\Services\DashboardSnapshot::class)->refresh($period);
+    }
+    $this->info('Dashboard snapshots refreshed.');
+})->purpose('Precompute administrator dashboard aggregates')->everyFiveMinutes()->withoutOverlapping();
+
+Schedule::command('queue:prune-failed --hours=168')->daily()->withoutOverlapping();

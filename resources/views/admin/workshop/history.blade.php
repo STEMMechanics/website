@@ -14,7 +14,11 @@
     />
 
     <x-container>
-        @include('admin.workshop.partials.report-filters', ['reportType' => 'history'])
+        <x-ui.dynamic-list name="admin-workshop-history">
+
+        <x-ui.collection-controls class="my-4">
+            <x-slot:filterForm>@include('admin.workshop.partials.report-filters', ['reportType' => 'history'])</x-slot:filterForm>
+        </x-ui.collection-controls>
 
         @if($workshops->isEmpty())
             <x-none-found item="workshops" search="{{ request('search') }}" />
@@ -26,29 +30,31 @@
                     <x-ui.button color="outline" href="{{ route('admin.workshop.history.pdf', request()->query()) }}" target="_blank"><i class="fa-regular fa-file-pdf mr-2"></i>PDF</x-ui.button>
                 </div>
             </div>
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Date</th>
-                    <th>Workshop</th>
-                    <th class="hidden md:table-cell">Hosted for</th>
-                    <th class="hidden lg:table-cell">Requested by</th>
-                    <th>Location</th>
-                    <th>Status</th>
+                    <x-ui.list-heading class="text-center!" label="Date" />
+                    <x-ui.list-heading label="Workshop" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Hosted for" />
+                    <x-ui.list-heading class="hidden lg:table-cell" label="Requested by" />
+                    <x-ui.list-heading label="Location" />
+                    <x-ui.list-heading class="text-center!" label="Status" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($workshops as $workshop)
                         <tr>
-                            <td class="whitespace-nowrap">{{ $workshop->starts_at?->format('d M Y') ?? '-' }}</td>
+                            <td class="whitespace-nowrap text-center!"><x-ui.date-time>{{ $workshop->starts_at?->format('d M Y') ?? '-' }}</x-ui.date-time></td>
                             <td><a class="text-primary-color hover:underline" href="{{ route('admin.workshop.edit', $workshop) }}">{{ $workshop->title }}</a></td>
                             <td class="hidden md:table-cell">{{ $workshop->hostedFor?->name ?? '-' }}</td>
                             <td class="hidden lg:table-cell">{{ $workshop->requestedBy?->getName() ?? '-' }}</td>
                             <td>{{ $workshop->getLocationName() }}</td>
-                            <td>{{ $workshop->adminStatusLabel() }}</td>
+                            <td class="text-center!">{{ $workshop->adminStatusLabel() }}</td>
                         </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
-            {{ $workshops->links() }}
+            <x-ui.list-pagination :paginator="$workshops" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

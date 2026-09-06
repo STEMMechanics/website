@@ -1,26 +1,13 @@
-@component('mail::message')
-# Site error detected
+<x-mail::message>
+# Site error
 
-An exception was reported by the site.
+Reference: {{ $context['errorId'] ?? 'unknown' }}
 
-- **Type:** {{ $exceptionClass }}
-- **Message:** {{ $exceptionMessage }}
-@if(!empty($requestMethod ?? ''))
-- **Request:** {{ $requestMethod }} {{ $requestUrl ?? '-' }}
-@endif
-@if(!empty($requestUserEmail ?? '') || !empty($requestUserId ?? ''))
-- **User:** {{ $requestUserEmail ?? 'unknown' }}{{ !empty($requestUserId ?? '') ? ' (ID '.$requestUserId.')' : '' }}
-@endif
+Type: {{ $exceptionClass }}
 
-@component('mail::panel')
-{{ $exception->getTraceAsString() }}
-@endcomponent
+Route: {{ $context['requestRoute'] ?? 'console' }}
 
-Thanks,
-{{ config('app.name') }}
+Method: {{ $context['requestMethod'] ?? 'console' }}
 
-@slot('subcopy')
-### Why did I get this email?
-This alert was sent because the site reported an exception.
-@endslot
-@endcomponent
+Use the reference to locate the event in restricted application logs.
+</x-mail::message>

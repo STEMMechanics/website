@@ -54,7 +54,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Your groups</div>
                                 <div class="mt-3 flex flex-wrap gap-2">
                                     @foreach($groupSlugs as $groupSlug)
-                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
+                                        <x-ui.badge color="gray">{{ $groupSlug }}</x-ui.badge>
                                     @endforeach
                                 </div>
                             </div>
@@ -67,7 +67,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             <p class="mt-1 text-sm text-gray-600">Keep your billing and shipping details current for orders and invoices.</p>
                         </div>
 
-                        <div class="mt-6 grid gap-6 grid-cols-2">
+                        <x-ui.grid class="mt-6 gap-6 lg:grid-cols-2">
                             <div class="rounded-2xl bg-gray-50 p-4 flex flex-col justify-between">
                                 <h3 class="text-sm font-semibold text-gray-900">Billing address</h3>
                                 <div class="mt-4">
@@ -108,26 +108,34 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                     <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
                                 </div>
                             </div>
-                        </div>
+                        </x-ui.grid>
                     </section>
                 </div>
 
-                <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+                <div class="space-y-6">
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-gray-900">Email Notifications</h2>
+                                <h2 class="text-lg font-semibold text-gray-900">Notifications</h2>
                             </div>
                         </div>
 
-                        <div class="mt-6 grid gap-6">
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <h3 class="text-sm font-semibold text-gray-900">Receive Email subscriptions</h3>
-                                <div class="mt-4">
-                                    <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                        <x-ui.grid class="mt-6 gap-6 lg:grid-cols-2 xl:grid-cols-1">
+                            <div>
+                                <div class="rounded-2xl bg-gray-50 p-4">
+                                    <h3 class="text-sm font-semibold text-gray-900">Email notifications</h3>
+                                    <div class="mt-4">
+                                        <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                                        @if($user->isAdmin())
+                                            <x-ui.checkbox label="Workplan email" name="dashboard_email_opt_in" :checked="$user->dashboard_email_opt_in" />
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                            @if($user->isAdmin())
+                                <x-push-settings :embedded="true" />
+                            @endif
+                        </x-ui.grid>
                     </section>
                 </div>
             </div>
@@ -139,20 +147,21 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
                             <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
                         </div>
-                        <div class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
+                        <x-ui.badge color="gray" uppercase data-remembered-devices-count>{{ $rememberedDevices->count() }} saved</x-ui.badge>
                     </div>
 
+                    <x-ui.feedback id="remembered-device-feedback" />
                     <div class="rounded-2xl mt-4 bg-gray-50 p-4">
                         <h3 class="text-sm font-semibold text-gray-900">This device</h3>
                         <p class="mt-1 text-sm text-gray-600">Control whether this browser stays signed in between visits.</p>
                         <div class="mt-4">
                             <input type="hidden" name="keep_signed_in_device" value="0" />
                             <x-ui.checkbox
-                                    id="keep_signed_in_device"
-                                    label="Keep me signed in on this device"
-                                    name="keep_signed_in_device"
-                                    checked="{{ $keepSignedInDeviceChecked }}"
-                            />
+ id="keep_signed_in_device"
+ label="Keep me signed in on this device"
+ name="keep_signed_in_device"
+ checked="{{ $keepSignedInDeviceChecked }}"
+ />
                         </div>
                     </div>
 
@@ -168,7 +177,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <div class="font-semibold text-gray-900" data-device-title>{{ $displayDeviceTitle }}</div>
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="text-gray-500 hover:text-primary-color"
                                                 title="Edit device name"
@@ -179,9 +188,9 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                                 data-device-default-title="{{ $defaultDeviceTitle }}"
                                             >
                                                 <i class="fa-solid fa-pen"></i>
-                                            </button>
+                                            </x-ui.button>
                                             @if(! empty($device['is_current']))
-                                                <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Current device</div>
+                                                <x-ui.badge color="success">Current device</x-ui.badge>
                                             @endif
                                         </div>
                                         <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
@@ -264,7 +273,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                 if(response.data.secret) {
                     Alpine.store('tfa').show = true;
                     Alpine.store('tfa').secret = response.data.secret;
-                    document.getElementById('tfa_image').src = '/account/2fa/image?secret=' + response.data.secret;
+                    document.getElementById('tfa_image').src = '/account/2fa/image';
                     document.getElementById('tfa_key').textContent = response.data.secret;
                 } else {
                     SM.alert('2FA Error', 'An error occurred while setting up two-factor authentication. Please try again later', 'danger');
@@ -358,6 +367,8 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             }
 
             const remainingRows = devicesList.querySelectorAll('[data-device-row]').length;
+            const count = document.querySelector('[data-remembered-devices-count]');
+            if (count) count.textContent = `${remainingRows} saved`;
             const hasRows = remainingRows > 0;
             devicesList.classList.toggle('hidden', !hasRows);
             emptyState.classList.toggle('hidden', hasRows);
@@ -444,15 +455,23 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                 return;
             }
 
-            const deleteRequest = () => {
+            const deleteRequest = async () => {
+                if (button.disabled) return;
                 button.disabled = true;
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
 
-                axios.delete(`/account/devices/${encodeURIComponent(deviceId)}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }).then((response) => {
-                    if (!response.data || !response.data.success) {
+                try {
+                    const response = await fetch(`/account/devices/${encodeURIComponent(deviceId)}`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin',
+                        signal: controller.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                    });
+                    if (!response.ok || !(await response.json())?.success) {
                         throw new Error('Device removal failed.');
                     }
 
@@ -470,11 +489,13 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                     }
 
                     updateEmptyState();
-                    SM.alert('Device removed', 'The device has been removed.', 'success');
-                }).catch(() => {
+                    SM.feedback(document.getElementById('remembered-device-feedback'), 'Device removed', 'It will need to sign in again next time.', 'success');
+                } catch {
                     SM.alert('Remove failed', 'Could not remove the device right now.', 'danger');
+                } finally {
+                    clearTimeout(timeout);
                     button.disabled = false;
-                });
+                }
             };
 
             if (window.SM && typeof window.SM.confirm === 'function') {
@@ -483,7 +504,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                         return;
                     }
 
-                    deleteRequest();
+                    return deleteRequest();
                 });
             }
         };

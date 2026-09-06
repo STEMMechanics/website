@@ -16,13 +16,13 @@
                 <h2 class="text-2xl font-bold text-gray-900">{{ $title }}</h2>
             </div>
         </div>
-        <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <x-ui.grid class="gap-5 md:grid-cols-3">
             @foreach($workshops as $recommendedWorkshop)
                 <x-panel-workshop
                     :workshop="$recommendedWorkshop"
                     :href="route('workshop.recommendation.click', ['source' => $sourceWorkshop, 'workshop' => $recommendedWorkshop, 'placement' => $placement])"
                 />
             @endforeach
-        </div>
+        </x-ui.grid>
     </section>
 @endif

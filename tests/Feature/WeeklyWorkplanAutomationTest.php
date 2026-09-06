@@ -27,12 +27,22 @@ class WeeklyWorkplanAutomationTest extends TestCase
     public function test_fortnightly_workplan_is_queued_for_admins(): void
     {
         Queue::fake();
-        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        $admin = User::factory()->create(['email' => 'admin@example.com', 'dashboard_email_opt_in' => true]);
         UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
 
         $this->artisan('workplan:send-fortnightly')->assertSuccessful();
 
         Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof WeeklyWorkplan);
+    }
+
+    public function test_dashboard_email_requires_opt_in_and_has_no_fallback_recipient(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->create(['dashboard_email_opt_in' => false]);
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        config(['mail.from.address' => 'fallback@example.com']);
+        $this->artisan('workplan:send-fortnightly')->assertSuccessful();
+        Queue::assertNotPushed(SendEmail::class);
     }
 
     public function test_fortnightly_workplan_email_renders(): void
@@ -54,12 +64,30 @@ class WeeklyWorkplanAutomationTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $media->name,
         ]);
+        Workshop::factory()->create([
+            'title' => 'Cancelled workshop should be hidden',
+            'starts_at' => now()->addDay(),
+            'status' => 'cancelled',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
+        Workshop::factory()->create([
+            'title' => 'Draft workshop should be hidden',
+            'starts_at' => now()->addDay(),
+            'status' => 'draft',
+            'location_id' => $location->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $media->name,
+        ]);
         $html = (new WeeklyWorkplan(app(WeeklyWorkplanService::class)->build()))->render();
 
         $this->assertStringContainsString('Fortnightly Workplan', $html);
         $this->assertStringContainsString('font-size: 32px', $html);
         $this->assertStringContainsString('font-size: 24px', $html);
         $this->assertStringContainsString('Cairns Library', $html);
+        $this->assertStringNotContainsString('Cancelled workshop should be hidden', $html);
+        $this->assertStringNotContainsString('Draft workshop should be hidden', $html);
         $this->assertStringContainsString('Next newsletter', $html);
         $this->assertStringContainsString('Review or change the newsletter', $html);
         $this->assertStringContainsString('Last fortnight at a glance', $html);

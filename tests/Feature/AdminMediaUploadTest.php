@@ -20,15 +20,17 @@ class AdminMediaUploadTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_media_index_exposes_bulk_upload_dropzone(): void
+    public function test_admin_media_index_exposes_upload_button_and_page_drop_target(): void
     {
         $admin = $this->makeAdminUser();
 
         $this->actingAs($admin)
             ->get(route('admin.media.index'))
             ->assertOk()
-            ->assertSeeText('Quick upload')
-            ->assertSeeText('Drop multiple files here to create media items with default values and your account as the owner.')
+            ->assertSeeText('Upload')
+            ->assertDontSeeText('Quick upload')
+            ->assertSeeText('Drop files to upload')
+            ->assertSee('data-page-upload', false)
             ->assertSee('admin-media-bulk-upload-input', false)
             ->assertSee('admin-media-bulk-upload-status-bar', false)
             ->assertSee('multiple', false);
@@ -299,8 +301,11 @@ class AdminMediaUploadTest extends TestCase
             ->get(route('admin.workshop.files', $workshop))
             ->assertOk()
             ->assertSeeText('All public files are displayed on the workshop page.')
-            ->assertSeeText('Select Local Files')
-            ->assertSeeText('Browse Existing Media')
+            ->assertSeeText('Upload')
+            ->assertSeeText('Browse media')
+            ->assertSee('data-workshop-page-upload', false)
+            ->assertSee('x-on:drop.window', false)
+            ->assertDontSeeText('Select Local Files')
             ->assertDontSeeText('Selected Files & Metadata')
             ->assertDontSeeText('Add Media')
             ->assertSee('Uploading files', false)
@@ -310,8 +315,11 @@ class AdminMediaUploadTest extends TestCase
             ->get(route('admin.workshop.photos', $workshop))
             ->assertOk()
             ->assertSeeText('Photos are not displayed on the workshop page.')
-            ->assertSeeText('Select Local Files')
-            ->assertSeeText('Browse Existing Media')
+            ->assertSeeText('Upload')
+            ->assertSeeText('Browse media')
+            ->assertSee('data-workshop-page-upload', false)
+            ->assertSee('x-on:drop.window', false)
+            ->assertDontSeeText('Select Local Files')
             ->assertDontSeeText('Selected Media & Metadata')
             ->assertViewHas('attachedPhotoNames', ['stemmechanics-logo.png'])
             ->assertSeeText('Original Name')
@@ -320,7 +328,7 @@ class AdminMediaUploadTest extends TestCase
             ->assertSeeText('Select')
             ->assertSeeText('Actions')
             ->assertSee("variant=thumbnail", false)
-            ->assertSee('class="hidden text-center lg:table-cell">Tags</th>', false)
+            ->assertSeeText('Tags')
             ->assertSee('class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"', false)
             ->assertSeeText('Hatched tags are currently present on only some selected items.')
             ->assertDontSeeText('Add Tags')

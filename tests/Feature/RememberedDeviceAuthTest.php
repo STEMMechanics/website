@@ -137,6 +137,56 @@ class RememberedDeviceAuthTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_public_page_restores_a_remembered_device_after_an_overnight_session_expiry(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $this->travel(1)->days();
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->get(route('index'))->assertOk()->assertCookie(RememberedDeviceManager::DEVICE_COOKIE);
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_pwa_admin_landing_restores_login_before_admin_authorization(): void
+    {
+        config(['security.admin_mfa_required' => false]);
+        $user = User::factory()->create();
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->get(route('admin.dashboard'))->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_remembered_admin_still_requires_a_fresh_mfa_confirmation(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_remembered_cookie_does_not_restore_background_json_requests(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->getJson(route('account.show'))->assertUnauthorized();
+        $this->assertGuest();
+    }
+
+    public function test_expired_remembered_device_cannot_restore_a_public_page_session(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => now()->subDay()]);
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->get(route('index'))->assertOk()->assertCookieExpired(RememberedDeviceManager::DEVICE_COOKIE);
+        $this->assertGuest();
+    }
+
     public function test_login_route_auto_signs_in_with_valid_remembered_device_cookie(): void
     {
         $user = User::factory()->create();

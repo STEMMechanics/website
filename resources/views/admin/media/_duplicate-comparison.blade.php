@@ -120,14 +120,14 @@
             <div class="flex gap-4">
                 <img src="{{ $medium->thumbnail }}" class="h-28 w-28 shrink-0 rounded-lg object-cover" alt="">
                 <div class="min-w-0 flex-1 relative">
-                    <div @class(['break-words text-base text-gray-900', 'font-bold' => $differentFields->contains('title'), 'font-semibold' => ! $differentFields->contains('title')])>{{ $medium->title }}</div>
+                    <div @class(['wrap-break-word text-base text-gray-900', 'font-bold' => $differentFields->contains('title'), 'font-semibold' => ! $differentFields->contains('title')])>{{ $medium->title }}</div>
                     <div class="mt-1 break-all text-xs text-gray-500">{{ $medium->name }}</div>
                     <div class="mt-1 text-xs text-gray-500">
                         {{ \App\Helpers::bytesToString((int) $medium->size) }} · {{ (int) $medium->usage_count }} detected {{ (int) $medium->usage_count === 1 ? 'use' : 'uses' }}
                     </div>
                     <div class="mt-3 space-y-1 text-xs text-gray-600">
                         @foreach($visibleFields as $field)
-                            <div @class(['break-words', 'font-bold text-gray-900' => $differentFields->contains($field)])>
+                            <div @class(['wrap-break-word', 'font-bold text-gray-900' => $differentFields->contains($field)])>
                                 <span>{{ $labels[$field] }}:</span> {{ $displayValue($medium, $field) }}
                             </div>
                         @endforeach
@@ -162,7 +162,7 @@
             <div
                 x-show="advancedOpen"
                 x-cloak
-                class="fixed inset-0 z-[280] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+                class="fixed inset-0 z-280 flex items-end justify-center bg-black/50 p-4 sm:items-center"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="{{ $dialogId }}-title"
@@ -177,9 +177,9 @@
                                 {{ $isSimilar ? 'Choose the image file and metadata values to keep. The filename selection determines which physical image remains.' : 'Choose which value to keep for each difference.' }}
                             </p>
                         </div>
-                        <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeAdvanced()" aria-label="Close advanced merge">
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeAdvanced()" aria-label="Close advanced merge">
                             <i class="fa-solid fa-xmark text-lg"></i>
-                        </button>
+                        </x-ui.button>
                     </div>
 
                     <div class="overflow-y-auto px-6 py-5">
@@ -198,7 +198,7 @@
                                         <div @class(['font-bold', 'text-gray-700' => $row['different']])>{{ $row['label'] }}</div>
                                         @if($row['label'] === 'Filename')
                                             <label for="{{ $dialogId }}-filename-left" class="flex min-w-0 items-center gap-2 text-gray-700">
-                                                <input id="{{ $dialogId }}-filename-left" name="{{ $dialogId }}-filename" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $left->name }}" x-model="keeper">
+                                                <x-ui.input-control id="{{ $dialogId }}-filename-left" name="{{ $dialogId }}-filename" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $left->name }}" x-model="keeper" />
                                                 <span class="min-w-0 break-all">{{ $row['left'] }}</span>
                                             </label>
                                         @else
@@ -217,7 +217,7 @@
                                         </div>
                                         @if($row['label'] === 'Filename')
                                             <label for="{{ $dialogId }}-filename-right" class="flex min-w-0 items-center gap-2 text-gray-700">
-                                                <input id="{{ $dialogId }}-filename-right" name="{{ $dialogId }}-filename" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $right->name }}" x-model="keeper">
+                                                <x-ui.input-control id="{{ $dialogId }}-filename-right" name="{{ $dialogId }}-filename" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $right->name }}" x-model="keeper" />
                                                 <span class="min-w-0 break-all">{{ $row['right'] }}</span>
                                             </label>
                                         @else
@@ -239,11 +239,11 @@
                                     <div @class(['font-bold', 'text-gray-700' => $fieldDiffers])>{{ $labels[$field] }}</div>
                                     <label for="{{ $dialogId }}-metadata-{{ $field }}-left" @class(['flex min-w-0 items-center gap-2', 'text-gray-700' => $fieldDiffers])>
                                         @if($fieldDiffers)
-                                            <input id="{{ $dialogId }}-metadata-{{ $field }}-left" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $left->name }}" x-model="metadata[@js($field)]">
+                                            <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-left" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $left->name }}" x-model="metadata[@js($field)]" />
                                         @else
                                             <span class="w-4 shrink-0" aria-hidden="true"></span>
                                         @endif
-                                        <span class="min-w-0 break-words">{{ $displayValue($left, $field) }}</span>
+                                        <span class="min-w-0 wrap-break-word">{{ $displayValue($left, $field) }}</span>
                                     </label>
                                     <div @class(['text-center font-semibold', 'text-gray-500' => $fieldDiffers])>
                                         @if($fieldDiffers)
@@ -255,11 +255,11 @@
                                     </div>
                                     <label for="{{ $dialogId }}-metadata-{{ $field }}-right" @class(['flex min-w-0 items-center gap-2', 'text-gray-700' => $fieldDiffers])>
                                         @if($fieldDiffers)
-                                            <input id="{{ $dialogId }}-metadata-{{ $field }}-right" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $right->name }}" x-model="metadata[@js($field)]">
+                                            <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-right" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $right->name }}" x-model="metadata[@js($field)]" />
                                         @else
                                             <span class="w-4 shrink-0" aria-hidden="true"></span>
                                         @endif
-                                        <span class="min-w-0 break-words">{{ $displayValue($right, $field) }}</span>
+                                        <span class="min-w-0 wrap-break-word">{{ $displayValue($right, $field) }}</span>
                                     </label>
                                 </div>
                             @endforeach

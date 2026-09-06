@@ -554,3 +554,7 @@
         }
     })();
 </script>
+
+@pushOnce('head', 'editor-assets')
+    @vite('resources/js/editor/TipTap.js')
+@endPushOnce

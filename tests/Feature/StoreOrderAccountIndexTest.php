@@ -76,7 +76,7 @@ class StoreOrderAccountIndexTest extends TestCase
         $this->actingAs($user)
             ->get(route('account.order.index'))
             ->assertOk()
-            ->assertSee('Show cancelled')
+            ->assertSee('Current orders')->assertSee('All orders')
             ->assertSee('Search')
             ->assertSee('381500')
             ->assertSee('Delivery order')

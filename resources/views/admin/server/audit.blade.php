@@ -2,29 +2,13 @@
     <x-mast>Audit Log</x-mast>
 
     <x-container>
-        <x-ui.toolbar>
-            <x-slot:left>
-                <form method="GET" action="{{ route('admin.server.audit') }}" class="flex w-full flex-wrap items-end gap-3">
-                    <div class="w-full sm:w-auto">
-                        <x-ui.select name="event" label="Event">
-                            <option value="">All Events</option>
-                            @foreach($events as $event)
-                                <option value="{{ $event }}" @selected(request()->query('event') === $event)>{{ ucfirst($event) }}</option>
-                            @endforeach
-                        </x-ui.select>
-                    </div>
-                    <div class="mb-4 w-full sm:w-auto">
-                        <x-ui.button type="submit" color="outline">Filter</x-ui.button>
-                    </div>
-                </form>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-server-audit">
+
+
+        <x-ui.collection-controls class="my-5" />
 
         <form method="GET" class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
-            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
+            <x-ui.grid class="w-full md:grid-cols-3 gap-3 text-xs text-gray-600">
                 <div>
                     <div class="font-semibold text-gray-700">Audit Table Size</div>
                     <div>{{ $auditMeta['table_size_human'] ?? 'Unavailable' }}</div>
@@ -37,7 +21,7 @@
                     <div class="font-semibold text-gray-700">Total Records</div>
                     <div>{{ number_format((int) ($auditMeta['total_records'] ?? 0)) }}</div>
                 </div>
-            </div>
+            </x-ui.grid>
         </form>
 
         <form id="audit-prune-form" method="POST" action="{{ route('admin.server.audit.prune') }}" class="mb-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
@@ -61,14 +45,14 @@
         @if($logs->isEmpty())
             <x-none-found item="audit logs" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>When</th>
-                    <th class="whitespace-nowrap">Event</th>
-                    <th class="whitespace-nowrap">Model / Record</th>
-                    <th>Actor</th>
-                    <th class="hidden lg:table-cell">Request</th>
-                    <th class="hidden xl:table-cell text-center">Changes</th>
+                    <x-ui.list-heading field="created_at" class="text-center!" label="When" />
+                    <x-ui.list-heading class="whitespace-nowrap" label="Event" />
+                    <x-ui.list-heading class="whitespace-nowrap" label="Model / Record" />
+                    <x-ui.list-heading label="Actor" />
+                    <x-ui.list-heading class="hidden lg:table-cell" label="Request" />
+                    <x-ui.list-heading class="hidden xl:table-cell text-center" label="Changes" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($logs as $log)
@@ -83,10 +67,10 @@
                             ];
                         @endphp
                         <tr>
-                            <td>
+                            <td class="text-center!">
                                 <div class="whitespace-nowrap">
                                     @if($log->created_at)
-                                        {{ $log->created_at->format('M j, Y')}}<br>{{$log->created_at->format('g:i a') }}
+                                        <x-ui.date-time>{{ $log->created_at->format('M j, Y')}}</x-ui.date-time><br><x-ui.date-time>{{$log->created_at->format('g:i a') }}</x-ui.date-time>
                                     @else
                                         -
                                     @endif
@@ -96,7 +80,7 @@
                             <td class="whitespace-nowrap"><span class="uppercase text-xxs font-semibold whitespace-nowrap">{{ $log->event }}</span></td>
                             <td class="whitespace-nowrap text-xs sm:text-sm" style="white-space: nowrap; overflow-wrap: normal; word-break: normal;">{{ $modelShort }}<br>ID: {{ $log->auditable_id }}</td>
                             <td>
-                                <div class="break-words text-xs sm:text-sm">{{ $actorLabel }}</div>
+                                <div class="wrap-break-word text-xs sm:text-sm">{{ $actorLabel }}</div>
                                 @if($log->ip_address)
                                     <div class="text-xxs sm:text-xs text-gray-500">IP: {{ $log->ip_address }}</div>
                                 @endif
@@ -109,14 +93,14 @@
                                 @endif
                             </td>
                             <td class="hidden xl:table-cell text-center">
-                                <button
+                                <x-ui.button variant="plain"
                                     type="button"
                                     class="audit-log-view inline-flex items-center rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
                                     data-title="Changes for {{ $modelShort }} {{ $log->auditable_id }}"
                                     data-content-id="audit-changes-{{ $log->id }}"
                                 >
                                     View
-                                </button>
+                                </x-ui.button>
                                 <template id="audit-changes-{{ $log->id }}">
                                     <div class="max-h-[70vh] overflow-y-auto text-left">
                                         <div class="mb-3 text-xs text-gray-500">Event: {{ strtoupper((string) $log->event) }}</div>
@@ -132,22 +116,24 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $logs->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$logs" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 
     <div id="audit-log-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" aria-hidden="true">
         <div class="w-full max-w-5xl rounded-md bg-white shadow-deep">
             <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <h2 id="audit-log-modal-title" class="text-sm font-semibold text-gray-900">Audit Changes</h2>
-                <button
+                <x-ui.button variant="plain"
                     type="button"
                     id="audit-log-modal-close"
                     class="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
                     aria-label="Close changes modal"
                 >
                     &times;
-                </button>
+                </x-ui.button>
             </div>
             <div id="audit-log-modal-body" class="max-h-[75vh] overflow-y-auto p-4">
                 <div class="text-sm text-gray-600">No changes recorded.</div>
@@ -158,8 +144,11 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+
+</x-layout>
+
+<script>
+        SM.onDynamicList('admin-server-audit', (signal) => {
             const modal = document.getElementById('audit-log-modal');
             const modalTitle = document.getElementById('audit-log-modal-title');
             const modalBody = document.getElementById('audit-log-modal-body');
@@ -196,20 +185,20 @@
                 });
             });
 
-            closeButton?.addEventListener('click', closeModal);
-            closeFooterButton?.addEventListener('click', closeModal);
+            closeButton?.addEventListener('click', closeModal, { signal });
+            closeFooterButton?.addEventListener('click', closeModal, { signal });
 
             modal.addEventListener('click', (event) => {
                 if (event.target === modal) {
                     closeModal();
                 }
-            });
+            }, { signal });
 
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
                     closeModal();
                 }
-            });
+            }, { signal });
         });
 
         function confirmAuditPrune() {
@@ -237,4 +226,3 @@
             );
         }
     </script>
-</x-layout>

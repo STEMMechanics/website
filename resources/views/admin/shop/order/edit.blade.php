@@ -1210,7 +1210,7 @@
                         <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Store Order</div>
                         <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                             <h2 class="text-2xl font-bold text-gray-900 xl:text-[1.9rem]">{{ $order->order_number }}</h2>
-                            <span class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600" x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</span>
+                            <x-ui.badge class="border border-gray-200 bg-gray-50 text-gray-600" x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</x-ui.badge>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -1426,13 +1426,12 @@
                                     <div class="grid items-start gap-4 {{ $canBulkSelect ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]' }}">
                                         @if($canBulkSelect)
                                         <label class="flex items-start pt-2">
-                                            <input
-                                                type="checkbox"
-                                                data-bulk-select-item="{{ $item->id }}"
-                                                class="h-8 w-8 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                                                x-bind:checked="isSelected({{ $item->id }})"
-                                                x-on:change="toggleSelected({{ $item->id }}, $event.target.checked)"
-                                            >
+                                            <x-ui.checkbox bare small
+
+ data-bulk-select-item="{{ $item->id }}"
+
+ x-bind:checked="isSelected({{ $item->id }})"
+ x-on:change="toggleSelected({{ $item->id }}, $event.target.checked)" />
                                         </label>
                                         @endif
                                         <div class="min-w-0">
@@ -1471,48 +1470,48 @@
 
                                     <div class="flex flex-col gap-3 ml-12 lg:flex-row lg:items-start lg:justify-between">
                                         <div class="flex min-w-0 flex-1 flex-wrap gap-2 text-[11px] font-semibold text-gray-700">
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
+                                            <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-gray-50">
                                                 <i class="fa-solid fa-clipboard-list text-gray-400" aria-hidden="true"></i>
                                                 <span>Ordered <span x-text="orderedQuantity({{ $item->id }})">{{ $orderedQty }}</span></span>
-                                            </span>
+                                            </x-ui.badge>
                                             @if($order->usesPickup())
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
                                                     <i class="fa-solid fa-check text-emerald-500" aria-hidden="true"></i>
                                                     <span>Ready <span x-text="readyPickup({{ $item->id }})">{{ $readyPickup }}</span></span>
-                                                </span>
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1">
+                                                </x-ui.badge>
+                                                <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-white">
                                                     <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
                                                     <span>To prepare <span x-text="remainingPickupToReady({{ $item->id }})">{{ $remainingPickupToReady }}</span></span>
-                                                </span>
+                                                </x-ui.badge>
                                             @else
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1">
+                                                <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-white">
                                                     <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
                                                     <span>Open <span x-text="openQuantity({{ $item->id }})">{{ $remainingTotal }}</span></span>
-                                                </span>
+                                                </x-ui.badge>
                                             @endif
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-rose-800">
+                                            <x-ui.badge class="inline-flex items-center gap-1 border border-rose-200 bg-rose-50 text-rose-800">
                                                 <i class="fa-solid fa-circle-xmark text-rose-500" aria-hidden="true"></i>
                                                 <span>Cancelled <span x-text="cancelledQuantity({{ $item->id }})">{{ $cancelledTotal }}</span></span>
-                                            </span>
+                                            </x-ui.badge>
                                             @if($order->usesPickup())
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
                                                     <i class="fa-solid fa-box-check text-emerald-500" aria-hidden="true"></i>
                                                     <span>Collected <span x-text="collectedQuantity({{ $item->id }})">{{ $collectedTotal }}</span></span>
-                                                </span>
+                                                </x-ui.badge>
                                             @else
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
                                                     <i class="fa-solid fa-truck-fast text-emerald-500" aria-hidden="true"></i>
                                                     <span>Shipped <span x-text="dispatchedQuantity({{ $item->id }})">{{ $dispatchedTotal }}</span></span>
-                                                </span>
+                                                </x-ui.badge>
                                             @endif
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
+                                            <x-ui.badge class="inline-flex items-center gap-1 border border-amber-200 bg-amber-50 text-amber-800">
                                                 <i class="fa-solid fa-warehouse text-amber-500" aria-hidden="true"></i>
                                                 <span>Reserved <span x-text="reservedQuantity({{ $item->id }})">{{ $reservedQty }}</span></span>
-                                            </span>
-                                            <span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-800">
+                                            </x-ui.badge>
+                                            <x-ui.badge class="inline-flex items-center gap-1 border border-sky-200 bg-sky-50 text-sky-800">
                                                 <i class="fa-solid fa-hourglass-half text-sky-500" aria-hidden="true"></i>
                                                 <span>Backorder <span x-text="remainingDelayed({{ $item->id }})">{{ $remainingDelayed }}</span></span>
-                                            </span>
+                                            </x-ui.badge>
                                         </div>
 
                                         <div class="flex flex-wrap flex-col sm:flex-row gap-2 justify-end">
@@ -1545,7 +1544,7 @@
                                 </div>
 
                                 @unless($itemActionsLocked)
-                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].cancelOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeCancel({{ $item->id }})" x-on:keydown.escape.window="closeCancel({{ $item->id }})">
+                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].cancelOpen" x-cloak class="fixed inset-0 z-180 bg-black/55" x-on:click.self="closeCancel({{ $item->id }})" x-on:keydown.escape.window="closeCancel({{ $item->id }})">
                                     <div class="flex min-h-full items-center justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                             <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
@@ -1553,9 +1552,9 @@
                                                     <h3 class="text-lg font-semibold text-gray-900">Cancel Items</h3>
                                                     <p class="mt-1 text-sm text-gray-600">Remove units from this item’s fulfilment plan. Backordered units are cancelled first, then any reserved stock if more units still need to be removed.</p>
                                                 </div>
-                                                <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancel({{ $item->id }})" aria-label="Close cancel modal">
+                                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancel({{ $item->id }})" aria-label="Close cancel modal">
                                                     <i class="fa-solid fa-xmark"></i>
-                                                </button>
+                                                </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.cancel', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stageCancelAction({{ $item->id }}, $event.target)">
                                                 @csrf
@@ -1580,7 +1579,7 @@
                                                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                     <div>
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Qty to cancel</label>
-                                                        <input type="number" name="quantity" min="0" max="{{ $remainingTotal }}" x-bind:max="openQuantity({{ $item->id }})" value="{{ $cancelAvailableValue !== '' || $cancelDelayedValue !== '' ? (int) $cancelAvailableValue + (int) $cancelDelayedValue : '' }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" />
+                                                        <x-ui.input-control type="number" name="quantity" min="0" max="{{ $remainingTotal }}" x-bind:max="openQuantity({{ $item->id }})" value="{{ $cancelAvailableValue !== '' || $cancelDelayedValue !== '' ? (int) $cancelAvailableValue + (int) $cancelDelayedValue : '' }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" />
                                                         @if($cancelBag->first('quantity'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $cancelBag->first('quantity') }}</div>
                                                         @endif
@@ -1599,7 +1598,7 @@
                                                 </div>
                                                 <div class="mt-4">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Reason</label>
-                                                    <textarea name="reason" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" placeholder="Why are these units being cancelled from fulfilment?">{{ $cancelReasonValue }}</textarea>
+                                                    <x-ui.textarea-control name="reason" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" placeholder="Why are these units being cancelled from fulfilment?">{{ $cancelReasonValue }}</x-ui.textarea-control>
                                                     @if($cancelBag->first('reason'))
                                                         <div class="mt-1 text-xs text-rose-700">{{ $cancelBag->first('reason') }}</div>
                                                     @endif
@@ -1621,7 +1620,7 @@
                                 @endunless
 
                                 @unless($itemActionsLocked)
-                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeTracking({{ $item->id }})" x-on:keydown.escape.window="closeTracking({{ $item->id }})">
+                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen" x-cloak class="fixed inset-0 z-180 bg-black/55" x-on:click.self="closeTracking({{ $item->id }})" x-on:keydown.escape.window="closeTracking({{ $item->id }})">
                                     <div class="flex min-h-full items-center justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                             <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
@@ -1629,9 +1628,9 @@
                                                     <h3 class="text-lg font-semibold text-gray-900">Add Shipment Entry</h3>
                                                     <p class="mt-1 text-sm text-gray-600">Record a dispatch for the units being sent now. This shipment entry is the shipped record for those units; the order status handles the overall order state.</p>
                                                 </div>
-                                                <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTracking({{ $item->id }})" aria-label="Close tracking modal">
+                                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTracking({{ $item->id }})" aria-label="Close tracking modal">
                                                     <i class="fa-solid fa-xmark"></i>
-                                                </button>
+                                                </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.tracking.store', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stageTrackingAction({{ $item->id }}, $event.target)">
                                                 @csrf
@@ -1650,7 +1649,7 @@
                                                         <div>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Shipment stage</label>
                                                             @if($remainingAvailable > 0 && $remainingDelayed > 0)
-                                                                <select
+                                                                <x-ui.select-control
                                                                     name="shipment_type"
                                                                     class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
                                                                     x-model="itemUi['{{ $item->id }}'].trackingShipmentType"
@@ -1658,7 +1657,7 @@
                                                                 >
                                                                     <option value="{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}" @selected($trackingStageValue === \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE) x-text="'Reserved items (' + remainingAvailable({{ $item->id }}) + ' remaining)'">Reserved items ({{ $remainingAvailable }} remaining)</option>
                                                                     <option value="{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED }}" @selected($trackingStageValue === \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED) x-text="'Backorder items (' + remainingDelayed({{ $item->id }}) + ' remaining)'">Backorder items ({{ $remainingDelayed }} remaining)</option>
-                                                                </select>
+                                                                </x-ui.select-control>
                                                             @elseif($remainingDelayed > 0)
                                                                 <input type="hidden" name="shipment_type" x-bind:value="itemUi['{{ $item->id }}'].trackingShipmentType" />
                                                                 <div class="rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900" x-text="'Backorder items (' + remainingDelayed({{ $item->id }}) + ' remaining)'">Backorder items ({{ $remainingDelayed }} remaining)</div>
@@ -1672,22 +1671,21 @@
                                                         </div>
                                                         <div>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Items in this shipment</label>
-                                                            <input
+                                                            <x-ui.input-control
                                                                 type="number"
                                                                 name="quantity"
                                                                 min="1"
                                                                 max="{{ max($remainingAvailable, $remainingDelayed) }}"
                                                                 x-bind:max="Math.max(remainingAvailable({{ $item->id }}), remainingDelayed({{ $item->id }}))"
                                                                 x-model.number="itemUi['{{ $item->id }}'].trackingQuantity"
-                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
-                                                            />
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                                             @if($trackingBag->first('quantity'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('quantity') }}</div>
                                                             @endif
                                                         </div>
                                                         <div>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking mode</label>
-                                                            <select
+                                                            <x-ui.select-control
                                                                 name="tracking_mode"
                                                                 class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
                                                                 x-model="itemUi['{{ $item->id }}'].trackingMode"
@@ -1695,7 +1693,7 @@
                                                             >
                                                                 <option value="none" @selected($trackingModeValue === 'none')>No Tracking Number</option>
                                                                 <option value="tracking_number" @selected($trackingModeValue === 'tracking_number')>Tracking Number</option>
-                                                            </select>
+                                                            </x-ui.select-control>
                                                             @if($trackingBag->first('tracking_mode'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_mode') }}</div>
                                                             @endif
@@ -1703,15 +1701,14 @@
                                                         </div>
                                                         <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
-                                                            <input
+                                                            <x-ui.input-control
                                                                 type="number"
                                                                 name="parcel_number"
                                                                 min="1"
                                                                 step="1"
                                                                 x-model.number="itemUi['{{ $item->id }}'].trackingParcelNumber"
                                                                 value="{{ $trackingParcelValue }}"
-                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
-                                                            />
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                                             @if($trackingBag->first('parcel_number'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('parcel_number') }}</div>
                                                             @endif
@@ -1734,36 +1731,34 @@
                                                         </div>
                                                         <div>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Dispatch date</label>
-                                                            <input type="date" name="dispatched_at" value="{{ $trackingDispatchValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                            <x-ui.input-control type="date" name="dispatched_at" value="{{ $trackingDispatchValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                                             @if($trackingBag->first('dispatched_at'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('dispatched_at') }}</div>
                                                             @endif
                                                         </div>
                                                         <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                            <input
+                                                            <x-ui.input-control
                                                                 type="text"
                                                                 name="tracking_number"
                                                                 value="{{ $trackingNumberValue }}"
                                                                 x-model="itemUi['{{ $item->id }}'].trackingNumber"
                                                                 x-on:blur="applyTrackingLinkTemplateToItem({{ $item->id }})"
                                                                 class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
-                                                                placeholder="Optional"
-                                                            />
+                                                                placeholder="Optional" />
                                                             @if($trackingBag->first('tracking_number'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_number') }}</div>
                                                             @endif
                                                         </div>
                                                         <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>
-                                                            <input
+                                                            <x-ui.input-control
                                                                 type="url"
                                                                 name="tracking_url"
                                                                 value="{{ $trackingUrlValue }}"
                                                                 x-model="itemUi['{{ $item->id }}'].trackingUrl"
                                                                 class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
-                                                                placeholder="Optional"
-                                                            />
+                                                                placeholder="Optional" />
                                                             @if($trackingBag->first('tracking_url'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_url') }}</div>
                                                             @endif
@@ -1775,7 +1770,7 @@
                                                     </div>
                                                     <div class="mt-4">
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
-                                                        <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0">{{ $trackingNotesValue }}</textarea>
+                                                        <x-ui.textarea-control name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0">{{ $trackingNotesValue }}</x-ui.textarea-control>
                                                         @if($trackingBag->first('notes'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('notes') }}</div>
                                                         @endif
@@ -1811,7 +1806,7 @@
                                 @endunless
 
                                 @if($pickupCollectionOpen)
-                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].collectionOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeCollection({{ $item->id }})" x-on:keydown.escape.window="closeCollection({{ $item->id }})">
+                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].collectionOpen" x-cloak class="fixed inset-0 z-180 bg-black/55" x-on:click.self="closeCollection({{ $item->id }})" x-on:keydown.escape.window="closeCollection({{ $item->id }})">
                                     <div class="flex min-h-full items-center justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                             <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
@@ -1819,9 +1814,9 @@
                                                     <h3 class="text-lg font-semibold text-gray-900">Pickup Action</h3>
                                                     <p class="mt-1 text-sm text-gray-600">Mark this item ready for pickup or record a collection against the quantity that has already been prepared.</p>
                                                 </div>
-                                                <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCollection({{ $item->id }})" aria-label="Close collection modal">
+                                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCollection({{ $item->id }})" aria-label="Close collection modal">
                                                     <i class="fa-solid fa-xmark"></i>
-                                                </button>
+                                                </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stagePickupAction({{ $item->id }}, $event.target)">
                                                 @csrf
@@ -1846,34 +1841,34 @@
                                                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                     <div>
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Pickup action</label>
-                                                        <select name="pickup_state" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" x-model="itemUi['{{ $item->id }}'].pickupState" x-on:change="itemUi['{{ $item->id }}'].collectionQuantity = defaultCollectionQuantity({{ $item->id }}, itemUi['{{ $item->id }}'].collectionType, itemUi['{{ $item->id }}'].pickupState)">
+                                                        <x-ui.select-control name="pickup_state" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" x-model="itemUi['{{ $item->id }}'].pickupState" x-on:change="itemUi['{{ $item->id }}'].collectionQuantity = defaultCollectionQuantity({{ $item->id }}, itemUi['{{ $item->id }}'].collectionType, itemUi['{{ $item->id }}'].pickupState)">
                                                             <option value="{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY }}" @selected($collectionStateValue === \App\Models\StoreOrderItemCollection::PICKUP_STATE_READY)>Mark Ready for Pickup</option>
                                                             <option value="{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}" @selected($collectionStateValue === \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED)>Record Collection</option>
-                                                        </select>
+                                                        </x-ui.select-control>
                                                         @if($collectionBag->first('pickup_state'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('pickup_state') }}</div>
                                                         @endif
                                                     </div>
                                                     <div>
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Collection stage</label>
-                                                        <select name="collection_type" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0">
+                                                        <x-ui.select-control name="collection_type" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0">
                                                             <option value="{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE }}" @selected($collectionTypeValue === \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE)>Available stock</option>
                                                             <option value="{{ \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED }}" @selected($collectionTypeValue === \App\Models\StoreOrderItemCollection::COLLECTION_TYPE_DELAYED)>Backorder stock</option>
-                                                        </select>
+                                                        </x-ui.select-control>
                                                         @if($collectionBag->first('collection_type'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('collection_type') }}</div>
                                                         @endif
                                                     </div>
                                                     <div>
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Quantity</label>
-                                                        <input type="number" name="quantity" min="1" max="{{ $remainingPickup }}" x-model="itemUi['{{ $item->id }}'].collectionQuantity" x-bind:max="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}' ? readyPickup({{ $item->id }}) : remainingPickupToReady({{ $item->id }})" value="{{ $collectionQtyValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
+                                                        <x-ui.input-control type="number" name="quantity" min="1" max="{{ $remainingPickup }}" x-model="itemUi['{{ $item->id }}'].collectionQuantity" x-bind:max="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].pickupState === '{{ \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED }}' ? readyPickup({{ $item->id }}) : remainingPickupToReady({{ $item->id }})" value="{{ $collectionQtyValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
                                                         @if($collectionBag->first('quantity'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('quantity') }}</div>
                                                         @endif
                                                     </div>
                                                     <div>
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Action date</label>
-                                                        <input type="date" name="collected_at" value="{{ $collectionCollectedAtValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
+                                                        <x-ui.input-control type="date" name="collected_at" value="{{ $collectionCollectedAtValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" />
                                                         @if($collectionBag->first('collected_at'))
                                                             <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('collected_at') }}</div>
                                                         @endif
@@ -1885,7 +1880,7 @@
                                                 </div>
                                                 <div class="mt-4">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
-                                                    <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" placeholder="Optional pickup notes">{{ $collectionNotesValue }}</textarea>
+                                                    <x-ui.textarea-control name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-300 focus:outline-none focus:ring-0" placeholder="Optional pickup notes">{{ $collectionNotesValue }}</x-ui.textarea-control>
                                                     @if($collectionBag->first('notes'))
                                                         <div class="mt-1 text-xs text-rose-700">{{ $collectionBag->first('notes') }}</div>
                                                     @endif
@@ -1920,7 +1915,7 @@
                             @endforeach
                         </div>
                         @unless($itemActionsLocked)
-                        <div x-show="bulkCancelOpen" x-cloak class="fixed inset-0 z-[180] bg-black/55" x-on:click.self="closeBulkCancel()" x-on:keydown.escape.window="closeBulkCancel()">
+                        <div x-show="bulkCancelOpen" x-cloak class="fixed inset-0 z-180 bg-black/55" x-on:click.self="closeBulkCancel()" x-on:keydown.escape.window="closeBulkCancel()">
                             <div class="flex min-h-full items-center justify-center p-4">
                                 <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                     <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
@@ -1928,9 +1923,9 @@
                                             <h3 class="text-lg font-semibold text-gray-900">Stage Bulk Cancellation</h3>
                                             <p class="mt-1 text-sm text-gray-600">This will stage a cancellation for every selected item using each row’s current open quantity.</p>
                                         </div>
-                                        <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkCancel()" aria-label="Close bulk cancellation modal">
+                                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkCancel()" aria-label="Close bulk cancellation modal">
                                             <i class="fa-solid fa-xmark"></i>
-                                        </button>
+                                        </x-ui.button>
                                     </div>
                                     <form class="px-6 py-5" x-on:submit.prevent="stageBulkCancel($event.target)">
                                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
@@ -1946,7 +1941,7 @@
                                         </div>
                                         <div class="mt-4">
                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Reason</label>
-                                            <textarea name="reason" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" placeholder="Why are these items being cancelled together?"></textarea>
+                                            <x-ui.textarea-control name="reason" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0" placeholder="Why are these items being cancelled together?"></x-ui.textarea-control>
                                         </div>
                                         <div x-show="bulkCancelError !== ''" x-cloak class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                                             <span x-text="bulkCancelError"></span>
@@ -1964,7 +1959,7 @@
                             x-show="bulkTrackingOpen"
                             x-cloak
                             x-effect="document.body.classList.toggle('overflow-hidden', bulkTrackingOpen)"
-                            class="fixed inset-0 z-[180] overflow-y-auto overscroll-contain bg-black/55"
+                            class="fixed inset-0 z-180 overflow-y-auto overscroll-contain bg-black/55"
                             x-on:click.self="closeBulkTracking()"
                             x-on:keydown.escape.window="closeBulkTracking()"
                         >
@@ -1975,9 +1970,9 @@
                                             <h3 class="text-lg font-semibold text-gray-900">Stage Bulk Shipment Entry</h3>
                                             <p class="mt-1 text-sm text-gray-600">This will stage one shipment entry per selected item using the current open quantity for the chosen shipment stage.</p>
                                         </div>
-                                        <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkTracking()" aria-label="Close bulk shipment modal">
+                                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkTracking()" aria-label="Close bulk shipment modal">
                                             <i class="fa-solid fa-xmark"></i>
-                                        </button>
+                                        </x-ui.button>
                                     </div>
                                     <form class="px-6 py-5" x-on:submit.prevent="stageBulkTracking($event.target)">
                                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
@@ -2028,20 +2023,20 @@
                                             />
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Dispatch date</label>
-                                                <input type="date" name="dispatched_at" value="{{ now()->toDateString() }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                <x-ui.input-control type="date" name="dispatched_at" value="{{ now()->toDateString() }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                             </div>
                                             <div x-show="bulkTrackingMode === 'none'" x-cloak>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
-                                                <input type="number" name="parcel_number" min="1" step="1" x-model.number="bulkTrackingParcelNumber" value="{{ $defaultParcelNumber }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                <x-ui.input-control type="number" name="parcel_number" min="1" step="1" x-model.number="bulkTrackingParcelNumber" value="{{ $defaultParcelNumber }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                                 <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
                                             </div>
                                             <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                <input type="text" name="tracking_number" x-model="bulkTrackingTrackingNumber" x-on:blur="applyTrackingLinkTemplateToBulk()" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                <x-ui.input-control type="text" name="tracking_number" x-model="bulkTrackingTrackingNumber" x-on:blur="applyTrackingLinkTemplateToBulk()" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
                                             </div>
                                             <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>
-                                                <input type="url" name="tracking_url" x-model="bulkTrackingTrackingUrl" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                <x-ui.input-control type="url" name="tracking_url" x-model="bulkTrackingTrackingUrl" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
                                                 <div class="mt-1 text-xs text-gray-500">Leave blank to auto-generate from the courier template when one exists.</div>
                                             </div>
                                             <div x-show="bulkTrackingMode === 'none'" x-cloak class="sm:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
@@ -2049,7 +2044,7 @@
                                             </div>
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
-                                                <textarea name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"></textarea>
+                                                <x-ui.textarea-control name="notes" rows="4" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"></x-ui.textarea-control>
                                             </div>
                                         </div>
                                         <div x-show="bulkTrackingError !== ''" x-cloak class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
@@ -2087,30 +2082,30 @@
                         </div>
 
                         <div class="mt-4 flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition"
-                                :class="sidebarTab === 'changes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
+                                x-bind:class="sidebarTab === 'changes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
                                 x-on:click="sidebarTab = 'changes'"
                             >
                                 Changes
-                            </button>
-                            <button
+                            </x-ui.button>
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition"
-                                :class="sidebarTab === 'private-notes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
+                                x-bind:class="sidebarTab === 'private-notes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
                                 x-on:click="sidebarTab = 'private-notes'"
                             >
                                 Private Notes
-                            </button>
-                            <button
+                            </x-ui.button>
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition"
-                                :class="sidebarTab === 'public-notes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
+                                x-bind:class="sidebarTab === 'public-notes' ? 'border border-gray-900 bg-gray-900 text-white' : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-white hover:text-gray-900'"
                                 x-on:click="sidebarTab = 'public-notes'"
                             >
                                 Public Notes
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <form id="order-status-form" method="POST" action="{{ route('admin.shop.order.update', $order) }}" class="mt-4">
@@ -2167,7 +2162,7 @@
                                             <h3 class="text-lg font-bold text-gray-900">Queued Order Changes</h3>
                                             <p class="mt-1 text-sm text-gray-600">Review the staged actions before applying them.</p>
                                         </div>
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="button"
                                             x-show="hasPendingActions()"
                                             x-cloak
@@ -2175,7 +2170,7 @@
                                             x-on:click="clearPendingActions()"
                                         >
                                             Clear Staged Changes
-                                        </button>
+                                        </x-ui.button>
                                     </div>
 
                                     <div x-show="hasPendingActions()" x-cloak>
@@ -2187,9 +2182,9 @@
                                                             <div class="text-sm font-semibold text-gray-900" x-text="actionSummary(action)"></div>
                                                             <div class="mt-1 text-xs leading-6 text-gray-600" x-text="actionDetail(action) || 'Ready to apply on save.'"></div>
                                                         </div>
-                                                        <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900" x-on:click="removePendingAction(action.client_id)">
+                                                        <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900" x-on:click="removePendingAction(action.client_id)">
                                                             Remove
-                                                        </button>
+                                                        </x-ui.button>
                                                     </div>
                                                 </div>
                                             </template>
@@ -2210,22 +2205,22 @@
                                 <x-ui.input type="textarea" name="public_notes" label="Public Notes" :value="$order->public_notes ?? ''" info="Visible to the customer from their order page. Use for progress updates or collection instructions." />
                             </div>
 
-                            <div class="mt-4 flex flex-wrap items-center justify-end gap-4">
+                            <x-ui.editor-actions>
                                 <input type="hidden" name="send_update_email" value="0">
                                 <x-ui.checkbox
-                                    name="send_update_email"
-                                    value="1"
-                                    label="Send update email"
-                                    :checked="old('send_update_email', true)"
-                                    inline="true"
-                                    noWrapper="true"
-                                    small="true"
-                                    class="mb-0"
-                                />
+ name="send_update_email"
+ value="1"
+ label="Send update email"
+ :checked="old('send_update_email', true)"
+ inline="true"
+ noWrapper="true"
+ small="true"
+ class="mb-0"
+ />
                                 <x-ui.button type="submit">
                                     <span>Save All Changes</span>
                                 </x-ui.button>
-                            </div>
+                            </x-ui.editor-actions>
                         </form>
                     </section>
                 </aside>

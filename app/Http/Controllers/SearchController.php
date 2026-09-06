@@ -53,7 +53,7 @@ class SearchController extends Controller
         if ($searchWords->isEmpty()) {
             return $workshopQuery
                 ->whereRaw('1 = 0')
-                ->paginate(6, ['*'], 'workshop')
+                ->pipe(fn ($query) => (new \App\Services\SiteListControls('search_workshops'))->reportQuery($query))->paginate(\App\Support\ListPageSize::resolve(6, 'workshop'), ['*'], 'workshop')
                 ->onEachSide(1);
         }
 
@@ -70,7 +70,7 @@ class SearchController extends Controller
         });
 
         return $workshopQuery->orderBy('starts_at', 'desc')
-            ->paginate(6, ['*'], 'workshop')
+            ->pipe(fn ($query) => (new \App\Services\SiteListControls('search_workshops'))->reportQuery($query))->paginate(\App\Support\ListPageSize::resolve(6, 'workshop'), ['*'], 'workshop')
             ->onEachSide(1);
     }
 
@@ -83,7 +83,7 @@ class SearchController extends Controller
         if ($searchWords->isEmpty()) {
             return $productQuery
                 ->whereRaw('1 = 0')
-                ->paginate(6, ['*'], 'product')
+                ->pipe(fn ($query) => (new \App\Services\SiteListControls('search_products'))->reportQuery($query))->paginate(\App\Support\ListPageSize::resolve(6, 'product'), ['*'], 'product')
                 ->onEachSide(1);
         }
 
@@ -111,7 +111,7 @@ class SearchController extends Controller
         });
 
         return $productQuery->orderBy('title')
-            ->paginate(6, ['*'], 'product')
+            ->pipe(fn ($query) => (new \App\Services\SiteListControls('search_products'))->reportQuery($query))->paginate(\App\Support\ListPageSize::resolve(6, 'product'), ['*'], 'product')
             ->onEachSide(1);
     }
 }

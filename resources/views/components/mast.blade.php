@@ -13,9 +13,34 @@
 
 @php
     $currentPath = '/'.trim(request()->path(), '/');
+    $listDefinition = app(\App\Services\SiteListControls::class)->definition();
+    $collectionMast = $listDefinition !== [] || request()->routeIs('admin.analytics.index', 'admin.bas.index');
+    $showBreadcrumbs = $collectionMast || $resolvedBackUrl || (request()->routeIs('admin.*') && !request()->routeIs('admin.dashboard'));
+    $breadcrumbRootUrl = request()->routeIs('admin.*') ? route('admin.dashboard') : (request()->routeIs('account.*', 'tickets.*') ? route('account.show') : url('/'));
+    $breadcrumbRootLabel = request()->routeIs('admin.*') ? 'Dashboard' : (request()->routeIs('account.*', 'tickets.*') ? 'My account' : 'Home');
+    $mastLabel = $title ?? trim(strip_tags((string) $slot));
+    if (!isset($description) && $collectionMast) {
+        $description = $listDefinition['description'] ?? ('Browse, filter and manage '.\Illuminate\Support\Str::lower($mastLabel).'.');
+    }
+
 @endphp
 
-<x-container class="bg-primary-color-light text-white py-10">
+<x-container class="bg-primary-color-light text-white pt-10 {{ isset($actions) ? 'pb-5 sm:pb-10' : 'pb-10' }}">
+    @isset($breadcrumbs)
+        <nav aria-label="Breadcrumb" class="-mt-5 mb-3 text-sm text-white/90">{{ $breadcrumbs }}</nav>
+    @else
+        @if($showBreadcrumbs)
+            <nav aria-label="Breadcrumb" class="-mt-5 mb-3 text-sm text-white/90">
+                <a href="{{ $breadcrumbRootUrl }}" class="hover:underline">{{ $breadcrumbRootLabel }}</a>
+                @if($resolvedBackUrl && isset($backTitle) && $resolvedBackUrl !== $breadcrumbRootUrl)
+                    <span class="mx-2" aria-hidden="true">›</span><a href="{{ $resolvedBackUrl }}" class="hover:underline">{{ $backTitle }}</a>
+                @endif
+                @isset($backTitleExtra)<span class="ml-2">{!! $backTitleExtra !!}</span>@endisset
+            </nav>
+        @endif
+    @endisset
+    <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
     <h1 class="font-bold text-4xl">
         @isset($image)
             <img src="{{ $image }}" class="inline w-14 h-auto" alt="" />
@@ -25,7 +50,7 @@
     @if(isset($description))
         <div class="text-lg">{{ $description }}</div>
     @endif
-    @if(isset($backTitle) && $resolvedBackUrl)
+    @if(isset($backTitle) && $resolvedBackUrl && !$showBreadcrumbs)
         <div class="flex text-lg">
             <a href="{{ $resolvedBackUrl }}" class="text-lg hover:text-gray-300"><i class="fa-solid fa-angle-left mr-3"></i>{{ $backTitle }}</a>
             @isset($backTitleExtra)
@@ -33,8 +58,13 @@
             @endisset
         </div>
     @endif
+    </div>
+    @isset($actions)
+        <div class="sm:mb-0 sm:-mt-5 sm-mast-actions flex shrink-0 flex-wrap items-center gap-2">{{ $actions }}</div>
+    @endisset
+    </div>
     @isset($tabs)
-        <div class="mt-4 -mb-10 overflow-x-auto">
+        <div class="mt-4 {{ isset($actions) ? '-mb-5 sm:-mb-10' : '-mb-10' }} overflow-x-auto">
             <div class="flex min-w-max justify-start sm:w-full sm:min-w-0 sm:justify-end">
                 @foreach($tabs as $tab)
                     @php
@@ -57,7 +87,7 @@
                                 <span class="sr-only">(opens in a new tab)</span>
                             @endif
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
-                                <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-green-700" aria-label="{{ (int) $tab['badge'] }} unread items">{{ number_format((int) $tab['badge']) }}</span>
+                                <x-ui.badge color="success" aria-label="{{ (int) $tab['badge'] }} unread items" class="min-w-5 justify-center leading-none">{{ number_format((int) $tab['badge']) }}</x-ui.badge>
                             @endif
                         </span>
                     </a>

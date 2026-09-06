@@ -27,7 +27,7 @@ class ShopCouponController extends Controller
         }
 
         return view('admin.shop.coupon.index', [
-            'coupons' => $query->orderByDesc('created_at')->paginate(20)->onEachSide(1),
+            'coupons' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1),
         ]);
     }
 
@@ -112,7 +112,7 @@ class ShopCouponController extends Controller
 
         $products = $query
             ->orderBy('title')
-            ->paginate((int) $request->input('per_page', 12))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
             ->onEachSide(1);
 
         return response()->json([
@@ -158,7 +158,7 @@ class ShopCouponController extends Controller
         $workshops = $query
             ->orderByDesc('starts_at')
             ->orderBy('title')
-            ->paginate((int) $request->input('per_page', 12))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
             ->onEachSide(1);
 
         return response()->json([

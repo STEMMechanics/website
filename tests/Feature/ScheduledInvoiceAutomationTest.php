@@ -32,11 +32,14 @@ class ScheduledInvoiceAutomationTest extends TestCase
         $this->assertSame('sky', $invoice->displayStatusTone());
     }
 
-    public function test_scheduled_invoice_sends_an_admin_review_notice_the_day_before(): void
+    public function test_scheduled_invoice_sends_only_its_creator_a_review_notice_the_day_before(): void
     {
         Queue::fake();
         $admin = User::factory()->create(['email' => 'admin@example.com']);
         UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->actingAs($admin);
+        $other = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $other->id, 'slug' => 'admin']);
         $invoice = Invoice::factory()->create([
             'issue_date' => today()->addDay(),
             'scheduled_email' => true,
@@ -47,7 +50,24 @@ class ScheduledInvoiceAutomationTest extends TestCase
         $this->artisan('invoices:process-scheduled')->assertSuccessful();
 
         Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof ScheduledInvoiceReview);
+        $this->assertSame($admin->id, $invoice->fresh()->created_by);
+        $this->artisan('invoices:process-scheduled')->assertSuccessful();
+        Queue::assertPushed(SendEmail::class, 1);
         $this->assertNotNull($invoice->fresh()->scheduled_review_sent_at);
+    }
+
+    public function test_legacy_invoice_review_uses_only_the_configured_fallback(): void
+    {
+        Queue::fake();
+        config(['mail.invoice_review_fallback' => 'fallback@example.com']);
+        $invoice = Invoice::factory()->create([
+            'issue_date' => today()->addDay(),
+            'scheduled_email' => true,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+        $this->artisan('invoices:process-scheduled')->assertSuccessful();
+        Queue::assertPushed(SendEmail::class, 1);
+        Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'fallback@example.com' && $job->mailable instanceof ScheduledInvoiceReview);
     }
 
     public function test_scheduled_invoice_is_finalised_and_queued_on_its_issue_date(): void

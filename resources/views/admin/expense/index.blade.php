@@ -1,45 +1,19 @@
 <x-layout>
-    <x-mast>Expenses</x-mast>
+    <x-mast>Expenses
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.expense.create') }}">Record</x-ui.button></x-slot:actions>
+    </x-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-expense-index">
+
         @php($hasAdvancedFilters = collect(['supplier', 'description', 'invoice_id', 'attachment', 'paid_from', 'paid_to', 'no_attachment'])->contains(fn ($field) => request()->filled($field)))
         <div
             x-data="{ advancedOpen: {{ \Illuminate\Support\Js::from($hasAdvancedFilters) }} }"
             x-on:toggle-advanced-search.window="advancedOpen = !advancedOpen"
             x-on:clear-advanced-search.window="advancedOpen = false"
         >
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.expense.create') }}">Record</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search
-                    name="search"
-                    label="Search expenses"
-                    class="w-full sm:min-w-[34rem]"
-                    :advancedFields="['supplier', 'description', 'invoice_id', 'attachment', 'paid_from', 'paid_to', 'no_attachment']"
-                    :advancedExternal="true"
-                    :advancedActive="$hasAdvancedFilters"
-                />
-            </x-slot:right>
-        </x-ui.toolbar>
-        <form method="GET" action="{{ route('admin.expense.index') }}" x-show="advancedOpen" x-cloak class="mb-4 w-full rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <x-ui.input name="invoice_id" label="Invoice ID" value="{{ request('invoice_id', '') }}" />
-                <x-ui.input name="supplier" label="Supplier" value="{{ request('supplier', '') }}" />
-                <x-ui.input name="description" label="Description" value="{{ request('description', '') }}" />
-                <x-ui.input name="attachment" label="Attachment text or filename" value="{{ request('attachment', '') }}" />
-                <x-ui.input type="date" name="paid_from" label="Paid from" value="{{ request('paid_from', '') }}" />
-                <x-ui.input type="date" name="paid_to" label="Paid to" value="{{ request('paid_to', '') }}" />
-            </div>
-            <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <x-ui.checkbox name="no_attachment" value="1" label="No attachment" :checked="request()->boolean('no_attachment')" :noWrapper="true" :inline="true" />
-                <div class="flex gap-2">
-                    <x-ui.button href="{{ route('admin.expense.index') }}" color="outline">Clear</x-ui.button>
-                    <x-ui.button type="submit">Apply filters</x-ui.button>
-                </div>
-            </div>
-        </form>
+        <x-ui.collection-controls class="my-5" />
+
         </div>
 
         @if($expenses->isEmpty())
@@ -49,7 +23,7 @@
                 <x-none-found item="expenses" search="{{ request()->get('search') }}" />
             @endif
         @else
-            <div class="space-y-4 md:hidden">
+            <div data-list-results class="space-y-4 md:hidden">
                 @foreach ($expenses as $expense)
                     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-4">
@@ -75,55 +49,44 @@
                             <div class="mt-2 text-xs font-medium text-red-600">{{ $expense->receipt_document_path ? 'Attachment missing' : 'No attached invoice' }}</div>
                         @endif
 
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <x-ui.row-actions class="mt-4">
                             @if($expense->receipt_document_exists)
-                                <a href="{{ route('admin.expense.document.view', $expense) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" target="_blank" title="View attachment">
-                                    <i class="fa-solid fa-paperclip"></i>
-                                    <span class="sr-only">View attachment</span>
-                                </a>
+                                <x-ui.row-action label="View attachment" icon="fa-solid fa-paperclip" tone="neutral" href="{{ route('admin.expense.document.view', $expense) }}" target="_blank" />
                             @else
-                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="No attachment">
-                                    <i class="fa-solid fa-paperclip"></i>
-                                </span>
+                                <x-ui.row-action label="No attachment" icon="fa-paperclip" disabled />
                             @endif
-                            <a href="{{ route('admin.expense.edit', $expense) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Edit expense">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                                <span class="sr-only">Edit expense</span>
-                            </a>
+                            <x-ui.row-action label="Edit expense" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
                             <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
                                 @method('DELETE')
                                 @csrf
-                                <button type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-600" title="Delete expense">
-                                    <i class="fa-solid fa-trash"></i>
-                                    <span class="sr-only">Delete expense</span>
-                                </button>
+                                <x-ui.row-action label="Delete expense" icon="fa-solid fa-trash" tone="danger" type="submit" />
                             </form>
-                        </div>
+                        </x-ui.row-actions>
                     </article>
                 @endforeach
             </div>
 
             <div class="hidden md:block">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th class="w-10 text-center !border-r-0">
+                        <th class="w-10 text-center border-r-0!">
                             <x-ui.checkbox id="admin-expense-select-page" aria-label="Select all expenses on this page" :noWrapper="true" inputClass="mx-auto" />
                         </th>
-                        <th class="!border-l-0 !pl-1">Expense</th>
-                        <th class="hidden md:table-cell">Supplier</th>
-                        <th class="hidden md:table-cell">Invoice ID</th>
-                        <th class="hidden lg:table-cell">Description</th>
-                        <th>Amount <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
-                        <th>Actions</th>
+                        <x-ui.list-heading field="description" class="border-l-0! pl-1!" label="Expense" />
+                        <x-ui.list-heading class="hidden md:table-cell" label="Supplier" />
+                        <x-ui.list-heading class="hidden md:table-cell" label="Invoice ID" />
+                        <x-ui.list-heading class="hidden lg:table-cell" label="Description" />
+                        <th class="text-center!">Amount <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
+                        <x-ui.list-heading class="text-center!" label="Actions" />
                     </x-slot:header>
                     <x-slot:body>
                         @foreach ($expenses as $expense)
                             <tr>
-                                <td class="text-center !border-r-0">
+                                <td class="text-center border-r-0!">
                                     <x-ui.checkbox value="{{ $expense->id }}" label="Select expense {{ $expense->id }}" :labelHidden="true" :noWrapper="true" inputClass="admin-expense-select-item" />
                                 </td>
-                                <td class="!border-l-0 !pl-1">
-                                    <a href="{{ route('admin.expense.edit', $expense) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</a>
+                                <td class="border-l-0! pl-1!">
+                                    <a href="{{ route('admin.expense.edit', $expense) }}" class="font-semibold text-gray-900 hover:text-primary-color"><x-ui.date-time>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</x-ui.date-time></a>
                                     <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                     <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                     <div class="lg:hidden text-xs text-gray-600">{{ $expense->description ?: '-' }}</div>
@@ -139,25 +102,25 @@
                                     @endif
                                 </td>
                                 <td class="hidden lg:table-cell">{{ $expense->description ?: '-' }}</td>
-                                <td>
+                                <td class="text-center!">
                                     <div>${{ number_format((float) $expense->total_amount, 2) }}</div>
                                     <div class="text-xs text-gray-600">GST: ${{ number_format((float) $expense->gst_amount, 2) }}</div>
                                 </td>
 
-                                <td>
-                                    <div class="flex justify-center gap-3 whitespace-nowrap">
+                                <td class="text-center!">
+                                    <x-ui.row-actions class="whitespace-nowrap">
                                         @if($expense->receipt_document_exists)
-                                            <a href="{{ route('admin.expense.document.view', $expense) }}" class="hover:text-primary-color" target="_blank" title="View Attachment"><i class="fa-solid fa-paperclip"></i></a>
+                                            <x-ui.row-action label="View Attachment" icon="fa-solid fa-paperclip" tone="neutral" href="{{ route('admin.expense.document.view', $expense) }}" target="_blank" />
                                         @else
                                             <span class="text-gray-300" title="No Attachment"><i class="fa-solid fa-paperclip"></i></span>
                                         @endif
-                                        <a href="{{ route('admin.expense.edit', $expense) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                        <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
                                         <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
                                             @method('DELETE')
                                             @csrf
-                                            <button type="submit" class="hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
+                                            <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="submit" />
                                         </form>
-                                    </div>
+                                    </x-ui.row-actions>
                                 </td>
                             </tr>
                         @endforeach
@@ -165,23 +128,26 @@
                 </x-ui.table>
             </div>
 
-            {{ $expenses->appends(request()->query())->links() }}
-        @endif
-
-        <div id="admin-expense-export-controls" class="mt-4 flex flex-wrap items-center gap-3">
+            <x-ui.list-pagination :paginator="$expenses"><x-slot:actions>
+        <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to export their attachments.">
+            <x-slot:count><span id="admin-expense-selected-count">0</span></x-slot:count>
+            <x-slot:clear><x-ui.button variant="plain" id="admin-expense-clear-selection" class="text-sm font-semibold text-primary-color underline underline-offset-4" disabled>Clear selection</x-ui.button></x-slot:clear>
             <form id="admin-expense-export-form" method="POST" action="{{ route('admin.expense.export.zip') }}">
                 @csrf
                 <div class="admin-expense-export-inputs"></div>
-                <x-ui.button type="submit" disabled>Export</x-ui.button>
+                <x-ui.button type="submit" disabled>Export selected</x-ui.button>
             </form>
-            <x-ui.button type="button" id="admin-expense-clear-selection" color="outline" disabled>Clear</x-ui.button>
-            <div class="text-sm"><span id="admin-expense-selected-count">0</span> selected</div>
-        </div>
+        </x-ui.selection-toolbar>
+</x-slot:actions></x-ui.list-pagination>
+        @endif
+
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    SM.onDynamicList('admin-expense-index', () => {
         const storageKey = 'admin-expense-export-selection';
         const itemCheckboxes = Array.from(document.querySelectorAll('.admin-expense-select-item'));
         const selectPage = document.getElementById('admin-expense-select-page');
@@ -207,6 +173,7 @@
                 selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
             }
             if (count) count.textContent = String(selected.length);
+            document.getElementById('admin-expense-export-controls').dataset.selected = String(selected.length > 0);
             if (clear) clear.disabled = selected.length === 0;
             if (form) {
                 form.querySelector('button[type="submit"]').disabled = selected.length === 0;

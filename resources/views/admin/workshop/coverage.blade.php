@@ -14,7 +14,11 @@
     />
 
     <x-container>
-        @include('admin.workshop.partials.matrix-filters')
+        <x-ui.dynamic-list name="admin-workshop-coverage">
+
+        <x-ui.collection-controls class="my-4">
+            <x-slot:filterForm>@include('admin.workshop.partials.matrix-filters', ['reportType' => 'coverage'])</x-slot:filterForm>
+        </x-ui.collection-controls>
 
         @if($columns->isEmpty())
             <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
@@ -33,10 +37,10 @@
                 </div>
             </div>
             <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-                <table class="min-w-full table-fixed border-collapse text-sm">
+                <x-ui.table variant="plain" table-class="min-w-full table-fixed border-collapse text-sm">
                     <thead>
                         <tr class="bg-gray-50">
-                            <th class="sticky left-0 z-20 w-72 border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-left align-middle">Workshop</th>
+                            <x-ui.list-heading class="sticky left-0 z-20 w-72 border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-left align-middle" label="Workshop" />
                             @foreach($columnGroups as $group)
                                 <th colspan="{{ $group['columns']->count() }}" class="border-b border-r border-gray-200 px-3 py-3 text-center align-middle last:border-r-0">
                                     {{ $group['name'] }}
@@ -44,7 +48,7 @@
                             @endforeach
                         </tr>
                         <tr class="bg-gray-50">
-                            <th class="sticky left-0 z-20 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-500">Location</th>
+                            <x-ui.list-heading class="sticky left-0 z-20 border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-500" label="Location" />
                             @foreach($columns as $column)
                                 <th class="w-44 border-b border-r border-gray-200 px-3 py-2 text-center text-xs font-medium text-gray-600 last:border-r-0">
                                     {{ $column['location_name'] }}
@@ -74,8 +78,10 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

@@ -147,7 +147,7 @@
                 variants: @js($variantRows),
                 productDetails: @js($productDetailRows),
                 variantInputClasses: 'disabled:bg-gray-100 bg-white block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
-                variantTextareaClasses: 'disabled:bg-gray-100 bg-white block min-h-[7rem] w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
+                variantTextareaClasses: 'disabled:bg-gray-100 bg-white block min-h-28 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
                 defaultBaseOptionLabel() {
                     return this.productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Home' : 'Base';
                 },
@@ -425,13 +425,13 @@
                                 @endphp
                                 <div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
                                     <x-ui.checkbox
-                                        id="category-{{ $category->id }}"
-                                        name="category_ids[]"
-                                        value="{{ $category->id }}"
-                                        :checked="$isSelected"
-                                        noWrapper
-                                        inputClass="mt-0.5"
-                                    />
+ id="category-{{ $category->id }}"
+ name="category_ids[]"
+ value="{{ $category->id }}"
+ :checked="$isSelected"
+ noWrapper
+ inputClass="mt-0.5"
+ />
                                     <label for="category-{{ $category->id }}" class="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
                                         <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
                                             <i class="{{ $category->iconClass() }}"></i>
@@ -458,13 +458,13 @@
                         @endforeach
                     </x-ui.select>
                     <x-ui.checkbox
-                        name="is_featured"
-                        label="Featured product"
-                        :checked="(bool) old('is_featured', $product->is_featured ?? false)"
-                        class="mt-7"
-                        x-model="isFeatured"
-                        x-bind:disabled="status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'"
-                    />
+ name="is_featured"
+ label="Featured product"
+ :checked="(bool) old('is_featured', $product->is_featured ?? false)"
+ class="mt-7"
+ x-model="isFeatured"
+ x-bind:disabled="status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'"
+ />
                 </div>
                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <x-ui.select name="product_type" label="Product Type" x-model="productType">
@@ -495,7 +495,7 @@
                     </div>
 
                     <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white" x-show="productDetails.length > 0" x-cloak>
-                        <table class="w-full table-fixed border-collapse">
+                        <x-ui.table variant="plain" table-class="w-full table-fixed border-collapse">
                             <thead class="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 <tr>
                                     <th class="w-2/5 px-3 py-2">Detail</th>
@@ -507,26 +507,26 @@
                                 <template x-for="(detail, index) in productDetails" :key="index">
                                     <tr>
                                         <td class="border-r border-gray-200 p-0">
-                                            <input type="text" x-bind:name="`product_details[${index}][key]`" x-model="detail.key" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Detail name">
+                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][key]`" x-model="detail.key" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Detail name" />
                                         </td>
                                         <td class="border-r border-gray-200 p-0">
-                                            <input type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)">
+                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)" />
                                         </td>
                                         <td class="p-0 text-center">
-                                            <button type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0" title="Move detail up" aria-label="Move detail up">
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0" title="Move detail up" aria-label="Move detail up">
                                                 <i class="fa-solid fa-arrow-up text-xs" aria-hidden="true"></i>
-                                            </button>
-                                            <button type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="index === productDetails.length - 1" title="Move detail down" aria-label="Move detail down">
+                                            </x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="index === productDetails.length - 1" title="Move detail down" aria-label="Move detail down">
                                                 <i class="fa-solid fa-arrow-down text-xs" aria-hidden="true"></i>
-                                            </button>
-                                            <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" x-on:click="removeProductDetail(index)" title="Remove detail" aria-label="Remove detail">
+                                            </x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" x-on:click="removeProductDetail(index)" title="Remove detail" aria-label="Remove detail">
                                                 <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-                                            </button>
+                                            </x-ui.button>
                                         </td>
                                     </tr>
                                 </template>
                             </tbody>
-                        </table>
+                        </x-ui.table>
                     </div>
                     <p class="mt-4 text-sm text-gray-500" x-show="productDetails.length === 0">No structured details added.</p>
                 </div>
@@ -560,12 +560,12 @@
                         </div>
                         <div class="my-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
                             <x-ui.checkbox
-                                    name="allow_backorder"
-                                    label="Allow back ordering"
-                                    :checked="$productAllowsBackorder"
-                                    x-model="allowBackorder"
-                                    noWrapper
-                            />
+ name="allow_backorder"
+ label="Allow back ordering"
+ :checked="$productAllowsBackorder"
+ x-model="allowBackorder"
+ noWrapper
+ />
                             <div class="mt-4" x-show="allowBackorder" x-cloak>
                                 <div class="grid gap-4 md:grid-cols-2">
                                     <x-ui.select
@@ -633,12 +633,12 @@
                     />
                     <div class="pt-5">
                         <x-ui.checkbox
-                            name="box_only"
-                            label="Requires rigid parcel shipping"
-                            :checked="(bool) old('box_only', $product->box_only ?? false)"
-                            class="mt-2"
-                            x-model="boxOnly"
-                        />
+ name="box_only"
+ label="Requires rigid parcel shipping"
+ :checked="(bool) old('box_only', $product->box_only ?? false)"
+ class="mt-2"
+ x-model="boxOnly"
+ />
                     </div>
                 </div>
             </div>
@@ -668,7 +668,7 @@
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <div>
                             <label class="mb-1 block pl-1 text-sm">Base Option Name</label>
-                            <input type="text" x-bind:class="variantInputClasses" name="base_variant_name" x-model="baseVariantName">
+                            <x-ui.input-control type="text" x-bind:class="variantInputClasses" name="base_variant_name" x-model="baseVariantName" />
                             <div class="mt-1 pl-1 text-xs text-gray-500" x-text="'Leave blank to show ' + defaultBaseOptionLabel() + '.'"></div>
                             @error('base_variant_name')
                                 <div class="mt-1 pl-1 text-xs text-red-600">{{ $message }}</div>
@@ -676,7 +676,7 @@
                         </div>
                         <div class="md:col-span-2 xl:col-span-3">
                             <label class="mb-1 block pl-1 text-sm" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Base Licence Details' : 'Base Option Details'"></label>
-                            <textarea x-bind:class="variantTextareaClasses" name="base_variant_description" rows="3">{{ old('base_variant_description', $product->base_variant_description ?? '') }}</textarea>
+                            <x-ui.textarea-control x-bind:class="variantTextareaClasses" name="base_variant_description" rows="3">{{ old('base_variant_description', $product->base_variant_description ?? '') }}</x-ui.textarea-control>
                             @error('base_variant_description')
                                 <div class="mt-1 pl-1 text-xs text-red-600">{{ $message }}</div>
                             @enderror
@@ -692,41 +692,41 @@
 
                             <div class="flex items-center justify-between gap-4">
                                 <div class="text-lg font-semibold text-gray-900" x-text="displayVariantName(variant, index)"></div>
-                                <button type="button" class="text-sm text-red-600 hover:underline" x-on:click="removeVariant(index)">Remove</button>
+                                <x-ui.button variant="plain" type="button" class="text-sm text-red-600 hover:underline" x-on:click="removeVariant(index)">Remove</x-ui.button>
                             </div>
 
                             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">Variant Name</label>
-                                    <input type="text" x-bind:class="variantInputClasses" :name="`variants[${index}][name]`" x-model="variant.name" x-on:blur="syncVariantSku(index)">
+                                    <x-ui.input-control type="text" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][name]`" x-model="variant.name" x-on:blur="syncVariantSku(index)" />
                                     <div class="mt-1 pl-1 text-xs text-gray-500">Each added option needs its own name.</div>
                                 </div>
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">SKU</label>
-                                    <input type="text" x-bind:class="variantInputClasses" :name="`variants[${index}][sku]`" x-model="variant.sku">
+                                    <x-ui.input-control type="text" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][sku]`" x-model="variant.sku" />
                                 </div>
                                 <x-ui.checkbox
-                                        label="Is Active"
-                                        x-model="variant.is_active"
-                                        class="mt-7"
-                                />
+ label="Is Active"
+ x-model="variant.is_active"
+ class="mt-7"
+ />
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">Sort Order</label>
-                                    <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][sort_order]`" x-model="variant.sort_order">
+                                    <x-ui.input-control type="number" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][sort_order]`" x-model="variant.sort_order" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">Price</label>
-                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][price]`" x-model="variant.price" placeholder="Inherit base price">
+                                    <x-ui.input-control type="number" step="0.01" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][price]`" x-model="variant.price" placeholder="Inherit base price" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">Recommended Price</label>
-                                    <input type="number" step="0.01" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="No recommended price">
+                                    <x-ui.input-control type="number" step="0.01" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="No recommended price" />
                                 </div>
                             </div>
 
                             <div>
                                 <label class="mb-1 block pl-1 text-sm" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Details' : 'Variant Details'"></label>
-                                <textarea x-bind:class="variantTextareaClasses" :name="`variants[${index}][description]`" x-model="variant.description" :placeholder="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Describe who this licence tier covers and where it may be used.' : 'Optional extra notes for this option.'"></textarea>
+                                <x-ui.textarea-control x-bind:class="variantTextareaClasses" x-bind:name="`variants[${index}][description]`" x-model="variant.description" x-bind:placeholder="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Describe who this licence tier covers and where it may be used.' : 'Optional extra notes for this option.'"></x-ui.textarea-control>
                             </div>
 
                             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -737,7 +737,7 @@
                                     </div>
                                     <x-ui.button type="button" color="primary-outline-sm" x-on:click="addVariantProductDetail(index)">Add detail</x-ui.button>
                                 </div>
-                                <table class="w-full table-fixed border-collapse" x-show="(variant.product_details || []).length > 0" x-cloak>
+                                <x-ui.table variant="plain" table-class="w-full table-fixed border-collapse" x-show="(variant.product_details || []).length > 0" x-cloak>
                                     <thead class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                         <tr>
                                             <th class="w-2/5 px-3 py-2">Detail</th>
@@ -749,20 +749,20 @@
                                         <template x-for="(detail, detailIndex) in (variant.product_details || [])" :key="detailIndex">
                                             <tr>
                                                 <td class="border-r border-gray-200 p-0">
-                                                    <input type="text" :name="`variants[${index}][product_details][${detailIndex}][key]`" x-model="detail.key" :data-variant-detail-key="`${index}-${detailIndex}`" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="e.g. Pack size">
+                                                    <x-ui.input-control type="text" x-bind:name="`variants[${index}][product_details][${detailIndex}][key]`" x-model="detail.key" x-bind:data-variant-detail-key="`${index}-${detailIndex}`" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="e.g. Pack size" />
                                                 </td>
                                                 <td class="border-r border-gray-200 p-0">
-                                                    <input type="text" :name="`variants[${index}][product_details][${detailIndex}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Variant value" x-on:keydown.tab="addVariantProductDetailAfterTab($event, index, detailIndex)">
+                                                    <x-ui.input-control type="text" x-bind:name="`variants[${index}][product_details][${detailIndex}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Variant value" x-on:keydown.tab="addVariantProductDetailAfterTab($event, index, detailIndex)" />
                                                 </td>
                                                 <td class="p-0 text-center">
-                                                    <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" x-on:click="removeVariantProductDetail(index, detailIndex)" title="Remove detail" aria-label="Remove detail">
+                                                    <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" x-on:click="removeVariantProductDetail(index, detailIndex)" title="Remove detail" aria-label="Remove detail">
                                                         <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-                                                    </button>
+                                                    </x-ui.button>
                                                 </td>
                                             </tr>
                                         </template>
                                     </tbody>
-                                </table>
+                                </x-ui.table>
                                 <p class="px-3 py-3 text-sm text-gray-500" x-show="(variant.product_details || []).length === 0">No detail overrides.</p>
                             </div>
 
@@ -782,7 +782,7 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block pl-1 text-sm">Low-stock alert threshold</label>
-                                    <input type="number" min="1" x-bind:class="variantInputClasses" :name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold">
+                                    <x-ui.input-control type="number" min="1" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold" />
                                     <div class="mt-1 pl-1 text-xs text-gray-500">Leave blank to use the base product threshold.</div>
                                 </div>
                             </div>
@@ -795,19 +795,19 @@
                                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Length <span class="text-xs text-gray-500">(mm)</span></label>
-                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][length_mm]`" x-model="variant.length_mm" placeholder="Inherit base length">
+                                        <x-ui.input-control type="number" min="1" max="10000" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][length_mm]`" x-model="variant.length_mm" placeholder="Inherit base length" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Width <span class="text-xs text-gray-500">(mm)</span></label>
-                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][width_mm]`" x-model="variant.width_mm" placeholder="Inherit base width">
+                                        <x-ui.input-control type="number" min="1" max="10000" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][width_mm]`" x-model="variant.width_mm" placeholder="Inherit base width" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Height <span class="text-xs text-gray-500">(mm)</span></label>
-                                        <input type="number" min="1" max="10000" x-bind:class="variantInputClasses" :name="`variants[${index}][height_mm]`" x-model="variant.height_mm" placeholder="Inherit base height">
+                                        <x-ui.input-control type="number" min="1" max="10000" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][height_mm]`" x-model="variant.height_mm" placeholder="Inherit base height" />
                                     </div>
                                     <div>
                                         <label class="mb-1 block pl-1 text-sm">Packed Weight <span class="text-xs text-gray-500">(grams)</span></label>
-                                        <input type="number" min="0" x-bind:class="variantInputClasses" :name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight">
+                                        <x-ui.input-control type="number" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight" />
                                     </div>
                                 </div>
                             </div>
@@ -815,30 +815,30 @@
                             <div class="grid gap-4 md:grid-cols-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
                                 <div class="rounded-2xl border border-gray-200 bg-white px-4 py-4">
                                     <x-ui.checkbox
-                                        label="Allow back ordering"
-                                        noWrapper="true"
-                                        inline="true"
-                                        x-bind:name="`variants[${index}][allow_backorder]`"
-                                        x-model="variant.allow_backorder"
-                                    />
+ label="Allow back ordering"
+ noWrapper="true"
+ inline="true"
+ x-bind:name="`variants[${index}][allow_backorder]`"
+ x-model="variant.allow_backorder"
+ />
                                     <div class="mt-4" x-show="variant.allow_backorder" x-cloak>
                                         <div class="grid gap-4 md:grid-cols-2">
                                             <div>
                                                 <label class="mb-1 block pl-1 text-sm">Backorder Estimate Type</label>
-                                                <select x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate_type]`" x-model="variant.backorder_shipping_estimate_type">
+                                                <x-ui.select-control x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_estimate_type]`" x-model="variant.backorder_shipping_estimate_type">
                                                     <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}">Specific date</option>
                                                     <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}">Days from today</option>
-                                                </select>
+                                                </x-ui.select-control>
                                             </div>
 
                                             <div x-show="variant.backorder_shipping_estimate_type === '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
                                                 <label class="mb-1 block pl-1 text-sm">Days from today</label>
-                                                <input type="number" min="1" step="1" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_offset_days]`" x-model="variant.backorder_shipping_offset_days">
+                                                <x-ui.input-control type="number" min="1" step="1" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_offset_days]`" x-model="variant.backorder_shipping_offset_days" />
                                             </div>
 
                                             <div x-show="variant.backorder_shipping_estimate_type !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
                                                 <label class="mb-1 block pl-1 text-sm">Shipping Date</label>
-                                                <input type="date" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate">
+                                                <x-ui.input-control type="date" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate" />
                                             </div>
                                         </div>
                                     </div>
@@ -897,31 +897,31 @@
                 </div>
             </div>
 
-            <div class="mt-6 flex flex-wrap gap-3 flex-col-reverse sm:flex-row-reverse justify-between">
-                <div class="flex flex-col sm:flex-row gap-3">
+            <x-ui.editor-actions>
+                <div class="ml-auto flex flex-wrap justify-end gap-3">
                     @isset($product)
                         <x-ui.button href="{{ route('shop.product.show', $product) }}" color="outline">View Product</x-ui.button>
                     @endisset
                     <x-ui.button type="submit">Save Product</x-ui.button>
                 </div>
                 @isset($product)
-                    <div class="flex flex-col sm:flex-row gap-3">
+                    <div data-editor-delete class="flex flex-wrap gap-3">
                         @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
                             <x-ui.button type="submit" color="outline" form="restore-product-form">Restore as Draft</x-ui.button>
                         @else
                             <x-ui.button type="submit" color="outline" form="archive-product-form">Archive Product</x-ui.button>
                         @endif
                         @if(! $product->store_order_items_exists)
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
                                 x-data
                                 x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
-                            >Delete Product</button>
+                            >Delete Product</x-ui.button>
                         @endif
                     </div>
                 @endisset
-            </div>
+            </x-ui.editor-actions>
         </form>
         @isset($product)
             @if($product->status === \App\Models\Product::STATUS_ARCHIVED)

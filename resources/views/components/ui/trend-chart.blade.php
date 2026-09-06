@@ -1,3 +1,5 @@
+@props(['chart'])
+
 @php
     $chartValues = collect($chart['series'])->flatMap(fn ($series) => $series['values']);
     $chartMin = min(0, (float) $chartValues->min());
@@ -18,7 +20,7 @@
     $barWidth = $barGroupWidth / max(1, $barSeriesIndexes->count());
 @endphp
 
-<div class="mt-5 border-t border-gray-100 pt-4">
+<div class="mt-5 min-w-0 max-w-full border-t border-gray-100 pt-4">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <h3 class="text-sm font-semibold text-gray-800">{{ $chart['title'] }}</h3>
@@ -33,8 +35,8 @@
             @endforeach
         </div>
     </div>
-    <div class="mt-3 overflow-x-auto" role="img" aria-label="{{ $chart['title'] }} trend graph">
-        <svg viewBox="0 0 700 225" class="h-auto min-w-[36rem] w-full" aria-hidden="true">
+    <div class="mt-3 min-w-0 max-w-full" role="img" aria-label="{{ $chart['title'] }} trend graph">
+        <svg viewBox="0 0 700 225" class="block h-auto w-full max-w-full" aria-hidden="true">
             @foreach([0, 0.5, 1] as $gridPosition)
                 @php
                     $gridY = $plotTop + ($gridPosition * $plotHeight);

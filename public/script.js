@@ -1,4 +1,18 @@
 let SM = {
+    // Reconnect page controls after a list replacement; abort old global listeners.
+    onDynamicList: (name, initialise) => {
+        let lifecycle;
+        const run = () => {
+            lifecycle?.abort();
+            lifecycle = new AbortController();
+            initialise(lifecycle.signal);
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+        else run();
+        document.addEventListener('sm:list-updated', (event) => {
+            if (event.detail.root.dataset.dynamicList === name) run();
+        });
+    },
     redirectIfSafe: (target) => {
         if (typeof target !== 'string' || target === '') {
             window.location.assign('/');
@@ -371,22 +385,103 @@ let SM = {
         }, Math.max(1000, Number.parseInt(String(intervalMs), 10) || 30000));
     },
 
-    alert: (title, text, type = 'info') =>{
-        const data = {
-            position: 'top-end',
-            timer: 7000,
-            toast: true,
-            title: title,
-            text: text,
-            showConfirmButton: false,
-            showCloseButton: true,
-            customClass: {
-                container: type,
-            }
-        }
-
-        Swal.fire(data);
+    feedbackIcon: (type) => {
+        const mark = type === 'success' ? '<path d="m8 12 3 3 5-6"/>'
+            : ['danger', 'error', 'warning'].includes(type) ? '<path d="M12 7v6m0 4h.01"/>'
+            : '<path d="m12 5 2 5 5 2-5 2-2 5-2-5-5-2 5-2Z"/>';
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${mark}</svg>`;
     },
+
+    decorateFeedback: (element) => {
+        if (!element?.style) return;
+        for (const dot of ['a', 'b']) {
+            element.style.setProperty(`--feedback-${dot}-duration`, `${3 + Math.random() * 3}s`);
+            element.style.setProperty(`--feedback-${dot}-delay`, `${-Math.random() * 6}s`);
+            element.style.setProperty(`--feedback-${dot}-x`, `${Math.round(Math.random() * 32 - 16)}px`);
+            element.style.setProperty(`--feedback-${dot}-y`, `${Math.round(Math.random() * 20 - 10)}px`);
+        }
+    },
+
+    feedback: (region, title, message, type = 'success') => {
+        if (!region) return SM.alert(title, message, type);
+        region.dataset.tone = ['success', 'info', 'warning', 'danger', 'error'].includes(type) ? type : 'info';
+        region.querySelector('[data-feedback-title]').textContent = title || '';
+        region.querySelector('[data-feedback-message]').textContent = message || '';
+        region.querySelector('[data-feedback-icon]').innerHTML = SM.feedbackIcon(type);
+        region.querySelector('[data-feedback-dismiss]').onclick = () => { region.hidden = true; };
+        SM.decorateFeedback(region);
+        region.hidden = false;
+    },
+
+    feedbackCountdown: (popup, duration) => {
+        if (!(duration > 0) || typeof Swal.getTimerLeft !== 'function') return () => {};
+        popup.classList.add('sm-feedback-timed');
+        popup.style.setProperty('--feedback-remaining', '100%');
+        let frame, disposed = false;
+        const update = () => {
+            if (disposed) return;
+            const remaining = Swal.getTimerLeft();
+            // SweetAlert can initialise its timer after the open callback.
+            if (typeof remaining === 'number') popup.style.setProperty('--feedback-remaining', `${Math.max(0, Math.min(1, remaining / duration)) * 100}%`);
+            frame = window.requestAnimationFrame(update);
+        };
+        update();
+        return () => {
+            disposed = true;
+            window.cancelAnimationFrame(frame);
+            popup.classList.remove('sm-feedback-timed');
+            popup.style.removeProperty('--feedback-remaining');
+        };
+    },
+
+    banner: (title, content, type = 'info', options = {}) => {
+        const tone = ['success', 'info', 'warning', 'danger', 'error'].includes(type) ? type : 'info';
+        let observer, clearCountdown;
+        const duration = options.timer ?? (['danger', 'error', 'warning'].includes(tone) ? 0 : 7000);
+        const position = () => {
+            const host = Swal.getContainer();
+            const nav = document.querySelector('[data-site-navbar]');
+            const bottom = nav ? nav.getBoundingClientRect().bottom : 0;
+            if (host) host.style.setProperty('--sm-feedback-top', `${Math.max(12, bottom + 12)}px`);
+        };
+        return Swal.fire({
+            titleText: title, ...(options.html ? { html: content } : { text: content }),
+            ...(options.target ? { target: options.target } : {}),
+            position: 'top', toast: true, width: 'min(36rem, calc(100vw - 2rem))',
+            icon: tone === 'danger' ? 'error' : tone,
+            iconHtml: SM.feedbackIcon(tone),
+            showConfirmButton: false, showCloseButton: true, closeButtonAriaLabel: 'Dismiss notification',
+            timer: duration,
+            timerProgressBar: false,
+            customClass: { container: `sm-feedback-host ${tone}`, popup: 'sm-feedback-card' },
+            showClass: { popup: 'sm-feedback-enter' },
+            hideClass: { popup: 'sm-feedback-leave' },
+            didOpen: popup => {
+                SM.decorateFeedback(popup);
+                clearCountdown = SM.feedbackCountdown(popup, duration);
+                position();
+                window.addEventListener('scroll', position, { passive: true });
+                window.addEventListener('resize', position);
+                const nav = document.querySelector('[data-site-navbar]');
+                if (nav && typeof ResizeObserver !== 'undefined') {
+                    observer = new ResizeObserver(position);
+                    observer.observe(nav);
+                }
+                popup.addEventListener('mouseenter', () => Swal.stopTimer());
+                popup.addEventListener('mouseleave', () => { if (!popup.contains(document.activeElement)) Swal.resumeTimer(); });
+                popup.addEventListener('focusin', () => Swal.stopTimer());
+                popup.addEventListener('focusout', event => { if (!popup.contains(event.relatedTarget)) Swal.resumeTimer(); });
+            },
+            didDestroy: () => {
+                clearCountdown?.();
+                observer?.disconnect();
+                window.removeEventListener('scroll', position);
+                window.removeEventListener('resize', position);
+            },
+        });
+    },
+
+    alert: (title, text, type = 'info') => SM.banner(title, text, type),
 
     confirm: (title, content, button, callback) => {
         if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
@@ -402,7 +497,7 @@ let SM = {
         }
 
         return Swal.fire({
-            position: 'top',
+            position: 'center',
             icon: 'warning',
             iconColor: '#b91c1c',
             title: title,
@@ -443,6 +538,13 @@ let SM = {
         const styleKey = String(type || 'info').toLowerCase();
         const style = styles[styleKey] || styles.info;
         const toast = options.toast === true;
+        if (toast && !options.showConfirmButton && !options.showCancelButton) {
+            return SM.banner(title, content, styleKey, { html: true, timer: options.timer }).then(result => {
+                if (result.isDismissed && typeof options.onDismiss === 'function') options.onDismiss(result);
+                if (typeof options.onClose === 'function') options.onClose(result);
+                return result;
+            });
+        }
         const customClass = typeof options.customClass === 'object' && options.customClass !== null
             ? {
                 ...options.customClass,
@@ -455,7 +557,7 @@ let SM = {
                     : {}),
             };
         const config = {
-            position: options.position || (toast ? 'top-end' : 'top'),
+            position: options.position || (toast ? 'bottom-end' : 'center'),
             title: title,
             html: content,
             icon: options.icon === false ? undefined : (options.icon || style.icon),

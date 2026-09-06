@@ -271,10 +271,10 @@
                 <h2 class="text-lg font-semibold mb-4">Overview</h2>
                 <x-ui.input label="Template Name" name="name" value="{{ old('name', $template->name ?? '') }}" />
                 <x-ui.input type="textarea" label="Notes" name="description" value="{{ old('description', $template->description ?? '') }}" rows="3" />
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <x-ui.grid class="gap-4 md:grid-cols-2">
                     <x-ui.input label="Duration" name="duration" value="{{ old('duration', $template->duration ?? '') }}" placeholder="e.g. 1 hr, 1.5 hours, or 90 mins" />
                     <x-ui.input label="Participants" name="participants" value="{{ old('participants', $template->participants ?? '') }}" placeholder="e.g. 10 or 10-15" />
-                </div>
+                </x-ui.grid>
             </div>
 
             <template x-teleport="#workshop-template-tasks">
@@ -285,24 +285,24 @@
                 </div>
                 <div class="space-y-3">
                     <template x-for="(task, index) in tasks" :key="task.id || `new-task-${index}`">
-                        <div class="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                        <x-ui.grid class="gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
                             <div>
                                 <label class="block text-sm pl-1 mb-1">Task</label>
                                 <div class="flex gap-4 items-center">
-                                    <input class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)">
-                                    <div class="flex items-center justify-end gap-3">
-                                        <button type="button" class="text-gray-700 hover:text-primary-color" x-on:click="openTaskEditor(index)" title="Notes, subtasks, and reminder"><i class="fa-solid fa-sliders"></i></button>
-                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
-                                        <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
-                                        <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeTask(index)" title="Remove"><i class="fa-solid fa-trash"></i></button>
-                                    </div>
+                                    <x-ui.input-control class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)" />
+                                    <x-ui.row-actions :menu="false">
+                                        <x-ui.row-action label="Notes, subtasks, and reminder" icon="fa-solid fa-sliders" tone="neutral" type="button" x-on:click="openTaskEditor(index)" />
+                                        <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" />
+                                        <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" />
+                                        <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeTask(index)" />
+                                    </x-ui.row-actions>
                                 </div>
                                 <div class="mt-1 pl-1 flex flex-wrap gap-2 text-xs text-gray-500">
                                     <span x-show="String(task.notes || '').trim() !== ''"><i class="fa-regular fa-note-sticky mr-1"></i>Has notes</span>
                                     <span x-show="task.reminder_enabled"><i class="fa-regular fa-bell mr-1"></i><span x-text="`${task.reminder_days} day${Number(task.reminder_days) === 1 ? '' : 's'} ${task.reminder_direction} at ${task.reminder_time}`"></span></span>
                                 </div>
                             </div>
-                        </div>
+                        </x-ui.grid>
                     </template>
                 </div>
             </div>
@@ -314,17 +314,17 @@
                             <div class="mb-4 flex items-center justify-between gap-3">
                                 <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
                                 <div class="flex items-center gap-3">
-                                    <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></button>
-                                    <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark"></i></button>
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></x-ui.button>
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark"></i></x-ui.button>
                                 </div>
                             </div>
 
                             <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
-                                <button type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</button>
+                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</x-ui.button>
                                 <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-tab-${subtaskIndex}`">
-                                    <button type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === `subtask-${subtaskIndex}` ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = `subtask-${subtaskIndex}`" x-text="subtask.title || `Subtask ${subtaskIndex + 1}`"></button>
+                                    <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === `subtask-${subtaskIndex}` ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = `subtask-${subtaskIndex}`" x-text="subtask.title || `Subtask ${subtaskIndex + 1}`"></x-ui.button>
                                 </template>
-                                <button type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus"></i></button>
+                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus"></i></x-ui.button>
                             </div>
 
                             <div x-show="taskEditorTab === 'details'">
@@ -333,7 +333,7 @@
 
                                 <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
                                     <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
-                                    <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
+                                    <x-ui.grid class="mt-4 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
                                         <x-ui.input type="number" min="0" max="365" step="1" label="Days" name="task_reminder_days_display" :noLabel="false" x-model="tasks[taskEditorIndex].reminder_days" />
                                         <x-ui.select label="When" name="task_reminder_direction_display" x-model="tasks[taskEditorIndex].reminder_direction">
                                             <option value="before">Before workshop</option>
@@ -344,15 +344,15 @@
                                             <option value="12:00">12:00pm</option>
                                             <option value="16:00">4:00pm</option>
                                         </x-ui.select>
-                                    </div>
+                                    </x-ui.grid>
                                 </div>
                             </div>
 
                             <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-panel-${subtaskIndex}`">
                                 <div x-show="taskEditorTab === `subtask-${subtaskIndex}`">
                                     <div class="mb-4 flex items-end gap-3">
-                                        <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><input type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title"></label>
-                                        <button type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                                        <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title" /></label>
+                                        <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1"></i>Remove</x-ui.button>
                                     </div>
                                     @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Subtask content'])
                                     <x-ui.mini-editor x-model="subtask.content" />
@@ -377,13 +377,13 @@
                 </template>
 
                 <div x-show="items.length > 0">
-                    <table class="min-w-full border border-gray-200 rounded-md">
+                    <x-ui.table variant="plain" table-class="min-w-full border border-gray-200 rounded-md">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="text-left p-2 border-b border-gray-300">Item</th>
-                                <th class="text-left p-2 border-b border-gray-300 hidden md:table-cell">Type</th>
+                                <th class="p-2 border-b border-gray-300 hidden md:table-cell text-center!">Type</th>
                                 <th class="text-left p-2 border-b border-gray-300 hidden md:table-cell">Quantity</th>
-                                <th class="text-left p-2 border-b border-gray-300">Actions</th>
+                                <th class="text-center! p-2 border-b border-gray-300">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -396,7 +396,7 @@
                                         <input type="hidden" x-model="item.quantity_type" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null">
                                         <input type="hidden" x-model="item.quantity_value" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_value]` : null">
 
-                                        <div class="md:hidden grid grid-cols-1 gap-2">
+                                        <x-ui.grid class="md:hidden gap-2">
                                             <div>
                                                 <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Item</label>
                                                 <x-ui.input
@@ -441,7 +441,7 @@
                                                         x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
                                                 </div>
                                             </div>
-                                        </div>
+                                        </x-ui.grid>
 
                                         <div class="hidden md:block">
                                             <x-ui.input
@@ -456,7 +456,7 @@
                                                 x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
                                         </div>
                                     </td>
-                                    <td class="p-2 align-top hidden md:table-cell">
+                                    <td class="p-2 align-top hidden md:table-cell text-center!">
                                         <x-ui.select
                                             name="quantity_type_placeholder_desktop"
                                             label="Type"
@@ -484,22 +484,16 @@
                                             x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-middle">
-                                        <div class="flex items-center justify-center gap-3 h-full">
-                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveUp(index)" :disabled="index === 0 || isBlankItem(item)" title="Move up">
-                                                <i class="fa-solid fa-arrow-up"></i>
-                                            </button>
-                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveDown(index)" :disabled="index >= (items.length - 2) || isBlankItem(item)" title="Move down">
-                                                <i class="fa-solid fa-arrow-down"></i>
-                                            </button>
-                                            <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeItem(index)" title="Remove">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
+                                        <x-ui.row-actions :menu="false" class="h-full">
+                                            <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveUp(index)" x-bind:disabled="index === 0 || isBlankItem(item)" />
+                                            <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveDown(index)" x-bind:disabled="index >= (items.length - 2) || isBlankItem(item)" />
+                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeItem(index)" />
+                                        </x-ui.row-actions>
                                     </td>
                                 </tr>
                             </template>
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
             </div>
 
@@ -534,7 +528,7 @@
                 <template x-for="name in attachments" :key="name">
                     <input type="hidden" name="attachments[]" x-bind:value="name">
                 </template>
-                <input type="file" name="attachment_uploads[]" multiple class="hidden" x-ref="attachmentUploads" x-on:change="addAttachmentFiles($event.target.files)">
+                <x-ui.input-control type="file" name="attachment_uploads[]" multiple class="hidden" x-ref="attachmentUploads" x-on:change="addAttachmentFiles($event.target.files)" />
                 <div
                     class="mt-3 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center transition hover:border-primary-color hover:bg-sky-50"
                     x-on:dragover.prevent="$el.classList.add('border-primary-color', 'bg-sky-50')"
@@ -556,7 +550,7 @@
                             <div class="flex shrink-0 items-center gap-3">
                                 <a x-show="attachmentDetails[name]?.view_url" x-bind:href="attachmentDetails[name]?.view_url" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment"><i class="fa-solid fa-eye"></i></a>
                                 <a x-show="attachmentDetails[name]?.download_url" x-bind:href="attachmentDetails[name]?.download_url" class="text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
-                                <button type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark"></i></button>
+                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark"></i></x-ui.button>
                             </div>
                         </div>
                     </template>
@@ -565,7 +559,7 @@
                     <template x-for="(item, index) in pendingAttachments" :key="item.key">
                         <div class="flex items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm">
                             <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="`${item.file.type || 'File'} · ${attachmentSize(item.size)}`"></div></div>
-                            <button type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark"></i></button>
+                            <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark"></i></x-ui.button>
                         </div>
                     </template>
                 </div>

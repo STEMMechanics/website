@@ -110,34 +110,33 @@
                     </div>
 
                     <div class="mt-4 flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm focus-within:border-indigo-300">
-                        <input
+                        <x-ui.input-control
                             id="icon_class"
                             name="icon_class"
                             type="text"
                             class="w-full border-0 p-0 text-sm text-gray-900 focus:outline-none focus:ring-0"
                             x-model="iconClass"
-                            placeholder="fa-solid fa-tag"
-                        />
+                            placeholder="fa-solid fa-tag" />
                     </div>
 
                     <div class="mt-4 flex flex-wrap gap-2 justify-center">
                         <template x-for="icon in iconSuggestions" :key="icon">
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="h-12 w-12 flex aspect-square items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:border-primary-color hover:text-primary-color"
-                                :class="iconClass === icon ? 'border-primary-color bg-primary-color/5 text-primary-color' : ''"
+                                x-bind:class="iconClass === icon ? 'border-primary-color bg-primary-color/5 text-primary-color' : ''"
                                 x-on:click="iconClass = icon"
-                                :title="icon"
+                                x-bind:title="icon"
                             >
                                 <i class="text-lg" :class="icon"></i>
-                            </button>
+                            </x-ui.button>
                         </template>
                     </div>
                 </div>
             </div>
         </form>
 
-        <div class="mt-6 flex items-center justify-between gap-4">
+        <x-ui.editor-actions>
             @if(isset($category))
                 <form
                     method="POST"
@@ -147,13 +146,11 @@
                 >
                     @csrf
                     @method('DELETE')
-                    <x-ui.button type="submit" color="danger">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="submit" color="danger">Delete</x-ui.button>
                 </form>
-            @else
-                <div></div>
             @endif
 
             <x-ui.button type="submit" form="workshop-category-form">Save</x-ui.button>
-        </div>
+        </x-ui.editor-actions>
     </x-container>
 </x-layout>

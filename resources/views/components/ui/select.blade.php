@@ -1,4 +1,4 @@
-@props(['innerClass' => '', 'selectClass' => '', 'labelClass' => '', 'name' => null, 'label', 'value' => '', 'readonly' => false, 'disabled' => false, 'info' => null, 'error' => null, 'noLabel' => false, 'inlineLabel' => false, 'multiple' => false, 'options' => []])
+@props(['innerClass' => '', 'selectClass' => '', 'labelClass' => '', 'name' => null, 'label', 'value' => '', 'readonly' => false, 'disabled' => false, 'info' => null, 'infoExpression' => null, 'error' => null, 'noLabel' => false, 'inlineLabel' => false, 'multiple' => false, 'options' => []])
 
 @php
     $name = is_string($name) ? trim($name) : $name;
@@ -44,7 +44,7 @@
                 <div x-cloak x-show="open" class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
                     <template x-for="option in options" :key="option.value">
                         <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 hover:bg-gray-50">
-                            <input type="checkbox" :value="option.value" x-model="selected" class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-indigo-300">
+                            <x-ui.checkbox bare small x-bind:value="option.value" x-model="selected" />
                             <span class="text-sm text-gray-800" x-text="option.label"></span>
                         </label>
                     </template>
@@ -57,8 +57,10 @@
         <i class="fa-solid fa-caret-down absolute text-gray-700 text-2xl right-3 bottom-2.25 pointer-events-none"></i>
         @endif
     </div>
-    @if(is_string($info) && trim($info) !== '')
-        <div class="text-xs text-gray-500 ml-2 mt-1" x-text="{{ $info }}">{{ $info }}</div>
+    @if(is_string($infoExpression) && trim($infoExpression) !== '')
+        <div class="text-xs text-gray-500 ml-2 mt-1" x-text="{{ $infoExpression }}"></div>
+    @elseif(is_string($info) && trim($info) !== '')
+        <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
     @endif
     @if ($hasError)
         <div class="text-xs text-red-600 ml-2 mt-2">{{ $error }}</div>

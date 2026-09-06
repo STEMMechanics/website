@@ -94,6 +94,24 @@ class Invoice extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Invoice $invoice): void {
+            $actor = auth()->user();
+            if ($invoice->created_by === null && $actor instanceof User && $actor->isAdmin()) {
+                $invoice->created_by = $actor->id;
+            }
+        });
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */

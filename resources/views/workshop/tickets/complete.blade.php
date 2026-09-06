@@ -83,7 +83,7 @@
 
                 @if($tickets->isNotEmpty())
                 <div class="border border-gray-300 rounded-lg">
-                    <table class="w-full">
+                    <x-ui.table variant="plain" table-class="w-full">
                         <thead>
                             <tr class="bg-gray-100 text-left text-sm rounded-t-lg">
                                 <th class="px-3 py-2">ID</th>
@@ -97,7 +97,7 @@
                                 <td class="px-3 py-2">
                                     <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
                                     @if($ticket->isEarlyBirdTicket())
-                                        <div class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Early bird</div>
+                                        <x-ui.badge color="amber" uppercase class="mt-1">Early bird</x-ui.badge>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2">{{ trim(($ticket->firstname ?? '').' '.($ticket->surname ?? '')) ?: '-' }}<br><span class="text-gray-500 text-xs">{{ $ticket->email ?: '-' }}</span></td>
@@ -114,7 +114,7 @@
                             </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
                 @endif
 

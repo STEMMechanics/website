@@ -17,6 +17,8 @@ class MediaUsageService
     public function usedMediaNames(): array
     {
         $usedMediaNames = [];
+        $heroImage = \App\Support\HomeHero::content()['image'];
+        if ($heroImage !== '') $usedMediaNames[$heroImage] = true;
 
         $this->collectPivotReferences($usedMediaNames);
         $this->collectDirectReferences($usedMediaNames);
@@ -36,6 +38,9 @@ class MediaUsageService
         }
 
         $usages = [];
+        if (\App\Support\HomeHero::content()['image'] === $mediaName) {
+            $usages[] = ['type' => 'Homepage hero', 'label' => 'Homepage', 'detail' => 'Hero background image', 'url' => route('admin.site_option.hero'), 'public' => true];
+        }
 
         $this->collectDirectUsageDetails($usages, $mediaName);
         $this->collectContentUsageDetails($usages, $mediaName);

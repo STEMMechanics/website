@@ -1,41 +1,38 @@
 <x-layout>
-    <x-mast>Store Vouchers</x-mast>
+    <x-mast>Store Vouchers
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button></x-slot:actions>
+    </x-mast>
 
-    <x-container>
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-shop-coupon">
+        <x-ui.collection-controls class="my-5" />
 
         @if($coupons->isEmpty())
             <x-none-found item="vouchers" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Code</th>
-                    <th class="hidden lg:table-cell">Status</th>
-                    <th class="hidden md:table-cell">Type</th>
-                    <th class="hidden xl:table-cell">Products</th>
-                    <th class="hidden xl:table-cell">Workshops</th>
-                    <th>Amount</th>
-                    <th class="hidden md:table-cell">Used</th>
-                    <th>Action</th>
+                    <x-ui.list-heading label="Code" />
+                    <x-ui.list-heading class="hidden lg:table-cell text-center!" label="Status" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Type" />
+                    <x-ui.list-heading class="hidden xl:table-cell" label="Products" />
+                    <x-ui.list-heading class="hidden xl:table-cell" label="Workshops" />
+                    <x-ui.list-heading class="text-center!" label="Amount" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Used" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($coupons as $coupon)
                         <tr>
                             <td>
                                 <a href="{{ route('admin.shop.coupon.edit', $coupon) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $coupon->code }}</a>
+                                <div class="mt-1 lg:hidden"><x-ui.badge :color="$coupon->status === \App\Models\Coupon::STATUS_ACTIVE ? 'success' : 'gray'">{{ \App\Models\Coupon::statusLabel((string) $coupon->status) }}</x-ui.badge></div>
                                 @if($coupon->description)
                                     <div class="text-xs text-gray-500">{{ $coupon->description }}</div>
                                 @endif
                             </td>
-                            <td class="hidden lg:table-cell">{{ \App\Models\Coupon::statusLabel((string) $coupon->status) }}</td>
-                            <td class="hidden md:table-cell">{{ \App\Models\Coupon::discountTypeLabel((string) $coupon->discount_type) }}</td>
+                            <td class="hidden lg:table-cell text-center!"><x-ui.badge :color="$coupon->status === \App\Models\Coupon::STATUS_ACTIVE ? 'success' : 'gray'">{{ \App\Models\Coupon::statusLabel((string) $coupon->status) }}</x-ui.badge></td>
+                            <td class="hidden md:table-cell text-center!">{{ \App\Models\Coupon::discountTypeLabel((string) $coupon->discount_type) }}</td>
                             <td class="hidden xl:table-cell">
                                 @if(! $coupon->applies_to_products)
                                     Off
@@ -54,7 +51,7 @@
                                     All
                                 @endif
                             </td>
-                            <td>
+                            <td class="text-center!">
                                 @if((string) $coupon->discount_type === \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)
                                     {{ number_format((float) $coupon->amount, 2) }}%
                                 @elseif((string) $coupon->discount_type === \App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)
@@ -64,10 +61,10 @@
                                 @endif
                             </td>
                             <td class="hidden md:table-cell">{{ $coupon->orders_count }}</td>
-                            <td>
-                                <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.shop.coupon.edit', $coupon) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
-                                </div>
+                            <td class="text-center!">
+                                <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.coupon.edit', $coupon) }}" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
@@ -75,8 +72,9 @@
             </x-ui.table>
 
             <div class="mt-6">
-                {{ $coupons->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$coupons" />
             </div>
         @endif
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

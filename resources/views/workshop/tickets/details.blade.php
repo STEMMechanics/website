@@ -77,16 +77,16 @@
                         <div class="font-semibold mb-2">
                             Ticket {{ $index + 1 }} - {{ $ticket->reference_code }}
                             @if($ticket->isEarlyBirdTicket())
-                                <span class="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 align-middle">Early bird</span>
+                                <x-ui.badge color="amber" uppercase class="ml-2 align-middle">Early bird</x-ui.badge>
                             @endif
                         </div>
                         <input type="hidden" name="tickets[{{ $index }}][id]" value="{{ $ticket->id }}">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <x-ui.grid class="sm:grid-cols-2 gap-3">
                             <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][surname]" label="Surname" value="{{ old('tickets.'.$index.'.surname', $ticket->surname) }}" required />
                             <x-ui.input type="email" name="tickets[{{ $index }}][email]" label="Email" value="{{ old('tickets.'.$index.'.email', $ticket->email) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][phone]" label="Phone" value="{{ old('tickets.'.$index.'.phone', $ticket->phone) }}" required />
-                        </div>
+                        </x-ui.grid>
                     </div>
                     @endforeach
 

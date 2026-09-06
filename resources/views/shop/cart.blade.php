@@ -48,40 +48,39 @@
                             <div>
                                 <div class="mb-1 text-sm font-medium text-gray-700">Qty</div>
                                 <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
-                                    <button
+                                    <x-ui.button variant="plain"
                                         type="button"
                                         class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                        :disabled="busyLineKey === line.key"
-                                        @click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
-                                    >-</button>
-                                    <input
+                                        x-bind:disabled="busyLineKey === line.key"
+                                        x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
+                                    >-</x-ui.button>
+                                    <x-ui.input-control
                                         type="text"
                                         inputmode="numeric"
                                         pattern="[0-9]*"
                                         autocomplete="off"
-                                        :value="line.quantity"
+                                        x-bind:value="line.quantity"
                                         class="shop-catalog-stepper-input h-9 min-w-14 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                        :disabled="busyLineKey === line.key"
-                                        @input="sanitizeCartQuantityInput($event.target)"
-                                        @change="changeCartQuantity(line.key, $event.target.value, line.max_quantity, $event.target, line.quantity)"
-                                    />
-                                    <button
+                                        x-bind:disabled="busyLineKey === line.key"
+                                        x-on:input="sanitizeCartQuantityInput($event.target)"
+                                        x-on:change="changeCartQuantity(line.key, $event.target.value, line.max_quantity, $event.target, line.quantity)" />
+                                    <x-ui.button variant="plain"
                                         type="button"
                                         class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                        :disabled="busyLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                        @click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
-                                    >+</button>
+                                        x-bind:disabled="busyLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
+                                        x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
+                                    >+</x-ui.button>
                                 </div>
                             </div>
                             <div class="text-right">
                                 <div class="text-sm text-gray-500">Items</div>
                                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(line.line_price)"></div>
-                                <button
+                                <x-ui.button variant="plain"
                                     type="button"
                                     class="mt-2 text-sm text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                                    :disabled="busyLineKey === line.key"
-                                    @click="removeCartLine(line.key)"
-                                >Remove</button>
+                                    x-bind:disabled="busyLineKey === line.key"
+                                    x-on:click="removeCartLine(line.key)"
+                                >Remove</x-ui.button>
                             </div>
                         </div>
                     </template>
@@ -117,14 +116,13 @@
                         <template x-for="method in cartState.summary.shipping_methods" :key="method.code">
                             <label class="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border px-4 py-4 transition" :class="selectedShippingMethodCode === method.code ? 'border-sky-500 bg-sky-50' : 'border-gray-200 bg-white'">
                                 <span class="flex items-start gap-3">
-                                    <input
+                                    <x-ui.input-control
                                         type="radio"
                                         name="shipping_method_code"
                                         class="mt-1 h-5 w-5 border-gray-300 text-sky-600 focus:ring-sky-500"
-                                        :value="method.code"
+                                        x-bind:value="method.code"
                                         x-model="selectedShippingMethodCode"
-                                        @change="scheduleDeliveryUpdate()"
-                                    >
+                                        x-on:change="scheduleDeliveryUpdate()" />
                                     <span class="block">
                                         <span class="block text-sm font-semibold text-gray-900" x-text="method.name"></span>
                                         <span x-show="method.description" class="mt-1 block text-sm text-gray-600" x-text="method.description"></span>
@@ -136,14 +134,13 @@
                         </template>
 
                         <label x-show="cartState.summary.shipping_quote.offers_consolidation && selectedShippingMethodCode !== 'pickup'" x-cloak class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700">
-                            <input
-                                type="checkbox"
-                                name="consolidate_shipments"
-                                value="1"
-                                class="mt-0.5 h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                                x-model="consolidateShipments"
-                                @change="scheduleDeliveryUpdate()"
-                            >
+                            <x-ui.checkbox bare small
+
+ name="consolidate_shipments"
+ value="1"
+ class="mt-0.5"
+ x-model="consolidateShipments"
+ x-on:change="scheduleDeliveryUpdate()" />
                             <span>
                                 Consolidate into one shipment when everything is available.
                                 <span x-show="hasConsolidationSavings()" x-cloak class="mt-1 block text-xs text-gray-500" x-text="consolidationSavingsLabel()">@if($consolidationSavingsAmount > 0.0001)Save ${{ number_format($consolidationSavingsAmount, 2) }} by sending everything together.@endif</span>
@@ -166,9 +163,9 @@
                             </div>
 
                             <div class="flex items-center gap-2">
-                                <button type="button" class="inline-flex items-center justify-center rounded-md border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" :disabled="deliveryUpdateBusy" @click="applyDeliveryUpdate()">Refresh quote</button>
+                                <x-ui.button variant="plain" type="button" class="inline-flex items-center justify-center rounded-md border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-300 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" x-bind:disabled="deliveryUpdateBusy" x-on:click="applyDeliveryUpdate()">Refresh quote</x-ui.button>
                                 <noscript>
-                                    <button type="submit" class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">Update delivery</button>
+                                    <x-ui.button variant="plain" type="submit" class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">Update delivery</x-ui.button>
                                 </noscript>
                             </div>
                         </div>
@@ -224,14 +221,14 @@
                                 <span x-text="currentCouponCode() !== '' ? 'Applied ' + 'voucher:' : ''">{{ $couponCode ? 'Applied voucher:' : '' }}</span>
                                 <strong x-text="currentCouponCode()">{{ $couponCode }}</strong>
                             </div>
-                            <button
+                            <x-ui.button variant="plain"
                                 type="submit"
                                 class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="Remove voucher"
-                                :disabled="couponBusy"
+                                x-bind:disabled="couponBusy"
                             >
                                 <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
-                            </button>
+                            </x-ui.button>
                         </div>
                     </form>
 
@@ -271,10 +268,10 @@
                         <x-ui.button href="{{ route('shop.checkout') }}" class="w-full">Checkout</x-ui.button>
                     </template>
                     <template x-if="cartState.summary.can_checkout && checkoutLocked()">
-                        <button type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</button>
+                        <x-ui.button variant="plain" type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</x-ui.button>
                     </template>
                     <template x-if="!cartState.summary.can_checkout">
-                        <button type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Checkout unavailable</button>
+                        <x-ui.button variant="plain" type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Checkout unavailable</x-ui.button>
                     </template>
                     <p x-show="!cartState.summary.can_checkout && cartState.summary.shipping_quote.reason" class="text-sm text-gray-600" x-text="cartState.summary.shipping_quote.reason"></p>
                 </div>

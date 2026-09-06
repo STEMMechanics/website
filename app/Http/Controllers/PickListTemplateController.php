@@ -34,7 +34,7 @@ class PickListTemplateController extends Controller
             });
         }
 
-        $templates = $query->orderBy('name')->paginate(20)->onEachSide(1);
+        $templates = $query->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
 
         return view('admin.pick-list-template.index', [
             'templates' => $templates,

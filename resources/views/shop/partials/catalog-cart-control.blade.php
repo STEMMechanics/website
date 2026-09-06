@@ -108,27 +108,26 @@
 
     <div x-show="quantity > 0" x-cloak>
         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
-            <button
+            <x-ui.button variant="plain"
                 type="button"
                 class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                :disabled="busy"
-                @click="change(quantity - 1)"
-            >-</button>
-            <input
+                x-bind:disabled="busy"
+                x-on:click="change(quantity - 1)"
+            >-</x-ui.button>
+            <x-ui.input-control
                 type="number"
                 min="0"
-                :max="maxQuantity"
-                :value="quantity"
+                x-bind:max="maxQuantity"
+                x-bind:value="quantity"
                 class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                :disabled="busy"
-                @change="change($event.target.value)"
-            />
-            <button
+                x-bind:disabled="busy"
+                x-on:change="change($event.target.value)" />
+            <x-ui.button variant="plain"
                 type="button"
                 class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                :disabled="busy || quantity >= maxQuantity"
-                @click="change(quantity + 1)"
-            >+</button>
+                x-bind:disabled="busy || quantity >= maxQuantity"
+                x-on:click="change(quantity + 1)"
+            >+</x-ui.button>
         </div>
     </div>
 </div>

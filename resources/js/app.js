@@ -1,8 +1,6 @@
 import './bootstrap';
 import './media-picker.js';
 import './tooltip.js';
-import './editor/TipTap.js';
-import './editor/MiniEditor.js';
 import './workshop-pick-list.js';
 
 document.addEventListener('click', (event) => {
@@ -14,3 +12,15 @@ document.addEventListener('click', (event) => {
 
     spoiler.classList.toggle('is-revealed');
 });
+
+import './device-preferences.js';
+
+import './dynamic-lists.js';
+
+import './list-controls';
+import './admin-media-list';
+import './bulk-editor';
+
+import './reminder-list';
+
+import './list-reorder';

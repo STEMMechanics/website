@@ -60,7 +60,7 @@
         @if($type === 'textarea')
             <div class="relative">
                 <textarea class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
-                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}</label>
+                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}</label>
             </div>
         @elseif($hasSuggestions)
             <div
@@ -209,7 +209,7 @@
                     @disabled($disabled)
                     {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete', 'x-on:input']) }}
                 />
-                <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
+                <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
                 <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                     <ul class="max-h-60 overflow-auto py-1">
                         <template x-for="(item, index) in filtered" :key="item + '-' + index">
@@ -227,7 +227,7 @@
         @else
             <div class="relative">
                 <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
-                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
+                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
             </div>
         @endif
     @elseif($noLabel)
@@ -456,7 +456,7 @@
         <div class="{{ ($inline ? 'flex items-center gap-2' : '') }}">
             <label for="{{ $name }}" class="{{ twMerge(['flex','text-sm','pl-1','items-center'], $labelClass) }}">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
             @if($type === 'textarea')
-                <textarea class="{{ twMerge(['pt-2.5','mt-1','h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
+                <textarea class="{{ twMerge(['pt-2.5', 'mt-1', $attributes->has('rows') ? 'h-auto' : 'h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
             @elseif($hasSuggestions)
                 <div
                     class="relative mt-1"

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\PushDeviceController;
 use App\Http\Controllers\AdminStemcraftContentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
@@ -188,7 +189,7 @@ Route::post('/login', [AuthController::class, 'postLogin'])->middleware('throttl
 Route::get('/logout', [AuthController::class, 'showLogout'])->name('logout.show');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'postRegister'])->name('register.store');
+Route::post('/register', [AuthController::class, 'postRegister'])->middleware('throttle:public-form')->name('register.store');
 Route::get('/update-email', [AuthController::class, 'updateEmail'])->name('update.email');
 
 Route::get('/about', function () {
@@ -218,10 +219,16 @@ Route::get('/media/download/{media}', [MediaController::class, 'download'])->nam
 Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
+    Route::get('/admin/push-devices', [PushDeviceController::class, 'index'])->name('admin.push-devices.index');
+    Route::put('/admin/push-devices', [PushDeviceController::class, 'update'])->middleware('throttle:30,1')->name('admin.push-devices.update');
+    Route::delete('/admin/push-devices', [PushDeviceController::class, 'destroy'])->middleware('throttle:30,1')->name('admin.push-devices.destroy');
+    Route::post('/admin/push-devices/test', [PushDeviceController::class, 'sendTest'])->middleware('throttle:6,1')->name('admin.push-devices.test');
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
+    Route::get('/admin/media/selection', [MediaController::class, 'admin_selection'])->name('admin.media.selection');
+    Route::patch('/admin/media/{media}/details', [MediaController::class, 'admin_quick_update'])->name('admin.media.quick-update');
     Route::get('/admin/media/duplicates', [MediaController::class, 'admin_duplicates'])->name('admin.media.duplicates');
     Route::post('/admin/media/duplicates/merge', [MediaController::class, 'admin_merge_duplicates'])->name('admin.media.duplicates.merge');
     Route::post('/admin/media/duplicates/scan-similar', [MediaController::class, 'admin_scan_similar'])->name('admin.media.duplicates.scan-similar');
@@ -231,7 +238,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/media/regenerate-missing-variants', [MediaController::class, 'admin_regenerate_missing_variants'])->name('admin.media.regenerate-missing-variants');
     Route::get('/admin/media/regenerate-missing-variants/status', [MediaController::class, 'admin_regenerate_missing_variants_status'])->name('admin.media.regenerate-missing-variants.status');
     Route::post('/admin/media/bulk', [MediaController::class, 'admin_bulk_select'])->name('admin.media.bulk.select');
-    Route::get('/admin/media/bulk/edit', [MediaController::class, 'admin_bulk_edit'])->name('admin.media.bulk.edit');
+    Route::redirect('/admin/media/bulk/edit', '/admin/media')->name('admin.media.bulk.edit');
     Route::put('/admin/media/bulk', [MediaController::class, 'admin_bulk_update'])->name('admin.media.bulk.update');
     Route::get('/admin/media/create', [MediaController::class, 'admin_create'])->name('admin.media.create');
     Route::post('/admin/media', [MediaController::class, 'admin_store'])->name('admin.media.store');
@@ -275,18 +282,22 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
 
+    Route::get('/admin/newsletter', [EmailSubscriptionController::class, 'newsletter'])->name('admin.newsletter.index');
+    Route::redirect('/admin/subscriptions/store-themes', '/admin/newsletter/themes');
+    Route::redirect('/admin/subscriptions/store-themes/create', '/admin/newsletter/themes/create');
+    Route::get('/admin/subscriptions/store-themes/{theme}', fn ($theme) => redirect()->route('admin.subscription.theme.edit', $theme));
     Route::get('/admin/subscriptions', [EmailSubscriptionController::class, 'index'])->name('admin.subscription.index');
     Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
     Route::post('/admin/subscriptions', [EmailSubscriptionController::class, 'store'])->name('admin.subscription.store');
     Route::post('/admin/subscriptions/send-all-now', [EmailSubscriptionController::class, 'sendAllNow'])->name('admin.subscription.send-all-now');
     Route::post('/admin/subscriptions/send-test-now', [EmailSubscriptionController::class, 'sendTestNow'])->name('admin.subscription.send-test-now');
     Route::put('/admin/subscriptions/store-promotion', [EmailSubscriptionController::class, 'updateStorePromotion'])->name('admin.subscription.store-promotion.update');
-    Route::get('/admin/subscriptions/store-themes', [NewsletterStoreThemeController::class, 'index'])->name('admin.subscription.theme.index');
-    Route::get('/admin/subscriptions/store-themes/create', [NewsletterStoreThemeController::class, 'create'])->name('admin.subscription.theme.create');
-    Route::post('/admin/subscriptions/store-themes', [NewsletterStoreThemeController::class, 'store'])->name('admin.subscription.theme.store');
-    Route::get('/admin/subscriptions/store-themes/{theme}', [NewsletterStoreThemeController::class, 'edit'])->name('admin.subscription.theme.edit');
-    Route::put('/admin/subscriptions/store-themes/{theme}', [NewsletterStoreThemeController::class, 'update'])->name('admin.subscription.theme.update');
-    Route::delete('/admin/subscriptions/store-themes/{theme}', [NewsletterStoreThemeController::class, 'destroy'])->name('admin.subscription.theme.destroy');
+    Route::get('/admin/newsletter/themes', [NewsletterStoreThemeController::class, 'index'])->name('admin.subscription.theme.index');
+    Route::get('/admin/newsletter/themes/create', [NewsletterStoreThemeController::class, 'create'])->name('admin.subscription.theme.create');
+    Route::post('/admin/newsletter/themes', [NewsletterStoreThemeController::class, 'store'])->name('admin.subscription.theme.store');
+    Route::get('/admin/newsletter/themes/{theme}', [NewsletterStoreThemeController::class, 'edit'])->name('admin.subscription.theme.edit');
+    Route::put('/admin/newsletter/themes/{theme}', [NewsletterStoreThemeController::class, 'update'])->name('admin.subscription.theme.update');
+    Route::delete('/admin/newsletter/themes/{theme}', [NewsletterStoreThemeController::class, 'destroy'])->name('admin.subscription.theme.destroy');
     Route::post('/admin/subscriptions/{subscription}/send-now', [EmailSubscriptionController::class, 'sendNow'])->name('admin.subscription.send-now');
     Route::get('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'edit'])->name('admin.subscription.edit');
     Route::put('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'update'])->name('admin.subscription.update');
@@ -299,6 +310,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/options', [SiteOptionController::class, 'store'])->name('admin.site_option.store');
     Route::post('/admin/server/options/reset-defaults', [SiteOptionController::class, 'resetAllDefaults'])->name('admin.site_option.reset-defaults');
     Route::post('/admin/server/options/maintenance-refresh', [SiteOptionController::class, 'refreshMaintenance'])->name('admin.site_option.maintenance-refresh');
+    Route::get('/admin/server/options/homepage-hero', [SiteOptionController::class, 'hero'])->name('admin.site_option.hero');
+    Route::put('/admin/server/options/homepage-hero', [SiteOptionController::class, 'updateHero'])->name('admin.site_option.hero.update');
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
@@ -367,7 +380,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/promotional-flyer', [WorkshopPromotionalFlyerController::class, 'create'])->name('admin.workshop-flyer.create');
     Route::post('/admin/workshops/promotional-flyer', [WorkshopPromotionalFlyerController::class, 'generate'])->name('admin.workshop-flyer.generate');
     Route::post('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_select'])->name('admin.workshop.bulk.select');
-    Route::get('/admin/workshops/bulk/edit', [WorkshopController::class, 'admin_bulk_edit'])->name('admin.workshop.bulk.edit');
+    Route::redirect('/admin/workshops/bulk/edit', '/admin/workshops')->name('admin.workshop.bulk.edit');
     Route::put('/admin/workshops/bulk', [WorkshopController::class, 'admin_bulk_update'])->name('admin.workshop.bulk.update');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
     Route::get('/admin/workshop-categories', [WorkshopCategoryController::class, 'index'])->name('admin.workshop-category.index');
@@ -538,6 +551,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/workshop-templates/{pickListTemplate}/duplicate', [PickListTemplateController::class, 'duplicate'])->name('admin.workshop-template.duplicate');
     Route::delete('/admin/workshop-templates/{pickListTemplate}', [PickListTemplateController::class, 'destroy'])->name('admin.workshop-template.destroy');
     Route::get('/admin/reminders', [ReminderController::class, 'index'])->name('admin.reminder.index');
+    Route::post('/admin/reminders/bulk/edit', [ReminderController::class, 'bulkEditor'])->name('admin.reminder.bulk.edit');
+    Route::put('/admin/reminders/bulk', [ReminderController::class, 'bulkUpdate'])->name('admin.reminder.bulk.update');
     Route::post('/admin/reminders/{reminder}/send-now', [ReminderController::class, 'sendNow'])->name('admin.reminder.send-now');
     Route::get('/admin/bas', [BasController::class, 'index'])->name('admin.bas.index');
     Route::get('/admin/bas/export/csv', [BasController::class, 'exportCsv'])->name('admin.bas.export.csv');
@@ -547,3 +562,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 });
 
 Route::fallback([CustomPageController::class, 'fallback']);
+
+Route::post('/security/csp-reports', \App\Http\Controllers\CspReportController::class)
+    ->middleware('throttle:30,1')->name('security.csp-report');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
+    Route::post('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1')->name('security.mfa.verify');
+});

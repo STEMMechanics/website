@@ -54,7 +54,7 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', env('LOG_STACK', 'single')),
+            'channels' => explode(',', env('LOG_STACK', 'daily')),
             'ignore_exceptions' => false,
         ],
 
@@ -63,6 +63,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
         'daily' => [
@@ -70,7 +71,9 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
+            'permission' => 0640,
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
         'slack' => [
@@ -80,6 +83,7 @@ return [
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
         'papertrail' => [
@@ -110,12 +114,14 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
         'null' => [
@@ -132,6 +138,7 @@ return [
             'path' => storage_path('logs/honeypot.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [\App\Logging\RedactSensitiveContext::class],
         ],
 
     ],

@@ -93,7 +93,7 @@
                             <h3 class="mt-1 text-2xl font-bold text-gray-900">Order Details</h3>
                             <p class="mt-2 text-sm text-gray-600">Contact details, delivery settings, item review, and order notes.</p>
                         </div>
-                        <button
+                        <x-ui.button variant="plain"
                             x-show="checkoutStep === 'payment'"
                             x-cloak
                             type="button"
@@ -101,7 +101,7 @@
                             x-on:click="editShipping()"
                         >
                             Edit
-                        </button>
+                        </x-ui.button>
                     </div>
 
                     <div x-show="checkoutStep === 'shipping'" x-cloak class="mt-6 space-y-6">
@@ -260,37 +260,36 @@
                                                 <div class="flex items-center gap-2">
                                                     <span class="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Qty</span>
                                                     <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
-                                                        <button
+                                                        <x-ui.button variant="plain"
                                                             type="button"
                                                             class="shop-catalog-stepper-button inline-flex h-8 w-8 items-center justify-center border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                            :disabled="busyLineKey === line.key || isSubmitting"
-                                                            @click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)"
-                                                        >-</button>
-                                                        <input
+                                                            x-bind:disabled="busyLineKey === line.key || isSubmitting"
+                                                            x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)"
+                                                        >-</x-ui.button>
+                                                        <x-ui.input-control
                                                             type="number"
                                                             min="0"
-                                                            :max="line.max_quantity || 99"
-                                                            :value="line.quantity"
+                                                            x-bind:max="line.max_quantity || 99"
+                                                            x-bind:value="line.quantity"
                                                             class="shop-catalog-stepper-input h-8 min-w-12 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                            :disabled="busyLineKey === line.key || isSubmitting"
-                                                            @change="changeCartQuantity(line.key, $event.target.value, line.max_quantity)"
-                                                        />
-                                                        <button
+                                                            x-bind:disabled="busyLineKey === line.key || isSubmitting"
+                                                            x-on:change="changeCartQuantity(line.key, $event.target.value, line.max_quantity)" />
+                                                        <x-ui.button variant="plain"
                                                             type="button"
                                                             class="shop-catalog-stepper-button inline-flex h-8 w-8 items-center justify-center border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                            :disabled="busyLineKey === line.key || isSubmitting || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                            @click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)"
-                                                        >+</button>
+                                                            x-bind:disabled="busyLineKey === line.key || isSubmitting || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
+                                                            x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)"
+                                                        >+</x-ui.button>
                                                     </div>
                                                 </div>
-                                                <div class="min-w-[4.5rem] text-right">
+                                                <div class="min-w-18 text-right">
                                                     <div class="hidden text-sm font-bold text-gray-900 lg:block" x-text="formatMoney(line.line_price)"></div>
-                                                    <button
+                                                    <x-ui.button variant="plain"
                                                         type="button"
                                                         class="mt-1 text-xs text-red-600 transition hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                                                        :disabled="busyLineKey === line.key || isSubmitting"
-                                                        @click="removeCartLine(line.key)"
-                                                    >Remove</button>
+                                                        x-bind:disabled="busyLineKey === line.key || isSubmitting"
+                                                        x-on:click="removeCartLine(line.key)"
+                                                    >Remove</x-ui.button>
                                                 </div>
                                             </div>
                                         </div>
@@ -306,15 +305,14 @@
                                 <template x-for="method in cartState.summary.shipping_methods" :key="method.code">
                                     <label class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition" :class="shippingMethodCode === method.code ? 'border-sky-500 bg-sky-50' : 'border-gray-200 bg-white'">
                                         <span class="flex min-w-0 items-center gap-4">
-                                            <input
+                                            <x-ui.input-control
                                                 type="radio"
                                                 name="shipping_method_code"
                                                 class="mt-1 h-5 w-5 border-gray-300 text-sky-600 focus:ring-sky-500"
-                                                :value="method.code"
+                                                x-bind:value="method.code"
                                                 x-model="shippingMethodCode"
-                                                :disabled="deliveryUpdateBusy || isSubmitting || !hasPhysicalItems()"
-                                                @change="scheduleDeliveryUpdate()"
-                                            >
+                                                x-bind:disabled="deliveryUpdateBusy || isSubmitting || !hasPhysicalItems()"
+                                                x-on:change="scheduleDeliveryUpdate()" />
                                             <span class="block">
                                                 <span class="block text-sm font-semibold text-gray-900" x-text="method.name"></span>
                                                 <span x-show="method.description" class="mt-0.5 block text-xs text-gray-500" x-text="method.description"></span>
@@ -327,15 +325,14 @@
                             </div>
 
                             <label x-show="currentCanOfferConsolidation() && shippingMethodCode !== 'pickup' && shippingMethodCode !== 'request_quote'" x-cloak class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                                <input
-                                    type="checkbox"
-                                    name="consolidate_shipments"
-                                    value="1"
-                                    class="mt-0.5 h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                                    x-model="consolidateShipments"
-                                    :disabled="deliveryUpdateBusy || isSubmitting || !currentCanOfferConsolidation()"
-                                    @change="scheduleDeliveryUpdate()"
-                            >
+                                <x-ui.checkbox bare small
+
+ name="consolidate_shipments"
+ value="1"
+ class="mt-0.5"
+ x-model="consolidateShipments"
+ x-bind:disabled="deliveryUpdateBusy || isSubmitting || !currentCanOfferConsolidation()"
+ x-on:change="scheduleDeliveryUpdate()" />
                                 <span>
                                     Hold everything and consolidate into one shipment once all items are available.
                                     <span x-show="hasConsolidationSavings()" x-cloak class="mt-1 block text-xs text-gray-500" x-text="consolidationSavingsLabel()">@if($consolidationSavingsAmount > 0.0001){{ (bool) ($summary['shipping_quote']['consolidate_shipments'] ?? false) ? 'Saving' : 'Save' }} ${{ number_format($consolidationSavingsAmount, 2) }} by sending everything together.@endif</span>
@@ -447,13 +444,13 @@
 {{--                                    <h4 class="text-lg font-bold text-gray-900">Review</h4>--}}
 {{--                                    <p class="mt-1 text-sm text-gray-600">You can still go back and edit shipping details before placing the order.</p>--}}
 {{--                                </div>--}}
-{{--                                <button--}}
+{{--                                <x-ui.button variant="plain"--}}
 {{--                                    type="button"--}}
 {{--                                    class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50"--}}
 {{--                                    x-on:click="editShipping()"--}}
 {{--                                >--}}
 {{--                                    Edit Shipping Details--}}
-{{--                                </button>--}}
+{{--                                </x-ui.button>--}}
 {{--                            </div>--}}
 
 {{--                            <div class="mt-5 grid gap-4 md:grid-cols-2">--}}
@@ -529,9 +526,9 @@
                         @endif
 
                         <div class="lg:hidden" x-show="checkoutStep === 'payment'" x-cloak>
-                            <button
+                            <x-ui.button variant="plain"
                                 type="submit"
-                                class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white inline-flex w-full items-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
+                                class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white inline-flex w-full items-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
                                 x-bind:disabled="placeOrderDisabled()"
                             >
                                 <span x-show="!isSubmitting" x-cloak x-text="checkoutSubmitLabel()">{{ $submitLabel }}</span>
@@ -539,7 +536,7 @@
                                     <span class="altcha-inline-spinner" aria-hidden="true"></span>
                                     <span>{{ $requiresManualQuote ? 'Requesting Quote...' : 'Processing...' }}</span>
                                 </span>
-                            </button>
+                            </x-ui.button>
                         </div>
                     </div>
                 </section>

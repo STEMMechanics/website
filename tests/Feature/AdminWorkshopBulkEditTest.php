@@ -23,17 +23,18 @@ class AdminWorkshopBulkEditTest extends TestCase
         $first = Workshop::factory()->create(['user_id' => $admin->id, 'hero_media_name' => $hero->name, 'location_id' => $location->id, 'ages' => '8+']);
         $second = Workshop::factory()->create(['user_id' => $admin->id, 'hero_media_name' => $hero->name, 'location_id' => $location->id, 'ages' => '8+']);
 
-        $this->actingAs($admin)
-            ->post(route('admin.workshop.bulk.select'), ['workshop_ids' => [$first->id, $second->id]])
-            ->assertRedirect(route('admin.workshop.bulk.edit'));
-
-        $this->actingAs($admin)
-            ->get(route('admin.workshop.bulk.edit'))
-            ->assertOk()
-            ->assertSeeText('Editing 2 workshops')
-            ->assertSeeText($first->title)
-            ->assertSeeText($second->title)
-            ->assertSee('8+');
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.bulk.select'), ['workshop_ids' => [$first->id, $second->id]])
+            ->assertOk()->assertJsonStructure(['html']);
+        $html = $response->json('html');
+        $this->assertStringContainsString('Editing 2 workshops', $html);
+        $this->assertStringContainsString(e($first->title), $html);
+        $this->assertStringContainsString(e($second->title), $html);
+        $this->assertStringContainsString('data-bulk-save', $html);
+        $this->assertStringContainsString('8+', $html);
+        $this->assertStringNotContainsString('<html', $html);
+        $this->get(route('admin.workshop.edit', $first))->assertOk()
+            ->assertSee('aria-label="Breadcrumb"', false)->assertSee('Edit Workshop');
     }
 
     public function test_bulk_update_changes_only_submitted_shared_values(): void
@@ -136,8 +137,48 @@ class AdminWorkshopBulkEditTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.workshop.bulk.edit'))
-            ->assertRedirect(route('admin.workshop.index'))
-            ->assertSessionHasErrors('workshop_ids');
+            ->assertRedirect(route('admin.workshop.index'));
+        $this->postJson(route('admin.workshop.bulk.select'), [])->assertUnprocessable()->assertJsonValidationErrors('workshop_ids');
+    }
+
+    public function test_popup_saves_explicit_selection_without_using_another_tabs_session_selection(): void
+    {
+        $admin = $this->makeAdmin();
+        Location::factory()->create();
+        $hero = $this->makeHero($admin);
+        $first = Workshop::factory()->create(['user_id' => $admin->id, 'hero_media_name' => $hero->name, 'status' => 'open']);
+        $second = Workshop::factory()->create(['user_id' => $admin->id, 'hero_media_name' => $hero->name, 'status' => 'open']);
+        $this->actingAs($admin)->withSession(['admin_workshop_bulk_selection' => [$second->id]])
+            ->putJson(route('admin.workshop.bulk.update'), ['workshop_ids' => [$first->id], 'status' => 'closed'])
+            ->assertOk()->assertJsonStructure(['message']);
+        $this->assertSame('closed', $first->fresh()->status);
+        $this->assertSame('open', $second->fresh()->status);
+        $this->putJson(route('admin.workshop.bulk.update'), ['status' => 'closed'])
+            ->assertUnprocessable()->assertJsonValidationErrors('workshop_ids');
+        $this->putJson(route('admin.workshop.bulk.update'), ['workshop_ids' => [$second->id], 'status' => 'invalid'])
+            ->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->assertSame('open', $second->fresh()->status);
+    }
+
+    public function test_bulk_popup_requires_admin_access(): void
+    {
+        $this->actingAs(User::factory()->create())->postJson(route('admin.workshop.bulk.select'), [])->assertForbidden();
+        $this->putJson(route('admin.workshop.bulk.update'), [])->assertForbidden();
+    }
+
+    public function test_admin_subpage_masts_include_parent_breadcrumbs(): void
+    {
+        $this->actingAs($this->makeAdmin());
+        foreach (['admin.workshop.create' => 'Workshops', 'admin.user.create' => 'Users', 'admin.location.create' => 'Locations'] as $route => $parent) {
+            $response = $this->get(route($route))->assertOk();
+            $dom = new \DOMDocument;
+            @$dom->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($dom);
+            $breadcrumb = $xpath->query('//nav[@aria-label="Breadcrumb"]')->item(0);
+            $this->assertNotNull($breadcrumb, $route);
+            $this->assertStringContainsString('Dashboard', $breadcrumb->textContent);
+            $this->assertStringContainsString($parent, $breadcrumb->textContent);
+        }
     }
 
     private function makeAdmin(): User

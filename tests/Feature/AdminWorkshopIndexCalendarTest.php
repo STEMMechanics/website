@@ -31,6 +31,69 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertOk();
         $response->assertSee('Title');
         $response->assertSee('Workshop list view');
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//*[@data-list-footer]//form[@id="admin-workshop-bulk-form"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@data-list-footer]//*[@id="admin-workshop-bulk-edit"]')->length);
+        $response->assertSeeInOrder(['Workshop list view', 'Showing 1–1 of 1 items']);
+    }
+
+    public function test_workshop_filters_belong_to_the_dynamic_list_and_hide_default_chips(): void
+    {
+        $admin = $this->createAdminUser();
+        $this->createWorkshop('Filterable workshop', today());
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index'));
+        $response->assertOk()->assertDontSee('Include cancelled: Yes');
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $region = '//section[@data-dynamic-list="admin-workshop-index"]';
+        $this->assertSame(0, $xpath->query($region.'//script | '.$region.'//*[@*[name()="wire:id"]]')->length);
+        $triggers = $xpath->query($region.'//*[@data-open-dialog]');
+        $this->assertGreaterThan(0, $triggers->length);
+        foreach ($triggers as $trigger) {
+            $id = $trigger->getAttribute('data-open-dialog');
+            $this->assertSame(1, $xpath->query('//*[@id="'.$id.'"]')->length);
+            $this->assertSame(1, $xpath->query($region.'//dialog[@id="'.$id.'"]')->length);
+        }
+        $this->assertSame(0, $xpath->query('//form[@action="'.route('search.index').'"]//input[starts-with(@name, "list_")]')->length);
+        $this->get(route('admin.workshop.index', ['show_cancelled' => 0]))
+            ->assertOk()->assertSee('Include cancelled: No')->assertDontSee('Include cancelled: Yes');
+        $this->get(route('admin.workshop.index', ['show_cancelled' => '']))
+            ->assertOk()->assertDontSee('Include cancelled: No')->assertDontSee('Include cancelled: Yes');
+    }
+
+    public function test_current_filter_dialog_retains_presets_when_adding_a_status(): void
+    {
+        $admin = $this->createAdminUser();
+        $soon = $this->createWorkshop('Upcoming scheduled workshop', today()->addDay());
+        $soon->update(['status' => 'scheduled']);
+        $past = $this->createWorkshop('Past scheduled workshop', today()->subDays(2));
+        $past->update(['status' => 'scheduled']);
+        $this->createWorkshop('Other upcoming workshop', today()->addDays(3));
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
+            'show_cancelled' => '0', 'list_starts_at_min' => today()->toDateString(),
+        ]))->assertOk();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $form = $xpath->query('//section[@data-dynamic-list="admin-workshop-index"]//dialog[contains(@class,"sm-list-dialog-filters")]//form')->item(0);
+        $this->assertNotNull($form);
+        $params = [];
+        foreach ($xpath->query('.//input[@name] | .//select[@name]', $form) as $input) {
+            $params[$input->getAttribute('name')] = $input->tagName === 'select'
+                ? ($xpath->query('.//option[@selected]', $input)->item(0)?->getAttribute('value') ?? '')
+                : $input->getAttribute('value');
+        }
+        $this->assertSame('0', $params['show_cancelled'] ?? null);
+        $this->assertSame(today()->toDateString(), $params['list_starts_at_min'] ?? null);
+        $this->assertArrayHasKey('list_status', $params);
+        $params['list_status'] = 'soon';
+        $filtered = $this->get(route('admin.workshop.index', $params))->assertOk();
+        $filtered->assertSee('Status: soon')->assertSee('Include cancelled: No');
+        $this->assertSame([$soon->id], $filtered->viewData('workshops')->pluck('id')->all());
+        $filtered->assertSee('value="soon"', false);
     }
 
     public function test_admin_workshop_index_shows_cancelled_status_for_hidden_cancelled_workshops(): void
@@ -42,7 +105,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             'is_hidden' => true,
         ]);
 
-        $response = $this->actingAs($admin)->get(route('admin.workshop.index'));
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index', ['show_cancelled' => 1]));
 
         $response->assertOk();
         $response->assertSee('Hidden cancelled workshop');
@@ -156,7 +219,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         ));
     }
 
-    public function test_admin_workshop_index_month_view_renders_cancelled_workshops_behind_a_dynamic_toggle(): void
+    public function test_admin_workshop_month_view_has_no_list_controls_and_ignores_list_filters(): void
     {
         $admin = $this->createAdminUser();
         $monthStart = now()->startOfMonth()->addDays(10);
@@ -171,12 +234,40 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         ]));
 
         $defaultResponse->assertOk();
-        $defaultResponse->assertSee('Show cancelled');
+        $defaultResponse->assertDontSee('All workshops');
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($defaultResponse->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(0, $xpath->query('//section[@data-dynamic-list="admin-workshop-index"]//input[@name="search"]')->length);
         $defaultResponse->assertSee('Visible workshop');
         $defaultResponse->assertSee('Cancelled workshop');
-        $defaultResponse->assertSee('x-model="showCancelled"', false);
-        $defaultResponse->assertSee("'invisible pointer-events-none'", false);
-        $defaultResponse->assertDontSee('show_cancelled=1', false);
+        $this->get(route('admin.workshop.index', [
+            'view' => 'month', 'month' => $monthStart->format('Y-m'), 'show_cancelled' => 0,
+            'search' => 'no match', 'list_starts_at_min' => now()->addYear()->toDateString(),
+        ]))->assertOk()->assertSee('Cancelled workshop')->assertSee('Visible workshop');
+    }
+
+    public function test_workshop_presets_count_the_whole_list_and_filter_cancelled_items(): void
+    {
+        $admin = $this->createAdminUser();
+        $this->createWorkshop('Workshop yesterday', today()->subDay());
+        $this->createWorkshop('Workshop today', today());
+        $this->createWorkshop('Workshop next year', now()->addYear());
+        $cancelled = $this->createWorkshop('Cancelled example', now()->addYear());
+        $cancelled->update(['status' => 'cancelled']);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.index'));
+        $response->assertOk()->assertSeeInOrder(['Workshop next year', 'Showing 1–4 of 4 items']);
+        $this->assertSame(['All workshops' => 4, 'Current' => 2], request()->attributes->get('collection_preset_counts'));
+        $selection = $this->getJson(route('admin.workshop.index', ['select_listing' => 1, 'show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString(), 'page' => 2]))
+            ->assertOk()->json('names');
+        $this->assertCount(2, $selection);
+        $this->assertNotContains($cancelled->id, $selection);
+
+
+        $this->get(route('admin.workshop.index', ['show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString()]))
+            ->assertOk()->assertDontSee('Cancelled example')->assertDontSee('Workshop yesterday')
+            ->assertSee('Workshop today')->assertSee('Workshop next year');
     }
 
     public function test_admin_workshop_month_view_shades_configured_school_holiday_days(): void

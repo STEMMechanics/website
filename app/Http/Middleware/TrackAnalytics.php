@@ -43,7 +43,8 @@ class TrackAnalytics
             default => AnalyticsEvent::TYPE_PAGE_VIEW,
         };
 
-        AnalyticsEvent::create([
+        $event = [
+            'event_uuid' => (string) Str::uuid(),
             'event_type' => $eventType,
             'session_token' => $sessionToken,
             'is_session_entry' => $isSessionEntry,
@@ -61,8 +62,15 @@ class TrackAnalytics
             'utm_term' => $acquisition['utm_term'],
             'utm_content' => $acquisition['utm_content'],
             'http_method' => $request->method(),
-            'created_at' => now(),
-        ]);
+            'created_at' => now()->toDateTimeString(),
+        ];
+        try {
+            \App\Jobs\RecordAnalyticsEvent::dispatch($event)
+                ->onConnection(config('analytics.queue_connection') ?: config('queue.default'));
+        } catch (\Throwable) {
+            // Best-effort telemetry must not prevent visitors using the site.
+            \Illuminate\Support\Facades\Log::warning('Analytics event could not be queued.');
+        }
 
         return $response;
     }

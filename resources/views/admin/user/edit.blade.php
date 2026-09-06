@@ -21,6 +21,9 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
+        @if($user->id === auth()->id())
+            <x-push-settings />
+        @endif
         <div x-data="{
             mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
             mergeSearch: '',
@@ -100,9 +103,9 @@
                                 <h3 id="merge-user-title" class="text-lg font-semibold text-gray-950">Merge {{ $user->getName() }} into another user</h3>
                                 <p class="mt-1 text-sm text-gray-600">Everything associated with this account will be moved to the account selected below, then this account will be permanently removed.</p>
                             </div>
-                            <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeMerge()" aria-label="Close merge dialog">
+                            <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeMerge()" aria-label="Close merge dialog">
                                 <i class="fa-solid fa-xmark"></i>
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <div class="flex gap-3 flex-col sm:flex-row">
@@ -132,13 +135,13 @@
 
                             <div class="relative">
                                 <label for="merge_target_search" class="mb-1 block pl-1 text-sm">Find the account to merge into</label>
-                                <input id="merge_target_search" type="search" x-model="mergeSearch" x-on:input.debounce.350ms="findMergeTargets()" autocomplete="off" placeholder="Search by name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                                <x-ui.input-control id="merge_target_search" type="search" x-model="mergeSearch" x-on:input.debounce.350ms="findMergeTargets()" autocomplete="off" placeholder="Search by name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                                 <div class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="mergeSearch.trim().length >= 2 && !mergeSearching && mergeResults.length > 0" x-cloak>
                                     <template x-for="candidate in mergeResults" :key="candidate.id">
-                                        <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:click="chooseMergeTarget(candidate)">
+                                        <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:click="chooseMergeTarget(candidate)">
                                             <span class="block text-sm text-gray-900" x-text="candidate.name"></span>
                                             <span class="block text-xs text-gray-500" x-text="`${candidate.email || 'No email'}${candidate.organisation_name ? ` · ${candidate.organisation_name}` : ''}`"></span>
-                                        </button>
+                                        </x-ui.button>
                                     </template>
                                 </div>
                                 @error('target_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
@@ -149,7 +152,7 @@
                             </div>
 
                             <label class="flex items-start gap-3 text-sm text-gray-700">
-                                <input type="checkbox" name="confirm_merge" value="1" required class="mt-0.5 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                <x-ui.checkbox bare small name="confirm_merge" value="1" required class="mt-0.5" />
                                 <span>I understand that <strong>{{ $user->getName() }}</strong> will be permanently deleted and cannot be restored.</span>
                             </label>
                             @error('confirm_merge')<div class="text-xs text-red-600">{{ $message }}</div>@enderror
@@ -206,9 +209,9 @@
                                             This user currently has {{ money($accountCredit) }} in account credit, and {{ money($refundPaymentAvailableAmount) }} is available to refund from this payment.
                                         </p>
                                     </div>
-                                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createRefundOpen = false">
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createRefundOpen = false">
                                         <i class="fa-solid fa-xmark"></i>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
 
                                 <form
@@ -311,10 +314,11 @@
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">
                     <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Email Subscriptions</h3>
+                    <h3 class="text-lg font-bold mt-4 mb-3">Email notifications</h3>
                 </a>
                 <div x-show="open">
                     <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                    @if($user->isAdmin())<x-ui.checkbox label="Workplan email" name="dashboard_email_opt_in" :checked="$user->dashboard_email_opt_in" />@endif
                 </div>
             </section>
 
@@ -326,11 +330,11 @@
                 <div x-show="open">
                     @if($linkedOrganisation)
                         <x-ui.checkbox
-                            label="Use {{ $linkedOrganisation->name }} billing address"
-                            name="use_organisation_billing_address"
-                            :checked="old('use_organisation_billing_address', $user->use_organisation_billing_address)"
-                            x-model="useOrganisationBillingAddress"
-                        />
+ label="Use {{ $linkedOrganisation->name }} billing address"
+ name="use_organisation_billing_address"
+ :checked="old('use_organisation_billing_address', $user->use_organisation_billing_address)"
+ x-model="useOrganisationBillingAddress"
+ />
                     @endif
                     <fieldset x-bind:disabled="useOrganisationBillingAddress">
                         <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
@@ -357,13 +361,13 @@
                 <div x-show="open">
                     @if($linkedOrganisation)
                         <x-ui.checkbox
-                            label="Use {{ $linkedOrganisation->name }} shipping address"
-                            name="use_organisation_shipping_address"
-                            :checked="old('use_organisation_shipping_address', $user->use_organisation_shipping_address)"
-                            x-model="useOrganisationShippingAddress"
-                            x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false"
-                            x-bind:disabled="shippingSameBilling"
-                        />
+ label="Use {{ $linkedOrganisation->name }} shipping address"
+ name="use_organisation_shipping_address"
+ :checked="old('use_organisation_shipping_address', $user->use_organisation_shipping_address)"
+ x-model="useOrganisationShippingAddress"
+ x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false"
+ x-bind:disabled="shippingSameBilling"
+ />
                     @endif
                     <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; SM.updateShippingAddress()" />
                     <fieldset x-bind:disabled="useOrganisationShippingAddress">
@@ -383,14 +387,12 @@
                 </div>
             </section>
 
-            <div class="flex justify-between mt-8">
+            <x-ui.editor-actions>
                 @if($user->id !== 1)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', '{{ route('admin.user.destroy', $user) }}')">Delete</x-ui.button>
-                @else
-                    <div></div>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', '{{ route('admin.user.destroy', $user) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
-            </div>
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

@@ -151,14 +151,14 @@
                     <div class="px-6 py-5 text-sm text-gray-600">No line items on this invoice.</div>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                             <thead class="bg-gray-50">
                                 <tr class="text-left text-gray-600">
                                     <th class="px-6 py-3 font-medium">Description</th>
                                     <th class="px-6 py-3 font-medium text-right">Qty</th>
                                     <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
-                                    <th class="px-6 py-3 font-medium text-right">GST</th>
-                                    <th class="px-6 py-3 font-medium text-right">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-center!">GST</th>
+                                    <th class="px-6 py-3 font-medium text-center!">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
@@ -182,12 +182,12 @@
                                         @endphp
                                         <td class="px-6 py-4 text-right">{{ $displayQuantity }}</td>
                                         <td class="px-6 py-4 text-right">${{ number_format((float) $line['unit_price_ex_tax'], 2) }}</td>
-                                        <td class="px-6 py-4 text-right">${{ number_format((float) $line['tax_amount'], 2) }}</td>
-                                        <td class="px-6 py-4 text-right font-medium text-gray-950">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>
+                                        <td class="px-6 py-4 text-center!">${{ number_format((float) $line['tax_amount'], 2) }}</td>
+                                        <td class="px-6 py-4 font-medium text-gray-950 text-center!">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
-                        </table>
+                        </x-ui.table>
                     </div>
                 @endif
             </div>

@@ -83,7 +83,7 @@
               }">
             @csrf
             <div class="overflow-x-auto rounded-lg border border-gray-200">
-                <table class="w-full text-sm">
+                <x-ui.table variant="plain" table-class="w-full text-sm">
                     <thead>
                     <tr class="border-b border-gray-200">
                         <th class="text-left py-2 pr-3 pl-3">Line</th>
@@ -92,9 +92,9 @@
                         <th class="text-right py-2 pr-3">Remaining</th>
                         <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
                         <th class="text-right py-2 pr-3">Refund Qty Now</th>
-                        <th class="text-right py-2 pr-3">Refund Ex GST</th>
-                        <th class="text-right py-2 pr-3">Refund GST</th>
-                        <th class="text-right py-2 pr-3">Refund Total <span class="whitespace-nowrap">(incl GST)</span></th>
+                        <th class="py-2 pr-3 text-center!">Refund Ex GST</th>
+                        <th class="py-2 pr-3 text-center!">Refund GST</th>
+                        <th class="py-2 pr-3 text-center!">Refund Total <span class="whitespace-nowrap">(incl GST)</span></th>
                     </tr>
                     </thead>
                     <tbody>
@@ -123,7 +123,7 @@
                             <td class="py-2 pr-3 text-right">{{ number_format($remainingQty, 2) }}</td>
                             <td class="py-2 pr-3 text-right">${{ number_format($lineUnitEx, 2) }}</td>
                             <td class="py-2 pr-3 text-right">
-                                <input
+                                <x-ui.input-control
                                     type="number"
                                     step="0.01"
                                     min="0"
@@ -132,23 +132,22 @@
                                     value="{{ old('refund_qty.'.$line->id, '0.00') }}"
                                     x-model="refundQty[{{ (int) $line->id }}]"
                                     x-on:blur="normalizeQty({{ (int) $line->id }})"
-                                    :disabled="@js($remainingQty <= 0.0001)"
-                                    class="disabled:bg-gray-100 bg-white inline-block px-2.5 py-2 w-28 text-sm text-gray-900 rounded-lg border border-gray-300"
-                                />
+                                    x-bind:disabled="@js($remainingQty <= 0.0001)"
+                                    class="disabled:bg-gray-100 bg-white inline-block px-2.5 py-2 w-28 text-sm text-gray-900 rounded-lg border border-gray-300" />
                             </td>
-                            <td class="py-2 pr-3 text-right" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 text-center!" x-data="{ row: @js($lineMeta) }">
                                 $<span x-text="money(lineRefundEx(row))"></span>
                             </td>
-                            <td class="py-2 pr-3 text-right" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 text-center!" x-data="{ row: @js($lineMeta) }">
                                 $<span x-text="money(lineRefundGst(row))"></span>
                             </td>
-                            <td class="py-2 pr-3 text-right font-medium" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 font-medium text-center!" x-data="{ row: @js($lineMeta) }">
                                 $<span x-text="money(lineRefundInc(row))"></span>
                             </td>
                         </tr>
                     @endforeach
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
             @if($errors->has('refund_qty'))
                 <div class="text-xs text-red-600 mt-2">{{ $errors->first('refund_qty') }}</div>
@@ -159,11 +158,11 @@
 
             <div class="mt-4 rounded-lg border border-gray-200 p-3 text-sm bg-gray-50">
                 <div class="font-semibold mb-2">Refund Totals</div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <x-ui.grid class="md:grid-cols-3 gap-3">
                     <div><strong>Refund Ex GST:</strong> $<span x-text="money(totalsEx())"></span></div>
                     <div><strong>Refund GST:</strong> $<span x-text="money(totalsGst())"></span></div>
                     <div><strong>Total Refund (incl GST):</strong> $<span x-text="money(totalsInc())"></span></div>
-                </div>
+                </x-ui.grid>
             </div>
 
             <div class="mt-3">

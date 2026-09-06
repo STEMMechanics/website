@@ -33,11 +33,13 @@ class AdminShopProductTest extends TestCase
             ->assertDontSeeText($archived->title)
             ->assertSeeText('Archived');
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get(route('admin.shop.product.index', ['filter' => 'archived']))
             ->assertOk()
             ->assertSeeText($archived->title)
             ->assertDontSeeText($current->title);
+
+        $this->assertMatchesRegularExpression('/aria-label="Archived"\s+aria-current="page"/', $response->getContent());
     }
 
     public function test_admin_can_archive_and_restore_a_product(): void

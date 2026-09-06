@@ -1,5 +1,12 @@
 <x-layout>
-    <x-mast backRoute="admin.subscription.theme.index" backTitle="Subscription Store Themes">{{ $theme->exists ? 'Edit' : 'Create' }} Store Theme</x-mast>
+@php
+    $newsletterTabs = [
+        ['title' => 'Newsletter', 'route' => route('admin.newsletter.index'), 'active' => request()->routeIs('admin.newsletter.index')],
+        ['title' => 'Newsletter themes', 'route' => route('admin.subscription.theme.index'), 'active' => request()->routeIs('admin.subscription.theme.*')],
+    ];
+@endphp
+
+    <x-mast :tabs="$newsletterTabs" backRoute="admin.subscription.theme.index" backTitle="Newsletter themes">{{ $theme->exists ? 'Edit' : 'Create' }} Newsletter Theme</x-mast>
     <x-container class="mt-4">
         <form class="w-full" method="POST" action="{{ $theme->exists ? route('admin.subscription.theme.update', $theme) : route('admin.subscription.theme.store') }}" class="max-w-4xl" x-data="{ matchType: @js(old('match_type', $theme->match_type ?: 'random')) }">
             @csrf
@@ -22,10 +29,10 @@
                 <x-ui.input type="number" name="sort_order" label="Sort order" :value="$theme->sort_order ?? 0" min="0" />
                 <x-ui.checkbox name="is_active" label="Available for newsletters" class="mt-0 md:mt-7" :checked="old('is_active', $theme->is_active)" />
             </div>
-            <div class="flex gap-3 justify-between flex-row-reverse">
+            <x-ui.editor-actions>
                 <x-ui.button type="submit">Save Theme</x-ui.button>
-                @if($theme->exists)<x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete store theme?', 'This removes the theme from future newsletters.', '{{ route('admin.subscription.theme.destroy', $theme) }}')">Delete</x-ui.button>@endif
-            </div>
+                @if($theme->exists)<x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete newsletter theme?', 'This removes the theme from future newsletters.', '{{ route('admin.subscription.theme.destroy', $theme) }}')">Delete</x-ui.button>@endif
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

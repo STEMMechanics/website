@@ -6,6 +6,7 @@ $login = $user->email;
 }
 }
 $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
+$allowPasswordMethod = (bool) ($allowPasswordMethod ?? false);
 @endphp
 <x-layout :bodyClass="'image-background'">
     <div x-data="{show:'{{ $method ?? 'tfa' }}'}">
@@ -49,6 +50,15 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
             </x-slot:title>
             <x-slot:header>Select the method to sign in to your account</x-slot:header>
             <div class="flex flex-col gap-4 mb-4">
+                @if($allowPasswordMethod)
+                    <form method="post" action="{{ route('login.store') }}">
+                        @csrf
+                        <x-altcha-proof />
+                        <input type="hidden" name="login" value="{{ $login }}" />
+                        <input type="hidden" name="method" value="password" />
+                        <x-ui.button type="submit" class="w-full">Password</x-ui.button>
+                    </form>
+                @endif
                 @if($allowEmailMethod)
                     <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
                         @csrf

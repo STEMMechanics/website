@@ -20,6 +20,10 @@ class SiteOption extends Model
     public static function defaultDefinitions(): array
     {
         return [
+            \App\Support\HomeHero::OPTION => [
+                'value' => json_encode(\App\Support\HomeHero::defaults(), JSON_UNESCAPED_SLASHES),
+                'description' => 'Homepage hero image and text. Use Homepage settings for a live preview.',
+            ],
             'app.notice' => [
                 'value' => '',
                 'description' => 'Optional notice bar shown across the site.',

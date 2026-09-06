@@ -23,13 +23,25 @@ class ShopProductController extends Controller
     public function index(Request $request): View
     {
         $query = Product::query()->with(['hero', 'variants', 'categories'])->withExists('storeOrderItems');
-        $selectedFilter = $this->normalizeIndexFilter($request->query('filter'));
-
-        if ($selectedFilter === 'archived') {
-            $query->where('status', Product::STATUS_ARCHIVED);
-        } else {
-            $query->where('status', '!=', Product::STATUS_ARCHIVED);
-        }
+        $legacyFilter = $this->normalizeIndexFilter($request->query('filter'));
+        $scope = $request->query('status_scope', $legacyFilter === 'archived' ? 'archived' : 'current') ?: 'all';
+        $inventory = $request->query('inventory', $legacyFilter === 'actionable' ? 'actionable' : '');
+        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])]]);
+        $request->query->set('status_scope', $scope);
+        if ($inventory) $request->query->set('inventory', $inventory);
+        $request->query->remove('filter');
+        $actionableCount = 0;
+        Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->with('variants')->chunkById(200, function ($products) use (&$actionableCount) {
+            $actionableCount += collect($this->inventoryIndexSummaries($products))->where('actionable', true)->count();
+        });
+        $request->attributes->set('collection_preset_counts', [
+            'Current products' => Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->count(),
+            'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
+            'Actionable' => $actionableCount,
+        ]);
+        $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
+        if ($scope === 'archived') $query->where('status', Product::STATUS_ARCHIVED);
+        elseif ($scope === 'current') $query->where('status', '!=', Product::STATUS_ARCHIVED);
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
@@ -49,7 +61,7 @@ class ShopProductController extends Controller
         $query->orderByDesc('is_featured')->orderBy('sort_order')->orderBy('title');
 
         if ($selectedFilter === 'actionable') {
-            $matchingProducts = $query->get();
+            $matchingProducts = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
             $inventorySummaries = $this->inventoryIndexSummaries($matchingProducts);
             $products = $this->paginateProducts(
                 $matchingProducts
@@ -58,7 +70,7 @@ class ShopProductController extends Controller
                 $request
             );
         } else {
-            $products = $query->paginate(20)->onEachSide(1);
+            $products = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
             $inventorySummaries = $this->inventoryIndexSummaries($products->getCollection());
         }
 
@@ -979,7 +991,7 @@ class ShopProductController extends Controller
      */
     private function paginateProducts(Collection $products, Request $request): LengthAwarePaginator
     {
-        $perPage = 20;
+        $perPage = \App\Support\ListPageSize::resolve(20);
         $page = max(1, (int) ($request->query('page') ?? Paginator::resolveCurrentPage('page')));
         $items = $products->forPage($page, $perPage)->values();
 

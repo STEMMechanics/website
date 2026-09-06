@@ -24,7 +24,7 @@
                 </div>
             </template>
 
-            <div class="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <x-ui.grid class="mt-4 gap-6 xl:grid-cols-2">
                 <div class="space-y-6">
                     <section class="rounded-xl border border-gray-200 bg-white p-5">
                         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -36,7 +36,7 @@
                                     <span x-show="selected.length <= 3" x-cloak>They will appear on each of the three DL flyers.</span>
                                 </p>
                             </div>
-                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"><span x-text="selected.length"></span> / 6 selected</span>
+                            <x-ui.badge class="bg-slate-100 font-bold text-slate-700"><span x-text="selected.length"></span> / 6 selected</x-ui.badge>
                         </div>
 
                         @error('workshop_ids')
@@ -46,18 +46,18 @@
                         @if($workshops->isEmpty())
                             <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-gray-600">There are no scheduled or open upcoming workshops to promote.</div>
                         @else
-                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <x-ui.grid class="gap-3 md:grid-cols-2">
                                 @foreach($workshops as $workshop)
                                     @php($workshopId = (string) $workshop->id)
                                     <label class="flex cursor-pointer gap-3 rounded-xl border p-4 transition" :class="selected.includes(@js($workshopId)) ? 'border-primary-color bg-sky-50 ring-1 ring-primary-color' : 'border-gray-200 bg-white hover:border-gray-300'">
                                         <x-ui.checkbox
-                                            :noWrapper="true"
-                                            name="workshop_ids[]"
-                                            value="{{ $workshopId }}"
-                                            x-model="selected"
-                                            x-bind:disabled="selected.length >= 6 && !selected.includes(@js($workshopId))"
-                                            inputClass="mt-1"
-                                        />
+ :noWrapper="true"
+ name="workshop_ids[]"
+ value="{{ $workshopId }}"
+ x-model="selected"
+ x-bind:disabled="selected.length>= 6 && !selected.includes(@js($workshopId))"
+ inputClass="mt-1"
+ />
                                         <span class="min-w-0">
                                             <span class="block font-semibold text-gray-900">{{ $workshop->title }}</span>
                                             <span class="mt-1 block text-sm text-gray-600">{{ $workshop->starts_at?->format('D j M Y, g:i a') }}</span>
@@ -65,7 +65,7 @@
                                         </span>
                                     </label>
                                 @endforeach
-                            </div>
+                            </x-ui.grid>
                         @endif
                     </section>
 
@@ -124,7 +124,7 @@
                         </h2>
                         <p class="mt-1 text-sm text-gray-600">Select a workshop card to edit it and preview the side it appears on.</p>
 
-                        <div class="relative mx-auto mt-4 w-full max-w-[21rem] overflow-hidden border border-gray-300 bg-white shadow-sm" style="aspect-ratio: 99 / 210; container-type: inline-size;">
+                        <div class="relative mx-auto mt-4 w-full max-w-84 overflow-hidden border border-gray-300 bg-white shadow-sm" style="aspect-ratio: 99 / 210; container-type: inline-size;">
                             <div class="text-center leading-none" style="margin-top: 6.06cqw;">
                                 <img src="{{ asset('logo.png') }}" alt="STEMMechanics" class="inline-block" style="width: 38.38cqw;">
                             </div>
@@ -137,12 +137,12 @@
                                 </template>
 
                                 <template x-for="(workshopId, index) in previewSelected" :key="`preview-${workshopId}`">
-                                    <button
+                                    <x-ui.button variant="plain"
                                         type="button"
                                         class="block w-full bg-white text-left transition"
-                                        :class="activeId === workshopId ? 'ring-3 ring-primary-color/60' : ''"
+                                        x-bind:class="activeId === workshopId ? 'ring-3 ring-primary-color/60' : ''"
                                         style="margin: 2.14cqw 0; padding: 1px; border-radius: 2.14cqw;"
-                                        @click="activeId = workshopId"
+                                        x-on:click="activeId = workshopId"
                                     >
                                         <div class="overflow-hidden" style="border-radius: 2.14cqw;">
                                             <div
@@ -182,7 +182,7 @@
                                                 <span> &middot; </span><span x-text="workshops[workshopId].price"></span>
                                             </div>
                                         </div>
-                                    </button>
+                                    </x-ui.button>
                                 </template>
                             </div>
 
@@ -204,20 +204,20 @@
 
                                 <div>
                                     <div class="flex justify-between text-sm"><label for="image-zoom" class="font-semibold text-gray-800">Picture size</label><span x-text="`${customizations[activeId].image_zoom}%`"></span></div>
-                                    <input id="image-zoom" type="range" min="100" max="200" step="1" x-model.number="customizations[activeId].image_zoom" class="mt-1 w-full accent-primary-color">
+                                    <x-ui.input-control id="image-zoom" type="range" min="100" max="200" step="1" x-model.number="customizations[activeId].image_zoom" class="mt-1 w-full accent-primary-color" />
                                 </div>
 
                                 <div>
                                     <div class="flex justify-between text-sm"><label for="image-x" class="font-semibold text-gray-800">Move left / right</label><span x-text="customizations[activeId].image_x"></span></div>
-                                    <input id="image-x" type="range" min="0" max="100" step="1" x-model.number="customizations[activeId].image_x" class="mt-1 w-full accent-primary-color">
+                                    <x-ui.input-control id="image-x" type="range" min="0" max="100" step="1" x-model.number="customizations[activeId].image_x" class="mt-1 w-full accent-primary-color" />
                                 </div>
 
                                 <div>
                                     <div class="flex justify-between text-sm"><label for="image-y" class="font-semibold text-gray-800">Move up / down</label><span x-text="customizations[activeId].image_y"></span></div>
-                                    <input id="image-y" type="range" min="0" max="100" step="1" x-model.number="customizations[activeId].image_y" class="mt-1 w-full accent-primary-color">
+                                    <x-ui.input-control id="image-y" type="range" min="0" max="100" step="1" x-model.number="customizations[activeId].image_y" class="mt-1 w-full accent-primary-color" />
                                 </div>
 
-                                <button type="button" class="text-sm font-semibold text-primary-color hover:underline" @click="resetCustomization(activeId)">Reset picture and text</button>
+                                <x-ui.button variant="plain" type="button" class="text-sm font-semibold text-primary-color hover:underline" x-on:click="resetCustomization(activeId)">Reset picture and text</x-ui.button>
                             </div>
                         </template>
 
@@ -228,7 +228,7 @@
                         </div>
                     </div>
                 </aside>
-            </div>
+            </x-ui.grid>
         </form>
     </x-container>
 

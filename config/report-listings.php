@@ -1,0 +1,17 @@
+<?php
+
+return [
+    'analytics_daily' => ['fields' => ['day' => ['label' => 'Day', 'type' => 'date'], 'views' => ['label' => 'Views', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => ['day' => 'desc']],
+    'analytics_hour' => ['fields' => ['hour_bucket' => ['label' => 'Hour', 'type' => 'date'], 'views' => ['label' => 'Views', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number'], 'users' => ['label' => 'Users', 'type' => 'number']], 'order' => ['hour_bucket' => 'desc']],
+    'analytics_top_pages' => ['fields' => ['path' => ['label' => 'Path', 'type' => 'text'], 'views' => ['label' => 'Views', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => ['views' => 'desc']],
+    'analytics_landing_pages' => ['fields' => ['landing_path' => ['label' => 'Landing Page', 'type' => 'text'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => ['sessions' => 'desc']],
+    'analytics_top_workshops' => ['fields' => ['workshop_title' => ['label' => 'Workshop', 'type' => 'text'], 'workshop_starts_at' => ['label' => 'Date', 'type' => 'date'], 'workshop_location_name' => ['label' => 'Location', 'type' => 'text'], 'views' => ['label' => 'Views', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => ['views' => 'desc']],
+    'analytics_top_searches' => ['fields' => ['search_term' => ['label' => 'Search Term', 'type' => 'text'], 'uses' => ['label' => 'Uses', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => ['uses' => 'desc']],
+    'analytics_session_flows' => ['fields' => ['started_at' => ['label' => 'Started', 'type' => 'date'], 'ended_at' => ['label' => 'Last Activity', 'type' => 'date'], 'event_count' => ['label' => 'Events', 'type' => 'number']], 'order' => ['ended_at' => 'desc']],
+    'analytics_returning_visitors' => ['fields' => ['views' => ['label' => 'Views', 'type' => 'number'], 'sessions' => ['label' => 'Sessions', 'type' => 'number'], 'last_seen' => ['label' => 'Last Seen', 'type' => 'date']], 'order' => ['sessions' => 'desc', 'views' => 'desc']],
+    'analytics_traffic_sources' => ['fields' => ['source' => ['label' => 'Source', 'type' => 'text'], 'medium' => ['label' => 'Medium', 'type' => 'text'], 'campaign' => ['label' => 'Campaign', 'type' => 'text'], 'sessions' => ['label' => 'Sessions', 'type' => 'number']], 'order' => []],
+    'bas_payments' => ['fields' => ['reference' => ['label' => 'Reference', 'type' => 'text'], 'payment_method' => ['label' => 'Method', 'type' => 'text'], 'received_on' => ['label' => 'Date', 'type' => 'date'], 'bas_total_amount' => ['label' => 'Amount', 'type' => 'number']], 'order' => []],
+    'bas_expenses' => ['fields' => ['supplier' => ['label' => 'Supplier', 'type' => 'text'], 'description' => ['label' => 'Description', 'type' => 'text'], 'paid_on' => ['label' => 'Date', 'type' => 'date'], 'total_amount' => ['label' => 'Amount', 'type' => 'number']], 'order' => []],
+    'search_workshops' => ['fields' => ['title' => ['label' => 'Workshop', 'type' => 'text'], 'starts_at' => ['label' => 'Date', 'type' => 'date'], 'price' => ['label' => 'Price', 'type' => 'number']], 'model' => \App\Models\Workshop::class, 'order' => []],
+    'search_products' => ['fields' => ['title' => ['label' => 'Product', 'type' => 'text'], 'price' => ['label' => 'Price', 'type' => 'number']], 'model' => \App\Models\Product::class, 'order' => []],
+];
