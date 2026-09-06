@@ -46,8 +46,8 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('aria-label="View pick list PDF for order '.$order->order_number.'"', false)
             ->assertSee('fa-regular fa-file-pdf', false)
             ->assertSee('fa-solid fa-list-check', false)
-            ->assertSee('<th class="text-center">Actions</th>', false)
-            ->assertSee('flex items-center justify-center gap-3 whitespace-nowrap', false)
+            ->assertSee('class="text-center!">Actions</th>', false)
+            ->assertSee('flex flex-nowrap items-center justify-center gap-2', false)
             ->assertDontSee('primary-outline-sm', false);
     }
 

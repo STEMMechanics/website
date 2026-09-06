@@ -66,25 +66,25 @@
                 <div class="w-full flex flex-col gap-4 items-center sm:flex-row sm:gap-2">
                     <div class="block flex-1 w-full">
                         <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Search</span>
-                        <input type="search" data-file-backup-search placeholder="Search filename or path" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-color focus:outline-none focus:ring-2 focus:ring-primary-color/20">
+                        <x-ui.input-control type="search" data-file-backup-search placeholder="Search filename or path" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-color focus:outline-none focus:ring-2 focus:ring-primary-color/20" />
                     </div>
                     <div class="flex gap-4 items-center">
                         <div class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Filter</span>
                             <div class="relative">
-                                <select data-file-backup-filter class="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-primary-color focus:outline-none focus:ring-2 focus:ring-primary-color/20">
+                                <x-ui.select-control data-file-backup-filter class="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-primary-color focus:outline-none focus:ring-2 focus:ring-primary-color/20">
                                     <option value="all">All items</option>
                                     <option value="folders">Folders only</option>
                                     <option value="files">Files only</option>
                                     <option value="missing">Missing on site</option>
                                     <option value="changed">Changed on site</option>
                                     <option value="same">Matches current site</option>
-                                </select>
+                                </x-ui.select-control>
                                 <i class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
                             </div>
                         </div>
-                        <button type="button" class="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition hover:border-primary-color hover:text-primary-color" data-file-backup-select-visible>Select visible</button>
-                        <button type="button" class="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition hover:border-primary-color hover:text-primary-color" data-file-backup-clear>Select none</button>
+                        <x-ui.button variant="plain" type="button" class="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition hover:border-primary-color hover:text-primary-color" data-file-backup-select-visible>Select visible</x-ui.button>
+                        <x-ui.button variant="plain" type="button" class="mt-4 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition hover:border-primary-color hover:text-primary-color" data-file-backup-clear>Select none</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -100,29 +100,29 @@
             </div>
 
             <div class="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                <table class="sm-backup-table w-full table-fixed text-sm">
+                <x-ui.table variant="plain" table-class="sm-backup-table w-full table-fixed text-sm">
                     <thead class="bg-gray-50">
                     <tr>
                         <th class="w-10 px-3 py-2"></th>
                         <th class="px-3 py-2 text-left">
-                            <button type="button" class="inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="name">
+                            <x-ui.button variant="plain" type="button" class="inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="name">
                                 <span>Name</span>
                                 <i class="fa-solid fa-sort text-[11px] text-gray-400" data-file-backup-sort-indicator="name"></i>
-                            </button>
+                            </x-ui.button>
                         </th>
-                        <th class="w-28 px-3 py-2 text-right">
-                            <button type="button" class="ml-auto inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="size">
+                        <th class="w-28 px-3 py-2 text-center!">
+                            <x-ui.button variant="plain" type="button" class="mx-auto inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="size">
                                 <span>Size</span>
                                 <i class="fa-solid fa-sort text-[11px] text-gray-400" data-file-backup-sort-indicator="size"></i>
-                            </button>
+                            </x-ui.button>
                         </th>
-                        <th class="w-40 px-3 py-2 text-left">
-                            <button type="button" class="inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="modified">
+                        <th class="w-40 px-3 py-2 text-center!">
+                            <x-ui.button variant="plain" type="button" class="inline-flex items-center gap-1 font-semibold uppercase tracking-wide text-gray-600 transition hover:text-primary-color" data-file-backup-sort-button data-file-backup-sort-field="modified">
                                 <span>Modified</span>
                                 <i class="fa-solid fa-sort text-[11px] text-gray-400" data-file-backup-sort-indicator="modified"></i>
-                            </button>
+                            </x-ui.button>
                         </th>
-                        <th class="w-24 px-3 py-2 text-center">Action</th>
+                        <th class="text-center! w-24 px-3 py-2">Actions</th>
                     </tr>
                     </thead>
                     <tbody data-file-backup-tbody>
@@ -151,50 +151,49 @@
                             data-file-backup-group-id="{{ (string) ($entry['group_id'] ?? '') }}"
                         >
                             <td class="px-3 py-2 align-top" data-label="Select">
-                                <input
-                                    type="checkbox"
-                                    value="{{ $entryKey }}"
-                                    class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                    data-file-backup-item
-                                    data-file-backup-key="{{ $entryKey }}"
-                                    data-file-backup-label="{{ $entryKey }}"
-                                    data-file-backup-type="{{ $entryType }}"
-                                    data-file-backup-state="{{ $rowState }}"
-                                    data-file-backup-name="{{ $entry['name'] }}"
-                                    data-file-backup-size="{{ (int) ($entry['size'] ?? 0) }}"
-                                    data-file-backup-modified="{{ (int) ($entry['last_modified'] ?? 0) }}"
-                                >
+                                <x-ui.checkbox bare small
+
+ value="{{ $entryKey }}"
+ class="mt-1"
+ data-file-backup-item
+ data-file-backup-key="{{ $entryKey }}"
+ data-file-backup-label="{{ $entryKey }}"
+ data-file-backup-type="{{ $entryType }}"
+ data-file-backup-state="{{ $rowState }}"
+ data-file-backup-name="{{ $entry['name'] }}"
+ data-file-backup-size="{{ (int) ($entry['size'] ?? 0) }}"
+ data-file-backup-modified="{{ (int) ($entry['last_modified'] ?? 0) }}" />
                             </td>
                             <td class="px-3 py-2 align-top" data-label="Name">
                                 <div class="flex min-w-0 items-start gap-2">
                                     <i class="fa-solid {{ $entryType === 'folder' ? 'fa-folder text-amber-600' : ($isMediaGroup ? 'fa-photo-film text-slate-500' : 'fa-file text-slate-500') }} mt-0.5"></i>
                                     <div class="min-w-0">
                                         @if($entryType === 'folder')
-                                            <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="block max-w-full whitespace-normal break-words font-medium text-primary-color hover:underline md:truncate" title="{{ $entry['path'] }}">
+                                            <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="block max-w-full whitespace-normal wrap-break-word font-medium text-primary-color hover:underline md:truncate" title="{{ $entry['path'] }}">
                                                 {{ $entry['name'] }}
                                             </a>
-                                            <div class="mt-1 max-w-full whitespace-normal break-words text-xs text-gray-500 md:truncate" title="{{ $entry['path'] }}">
+                                            <div class="mt-1 max-w-full whitespace-normal wrap-break-word text-xs text-gray-500 md:truncate" title="{{ $entry['path'] }}">
                                                 {{ $entry['path'] }}
                                             </div>
                                         @else
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
-                                                class="block max-w-full whitespace-normal break-words font-medium text-left text-primary-color hover:underline md:truncate"
+                                                class="block max-w-full whitespace-normal wrap-break-word font-medium text-left text-primary-color hover:underline md:truncate"
                                                 data-file-backup-toggle
                                                 data-file-backup-toggle-key="{{ $entryKey }}"
                                                 title="{{ $entryKey }}"
                                             >
                                                 {{ $entry['name'] }}
-                                            </button>
+                                            </x-ui.button>
                                             @if($isMediaGroup)
-                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs font-medium {{ $stateTone === 'danger' ? 'text-rose-700' : ($stateTone === 'warning' ? 'text-amber-700' : 'text-gray-500') }} md:truncate" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal wrap-break-word text-xs font-medium {{ $stateTone === 'danger' ? 'text-rose-700' : ($stateTone === 'warning' ? 'text-amber-700' : 'text-gray-500') }} md:truncate" title="{{ $entryKey }}">
                                                     {{ $stateLabel !== '' ? $stateLabel : '' }}
                                                 </div>
-                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs text-gray-500 md:truncate" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal wrap-break-word text-xs text-gray-500 md:truncate" title="{{ $entryKey }}">
                                                     {{ $entry['group_summary'] ?? '' }}
                                                 </div>
                                             @elseif(is_array($entry['current_state'] ?? null) && ($entry['current_state']['state'] ?? '') !== 'same')
-                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs font-medium {{ ($entry['current_state']['tone'] ?? '') === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal wrap-break-word text-xs font-medium {{ ($entry['current_state']['tone'] ?? '') === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $entryKey }}">
                                                     {{ (string) ($entry['current_state']['label'] ?? '') }}
                                                 </div>
                                             @endif
@@ -202,35 +201,27 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-3 py-2 text-right whitespace-nowrap" data-label="Size">
-                                {{ \App\Helpers::bytesToString((int) ($entry['size'] ?? 0)) }}
+                            <td class="px-3 py-2 text-center! whitespace-nowrap" data-label="Size">
+                                <x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) ($entry['size'] ?? 0)) }}</x-ui.nonbreaking>
                             </td>
-                            <td class="px-3 py-2 whitespace-nowrap" data-label="Modified">
+                            <td class="px-3 py-2 text-center! whitespace-nowrap" data-label="Modified">
                                 @if(($entry['last_modified'] ?? 0) > 0)
-                                    {{ \Carbon\Carbon::createFromTimestamp((int) $entry['last_modified'])->format('Y-m-d H:i:s') }}
+                                    <x-ui.date-time>{{ \Carbon\Carbon::createFromTimestamp((int) $entry['last_modified'])->format('Y-m-d H:i:s') }}</x-ui.date-time>
                                 @else
                                     -
                                 @endif
                             </td>
-                            <td class="px-3 py-2 text-center" data-label="Action">
-                                <div class="flex items-center justify-center gap-3">
+                            <td class="px-3 py-2" data-label="Action">
+                                <x-ui.row-actions>
                                     @if($entryType === 'folder')
-                                        <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="hover:text-primary-color" title="Open folder">
-                                            <i class="fa-solid fa-folder-open"></i>
-                                        </a>
+                                        <x-ui.row-action label="Open folder" icon="fa-solid fa-folder-open" tone="neutral" href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
                                     @elseif($isMediaGroup)
-                                        <a href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="hover:text-primary-color" title="Download from backup">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
-                                        <button type="button" class="hover:text-primary-color" title="Show variants" data-file-backup-group-toggle data-file-backup-group-target="{{ $entry['path'] }}" aria-expanded="false">
-                                            <i class="fa-solid fa-chevron-down"></i>
-                                        </button>
+                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
+                                        <x-ui.row-action label="Show variants" icon="fa-solid fa-chevron-down" tone="neutral" type="button" data-file-backup-group-toggle data-file-backup-group-target="{{ $entry['path'] }}" aria-expanded="false" />
                                     @else
-                                        <a href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="hover:text-primary-color" title="Download from backup">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
+                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
                                     @endif
-                                </div>
+                                </x-ui.row-actions>
                             </td>
                         </tr>
 
@@ -253,42 +244,39 @@
                                                 @endphp
                                                 <div class="flex flex-wrap items-start justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
                                                     <label class="flex items-start gap-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            value="{{ $childKey }}"
-                                                            class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                                            data-file-backup-item
-                                                            data-file-backup-key="{{ $childKey }}"
-                                                            data-file-backup-label="{{ $childKey }}"
-                                                            data-file-backup-type="file"
-                                                            data-file-backup-state="{{ $childState }}"
-                                                            data-file-backup-name="{{ $child['name'] }}"
-                                                            data-file-backup-size="{{ (int) ($child['size'] ?? 0) }}"
-                                                            data-file-backup-modified="{{ (int) ($child['last_modified'] ?? 0) }}"
-                                                        >
+                                                        <x-ui.checkbox bare small
+
+ value="{{ $childKey }}"
+ class="mt-1"
+ data-file-backup-item
+ data-file-backup-key="{{ $childKey }}"
+ data-file-backup-label="{{ $childKey }}"
+ data-file-backup-type="file"
+ data-file-backup-state="{{ $childState }}"
+ data-file-backup-name="{{ $child['name'] }}"
+ data-file-backup-size="{{ (int) ($child['size'] ?? 0) }}"
+ data-file-backup-modified="{{ (int) ($child['last_modified'] ?? 0) }}" />
                                                         <span class="mt-0.5 text-slate-500"><i class="fa-solid fa-file"></i></span>
                                                         <span class="min-w-0">
-                                                            <span class="block max-w-full whitespace-normal break-words font-medium text-gray-900 md:truncate" title="{{ $childKey }}">{{ $child['name'] }}</span>
+                                                            <span class="block max-w-full whitespace-normal wrap-break-word font-medium text-gray-900 md:truncate" title="{{ $childKey }}">{{ $child['name'] }}</span>
                                                             @if($childState !== 'same' && $childStateLabel !== '')
-                                                                <span class="mt-1 block max-w-full whitespace-normal break-words text-xs font-medium {{ $childStateTone === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $childKey }}">
+                                                                <span class="mt-1 block max-w-full whitespace-normal wrap-break-word text-xs font-medium {{ $childStateTone === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $childKey }}">
                                                                     {{ $childStateLabel }}
                                                                 </span>
                                                             @endif
                                                         </span>
                                                     </label>
-                                                    <div class="flex items-center gap-3 whitespace-nowrap text-xs text-gray-500">
-                                                        <span>{{ \App\Helpers::bytesToString((int) ($child['size'] ?? 0)) }}</span>
+                                                    <x-ui.row-actions class="whitespace-nowrap text-xs text-gray-500">
+                                                        <span><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) ($child['size'] ?? 0)) }}</x-ui.nonbreaking></span>
                                                         <span>
                                                             @if(($child['last_modified'] ?? 0) > 0)
-                                                                {{ \Carbon\Carbon::createFromTimestamp((int) $child['last_modified'])->format('Y-m-d H:i:s') }}
+                                                                <x-ui.date-time>{{ \Carbon\Carbon::createFromTimestamp((int) $child['last_modified'])->format('Y-m-d H:i:s') }}</x-ui.date-time>
                                                             @else
                                                                 -
                                                             @endif
                                                         </span>
-                                                        <a href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $child['path']]) }}" class="hover:text-primary-color" title="Download from backup">
-                                                            <i class="fa-solid fa-download"></i>
-                                                        </a>
-                                                    </div>
+                                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $child['path']]) }}" />
+                                                    </x-ui.row-actions>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -302,14 +290,14 @@
                         </tr>
                     @endforelse
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
 
             @if(collect($deletedEntries ?? [])->isNotEmpty())
             <div class="mt-6">
                 <h3 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Deleted in this incremental run</h3>
                 <div class="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                        <table class="sm-backup-table w-full text-sm">
+                        <x-ui.table variant="plain" table-class="sm-backup-table w-full text-sm">
                             <tbody>
                             @foreach($deletedEntries as $entry)
                                 <tr class="border-t border-gray-100">
@@ -320,7 +308,7 @@
                                 </tr>
                             @endforeach
                             </tbody>
-                        </table>
+                        </x-ui.table>
                     </div>
                 </div>
             @endif
@@ -337,13 +325,13 @@
 
                 <div class="mt-4 space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
-                        <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50" data-file-backup-clear-all>Clear all</button>
-                        <button type="button" class="rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500" data-file-backup-restore disabled>
+                        <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50" data-file-backup-clear-all>Clear all</x-ui.button>
+                        <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-900 bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-200 disabled:text-gray-500" data-file-backup-restore disabled>
                             Restore Selected
-                        </button>
-                        <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" data-file-backup-download disabled>
+                        </x-ui.button>
+                        <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400" data-file-backup-download disabled>
                             Download ZIP
-                        </button>
+                        </x-ui.button>
                     </div>
 
                     <div class="rounded-lg border border-gray-200 bg-white p-3">
@@ -534,7 +522,7 @@
                 icon.className = 'fa-solid shrink-0 ' + (entry.type === 'folder' ? 'fa-folder text-amber-600' : 'fa-file text-slate-500');
 
                 const text = document.createElement('span');
-                text.className = 'font-mono flex-1 min-w-0 break-words';
+                text.className = 'font-mono flex-1 min-w-0 wrap-break-word';
                 text.textContent = String(entry.label || entry.key || '');
 
                 const remove = document.createElement('button');

@@ -308,13 +308,13 @@
                                 {{ count($replacementDialogData['candidates'] ?? []) }} matching payment{{ count($replacementDialogData['candidates'] ?? []) === 1 ? '' : 's' }} found.
                             </p>
                         </div>
-                        <button
+                        <x-ui.button variant="plain"
                             type="button"
-                            class="inline-flex items-center justify-center rounded-md bg-gray-800 px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-800"
+                            class="inline-flex items-center justify-center rounded-md bg-gray-800 px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-800"
                             x-on:click.prevent="openReplacementDialog()"
                         >
                             Review matches
-                        </button>
+                        </x-ui.button>
                     </div>
                 </div>
             @endif
@@ -360,17 +360,16 @@
                 x-cloak
             >
                 <label class="flex items-start gap-3">
-                    <input
-                        id="bank-transfer-cleared"
-                        type="checkbox"
-                        name="bank_transfer_cleared"
-                        value="1"
-                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                        x-model="bankTransferCleared"
-                        x-on:change="$dispatch('bank-transfer-cleared-updated', { checked: $event.target.checked })"
-                        x-bind:disabled="@js(isset($customerPayment) && $customerPayment->cleared_at !== null)"
-                        @checked(old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false))
-                    >
+                    <x-ui.checkbox bare small
+ id="bank-transfer-cleared"
+
+ name="bank_transfer_cleared"
+ value="1"
+ class="mt-1"
+ x-model="bankTransferCleared"
+ x-on:change="$dispatch('bank-transfer-cleared-updated', { checked: $event.target.checked })"
+ x-bind:disabled="@js(isset($customerPayment) && $customerPayment->cleared_at !== null)"
+ :checked="old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)" />
                     <span>
                         <span class="block text-sm font-semibold text-gray-900">Mark this bank transfer as cleared</span>
                         <span class="mt-1 block text-xs text-gray-500">Leave this unchecked if the transfer is still waiting to settle.</span>
@@ -393,7 +392,7 @@
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
                         <div class="flex flex-wrap gap-2">
-                            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color" x-on:click.prevent="addAllocation()">Add Allocation</button>
+                            <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color" x-on:click.prevent="addAllocation()">Add Allocation</x-ui.button>
                         </div>
                     @endif
                 </div>
@@ -405,12 +404,12 @@
                     <div class="mb-4">
                         <h4 class="font-semibold mb-2">Existing Allocations (Locked)</h4>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                            <x-ui.table variant="plain" table-class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-300">
                                         <th class="text-left py-2 pr-3">Document</th>
-                                        <th class="text-right py-2 pr-3">Amount</th>
-                                        <th class="text-left py-2">Action</th>
+                                        <th class="py-2 pr-3 text-center!">Amount</th>
+                                        <th class="text-center! py-2">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -425,22 +424,18 @@
                                                     -
                                                 @endif
                                             </td>
-                                            <td class="py-2 pr-3 text-right">Remaining: ${{ number_format((float) $allocation->allocated_amount, 2) }}</td>
-                                            <td class="py-2">
+                                            <td class="py-2 pr-3 text-center!">Remaining: ${{ number_format((float) $allocation->allocated_amount, 2) }}</td>
+                                            <td class="text-center! py-2">
                                                 @if($allocation->taxAdjustment && $allocation->invoice)
-                                                    <a href="{{ route('admin.tax_adjustment.edit', ['invoice' => $allocation->invoice, 'taxAdjustment' => $allocation->taxAdjustment]) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-primary-color" title="Open tax adjustment">
-                                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                                    </a>
+                                                    <x-ui.row-action label="Open tax adjustment" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.tax_adjustment.edit', ['invoice' => $allocation->invoice, 'taxAdjustment' => $allocation->taxAdjustment]) }}" target="_blank" rel="noopener noreferrer" />
                                                 @elseif($allocation->invoice)
-                                                    <a href="{{ route('admin.invoice.edit', $allocation->invoice) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-primary-color" title="Open invoice">
-                                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                                    </a>
+                                                    <x-ui.row-action label="Open invoice" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.invoice.edit', $allocation->invoice) }}" target="_blank" rel="noopener noreferrer" />
                                                 @endif
                                             </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
-                            </table>
+                            </x-ui.table>
                         </div>
                     </div>
                 @endif
@@ -508,14 +503,11 @@
                     >
                         <div class="col-span-8 relative">
                             <label class="block text-sm pl-1">Invoice</label>
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
-                                class="disabled:bg-gray-100 bg-white block mt-1 px-3 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 shadow-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
-                                @if($canEditAllocations)
-                                    x-on:click="open = !open; if (open) { focusSearch(); }"
-                                @else
-                                    disabled
-                                @endif
+                                class="disabled:bg-gray-100 bg-white block mt-1 px-3 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 shadow-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                x-on:click="open = !open; if (open) { focusSearch(); }"
+                                :disabled="! $canEditAllocations"
                             >
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
@@ -529,7 +521,7 @@
                                         <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                     </div>
                                 </div>
-                            </button>
+                            </x-ui.button>
                             <div
                                 x-show="open"
                                 x-cloak
@@ -539,32 +531,31 @@
                                     <div class="flex items-end gap-3">
                                         <div class="min-w-0 flex-1">
                                             <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Search invoices</label>
-                                            <input
+                                            <x-ui.input-control
                                                 x-ref="search"
                                                 type="text"
                                                 class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-color focus:outline-none focus:ring-1 focus:ring-primary-color"
                                                 placeholder="Invoice, customer, email, ticket..."
                                                 x-model="query"
-                                                x-on:keydown.escape.prevent="open = false"
-                                            />
+                                                x-on:keydown.escape.prevent="open = false" />
                                         </div>
                                         @if($canEditAllocations)
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
-                                                class="shrink-0 rounded-md bg-primary-color px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-color-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                                class="shrink-0 rounded-md bg-primary-color px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-color-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                                                 x-on:click.prevent="$dispatch('payment-add-all'); open = false"
                                                 title="Automatically distribute the payment total across invoices from top to bottom"
-                                            >Add all</button>
+                                            >Add all</x-ui.button>
                                         @endif
                                     </div>
                                     @if($canEditAllocations)
                                         <div class="flex justify-end">
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="text-xs font-semibold text-gray-600 hover:text-primary-color disabled:opacity-40"
                                                 x-show="allocation.invoice_id"
                                                 x-on:click.prevent="clearInvoice()"
-                                            >Clear selection</button>
+                                            >Clear selection</x-ui.button>
                                         </div>
                                     @endif
                                 </div>
@@ -573,7 +564,7 @@
                                         <div class="px-4 py-6 text-sm text-gray-500">No invoices match this filter.</div>
                                     </template>
                                     <template x-for="option in filteredInvoiceOptions()" :key="option.id">
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="button"
                                             class="w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 last:border-b-0"
                                             x-on:mousedown.prevent="selectInvoice(option)"
@@ -584,10 +575,10 @@
                                                 </div>
                                                 <div class="flex shrink-0 flex-col items-end text-right text-xs text-gray-500">
                                                     <span class="font-semibold text-gray-900" x-text="'Remaining: ' + formatMoney(option.remaining_amount || 0)"></span>
-                                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500" x-text="option.payment_state_label"></span>
+                                                    <x-ui.badge color="gray" uppercase x-text="option.payment_state_label"></x-ui.badge>
                                                 </div>
                                             </div>
-                                        </button>
+                                        </x-ui.button>
                                     </template>
                                 </div>
                             </div>
@@ -595,7 +586,7 @@
                         <div class="col-span-3 h-full flex flex-col">
                             <label class="block text-sm pl-1">Amount</label>
                             <div class="flex flex-1 items-center">
-                                <input type="text" class="mt-1 disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
+                                <x-ui.input-control type="text" class="mt-1 disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
                             </div>
                         </div>
                         <div class="col-span-1 h-full">
@@ -609,9 +600,9 @@
                                     <i class="fa-solid fa-up-right-from-square"></i>
                                 </a>
                                 @if($canEditAllocations)
-                                    <button type="button" class="text-red-600 hover:text-red-700" x-on:click.prevent="removeAllocation(index)">
+                                    <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click.prevent="removeAllocation(index)">
                                         <i class="fa-solid fa-trash"></i>
-                                    </button>
+                                    </x-ui.button>
                                 @endif
                             </div>
                         </div>
@@ -624,13 +615,13 @@
             @isset($customerPayment)
                 <h3 class="text-sm mb-1">Payment Split</h3>
                 <div class="mb-4 rounded-lg border border-gray-300 bg-white p-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <x-ui.grid class="md:grid-cols-3 gap-2 text-sm">
                         <div><span class="font-semibold w-44 inline-block">Original Amount:</span> ${{ number_format((float) $customerPayment->total_amount, 2) }}</div>
                         <div><span class="font-semibold w-44 inline-block">Refunded:</span> ${{ number_format($recordedRefundedAmount, 2) }}</div>
                         <div><span class="font-semibold w-44 inline-block">Remaining Refundable:</span> ${{ number_format($displayRemainingRefundableAmount, 2) }}</div>
                         <div><span class="font-semibold w-44 inline-block">Allocated:</span> ${{ number_format($allocatedNetAmount, 2) }}</div>
                         <div><span class="font-semibold w-44 inline-block">Unallocated:</span> ${{ number_format($unallocatedAmount, 2) }}</div>
-                    </div>
+                    </x-ui.grid>
                 </div>
 
                 @if($isSquareManaged || ! $isCreditGrant)
@@ -639,7 +630,7 @@
                         @if($isSquareManaged)
                             <div>
                                 <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Square Integration</div>
-                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm font-mono">
+                                <x-ui.grid class="gap-3 md:grid-cols-2 text-sm font-mono">
                                     <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                                         <div class="text-[11px] uppercase tracking-wide text-gray-500">Gateway</div>
                                         <div class="mt-1 break-all text-gray-900">{{ $customerPayment->gateway_provider ?? '-' }}</div>
@@ -682,7 +673,7 @@
                                         <div class="text-[11px] uppercase tracking-wide text-gray-500">Last Webhook</div>
                                         <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_last_event_type ?? '-' }}{{ $customerPayment->square_last_event_at ? ' @ '.$customerPayment->square_last_event_at->format('M j, Y g:i a') : '' }}</div>
                                     </div>
-                                </div>
+                                </x-ui.grid>
                                 @php
                                     $squareMeta = is_array($customerPayment->square_integration_meta ?? null)
                                         ? $customerPayment->square_integration_meta
@@ -691,7 +682,7 @@
                                 @if($squareMeta !== [])
                                     <div class="mt-4 border-t border-gray-200 pt-4">
                                         <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Square Metadata</div>
-                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm font-mono">
+                                        <x-ui.grid class="gap-3 md:grid-cols-2 text-sm font-mono">
                                             @foreach($squareMeta as $metaKey => $metaValue)
                                                 @continue(is_array($metaValue) || is_object($metaValue))
                                                 <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 md:col-span-1">
@@ -699,7 +690,7 @@
                                                     <div class="mt-1 break-all text-gray-900">{{ is_bool($metaValue) ? ($metaValue ? 'true' : 'false') : (string) $metaValue }}</div>
                                                 </div>
                                             @endforeach
-                                        </div>
+                                        </x-ui.grid>
                                     </div>
                                 @endif
                             </div>
@@ -732,38 +723,32 @@
                                 <div class="text-sm text-gray-500">No refund records linked to this payment.</div>
                             @else
                                 <div class="overflow-x-auto">
-                                    <table class="w-full text-sm">
+                                    <x-ui.table variant="plain" table-class="w-full text-sm">
                                         <thead>
                                             <tr class="border-b border-gray-200">
                                                 <th class="text-left py-2 pr-3">Refund Payment #</th>
-                                                <th class="text-left py-2 pr-3">Date</th>
+                                                <th class="py-2 pr-3 text-center!">Date</th>
                                                 <th class="text-left py-2 pr-3">Method</th>
-                                                <th class="text-right py-2 pr-3">Amount</th>
-                                                <th class="text-left py-2">Actions</th>
+                                                <th class="py-2 pr-3 text-center!">Amount</th>
+                                                <th class="text-center! py-2">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @foreach($refundHistory as $refund)
                                                 <tr id="refund-{{ $refund->id }}" class="border-b border-gray-100 {{ $highlightRefundId === (int) $refund->id ? 'highlight-row' : '' }}">
                                                     <td class="py-2 pr-3">#{{ $refund->id }}</td>
-                                                    <td class="py-2 pr-3">{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
+                                                    <td class="py-2 pr-3 text-center!"><x-ui.date-time>{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
                                                     <td class="py-2 pr-3">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
-                                                    <td class="py-2 pr-3 text-right">${{ number_format((float) $refund->total_amount, 2) }}</td>
-                                                    <td class="py-2">
-                                                        <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color mr-2" title="Open refund record">
-                                                            <i class="fa-solid fa-up-right-from-square"></i>
-                                                        </a>
-                                                        <a href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" class="hover:text-primary-color mr-2" title="View refund receipt">
-                                                            <i class="fa-regular fa-file-lines"></i>
-                                                        </a>
-                                                        <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="hover:text-primary-color" title="Download refund receipt">
-                                                            <i class="fa-solid fa-download"></i>
-                                                        </a>
+                                                    <td class="py-2 pr-3 text-center!">${{ number_format((float) $refund->total_amount, 2) }}</td>
+                                                    <td class="text-center! py-2">
+                                                        <x-ui.row-action label="Open refund record" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.payment.edit', $refund) }}" />
+                                                        <x-ui.row-action label="View refund receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" />
+                                                        <x-ui.row-action label="Download refund receipt" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" />
                                                     </td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
-                                    </table>
+                                    </x-ui.table>
                                 </div>
                                 @if($highlightRefundId > 0)
                                     <script>
@@ -853,8 +838,7 @@
         @endif
 
         @if(! $isRefundRecord)
-            <div
-                class="mt-8 flex justify-between items-center flex-col sm:flex-row gap-3"
+            <x-ui.editor-actions
                 x-data="{
                     selectedPaymentMethod: '',
                     bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
@@ -872,21 +856,20 @@
                     class="flex items-center gap-3"
                     x-bind:class="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared ? 'opacity-60' : ''"
                 >
-                    <input
-                        type="checkbox"
-                        name="email_receipt"
-                        value="1"
-                        form="payment-edit-form"
-                        class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                        x-bind:disabled="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared"
-                        x-bind:title="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared ? 'Mark the bank transfer as cleared first' : null"
-                        @checked(old('email_receipt'))
-                    >
+                    <x-ui.checkbox bare small
+
+ name="email_receipt"
+ value="1"
+ form="payment-edit-form"
+
+ x-bind:disabled="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared"
+ x-bind:title="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared ? 'Mark the bank transfer as cleared first' : null"
+ :checked="old('email_receipt')" />
                     <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
                 </label>
 
-                <x-ui.button type="submit" form="payment-edit-form" class="w-full sm:w-auto">Save</x-ui.button>
-            </div>
+                <x-ui.button type="submit" form="payment-edit-form">Save</x-ui.button>
+            </x-ui.editor-actions>
             @include('admin.payment.partials.replacement-dialog')
         @endif
         </div>

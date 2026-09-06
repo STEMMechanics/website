@@ -8,7 +8,7 @@
         ? 'background-image: repeating-linear-gradient(45deg, rgba(126, 34, 206, 0.08) 0 10px, rgba(255, 255, 255, 0.05) 10px 20px);'
         : '';
 @endphp
-<nav class="{{ $navClass }}" @if($navStyle !== '') style="{{ $navStyle }}" @endif>
+<nav data-site-navbar class="{{ $navClass }}" @if($navStyle !== '') style="{{ $navStyle }}" @endif>
     @php
         $navUser = auth()->user();
         \App\Models\Quote::expireOpenQuotes();
@@ -60,7 +60,7 @@
                 'items' => [
                     ['label' => 'Users', 'route' => route('admin.user.index'), 'icon' => 'fa-solid fa-users', 'active' => ['admin.user.*']],
                     ['label' => 'Subscriptions', 'route' => route('admin.subscription.index'), 'icon' => 'fa-solid fa-envelope-open-text', 'active' => ['admin.subscription.index', 'admin.subscription.create', 'admin.subscription.edit']],
-                    ['label' => 'Subscription Store Themes', 'route' => route('admin.subscription.theme.index'), 'icon' => 'fa-solid fa-wand-magic-sparkles', 'active' => ['admin.subscription.theme.*']],
+                    ['label' => 'Newsletter', 'route' => route('admin.newsletter.index'), 'icon' => 'fa-solid fa-newspaper', 'active' => ['admin.newsletter.*', 'admin.subscription.theme.*']],
                     ['label' => 'Media', 'route' => route('admin.media.index'), 'icon' => 'fa-solid fa-photo-film', 'active' => ['admin.media.*'], 'badge' => $mediaDuplicateCount],
                     ['label' => 'Pages', 'route' => route('admin.custom-page.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.custom-page.*']],
                     ['label' => 'Locations', 'route' => route('admin.location.index'), 'icon' => 'fa-solid fa-location-dot', 'active' => ['admin.location.*']],
@@ -114,7 +114,7 @@
     @endphp
     <div class="mx-auto max-w-7xl px-2 relative">
         <div class="relative flex h-16 items-center justify-between">
-            <div class="ml-4 mr-2 flex gap-3 items-center">
+            <div class="ml-2 sm:ml-4 mr-2 flex shrink-0 gap-3 items-center">
                 <button type="button" @click="pageMenuOpen=!pageMenuOpen" @keydown.escape="pageMenuOpen=false" class="relative flex w-6 text-gray-400 hover:text-white {{ $isAdmin ? '' : 'lg:hidden' }}" id="page-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
@@ -126,14 +126,14 @@
                     <i class="fa fa-search"></i>
                 </button>
             </div>
-            <div class="flex flex-1 items-center justify-center sm:justify-start ml-2">
-                <div class="flex shrink-0 items-center">
-                    <a href="{{ route('index') }}">
-                        @includeSVG('logo.svg', 'width:14rem;margin-top:-0.2rem;color:black')
+            <div class="flex min-w-0 flex-1 items-center justify-center sm:justify-start ml-2">
+                <div class="flex min-w-0 w-40 sm:w-56 items-center">
+                    <a class="block w-full" href="{{ route('index') }}">
+                        @includeSVG('logo.svg', 'width:100%;margin-top:-0.2rem;color:black')
                     </a>
                 </div>
             </div>
-            <div class="flex items-center space-x-6 mr-6">
+            <div class="flex shrink-0 items-center space-x-3 sm:space-x-6 mr-2 sm:mr-6">
                 {{-- <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out" aria-current="page">Blog</a>--}}
                 <a href="{{ route('about') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">About</a>
                 @if($publicShopAvailable)
@@ -209,13 +209,13 @@
                             @endphp
                             <a
                                 href="{{ $item['route'] }}"
-                                class="mt-1 block px-4 py-2 text-sm rounded transition {{ $isActiveAdminLink ? 'bg-sky-600 text-white' : 'text-gray-700 hover:bg-sky-600 hover:text-white' }}"
+                                class="sm-admin-nav-link mt-1 flex items-center gap-2 px-4 py-2 text-sm rounded transition {{ $isActiveAdminLink ? 'bg-sky-600 text-white' : 'text-gray-700 hover:bg-sky-600 hover:text-white' }}"
                                 role="menuitem"
                                 tabindex="-1"
                             >
-                                <i class="{{ $item['icon'] }} w-4 mr-2"></i>{{ $item['label'] }}
+                                <i class="{{ $item['icon'] }} w-4 shrink-0" aria-hidden="true"></i><span class="min-w-0 flex-1">{{ $item['label'] }}</span>
                                 @if((int) ($item['badge'] ?? 0) > 0)
-                                    <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white" @isset($item['badge_title']) title="{{ $item['badge_title'] }}" @endisset>{{ (int) $item['badge'] }}</span>
+                                    <x-ui.nav-count :count="$item['badge']" :label="$item['badge_title'] ?? null" />
                                 @endif
                             </a>
                         @endforeach
@@ -275,7 +275,7 @@
 </nav>
 
     @if($publicShopAvailable)
-        <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="if (cartOpen) { cartOpen = false }" x-cloak class="fixed inset-0 z-[260]" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
+        <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="if (cartOpen) { cartOpen = false }" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
             <div
                 x-show="cartOpen"
                 @click="cartOpen=false"
@@ -289,7 +289,7 @@
             ></div>
             <div
                 x-show="cartOpen"
-                class="absolute right-0 top-0 h-full w-md max-w-full bg-white z-[270] shadow-2xl p-5 overflow-y-auto"
+                class="absolute right-0 top-0 h-full w-md max-w-full bg-white z-270 shadow-2xl p-5 overflow-y-auto"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0 translate-x-full"
                 x-transition:enter-end="opacity-100 translate-x-0"
@@ -413,7 +413,7 @@
         </div>
     @endif
 
-    <div class="fixed inset-0 z-[300] flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => {
+    <div class="fixed inset-0 z-300 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => {
         if(value) {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {

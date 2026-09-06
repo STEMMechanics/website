@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'queue_connection' => env('ANALYTICS_QUEUE_CONNECTION'),
+    'dashboard_snapshot_seconds' => (int) env('DASHBOARD_SNAPSHOT_SECONDS', env('APP_ENV') === 'testing' ? 0 : 300),
+    'profile_requests' => env('PROFILE_REQUESTS', false),
     'enabled' => env('ANALYTICS_ENABLED', true),
     'internal_referrer_hosts' => array_values(array_filter(array_map(
         'trim',

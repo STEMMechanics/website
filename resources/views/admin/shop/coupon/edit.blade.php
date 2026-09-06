@@ -390,7 +390,7 @@
                     <div>
                         <div class="flex items-center justify-between gap-3">
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                                <input type="checkbox" name="applies_to_products" value="1" x-model="productsEnabled" class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <x-ui.checkbox bare small name="applies_to_products" value="1" x-model="productsEnabled" />
                                 <span>Allow use with products</span>
                             </label>
                             <x-ui.button type="button" color="outline" class="px-4 py-1.5 text-sm" x-on:click="openProductsPicker()">Edit</x-ui.button>
@@ -428,7 +428,7 @@
                     <div>
                         <div class="flex items-center justify-between gap-3">
                             <label class="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                                <input type="checkbox" name="applies_to_workshops" value="1" x-model="workshopsEnabled" class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <x-ui.checkbox bare small name="applies_to_workshops" value="1" x-model="workshopsEnabled" />
                                 <span>Allow use with workshops</span>
                             </label>
                             <x-ui.button type="button" color="outline" class="px-4 py-1.5 text-sm" x-on:click="openWorkshopsPicker()">Edit</x-ui.button>
@@ -485,17 +485,17 @@
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-3">
+                <x-ui.editor-actions>
                     <x-ui.button type="submit">Save Voucher</x-ui.button>
                     @isset($coupon)
-                        <button
+                        <x-ui.button data-editor-delete variant="plain"
                             type="button"
                             class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
                             x-data
                             x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete voucher?', 'Are you sure you want to delete this voucher? This action cannot be undone.', '{{ route('admin.shop.coupon.destroy', $coupon) }}')"
-                        >Delete Voucher</button>
+                        >Delete Voucher</x-ui.button>
                     @endisset
-                </div>
+                </x-ui.editor-actions>
             </div>
 
             <template x-teleport="body">
@@ -517,9 +517,9 @@
                                     <h2 class="mt-1 text-xl font-bold text-gray-900" :id="picker.type === 'products' ? 'coupon-product-picker-title' : 'coupon-workshop-picker-title'" x-text="pickerTitle()"></h2>
                                     <p class="mt-2 text-sm leading-6 text-gray-600" x-text="pickerDescription()"></p>
                                 </div>
-                                <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closePicker()" aria-label="Close picker">
+                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closePicker()" aria-label="Close picker">
                                     <i class="fa-solid fa-xmark text-lg"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
                         </div>
 
@@ -536,13 +536,13 @@
                                 />
                                 <div class="flex flex-wrap gap-2">
                                     <template x-for="filter in pickerFiltersForCurrentType()" :key="filter.value">
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="button"
                                             class="rounded-full border px-3 py-1.5 text-sm font-semibold transition"
-                                            :class="String(picker.filter) === String(filter.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                                            x-bind:class="String(picker.filter) === String(filter.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
                                             x-text="filter.label"
                                             x-on:click="setPickerFilter(filter.value)"
-                                        ></button>
+                                        ></x-ui.button>
                                     </template>
                                 </div>
                             </div>
@@ -557,7 +557,7 @@
 
                             <div class="overflow-hidden rounded-2xl border border-gray-200" x-show="!picker.busy && picker.items.length > 0" x-cloak>
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                                    <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-left text-sm">
                                         <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                                             <tr>
                                                 <th class="w-16 px-4 py-3">Select</th>
@@ -590,7 +590,7 @@
                                                 </tr>
                                             </template>
                                         </tbody>
-                                    </table>
+                                    </x-ui.table>
                                 </div>
                             </div>
                         </div>

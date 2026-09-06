@@ -238,9 +238,9 @@
                                     <div>
                                         <h3 id="ticket-voucher-dialog-title" class="text-xl font-bold text-gray-900">Enter a voucher code</h3>
                                     </div>
-                                    <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closeVoucherDialog()" aria-label="Close voucher dialog">
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeVoucherDialog()" aria-label="Close voucher dialog">
                                         <i class="fa-solid fa-xmark text-lg"></i>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
                             </div>
 

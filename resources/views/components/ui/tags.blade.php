@@ -25,6 +25,8 @@
     <label @if($textInputId !== '') for="{{ $textInputId }}" @endif class="block text-sm pl-1">{{ $label }}</label>
     <div
         class="mt-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 focus-within:border-indigo-300"
+        data-tag-editor
+        x-on:sm-tags-clear="tags = []; draft = ''; cursorIndex = 0; sync()"
         x-data="{
             tags: @js(collect(explode(',', (string) $value))->map(fn ($tag) => trim($tag))->filter()->values()->all()),
             draft: '',

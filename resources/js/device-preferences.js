@@ -28,6 +28,7 @@ async function initialisePush() {
         for (const panel of panels) {
             panel.querySelectorAll('[data-push-enable]').forEach(button => {
                 button.disabled = busy || !supported || needsInstall || !publicKey || !!current()?.enabled;
+                button.hidden = panel !== root && !!current()?.enabled;
                 button.textContent = current()?.enabled ? 'Enabled on this device' : 'Enable on this device';
             });
             // The prompt also uses this action to save an explicit opt-out before enabling.
@@ -54,7 +55,7 @@ async function initialisePush() {
                 testButton.disabled = busy || !device.enabled || !device.can_enable || !publicKey;
                 testButton.addEventListener('click', () => run(async () => {
                     await request('POST', { device_id: device.device_id }, '/test');
-                    window.SM.alert('Test notification sent', 'Check the selected device for your test notification.', 'success');
+                    window.SM.feedback(panel.querySelector('[data-push-feedback]'), 'Test sent!', 'Check the selected device for your test notification.', 'success');
                 }));
                 button.disabled = busy;
                 button.addEventListener('click', () => {
@@ -81,6 +82,9 @@ async function initialisePush() {
         if (device.device_id === deviceId) {
             prompt.hidden = true;
             sessionStorage.setItem(key, '1');
+        }
+        for (const panel of panels.filter(panel => panel !== root)) {
+            window.SM.feedback(panel.querySelector('[data-push-feedback]'), 'Device removed', 'It will no longer receive notifications.', 'success');
         }
         status(device.device_id === deviceId ? 'Device removed. Notifications are off for this device.' : 'Notification device removed.');
     }
@@ -123,6 +127,9 @@ async function initialisePush() {
                     subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(atob(padded), character => character.charCodeAt(0)) });
                 }
                 await save(true, subscription.toJSON());
+                for (const settings of panels.filter(item => item !== root)) {
+                    window.SM.feedback(settings.querySelector('[data-push-feedback]'), 'You’re connected!', 'Notifications are enabled on this device.', 'success');
+                }
             })));
         }
     } catch (error) {

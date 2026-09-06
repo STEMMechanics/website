@@ -58,54 +58,51 @@
             </form>
 
             <h4 class="font-semibold mb-2">Available Backups</h4>
+            <x-ui.dynamic-list name="admin-server-backups">
+            <x-ui.collection-controls class="my-4" />
             @if($databaseBackups->isEmpty())
                 <p class="text-sm text-gray-600">No backup files found yet.</p>
             @else
                 <div class="overflow-auto border border-gray-200 rounded-lg">
-                    <table class="sm-backup-table w-full text-sm">
+                    <x-ui.table variant="plain" table-class="sm-backup-table w-full text-sm">
                         <thead class="bg-gray-50">
                         <tr>
-                            <th class="text-left px-3 py-2">File</th>
-                            <th class="text-left px-3 py-2">Modified</th>
-                            <th class="text-left px-3 py-2">Size</th>
-                            <th class="text-left px-3 py-2">Action</th>
+                            <x-ui.list-heading class="text-left px-3 py-2" label="File" />
+                            <x-ui.list-heading class="px-3 py-2 text-center!" label="Modified" />
+                            <x-ui.list-heading class="px-3 py-2 text-center!" label="Size" />
+                            <x-ui.list-heading class="text-center! px-3 py-2" label="Actions" />
                         </tr>
                         </thead>
                         <tbody>
                         @foreach($databaseBackups as $backup)
                             <tr class="border-t border-gray-100">
                                 <td class="px-3 py-2 font-mono text-xs break-all" data-label="File">{{ $backup['filename'] }}</td>
-                                <td class="px-3 py-2" data-label="Modified">{{ $backup['modified_at'] }}</td>
-                                <td class="px-3 py-2" data-label="Size">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
+                                <td class="px-3 py-2 text-center!" data-label="Modified"><x-ui.date-time>{{ $backup['modified_at'] }}</x-ui.date-time></td>
+                                <td class="px-3 py-2 text-center!" data-label="Size"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) $backup['size']) }}</x-ui.nonbreaking></td>
                                 <td class="px-3 py-2" data-label="Action">
-                                    <div class="flex flex-wrap items-center gap-3">
+                                    <x-ui.row-actions>
                                         <form method="POST" action="{{ route('admin.server.database.restore', ['filename' => $backup['filename']]) }}" data-sm-confirm="Rollback the live database to this backup? This will overwrite current data. Make sure you have a current backup first." data-sm-confirm-button="Rollback Database">
                                             @csrf
-                                            <button type="submit" class="hover:text-orange-600" title="Rollback database to this backup" aria-label="Rollback database to this backup">
-                                                <i class="fa-solid fa-rotate-left"></i>
-                                            </button>
+                                            <x-ui.row-action label="Rollback database to this backup" icon="fa-solid fa-rotate-left" tone="neutral" type="submit" aria-label="Rollback database to this backup" />
                                         </form>
-                                        <a href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="Download backup">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
+                                        <x-ui.row-action label="Download backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}" />
                                         <form method="POST" action="{{ route('admin.server.database.delete', ['filename' => $backup['filename']]) }}" data-sm-confirm="Delete this backup file? This cannot be undone." data-sm-confirm-button="Delete Backup">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="hover:text-red-600" title="Delete backup">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
+                                            <x-ui.row-action label="Delete backup" icon="fa-solid fa-trash" tone="danger" type="submit" />
                                         </form>
-                                    </div>
+                                    </x-ui.row-actions>
                                 </td>
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
                 <div class="mt-3">
-                    {{ $databaseBackups->links() }}
+                    <x-ui.list-pagination :paginator="$databaseBackups" />
                 </div>
             @endif
+            </x-ui.dynamic-list>
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
@@ -132,16 +129,16 @@
                 <p class="text-sm text-gray-600">No file backups found yet.</p>
             @else
                 <div class="overflow-auto border border-gray-200 rounded-lg">
-                    <table class="sm-backup-table w-full text-sm">
+                    <x-ui.table variant="plain" table-class="sm-backup-table w-full text-sm">
                         <thead class="bg-gray-50">
                         <tr>
-                            <th class="text-left px-3 py-2">Run</th>
-                            <th class="text-center px-3 py-2">Mode</th>
-                            <th class="text-left px-3 py-2">Created</th>
-                            <th class="text-center px-3 py-2">Files</th>
-                            <th class="text-center px-3 py-2">Deleted</th>
-                            <th class="text-left px-3 py-2">Size</th>
-                            <th class="text-left px-3 py-2">Action</th>
+                            <x-ui.list-heading class="text-left px-3 py-2" label="Run" />
+                            <x-ui.list-heading class="text-center px-3 py-2" label="Mode" />
+                            <x-ui.list-heading class="px-3 py-2 text-center!" label="Created" />
+                            <x-ui.list-heading class="text-center px-3 py-2" label="Files" />
+                            <x-ui.list-heading class="text-center px-3 py-2" label="Deleted" />
+                            <x-ui.list-heading class="px-3 py-2 text-center!" label="Size" />
+                            <x-ui.list-heading class="text-center! px-3 py-2" label="Actions" />
                         </tr>
                         </thead>
                         <tbody>
@@ -166,17 +163,15 @@
                                         <div class="mt-1 text-xs text-gray-500">{{ number_format((int) $backup['window_hours']) }}h window</div>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2" data-label="Created">
-                                    {{ trim((string) ($backup['created_at'] ?? $backup['modified_at'] ?? '')) !== '' ? \Carbon\Carbon::parse((string) ($backup['created_at'] ?? $backup['modified_at']))->format('Y-m-d H:i:s') : '-' }}
+                                <td class="px-3 py-2 text-center!" data-label="Created">
+                                    <x-ui.date-time>{{ trim((string) ($backup['created_at'] ?? $backup['modified_at'] ?? '')) !== '' ? \Carbon\Carbon::parse((string) ($backup['created_at'] ?? $backup['modified_at']))->format('Y-m-d H:i:s') : '-' }}</x-ui.date-time>
                                 </td>
                                 <td class="px-3 py-2 text-center" data-label="Files">{{ number_format((int) $backup['uploaded_files']) }}</td>
                                 <td class="px-3 py-2 text-center" data-label="Deleted">{{ number_format((int) $backup['deleted_files']) }}</td>
-                                <td class="px-3 py-2" data-label="Size">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
-                                <td class="px-3 py-2" data-label="Action">
+                                <td class="px-3 py-2 text-center!" data-label="Size"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) $backup['size']) }}</x-ui.nonbreaking></td>
+                                <td class="text-center! px-3 py-2" data-label="Action">
                                     @if($fileBackupReadable)
-                                    <a href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="View files">
-                                        <i class="fa-solid fa-folder-open"></i>
-                                    </a>
+                                    <x-ui.row-action label="View files" icon="fa-solid fa-folder-open" tone="neutral" href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}" />
                                     @else
                                     <span class="text-gray-400" title="Backup run is not readable">
                                         <i class="fa-solid fa-folder-open"></i>
@@ -186,14 +181,14 @@
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
             @endif
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Bulk File Download</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <x-ui.grid class="md:grid-cols-2 gap-4">
                 <div class="rounded-lg border border-gray-200 bg-white p-3 flex justify-between">
                     <div>
                         <div class="font-semibold mb-1">Media Files</div>
@@ -205,7 +200,7 @@
                     </div>
                     <form method="POST" action="{{ route('admin.server.media.download-all') }}" @submit.prevent="startBackup($event, 'media_archive')">
                         @csrf
-                        <button type="submit" :disabled="isRunning('media_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare media ZIP" aria-label="Prepare media ZIP"><i class="fa-solid fa-download"></i></button>
+                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('media_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare media ZIP" aria-label="Prepare media ZIP"><i class="fa-solid fa-download"></i></x-ui.button>
                     </form>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-white p-3 flex justify-between">
@@ -219,10 +214,10 @@
                     </div>
                     <form method="POST" action="{{ route('admin.server.finance.download-all') }}" @submit.prevent="startBackup($event, 'finance_archive')">
                         @csrf
-                        <button type="submit" :disabled="isRunning('finance_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare finance ZIP" aria-label="Prepare finance ZIP"><i class="fa-solid fa-download"></i></button>
+                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('finance_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare finance ZIP" aria-label="Prepare finance ZIP"><i class="fa-solid fa-download"></i></x-ui.button>
                     </form>
                 </div>
-            </div>
+            </x-ui.grid>
         </div>
         </div>
     </x-container>

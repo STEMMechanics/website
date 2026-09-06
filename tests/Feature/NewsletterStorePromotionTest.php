@@ -80,7 +80,7 @@ class NewsletterStorePromotionTest extends TestCase
             'hero_cta' => 'Admin selected introduction',
             'content_order' => 'store',
             'sections' => $draft->sections,
-        ])->assertRedirect(route('admin.subscription.index'));
+        ])->assertRedirect(route('admin.newsletter.index'));
 
         $updated = $draft->fresh();
         $this->assertSame('Admin selected subject', $updated->subject);
@@ -102,7 +102,7 @@ class NewsletterStorePromotionTest extends TestCase
                 ['key' => 'kits', 'title' => 'Weekend maker picks', 'intro' => 'Everything you need for the next build.', 'category_slugs' => ['kits'], 'product_ids' => $products->pluck('id')->all(), 'locked_product_ids' => [$products->first()->id]],
                 ['key' => 'extras', 'title' => 'Grab extras', 'intro' => '', 'category_slugs' => ['kits'], 'product_ids' => [], 'locked_product_ids' => []],
             ],
-        ])->assertRedirect(route('admin.subscription.index'));
+        ])->assertRedirect(route('admin.newsletter.index'));
 
         $promotion = NewsletterProductPromotion::query()->firstOrFail();
         $this->assertSame([$products->first()->id], $promotion->sections[0]['locked_product_ids']);
@@ -162,7 +162,7 @@ class NewsletterStorePromotionTest extends TestCase
         $this->actingAs($admin)->put(route('admin.subscription.store-promotion.update'), [
             'sections' => $draft->sections,
             'refresh_copy' => 0,
-        ])->assertRedirect(route('admin.subscription.index'));
+        ])->assertRedirect(route('admin.newsletter.index'));
 
         $updated = $draft->fresh();
         $this->assertSame('Recently updated kits', $updated->sections[0]['title']);
@@ -197,7 +197,7 @@ class NewsletterStorePromotionTest extends TestCase
         $this->actingAs($admin)->put(route('admin.subscription.store-promotion.update'), [
             'sections' => $sections,
             'apply_theme' => 0,
-        ])->assertRedirect(route('admin.subscription.index'));
+        ])->assertRedirect(route('admin.newsletter.index'));
 
         $themed = $draft->fresh();
         $this->assertSame($backInStock->id, $themed->sections[0]['theme_id']);
@@ -211,7 +211,7 @@ class NewsletterStorePromotionTest extends TestCase
         $this->actingAs($admin)->put(route('admin.subscription.store-promotion.update'), [
             'sections' => $requestSections,
             'refresh_product' => '0:0',
-        ])->assertRedirect(route('admin.subscription.index'));
+        ])->assertRedirect(route('admin.newsletter.index'));
 
         $this->assertNotSame($beforeRefresh[0], $draft->fresh()->sections[0]['product_ids'][0]);
     }
@@ -224,7 +224,7 @@ class NewsletterStorePromotionTest extends TestCase
             ProductCategory::factory()->create(['name' => ucfirst($slug), 'slug' => $slug]);
         }
 
-        $this->actingAs($admin)->get(route('admin.subscription.index'))
+        $this->actingAs($admin)->get(route('admin.newsletter.index'))
             ->assertOk()
             ->assertSee('data-theme-mode="0"', false)
             ->assertSee('window.SMNewsletterApplyTheme(this.form, 0, this)', false)
@@ -275,7 +275,7 @@ class NewsletterStorePromotionTest extends TestCase
         $this->actingAs($admin)->put(route('admin.subscription.store-promotion.update'), [
             'sections' => $sections,
             'apply_theme' => 1,
-        ])->assertRedirect(route('admin.subscription.index'))->assertSessionHas('message-type', 'warning');
+        ])->assertRedirect(route('admin.newsletter.index'))->assertSessionHas('message-type', 'warning');
 
         $this->assertSame($originalSection, $draft->fresh()->sections[1]);
     }

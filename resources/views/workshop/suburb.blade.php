@@ -35,11 +35,11 @@
         </div>
 
         @if($workshops->isNotEmpty())
-            <div class="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <x-ui.grid class="mt-8 gap-5 md:grid-cols-2 lg:grid-cols-3">
                 @foreach($workshops as $workshop)
                     <x-panel-workshop :workshop="$workshop" />
                 @endforeach
-            </div>
+            </x-ui.grid>
         @else
             <div class="mx-auto mt-8 max-w-2xl rounded-lg border border-gray-200 bg-white p-8 text-center">
                 <h2 class="text-xl font-bold">No upcoming {{ $suburb }} workshops are listed yet</h2>

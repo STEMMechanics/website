@@ -114,7 +114,7 @@ class ContactPageTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors(FormGuard::ERROR_KEY);
-        Queue::assertNothingPushed();
+        Queue::assertNotPushed(SendEmail::class);
     }
 
     public function test_contact_submission_rejects_submissions_that_are_too_fast(): void
@@ -132,7 +132,7 @@ class ContactPageTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors(FormGuard::ERROR_KEY);
-        Queue::assertNothingPushed();
+        Queue::assertNotPushed(SendEmail::class);
     }
 
     public function test_contact_submission_is_rate_limited_by_ip(): void

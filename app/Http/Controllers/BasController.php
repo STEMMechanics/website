@@ -19,7 +19,10 @@ class BasController extends Controller
 {
     public function index(Request $request): View
     {
-        return view('admin.bas.index', $this->buildBasData($request));
+        $data = $this->buildBasData($request);
+        $data['expenses'] = (new \App\Services\SiteListControls('bas_expenses'))->applyCollection($data['expenses']);
+        $data['customerPayments'] = (new \App\Services\SiteListControls('bas_payments'))->applyCollection($data['customerPayments']);
+        return view('admin.bas.index', $data);
     }
 
     public function exportCsv(Request $request): StreamedResponse

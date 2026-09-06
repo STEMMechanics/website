@@ -4,6 +4,10 @@ use Illuminate\Support\Str;
 
 return [
 
+    // Preserve existing sessions during the Laravel 13 upgrade. Switch to JSON
+    // only as a planned re-authentication after auditing session payloads.
+    'serialization' => 'php',
+
     /*
     |--------------------------------------------------------------------------
     | Default Session Driver

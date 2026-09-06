@@ -37,7 +37,7 @@ class NavbarThemeTest extends TestCase
 
         $this->assertStringContainsString('Workshops &amp; Community', $html);
         $this->assertMatchesRegularExpression(
-            '/href="'.preg_quote(route('admin.workshop-category.index'), '/').'".*?>\s*<i[^>]*><\/i>Categories/s',
+            '/href="'.preg_quote(route('admin.workshop-category.index'), '/').'".*?>\s*<i[^>]*><\/i>\s*<span[^>]*>Categories<\/span>/s',
             $html,
         );
     }

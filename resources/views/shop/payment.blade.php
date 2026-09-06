@@ -201,7 +201,7 @@
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                         <x-ui.button color="outline" href="{{ route('shop.checkout') }}">Back to Details</x-ui.button>
                         @if($hasAmountDue && !$squareEnabled)
-                            <button type="button" disabled class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Payment unavailable</button>
+                            <x-ui.button variant="plain" type="button" disabled class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Payment unavailable</x-ui.button>
                         @else
                             <x-ui.button type="submit" x-bind:disabled="isSubmitting || isCardLoading">
                                 <span x-show="!isSubmitting" x-cloak>{{ $hasAmountDue ? 'Pay $'.number_format((float) ($summary['total'] ?? 0), 2) : 'Complete Order' }}</span>

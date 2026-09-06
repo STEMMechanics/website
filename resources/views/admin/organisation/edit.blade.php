@@ -166,7 +166,7 @@
                 </div>
 
                 <div class="mb-4 overflow-x-auto rounded-lg border border-gray-200" x-show="contacts.length > 0">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                             <tr>
                                 <th class="px-3 py-2">Contact</th>
@@ -185,14 +185,14 @@
                                     <td class="px-3 py-2 text-gray-600" x-text="contact.email"></td>
                                     <td class="hidden px-3 py-2 text-gray-600 md:table-cell" x-text="contact.organisation_name || '-'"></td>
                                     <td class="px-3 py-2 text-center">
-                                        <button type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(contact.id)" title="Remove contact" aria-label="Remove contact">
+                                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(contact.id)" title="Remove contact" aria-label="Remove contact">
                                             <i class="fa-solid fa-link-slash"></i>
-                                        </button>
+                                        </x-ui.button>
                                     </td>
                                 </tr>
                             </template>
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 <div class="mb-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="contacts.length === 0" x-cloak>
@@ -218,13 +218,13 @@
                 </div>
                 <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50" x-show="search.trim().length >= 2 && !searching" x-cloak>
                     <template x-for="contact in results" :key="contact.id">
-                        <button type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(contact)">
+                        <x-ui.button variant="plain" type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(contact)">
                             <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="contact.name"></span>
                                 <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
                             </span>
-                        </button>
+                        </x-ui.button>
                     </template>
                     <div class="px-3 py-3 text-sm text-gray-500" x-show="results.length === 0" x-cloak>No unlinked contacts found.</div>
                 </div>
@@ -240,12 +240,12 @@
                 </div>
             @endif
 
-            <div class="mt-8 flex justify-end gap-4">
+            <x-ui.editor-actions>
                 @if($editing)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete organisation?', 'Workshops and contacts will be retained but unlinked from this organisation.', '{{ route('admin.organisation.destroy', $organisation) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete organisation?', 'Workshops and contacts will be retained but unlinked from this organisation.', '{{ route('admin.organisation.destroy', $organisation) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
-            </div>
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

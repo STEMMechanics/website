@@ -109,7 +109,7 @@
                             <a href="{{ route('admin.quote.edit', $quote) }}" class="flex min-w-0 flex-1 items-start gap-2"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">{{ $quote->statusLabel() }} · follow-up due {{ $quote->follow_up_at?->format('j M Y') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                             <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}" class="shrink-0">
                                 @csrf
-                                <button type="submit" class="flex size-5 items-center justify-center text-xs text-gray-400 transition hover:text-primary-color" title="Snooze follow-up for 7 days" aria-label="Snooze follow-up for 7 days"><i class="fa-solid fa-clock" aria-hidden="true"></i></button>
+                                <x-ui.button variant="plain" type="submit" class="flex size-5 items-center justify-center text-xs text-gray-400 transition hover:text-primary-color" title="Snooze follow-up for 7 days" aria-label="Snooze follow-up for 7 days"><i class="fa-solid fa-clock" aria-hidden="true"></i></x-ui.button>
                             </form>
                         </div>
                     @endforeach

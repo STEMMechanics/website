@@ -17,13 +17,13 @@
             <div class="mb-4 rounded-lg border border-gray-200 p-3">
                 <div class="font-semibold mb-2">Refunded Line Items</div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <x-ui.table variant="plain" table-class="w-full text-sm">
                         <thead>
                             <tr class="border-b border-gray-200">
                                 <th class="text-left py-2 pr-3">Description</th>
                                 <th class="text-right py-2 pr-3">Qty</th>
                                 <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
-                                <th class="text-right py-2">Total <span class="whitespace-nowrap">(incl GST)</span></th>
+                                <th class="py-2 text-center!">Total <span class="whitespace-nowrap">(incl GST)</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -32,7 +32,7 @@
                                     <td class="py-2 pr-3">{{ $line->description }}</td>
                                     <td class="py-2 pr-3 text-right">{{ number_format((float) $line->quantity, 2) }}</td>
                                     <td class="py-2 pr-3 text-right">-${{ number_format(abs((float) $line->unit_price_ex_tax), 2) }}</td>
-                                    <td class="py-2 text-right">-${{ number_format(abs((float) $line->line_total_inc_tax), 2) }}</td>
+                                    <td class="py-2 text-center!">-${{ number_format(abs((float) $line->line_total_inc_tax), 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -40,7 +40,7 @@
                                 </tr>
                             @endforelse
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
             </div>
 

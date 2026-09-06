@@ -4,6 +4,10 @@ use Illuminate\Support\Str;
 
 return [
 
+    // Cached application payloads are scalars/arrays. Laravel 13 honours this
+    // allow-list; do not enable arbitrary object deserialization.
+    'serializable_classes' => false,
+
     /*
     |--------------------------------------------------------------------------
     | Default Cache Store

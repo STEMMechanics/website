@@ -124,7 +124,13 @@ if (isset($workshop)) {
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
         <x-slot>{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-slot>
         @isset($workshop)
-            <x-slot:backTitleExtra><span class="text-sm">(<a href="{{ route('workshop.show', $workshop) }}" target="_blank" class="hover:text-primary-color-dark transition-colors">View</a>)</span></x-slot:backTitleExtra>
+            <x-slot:actions>
+                <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
+                    View public page
+                    <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
+                    <span class="sr-only">(opens in a new tab)</span>
+                </x-ui.button>
+            </x-slot:actions>
         @endisset
     </x-mast>
 
@@ -637,11 +643,11 @@ if (isset($workshop)) {
                             @foreach($workshopCategories as $category)
                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
                                     <x-ui.checkbox
-                                        name="category_ids[]"
-                                        value="{{ $category->id }}"
-                                        :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
-                                        :noWrapper="true"
-                                    />
+ name="category_ids[]"
+ value="{{ $category->id }}"
+ :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
+ :noWrapper="true"
+ />
                                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
                                         <i class="{{ $category->iconClass() }}"></i>
                                     </span>
@@ -664,7 +670,7 @@ if (isset($workshop)) {
                         <span x-show="type==='physical'">
                             <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
                                 <x-slot name="labelRight">
-                                    <button type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</button>
+                                    <x-ui.button variant="plain" type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</x-ui.button>
                                 </x-slot>
                                 <option value="">Select location</option>
                                 <template x-for="location in locations" :key="location.id">
@@ -759,14 +765,14 @@ if (isset($workshop)) {
                         <input type="hidden" name="requested_by_user_id" :value="contactId">
                         <label for="requested_by_user_search" class="mb-1 block pl-1 text-sm">Requested by / Contact</label>
                         <div class="flex gap-2">
-                            <input id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input.debounce.350ms="findContacts()" autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                            <x-ui.input-control id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input.debounce.350ms="findContacts()" autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                         </div>
                         <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearch.trim().length >= 2 && !contactSearching && contactResults.length > 0" x-cloak>
                             <template x-for="contact in contactResults" :key="contact.id">
-                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseContact(contact)">
+                                <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseContact(contact)">
                                     <span class="block text-gray-900" x-text="contact.name"></span>
                                     <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
-                                </button>
+                                </x-ui.button>
                             </template>
                         </div>
                         @error('requested_by_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
@@ -778,11 +784,11 @@ if (isset($workshop)) {
                             <a href="{{ route('admin.organisation.index') }}" class="text-primary-color cursor-pointer hover:underline text-xs">Manage organisations</a>
                         </div>
                         <div class="flex gap-2">
-                            <input id="hosted_for_organisation_search" type="search" x-model="hostSearch" x-on:input.debounce.350ms="findHosts()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                            <x-ui.input-control id="hosted_for_organisation_search" type="search" x-model="hostSearch" x-on:input.debounce.350ms="findHosts()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                         </div>
                         <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="hostSearch.trim().length >= 2 && !hostSearching && hostResults.length > 0" x-cloak>
                             <template x-for="organisation in hostResults" :key="organisation.id">
-                                <button type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></button>
+                                <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></x-ui.button>
                             </template>
                         </div>
                         @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
@@ -800,17 +806,17 @@ if (isset($workshop)) {
                 <div class="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-xl">
                     <div class="mb-4 flex items-center justify-between">
                         <h3 class="text-lg font-semibold">Create Location</h3>
-                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCreateLocation()">
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCreateLocation()">
                             <i class="fa-solid fa-xmark"></i>
-                        </button>
+                        </x-ui.button>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-3">
+                    <x-ui.grid class="gap-3">
                         <x-ui.input label="Name" name="new_location_name" x-model="newLocation.name" />
                         <x-ui.input label="Address" name="new_location_address" x-model="newLocation.address" />
                         <x-ui.input label="Location URL" name="new_location_url" x-model="newLocation.url" />
                         <x-ui.input label="Address URL" name="new_location_address_url" x-model="newLocation.address_url" />
-                    </div>
+                    </x-ui.grid>
 
                     <div x-show="createLocationError" x-text="createLocationError" class="mt-2 text-sm text-red-600"></div>
 
@@ -886,19 +892,19 @@ if (isset($workshop)) {
                                     Any pending workshop task reminders will be cancelled and will not be emailed.
                                 </p>
                             </div>
-                            <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
+                            <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
                                 <i class="fa-solid fa-xmark"></i>
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <div class="mt-5">
                             <label class="mb-1 block text-sm font-semibold text-gray-900" for="workshop-cancel-reason">Cancellation reason</label>
-                            <textarea
+                            <x-ui.textarea-control
                                 id="workshop-cancel-reason"
                                 rows="4"
                                 x-model="workshopCancelReason"
                                 class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0"
-                            ></textarea>
+                            ></x-ui.textarea-control>
                             <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in cancellation emails and records.</p>
                         </div>
 
@@ -912,23 +918,23 @@ if (isset($workshop)) {
             <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1 content-center flex gap-8">
                         <x-ui.checkbox
-                                label="Private Workshop"
-                                name="is_private"
-                                info="Visible to the public but requires an access code to register"
-                                value="1"
-                                :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
-                                x-model="isPrivate"
-                                no-wrapper="true"
-                                 />
+ label="Private Workshop"
+ name="is_private"
+ info="Visible to the public but requires an access code to register"
+ value="1"
+ :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
+ x-model="isPrivate"
+ no-wrapper="true"
+ />
                         <x-ui.checkbox
-                                label="Hidden Workshop"
-                                name="is_hidden"
-                                info="Not displayed in public lists, search or newsletters"
-                                value="1"
-                                :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
-                                x-model="isHidden"
-                                no-wrapper="true"
-                                 />
+ label="Hidden Workshop"
+ name="is_hidden"
+ info="Not displayed in public lists, search or newsletters"
+ value="1"
+ :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
+ x-model="isHidden"
+ no-wrapper="true"
+ />
                     </div>
                     <div class="flex-1">
                         <x-ui.input type="datetime-local" label="Closes Date" name="closes_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->closes_at ?? '') }}" />
@@ -1026,9 +1032,9 @@ if (isset($workshop)) {
                                 <h3 id="participant-information-title" class="text-lg font-semibold text-gray-900">Participant information</h3>
                                 <p class="mt-1 text-sm text-gray-600">This content appears during checkout and in the booking confirmation email.</p>
                             </div>
-                            <button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
+                            <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
                                 <i class="fa-solid fa-xmark"></i>
-                            </button>
+                            </x-ui.button>
                         </div>
                         <div class="mb-5 border-b border-gray-200 pb-5">
                             <x-ui.input
@@ -1059,7 +1065,7 @@ if (isset($workshop)) {
                                 <template x-for="(fileName, index) in participantFiles" :key="fileName">
                                     <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                                         <div class="min-w-0 truncate text-sm font-medium text-gray-800" x-text="fileName"></div>
-                                        <button type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash"></i></button>
+                                        <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash"></i></x-ui.button>
                                     </div>
                                 </template>
                             </div>
@@ -1103,15 +1109,15 @@ if (isset($workshop)) {
                         name="content"
                         value="{!! $workshopContent !!}"></x-ui.editor>
                 </div>
-                <div class="flex justify-end gap-4 mt-8">
+                <x-ui.editor-actions>
                     @if(isset($workshop) && ($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0))
                     <x-ui.button color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif
                     @isset($workshop)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
                     @endisset
                     <x-ui.button type="submit">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
-                </div>
+                </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

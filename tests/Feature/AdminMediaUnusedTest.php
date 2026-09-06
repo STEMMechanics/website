@@ -53,7 +53,7 @@ class AdminMediaUnusedTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.media.index', ['unused_only' => 1]));
 
         $response->assertOk();
-        $response->assertSee('Showing media with no detected site references.');
+        $response->assertSee('Usage: unused');
         $response->assertSeeText('Unused Image');
         $response->assertDontSeeText('Workshop Hero');
         $response->assertDontSeeText('Content Image');

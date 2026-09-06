@@ -46,6 +46,51 @@ class AdminTicketIndexTest extends TestCase
         $response->assertDontSee('Invoice #'.$invoice->invoice_number, false);
     }
 
+    public function test_today_onwards_includes_all_of_today_and_future_but_not_past_or_cancelled_tickets(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(15));
+        $admin = $this->createAdminUser();
+        $past = $this->createTicketWorkshop(['starts_at' => today()->subDay()]);
+        $todayWorkshop = $this->createTicketWorkshop(['starts_at' => today()->addHours(8)]);
+        $future = $this->createTicketWorkshop(['starts_at' => today()->addDay()]);
+        $oldTicket = Ticket::factory()->create(['workshop_id' => $past->id, 'status' => Ticket::STATUS_PAID]);
+        $todayTicket = Ticket::factory()->create(['workshop_id' => $todayWorkshop->id, 'status' => Ticket::STATUS_PAID]);
+        $futureTicket = Ticket::factory()->create(['workshop_id' => $future->id, 'status' => Ticket::STATUS_PAID]);
+        $cancelled = Ticket::factory()->create(['workshop_id' => $future->id, 'status' => Ticket::STATUS_CANCELLED]);
+
+        $this->actingAs($admin)->get(route('admin.ticket.index'))->assertOk()
+            ->assertSee('Current tickets')
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->total() === 2
+                && $tickets->contains('id', $todayTicket->id) && $tickets->contains('id', $futureTicket->id));
+        $this->get(route('admin.ticket.index', ['ticket_scope' => 'all']))->assertOk()
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->total() === 4 && $tickets->contains('id', $oldTicket->id));
+        $this->get(route('admin.ticket.index', ['ticket_scope' => 'cancelled']))->assertOk()
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->total() === 1 && $tickets->contains('id', $cancelled->id));
+    }
+
+    public function test_status_multiselect_combines_with_workshop_filters_and_can_be_cleared(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop(['title' => 'Robot cats', 'starts_at' => today()->addDay()->addHours(18)]);
+        $other = $this->createTicketWorkshop(['title' => 'Other workshop', 'starts_at' => today()->addDay()]);
+        foreach ([Ticket::STATUS_PAID, Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED] as $status) {
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => $status]);
+        }
+        Ticket::factory()->create(['workshop_id' => $other->id, 'status' => Ticket::STATUS_PAID]);
+        $params = ['ticket_status' => ['active', 'reissued'], 'workshop_name' => '*cats', 'workshop_from' => today()->toDateString(), 'workshop_to' => today()->addDay()->toDateString()];
+        $response = $this->actingAs($admin)->get(route('admin.ticket.index', $params))->assertOk()
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->total() === 2)
+            ->assertSee('Status: Active, Reissued')->assertDontSee('Tickets: Current tickets');
+        $dom = new \DOMDocument();
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(2, $xpath->query('//input[@type="checkbox" and @name="ticket_status[]" and @checked]')->length);
+        $this->assertSame(1, $xpath->query('//input[@name="workshop_from" and @type="date" and @value="'.today()->toDateString().'"]')->length);
+        $this->get(route('admin.ticket.index', ['ticket_filters' => 1]))->assertOk()
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->total() === 4);
+        $this->getJson(route('admin.ticket.index', ['ticket_status' => ['unknown']]))->assertUnprocessable();
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

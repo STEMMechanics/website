@@ -2,23 +2,21 @@
     <x-mast>My Invoices</x-mast>
 
     <x-container>
-        <x-ui.toolbar>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="account-invoices">
+
+        <x-ui.collection-controls class="my-5" />
 
         @if($invoices->isEmpty())
         <x-none-found item="invoices" search="{{ request()->get('search') }}" />
         @else
-        <x-ui.table>
+        <x-ui.table variant="listing">
             <x-slot:header>
-                <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Invoice #</th>
-                <th>Details</th>
-                <th class="hidden md:table-cell">Status</th>
-                <th class="hidden md:table-cell">Issue Date</th>
-                <th>Amount</th>
-                <th>Actions</th>
+                <x-ui.list-heading field="invoice_number" class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;" label="Invoice #" />
+                <x-ui.list-heading field="issue_date" label="Details" />
+                <x-ui.list-heading class="hidden md:table-cell text-center!" label="Status" />
+                <x-ui.list-heading field="issue_date" class="hidden md:table-cell text-center!" label="Issue Date" />
+                <x-ui.list-heading class="text-center!" label="Amount" />
+                <x-ui.list-heading class="text-center!" label="Actions" />
             </x-slot:header>
             <x-slot:body>
                 @foreach ($invoices as $invoice)
@@ -32,14 +30,14 @@
                         <div class="md:hidden text-xs text-gray-600 mt-1 capitalize">{{ $invoice->status }}</div>
                     </td>
                     <td>
-                        <div>{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</div>
+                        <div><x-ui.date-time>{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</x-ui.date-time></div>
                         @if(($invoice->taxAdjustments?->count() ?? 0) > 0)
                         <div class="text-xs text-gray-600 mt-1">{{ $invoice->taxAdjustments->count() }} adjustment{{ $invoice->taxAdjustments->count() === 1 ? '' : 's' }}</div>
                         @endif
                     </td>
-                    <td class="hidden md:table-cell capitalize">{{ $invoice->status }}</td>
-                    <td class="hidden md:table-cell">{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</td>
-                    <td>
+                    <td class="hidden md:table-cell capitalize text-center!">{{ $invoice->status }}</td>
+                    <td class="hidden md:table-cell text-center!"><x-ui.date-time>{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</x-ui.date-time></td>
+                    <td class="text-center!">
                         <div>Total: ${{ number_format((float) $invoice->total_amount, 2) }}</div>
                         <div class="text-xs text-gray-600">
                             @if($isCreditDocument)
@@ -49,16 +47,16 @@
                             @endif
                         </div>
                     </td>
-                    <td>
-                        <div class="flex justify-center gap-3 whitespace-nowrap">
+                    <td class="text-center!">
+                        <x-ui.row-actions class="whitespace-nowrap">
                             @if(!$isCreditDocument && $outstanding > 0.0001)
-                            <a href="{{ route('account.invoice.show', $invoice) }}" class="hover:text-primary-color" title="View / Pay Invoice"><i class="fa-solid fa-credit-card"></i></a>
+                            <x-ui.row-action label="View / Pay Invoice" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                             @else
-                            <a href="{{ route('account.invoice.show', $invoice) }}" class="hover:text-primary-color" title="View Invoice"><i class="fa-regular fa-eye"></i></a>
+                            <x-ui.row-action label="View Invoice" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                             @endif
-                            <a href="{{ route('account.invoice.receipts', $invoice) }}" class="hover:text-primary-color" title="View Invoice Payments"><i class="fa-solid fa-receipt"></i></a>
-                            <a href="{{ route('account.invoice.pdf', $invoice) }}" class="hover:text-primary-color" title="Open PDF" target="_blank"><i class="fa-regular fa-file-pdf"></i></a>
-                        </div>
+                            <x-ui.row-action label="View Invoice Payments" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('account.invoice.receipts', $invoice) }}" />
+                            <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
+                        </x-ui.row-actions>
                     </td>
                     </tr>
                     @foreach(($invoice->taxAdjustments ?? collect())->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0) as $adjustment)
@@ -68,15 +66,15 @@
                         </td>
                         <td>
                             <div>Tax Adjustment</div>
-                            <div class="text-xs text-gray-600">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</div>
+                            <div class="text-xs text-gray-600"><x-ui.date-time>{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</x-ui.date-time></div>
                         </td>
-                        <td class="hidden md:table-cell">Tax Adjustment</td>
-                        <td class="hidden md:table-cell">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</td>
-                        <td>${{ number_format((float) $adjustment->total_amount, 2) }}</td>
-                        <td>
-                            <div class="flex justify-center gap-3 whitespace-nowrap">
-                                <a href="{{ route('account.invoice.pdf', $invoice) }}" class="hover:text-primary-color" title="Open Invoice PDF" target="_blank"><i class="fa-regular fa-file-pdf"></i></a>
-                            </div>
+                        <td class="hidden md:table-cell text-center!">Tax Adjustment</td>
+                        <td class="hidden md:table-cell text-center!"><x-ui.date-time>{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</x-ui.date-time></td>
+                        <td class="text-center!">${{ number_format((float) $adjustment->total_amount, 2) }}</td>
+                        <td class="text-center!">
+                            <x-ui.row-actions class="whitespace-nowrap">
+                                <x-ui.row-action label="Open Invoice PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
+                            </x-ui.row-actions>
                         </td>
                     </tr>
                     @endforeach
@@ -84,7 +82,9 @@
             </x-slot:body>
         </x-ui.table>
 
-        {{ $invoices->appends(request()->query())->links() }}
+        <x-ui.list-pagination :paginator="$invoices" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

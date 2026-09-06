@@ -11,34 +11,13 @@
     <x-mast>Refunds</x-mast>
 
     <x-container>
-        <x-ui.toolbar>
-            <x-slot:right>
-                <form method="GET" action="{{ url()->current() }}" class="w-full flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
-                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <input type="checkbox" name="hide_completed" value="1" {{ $hideCompleted ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
-                        Hide completed refunds
-                    </label>
-                    <div class="flex w-full md:max-w-md">
-                        <input
-                            type="text"
-                            name="search"
-                            value="{{ request()->query('search', '') }}"
-                            placeholder="Search"
-                            autocomplete="off"
-                            class="grow rounded-l-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        >
-                        <x-ui.button type="submit" class="rounded-l-none px-6">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </x-ui.button>
-                    </div>
-                </form>
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-payment-refunds">
+        <x-ui.collection-controls class="my-4" />
 
         @if($manualRefunds->isEmpty())
             <x-none-found item="manual refund items" search="{{ request()->get('search') }}" />
         @else
-            <div class="space-y-4 md:hidden">
+            <div data-list-results class="space-y-4 md:hidden">
                 @foreach($manualRefunds as $manualRefund)
                     @php
                         $ticket = $manualRefund->ticket;
@@ -160,35 +139,26 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <x-ui.row-actions class="mt-4">
                             @if($paymentUrl)
-                                <a href="{{ $paymentUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open payment">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                    <span class="sr-only">Open payment</span>
-                                </a>
+                                <x-ui.row-action label="Open payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ $paymentUrl }}" />
                             @endif
                             @if($invoiceUrl)
-                                <a href="{{ $invoiceUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open invoice">
-                                    <i class="fa-regular fa-file-lines"></i>
-                                    <span class="sr-only">Open invoice</span>
-                                </a>
+                                <x-ui.row-action label="Open invoice" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $invoiceUrl }}" />
                             @endif
                             @if($workshopUrl)
-                                <a href="{{ $workshopUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open workshop tickets">
-                                    <i class="fa-solid fa-ticket"></i>
-                                    <span class="sr-only">Open workshop tickets</span>
-                                </a>
+                                <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                             @endif
                             @if($needsManualAction)
-                                <button
+                                <x-ui.button variant="plain"
                                     type="button"
                                     class="inline-flex items-center rounded-md border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
                                     x-on:click="leaveAsCredit = false; refundModalOpen = true"
                                 >
                                     Record refund
-                                </button>
+                                </x-ui.button>
                             @endif
-                        </div>
+                        </x-ui.row-actions>
 
                         <div
                             x-cloak
@@ -205,9 +175,9 @@
                                         <h3 class="text-lg font-semibold text-gray-950">Record manual refund</h3>
                                         <p class="text-sm text-gray-600">Mark this item complete and record the actual refund details.</p>
                                     </div>
-                                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="refundModalOpen = false">
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="refundModalOpen = false">
                                         <i class="fa-solid fa-xmark"></i>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
 
                                 <form
@@ -220,7 +190,7 @@
                                     @csrf
                                     <input type="hidden" name="amount" value="{{ number_format($refundAmount, 2, '.', '') }}">
                                     <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                        <input type="checkbox" name="leave_as_credit" value="1" x-model="leaveAsCredit" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                        <x-ui.checkbox bare small name="leave_as_credit" value="1" x-model="leaveAsCredit" class="mt-1" />
                                         <span>
                                             <span class="block text-sm font-semibold text-gray-900">No refund, leave as account credit</span>
                                             <span class="block text-xs text-gray-600">Use this when the amount should remain on the customer account instead of being paid out.</span>
@@ -249,13 +219,13 @@
             </div>
 
             <div class="hidden md:block">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th>Refund Payment</th>
-                        <th>Details</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th class="text-center">Actions</th>
+                        <x-ui.list-heading label="Refund Payment" />
+                        <x-ui.list-heading label="Details" />
+                        <x-ui.list-heading class="text-center!" label="Amount" />
+                        <x-ui.list-heading class="text-center!" label="Status" />
+                        <x-ui.list-heading class="text-center!" label="Actions" />
                     </x-slot:header>
                     <x-slot:body>
                         @foreach($manualRefunds as $manualRefund)
@@ -317,7 +287,7 @@
                             <tr x-data="{ refundModalOpen: false, leaveAsCredit: false }">
                                 <td class="align-top">
                                     <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
-                                    <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div class="text-xs text-gray-500"><x-ui.date-time>{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                 </td>
                                 <td class="align-top">
                                     <div class="font-medium text-gray-900">
@@ -357,7 +327,7 @@
                                         <div class="mt-1 text-xs text-amber-700">{{ $manualRefund->failure_message }}</div>
                                     @endif
                                 </td>
-                                <td class="align-top">
+                                <td class="align-top text-center!">
                                     <div class="font-semibold text-gray-950">{{ money(((int) $manualRefund->requested_cents) / 100) }}</div>
                                 @if((int) $manualRefund->refunded_cents > 0)
                                     <div class="text-xs text-gray-600">Refunded: {{ money(((int) $manualRefund->refunded_cents) / 100) }}</div>
@@ -369,45 +339,36 @@
                                     <div class="mt-1 text-xs text-gray-600">Payment #{{ $payment->id }}</div>
                                 @endif
                                 </td>
-                                <td class="align-top text-center">
+                                <td class="align-top text-center!">
                                     <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
                                 </td>
                                 <td class="align-top">
-                                    <div class="flex justify-center gap-3 whitespace-nowrap">
+                                    <x-ui.row-actions class="whitespace-nowrap">
                                         @if($paymentUrl)
-                                            <a href="{{ $paymentUrl }}" class="hover:text-primary-color" title="Open payment">
-                                                <i class="fa-solid fa-pen-to-square"></i>
-                                                <span class="sr-only">Open payment</span>
-                                            </a>
+                                            <x-ui.row-action label="Open payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ $paymentUrl }}" />
                                         @endif
                                         @if($invoiceUrl)
-                                            <a href="{{ $invoiceUrl }}" class="hover:text-primary-color" title="Open invoice">
-                                                <i class="fa-regular fa-file-lines"></i>
-                                                <span class="sr-only">Open invoice</span>
-                                            </a>
+                                            <x-ui.row-action label="Open invoice" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $invoiceUrl }}" />
                                         @endif
                                         @if($workshopUrl)
-                                            <a href="{{ $workshopUrl }}" class="hover:text-primary-color" title="Open workshop tickets">
-                                                <i class="fa-solid fa-ticket"></i>
-                                                <span class="sr-only">Open workshop tickets</span>
-                                            </a>
+                                            <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                                         @endif
                                         @if($needsManualAction)
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="inline-flex items-center rounded-md border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
                                                 x-on:click="leaveAsCredit = false; refundModalOpen = true"
                                             >
                                                 Record refund
-                                            </button>
+                                            </x-ui.button>
                                         @endif
-                                    </div>
+                                    </x-ui.row-actions>
 
                                     <div
                                         x-cloak
                                         x-show="refundModalOpen"
                                         x-on:keydown.escape.window="refundModalOpen = false"
-                                        class="fixed inset-0 z-[220] flex items-center justify-center p-4"
+                                        class="fixed inset-0 z-220 flex items-center justify-center p-4"
                                         role="dialog"
                                         aria-modal="true"
                                     >
@@ -418,9 +379,7 @@
                                                     <h3 class="text-lg font-semibold text-gray-950">Record manual refund</h3>
                                                     <p class="text-sm text-gray-600">Mark this item complete and record the actual refund details.</p>
                                                 </div>
-                                                <button type="button" class="text-gray-500 hover:text-gray-700" @click="refundModalOpen = false">
-                                                    <i class="fa-solid fa-xmark"></i>
-                                                </button>
+                                                <x-ui.row-action label="Close dialog" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="refundModalOpen = false" />
                                             </div>
 
                                             <form
@@ -433,7 +392,7 @@
                                                 @csrf
                                                 <input type="hidden" name="amount" value="{{ number_format($refundAmount, 2, '.', '') }}">
                                                 <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                                    <input type="checkbox" name="leave_as_credit" value="1" x-model="leaveAsCredit" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                                    <x-ui.checkbox bare small name="leave_as_credit" value="1" x-model="leaveAsCredit" class="mt-1" />
                                                     <span>
                                                         <span class="block text-sm font-semibold text-gray-900">No refund, leave as account credit</span>
                                                         <span class="block text-xs text-gray-600">Use this when the amount should remain on the customer account instead of being paid out.</span>
@@ -464,7 +423,9 @@
                 </x-ui.table>
             </div>
 
-            {{ $manualRefunds->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$manualRefunds" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

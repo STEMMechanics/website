@@ -40,37 +40,17 @@
             },
         }"
     >
-    <x-mast>Payments</x-mast>
+    <x-mast title="Payments"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.payment.create') }}">Record payment</x-ui.button></x-slot:actions></x-mast>
 
     <x-container>
-        <x-ui.toolbar break="md">
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.payment.create') }}" class="w-full md:w-auto">Record</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <form method="GET" action="{{ route('admin.payment.index') }}" class="flex flex-wrap items-center gap-2">
-                    @if(request()->filled('search'))
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                    @endif
-                    <x-ui.checkbox
-                        id="unallocated_only"
-                        name="unallocated_only"
-                        value="1"
-                        label="Show unallocated only"
-                        :checked="request()->boolean('unallocated_only')"
-                        :noWrapper="true"
-                        :inline="true"
-                        label-class="whitespace-nowrap"
-                        onchange="this.form.submit()" />
-                </form>
-                <x-ui.search name="search" label="Search" class="w-full sm:flex-1" />
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-payment-index">
+
+        <x-ui.collection-controls class="my-5" />
 
         @if($customerPayments->isEmpty())
         <x-none-found item="payments" search="{{ request()->get('search') }}" />
         @else
-            <div class="space-y-4 md:hidden">
+            <div data-list-results class="space-y-4 md:hidden">
                 @foreach ($customerPayments as $customerPayment)
                     @php
                         $allocated = (float) ($customerPayment->allocated_amount_sum ?? 0);
@@ -125,32 +105,18 @@
                             <div class="text-gray-600">Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}</div>
                         </div>
 
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Edit payment">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                                <span class="sr-only">Edit payment</span>
-                            </a>
+                        <x-ui.row-actions class="mt-4">
+                            <x-ui.row-action label="Edit payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $customerPayment) }}" />
                             @if(! empty($replacementDialogData['candidates'] ?? []))
-                                <button
+                                <x-ui.row-action label="Review matches" icon="fa-solid fa-right-left" tone="neutral"
                                     type="button"
-                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-amber-50 hover:text-amber-700"
-                                    title="Review matches"
                                     data-dialog="{{ rawurlencode(json_encode($replacementDialogData, JSON_UNESCAPED_UNICODE)) }}"
                                     x-on:click.prevent="openReplacementDialogFromEncoded($el.dataset.dialog)"
-                                >
-                                    <i class="fa-solid fa-right-left"></i>
-                                    <span class="sr-only">Review matches</span>
-                                </button>
+                                 />
                             @endif
-                            <a href="{{ $receiptViewUrl }}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="View receipt">
-                                <i class="fa-regular fa-file-lines"></i>
-                                <span class="sr-only">View receipt</span>
-                            </a>
-                            <a href="{{ $receiptDownloadUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Download receipt">
-                                <i class="fa-solid fa-download"></i>
-                                <span class="sr-only">Download receipt</span>
-                            </a>
-                        </div>
+                            <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $receiptViewUrl }}" target="_blank" />
+                            <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ $receiptDownloadUrl }}" />
+                        </x-ui.row-actions>
                     </article>
 
                     @foreach($customerPayment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0) as $refund)
@@ -179,36 +145,27 @@
                                 </div>
                             </div>
                             <div class="mt-3 text-xs text-gray-600">Refund</div>
-                            <div class="mt-4 flex flex-wrap items-center gap-2">
-                                <a href="{{ route('admin.payment.edit', $refund) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Edit refund">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                    <span class="sr-only">Edit refund</span>
-                                </a>
-                                <a href="{{ $refundViewUrl }}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="View receipt">
-                                    <i class="fa-regular fa-file-lines"></i>
-                                    <span class="sr-only">View receipt</span>
-                                </a>
-                                <a href="{{ $refundDownloadUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Download receipt">
-                                    <i class="fa-solid fa-download"></i>
-                                    <span class="sr-only">Download receipt</span>
-                                </a>
-                            </div>
+                            <x-ui.row-actions class="mt-4">
+                                <x-ui.row-action label="Edit refund" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
+                                <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $refundViewUrl }}" target="_blank" />
+                                <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ $refundDownloadUrl }}" />
+                            </x-ui.row-actions>
                         </article>
                     @endforeach
                 @endforeach
             </div>
 
             <div class="hidden md:block">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th>ID</th>
-                        <th>Details</th>
-                        <th>Amount <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
-                        <th class="hidden md:table-cell">Type</th>
-                        <th class="hidden md:table-cell">Status</th>
-                        <th class="hidden lg:table-cell">Allocated</th>
-                        <th class="hidden lg:table-cell">Unallocated</th>
-                        <th class="text-center">Actions</th>
+                        <x-ui.list-heading field="id" label="ID" />
+                        <x-ui.list-heading field="received_on" label="Details" />
+                        <x-ui.list-heading class="text-center!" label="Amount" field="total_amount" suffix="(incl GST)" />
+                        <x-ui.list-heading field="payment_method" class="hidden md:table-cell text-center!" label="Type" />
+                        <x-ui.list-heading class="hidden md:table-cell text-center!" label="Status" />
+                        <x-ui.list-heading class="hidden lg:table-cell" label="Allocated" />
+                        <x-ui.list-heading class="hidden lg:table-cell" label="Unallocated" />
+                        <x-ui.list-heading class="text-center!" label="Actions" />
                     </x-slot:header>
                     <x-slot:body>
                         @foreach ($customerPayments as $customerPayment)
@@ -237,7 +194,7 @@
                                     <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">{{ $customerPayment->id }}</a>
                                 </td>
                                 <td class="">
-                                    <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div><x-ui.date-time>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                     <div class="text-xs text-gray-600">
                                         @if($customerPayment->user)
                                             <a href="{{ route('admin.user.edit', $customerPayment->user) }}" class="hover:text-primary-color hover:underline">
@@ -269,9 +226,9 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
-                                <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
-                                <td class="hidden md:table-cell text-center">
+                                <td class="text-center!">{{ money((float) $customerPayment->total_amount) }}</td>
+                                <td class="hidden md:table-cell text-center!">{{ $typeLabel }}</td>
+                                <td class="hidden md:table-cell text-center!">
                                     <x-ui.badge :color="$statusTone">{{ $statusLabel }}</x-ui.badge>
                                 </td>
                                 <td class="hidden lg:table-cell">
@@ -292,23 +249,19 @@
                                     </div>
                                 </td>
                                 <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
-                                <td>
-                                    <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
-                                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                <td class="text-center!">
+                                    <x-ui.row-actions class="whitespace-nowrap text-sm">
+                                        <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $customerPayment) }}" />
                                         @if(! empty($replacementDialogData['candidates'] ?? []))
-                                            <button
+                                            <x-ui.row-action label="Review matches" icon="fa-solid fa-right-left" tone="neutral"
                                                 type="button"
-                                                class="hover:text-amber-600"
-                                                title="Review matches"
                                                 data-dialog="{{ rawurlencode(json_encode($replacementDialogData, JSON_UNESCAPED_UNICODE)) }}"
                                                 x-on:click.prevent="openReplacementDialogFromEncoded($el.dataset.dialog)"
-                                            >
-                                                <i class="fa-solid fa-right-left"></i>
-                                            </button>
+                                             />
                                         @endif
-                                        <a href="{{ $receiptViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
-                                        <a href="{{ $receiptDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
-                                    </div>
+                                        <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $receiptViewUrl }}" target="_blank" />
+                                        <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ $receiptDownloadUrl }}" />
+                                    </x-ui.row-actions>
                                 </td>
                             </tr>
                             @foreach($customerPayment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0) as $refund)
@@ -321,7 +274,7 @@
                                         <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $refund->id }}</a>
                                     </td>
                                     <td>
-                                        <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                        <div>↳ <x-ui.date-time>{{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                     <div class="text-xs text-gray-600">
                                         @if($refund->user)
                                             <a href="{{ route('admin.user.edit', $refund->user) }}" class="hover:text-primary-color hover:underline">
@@ -333,19 +286,19 @@
                                     </div>
                                         <div class="text-xs text-gray-600 md:hidden">Refund</div>
                                     </td>
-                                    <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
-                                    <td class="text-center hidden md:table-cell">Refund</td>
-                                    <td class="hidden md:table-cell">
+                                    <td class="text-center!">{{ money(-((float) $refund->total_amount)) }}</td>
+                                    <td class="hidden md:table-cell text-center!">Refund</td>
+                                    <td class="hidden md:table-cell text-center!">
                                         <x-ui.badge color="slate">Refund</x-ui.badge>
                                     </td>
                                     <td class="hidden lg:table-cell">-</td>
                                     <td class="hidden lg:table-cell">-</td>
                                     <td class="w-28">
-                                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
-                                            <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
-                                            <a href="{{ $refundViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
-                                            <a href="{{ $refundDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
-                                        </div>
+                                        <x-ui.row-actions class="whitespace-nowrap text-sm">
+                                            <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
+                                            <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $refundViewUrl }}" target="_blank" />
+                                            <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ $refundDownloadUrl }}" />
+                                        </x-ui.row-actions>
                                     </td>
                                 </tr>
                             @endforeach
@@ -354,8 +307,10 @@
                 </x-ui.table>
             </div>
 
-        {{ $customerPayments->appends(request()->query())->links() }}
+        <x-ui.list-pagination :paginator="$customerPayments" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
     @include('admin.payment.partials.replacement-dialog')
     </div>

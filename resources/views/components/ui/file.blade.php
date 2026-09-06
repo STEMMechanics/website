@@ -28,14 +28,14 @@
                 <div id="{{ $controlsId }}" class="mt-4 flex flex-wrap items-center justify-center gap-2">
                     <label
                         for="{{ $name }}_file"
-                        class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-8 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                        class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-8 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
                         Browse files
                     </label>
                     <button
                         type="button"
                         id="{{ $name }}_clear"
-                        class="hidden inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                        class="hidden not-[.hidden]:inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
                         Clear file
                     </button>
@@ -43,7 +43,7 @@
                 <div class="mt-2 text-xs text-gray-500">Drop a file here or click Browse files</div>
                 <div class="mt-1 text-xs text-gray-500">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
                 <div class="mt-2 flex flex-col items-center gap-2">
-                    <div id="{{ $stateId }}" class="hidden flex flex-col items-center text-center text-xs text-primary-color">
+                    <div id="{{ $stateId }}" class="hidden not-[.hidden]:flex flex-col items-center text-center text-xs text-primary-color">
                         <span class="inline-flex items-center justify-center gap-2 rounded-full bg-primary-color/10 px-2.5 py-1 font-medium">
                             <i class="fa-solid fa-circle-notch animate-spin"></i>
                             <span id="{{ $stateTextId }}">Uploading...</span>

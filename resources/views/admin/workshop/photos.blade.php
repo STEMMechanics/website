@@ -25,7 +25,10 @@
 @endphp
 
 <x-layout title="Workshop Media - {{ $workshop->title }}">
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Media</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Media<x-slot:actions>
+        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-upload', { id: 'photos' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
+        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-browse', { id: 'photos' })">Browse media</x-ui.button>
+    </x-slot:actions></x-mast>
 
     <x-container>
         <div class="mb-4">
@@ -48,13 +51,14 @@
             </div>
         </div>
 
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+        <div data-workshop-upload-controller>
             <form
                 method="POST"
                 action="{{ route('admin.workshop.photos.store', $workshop) }}"
                 enctype="multipart/form-data"
                 class="space-y-4"
                 x-data="{
+                    pageUploadDragDepth: 0,
                     workshopDate: @js(optional($workshop->starts_at)->format('Y-m-d') ?? now()->format('Y-m-d')),
                     attachedPhotoNames: @js($attachedPhotoNames ?? []),
                     previews: [],
@@ -914,8 +918,7 @@
             >
                 @csrf
                 <div>
-                    <label class="mb-1 block text-sm pl-1" for="photos">Upload Workshop Media</label>
-                    <x-ui.media-uploader
+                    <x-ui.media-uploader :page-upload="true"
                         input-id="photos"
                         input-name="photos[]"
                         input-ref="photosInput"
@@ -943,7 +946,7 @@
                     <div
                         x-show="preparing"
                         x-cloak
-                        class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="workshop-photos-preparing-title"
@@ -972,7 +975,7 @@
                     <div
                         x-show="uploading"
                         x-cloak
-                        class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="workshop-photos-progress-title"
@@ -986,7 +989,7 @@
                                     <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
                                 </div>
                             </div>
-                            <div class="mb-2 min-h-10 break-words text-sm text-gray-700">
+                            <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700">
                                 <span x-text="currentFileName || ''"></span>
                                 <span x-show="uploading && previews.length" x-text="` (${uploadIndex} of ${previews.length})`"></span>
                             </div>
@@ -998,7 +1001,7 @@
                     </div>
                 </template>
                 <template x-teleport="body">
-                    <div x-show="bulkOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" x-on:keydown.escape.window="bulkOpen = false">
+                    <div x-show="bulkOpen" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" x-on:keydown.escape.window="bulkOpen = false">
                         <div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" x-on:click.outside="bulkOpen = false">
                             <h2 class="text-lg font-semibold text-gray-900">Bulk edit workshop media</h2>
                             <div class="mt-5 grid gap-4 sm:grid-cols-2">
@@ -1023,43 +1026,16 @@
                             </div>
                             <div class="mt-5 flex justify-end gap-2">
                                 <x-ui.button type="button" color="outline" x-on:click.prevent="bulkOpen = false">Cancel</x-ui.button>
-                                <x-ui.button type="button" x-bind:disabled="bulkSelectionCount() === 0" x-on:click.prevent="applyBulkEdit()">Apply changes</x-ui.button>
+                                <x-ui.button type="button" x-bind:disabled="bulkSelectionCount() === 0" x-on:click.prevent="applyBulkEdit()">Apply to selected</x-ui.button>
                             </div>
                         </div>
                     </div>
                 </template>
             </form>
         </div>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                const payload = sessionStorage.getItem('workshop-media-upload-toast');
-                if (!payload || !window.SM || typeof window.SM.notice !== 'function') {
-                    return;
-                }
 
-                sessionStorage.removeItem('workshop-media-upload-toast');
-
-                try {
-                    const toast = JSON.parse(payload);
-                    window.SM.notice(toast.title || 'Success', toast.message || 'Upload complete.', toast.type || 'success', { toast: true });
-                } catch (error) {
-                }
-            });
-        </script>
-
-        <x-ui.toolbar>
-            <x-slot:right>
-                <form method="GET" action="{{ route('admin.workshop.photos', $workshop) }}" class="flex flex-wrap items-center justify-end gap-2">
-                    <x-ui.input name="search" label="Search photos" value="{{ request('search') }}" class="mb-0 min-w-64" noLabel="true" />
-                    <x-ui.select name="visibility" label="Visibility" class="mb-0 min-w-40" selectClass="min-w-40" noLabel="true">
-                        <option value="" @selected(request('visibility') === null || request('visibility') === '')>Any visibility</option>
-                        <option value="private" @selected(request('visibility') === 'private')>Private</option>
-                        <option value="public" @selected(request('visibility') === 'public')>Public</option>
-                    </x-ui.select>
-                    <x-ui.button type="submit" color="outline">Filter</x-ui.button>
-                </form>
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-workshop-photos">
+<x-ui.collection-controls class="my-5" />
 
         @if($photos->isEmpty())
             <x-none-found item="photos" search="{{ request()->get('search') }}" />
@@ -1078,24 +1054,18 @@
                 @method('PUT')
                 <div class="w-full overflow-x-auto">
                     <table class="table">
-                        <thead><tr><th class="w-10 text-center !border-r-0"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><th class="!border-l-0">Media</th><th class="hidden text-center lg:table-cell">Tags</th><th class="hidden w-24 text-center md:table-cell">Storage</th><th class="hidden w-24 text-center md:table-cell">Visibility</th><th class="w-36 text-center">Actions</th></tr></thead>
+                        <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden text-center lg:table-cell" label="Tags" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
                     @foreach($photos as $photo)
                         <tr data-photo-row x-data="{ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; window.SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }">
-                            <td class="text-center !border-r-0"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))" /></td>
-                            <td class="px-3 py-3"><div class="flex min-w-0 items-center gap-3"><a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="shrink-0"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a><div class="min-w-0"><div class="font-medium text-gray-900" x-text="title"></div><div class="max-w-xs truncate text-xs text-gray-500">{{ $photo->name }}</div><div class="text-xs text-gray-400">{{ \App\Helpers::bytesToString((int) $photo->size) }} · {{ $photo->file_type }}</div><div class="md:hidden"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize" data-photo-visibility-label :class="visibility === 'public' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'" x-text="visibility"></span></div><div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize" data-photo-storage-label x-text="storage"></span></div><div class="lg:hidden max-w-xs truncate text-xs text-gray-500" data-photo-tags-label x-text="tags.join(', ') || 'No tags'"></div></div></div></td>
+                            <td class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))" /></td>
+                            <td class="px-3 py-3"><div class="flex min-w-0 items-center gap-3"><a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="shrink-0"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a><div class="min-w-0"><div class="font-medium text-gray-900" x-text="title"></div><div class="max-w-xs truncate text-xs text-gray-500">{{ $photo->name }}</div><div class="text-xs text-gray-400"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) $photo->size) }}</x-ui.nonbreaking> · {{ $photo->file_type }}</div><div class="md:hidden"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize" data-photo-visibility-label :class="visibility === 'public' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'" x-text="visibility"></span></div><div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize" data-photo-storage-label x-text="storage"></span></div><div class="lg:hidden max-w-xs truncate text-xs text-gray-500" data-photo-tags-label x-text="tags.join(', ') || 'No tags'"></div></div></div></td>
                             <td class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"><span data-photo-tags-label x-text="tags.join(', ') || 'No tags'" :class="tags.length ? '' : 'italic text-gray-400'"></span></td><td class="hidden px-3 py-3 text-center capitalize md:table-cell" data-photo-storage-label x-text="storage"></td><td class="hidden px-3 py-3 text-center md:table-cell"><span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize" data-photo-visibility-label :class="visibility === 'public' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'" x-text="visibility"></span></td>
-                            <td class="px-3 py-3"><div class="flex justify-end gap-3"><button type="button" class="text-primary-color" title="Edit" x-on:click="editing = true"><i class="fa-solid fa-pen-to-square"></i></button>
-                                        <a href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-primary-color-dark" title="Open media editor">
-                                            <i class="fa-solid fa-up-right-from-square"></i>
-                                        </a>
-                                        <a href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" class="text-primary-color hover:text-primary-color-dark" title="Download media">
-                                            <i class="fa-solid fa-download"></i>
-                                        </a>
-                                        <button
+                            <td class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
+                                        <x-ui.row-action label="Open media editor" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" />
+                                        <x-ui.row-action label="Download media" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
+                                        <x-ui.row-action label="Remove from this workshop only" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
-                                            class="text-amber-600 hover:text-amber-800"
-                                            title="Remove from this workshop only"
                                             x-data
                                             x-on:click.prevent="SM.confirmDelete(
                                                 '{{ csrf_token() }}',
@@ -1104,13 +1074,9 @@
                                                 '{{ route('admin.workshop.photos.destroy', [$workshop, $photo]) }}',
                                                 'Remove from workshop'
                                             )"
-                                        >
-                                            <i class="fa-solid fa-ban"></i>
-                                        </button>
-                                        <button
+                                         />
+                                        <x-ui.row-action label="Permanently delete photo" icon="fa-solid fa-trash" tone="danger"
                                             type="button"
-                                            class="text-red-600 hover:text-red-800"
-                                            title="Permanently delete photo"
                                             x-data
                                             x-on:click.prevent="SM.confirmDelete(
                                                 '{{ csrf_token() }}',
@@ -1119,12 +1085,10 @@
                                                 '{{ route('admin.workshop.photos.delete', [$workshop, $photo]) }}',
                                                 'Delete permanently'
                                             )"
-                                        >
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </div>
+                                         />
+                                    </x-ui.row-actions>
                                 <input type="hidden" name="photos[{{ $photo->name }}][title]" x-bind:value="title"><input type="hidden" name="photos[{{ $photo->name }}][photographed_at]" x-bind:value="photographedAt"><input type="hidden" name="photos[{{ $photo->name }}][tags]" x-bind:value="tags.join(', ')" data-photo-tags><input type="hidden" name="photos[{{ $photo->name }}][storage_disk]" x-bind:value="storage" data-photo-storage><input type="hidden" name="photos[{{ $photo->name }}][visibility]" x-bind:value="visibility" data-photo-visibility><input type="hidden" name="photos[{{ $photo->name }}][caption]" x-bind:value="caption"><input type="hidden" name="photos[{{ $photo->name }}][consent_notes]" x-bind:value="notes">
-                                <template x-teleport="body"><div x-show="editing" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"><div class="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="editing = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Edit media</h3><div class="text-xs text-gray-500">{{ $photo->name }}</div></div><button type="button" x-on:click="editing = false"><i class="fa-solid fa-xmark"></i></button></div><div class="grid gap-4 sm:grid-cols-2"><div><x-ui.input label="Title" :name="null" x-model="title" /><x-ui.input label="Original Name" name="original_name_{{ $loop->index }}" value="{{ $photo->name }}" disabled="true" /><x-ui.input label="Photographed At" type="date" :name="null" x-model="photographedAt" /><x-ui.tags :name="null" :options="$tagOptions ?? []" x-model-tags="tags" x-model-draft="tagDraft" /></div><div><x-ui.select label="Storage" :name="null" x-model="storage"><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="visibility"><option value="public">Public</option><option value="private">Private</option></x-ui.select><x-ui.input label="Caption" :name="null" x-model="caption" /><x-ui.input label="Notes" type="textarea" :name="null" x-model="notes" /></div></div><div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="editing = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="saving" x-on:click="save()"><span x-show="!saving">Save</span><span x-show="saving">Saving…</span></x-ui.button></div></div></div></template>
+                                <template x-teleport="body"><div x-show="editing" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"><div class="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="editing = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Edit media</h3><div class="text-xs text-gray-500">{{ $photo->name }}</div></div><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="editing = false" /></div><div class="grid gap-4 sm:grid-cols-2"><div><x-ui.input label="Title" :name="null" x-model="title" /><x-ui.input label="Original Name" name="original_name_{{ $loop->index }}" value="{{ $photo->name }}" disabled="true" /><x-ui.input label="Photographed At" type="date" :name="null" x-model="photographedAt" /><x-ui.tags :name="null" :options="$tagOptions ?? []" x-model-tags="tags" x-model-draft="tagDraft" /></div><div><x-ui.select label="Storage" :name="null" x-model="storage"><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="visibility"><option value="public">Public</option><option value="private">Private</option></x-ui.select><x-ui.input label="Caption" :name="null" x-model="caption" /><x-ui.input label="Notes" type="textarea" :name="null" x-model="notes" /></div></div><div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="editing = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="saving" x-on:click="save()"><span x-show="!saving">Save</span><span x-show="saving">Saving…</span></x-ui.button></div></div></div></template>
                             </td>
                         </tr>
                     @endforeach
@@ -1134,28 +1098,49 @@
 
             </form>
 
-            <div class="mt-6">{{ $photos->links() }}</div>
-        @endif
-
+            <x-ui.list-pagination :paginator="$photos"><x-slot:actions>
         <div
-            class="mt-6 flex justify-end"
+            class="min-w-0"
             x-data="{ selectedCount: 0, totalCount: 0, existingNames: [], refreshExistingNames() { this.existingNames = [...document.querySelectorAll('#workshop-existing-photos-form [data-photo-select]:checked')].map((input) => input.dataset.photoName).filter(Boolean) }, downloadSelected() { if (this.existingNames.length === 0) return; const query = new URLSearchParams(); this.existingNames.forEach((name) => query.append('media_names[]', name)); window.location.href = @js(route('admin.workshop.photos.zip', $workshop)) + '?' + query.toString(); } }"
             x-on:photo-bulk-selection-count.window="selectedCount = Number($event.detail.count || 0); totalCount = Number($event.detail.total || 0); refreshExistingNames()"
         >
-            <div class="flex flex-wrap items-center justify-end gap-3">
-                <x-ui.button
+            <x-ui.selection-toolbar x-bind:data-selected="String(selectedCount > 0)" hint="Select media to edit or download.">
+                <x-slot:count><span x-text="selectedCount">0</span></x-slot:count>
+                <x-slot:clear><x-ui.button variant="plain" class="text-sm font-semibold text-primary-color underline underline-offset-4" x-on:click="window.dispatchEvent(new CustomEvent('select-all-photo-media', { detail: { checked: false } })); window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))">Clear selection</x-ui.button></x-slot:clear>
+                <x-ui.bulk-edit-button
                     type="button"
-                    color="outline"
                     x-bind:disabled="selectedCount === 0"
                     x-on:click.prevent="window.dispatchEvent(new CustomEvent('open-photo-bulk'))"
-                >Bulk edit selected</x-ui.button>
+                 />
                 <x-ui.button
                     type="button"
                     color="outline"
                     x-bind:disabled="existingNames.length === 0"
                     x-on:click.prevent="downloadSelected()"
                 >Download ZIP</x-ui.button>
-            </div>
+            </x-ui.selection-toolbar>
         </div>
+            </x-slot:actions></x-ui.list-pagination>
+        @endif
+
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>
+
+<script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const payload = sessionStorage.getItem('workshop-media-upload-toast');
+                if (!payload || !window.SM || typeof window.SM.notice !== 'function') {
+                    return;
+                }
+
+                sessionStorage.removeItem('workshop-media-upload-toast');
+
+                try {
+                    const toast = JSON.parse(payload);
+                    window.SM.notice(toast.title || 'Success', toast.message || 'Upload complete.', toast.type || 'success', { toast: true });
+                } catch (error) {
+                }
+            });
+        </script>

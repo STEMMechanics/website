@@ -2,19 +2,11 @@
     <x-mast>Analytics</x-mast>
 
     <x-container>
-        <form method="GET" class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
-            <div class="w-44">
-                <x-ui.select label="Date Range" name="days">
-                    <option value="7" {{ $days === 7 ? 'selected' : '' }}>Last 7 days</option>
-                    <option value="30" {{ $days === 30 ? 'selected' : '' }}>Last 30 days</option>
-                    <option value="90" {{ $days === 90 ? 'selected' : '' }}>Last 90 days</option>
-                    <option value="365" {{ $days === 365 ? 'selected' : '' }}>Last 365 days</option>
-                </x-ui.select>
-            </div>
-            <div class="mb-4">
-                <x-ui.button type="submit" color="outline">Update</x-ui.button>
-            </div>
-            <div class="ml-auto grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
+        <x-ui.dynamic-list name="admin-analytics-index">
+
+        <x-ui.period-presets name="days" :value="$days" :options="[30 => 'Last 30 days', 7 => 'Last 7 days', 90 => 'Last 90 days', 365 => 'Last 365 days']" label="Date range" />
+        <div class="my-4">
+            <x-ui.grid class="ml-auto md:grid-cols-3 gap-3 text-xs text-gray-600">
                 <div>
                     <div class="font-semibold text-gray-700">Analytics Table Size</div>
                     <div>{{ $analyticsMeta['table_size_human'] ?? 'Unavailable' }}</div>
@@ -27,8 +19,8 @@
                     <div class="font-semibold text-gray-700">Total Records</div>
                     <div>{{ number_format((int) ($analyticsMeta['total_records'] ?? 0)) }}</div>
                 </div>
-            </div>
-        </form>
+            </x-ui.grid>
+        </div>
 
         <form id="analytics-prune-form" method="POST" action="{{ route('admin.analytics.prune') }}" class="mb-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
             @csrf
@@ -47,7 +39,7 @@
             </div>
         </form>
 
-        <div class="my-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <x-ui.grid class="my-4 md:grid-cols-3 gap-4">
             <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
                 <div class="text-xs uppercase tracking-wide text-gray-500">Page Views</div>
                 <div class="text-3xl font-bold mt-2">{{ number_format($totals['views']) }}</div>
@@ -60,19 +52,19 @@
                 <div class="text-xs uppercase tracking-wide text-gray-500">Unique Visitors (Hashed)</div>
                 <div class="text-3xl font-bold mt-2">{{ number_format($totals['visitors']) }}</div>
             </div>
-        </div>
+        </x-ui.grid>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Workshop Recommendations</h3>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <x-ui.grid class="gap-4 sm:grid-cols-3">
                 <div><div class="text-xs uppercase tracking-wide text-gray-500">Card impressions</div><div class="mt-1 text-2xl font-bold">{{ number_format((int) $recommendationAnalytics['impressions']) }}</div></div>
                 <div><div class="text-xs uppercase tracking-wide text-gray-500">Clicks</div><div class="mt-1 text-2xl font-bold">{{ number_format((int) $recommendationAnalytics['clicks']) }}</div></div>
                 <div><div class="text-xs uppercase tracking-wide text-gray-500">Click-through rate</div><div class="mt-1 text-2xl font-bold">{{ number_format((float) $recommendationAnalytics['click_through_rate'], 1) }}%</div></div>
-            </div>
+            </x-ui.grid>
             @if($recommendationAnalytics['placements']->isNotEmpty())
                 <div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">
                     @foreach($recommendationAnalytics['placements'] as $placement)
-                        <span class="rounded-full bg-gray-100 px-3 py-1">{{ str_replace('_', ' ', ucfirst((string) ($placement->recommendation_placement ?: 'unknown'))) }}: {{ number_format((int) $placement->clicks) }} / {{ number_format((int) $placement->impressions) }}</span>
+                        <x-ui.badge class="bg-gray-100">{{ str_replace('_', ' ', ucfirst((string) ($placement->recommendation_placement ?: 'unknown'))) }}: {{ number_format((int) $placement->clicks) }} / {{ number_format((int) $placement->impressions) }}</x-ui.badge>
                     @endforeach
                 </div>
             @endif
@@ -81,12 +73,13 @@
         <div id="analytics-traffic-sources-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-1">Traffic Sources</h3>
             <p class="mb-3 text-sm text-gray-600">First-touch source for sessions that began in the selected date range. UTM attribution takes precedence over the referring website.</p>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_traffic_sources" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Source</th>
-                    <th>Medium</th>
-                    <th>Campaign</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_traffic_sources" label="Source" />
+                    <x-ui.list-heading scope="analytics_traffic_sources" label="Medium" />
+                    <x-ui.list-heading scope="analytics_traffic_sources" label="Campaign" />
+                    <x-ui.list-heading scope="analytics_traffic_sources" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($trafficSources as $source)
@@ -113,17 +106,18 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $trafficSources->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$trafficSources" />
             </div>
         </div>
 
         <div id="analytics-landing-pages-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-1">Landing Pages</h3>
             <p class="mb-3 text-sm text-gray-600">The first page viewed in each session.</p>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_landing_pages" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Landing page</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_landing_pages" label="Landing page" />
+                    <x-ui.list-heading scope="analytics_landing_pages" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($landingPages as $landingPage)
@@ -139,23 +133,24 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $landingPages->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$landingPages" />
             </div>
         </div>
 
         <div id="analytics-daily-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Daily Activity</h3>
             <p class="text-sm text-gray-600 mb-3">Last 7 days, newest to oldest.</p>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_daily" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Date</th>
-                    <th>Views</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_daily" class="text-center!" label="Date" />
+                    <x-ui.list-heading scope="analytics_daily" label="Views" />
+                    <x-ui.list-heading scope="analytics_daily" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($daily as $row)
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($row->day)->format('M j, Y') }}</td>
+                            <td class="text-center!"><x-ui.date-time>{{ \Carbon\Carbon::parse($row->day)->format('M j, Y') }}</x-ui.date-time></td>
                             <td>{{ number_format((int) $row->views) }}</td>
                             <td>{{ number_format((int) $row->sessions) }}</td>
                         </tr>
@@ -167,19 +162,20 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $daily->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$daily" />
             </div>
         </div>
 
         <div id="analytics-hourly-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Hourly Activity</h3>
             <p class="text-sm text-gray-600 mb-3">Last 12 hours.</p>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_hour" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Hour</th>
-                    <th>Users</th>
-                    <th>Sessions</th>
-                    <th>Views</th>
+                    <x-ui.list-heading scope="analytics_hour" class="text-center!" label="Hour" />
+                    <x-ui.list-heading scope="analytics_hour" label="Users" />
+                    <x-ui.list-heading scope="analytics_hour" label="Sessions" />
+                    <x-ui.list-heading scope="analytics_hour" label="Views" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($activeHours as $row)
@@ -188,7 +184,7 @@
                                 $hourStart = \Carbon\Carbon::parse($row->hour_bucket);
                                 $hourEnd = (clone $hourStart)->addHour();
                             @endphp
-                            <td>{{ $hourStart->format('M j, Y') }} {{ $hourStart->format('g:ia') }} - {{ $hourEnd->format('g:ia') }}</td>
+                            <td class="text-center!"><x-ui.date-time>{{ $hourStart->format('M j, Y') }}</x-ui.date-time> <x-ui.date-time>{{ $hourStart->format('g:ia') }}</x-ui.date-time> - <x-ui.date-time>{{ $hourEnd->format('g:ia') }}</x-ui.date-time></td>
                             <td>{{ number_format((int) $row->users) }}</td>
                             <td>{{ number_format((int) $row->sessions) }}</td>
                             <td>{{ number_format((int) $row->views) }}</td>
@@ -201,17 +197,18 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $activeHours->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$activeHours" />
             </div>
         </div>
 
         <div id="analytics-top-pages-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Top Pages</h3>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_top_pages" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Path</th>
-                    <th>Views</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_top_pages" label="Path" />
+                    <x-ui.list-heading scope="analytics_top_pages" label="Views" />
+                    <x-ui.list-heading scope="analytics_top_pages" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($topPages as $row)
@@ -228,17 +225,18 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $topPages->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$topPages" />
             </div>
         </div>
 
         <div id="analytics-top-workshops-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Top Workshops</h3>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_top_workshops" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Workshop</th>
-                    <th>Views</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_top_workshops" label="Workshop" />
+                    <x-ui.list-heading scope="analytics_top_workshops" label="Views" />
+                    <x-ui.list-heading scope="analytics_top_workshops" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($topWorkshops as $row)
@@ -271,17 +269,18 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $topWorkshops->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$topWorkshops" />
             </div>
         </div>
 
         <div id="analytics-top-searches-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Top Search Terms</h3>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_top_searches" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Search</th>
-                    <th>Uses</th>
-                    <th>Sessions</th>
+                    <x-ui.list-heading scope="analytics_top_searches" label="Search" />
+                    <x-ui.list-heading scope="analytics_top_searches" label="Uses" />
+                    <x-ui.list-heading scope="analytics_top_searches" label="Sessions" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($topSearches as $row)
@@ -298,22 +297,23 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $topSearches->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$topSearches" />
             </div>
         </div>
 
         <div id="analytics-session-flows-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Recent Session Flows</h3>
             <p class="text-sm text-gray-600 mb-3">Shows grouped session path flow and hashed visitor marker so you can follow journeys without storing personal details.</p>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_session_flows" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Session</th>
-                    <th class="md:hidden">Details</th>
-                    <th class="hidden md:table-cell">Visitor Hash</th>
-                    <th class="hidden lg:table-cell">Started</th>
-                    <th class="hidden lg:table-cell">Duration</th>
-                    <th class="hidden md:table-cell">Events</th>
-                    <th>Flow</th>
+                    <x-ui.list-heading scope="analytics_session_flows" label="Session" />
+                    <x-ui.list-heading scope="analytics_session_flows" class="md:hidden" label="Details" />
+                    <x-ui.list-heading scope="analytics_session_flows" class="hidden md:table-cell" label="Visitor Hash" />
+                    <x-ui.list-heading scope="analytics_session_flows" class="hidden lg:table-cell" label="Started" />
+                    <x-ui.list-heading scope="analytics_session_flows" class="hidden lg:table-cell" label="Duration" />
+                    <x-ui.list-heading scope="analytics_session_flows" class="hidden md:table-cell" label="Events" />
+                    <x-ui.list-heading scope="analytics_session_flows" label="Flow" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($sessionFlows as $flow)
@@ -332,12 +332,12 @@
                             <td class="font-mono text-xs">{{ substr($flow['session_token'], 0, 12) }}</td>
                             <td class="md:hidden">
                                 <div class="md:hidden text-xs">Visitor: <span class="font-mono">{{ $flow['visitor_hash'] !== '' ? substr($flow['visitor_hash'], 0, 12) : '-' }}</span></div>
-                                <div class="lg:hidden text-xs text-gray-600">Start: {{ \Carbon\Carbon::parse($flow['started_at'])->format('M j, Y g:i a') }}</div>
+                                <div class="lg:hidden text-xs text-gray-600">Start: <x-ui.date-time>{{ \Carbon\Carbon::parse($flow['started_at'])->format('M j, Y g:i a') }}</x-ui.date-time></div>
                                 <div class="lg:hidden text-xs text-gray-600">Duration: {{ $durationLabel }}</div>
                                 <div class="md:hidden text-xs text-gray-600">Events: {{ number_format($flow['event_count']) }}</div>
                             </td>
                             <td class="hidden md:table-cell font-mono text-xs">{{ $flow['visitor_hash'] !== '' ? substr($flow['visitor_hash'], 0, 12) : '-' }}</td>
-                            <td class="hidden lg:table-cell">{{ \Carbon\Carbon::parse($flow['started_at'])->format('M j, Y g:i a') }}</td>
+                            <td class="hidden lg:table-cell"><x-ui.date-time>{{ \Carbon\Carbon::parse($flow['started_at'])->format('M j, Y g:i a') }}</x-ui.date-time></td>
                             <td class="hidden lg:table-cell">{{ $durationLabel }}</td>
                             <td class="hidden md:table-cell">{{ number_format($flow['event_count']) }}</td>
                             <td class="text-xs">
@@ -354,7 +354,7 @@
                                                     $displayStep = '/home'.substr($displayStep, 1);
                                                 }
                                             @endphp
-                                            <li class="break-words">{{ $displayStep }}</li>
+                                            <li class="wrap-break-word">{{ $displayStep }}</li>
                                         @endforeach
                                     </ul>
                                 @endif
@@ -368,19 +368,20 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $sessionFlows->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$sessionFlows" />
             </div>
         </div>
 
         <div id="analytics-returning-visitors-section" data-analytics-section class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Returning Visitors (Hashed)</h3>
-            <x-ui.table>
+            <x-ui.collection-controls scope="analytics_returning_visitors" class="mb-4" label="Search these results" />
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Visitor Hash</th>
-                    <th class="md:hidden">Details</th>
-                    <th class="hidden md:table-cell">Views</th>
-                    <th class="hidden md:table-cell">Sessions</th>
-                    <th class="hidden lg:table-cell">Last Seen</th>
+                    <x-ui.list-heading scope="analytics_returning_visitors" label="Visitor Hash" />
+                    <x-ui.list-heading scope="analytics_returning_visitors" class="md:hidden" label="Details" />
+                    <x-ui.list-heading scope="analytics_returning_visitors" class="hidden md:table-cell" label="Views" />
+                    <x-ui.list-heading scope="analytics_returning_visitors" class="hidden md:table-cell" label="Sessions" />
+                    <x-ui.list-heading scope="analytics_returning_visitors" class="hidden lg:table-cell" label="Last Seen" />
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($returningVisitors as $visitor)
@@ -389,11 +390,11 @@
                             <td class="md:hidden">
                                 <div class="md:hidden text-xs text-gray-600">Views: {{ number_format((int) $visitor->views) }}</div>
                                 <div class="md:hidden text-xs text-gray-600">Sessions: {{ number_format((int) $visitor->sessions) }}</div>
-                                <div class="lg:hidden text-xs text-gray-600">Last: {{ \Carbon\Carbon::parse($visitor->last_seen)->format('M j, Y g:i a') }}</div>
+                                <div class="lg:hidden text-xs text-gray-600">Last: <x-ui.date-time>{{ \Carbon\Carbon::parse($visitor->last_seen)->format('M j, Y g:i a') }}</x-ui.date-time></div>
                             </td>
                             <td class="hidden md:table-cell">{{ number_format((int) $visitor->views) }}</td>
                             <td class="hidden md:table-cell">{{ number_format((int) $visitor->sessions) }}</td>
-                            <td class="hidden lg:table-cell">{{ \Carbon\Carbon::parse($visitor->last_seen)->format('M j, Y g:i a') }}</td>
+                            <td class="hidden lg:table-cell"><x-ui.date-time>{{ \Carbon\Carbon::parse($visitor->last_seen)->format('M j, Y g:i a') }}</x-ui.date-time></td>
                         </tr>
                     @empty
                         <tr>
@@ -403,38 +404,15 @@
                 </x-slot:body>
             </x-ui.table>
             <div class="mt-4">
-                {{ $returningVisitors->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$returningVisitors" />
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>
 
 <script>
-    const analyticsScrollKey = 'analytics:scrollY';
-
-    document.addEventListener('click', function (event) {
-        const link = event.target.closest('[data-analytics-section] a[href*="_page="]');
-        if (!link) {
-            return;
-        }
-        sessionStorage.setItem(analyticsScrollKey, String(window.scrollY || 0));
-    });
-
-    window.addEventListener('load', function () {
-        const savedScroll = sessionStorage.getItem(analyticsScrollKey);
-        if (savedScroll === null) {
-            return;
-        }
-
-        sessionStorage.removeItem(analyticsScrollKey);
-        const scrollY = Number(savedScroll);
-        if (!Number.isFinite(scrollY)) {
-            return;
-        }
-
-        window.scrollTo({ top: Math.max(0, scrollY), behavior: 'auto' });
-    });
-
     function confirmAnalyticsPrune() {
         const form = document.getElementById('analytics-prune-form');
         if (!form || !window.SM || typeof window.SM.confirm !== 'function') {

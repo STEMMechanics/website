@@ -49,15 +49,14 @@
 
                 <div>
                     <label for="guest-download-email" class="mb-2 block text-sm font-medium text-gray-700">Order email address</label>
-                    <input
+                    <x-ui.input-control
                         id="guest-download-email"
                         name="email"
                         type="email"
                         value="{{ old('email') }}"
                         required
                         autocomplete="email"
-                        class="block w-full rounded-xl border border-gray-300 px-4 py-3 text-base text-gray-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                    >
+                        class="block w-full rounded-xl border border-gray-300 px-4 py-3 text-base text-gray-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100" />
                     @error('email')
                         <div class="mt-2 text-sm text-rose-700">{{ $message }}</div>
                     @enderror

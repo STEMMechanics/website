@@ -10,6 +10,8 @@
 >
     <x-mast title="Search" :description="$hasSearch ? ('Results for \"' . $search . '\"') : ('Search ' . $searchScopeLabel . ' across the site')" />
     <x-container class="py-8">
+        <x-ui.dynamic-list name="search">
+
         <section class="mb-8">
             <x-ui.search name="q" label="Search the site" />
         </section>
@@ -31,6 +33,7 @@
                             {{ number_format((int) $products->total()) }} {{ (int) $products->total() === 1 ? 'result' : 'results' }}
                         </div>
                     </div>
+                    <x-ui.collection-controls scope="search_products" class="my-4" />
                     @if(!$products->isEmpty())
                         @include('search.partials.store-products', [
                             'products' => $products,
@@ -49,8 +52,9 @@
                             {{ number_format((int) $workshops->total()) }} {{ (int) $workshops->total() === 1 ? 'result' : 'results' }}
                         </div>
                     </div>
+                    <x-ui.collection-controls scope="search_workshops" class="my-4" />
                     @if(!$workshops->isEmpty())
-                        <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+                        <x-container data-list-results class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
                             @foreach ($workshops as $workshop)
                                 <x-panel-workshop :workshop="$workshop" />
                             @endforeach
@@ -61,5 +65,7 @@
                     @endif
                 </section>
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

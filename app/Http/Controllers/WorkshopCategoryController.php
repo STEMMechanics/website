@@ -17,7 +17,7 @@ class WorkshopCategoryController extends Controller
             'categories' => WorkshopCategory::query()
                 ->withCount('workshops')
                 ->orderBy('name')
-                ->get(),
+                ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get(),
         ]);
     }
 

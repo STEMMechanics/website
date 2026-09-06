@@ -20,6 +20,21 @@ class NewsletterStoreThemeAdminTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
+    public function test_subscriptions_and_newsletter_have_separate_pages_with_themes_as_a_newsletter_tab(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->actingAs($admin)->get(route('admin.subscription.index'))->assertOk()
+            ->assertSee('Email Subscriptions')->assertDontSee('Next newsletter store picks')->assertDontSee('Send All Now');
+        $this->get(route('admin.newsletter.index'))->assertOk()->assertSee('Next newsletter store picks')
+            ->assertSee('Themes')->assertSee(route('admin.subscription.theme.index'), false)->assertSee('Send All Now')->assertDontSee('Subscription Store Themes');
+        $this->get(route('admin.subscription.theme.index'))->assertOk()->assertSee('Newsletter themes')
+            ->assertSee(route('admin.newsletter.index'), false)->assertDontSee('Subscription Store Themes');
+        $this->get(route('admin.subscription.theme.create'))->assertOk()->assertSee('Create Newsletter Theme');
+        $this->get('/admin/subscriptions/store-themes')->assertRedirect(route('admin.subscription.theme.index'));
+        $this->actingAs(User::factory()->create())->get(route('admin.newsletter.index'))->assertForbidden();
+    }
+
     public function test_default_store_themes_are_installed(): void
     {
         $this->assertSame(

@@ -49,7 +49,7 @@ class ExpenseController extends Controller
             });
         }
 
-        $expenses = $query->orderBy('paid_on', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+        $expenses = $query->orderBy('paid_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
         $expenses->getCollection()->each(function (Expense $expense): void {
             $expense->setAttribute('receipt_document_exists', $expense->hasReceiptDocument());
         });

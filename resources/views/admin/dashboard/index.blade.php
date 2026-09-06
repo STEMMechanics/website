@@ -2,39 +2,32 @@
     <x-mast>Dashboard</x-mast>
 
     <x-container>
+        <x-ui.dynamic-list name="admin-dashboard-index">
+
         <div class="mt-4 flex flex-col items-start gap-4">
             @include('admin.dashboard.partials.weekly-workplan', ['workplan' => $workplan])
 
             <div class="w-full">
-                <form method="GET" class="flex flex-col items-end">
-                    <div class="min-w-0">
-                        <x-ui.select class="mb-1" select-class="pr-8" label="Period" name="period" onchange="this.form.submit()" inline-label>
-                            <option value="overview" {{ $period === 'overview' ? 'selected' : '' }}>Overview (12 months)</option>
-                            <option value="day" {{ $period === 'day' ? 'selected' : '' }}>This day</option>
-                            <option value="week" {{ $period === 'week' ? 'selected' : '' }}>This week</option>
-                            <option value="month" {{ $period === 'month' ? 'selected' : '' }}>This month</option>
-                            <option value="quarter" {{ $period === 'quarter' ? 'selected' : '' }}>This quarter</option>
-                            <option value="year" {{ $period === 'year' ? 'selected' : '' }}>This year</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="text-xs italic text-gray-600">
-                        {{ $periodLabel }}: {{ $periodStart->format('d M Y') }} to {{ $periodEnd->format('d M Y') }}
-                    </div>
-                </form>
+                @isset($snapshotAt)
+                    <p class="text-xs text-gray-500">Figures updated {{ \Illuminate\Support\Carbon::parse($snapshotAt)->format('g:ia') }}.</p>
+                @endisset
+                <x-ui.period-presets name="period" :value="$period" :options="['overview' => 'Overview (12 months)', 'day' => 'This day', 'week' => 'This week', 'month' => 'This month', 'quarter' => 'This quarter', 'year' => 'This year']">
+                    <span class="text-xs text-gray-600">{{ $periodStart->format('d M Y') }} to {{ $periodEnd->format('d M Y') }}</span>
+                </x-ui.period-presets>
             </div>
         </div>
 
-        <div class="mt-4 grid gap-4 xl:grid-cols-2">
+        <div data-list-results class="mt-4 grid gap-4 xl:grid-cols-2">
             @foreach($cards as $card)
-                <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                    <div class="flex items-start justify-between gap-4">
+                <section class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
                         <div>
                             <h2 class="text-lg font-semibold text-gray-900">{{ $card['title'] }}</h2>
                             <p class="mt-1 text-sm text-gray-500">{{ $card['description'] }}</p>
                         </div>
                         <div class="flex flex-wrap justify-end gap-2">
                             @foreach(($card['links'] ?? []) as $link)
-                                <x-ui.button type="link" href="{{ $link['route'] }}" color="secondary" class="!px-3 !py-1 !text-xs">
+                                <x-ui.button type="link" href="{{ $link['route'] }}" color="secondary" class="px-3! py-1! text-xs!">
                                     <i class="{{ $link['icon'] }} mr-2"></i>{{ $link['label'] }}
                                 </x-ui.button>
                             @endforeach
@@ -56,7 +49,7 @@
                     </div>
                     @php $cardChart = collect($charts)->firstWhere('card', $card['title']); @endphp
                     @if($cardChart)
-                        @include('admin.dashboard._chart', ['chart' => $cardChart])
+                        <x-ui.trend-chart :chart="$cardChart" />
                     @endif
                 </section>
             @endforeach
@@ -72,12 +65,12 @@
             </div>
 
             <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th>Source</th>
-                        <th>Medium</th>
-                        <th class="text-right">Sessions</th>
-                        <th class="text-right">Percentage</th>
+                        <x-ui.list-heading label="Source" />
+                        <x-ui.list-heading label="Medium" />
+                        <x-ui.list-heading class="text-right" label="Sessions" />
+                        <x-ui.list-heading class="text-right" label="Percentage" />
                     </x-slot:header>
                     <x-slot:body>
                         @forelse($trafficSourceRows as $source)
@@ -115,12 +108,12 @@
             </div>
 
             <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th>Workshop</th>
-                        <th class="text-center">Views</th>
-                        <th class="hidden md:table-cell">Start</th>
-                        <th class="text-center">Registrations</th>
+                        <x-ui.list-heading label="Workshop" />
+                        <x-ui.list-heading class="text-center" label="Views" />
+                        <x-ui.list-heading class="hidden md:table-cell" label="Start" />
+                        <x-ui.list-heading class="text-center" label="Registrations" />
                     </x-slot:header>
                     <x-slot:body>
                         @forelse($workshopSalesRows as $row)
@@ -143,7 +136,7 @@
                                     <div class="font-semibold text-gray-900">{{ number_format((int) $row['views']) }}</div>
                                 </td>
                                 <td class="hidden md:table-cell">
-                                    {{ $startsAt ? $startsAt->format('M j, Y g:ia') : '-' }}
+                                    <x-ui.date-time>{{ $startsAt ? $startsAt->format('M j, Y g:ia') : '-' }}</x-ui.date-time>
                                 </td>
                                 <td class="text-center">
                                     @if($row['registration_count'] !== null)
@@ -175,11 +168,11 @@
             </div>
 
             <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th>Item</th>
-                        <th>Views</th>
-                        <th>Items Sold</th>
+                        <x-ui.list-heading label="Item" />
+                        <x-ui.list-heading label="Views" />
+                        <x-ui.list-heading label="Items Sold" />
                     </x-slot:header>
                     <x-slot:body>
                         @forelse($storeSalesRows as $row)
@@ -205,5 +198,7 @@
                 </x-ui.table>
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

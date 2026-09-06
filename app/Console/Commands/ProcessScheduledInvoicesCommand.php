@@ -6,7 +6,6 @@ use App\Jobs\SendEmail;
 use App\Jobs\SendScheduledInvoiceEmail;
 use App\Mail\ScheduledInvoiceReview;
 use App\Models\Invoice;
-use App\Services\AdminRecipientService;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -16,13 +15,18 @@ class ProcessScheduledInvoicesCommand extends Command
 
     protected $description = 'Send review notices and issue scheduled invoices';
 
-    public function handle(AdminRecipientService $admins): int
+    public function handle(): int
     {
         $reviewed = 0;
         Invoice::query()->where('scheduled_email', true)->where('status', Invoice::STATUS_DRAFT)
-            ->whereDate('issue_date', today()->addDay())->whereNull('scheduled_review_sent_at')->with('user')
-            ->each(function (Invoice $invoice) use ($admins, &$reviewed): void {
-                $recipients = $admins->emails();
+            ->whereDate('issue_date', today()->addDay())->whereNull('scheduled_review_sent_at')->with('creator')
+            ->each(function (Invoice $invoice) use (&$reviewed): void {
+                $creator = $invoice->creator;
+                $email = $creator?->isAdmin() ? trim((string) $creator->email) : '';
+                if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $email = trim((string) config('mail.invoice_review_fallback'));
+                }
+                $recipients = filter_var($email, FILTER_VALIDATE_EMAIL) ? [$email] : [];
                 foreach ($recipients as $email) {
                     dispatch(new SendEmail($email, new ScheduledInvoiceReview($invoice)))->onQueue('mail');
                 }

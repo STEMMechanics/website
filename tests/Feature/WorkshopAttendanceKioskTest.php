@@ -277,7 +277,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.attendance', $workshop))
             ->assertOk()
-            ->assertSee('Show cancelled')
+            ->assertSee('Including cancelled')
             ->assertSee('Active Attendee')
             ->assertDontSee('Cancelled Attendee')
             ->assertDontSee('Cancelled Tickets');

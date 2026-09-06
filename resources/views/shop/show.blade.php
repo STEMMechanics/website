@@ -602,9 +602,9 @@
 
                             <div class="mt-2 flex flex-wrap items-center gap-3">
                                 @if($product->isDigital())
-                                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-emerald-800">
+                                    <x-ui.badge class="bg-emerald-100 tracking-[0.16em] text-emerald-800">
                                         {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
-                                    </span>
+                                    </x-ui.badge>
                                 @endif
                                 @foreach($product->displayCategories() as $category)
                                     <x-product-category-badge
@@ -648,11 +648,11 @@
                                     <div class="mb-1 pl-1 text-sm font-medium text-gray-900">{{ $chooserHeading }}</div>
 
                                     <div class="relative w-full" @click.outside="closeVariantMenu()">
-                                            <button
+                                            <x-ui.button variant="plain"
                                                     type="button"
                                                     class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                                    @click="toggleVariantMenu()"
-                                                    :aria-expanded="variantMenuOpen ? 'true' : 'false'"
+                                                    x-on:click="toggleVariantMenu()"
+                                                    x-bind:aria-expanded="variantMenuOpen ? 'true' : 'false'"
                                             >
                                                 <span class="min-w-0 flex-1">
                                                     <span class="flex items-center gap-2 text-sm">
@@ -671,7 +671,7 @@
                                                     </span>
                                                 </span>
                                                 <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
-                                            </button>
+                                            </x-ui.button>
 
                                             <div
                                                     x-show="variantMenuOpen"
@@ -681,12 +681,12 @@
                                             >
                                                 <div class="max-h-80 overflow-y-auto py-2">
                                                     @foreach($optionPayload as $option)
-                                                        <button
+                                                        <x-ui.button variant="plain"
                                                                 type="button"
-                                                                x-data="{ option: @js($option) }"
+                                                                x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
                                                                 class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
-                                                                :class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
-                                                                @click="chooseOption(String(@js((string) ($option['input_value'] ?? ''))))"
+                                                                x-bind:class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
+                                                                x-on:click="chooseOption(String({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
                                                         >
                                                             <span class="min-w-0 flex-1">
                                                                 <div>
@@ -710,7 +710,7 @@
                                                                 </div>
                                                             </span>
                                                             <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
-                                                        </button>
+                                                        </x-ui.button>
                                                     @endforeach
                                                 </div>
                                             </div>
@@ -749,27 +749,26 @@
 
                                 <div x-show="cartQuantity() > 0" x-cloak class="w-full">
                                     <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
-                                        <button
+                                        <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                :disabled="busyCartLineKey === activeLineKey()"
-                                                @click="changeCartQuantity(cartQuantity() - 1)"
-                                        >-</button>
-                                        <input
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:click="changeCartQuantity(cartQuantity() - 1)"
+                                        >-</x-ui.button>
+                                        <x-ui.input-control
                                                 type="number"
                                                 min="0"
-                                                :max="cartMaxQuantity()"
-                                                :value="cartQuantity()"
+                                                x-bind:max="cartMaxQuantity()"
+                                                x-bind:value="cartQuantity()"
                                                 class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                :disabled="busyCartLineKey === activeLineKey()"
-                                                @change="changeCartQuantity($event.target.value)"
-                                        />
-                                        <button
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:change="changeCartQuantity($event.target.value)" />
+                                        <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                :disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                @click="changeCartQuantity(cartQuantity() + 1)"
-                                        >+</button>
+                                                x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
+                                                x-on:click="changeCartQuantity(cartQuantity() + 1)"
+                                        >+</x-ui.button>
                                     </div>
                                 </div>
 
@@ -813,7 +812,7 @@
                                 sizes="(min-width: 1024px) 38vw, 100vw"
                             @endif
                             alt="{{ $product->title }}"
-                            class="max-h-96 w-full object-cover"
+                            class="max-h-96 w-full object-cover" width="1024" height="768" loading="eager" fetchpriority="high"
                         />
                     </div>
                     <div class="mt-6 hidden lg:block">

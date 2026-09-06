@@ -121,9 +121,9 @@
                 <div id="expense-receipt-preview-note" class="mt-2 hidden text-xs text-gray-500" aria-live="polite"></div>
             </div>
 
-            <div class="flex justify-end mt-8 gap-4">
+            <x-ui.editor-actions>
                 @isset($expense)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit" id="expense-save-button">
                     <span id="expense-save-label">Save</span>
@@ -132,7 +132,7 @@
                         <span id="expense-save-loading-text">Saving...</span>
                     </span>
                 </x-ui.button>
-            </div>
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

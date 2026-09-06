@@ -24,7 +24,7 @@ class OrganisationController extends Controller
                     ->orWhere('type', 'like', '%'.$search.'%');
             }))
             ->orderBy('name')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->withQueryString();
 
         return view('admin.organisation.index', compact('organisations', 'search'));

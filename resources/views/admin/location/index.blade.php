@@ -1,24 +1,20 @@
 <x-layout>
-    <x-mast>Locations</x-mast>
+    <x-mast>Locations
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.location.create') }}">Create</x-ui.button></x-slot:actions>
+    </x-mast>
 
-    <x-container>
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.location.create') }}">Create</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-location">
+        <x-ui.collection-controls class="my-5" />
 
         @if($locations->isEmpty())
             <x-none-found item="locations" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Name</th>
-                    <th class="hidden md:table-cell">Address</th>
-                    <th>Action</th>
+                    <x-ui.list-heading label="Name" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Address" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach ($locations as $location)
@@ -28,19 +24,19 @@
                                 <div class="md:hidden text-xs text-gray-500 whitespace-normal">{{ $location->address }}</div>
                             </td>
                             <td class="hidden md:table-cell">{{ $location->address }}</td>
-                            <td>
-                                <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.location.edit', $location) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
-                                    <a href="#" class="hover:text-red-600" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete location?', 'Are you sure you want to delete this location? This action cannot be undone', '{{ route('admin.location.destroy', $location) }}')"><i class="fa-solid fa-trash"></i></a>
-                                </div>
+                            <td class="text-center!">
+                                <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.location.edit', $location) }}" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete location?', 'Are you sure you want to delete this location? This action cannot be undone', '{{ route('admin.location.destroy', $location) }}')" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                   @endforeach
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $locations->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$locations" />
         @endif
-
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

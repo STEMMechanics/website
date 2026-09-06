@@ -13,12 +13,15 @@ class ShopProductCategoryController extends Controller
 {
     public function index(): View
     {
+        $orderedIds = ProductCategory::query()->orderBy('sort_order')->orderBy('id')->pluck('id');
         return view('admin.shop.category.index', [
+            'firstCategoryId' => $orderedIds->first(),
+            'lastCategoryId' => $orderedIds->last(),
             'categories' => ProductCategory::query()
                 ->withCount('products')
                 ->orderBy('sort_order')
                 ->orderBy('id')
-                ->get(),
+                ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get(),
         ]);
     }
 
@@ -98,9 +101,11 @@ class ShopProductCategoryController extends Controller
         return redirect()->route('admin.shop.category.index');
     }
 
-    public function moveUp(ProductCategory $category): RedirectResponse
+    public function moveUp(Request $request, ProductCategory $category): RedirectResponse|\Illuminate\Http\JsonResponse
     {
-        if ($this->reorderCategory($category, -1)) {
+        $moved = $this->reorderCategory($category, -1);
+        if ($request->expectsJson()) return response()->json(['moved' => $moved]);
+        if ($moved) {
             session()->flash('message', 'Category moved up.');
             session()->flash('message-title', 'Category updated');
             session()->flash('message-type', 'success');
@@ -113,9 +118,11 @@ class ShopProductCategoryController extends Controller
         return redirect()->back();
     }
 
-    public function moveDown(ProductCategory $category): RedirectResponse
+    public function moveDown(Request $request, ProductCategory $category): RedirectResponse|\Illuminate\Http\JsonResponse
     {
-        if ($this->reorderCategory($category, 1)) {
+        $moved = $this->reorderCategory($category, 1);
+        if ($request->expectsJson()) return response()->json(['moved' => $moved]);
+        if ($moved) {
             session()->flash('message', 'Category moved down.');
             session()->flash('message-title', 'Category updated');
             session()->flash('message-type', 'success');

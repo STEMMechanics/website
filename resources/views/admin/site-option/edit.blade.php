@@ -64,9 +64,9 @@
                 />
             @endif
 
-            <div class="flex justify-end mt-8 gap-4">
+            <x-ui.editor-actions>
                 <x-ui.button type="submit">Save</x-ui.button>
-            </div>
+            </x-ui.editor-actions>
         </form>
     </x-container>
 </x-layout>

@@ -14,6 +14,7 @@ use App\Models\Workshop;
 use App\Services\MediaDuplicateService;
 use App\Services\MediaImageEditor;
 use App\Services\MediaUsageService;
+use App\Services\MediaListFilters;
 use App\Services\ImagePerceptualHash;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
@@ -56,6 +57,7 @@ class MediaController extends Controller
 
     public function admin_index(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher)
     {
+        app(MediaListFilters::class)->validate($request);
         $view = trim((string) $request->query('view', 'table'));
         if (! in_array($view, ['table', 'photos'], true)) {
             $view = 'table';
@@ -72,7 +74,12 @@ class MediaController extends Controller
         return view('admin.media.index', [
             'media' => $media,
             'filteredOwner' => $filteredOwner,
-            'unusedOnly' => $request->boolean('unused_only'),
+            'unusedOnly' => $request->query('usage') === 'unused' || $request->boolean('unused_only'),
+            'presetCounts' => [
+                'all' => Media::query()->count(),
+                'images' => Media::query()->where('mime_type', 'like', 'image/%')->count(),
+                'unused' => Media::query()->whereNotIn('name', $this->usedMediaNamesForRequest($request))->count(),
+            ],
             'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
             'duplicateAttentionCount' => $duplicates->attentionCount($hasher),
             'toggleViewRoute' => route('admin.media.index', array_merge(
@@ -84,6 +91,35 @@ class MediaController extends Controller
             'view' => $view,
         ]);
 
+    }
+
+    private function usedMediaNamesForRequest(Request $request): array
+    {
+        if (! $request->attributes->has('media_used_names')) {
+            $request->attributes->set('media_used_names', app(MediaUsageService::class)->usedMediaNames());
+        }
+        return $request->attributes->get('media_used_names');
+    }
+
+    public function admin_selection(Request $request): JsonResponse
+    {
+        app(MediaListFilters::class)->validate($request);
+        $names = $this->getMedia($request, true);
+        abort_if($names->count() > 5000, 422, 'Select up to 5000 files at a time. Narrow your filters and try again.');
+        return response()->json(['names' => $names]);
+    }
+
+    public function admin_quick_update(Request $request, Media $media): JsonResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'visibility' => ['required', Rule::in(['private', 'protected', 'public'])],
+            'caption' => ['nullable', 'string', 'max:10000'],
+            'tags' => ['nullable', 'string', 'max:255'],
+        ]);
+        $media->update($data);
+        if ($media->visibility !== 'protected') $this->revokeProtectedDownloadTokens($media);
+        return response()->json(['success' => true]);
     }
 
     public function admin_duplicates(Request $request, MediaDuplicateService $duplicates, MediaUsageService $usageService, ImagePerceptualHash $hasher)
@@ -238,10 +274,10 @@ class MediaController extends Controller
         ]);
     }
 
-    public function getMedia(Request $request)
+    public function getMedia(Request $request, bool $selectionOnly = false)
     {
         $query = Media::query();
-        $perPage = $request->input('per_page', 25);
+        $perPage = max(1, min(100, (int) $request->input('per_page', 25)));
         $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
         $user = Auth::user();
         $ownedOnly = (bool) ($request->boolean('owned_only') && $user);
@@ -272,8 +308,10 @@ class MediaController extends Controller
             }
         }
 
-        if ($isAdmin && $request->boolean('unused_only')) {
-            $usedMediaNames = app(MediaUsageService::class)->usedMediaNames();
+        if ($isAdmin && $request->query('usage') === 'used') $query->whereIn('name', $this->usedMediaNamesForRequest($request));
+
+        if ($isAdmin && ($request->query('usage') === 'unused' || $request->boolean('unused_only'))) {
+            $usedMediaNames = $this->usedMediaNamesForRequest($request);
             if ($usedMediaNames !== []) {
                 $query->whereNotIn('name', $usedMediaNames);
             }
@@ -385,11 +423,12 @@ class MediaController extends Controller
             });
         }
 
+        if ($request->boolean('passwordless_only')) $query->whereNull('password');
         if ($request->boolean('public_usable_only')) {
             $query->where('visibility', 'public');
         }
 
-        if($request->has('mime_type')) {
+        if($request->filled('mime_type') && !$request->routeIs('admin.media.index', 'admin.media.selection')) {
             $mime_types = explode(',', $request->mime_type);
             $query->where(function ($query) use ($mime_types) {
                 foreach ($mime_types as $mime_type) {
@@ -399,7 +438,13 @@ class MediaController extends Controller
             });
         }
 
-        $media = $query->orderBy('created_at', 'desc');
+        if ($isAdmin && $request->routeIs('admin.media.index', 'admin.media.selection')) {
+            app(MediaListFilters::class)->apply($query, $request);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+        if ($selectionOnly) return $query->limit(5001)->pluck('name');
+        $media = $query;
 
         if($request->wantsJson() && !(empty($request->input('selected'))) && empty($request->get('search')) && !$request->has('page')) {
             $selected = $request->input('selected')[0];
@@ -414,7 +459,7 @@ class MediaController extends Controller
             }
         }
 
-        $media = $media->paginate($perPage)->onEachSide(1);
+        $media = $media->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate($perPage)->onEachSide(1);
 
         // Normalize view-only metadata used by the table and picker UIs.
         $media->getCollection()->transform(function ($item) {
@@ -454,25 +499,14 @@ class MediaController extends Controller
         ]);
     }
 
-    public function admin_bulk_select(Request $request): RedirectResponse
+    public function admin_bulk_select(Request $request)
     {
         $validated = $request->validate([
-            'media_names' => ['required', 'array', 'min:1', 'max:500'],
+            'media_names' => ['required', 'array', 'min:1', 'max:5000'],
             'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
         ]);
-
-        $request->session()->put('admin_media_bulk_selection', array_values($validated['media_names']));
-
-        return redirect()->route('admin.media.bulk.edit');
-    }
-
-    public function admin_bulk_edit(Request $request)
-    {
-        $mediaNames = $this->bulkMediaSelection($request);
-        if ($mediaNames === []) {
-            return redirect()->route('admin.media.index')
-                ->withErrors(['media_names' => 'Select at least one media item to bulk edit.']);
-        }
+        $mediaNames = array_values($validated['media_names']);
+        if (!$request->expectsJson()) return redirect()->route('admin.media.index');
 
         $selectedMedia = Media::query()
             ->with(['user', 'workshopPhotos.location'])
@@ -506,7 +540,7 @@ class MediaController extends Controller
             ->sortByDesc(fn (array $item) => $item['workshop']->starts_at)
             ->values();
 
-        return response()->view('admin.media.bulk-edit', [
+        return response()->json(['html' => view('admin.media.partials.bulk-edit', [
             'selectedMedia' => $selectedMedia,
             'commonValues' => $commonValues,
             'mixedFields' => $mixedFields,
@@ -514,12 +548,20 @@ class MediaController extends Controller
             'mediaOwners' => $this->mediaOwners(),
             'workshopOptions' => $this->workshopOptions(),
             'tagOptions' => $this->mediaTagOptions(),
-        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+        ])->render()])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
     }
 
-    public function admin_bulk_update(Request $request): RedirectResponse
+    public function admin_bulk_update(Request $request): RedirectResponse|JsonResponse
     {
-        $mediaNames = $this->bulkMediaSelection($request);
+        if ($request->expectsJson() || $request->has('media_names')) {
+            $selection = $request->validate([
+                'media_names' => ['required', 'array', 'min:1', 'max:5000'],
+                'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+            ]);
+            $mediaNames = array_values($selection['media_names']);
+        } else {
+            $mediaNames = $this->bulkMediaSelection($request);
+        }
         if ($mediaNames === []) {
             return redirect()->route('admin.media.index')
                 ->withErrors(['media_names' => 'Your bulk media selection has expired. Please select the items again.']);
@@ -549,11 +591,9 @@ class MediaController extends Controller
             });
 
             if ($publiclyUsed->isNotEmpty()) {
-                return redirect()->back()
-                    ->withErrors([
-                        'visibility' => $publiclyUsed->count().' selected item(s) are still used in public website content and cannot be made private.',
-                    ])
-                    ->withInput();
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'visibility' => $publiclyUsed->count().' selected item(s) are still used in public website content and cannot be made private.',
+                ]);
             }
         }
 
@@ -582,6 +622,8 @@ class MediaController extends Controller
                 }
             }
         });
+
+        if ($request->expectsJson()) return response()->json(['success' => true, 'message' => $media->count().' media item'.($media->count() === 1 ? '' : 's').' updated']);
 
         $request->session()->forget('admin_media_bulk_selection');
 
@@ -1596,9 +1638,6 @@ class MediaController extends Controller
     public function admin_destroy(Request $request, Media $media)
     {
         $media->delete();
-        session()->flash('message', 'Media has been deleted');
-        session()->flash('message-title', 'Media deleted');
-        session()->flash('message-type', 'danger');
 
         if($request->wantsJson()) {
             return response()->json([
@@ -1606,6 +1645,10 @@ class MediaController extends Controller
                 'redirect' => route('admin.media.index'),
             ]);
         }
+
+        session()->flash('message', 'Media has been deleted');
+        session()->flash('message-title', 'Media deleted');
+        session()->flash('message-type', 'danger');
 
         return redirect()->route('admin.media.index');
     }

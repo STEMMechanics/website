@@ -1,5 +1,6 @@
 @props([
     'inputId',
+    'pageUpload' => false,
     'inputName' => null,
     'inputRef',
     'accept' => null,
@@ -32,7 +33,21 @@
         .' : '.json_encode($emptyText);
 @endphp
 
-<div>
+<div
+    @if($pageUpload)
+    data-workshop-page-upload
+    x-on:workshop-upload.window="if ($event.detail.id === @js($inputId) && !({{ $disabled }})) $refs.{{ $inputRef }}.click()"
+    x-on:workshop-browse.window="if ($event.detail.id === @js($inputId) && !({{ $disabled }})) {{ $onBrowseExisting }}()"
+    x-on:dragenter.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); if (!({{ $disabled }})) pageUploadDragDepth++; }"
+    x-on:dragover.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); $event.dataTransfer.dropEffect = ({{ $disabled }}) ? 'none' : 'copy'; }"
+    x-on:dragleave.window="pageUploadDragDepth = Math.max(0, pageUploadDragDepth - 1)"
+    x-on:drop.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { const handled = $event.defaultPrevented; $event.preventDefault(); pageUploadDragDepth = 0; if (!handled && !({{ $disabled }})) {{ $onFiles }}($event.dataTransfer.files); }"
+    x-on:blur.window="pageUploadDragDepth = 0"
+    @endif
+>
+    @if($pageUpload)
+        <template x-teleport="body"><div x-show="pageUploadDragDepth > 0" x-cloak class="sm-page-drop-overlay" aria-hidden="true"><div><i class="fa-solid fa-cloud-arrow-up text-5xl" aria-hidden="true"></i><strong class="mt-5 block text-2xl">Drop files to upload</strong><span class="mt-2 block">Files will be attached to this workshop.</span></div></div></template>
+    @endif
     <input
         id="{{ $inputId }}"
         @if($inputName) name="{{ $inputName }}" @endif
@@ -45,6 +60,7 @@
         x-bind:disabled="{{ $disabled }}"
     >
 
+    @unless($pageUpload)
     <div
         {{ $attributes->class(['mt-1 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-sm transition']) }}
         x-on:dragover.prevent="$el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color')"
@@ -82,6 +98,8 @@
             @endif
         </div>
     </div>
+
+    @endunless
 
     {{ $slot }}
 

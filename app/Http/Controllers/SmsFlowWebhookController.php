@@ -11,6 +11,15 @@ class SmsFlowWebhookController extends Controller
 {
     public function handle(Request $request, SmsFlowInboundService $smsFlowInboundService): JsonResponse
     {
+        $secret = (string) config('services.smsflow.webhook_secret', '');
+        $provided = $request->bearerToken() ?? $request->query('webhook_secret', '');
+        if (strlen($secret) < 32 || $secret === (string) config('services.smsflow.api_key') || ! is_string($provided) || ! hash_equals($secret, $provided)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        if (strlen($request->getContent()) > 65536) {
+            return response()->json(['message' => 'Payload too large'], 413);
+        }
+
         $rawBody = (string) $request->getContent();
         $decodedBody = json_decode($rawBody, true);
 
@@ -23,8 +32,7 @@ class SmsFlowWebhookController extends Controller
                 ]);
             } catch (\Throwable $exception) {
                 Log::warning('SMSFlow inbound payload could not be stored.', [
-                    'message' => $exception->getMessage(),
-                    'payload_json' => $decodedBody,
+                    'exception' => $exception::class,
                 ]);
                 throw $exception;
             }
@@ -37,9 +45,7 @@ class SmsFlowWebhookController extends Controller
             'path' => $request->path(),
             'ip' => $request->ip(),
             'content_type' => $request->header('Content-Type'),
-            'headers' => $request->headers->all(),
-            'payload_text' => $rawBody,
-            'payload_json' => is_array($decodedBody) ? $decodedBody : null,
+            'topic' => is_array($decodedBody) ? ($decodedBody['topic'] ?? null) : null,
             'inbound_sms_id' => $inboundSms?->id,
             'matched_sent_sms_id' => $inboundSms?->sent_sms_id,
         ]);

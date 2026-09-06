@@ -79,7 +79,7 @@
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
                 </summary>
-                <textarea
+                <x-ui.textarea-control
                     id="pick_list_notes"
                     name="pick_list_notes"
                     rows="4"
@@ -87,7 +87,7 @@
                     class="mt-2 disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
                     x-model="notes"
                     x-on:input="resizeNotesField(); scheduleAutosave()"
-                ></textarea>
+                ></x-ui.textarea-control>
             </details>
 
             @if($workshop->pickListTemplate)
@@ -97,7 +97,7 @@
                         <p class="mt-2 text-sm text-gray-600">No template tasks.</p>
                     @else
                         @php($taskGroups = \App\Support\WorkshopTaskPresenter::grouped($workshop->pickListTemplate->tasks))
-                        <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <x-ui.grid class="mt-3 gap-3 lg:grid-cols-2">
                             @foreach($taskGroups as $taskGroup)
                                 <section class="pl-8">
                                     @if($taskGroup['heading'])
@@ -116,17 +116,17 @@
                                             ])->values()->all())
                                             <li id="task-{{ $task->id }}" class="scroll-mt-24 flex gap-2 rounded-md px-1 py-1.5 target:ring-2 target:ring-primary-color/20">
                                                 <x-ui.checkbox
-                                                    :noWrapper="true"
-                                                    :inline="true"
-                                                    x-model="completedTaskIds"
-                                                    value="{{ (string) $task->id }}"
-                                                    x-on:change="scheduleAutosave()"
-                                                />
+ :noWrapper="true"
+ :inline="true"
+ x-model="completedTaskIds"
+ value="{{ (string) $task->id }}"
+ x-on:change="scheduleAutosave()"
+ />
                                                 <div class="min-w-0 flex-1 content-center">
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
                                                     <div class="flex gap-3 items-center">
                                                         @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                            <button type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = @js($task->name); taskNote = @js($renderedTaskNote); taskSubtasks = @js($renderedSubtasks)"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</button>
+                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = {{ \Illuminate\Support\Js::from($task->name) }}; taskNote = {{ \Illuminate\Support\Js::from($renderedTaskNote) }}; taskSubtasks = {{ \Illuminate\Support\Js::from($renderedSubtasks) }}"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</x-ui.button>
                                                         @endif
 
                                                         @if(($task->notes || count($task->subtasks ?? []) > 0) && $taskReminder)
@@ -156,11 +156,11 @@
                                     </ul>
                                 </section>
                             @endforeach
-                        </div>
+                        </x-ui.grid>
                     @endif
                     <div x-show="taskNote !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskNote = null">
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
-                            <div class="flex items-center justify-between gap-3"><h3 class="text-lg font-semibold" x-text="taskName"></h3><button type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskNote = null"><i class="fa-solid fa-xmark"></i></button></div>
+                            <div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold" x-text="taskName"></h3><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="taskNote = null" /></div>
                             <div class="mt-4 text-sm text-gray-700 content" x-html="taskNote"></div>
                             <template x-for="(subtask, index) in taskSubtasks" :key="`task-note-subtask-${index}`">
                                 <section class="mt-5 border-t border-gray-200 pt-4">
@@ -186,14 +186,14 @@
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
                     <div class="flex items-center justify-between">
                         <x-ui.checkbox
-                                label="Select all"
-                                :noWrapper="true"
-                                :inline="true"
-                                x-bind:checked="allItemsChecked()"
-                                x-bind:aria-checked="allItemsCheckState() === 'mixed' ? 'mixed' : String(allItemsChecked())"
-                                x-effect="$el.indeterminate = allItemsCheckState() === 'mixed'"
-                                x-on:change="setAllItemsChecked($event.target.checked)"
-                        />
+ label="Select all"
+ :noWrapper="true"
+ :inline="true"
+ x-bind:checked="allItemsChecked()"
+ x-bind:aria-checked="allItemsCheckState() === 'mixed' ? 'mixed' : String(allItemsChecked())"
+ x-effect="$el.indeterminate = allItemsCheckState() === 'mixed'"
+ x-on:change="setAllItemsChecked($event.target.checked)"
+ />
                     </div>
                     <div class="border-gray-300 border-r h-8"></div>
 
@@ -229,23 +229,23 @@
 
             <div class="mt-4" x-show="!itemsEditMode">
                 <template x-if="currentItems().length > 0">
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <x-ui.grid class="md:grid-cols-2 xl:grid-cols-3 gap-3">
                         <template x-for="item in currentItems()" :key="item.id">
                             <label class="flex items-center gap-3 p-3 select-none">
                                 <x-ui.checkbox
-                                    :noWrapper="true"
-                                    :inline="true"
-                                    x-model="checkedIds"
-                                    x-bind:value="String(item.id)"
-                                    x-on:change="scheduleAutosave()"
-                                />
+ :noWrapper="true"
+ :inline="true"
+ x-model="checkedIds"
+ x-bind:value="String(item.id)"
+ x-on:change="scheduleAutosave()"
+ />
                                 <div class="min-w-0">
                                     <div class="font-semibold" x-text="itemLabel(item)"></div>
                                     <div class="text-xs text-gray-500" x-text="typeNote(item)"></div>
                                 </div>
                             </label>
                         </template>
-                    </div>
+                    </x-ui.grid>
                 </template>
                 <template x-if="currentItems().length === 0">
                     <div class="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
@@ -256,14 +256,14 @@
 
             <div class="mt-4" x-show="itemsEditMode" x-cloak>
                 <div class="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white">
-                    <table class="min-w-full border-collapse">
+                    <x-ui.table variant="plain" table-class="min-w-full border-collapse">
                         <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
                             <tr>
                                 <th class="px-3 py-2">Item</th>
-                                <th class="px-3 py-2">Type</th>
+                                <th class="px-3 py-2 text-center!">Type</th>
                                 <th class="px-3 py-2">Quantity</th>
                                 <th class="px-3 py-2">Checked</th>
-                                <th class="px-3 py-2 text-right">Actions</th>
+                                <th class="text-center! px-3 py-2">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="block md:table-row-group">
@@ -289,7 +289,7 @@
                                             x-on:input="item.item_name = $event.target.value; handleCustomItemChange(index)"
                                         />
                                     </td>
-                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3 text-center!">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Type</div>
                                         <x-ui.select
                                             name="custom_item_type"
@@ -321,33 +321,27 @@
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Checked</div>
                                         <x-ui.checkbox
-                                            label="Include on list"
-                                            :small="true"
-                                            :noWrapper="true"
-                                            :inline="true"
-                                            x-model="checkedIds"
-                                            x-bind:value="String(item.id)"
-                                            x-on:change="scheduleAutosave()"
-                                        />
+ label="Include on list"
+ :small="true"
+ :noWrapper="true"
+ :inline="true"
+ x-model="checkedIds"
+ x-bind:value="String(item.id)"
+ x-on:change="scheduleAutosave()"
+ />
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Actions</div>
-                                        <div class="flex flex-wrap items-center gap-3 md:justify-end">
-                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveCustomItemUp(index)" :disabled="index === 0" title="Move up">
-                                                <i class="fa-solid fa-arrow-up"></i>
-                                            </button>
-                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveCustomItemDown(index)" :disabled="index === customItems.length - 1" title="Move down">
-                                                <i class="fa-solid fa-arrow-down"></i>
-                                            </button>
-                                            <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeCustomItem(index)" title="Remove">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
+                                        <x-ui.row-actions :menu="false" class="md:">
+                                            <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveCustomItemUp(index)" x-bind:disabled="index === 0" />
+                                            <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveCustomItemDown(index)" x-bind:disabled="index === customItems.length - 1" />
+                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeCustomItem(index)" />
+                                        </x-ui.row-actions>
                                     </td>
                                 </tr>
                             </template>
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -400,7 +394,7 @@
                         <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                         <h2 class="text-lg font-semibold text-gray-900">Attachments</h2>
                     </summary>
-                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <x-ui.grid class="mt-3 gap-2 md:grid-cols-2">
                         @foreach($workshop->pickListTemplate->attachments as $attachment)
                             <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
                                 <i class="fa-solid fa-paperclip text-gray-500"></i>
@@ -412,7 +406,7 @@
                                 <a href="{{ $attachment->url }}?download=1" class="shrink-0 text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
                             </div>
                         @endforeach
-                    </div>
+                    </x-ui.grid>
                 </details>
             @endif
 

@@ -11,6 +11,7 @@
 @endphp
 
 <form method="GET" action="{{ $formRoute }}" class="mb-6 overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm">
+    <x-ui.query-inputs :values="request()->only(['list_sort', 'list_direction'])" />
     <div class="flex flex-col gap-5 p-4">
         <div class="grid gap-4 md:grid-cols-2">
             @include('admin.workshop.partials.report-multi-picker', [

@@ -1,24 +1,21 @@
 <x-layout>
-    <x-mast>Workshop Templates</x-mast>
+    <x-mast>Workshop Templates
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-template.create') }}">Create Template</x-ui.button></x-slot:actions>
+    </x-mast>
 
-    <x-container>
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.workshop-template.create') }}">Create Template</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-pick-list-template-index">
+
+        <x-ui.collection-controls class="my-5" />
 
         @if($templates->isEmpty())
             <x-none-found item="templates" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Name</th>
-                    <th class="hidden md:table-cell">Contents</th>
-                    <th>Actions</th>
+                    <x-ui.list-heading label="Name" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Contents" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($templates as $template)
@@ -34,22 +31,24 @@
                                 <div>{{ (int) ($template->tasks_count ?? 0) }} tasks</div>
                                 <div class="text-xs text-gray-500">{{ (int) ($template->items_count ?? 0) }} pick-list items · {{ (int) ($template->attachments_count ?? 0) }} attachments</div>
                             </td>
-                            <td>
-                                <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.workshop-template.edit', $template) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                            <td class="text-center!">
+                                <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.workshop-template.edit', $template) }}" />
                                     <form method="POST" action="{{ route('admin.workshop-template.duplicate', $template) }}" class="inline">
                                         @csrf
-                                        <button type="submit" class="hover:text-primary-color" title="Duplicate"><i class="fa-regular fa-copy"></i></button>
+                                        <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" type="submit" />
                                     </form>
-                                    <a href="#" class="hover:text-red-600" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete template?', 'Are you sure you want to delete this workshop template?', '{{ route('admin.workshop-template.destroy', $template) }}')" title="Delete"><i class="fa-solid fa-trash"></i></a>
-                                </div>
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete template?', 'Are you sure you want to delete this workshop template?', '{{ route('admin.workshop-template.destroy', $template) }}')" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $templates->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$templates" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

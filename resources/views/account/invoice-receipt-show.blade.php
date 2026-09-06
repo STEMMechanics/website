@@ -7,7 +7,7 @@
                 $isRefund = $receipt->isRefund();
             @endphp
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <x-ui.grid class="md:grid-cols-2 gap-4 text-sm">
                 <div>
                     <div><strong>Invoice #:</strong> {{ $invoice->invoice_number }}</div>
                     <div><strong>Receipt #:</strong> {{ $receipt->id }}</div>
@@ -28,7 +28,7 @@
                     <div><strong>Amount:</strong> {{ money($isRefund ? -((float) $receipt->total_amount) : (float) $receipt->total_amount) }}</div>
                     <div><strong>Reference:</strong> {{ $receipt->reference ?: '-' }}</div>
                 </div>
-            </div>
+            </x-ui.grid>
 
             <div class="mt-4 flex flex-wrap gap-3">
                 <a href="{{ route('account.invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $receipt]) }}" target="_blank" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View PDF</a>

@@ -179,7 +179,7 @@
                                     :class="file.visibility === 'public' ? 'bg-green-100 text-green-700' : (file.visibility === 'protected' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700')"
                                     x-text="file.visibility === 'public' ? 'Public' : (file.visibility === 'protected' ? 'Protected' : 'Private')"
                                 ></span>
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700" x-show="file.storage_disk" x-text="file.storage_disk"></span>
+                                <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                             </div>
                             <span class="text-xs text-gray-400" x-show="file.pending_id" x-text="'Pending upload · ' + SM.bytesToString(file.size)"></span>
                             <span class="text-xs text-gray-400" x-show="!file.pending_id" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>
@@ -217,7 +217,7 @@
                             :class="file.visibility === 'public' ? 'bg-green-100 text-green-700' : (file.visibility === 'protected' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700')"
                             x-text="file.visibility === 'public' ? 'Public' : (file.visibility === 'protected' ? 'Protected' : 'Private')"
                         ></span>
-                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700" x-show="file.storage_disk" x-text="file.storage_disk"></span>
+                        <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                     </div>
                     @endif
                     <span class="text-xs text-gray-400" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>

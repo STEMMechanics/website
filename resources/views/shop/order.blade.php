@@ -67,17 +67,17 @@
                         </div>
                         <div class="flex flex-wrap gap-2">
                             @if((string) $order->status === \App\Models\StoreOrder::STATUS_CANCELLED)
-                                <span class="rounded-full bg-rose-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-800">
+                                <x-ui.badge class="bg-rose-100 tracking-[0.16em] text-rose-800">
                                     Cancelled
-                                </span>
+                                </x-ui.badge>
                             @elseif($isQuoteRequested)
-                                <span class="rounded-full bg-sky-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
+                                <x-ui.badge color="sky" uppercase>
                                     Quote requested
-                                </span>
+                                </x-ui.badge>
                             @else
-                                <span class="rounded-full {{ $isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em]">
+                                <x-ui.badge class="{{ $isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} tracking-[0.16em]">
                                 {{ $isPaid ? 'Paid' : 'Pending payment' }}
-                                </span>
+                                </x-ui.badge>
                             @endif
                         </div>
                     </div>
@@ -218,12 +218,12 @@
                                         @csrf
                                         <input type="hidden" name="return_to" value="{{ request()->getRequestUri() }}" />
                                         <div class="mt-1 text-xs text-gray-500">Log in to view the invoices and receipts for this order. We can also send the tax invoice and any available receipts to the email address on this order.</div>
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="submit"
                                             class="inline-flex whitespace-nowrap items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
                                         >
                                             Email Documents to Order Owner
-                                        </button>
+                                        </x-ui.button>
                                     </form>
                                 @elseif($documentLinks === [])
                                     <div class="rounded-2xl border border-dashed border-gray-300 bg-white/80 px-4 py-4 text-xs text-gray-600">
@@ -259,9 +259,9 @@
                                     {{ $isAccountView ? 'Open your files directly from this order.' : 'Verify Email to Download. Each unlocked download link expires after 15 minutes.' }}
                                 </p>
                             </div>
-                            <span class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
+                            <x-ui.badge class="bg-white tracking-[0.16em] text-emerald-800">
                                 {{ $downloadableItems->sum(fn ($item) => $item->downloads->count()) }} file{{ $downloadableItems->sum(fn ($item) => $item->downloads->count()) === 1 ? '' : 's' }}
-                            </span>
+                            </x-ui.badge>
                         </div>
 
                         <div class="mt-5 space-y-4">
@@ -376,7 +376,7 @@
                                     <div class="flex justify-between">
                                         <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
                                             @if($cancelledTotal > 0)
-                                                <span class="rounded-full bg-rose-100 px-3 py-1 text-rose-800">Cancelled qty {{ $cancelledTotal }}</span>
+                                                <x-ui.badge class="bg-rose-100 text-rose-800">Cancelled qty {{ $cancelledTotal }}</x-ui.badge>
                                             @endif
                                         </div>
                                         <div class="mt-3 flex flex-wrap gap-2 items-center">

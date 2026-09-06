@@ -25,7 +25,7 @@ class WorkshopHistoryController extends Controller
         $query = $this->filteredQuery($request);
 
         return view('admin.workshop.history', [
-            'workshops' => $query->paginate(25)->withQueryString(),
+            'workshops' => $query->paginate(\App\Support\ListPageSize::resolve(25))->withQueryString(),
             ...$this->filterOptions(),
         ]);
     }
@@ -154,7 +154,8 @@ class WorkshopHistoryController extends Controller
                         ->orWhere('surname', 'like', '%'.$search.'%')
                         ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%')));
             }))
-            ->orderByDesc('starts_at');
+            ->orderByDesc('starts_at')
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery));
     }
 
     /**
@@ -263,7 +264,7 @@ class WorkshopHistoryController extends Controller
                     ),
                 ];
             })
-            ->sortBy('title', SORT_NATURAL | SORT_FLAG_CASE)
+            ->sortBy('title', SORT_NATURAL | SORT_FLAG_CASE, $request->query('list_direction') === 'desc')
             ->values();
 
         return [

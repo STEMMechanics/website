@@ -75,14 +75,14 @@ class AuditLogObserver
             'actor_user_id' => $this->resolveActorUserId($actorUserId),
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
-            'url' => $request?->fullUrl(),
+            'url' => $request?->url(),
             'old_values' => $oldValues,
             'new_values' => $newValues,
         ]);
     }
 
     /**
-     * @param array<string, mixed> $values
+     * @param  array<string, mixed>  $values
      * @return array<string, mixed>
      */
     private function filterValues(array $values): array

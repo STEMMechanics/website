@@ -55,6 +55,7 @@ class ServerController extends Controller
         return view('admin.server.index', [
             'serverInfo' => $this->getServerInfo(),
             'serverDependencies' => $serverDependencyService->statuses(),
+            'deploymentChecks' => app(\App\Services\DeploymentConfigurationService::class)->checks(),
             'logPath' => $logPath,
             'logExists' => $logData['exists'],
             'logSize' => $logData['size'],
@@ -650,18 +651,23 @@ class ServerController extends Controller
             }
         }
 
+        app(\App\Services\SiteListControls::class)->apply($query);
+        $query->reorder();
         $page = max(1, (int) $request->query('page', 1));
         $groupKeySql = $this->squareWebhookGroupKeySql();
         $groupPage = DB::query()
             ->fromSub(
-                (clone $query)->selectRaw('id, processed_at, '.$groupKeySql.' as group_key'),
+                (clone $query)->selectRaw('id, event_type, created_at, processed_at, '.$groupKeySql.' as group_key'),
                 'square_webhook_event_groups'
             )
-            ->selectRaw('group_key, MAX(processed_at) as latest_processed_at, MAX(id) as latest_id')
+            ->selectRaw('group_key, MAX(processed_at) as latest_processed_at, MAX(id) as latest_id, MAX(created_at) as latest_created_at, MAX(event_type) as latest_event_type')
             ->groupBy('group_key')
             ->orderByDesc('latest_processed_at')
             ->orderByDesc('latest_id')
-            ->paginate(10, ['*'], 'page', $page)
+            ->when($request->filled('list_sort'), function ($groups) use ($request) {
+                $column = ['event_type' => 'latest_event_type', 'created_at' => 'latest_created_at', 'processed_at' => 'latest_processed_at'][$request->query('list_sort')];
+                $groups->reorder($column, $request->query('list_direction') ?: 'asc')->orderBy('group_key');
+            })->paginate(\App\Support\ListPageSize::resolve(10, 'page'), ['*'], 'page', $page)
             ->onEachSide(1);
 
         $groupKeys = collect($groupPage->items())
@@ -812,7 +818,7 @@ class ServerController extends Controller
 
         $emails = $query
             ->orderByDesc('created_at')
-            ->paginate(50)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
             ->onEachSide(1);
 
         return view('admin.server.sent-emails', [
@@ -866,7 +872,7 @@ class ServerController extends Controller
 
         $messages = $query
             ->orderByDesc('created_at')
-            ->paginate(50)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
             ->onEachSide(1);
 
         $recipientLookup = $this->buildSmsRecipientLookup($smsFlowService);
@@ -1207,7 +1213,7 @@ class ServerController extends Controller
             }
         }
 
-        $logs = $query->orderByDesc('created_at')->paginate(50)->onEachSide(1);
+        $logs = $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))->onEachSide(1);
         $totalRecords = AuditLog::query()->count();
         $oldestRecordAt = AuditLog::query()->min('created_at');
         $tableSizeBytes = $this->auditLogTableSizeBytes();
@@ -2182,8 +2188,8 @@ class ServerController extends Controller
 
     private function paginateBackups(Request $request): LengthAwarePaginator
     {
-        $allBackups = collect($this->databaseBackupService->listBackups())->values();
-        $perPage = 8;
+        $allBackups = app(\App\Services\SiteListControls::class)->applyCollection(collect($this->databaseBackupService->listBackups()));
+        $perPage = \App\Support\ListPageSize::resolve(8, 'backup_page');
         $page = max(1, (int) $request->query('backup_page', 1));
         $items = $allBackups->slice(($page - 1) * $perPage, $perPage)->values();
 

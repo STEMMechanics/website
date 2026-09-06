@@ -47,6 +47,7 @@ return [
         'base_url' => env('SMSFLOW_BASE_URL', 'https://api.smsflow.com.au/v2'),
         'from' => env('SMSFLOW_FROM'),
         'callback_url' => env('SMSFLOW_CALLBACK_URL'),
+        'webhook_secret' => env('SMSFLOW_WEBHOOK_SECRET'),
     ],
 
     'deploy' => [

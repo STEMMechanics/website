@@ -1,15 +1,20 @@
-@props(['type' => 'button', 'class', 'href', 'target', 'color' => 'primary'])
+@props(['type' => 'button', 'class', 'href', 'target', 'color' => 'primary', 'variant' => 'default', 'buttonAttributes' => []])
 
 @php
+    $forwardedAttributes = $buttonAttributes instanceof \Illuminate\View\ComponentAttributeBag
+        ? $buttonAttributes : new \Illuminate\View\ComponentAttributeBag($buttonAttributes);
+    $class = twMerge($forwardedAttributes->get('class'), $class ?? '');
+    $attributes = $attributes->merge($forwardedAttributes->except(['class', 'type'])->getAttributes());
     $disabledClasses = 'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none';
 
     $colorMap = [
+        'mast' => "hover:bg-sky-50 focus-visible:outline-white border border-white/70 bg-white text-primary-color-dark {$disabledClasses}",
         'outline' => "hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white {$disabledClasses}",
         'primary' => "hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
-        'primary-sm' => "!text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
+        'primary-sm' => "text-xs! px-4! py-1! hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white {$disabledClasses}",
         'accent' => "hover:bg-orange-600 focus-visible:outline-orange-500 bg-orange-500 text-white {$disabledClasses}",
         'primary-outline' => "hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
-        'primary-outline-sm' => "!text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
+        'primary-outline-sm' => "text-xs! px-4! py-1! hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
         'secondary' => "hover:bg-gray-200 focus-visible:outline-gray-300 border border-gray-300 bg-gray-100 text-gray-800 {$disabledClasses}",
         'purple' => "hover:bg-violet-700 focus-visible:outline-violet-600 bg-violet-600 text-white {$disabledClasses}",
         'purple-outline' => "hover:bg-violet-700 focus-visible:outline-violet-600 text-violet-700 border border-violet-300 bg-white hover:text-white {$disabledClasses}",
@@ -23,12 +28,17 @@
         'rose' => "hover:bg-rose-800 focus-visible:outline-rose-600 bg-rose-600 text-white {$disabledClasses}",
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
-    $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
+    $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
     $hrefValue = html_entity_decode((string) ($href ?? '#'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
     if((isset($type) && $type === 'link')) {
         $colorClasses = '';
         $commonClasses = 'cursor-pointer text-sky-700 hover:text-sky-900';
+    }
+
+    if ($variant === 'plain') {
+        $colorClasses = $disabledClasses;
+        $commonClasses = twMerge('cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color', $class ?? '');
     }
 
     if(isset($href) && $href !== '') $type = 'link';

@@ -1,3 +1,3 @@
 <div {{ $attributes->except(['class', 'inner-class'])->merge(['class' => twMerge(['flex','justify-center','px-4'], ($attributes->get('class') ?? ''))]) }}>
-    <div class="{{ twMerge(['max-w-7xl','w-full'], ($attributes->get('inner-class') ?? '')) }}">{{ $slot }}</div>
+    <div class="{{ twMerge(['min-w-0','max-w-7xl','w-full'], ($attributes->get('inner-class') ?? '')) }}">{{ $slot }}</div>
 </div>

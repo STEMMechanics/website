@@ -1,22 +1,21 @@
 <x-layout>
-    <x-mast>Product Categories</x-mast>
+    <x-mast>Product Categories
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.category.create') }}">Create</x-ui.button></x-slot:actions>
+    </x-mast>
 
     <x-container class="mt-4">
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.shop.category.create') }}">Create</x-ui.button>
-            </x-slot:left>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-shop-category">
+        <x-ui.collection-controls class="my-5" />
 
         @if($categories->isEmpty())
             <x-none-found item="categories" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Category</th>
-                    <th class="hidden md:table-cell text-center">Slug</th>
-                    <th class="hidden md:table-cell text-center">Products</th>
-                    <th>Action</th>
+                    <x-ui.list-heading field="name" label="Category" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center" label="Slug" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center" label="Products" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($categories as $category)
@@ -34,27 +33,24 @@
                             </td>
                             <td class="hidden md:table-cell text-center text-gray-600">{{ $category->slug }}</td>
                             <td class="hidden md:table-cell text-center text-gray-600">{{ (int) $category->products_count }}</td>
-                            <td>
-                                <div class="flex items-center justify-center gap-3">
-                                    <form method="POST" action="{{ route('admin.shop.category.move-up', $category) }}" class="inline-flex">
+                            <td class="text-center!">
+                                <x-ui.row-actions :menu="false">
+                                    <form method="POST" action="{{ route('admin.shop.category.move-up', $category) }}" class="inline-flex" data-list-reorder>
                                         @csrf
-                                        <button type="submit" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" @disabled($loop->first) title="Move up">
-                                            <i class="fa-solid fa-arrow-up"></i>
-                                        </button>
+                                        <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="submit" :disabled="(int) $category->id === (int) $firstCategoryId" />
                                     </form>
-                                    <form method="POST" action="{{ route('admin.shop.category.move-down', $category) }}" class="inline-flex">
+                                    <form method="POST" action="{{ route('admin.shop.category.move-down', $category) }}" class="inline-flex" data-list-reorder>
                                         @csrf
-                                        <button type="submit" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" @disabled($loop->last) title="Move down">
-                                            <i class="fa-solid fa-arrow-down"></i>
-                                        </button>
+                                        <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="submit" :disabled="(int) $category->id === (int) $lastCategoryId" />
                                     </form>
-                                    <a href="{{ route('admin.shop.category.edit', $category) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
-                                </div>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.category.edit', $category) }}" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
         @endif
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

@@ -35,6 +35,9 @@
             return $first.'|'.$last.'|'.$id;
         })
         ->values();
+    if (request()->filled('list_sort')) {
+        $attendanceTickets = $attendanceTickets->sortBy([[request('list_sort'), request('list_direction') ?: 'asc'], ['id', 'asc']])->values();
+    }
     $seedEntries = old('entries');
     $ticketPaymentRows = is_array($ticketPaymentRows ?? null) ? $ticketPaymentRows : [];
     $availableEftposPayments = is_array($availableEftposPayments ?? null) ? $availableEftposPayments : [];
@@ -145,6 +148,7 @@
                 value="{!! $workshop->files()->orderBy('name')->get() !!}" />
         </div>
 
+        <x-ui.dynamic-list name="admin-workshop-attendance">
         @if($isTicketedWorkshop)
             <div
                 x-data="{
@@ -732,36 +736,8 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <x-ui.toolbar class="mt-0 gap-0 sm:gap-0 sm:flex-col md:flex-row">
-                    <x-slot:left>
-                        <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
-                    </x-slot:left>
-                    <x-slot:right>
-                        <form method="GET" action="{{ route('admin.workshop.attendance', $workshop) }}" class="flex flex-col flex-1 gap-3 justify-between items-start sm:items-center sm:flex-row">
-                            <x-ui.checkbox
-                                name="show_cancelled"
-                                value="1"
-                                label="Show cancelled"
-                                label-class="whitespace-nowrap"
-                                :checked="$showCancelledTickets"
-                                :noWrapper="true"
-                                :inline="true"
-                                onchange="this.form.submit()"
-                            />
-                            <div class="flex relative w-full">
-                                <input
-                                    class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
-                                    autocomplete="off"
-                                    placeholder="Find Ticket or Person"
-                                    type="text"
-                                    name="search"
-                                    value="{{ $ticketSearch }}"
-                                />
-                                <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
-                            </div>
-                        </form>
-                    </x-slot:right>
-                </x-ui.toolbar>
+                <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
+                <x-ui.collection-controls class="my-5" label="Find ticket or person" />
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>
                 @else
@@ -772,7 +748,7 @@
                         </div>
                     @endif
                     <div>
-                        <div class="space-y-4 lg:hidden">
+                        <div data-list-results class="space-y-4 lg:hidden">
                             @foreach($attendanceTickets as $ticket)
                                 @php
                                     $attendeeName = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
@@ -795,13 +771,13 @@
                                         </div>
                                         @if($canCancelTicket)
                                             <x-ui.checkbox
-                                                :id="'attended-ticket-mobile-'.$ticket->id"
-                                                label="Attended"
-                                                :small="true"
-                                                :inline="true"
-                                                :noWrapper="true"
-                                                x-model="ticketAttendance[{{ (int) $ticket->id }}]"
-                                                x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
+ :id="'attended-ticket-mobile-'.$ticket->id"
+ label="Attended"
+ :small="true"
+ :inline="true"
+ :noWrapper="true"
+ x-model="ticketAttendance[{{ (int) $ticket->id }}]"
+ x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
                                         @else
                                             <x-ui.badge color="danger" size="sm">Cancelled</x-ui.badge>
                                         @endif
@@ -855,16 +831,16 @@
                         </div>
 
                         <div class="hidden lg:block">
-                        <x-ui.table>
+                        <x-ui.table variant="listing">
                             <x-slot:header>
-                                <th class="text-center">Attended</th>
-                                <th class="text-center">Ticket Ref</th>
-                                <th class="text-center">Attendee</th>
-                                <th>Contact</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-center">Invoice</th>
-                                <th class="text-center">Payment</th>
-                                <th class="text-center">Ticket</th>
+                                <x-ui.list-heading class="text-center" label="Attended" />
+                                <x-ui.list-heading class="text-center" label="Ticket Ref" />
+                                <x-ui.list-heading class="text-center" label="Attendee" />
+                                <x-ui.list-heading label="Contact" />
+                                <x-ui.list-heading class="text-center!" label="Status" />
+                                <x-ui.list-heading class="text-center" label="Invoice" />
+                                <x-ui.list-heading class="text-center" label="Payment" />
+                                <x-ui.list-heading class="text-center" label="Ticket" />
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($ticketInvoiceGroups as $ticketGroup)
@@ -892,14 +868,14 @@
                                                 @if($canCancelTicket)
                                                     <div class="flex justify-center">
                                                         <x-ui.checkbox
-                                                            :id="'attended-ticket-'.$ticket->id"
-                                                            label="Attended"
-                                                            :small="true"
-                                                            :inline="true"
-                                                            :noWrapper="true"
-                                                            :labelHidden="true"
-                                                            x-model="ticketAttendance[{{ (int) $ticket->id }}]"
-                                                            x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
+ :id="'attended-ticket-'.$ticket->id"
+ label="Attended"
+ :small="true"
+ :inline="true"
+ :noWrapper="true"
+ :labelHidden="true"
+ x-model="ticketAttendance[{{ (int) $ticket->id }}]"
+ x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
                                                     </div>
                                                 @else
                                                     <span class="text-gray-400">-</span>
@@ -916,7 +892,7 @@
                                                 <div class="{{ $isCancelledTicket ? 'line-through text-gray-600' : '' }}">{{ $ticket->email ?: '-' }}</div>
                                                 <div class="text-xs text-gray-500 {{ $isCancelledTicket ? 'line-through text-gray-500' : '' }}">{{ $ticket->phone ?: '-' }}</div>
                                             </td>
-                                            <td class="text-center">
+                                            <td class="text-center!">
                                                 <div class="flex flex-col items-center gap-1">
                                                     <span>{{ $ticket->customer_status_label }}</span>
                                                 </div>
@@ -983,21 +959,20 @@
                                     <h3 class="text-xl font-semibold text-gray-900">Cancel Tickets</h3>
                                     <p class="mt-1 text-sm text-gray-600">Select which tickets on this invoice should be cancelled now. Refund processing will be attempted automatically.</p>
                                 </div>
-                                <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCancelModal()">
+                                <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCancelModal()">
                                     <i class="fa-solid fa-xmark text-lg"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
 
                             <div class="mt-4 space-y-2">
                                 <template x-for="ticket in cancelModalTickets()" :key="`cancel-ticket-${ticket.id}`">
                                     <label class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
                                         <span class="inline-flex items-center gap-3">
-                                            <input
-                                                type="checkbox"
-                                                class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                                x-bind:checked="Boolean(cancelModalSelection[String(ticket.id)])"
-                                                x-on:change="cancelModalSelection[String(ticket.id)] = $event.target.checked"
-                                            >
+                                            <x-ui.checkbox bare small
+
+
+ x-bind:checked="Boolean(cancelModalSelection[String(ticket.id)])"
+ x-on:change="cancelModalSelection[String(ticket.id)] = $event.target.checked" />
                                             <span class="text-sm text-gray-700">
                                                 <span class="font-semibold" x-text="ticket.reference"></span>
                                                 <span class="ml-1" x-text="ticket.attendee"></span>
@@ -1009,11 +984,10 @@
                             </div>
 
                             <label class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                                <input
-                                    type="checkbox"
-                                    class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                    x-model="cancelEmailCustomer"
-                                >
+                                <x-ui.checkbox bare small
+
+ class="mt-1"
+ x-model="cancelEmailCustomer" />
                                 <span>
                                     <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
                                     <span class="mt-1 block text-xs text-gray-500">Enabled by default. This sends the cancellation notice and any related cancellation documents or refund receipts.</span>
@@ -1048,9 +1022,9 @@
                                     <h3 class="text-xl font-semibold text-gray-900">Record Ticket Payment</h3>
                             <p class="mt-1 text-sm text-gray-600">Create one or more payment entries and allocate them to the selected tickets' invoice balance.</p>
                         </div>
-                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="paymentModalOpen = false">
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="paymentModalOpen = false">
                             <i class="fa-solid fa-xmark text-lg"></i>
-                        </button>
+                        </x-ui.button>
                     </div>
 
                     @if($hasPaymentErrors)
@@ -1111,12 +1085,11 @@
                                         <template x-for="ticket in selectedPaymentTickets()" :key="`selected-ticket-${ticket.id}`">
                                             <label class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
                                                 <span class="inline-flex items-center gap-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                                        x-bind:checked="Boolean(paymentAttendanceByTicketId[String(ticket.id)])"
-                                                        x-on:change="togglePaymentAttendance(ticket.id, $event.target.checked)"
-                                                    >
+                                                    <x-ui.checkbox bare small
+
+
+ x-bind:checked="Boolean(paymentAttendanceByTicketId[String(ticket.id)])"
+ x-on:change="togglePaymentAttendance(ticket.id, $event.target.checked)" />
                                                     <span class="text-sm text-gray-700">
                                                         <span class="font-semibold" x-text="ticket.reference"></span>
                                                         <span class="ml-1" x-text="ticket.attendee"></span>
@@ -1133,7 +1106,7 @@
                                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Available Unlinked EFTPOS Transactions</div>
                                         <div class="flex items-center gap-3">
                                             <div class="text-xs text-gray-500" x-text="selectedExistingPayments().length > 0 ? (selectedExistingPayments().length + ' selected') : 'Optional'"></div>
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="text-xs font-semibold text-primary-color hover:underline disabled:cursor-not-allowed disabled:text-gray-400"
                                                 x-bind:disabled="eftposPaymentsLoading"
@@ -1144,7 +1117,7 @@
                                                     <i class="fa-solid fa-circle-notch animate-spin"></i>
                                                     <span>Refreshing</span>
                                                 </span>
-                                            </button>
+                                            </x-ui.button>
                                         </div>
                                     </div>
                                     <div class="mt-2 rounded-2xl border border-gray-200 bg-white">
@@ -1158,12 +1131,11 @@
                                             <template x-for="payment in visibleExistingEftposPayments()" :key="`existing-eftpos-${payment.id}`">
                                                 <label class="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-3 py-3 transition hover:border-gray-300 hover:bg-gray-50">
                                                     <span class="inline-flex items-start gap-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                                            x-bind:checked="isExistingPaymentSelected(payment.id)"
-                                                            x-on:change="toggleExistingPayment(payment.id, $event.target.checked)"
-                                                        >
+                                                        <x-ui.checkbox bare small
+
+ class="mt-1"
+ x-bind:checked="isExistingPaymentSelected(payment.id)"
+ x-on:change="toggleExistingPayment(payment.id, $event.target.checked)" />
                                                         <span class="min-w-0">
                                                             <span class="block text-sm font-semibold text-gray-900" x-text="'Payment #' + payment.id"></span>
                                                             <span class="mt-0.5 block text-xs text-gray-500" x-text="payment.received_on_display"></span>
@@ -1214,23 +1186,23 @@
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
-                                                    <input type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-bind:readonly="line.method === compPaymentMethod" x-on:blur="normalizePaymentLineAmount(index)">
+                                                    <x-ui.input-control type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-bind:readonly="line.method === compPaymentMethod" x-on:blur="normalizePaymentLineAmount(index)" />
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Received</label>
-                                                    <input type="datetime-local" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.received_on" x-bind:name="`payments[${index}][received_on]`">
+                                                    <x-ui.input-control type="datetime-local" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.received_on" x-bind:name="`payments[${index}][received_on]`" />
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Reference</label>
-                                                    <input type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.reference" x-bind:name="`payments[${index}][reference]`">
+                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.reference" x-bind:name="`payments[${index}][reference]`" />
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
-                                                    <input type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.notes" x-bind:name="`payments[${index}][notes]`">
+                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.notes" x-bind:name="`payments[${index}][notes]`" />
                                                 </div>
                                             </div>
                                             <div class="mt-3 flex justify-end">
-                                                <button type="button" class="text-sm text-red-600 hover:text-red-700" x-on:click="removePaymentLine(index)">Remove line</button>
+                                                <x-ui.button variant="plain" type="button" class="text-sm text-red-600 hover:text-red-700" x-on:click="removePaymentLine(index)">Remove line</x-ui.button>
                                             </div>
                                         </div>
                                     </template>
@@ -1242,13 +1214,12 @@
                                 </div>
 
                                 <label class="mt-5 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                                    <input
-                                        type="checkbox"
-                                        name="email_receipt"
-                                        value="1"
-                                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                                        x-model="emailReceiptChecked"
-                                    >
+                                    <x-ui.checkbox bare small
+
+ name="email_receipt"
+ value="1"
+ class="mt-1"
+ x-model="emailReceiptChecked" />
                                     <span>
                                         <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
                                         <span class="mt-1 block text-xs text-gray-500">Optional. A receipt email will only be sent if this is checked and one clear recipient email can be resolved.</span>
@@ -1266,6 +1237,8 @@
                 @endif
             </div>
         @endif
+
+        </x-ui.dynamic-list>
 
         <div class="">
             <form method="POST" action="{{ route('admin.workshop.attendance.dropin.sync', $workshop) }}" x-data="{
@@ -1341,24 +1314,24 @@
                     <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
                 </div>
 
-                <div class="space-y-4 lg:hidden">
+                <div data-list-results class="space-y-4 lg:hidden">
                     <template x-for="(entry, index) in entries" :key="`mobile-${index}`">
                         <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-3">
                                     <x-ui.checkbox
-                                        label="Anonymous attendee"
-                                        :small="true"
-                                        :noWrapper="true"
-                                        :inline="true"
-                                        x-model="entry.is_anonymous"
-                                        x-on:change="handleRowChange(index)"
-                                    />
+ label="Anonymous attendee"
+ :small="true"
+ :noWrapper="true"
+ :inline="true"
+ x-model="entry.is_anonymous"
+ x-on:change="handleRowChange(index)"
+ />
                                     <h3 class="text-sm font-semibold text-gray-900" x-text="entry.is_anonymous ? 'Anonymous attendee' : (entry.child_name || entry.guardian_name || `Entry ${index + 1}`)"></h3>
                                 </div>
-                                <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
+                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
                                     <i class="fa-solid fa-trash"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
 
                             <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
@@ -1402,15 +1375,15 @@
                                     <div class="mt-8 mb-4">
                                         <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
                                         <x-ui.checkbox
-                                            label="Media Consent"
-                                            :small="true"
-                                            :noWrapper="true"
-                                            :inline="true"
-                                            x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
-                                            value="1"
-                                            x-model="entry.media_consent"
-                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
-                                        />
+ label="Media Consent"
+ :small="true"
+ :noWrapper="true"
+ :inline="true"
+ x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
+ value="1"
+ x-model="entry.media_consent"
+ x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+ />
                                     </div>
                                 </div>
                             </div>
@@ -1419,16 +1392,16 @@
                 </div>
 
                 <div class="hidden overflow-x-auto rounded-lg border border-gray-300 lg:block">
-                    <table class="min-w-full">
+                    <x-ui.table variant="plain" table-class="min-w-full">
                         <thead class="bg-gray-50 rounded-md">
                             <tr>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Anonymous</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Attendee Name</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Parent/Guardian</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Email</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Phone</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Media</th>
-                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Actions</th>
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Anonymous" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Attendee Name" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Parent/Guardian" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Email" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Phone" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Media" />
+                                <x-ui.list-heading class="text-center! text-sm px-4 py-2 border-b border-gray-300" label="Actions" />
                             </tr>
                         </thead>
                         <tbody>
@@ -1438,14 +1411,14 @@
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
                                         <x-ui.checkbox
-                                            label="Anonymous attendee"
-                                            :labelHidden="true"
-                                            :small="true"
-                                            :noWrapper="true"
-                                            :inline="true"
-                                            x-model="entry.is_anonymous"
-                                            x-on:change="handleRowChange(index)"
-                                        />
+ label="Anonymous attendee"
+ :labelHidden="true"
+ :small="true"
+ :noWrapper="true"
+ :inline="true"
+ x-model="entry.is_anonymous"
+ x-on:change="handleRowChange(index)"
+ />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1495,26 +1468,24 @@
                                     <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null" value="0">
                                         <x-ui.checkbox
-                                            label="Media consent"
-                                            :labelHidden="true"
-                                            :small="true"
-                                            :noWrapper="true"
-                                            :inline="true"
-                                            x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
-                                            value="1"
-                                            x-model="entry.media_consent"
-                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
-                                        />
+ label="Media consent"
+ :labelHidden="true"
+ :small="true"
+ :noWrapper="true"
+ :inline="true"
+ x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
+ value="1"
+ x-model="entry.media_consent"
+ x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+ />
                                     </td>
-                                    <td class="p-2 align-middle text-center">
-                                        <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                    <td class="text-center! p-2 align-middle">
+                                        <x-ui.row-action label="Delete row" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeEntry(index)" />
                                     </td>
                                 </tr>
                             </template>
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 <div class="mt-4 flex justify-end">
