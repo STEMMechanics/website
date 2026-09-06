@@ -31,7 +31,7 @@ async function setup({ devices = [], permission = 'default', dismissed = false, 
     const registration = { pushManager: { getSubscription: async () => subscription } };
     const context = {
         document: { readyState: 'complete', querySelector: selector => selector === '[data-push-root]' ? root : { content: 'csrf' }, querySelectorAll: selector => selector === '[data-push-settings]' ? [settings] : selector === '[data-push-devices]' ? [list] : [] },
-        window: { SM: { alert: (...args) => alerts.push(args) }, confirm: () => confirmed, isSecureContext: true, PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) },
+        window: { SM: { alert: (...args) => alerts.push(args), confirm: (_title, _message, _label, callback) => callback(confirmed) }, isSecureContext: true, PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) },
         Notification: { permission, requestPermission: async () => { events.push('permission'); context.Notification.permission = requestedPermission; return requestedPermission; } },
         navigator: { userAgent, platform: 'Mac', serviceWorker: { ready: Promise.resolve(registration), register: async path => { assert.equal(path, '/site-worker.js'); events.push('worker'); return registration; }, getRegistration: async path => { assert.equal(path, '/site-worker.js'); return registration; } } },
         localStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },

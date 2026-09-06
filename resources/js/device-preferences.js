@@ -59,10 +59,7 @@ async function initialisePush() {
                 button.disabled = busy;
                 button.addEventListener('click', () => {
                     const remove = confirmed => confirmed ? run(() => removeDevice(device)) : undefined;
-                    if (window.SM && typeof window.SM.confirm === 'function') {
-                        return window.SM.confirm('Remove notification device?', 'This device will no longer receive notifications. Enable it from that device to add it again.', 'Remove', remove);
-                    }
-                    return remove(window.confirm('Remove this device? It will no longer receive notifications.'));
+                    return window.SM.confirm('Remove notification device?', 'This device will no longer receive notifications. Enable it from that device to add it again.', 'Remove', remove);
                 });
                 list.append(li);
             }
