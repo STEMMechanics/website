@@ -70,8 +70,10 @@ class AdminDashboardTest extends TestCase
             ->assertSee('Audience Growth')
             ->assertSee('Total users')
             ->assertSee('Total subscriptions')
-            ->assertSee('Overview (12 months)')
-            ->assertSee('aria-label="Overview (12 months)"', false)
+            ->assertSee('Last 12 Months')
+            ->assertSee('aria-label="Last 12 Months"', false)
+            ->assertSee('All time')
+            ->assertDontSee('class="sm-filter-chip"', false)
             ->assertSee('trend graph')
             ->assertDontSee('Selected range')
             ->assertSee('Fortnightly Workplan')
@@ -98,6 +100,16 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($regularUser)
             ->get(route('admin.dashboard'))
             ->assertForbidden();
+    }
+
+    public function test_all_time_dashboard_has_no_period_comparisons_or_filter_chips(): void
+    {
+        $response = $this->actingAs($this->createAdminUser())->get(route('admin.dashboard', ['period' => 'all']))
+            ->assertOk()->assertViewHas('period', 'all')
+            ->assertDontSee('class="sm-filter-chip"', false)
+            ->assertDontSee('vs previous period')->assertDontSee('Previous:')
+            ->assertDontSee('Running total for the selected period.');
+        $this->assertMatchesRegularExpression('/<a\b[^>]*aria-label="All time"[^>]*aria-current="page"/', $response->getContent());
     }
 
     private function createAdminUser(): User

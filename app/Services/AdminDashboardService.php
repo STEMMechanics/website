@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
 class AdminDashboardService
 {
     private const PERIODS = [
-        'overview' => ['label' => 'Overview'],
+        'overview' => ['label' => 'Last 12 Months'],
+        'all' => ['label' => 'All time'],
         'day' => ['label' => 'This day'],
         'week' => ['label' => 'This week'],
         'month' => ['label' => 'This month'],
@@ -52,8 +53,7 @@ class AdminDashboardService
         $refundsPrevious = $this->sumPaymentsBetween($previousStart, $previousEnd, Payment::KIND_REFUND);
         $expensesCurrent = $this->sumExpensesBetween($currentStart, $currentEnd);
         $expensesPrevious = $this->sumExpensesBetween($previousStart, $previousEnd);
-        $profitCurrent = round($incomeGrossCurrent - $refundsCurrent - $expensesCurrent, 2);
-        $profitPrevious = round($incomeGrossPrevious - $refundsPrevious - $expensesPrevious, 2);
+        $profitCurrent = $this->profitBefore(today()->addDay());
 
         $storeViewsCurrent = $this->countAnalyticsEventsForRoutesBetween($currentStart, $currentEnd, ['shop.index']);
         $storeViewsPrevious = $this->countAnalyticsEventsForRoutesBetween($previousStart, $previousEnd, ['shop.index']);
@@ -120,14 +120,18 @@ class AdminDashboardService
                 ],
                 [
                     'title' => 'Finance',
-                    'description' => 'Income, refunds, expenses and profit during the selected period.',
+                    'description' => 'Income, refunds and expenses during the selected period, alongside all-time profit.',
                     'links' => [
                         ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator'],
                         ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt'],
                         ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar'],
                     ],
                     'metrics' => [
-                        $this->moneyMetric('Profit', $profitCurrent, $profitPrevious),
+                        [
+                            'label' => 'Profit',
+                            'current' => $this->formatMoney($profitCurrent),
+                            'compare' => false,
+                        ],
                         $this->moneyMetric('Income', $incomeGrossCurrent, $incomeGrossPrevious),
                         $this->moneyMetric('Expenses', $expensesCurrent, $expensesPrevious, false),
                         $this->moneyMetric('Refunds', $refundsCurrent, $refundsPrevious, false),
@@ -438,11 +442,12 @@ class AdminDashboardService
      */
     private function financeChart(array $buckets): array
     {
+        $recordedEnd = $buckets[array_key_last($buckets)]['end']->copy()->min(today()->addDay());
         $paymentBucketSql = $this->bucketCaseSql('received_on', $buckets);
         $payments = Payment::query()
             ->whereNotNull('received_on')
             ->where('received_on', '>=', $buckets[0]['start'])
-            ->where('received_on', '<', $buckets[array_key_last($buckets)]['end'])
+            ->where('received_on', '<', $recordedEnd)
             ->selectRaw($paymentBucketSql['sql'].' as bucket_index', $paymentBucketSql['bindings'])
             ->selectRaw('SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as income, SUM(CASE WHEN kind = ? THEN total_amount ELSE 0 END) as refunds', [Payment::KIND_PAYMENT, Payment::KIND_REFUND])
             ->groupBy('bucket_index')
@@ -454,7 +459,7 @@ class AdminDashboardService
         $expenses = Expense::query()
             ->whereNotNull('paid_on')
             ->where('paid_on', '>=', $buckets[0]['start']->toDateString())
-            ->where('paid_on', '<', $buckets[array_key_last($buckets)]['end']->toDateString())
+            ->where('paid_on', '<', $recordedEnd->toDateString())
             ->selectRaw($expenseBucketSql['sql'].' as bucket_index', $expenseBucketSql['bindings'])
             ->selectRaw('SUM(total_amount) as expenses')
             ->groupBy('bucket_index')
@@ -465,25 +470,27 @@ class AdminDashboardService
         $netIncome = [];
         $expenseValues = [];
         $profit = [];
+        $runningProfit = $this->profitBefore($buckets[0]['start']);
         foreach (array_keys($buckets) as $index) {
             $bucketIncome = round((float) ($payments->get($index)->income ?? 0), 2);
             $bucketRefunds = round((float) ($payments->get($index)->refunds ?? 0), 2);
             $bucketExpenses = round((float) ($expenses->get($index)->expenses ?? 0), 2);
             $netIncome[] = round($bucketIncome - $bucketRefunds, 2);
             $expenseValues[] = $bucketExpenses;
-            $profit[] = round($bucketIncome - $bucketRefunds - $bucketExpenses, 2);
+            $runningProfit = round($runningProfit + $bucketIncome - $bucketRefunds - $bucketExpenses, 2);
+            $profit[] = $runningProfit;
         }
 
         return [
             'card' => 'Finance',
             'title' => 'Financial Performance',
-            'description' => 'Income after refunds and expenses, with the resulting profit shown as a line.',
+            'description' => 'Net income and expenses per interval, with all-time cumulative profit carried forward from earlier records.',
             'valuePrefix' => '$',
             'labels' => array_column($buckets, 'label'),
             'series' => [
                 ['label' => 'Net income', 'color' => 'sky', 'type' => 'bar', 'values' => $netIncome],
                 ['label' => 'Expenses', 'color' => 'amber', 'type' => 'bar', 'values' => $expenseValues],
-                ['label' => 'Profit', 'color' => 'emerald', 'type' => 'line', 'values' => $profit],
+                ['label' => 'Cumulative profit', 'color' => 'emerald', 'type' => 'line', 'values' => $profit],
             ],
         ];
     }
@@ -501,7 +508,7 @@ class AdminDashboardService
             $bucketStart = clone $cursor;
             [$next, $label] = match ($period) {
                 'day' => [(clone $cursor)->addHours(4), $cursor->format('ga')],
-                'year', 'overview' => [(clone $cursor)->addMonth(), $cursor->format('M Y')],
+                'year', 'overview', 'all' => [(clone $cursor)->addMonth(), $cursor->format('M Y')],
                 'quarter' => [(clone $cursor)->addWeek(), $cursor->format('j M')],
                 default => [(clone $cursor)->addDay(), $cursor->format('D j')],
             };
@@ -605,6 +612,10 @@ class AdminDashboardService
         $period = array_key_exists($period, self::PERIODS) ? $period : 'overview';
 
         return match ($period) {
+            'all' => [
+                'start' => $this->earliestRecordDate($reference),
+                'end' => (clone $reference)->endOfDay(),
+            ],
             'overview' => [
                 'start' => (clone $reference)->startOfMonth()->subMonths(11),
                 'end' => (clone $reference)->endOfDay(),
@@ -630,6 +641,34 @@ class AdminDashboardService
                 'end' => (clone $reference)->endOfWeek(Carbon::SATURDAY),
             ],
         };
+    }
+
+    private function earliestRecordDate(Carbon $reference): Carbon
+    {
+        $dates = [
+            AnalyticsEvent::query()->min('created_at'),
+            Ticket::query()->min('created_at'),
+            Payment::query()->min('received_on'),
+            Expense::query()->min('paid_on'),
+            StoreOrder::query()->min('paid_at'),
+            User::query()->min('email_verified_at'),
+            EmailSubscriptions::query()->min('confirmed'),
+        ];
+        $start = $reference->copy()->startOfMonth();
+        foreach (array_filter($dates) as $date) {
+            $start = $start->min(Carbon::parse($date)->startOfMonth());
+        }
+
+        return $start;
+    }
+
+    private function profitBefore(Carbon $end): float
+    {
+        $income = Payment::query()->where('kind', Payment::KIND_PAYMENT)->where('received_on', '<', $end)->sum('total_amount');
+        $refunds = Payment::query()->where('kind', Payment::KIND_REFUND)->where('received_on', '<', $end)->sum('total_amount');
+        $expenses = Expense::query()->where('paid_on', '<', $end->toDateString())->sum('total_amount');
+
+        return round((float) $income - (float) $refunds - (float) $expenses, 2);
     }
 
     private function countWorkshopTicketSalesBetween(Carbon $start, Carbon $end): int

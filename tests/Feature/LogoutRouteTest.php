@@ -17,7 +17,7 @@ class LogoutRouteTest extends TestCase
         $this->actingAs($user)
             ->get('/logout')
             ->assertOk()
-            ->assertSee('Confirm logout from your account.')
+            ->assertSee('Are you sure you want to log out of your account?')
             ->assertSee('bindSingleSubmit(logoutForm', false)
             ->assertSee("window.addEventListener('pageshow'", false);
 

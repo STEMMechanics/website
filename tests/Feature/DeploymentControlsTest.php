@@ -162,6 +162,49 @@ class DeploymentControlsTest extends TestCase
         $this->withSession(['privileged_mfa' => []])->post(route('security.mfa.verify'), ['code' => $code])->assertSessionHasErrors('code');
     }
 
+    public function test_security_reports_do_not_consume_administrator_verification_attempts(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $admin = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->actingAs($admin);
+
+        // Browsers can send several report-only violations while showing the MFA screen.
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            $this->postJson(route('security.csp-report'), [
+                'csp-report' => ['effective-directive' => 'script-src-elem', 'blocked-uri' => 'inline'],
+            ])->assertNoContent();
+        }
+
+        $this->get(route('security.mfa.show'))->assertOk()
+            ->assertSee('href="'.route('logout.show').'"', false)->assertSee('Log out');
+        $this->get(route('logout.show'))->assertOk()
+            ->assertSee('image-background')->assertSee('id="logout-confirm-form"', false)
+            ->assertSee('Are you sure you want to log out of your account?');
+        $this->assertAuthenticatedAs($admin);
+        $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
+        $this->post(route('security.mfa.verify'), ['code' => $code])
+            ->assertRedirect(route('admin.dashboard'))->assertSessionHas('privileged_mfa');
+    }
+
+    public function test_administrator_verification_still_limits_repeated_attempts_per_account(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $admin = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->actingAs($admin);
+
+        for ($attempt = 0; $attempt < 6; $attempt++) {
+            $this->post(route('security.mfa.verify'), ['code' => 'invalid'])->assertSessionHasErrors('code');
+        }
+        $this->post(route('security.mfa.verify'), ['code' => 'invalid'])->assertStatus(429)->assertHeader('Retry-After');
+
+        $otherAdmin = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::query()->create(['user_id' => $otherAdmin->id, 'slug' => 'admin']);
+        $this->actingAs($otherAdmin)->post(route('security.mfa.verify'), ['code' => 'invalid'])
+            ->assertRedirect()->assertSessionHasErrors('code');
+    }
+
     public function test_canonical_redirect_uses_configured_origin_and_preserves_signed_links(): void
     {
         config(['security.canonical_redirect' => true, 'app.url' => 'https://canonical.example']);
