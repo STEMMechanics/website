@@ -1,15 +1,14 @@
-<x-layout>
-    <x-mast>Log Out</x-mast>
-    <x-container class="mt-6 max-w-xl">
-        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <p class="text-sm text-gray-700 mb-4">Confirm logout from your account.</p>
-            <form method="POST" action="{{ route('logout') }}" class="flex gap-3" id="logout-confirm-form">
-                @csrf
-                <x-ui.button type="submit" color="danger">Log Out</x-ui.button>
+<x-layout :bodyClass="'image-background'">
+    <x-dialog formaction="{{ route('logout') }}" id="logout-confirm-form">
+        <x-slot:title>Log out</x-slot:title>
+        <x-slot:header>Are you sure you want to log out of your account?</x-slot:header>
+        <x-slot:footer>
+            <div class="flex w-full flex-wrap items-center justify-between gap-4">
                 <x-ui.button color="outline" href="{{ route('index') }}">Cancel</x-ui.button>
-            </form>
-        </div>
-    </x-container>
+                <x-ui.button type="submit" color="danger">Log out</x-ui.button>
+            </div>
+        </x-slot:footer>
+    </x-dialog>
 
     @pushOnce('scripts')
         <script>

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 
 class DashboardSnapshot
 {
-    public const PERIODS = ['overview', 'day', 'week', 'month', 'quarter', 'year'];
+    public const PERIODS = ['overview', 'all', 'day', 'week', 'month', 'quarter', 'year'];
 
     public function get(string $period): array
     {
@@ -16,7 +16,7 @@ class DashboardSnapshot
         if ($ttl === 0) {
             return app(AdminDashboardService::class)->build($period);
         }
-        $key = 'dashboard-snapshot:v1:'.config('app.timezone').':'.now()->toDateString().':'.$period;
+        $key = 'dashboard-snapshot:v4:'.config('app.timezone').':'.now()->toDateString().':'.$period;
         try {
             $payload = Cache::get($key);
         } catch (\Throwable) {
@@ -47,7 +47,7 @@ class DashboardSnapshot
         $data['snapshotAt'] = now()->toIso8601String();
         $payload = json_encode($data, JSON_THROW_ON_ERROR);
         try {
-            Cache::put('dashboard-snapshot:v1:'.config('app.timezone').':'.now()->toDateString().':'.$period, $payload, max(1, (int) config('analytics.dashboard_snapshot_seconds', 300)));
+            Cache::put('dashboard-snapshot:v4:'.config('app.timezone').':'.now()->toDateString().':'.$period, $payload, max(1, (int) config('analytics.dashboard_snapshot_seconds', 300)));
         } catch (\Throwable) {
             // A cache outage still permits live reporting.
         }

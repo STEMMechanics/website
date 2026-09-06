@@ -1488,7 +1488,7 @@ table tr.highlight-row {
     @apply ml-2 sm:ml-6;
 }
 
-/* A small celebration for feedback; navigation always stays usable above it. */
+/* Feedback sits below navigation geometrically, above it in the stacking order. */
 .sm-feedback-host, .sm-feedback-inline {
     --feedback-accent: #0369a1;
     --feedback-tint: #f0f9ff;
@@ -1500,7 +1500,7 @@ table tr.highlight-row {
 body.swal2-toast-shown .swal2-container.sm-feedback-host {
     top: var(--sm-feedback-top, 5rem);
     padding: 0;
-    z-index: 110;
+    z-index: 1100;
     width: min(36rem, calc(100vw - 2rem));
     pointer-events: none;
 }

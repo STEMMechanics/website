@@ -8,10 +8,12 @@
             @include('admin.dashboard.partials.weekly-workplan', ['workplan' => $workplan])
 
             <div class="w-full">
-                @isset($snapshotAt)
-                    <p class="text-xs text-gray-500">Figures updated {{ \Illuminate\Support\Carbon::parse($snapshotAt)->format('g:ia') }}.</p>
-                @endisset
-                <x-ui.period-presets name="period" :value="$period" :options="['overview' => 'Overview (12 months)', 'day' => 'This day', 'week' => 'This week', 'month' => 'This month', 'quarter' => 'This quarter', 'year' => 'This year']">
+                <x-ui.period-presets name="period" :value="$period" :showFilter="false" :options="['overview' => 'Last 12 Months', 'all' => 'All time', 'day' => 'This day', 'week' => 'This week', 'month' => 'This month', 'quarter' => 'This quarter', 'year' => 'This year']">
+                    @isset($snapshotAt)
+                        <x-slot:actions>
+                            <p class="whitespace-nowrap text-xs text-gray-500">Figures updated {{ \Illuminate\Support\Carbon::parse($snapshotAt)->format('g:ia') }}.</p>
+                        </x-slot:actions>
+                    @endisset
                     <span class="text-xs text-gray-600">{{ $periodStart->format('d M Y') }} to {{ $periodEnd->format('d M Y') }}</span>
                 </x-ui.period-presets>
             </div>
@@ -39,11 +41,13 @@
                             <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $metric['label'] }}</div>
                                 <div class="mt-2 text-2xl font-bold text-gray-900">{{ $metric['current'] }}</div>
+                                @if($period !== 'all' && ($metric['compare'] ?? true))
                                 <div class="mt-2 text-xs text-gray-500">
                                     <span class="font-semibold {{ $metric['tone'] === 'emerald' ? 'text-emerald-700' : 'text-rose-700' }}">{{ $metric['change'] }}</span>
                                     <span class="ml-1">vs previous period</span>
                                 </div>
                                 <div class="mt-1 text-xs text-gray-400">Previous: {{ $metric['previous'] }}</div>
+                                @endif
                             </div>
                         @endforeach
                     </div>

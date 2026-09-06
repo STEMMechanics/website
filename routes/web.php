@@ -220,9 +220,9 @@ Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock']
 
 Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/push-devices', [PushDeviceController::class, 'index'])->name('admin.push-devices.index');
-    Route::put('/admin/push-devices', [PushDeviceController::class, 'update'])->middleware('throttle:30,1')->name('admin.push-devices.update');
-    Route::delete('/admin/push-devices', [PushDeviceController::class, 'destroy'])->middleware('throttle:30,1')->name('admin.push-devices.destroy');
-    Route::post('/admin/push-devices/test', [PushDeviceController::class, 'sendTest'])->middleware('throttle:6,1')->name('admin.push-devices.test');
+    Route::put('/admin/push-devices', [PushDeviceController::class, 'update'])->middleware('throttle:30,1,push-devices:')->name('admin.push-devices.update');
+    Route::delete('/admin/push-devices', [PushDeviceController::class, 'destroy'])->middleware('throttle:30,1,push-devices:')->name('admin.push-devices.destroy');
+    Route::post('/admin/push-devices/test', [PushDeviceController::class, 'sendTest'])->middleware('throttle:6,1,push-test:')->name('admin.push-devices.test');
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');
@@ -564,9 +564,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 Route::fallback([CustomPageController::class, 'fallback']);
 
 Route::post('/security/csp-reports', \App\Http\Controllers\CspReportController::class)
-    ->middleware('throttle:30,1')->name('security.csp-report');
+    ->middleware('throttle:30,1,csp-reports:')->name('security.csp-report');
 
 Route::middleware('auth')->group(function () {
     Route::get('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
-    Route::post('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1')->name('security.mfa.verify');
+    Route::post('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1,administrator-mfa:')->name('security.mfa.verify');
 });

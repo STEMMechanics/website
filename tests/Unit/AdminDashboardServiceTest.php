@@ -386,7 +386,9 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame('2', $this->metricByLabel($store, 'Product views')['current']);
         $this->assertSame('5', $this->metricByLabel($store, 'Items sold')['current']);
 
-        $this->assertSame('$65.00', $this->metricByLabel($finance, 'Profit')['current']);
+        $this->assertSame('$95.00', $this->metricByLabel($finance, 'Profit')['current']);
+        $this->assertFalse($this->metricByLabel($finance, 'Profit')['compare']);
+        $this->assertArrayNotHasKey('previous', $this->metricByLabel($finance, 'Profit'));
         $this->assertSame('$120.00', $this->metricByLabel($finance, 'Income')['current']);
         $this->assertSame('$15.00', $this->metricByLabel($finance, 'Refunds')['current']);
         $this->assertSame('$40.00', $this->metricByLabel($finance, 'Expenses')['current']);
@@ -421,7 +423,7 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame(4, array_sum($data['charts'][3]['series'][1]['values']));
         $this->assertSame(105.0, array_sum($data['charts'][4]['series'][0]['values']));
         $this->assertSame(40.0, array_sum($data['charts'][4]['series'][1]['values']));
-        $this->assertSame(65.0, array_sum($data['charts'][4]['series'][2]['values']));
+        $this->assertSame(95.0, $data['charts'][4]['series'][2]['values'][6]);
         $this->assertCount(3, $data['charts'][4]['series']);
         $this->assertSame(6.0, $data['charts'][5]['series'][0]['values'][6]);
         $this->assertSame(2.0, $data['charts'][5]['series'][1]['values'][6]);
@@ -442,10 +444,52 @@ class AdminDashboardServiceTest extends TestCase
 
         $overview = app(AdminDashboardService::class)->build();
         $this->assertSame('overview', $overview['period']);
-        $this->assertSame('Overview', $overview['periodLabel']);
+        $this->assertSame('Last 12 Months', $overview['periodLabel']);
         $this->assertCount(12, $overview['charts'][0]['labels']);
 
         Carbon::setTestNow();
+    }
+
+    public function test_finance_profit_carries_all_recorded_history_into_every_period(): void
+    {
+        $this->travelTo(Carbon::parse('2026-05-04 12:00:00'));
+        $admin = $this->createAdminUser();
+        foreach ([
+            ['2024-04-30', Payment::KIND_PAYMENT, 500],
+            ['2026-05-01', Payment::KIND_PAYMENT, 100],
+            ['2026-05-02', Payment::KIND_REFUND, 25],
+            ['2026-05-04', Payment::KIND_PAYMENT, 10],
+        ] as [$date, $kind, $amount]) {
+            Payment::query()->create([
+                'kind' => $kind, 'user_id' => $admin->id, 'created_by' => $admin->id,
+                'received_on' => $date, 'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+                'total_amount' => $amount, 'gst_amount' => 0,
+            ]);
+        }
+        Expense::query()->create([
+            'created_by' => $admin->id, 'supplier' => 'Supplier', 'description' => 'Materials',
+            'paid_on' => '2026-05-02', 'total_amount' => 125, 'gst_amount' => 0,
+        ]);
+
+        $data = app(AdminDashboardService::class)->build('month');
+        $chart = collect($data['charts'])->firstWhere('card', 'Finance');
+        $this->assertSame([100.0, -25.0, 0.0, 10.0], array_slice($chart['series'][0]['values'], 0, 4));
+        $this->assertSame([0.0, 125.0, 0.0, 0.0], array_slice($chart['series'][1]['values'], 0, 4));
+        $this->assertSame([600.0, 450.0, 450.0, 460.0], array_slice($chart['series'][2]['values'], 0, 4));
+        $this->assertSame(460.0, $chart['series'][2]['values'][array_key_last($chart['series'][2]['values'])]);
+
+        $this->assertSame('$460.00', $this->metricByLabel($this->cardByTitle($data, 'Finance'), 'Profit')['current']);
+        $allTime = app(AdminDashboardService::class)->build('all');
+        $allTimeChart = collect($allTime['charts'])->firstWhere('card', 'Finance');
+        $this->assertSame('2024-04-01', $allTime['periodStart']->toDateString());
+        $this->assertSame('2026-05-04', $allTime['periodEnd']->toDateString());
+        $this->assertCount(26, $allTimeChart['labels']);
+        $this->assertSame(500.0, $allTimeChart['series'][2]['values'][0]);
+        $this->assertSame(460.0, $allTimeChart['series'][2]['values'][25]);
+
+        $year = app(AdminDashboardService::class)->build('year');
+        $yearChart = collect($year['charts'])->firstWhere('card', 'Finance');
+        $this->assertSame([500.0, 460.0, 460.0], array_slice($yearChart['series'][2]['values'], 3, 3));
     }
 
     private function createAdminUser(): User

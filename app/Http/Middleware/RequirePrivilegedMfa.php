@@ -33,7 +33,7 @@ class RequirePrivilegedMfa
             && hash_equals(self::fingerprint($user), (string) ($confirmation['fingerprint'] ?? ''))) {
             return $next($request);
         }
-        if ($request->routeIs('security.mfa.*', 'logout', 'logout.show')) {
+        if ($request->routeIs('security.mfa.*', 'security.csp-report', 'logout', 'logout.show')) {
             return $next($request);
         }
         // Only the account screen and initial enrolment endpoints remain available.
