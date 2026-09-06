@@ -17,10 +17,12 @@
     'clearAfterChange' => true,
     'submitText' => 'Add Media',
     'submittingText' => 'Uploading...',
+    'showSubmit' => true,
 ])
 
 @php
     $clearAfterChange = filter_var($clearAfterChange, FILTER_VALIDATE_BOOLEAN);
+    $showSubmit = filter_var($showSubmit, FILTER_VALIDATE_BOOLEAN);
     $countExpression = '('.$count.')';
     $selectedExpression = $countExpression
         .' ? '.$countExpression
@@ -83,7 +85,12 @@
 
     {{ $slot }}
 
-    <div class="mt-4 flex justify-end">
+    @if($showSubmit || isset($actions))
+    <div class="mt-4 flex flex-wrap justify-end gap-2">
+        @isset($actions)
+            {{ $actions }}
+        @endisset
+        @if($showSubmit)
         <x-ui.button
             type="submit"
             x-bind:disabled="({{ $disabled }}) || (({{ $count }}) <= 0)"
@@ -91,5 +98,7 @@
             <span x-show="!({{ $disabled }})">{{ $submitText }}</span>
             <span x-show="{{ $disabled }}" x-cloak>{{ $submittingText }}</span>
         </x-ui.button>
+        @endif
     </div>
+    @endif
 </div>

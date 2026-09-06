@@ -1269,6 +1269,87 @@ class WorkshopController extends Controller
         return redirect()->route('admin.workshop.files', $workshop);
     }
 
+    public function admin_files_upload(Request $request, Workshop $workshop): \Illuminate\Http\JsonResponse
+    {
+        if ($request->filled('upload_token')) {
+            $request->files->set('pending_files', [
+                $this->consumeChunkUpload($request, (string) $request->input('upload_token'), (string) $request->input('filename', 'upload')),
+            ]);
+        }
+
+        $request->validate([
+            'pending_file_keys' => 'required|string',
+            'pending_files' => 'required|array|size:1',
+            'pending_files.*' => 'required|file|max:'.max((int) round(Helpers::getMaxUploadSize(auth()->user()) / 1024), 1),
+            'pending_files_meta' => 'nullable|array',
+            'pending_files_meta.*.title' => 'nullable|string|max:255',
+            'pending_files_meta.*.visibility' => ['nullable', Rule::in(['private', 'protected', 'public'])],
+            'pending_files_meta.*.notes' => 'nullable|string',
+        ]);
+
+        $before = $workshop->files()->pluck('media.name');
+        $uploadedFile = collect($request->file('pending_files', []))->first();
+        $duplicateMedia = $uploadedFile instanceof UploadedFile
+            ? Media::query()->where('hash', hash_file('sha256', $uploadedFile->path()))->oldest()->first()
+            : null;
+        $alreadyAttached = $duplicateMedia instanceof Media && $before->contains($duplicateMedia->name);
+        $pendingId = trim((string) collect(json_decode((string) $request->input('pending_file_keys'), true))->first());
+        $order = $before->map(fn ($name) => ['kind' => 'existing', 'name' => $name])->push([
+            'kind' => 'pending',
+            'pending_id' => $pendingId,
+        ]);
+
+        $request->merge([
+            'files' => $before->implode(','),
+            'files_staged_order' => $order->toJson(),
+        ]);
+        $this->syncWorkshopFilesFromRequest($workshop, $request);
+
+        $media = $duplicateMedia instanceof Media
+            ? $duplicateMedia
+            : $workshop->files()->whereNotIn('media.name', $before)->latest('media.created_at')->first();
+        abort_unless($media, 422, 'The uploaded file could not be saved.');
+
+        return response()->json([
+            'reused' => $duplicateMedia instanceof Media,
+            'already_attached' => $alreadyAttached,
+            'uploaded_name' => (string) $request->input('filename', $uploadedFile?->getClientOriginalName() ?? 'upload'),
+            'file' => [
+                'kind' => 'existing',
+                'key' => 'existing:'.$media->name,
+                'is_pending_attachment' => true,
+                'name' => $media->name,
+                'title' => $media->title,
+                'mime_type' => $media->mime_type ?? '',
+                'size' => (int) ($media->size ?? 0),
+                'thumbnail' => $media->thumbnail ?? asset('/thumbnails/unknown.webp'),
+                'url' => $media->url ?? '/media/'.rawurlencode($media->name),
+                'download_url' => $media->download_url ?? (($media->url ?? '/media/'.rawurlencode($media->name)).'?download=1'),
+                'edit_url' => route('admin.media.edit', $media),
+                'visibility' => $media->visibility ?? 'private',
+                'storage_disk' => $media->storageDiskName(),
+                'file_type' => $media->file_type ?? 'File',
+                'notes' => $media->consent_notes ?? '',
+                'selected' => false,
+            ],
+        ]);
+    }
+
+    public function admin_files_attach(Request $request, Workshop $workshop): JsonResponse
+    {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:100'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+        $existingNames = $workshop->files()->whereIn('media.name', $validated['media_names'])->pluck('media.name');
+        $newNames = collect($validated['media_names'])->diff($existingNames)->values();
+        foreach ($newNames as $name) {
+            $workshop->files()->attach($name, ['collection' => null]);
+        }
+
+        return response()->json(['attached' => $newNames->count()]);
+    }
+
     public function admin_files_destroy(Workshop $workshop, Media $media): RedirectResponse
     {
         $workshop->files()->detach($media->name);
@@ -1278,6 +1359,53 @@ class WorkshopController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.files', $workshop);
+    }
+
+    public function admin_files_bulk_update(Request $request, Workshop $workshop): JsonResponse
+    {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:100'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+            'storage_disk' => ['nullable', Rule::in(['media', 'archive'])],
+            'visibility' => ['nullable', Rule::in(['private', 'protected', 'public'])],
+        ]);
+        $files = $workshop->files()->whereIn('media.name', $validated['media_names'])->get();
+        abort_if($files->count() !== count($validated['media_names']), 404);
+        foreach ($files as $file) {
+            $oldStorageDisk = $file->storageDiskName();
+            $changes = array_filter([
+                'storage_disk' => $validated['storage_disk'] ?? null,
+                'visibility' => $validated['visibility'] ?? null,
+            ], fn ($value) => $value !== null && $value !== '');
+            if ($changes === []) continue;
+            $file->update($changes);
+            if (isset($changes['storage_disk']) && $oldStorageDisk !== $file->storageDiskName()) {
+                $this->moveWorkshopMediaOriginalToStorageDisk($file, $oldStorageDisk);
+            }
+        }
+
+        return response()->json(['updated' => $files->count()]);
+    }
+
+    public function admin_files_zip(Request $request, Workshop $workshop): BinaryFileResponse
+    {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:100'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+        $files = $workshop->files()->whereIn('media.name', $validated['media_names'])->get();
+        abort_if($files->count() !== count($validated['media_names']), 404);
+        $zipPath = tempnam(sys_get_temp_dir(), 'workshop-files-');
+        abort_if($zipPath === false, 500, 'Could not create zip file.');
+        $zip = new \ZipArchive;
+        abort_if($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true, 500, 'Could not open zip file.');
+        foreach ($files as $file) {
+            $path = $file->path();
+            if ($path !== null && is_file($path)) $zip->addFile($path, $file->name);
+        }
+        $zip->close();
+
+        return response()->download($zipPath, 'workshop-'.$workshop->id.'-files.zip')->deleteFileAfterSend(true);
     }
 
     public function admin_photos(Request $request, Workshop $workshop): View
@@ -1322,15 +1450,26 @@ class WorkshopController extends Controller
 
     public function admin_photos_store(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
+        if ($request->filled('upload_token')) {
+            $request->files->set('photos', [
+                $this->consumeChunkUpload($request, (string) $request->input('upload_token'), (string) $request->input('filename', 'upload')),
+            ]);
+        }
+
         $maxSize = Helpers::getMaxUploadSize(auth()->user());
         $validated = $request->validate([
             'photos' => ['nullable', 'array', 'required_without:existing_media_names'],
             'photos.*' => ['file', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v', 'max:'.max((int) round($maxSize / 1024), 1)],
             'existing_media_names' => ['nullable', 'array', 'required_without:photos'],
             'existing_media_names.*' => ['string', 'distinct', 'exists:media,name'],
+            'existing_media_meta' => ['nullable', 'array'],
+            'existing_media_meta.*.storage_disk' => ['nullable', Rule::in(['media', 'archive'])],
+            'existing_media_meta.*.visibility' => ['nullable', Rule::in(['private', 'public'])],
+            'existing_media_meta.*.tags' => ['nullable', 'string', 'max:255'],
             'photos_meta' => ['nullable', 'array'],
             'photos_meta.*.title' => ['nullable', 'string', 'max:255'],
             'photos_meta.*.visibility' => ['nullable', Rule::in(['private', 'public'])],
+            'photos_meta.*.storage_disk' => ['nullable', Rule::in(['media', 'archive'])],
             'photos_meta.*.photographed_at' => ['required', 'date'],
             'photos_meta.*.tags' => ['nullable', 'string', 'max:255'],
             'photos_meta.*.caption' => ['nullable', 'string'],
@@ -1348,11 +1487,14 @@ class WorkshopController extends Controller
 
         $created = 0;
         $attached = 0;
+        $reused = 0;
+        $alreadyAttached = 0;
 
         $existingMedia = Media::query()
             ->whereIn('name', $validated['existing_media_names'] ?? [])
             ->get();
 
+        $existingNames = array_values($validated['existing_media_names'] ?? []);
         foreach ($existingMedia as $media) {
             if (! str_starts_with((string) $media->mime_type, 'image/')
                 && ! str_starts_with((string) $media->mime_type, 'video/')) {
@@ -1370,8 +1512,22 @@ class WorkshopController extends Controller
                 $media->name => ['collection' => 'workshop_photos'],
             ]);
 
+            $metaIndex = array_search($media->name, $existingNames, true);
+            $meta = $metaIndex !== false ? (array) (($validated['existing_media_meta'][$metaIndex] ?? [])) : [];
+            $oldStorageDisk = $media->storageDiskName();
+            $media->update([
+                'storage_disk' => $meta['storage_disk'] ?? $media->storageDiskName(),
+                'visibility' => $meta['visibility'] ?? $media->visibility,
+                'tags' => array_key_exists('tags', $meta) ? (trim((string) $meta['tags']) ?: null) : $media->tags,
+            ]);
+            if ($oldStorageDisk !== $media->storageDiskName()) {
+                $this->moveWorkshopMediaOriginalToStorageDisk($media, $oldStorageDisk);
+            }
+
             if (! $wasAttached) {
                 $attached++;
+            } else {
+                $alreadyAttached++;
             }
         }
 
@@ -1394,12 +1550,40 @@ class WorkshopController extends Controller
                 ]);
             }
 
-            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $hash = hash_file('sha256', $file->path());
-            $storage = Storage::disk('media');
+            $duplicateMedia = Media::query()
+                ->where('hash', $hash)
+                ->oldest()
+                ->first();
+
+            if ($duplicateMedia instanceof Media) {
+                $wasAttached = $workshop->photos()
+                    ->where('media.name', $duplicateMedia->name)
+                    ->wherePivot('collection', 'workshop_photos')
+                    ->exists();
+
+                $workshop->photos()->syncWithoutDetaching([
+                    $duplicateMedia->name => ['collection' => 'workshop_photos'],
+                ]);
+
+                if ($wasAttached) {
+                    $alreadyAttached++;
+                } else {
+                    $attached++;
+                    $reused++;
+                }
+
+                continue;
+            }
+
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
+            $storageDisk = in_array((string) ($meta['storage_disk'] ?? 'media'), ['media', 'archive'], true)
+                ? (string) ($meta['storage_disk'] ?? 'media')
+                : 'media';
+            $storage = Storage::disk($storageDisk);
             $exists = $storage->exists($hash);
 
-            if (! $exists && $file->storeAs('/', $hash, 'media') === false) {
+            if (! $exists && $file->storeAs('/', $hash, $storageDisk) === false) {
                 continue;
             }
 
@@ -1418,6 +1602,7 @@ class WorkshopController extends Controller
                 'size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
                 'hash' => $hash,
+                'storage_disk' => $storageDisk,
                 'visibility' => $visibility,
                 'photographed_at' => $photographedAt,
                 'tags' => trim((string) ($meta['tags'] ?? '')) ?: null,
@@ -1448,6 +1633,8 @@ class WorkshopController extends Controller
                 'message' => $total.' workshop media item'.($total === 1 ? '' : 's').' added.',
                 'created' => $created,
                 'attached' => $attached,
+                'reused' => $reused,
+                'already_attached' => $alreadyAttached,
             ]);
         }
 
@@ -1459,12 +1646,13 @@ class WorkshopController extends Controller
         return redirect()->route('admin.workshop.photos', $workshop);
     }
 
-    public function admin_photos_update(Request $request, Workshop $workshop, Media $media): RedirectResponse
+    public function admin_photos_update(Request $request, Workshop $workshop, Media $media): RedirectResponse|JsonResponse
     {
         $this->ensureWorkshopPhoto($workshop, $media);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'visibility' => ['required', Rule::in(['private', 'public'])],
+            'storage_disk' => ['required', Rule::in(['media', 'archive'])],
             'caption' => ['nullable', 'string'],
             'consent_notes' => ['nullable', 'string'],
             'tags' => ['nullable', 'string', 'max:255'],
@@ -1475,6 +1663,7 @@ class WorkshopController extends Controller
             ? (string) $validated['visibility']
             : 'private';
 
+        $oldStorageDisk = $media->storageDiskName();
         $media->update([
             'title' => $validated['title'],
             'visibility' => $visibility,
@@ -1482,7 +1671,18 @@ class WorkshopController extends Controller
             'consent_notes' => trim((string) ($validated['consent_notes'] ?? '')) ?: null,
             'tags' => trim((string) ($validated['tags'] ?? '')) ?: null,
             'photographed_at' => $validated['photographed_at'] ?? null,
+            'storage_disk' => $validated['storage_disk'],
         ]);
+        if ($oldStorageDisk !== $media->storageDiskName()) {
+            $this->moveWorkshopMediaOriginalToStorageDisk($media, $oldStorageDisk);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Workshop photo metadata updated.',
+                'storage_disk' => $media->storageDiskName(),
+            ]);
+        }
 
         session()->flash('message', 'Workshop photo metadata updated.');
         session()->flash('message-title', 'Photo updated');
@@ -1491,12 +1691,13 @@ class WorkshopController extends Controller
         return redirect()->route('admin.workshop.photos', $workshop);
     }
 
-    public function admin_photos_bulk_update(Request $request, Workshop $workshop): RedirectResponse
+    public function admin_photos_bulk_update(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'photos' => ['required', 'array'],
             'photos.*.title' => ['required', 'string', 'max:255'],
             'photos.*.visibility' => ['required', Rule::in(['private', 'public'])],
+            'photos.*.storage_disk' => ['required', Rule::in(['media', 'archive'])],
             'photos.*.caption' => ['nullable', 'string'],
             'photos.*.consent_notes' => ['nullable', 'string'],
             'photos.*.tags' => ['nullable', 'string', 'max:255'],
@@ -1516,6 +1717,7 @@ class WorkshopController extends Controller
                 ? (string) $photoData['visibility']
                 : 'private';
 
+            $oldStorageDisk = $media->storageDiskName();
             $media->update([
                 'title' => $photoData['title'],
                 'visibility' => $visibility,
@@ -1523,7 +1725,11 @@ class WorkshopController extends Controller
                 'consent_notes' => trim((string) ($photoData['consent_notes'] ?? '')) ?: null,
                 'tags' => trim((string) ($photoData['tags'] ?? '')) ?: null,
                 'photographed_at' => $photoData['photographed_at'] ?? null,
+                'storage_disk' => $photoData['storage_disk'],
             ]);
+            if ($oldStorageDisk !== $media->storageDiskName()) {
+                $this->moveWorkshopMediaOriginalToStorageDisk($media, $oldStorageDisk);
+            }
             $updated++;
         }
 
@@ -1531,7 +1737,28 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Photos updated');
         session()->flash('message-type', 'success');
 
+        if ($request->wantsJson()) {
+            return response()->json(['updated' => $updated]);
+        }
+
         return redirect()->route('admin.workshop.photos', $workshop);
+    }
+
+    private function moveWorkshopMediaOriginalToStorageDisk(Media $media, string $fromDisk): void
+    {
+        $hash = trim((string) ($media->hash ?? ''));
+        if ($hash === '' || $fromDisk === $media->storageDiskName()) return;
+
+        $source = Storage::disk($fromDisk);
+        $target = $media->sourceStorage();
+        if (! $source->exists($hash)) return;
+        if (! $target->exists($hash)) {
+            $stream = $source->readStream($hash);
+            if (is_resource($stream)) $target->put($hash, $stream);
+        }
+        if (! Media::query()->where('hash', $hash)->where('storage_disk', $fromDisk)->where('name', '!=', $media->getKey())->exists()) {
+            $source->delete($hash);
+        }
     }
 
     public function admin_photos_destroy(Workshop $workshop, Media $media): RedirectResponse
@@ -1602,8 +1829,16 @@ class WorkshopController extends Controller
         ]);
     }
 
-    public function admin_photos_zip(Workshop $workshop): BinaryFileResponse
+    public function admin_photos_zip(Request $request, Workshop $workshop): BinaryFileResponse
     {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:100'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+        $selectedNames = array_values($validated['media_names']);
+        $photos = $workshop->photos()->whereIn('media.name', $selectedNames)->get();
+        abort_if($photos->count() !== count($selectedNames), 404);
+
         $zipPath = tempnam(sys_get_temp_dir(), 'workshop-photos-');
         if ($zipPath === false) {
             abort(500, 'Could not create zip file.');
@@ -1614,7 +1849,7 @@ class WorkshopController extends Controller
             abort(500, 'Could not open zip file.');
         }
 
-        foreach ($workshop->photos()->get() as $photo) {
+        foreach ($photos as $photo) {
             $path = $photo->path();
             if ($path !== null && is_file($path)) {
                 $zip->addFile($path, $photo->name);
@@ -1645,6 +1880,33 @@ class WorkshopController extends Controller
         } while (Media::find($fileName) !== null);
 
         return $fileName;
+    }
+
+    private function consumeChunkUpload(Request $request, string $uploadToken, string $originalName): UploadedFile
+    {
+        $chunkUploads = $request->session()->get('chunk_uploads', []);
+        $path = $chunkUploads[$uploadToken] ?? null;
+        if (! is_string($path) || ! is_file($path)) {
+            throw ValidationException::withMessages([
+                'upload_token' => 'The uploaded file could not be found. Please select it again.',
+            ]);
+        }
+
+        unset($chunkUploads[$uploadToken]);
+        $request->session()->put('chunk_uploads', $chunkUploads);
+        app()->terminating(static function () use ($path): void {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        });
+
+        $fileName = Helpers::cleanFileName($originalName);
+        if ($fileName === '') {
+            $fileName = 'upload';
+        }
+        $mimeType = mime_content_type($path) ?: 'application/octet-stream';
+
+        return new UploadedFile($path, $fileName, $mimeType, null, true);
     }
 
     private function ensureWorkshopPhoto(Workshop $workshop, Media $media): void
@@ -1705,8 +1967,14 @@ class WorkshopController extends Controller
 
             $pendingId = $pendingFileKeys->get((int) $index, trim((string) ($index ?? '')));
             $meta = (array) ($pendingMeta->get($pendingId) ?? []);
-            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $hash = hash_file('sha256', $file->path());
+            $duplicateMedia = Media::query()->where('hash', $hash)->oldest()->first();
+            if ($duplicateMedia instanceof Media) {
+                $pendingNameMap[$pendingId] = $duplicateMedia->name;
+                continue;
+            }
+
+            $fileName = $this->uniqueMediaFileName($file->getClientOriginalName());
             $storage = Storage::disk('archive');
             $exists = $storage->exists($hash);
 

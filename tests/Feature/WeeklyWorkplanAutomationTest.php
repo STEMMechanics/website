@@ -174,7 +174,12 @@ class WeeklyWorkplanAutomationTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
+            ->assertSeeInOrder(['Tasks / reminders', '>0<'], false)
             ->assertSee('text-gray-400 line-through', false);
+        $this->assertStringContainsString(
+            '<td class="emerald"><strong>0</strong><span>Reminders</span></td>',
+            view('pdf.weekly-workplan', ['workplan' => $workplan])->render(),
+        );
         $this->assertStringContainsString(
             '<li class="completed">Robotics Lab · Pack robots — '.today()->addDay()->format('D j M').', 6:00am · Cairns Library</li>',
             view('pdf.weekly-workplan', ['workplan' => $workplan])->render(),

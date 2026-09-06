@@ -751,12 +751,6 @@ class MediaController extends Controller
 
         $existingMedia = Media::query()
             ->where('hash', $hash)
-            ->where(function ($query) use ($storageDisk): void {
-                $query->where('storage_disk', $storageDisk);
-                if ($storageDisk === 'media') {
-                    $query->orWhereNull('storage_disk');
-                }
-            })
             ->when(! Auth::user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
             ->oldest()
             ->first();

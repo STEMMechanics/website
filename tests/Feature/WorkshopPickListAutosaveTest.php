@@ -115,6 +115,23 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->assertSeeText('Changes apply only to this workshop');
     }
 
+    public function test_run_sheet_does_not_render_the_template_drawing(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create([
+            'name' => 'Template with drawing',
+            'run_sheet_drawing_data' => $this->samplePngDataUrl(),
+        ]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.run-sheet', $workshop))
+            ->assertOk()
+            ->assertDontSee('Template run sheet drawing', false)
+            ->assertDontSee($template->run_sheet_drawing_data, false);
+    }
+
     public function test_pick_list_autosave_returns_json_and_persists_participants_and_checked_items(): void
     {
         $admin = $this->createAdminUser();

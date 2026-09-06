@@ -8,6 +8,7 @@
     'advancedOpen' => false,
     'advancedExternal' => false,
     'advancedActive' => false,
+    'action' => null,
 ])
 
 @php
