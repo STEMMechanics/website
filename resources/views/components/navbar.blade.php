@@ -83,6 +83,7 @@
                 [
                     'title' => 'Finance',
                     'items' => [
+                    ['label' => 'Finance planning', 'route' => route('admin.finance.index'), 'icon' => 'fa-solid fa-wallet', 'active' => ['admin.finance.*']],
                     ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.bas.*']],
                     ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*']],
                     ['label' => 'Refunds', 'route' => route('admin.payment.refunds'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.payment.refunds*'], 'badge' => $manualRefundQueueCount],

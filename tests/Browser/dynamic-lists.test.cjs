@@ -226,3 +226,12 @@ test('pagination clicks are intercepted for AJAX including synthetic keyboard cl
     assert.deepEqual(app.content.nodes, ['updated']);
     assert.equal(app.redirects.length, 0);
 });
+
+test('changing rows per page keeps page sizes and resets only page numbers', () => {
+    const app = setup();
+    const url = app.listUrl({ action: '/products', entries: [['per_page', '50'], ['expenses_page_per_page', '100'], ['page', '4'], ['expenses_page', '3']] });
+    assert.equal(url.searchParams.get('per_page'), '50');
+    assert.equal(url.searchParams.get('expenses_page_per_page'), '100');
+    assert.equal(url.searchParams.has('page'), false);
+    assert.equal(url.searchParams.has('expenses_page'), false);
+});

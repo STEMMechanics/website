@@ -9,9 +9,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
 use App\Http\Controllers\CairnsMinecraftController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\FinanceFileController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
@@ -22,6 +24,7 @@ use App\Http\Controllers\OrganisationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PickListTemplateController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PrivilegedMfaController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\SearchController;
@@ -554,6 +557,23 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/reminders/bulk/edit', [ReminderController::class, 'bulkEditor'])->name('admin.reminder.bulk.edit');
     Route::put('/admin/reminders/bulk', [ReminderController::class, 'bulkUpdate'])->name('admin.reminder.bulk.update');
     Route::post('/admin/reminders/{reminder}/send-now', [ReminderController::class, 'sendNow'])->name('admin.reminder.send-now');
+    Route::post('/admin/finance/commitments', [FinanceController::class, 'commitment'])->name('admin.finance.commitment');
+    Route::post('/admin/finance/commitments/{commitment}', [FinanceController::class, 'closeCommitment'])->name('admin.finance.closeCommitment');
+    Route::post('/admin/finance/transfers', [FinanceController::class, 'transfer'])->name('admin.finance.transfer');
+    Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance.index');
+    Route::post('/admin/finance/preview', [FinanceController::class, 'preview'])->name('admin.finance.preview');
+    Route::post('/admin/finance/apply', [FinanceController::class, 'apply'])->name('admin.finance.apply');
+    Route::post('/admin/finance/batches/{batch}/reverse', [FinanceController::class, 'reverse'])->name('admin.finance.reverse');
+    Route::post('/admin/finance/categories', [FinanceController::class, 'category'])->name('admin.finance.category');
+    Route::post('/admin/finance/pricing', [FinanceController::class, 'pricing'])->name('admin.finance.pricing');
+    Route::post('/admin/finance/suppliers', [FinanceController::class, 'supplier'])->name('admin.finance.supplier');
+    Route::post('/admin/finance/expenses/{expense}', [FinanceController::class, 'expense'])->name('admin.finance.expense');
+    Route::post('/admin/finance/time', [FinanceController::class, 'time'])->name('admin.finance.time');
+    Route::post('/admin/finance/drawings', [FinanceController::class, 'drawing'])->name('admin.finance.drawing');
+    Route::post('/admin/finance/drawings/{drawing}', [FinanceController::class, 'drawingStatus'])->name('admin.finance.drawingStatus');
+    Route::post('/admin/finance/gst', [FinanceController::class, 'settlement'])->name('admin.finance.settlement');
+    Route::post('/admin/finance/settings', [FinanceController::class, 'settings'])->name('admin.finance.settings');
+
     Route::get('/admin/bas', [BasController::class, 'index'])->name('admin.bas.index');
     Route::get('/admin/bas/export/csv', [BasController::class, 'exportCsv'])->name('admin.bas.export.csv');
     Route::get('/admin/bas/export/pdf', [BasController::class, 'exportPdf'])->name('admin.bas.export.pdf');
@@ -563,10 +583,10 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 
 Route::fallback([CustomPageController::class, 'fallback']);
 
-Route::post('/security/csp-reports', \App\Http\Controllers\CspReportController::class)
+Route::post('/security/csp-reports', CspReportController::class)
     ->middleware('throttle:30,1,csp-reports:')->name('security.csp-report');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
-    Route::post('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1,administrator-mfa:')->name('security.mfa.verify');
+    Route::get('/account/verify-administrator', [PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
+    Route::post('/account/verify-administrator', [PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1,administrator-mfa:')->name('security.mfa.verify');
 });
