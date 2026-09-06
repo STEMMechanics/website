@@ -13,7 +13,7 @@
                 </div>
 
                 <div class="mt-8 max-w-3xl">
-                    <div class="inline-flex rounded-full bg-primary-color-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">Independent and based in Cairns</div>
+                    <x-ui.badge class="inline-flex bg-primary-color-light text-white">Independent and based in Cairns</x-ui.badge>
                     <h2 class="mt-4 text-3xl font-semibold text-gray-900">Practical STEM learning, delivered with care, clarity, and real-world experience.</h2>
                     <p class="mt-4 text-base leading-7 text-gray-600">STEMMechanics is an education studio created by James Collins to deliver STEM workshops and creative technology programs for schools, libraries, community organisations, and events. The aim is to make technology learning feel structured, approachable, and genuinely engaging, with programs that are well planned without becoming rigid or impersonal.</p>
                     <p class="mt-4 text-base leading-7 text-gray-600">That approach comes from years of experience delivering digital literacy programs, workshop series, ICT support, eSports events, media projects, and regional STEM initiatives across Queensland. STEMMechanics brings that experience together in a way that is organised enough for partners to rely on and human enough for learners to feel comfortable participating.</p>
@@ -83,7 +83,7 @@
 
         <section class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
             <div class="max-w-4xl">
-                <div class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-600">The overall approach</div>
+                <x-ui.badge color="gray" uppercase>The overall approach</x-ui.badge>
                 <h2 class="mt-4 text-2xl font-semibold text-gray-900">At the centre of it all is a simple idea: people understand technology better when they can explore it for themselves.</h2>
                 <p class="mt-4 text-base leading-7 text-gray-600">That is why STEMMechanics leans so heavily into direct experience. When learners can build, test, troubleshoot, and revise their ideas, technology becomes less abstract and far more meaningful. It also helps confidence grow in a way that feels earned rather than forced.</p>
                 <p class="mt-4 text-base leading-7 text-gray-600">For the schools, organisations, and communities that book these programs, that philosophy translates into delivery that is thoughtful, practical, and reliable. For participants, it means workshops that feel active, creative, and welcoming. If that sounds like the right fit, the contact page is the best next step for bookings, collaborations, or support questions.</p>
@@ -93,7 +93,7 @@
         <section class="mt-6 grid gap-6 lg:grid-cols-2">
             <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <div class="flex-shrink-0">
+                    <div class="shrink-0">
                         <div class="h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                             <img src="{{ asset('profile-james.png') }}" alt="James Collins" class="h-full w-full object-cover" />
                         </div>
@@ -108,7 +108,7 @@
 
             <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <div class="flex-shrink-0">
+                    <div class="shrink-0">
                         <div class="h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                             <img src="{{ asset('profile-alex.png') }}" alt="Alex Rivera" class="h-full w-full object-cover" />
                         </div>

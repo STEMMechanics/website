@@ -72,7 +72,7 @@
 
             <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
                 <h3 class="text-lg font-bold mb-3">Summary</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <x-ui.grid class="md:grid-cols-2 gap-3 text-sm">
                     <div><span class="inline-block w-52 font-semibold">Expense files scanned:</span> {{ number_format((int) ($summary['expense_files_scanned'] ?? 0)) }}</div>
                     <div><span class="inline-block w-52 font-semibold">Expense files referenced:</span> {{ number_format((int) ($summary['expense_files_referenced'] ?? 0)) }}</div>
                     <div><span class="inline-block w-52 font-semibold">Orphan expense files:</span> {{ number_format((int) ($summary['orphan_expense_files'] ?? 0)) }}</div>
@@ -81,7 +81,7 @@
                     <div><span class="inline-block w-52 font-semibold">Media files referenced:</span> {{ number_format((int) ($summary['media_files_referenced'] ?? 0)) }}</div>
                     <div><span class="inline-block w-52 font-semibold">Orphan media files:</span> {{ number_format((int) ($summary['orphan_media_files'] ?? 0)) }}</div>
                     <div><span class="inline-block w-52 font-semibold">Missing media references:</span> {{ number_format((int) ($summary['missing_media_files'] ?? 0)) }}</div>
-                </div>
+                </x-ui.grid>
             </div>
 
             <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
@@ -92,7 +92,7 @@
                         <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete all orphans?', 'Delete all orphan expense and media files found in this scan?', 'Delete All', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                             @csrf
                             <input type="hidden" name="scope" value="orphan_all">
-                            <button type="submit" class="hover:text-red-600" title="Delete all orphan files"><i class="fa-solid fa-trash"></i></button>
+                            <x-ui.button variant="plain" type="submit" class="hover:text-red-600" title="Delete all orphan files"><i class="fa-solid fa-trash"></i></x-ui.button>
                         </form>
                     </span>
                 </div>
@@ -104,7 +104,7 @@
                         <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete expense orphans?', 'Delete all orphan expense files from this scan?', 'Delete Expense', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                             @csrf
                             <input type="hidden" name="scope" value="orphan_expense">
-                            <button type="submit" class="hover:text-red-600" title="Delete all orphan expense files"><i class="fa-solid fa-trash"></i></button>
+                            <x-ui.button variant="plain" type="submit" class="hover:text-red-600" title="Delete all orphan expense files"><i class="fa-solid fa-trash"></i></x-ui.button>
                         </form>
                     </span>
                 </div>
@@ -122,7 +122,7 @@
                                         @csrf
                                         <input type="hidden" name="disk" value="local">
                                         <input type="hidden" name="path" value="{{ $entry['path'] }}">
-                                        <button type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></button>
+                                        <x-ui.button variant="plain" type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></x-ui.button>
                                     </form>
                                 </span>
                             </li>
@@ -137,7 +137,7 @@
                         <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete media orphans?', 'Delete all orphan media files from this scan?', 'Delete Media', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                             @csrf
                             <input type="hidden" name="scope" value="orphan_media">
-                            <button type="submit" class="hover:text-red-600" title="Delete all orphan media files"><i class="fa-solid fa-trash"></i></button>
+                            <x-ui.button variant="plain" type="submit" class="hover:text-red-600" title="Delete all orphan media files"><i class="fa-solid fa-trash"></i></x-ui.button>
                         </form>
                     </span>
                 </div>
@@ -155,7 +155,7 @@
                                         @csrf
                                         <input type="hidden" name="disk" value="media">
                                         <input type="hidden" name="path" value="{{ $entry['path'] }}">
-                                        <button type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></button>
+                                        <x-ui.button variant="plain" type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></x-ui.button>
                                     </form>
                                 </span>
                             </li>

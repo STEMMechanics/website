@@ -190,8 +190,8 @@ class WorkshopVisibilityRulesTest extends TestCase
         $response->assertOk();
         $response->assertSee('Public Robotics Session');
         $response->assertSee(route('workshop.feed'));
-        $response->assertSee('title="Calendar view"', false);
-        $response->assertDontSee('title="Card view"', false);
+        $response->assertSee('aria-label="Calendar view"', false);
+        $response->assertDontSee('data-dynamic-list="workshop-index"', false);
         $response->assertSee(route('workshop.index', [
             'view' => 'calendar',
             'month' => now()->format('Y-m'),
@@ -290,7 +290,8 @@ class WorkshopVisibilityRulesTest extends TestCase
             $response->assertSee($monthStart->format('F Y'));
             $response->assertSeeInOrder(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
             $response->assertSee(route('workshop.index'));
-            $response->assertSee('title="Card view"', false);
+            $response->assertSee('aria-label="Card view"', false);
+            $response->assertDontSee('data-dynamic-list="workshop-index"', false);
             $response->assertSee('title="Previous month"', false);
             $response->assertSee('title="Next month"', false);
             $response->assertSee('Workshop this month');

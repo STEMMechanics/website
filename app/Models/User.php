@@ -39,6 +39,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
+        'dashboard_email_opt_in',
         'firstname',
         'surname',
         'primary_organisation_id',
@@ -90,6 +91,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array<string, string>
      */
     protected $casts = [
+        'dashboard_email_opt_in' => 'boolean',
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'account_terms_days' => 'integer',
@@ -567,9 +569,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $backupCodes = $this->backupCodes()->get();
         foreach ($backupCodes as $backupCode) {
             if (Hash::check($code, $backupCode->code)) {
-                $backupCode->delete();
-
-                return true;
+                return $this->backupCodes()->whereKey($backupCode->getKey())->delete() === 1;
             }
         }
 

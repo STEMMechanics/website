@@ -5,14 +5,14 @@
         <div id="server-info-app" data-csrf="{{ csrf_token() }}" data-maintenance-refresh-url="{{ route('admin.site_option.maintenance-refresh') }}">
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Runtime</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <x-ui.grid class="md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 @foreach($serverInfo as $label => $value)
                 <div class="py-1 border-b border-gray-100">
                     <span class="font-semibold">{{ $label }}:</span>
                     <span class="break-all">{{ $value }}</span>
                 </div>
                 @endforeach
-            </div>
+            </x-ui.grid>
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
@@ -22,9 +22,9 @@
                     <p class="mt-1 text-sm text-gray-600">Detected using the same PHP process and command path as this admin page.</p>
                 </div>
                 @php($missingDependencyCount = collect($serverDependencies)->where('installed', false)->count())
-                <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                <x-ui.badge class="inline-flex items-center border {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
                     {{ $missingDependencyCount === 0 ? 'All detected' : $missingDependencyCount.' missing' }}
-                </span>
+                </x-ui.badge>
             </div>
 
             <div class="space-y-3 md:hidden">
@@ -33,17 +33,17 @@
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
-                                <div class="mt-0.5 break-words text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+                                <div class="mt-0.5 wrap-break-word text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
                             </div>
-                            <span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                            <x-ui.badge class="inline-flex shrink-0 items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
                                 {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
-                            </span>
+                            </x-ui.badge>
                         </div>
                         <dl class="mt-3 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
                             <dt class="font-semibold text-gray-500">Requirement</dt>
                             <dd class="text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</dd>
                             <dt class="font-semibold text-gray-500">Version</dt>
-                            <dd class="break-words text-gray-700">{{ $dependency['version'] }}</dd>
+                            <dd class="wrap-break-word text-gray-700">{{ $dependency['version'] }}</dd>
                             <dt class="font-semibold text-gray-500">Used for</dt>
                             <dd class="text-gray-700">{{ $dependency['purpose'] }}</dd>
                         </dl>
@@ -52,12 +52,12 @@
             </div>
 
             <div class="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="px-3 py-2">Dependency</th>
                             <th class="px-3 py-2">Requirement</th>
-                            <th class="px-3 py-2">Status</th>
+                            <th class="px-3 py-2 text-center!">Status</th>
                             <th class="px-3 py-2">Version</th>
                             <th class="px-3 py-2">Used for</th>
                         </tr>
@@ -70,20 +70,37 @@
                                     <div class="text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
                                 </td>
                                 <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
-                                <td class="px-3 py-2 align-top">
-                                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                <td class="px-3 py-2 align-top text-center!">
+                                    <x-ui.badge class="inline-flex items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
                                         {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
-                                    </span>
+                                    </x-ui.badge>
                                 </td>
-                                <td class="max-w-sm break-words px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
+                                <td class="max-w-sm wrap-break-word px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
                                 <td class="max-w-md px-3 py-2 align-top text-gray-700">{{ $dependency['purpose'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
             <p class="mt-3 text-xs text-gray-500">Feature dependencies are required when their related site feature is used. A missing command may also mean it is not available on the web server process PATH.</p>
         </div>
+
+        <section class="my-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" aria-labelledby="deployment-configuration-title">
+            <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 id="deployment-configuration-title" class="text-lg font-bold">Deployment configuration</h3>
+                    <p class="mt-1 text-sm text-gray-600">Effective settings loaded by this site, checked against the deployment guide. Secret values are never displayed. Development settings may intentionally differ.</p>
+                </div>
+                @php($configurationFailures = collect($deploymentChecks)->where('status', 'fail')->count())
+                <x-ui.badge :color="$configurationFailures ? 'danger' : 'success'">{{ $configurationFailures ? $configurationFailures.' need attention' : 'No configuration failures' }}</x-ui.badge>
+            </div>
+            <p class="mb-4 text-sm text-gray-600">Review needed means the setting is optional, context-dependent, or needs an external check. After changing environment settings, run <code>php artisan config:cache</code>, restart queue workers and refresh this page. The deployment command uses these same checks.</p>
+            <x-ui.grid class="lg:grid-cols-2">
+                @foreach($deploymentChecks as $check)
+                    <x-admin.configuration-check :check="$check" />
+                @endforeach
+            </x-ui.grid>
+        </section>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -91,17 +108,17 @@
                 <form method="POST" action="{{ route('admin.server.deploy') }}" data-sm-confirm="Run website updater with selected options? You may need to refresh the page afterward the update completes." data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
                     @csrf
                     <x-ui.checkbox
-                        name="current"
-                        value="1"
-                        label="Dev"
-                        :noWrapper="true"
-                        :inline="true" />
+ name="current"
+ value="1"
+ label="Dev"
+ :noWrapper="true"
+ :inline="true" />
                     <x-ui.checkbox
-                        name="force"
-                        value="1"
-                        label="Force"
-                        :noWrapper="true"
-                        :inline="true" />
+ name="force"
+ value="1"
+ label="Force"
+ :noWrapper="true"
+ :inline="true" />
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
                 </form>
             </div>
@@ -117,24 +134,24 @@
                         @csrf
                         <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
                     </form>
-                    <button type="button" id="deploy-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</button>
+                    <x-ui.button variant="plain" type="button" id="deploy-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</x-ui.button>
                     <x-ui.checkbox
-                        id="deploy-log-auto-refresh"
-                        label="Auto-refresh every 10 seconds"
-                        :checked="true"
-                        :noWrapper="true"
-                        :inline="true" />
+ id="deploy-log-auto-refresh"
+ label="Auto-refresh every 10 seconds"
+ :checked="true"
+ :noWrapper="true"
+ :inline="true" />
                 </div>
             </div>
             @if(!$deployOutputExists)
             <p id="deploy-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
-            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
+            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-80 whitespace-pre-wrap"></pre>
             @elseif(trim($deployOutputContent) === '')
             <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log is empty.</p>
-            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
+            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-80 whitespace-pre-wrap"></pre>
             @else
             <p id="deploy-log-empty" class="hidden text-sm text-gray-600">Deploy output log is empty.</p>
-            <pre id="deploy-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap">{{ $deployOutputContent }}</pre>
+            <pre id="deploy-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-80 whitespace-pre-wrap">{{ $deployOutputContent }}</pre>
             @endif
         </div>
 
@@ -153,19 +170,19 @@
                 <p><strong>Last Modified:</strong> <span id="laravel-log-updated">{{ $logModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 300 lines</p>
                 <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <button type="button" id="laravel-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</button>
+                    <x-ui.button variant="plain" type="button" id="laravel-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</x-ui.button>
                 </div>
             </div>
 
             @if(!$logExists)
             <p id="laravel-log-empty" class="text-sm text-gray-600">Log file not found.</p>
-            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
+            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-160 whitespace-pre-wrap"></pre>
             @elseif(trim($logContent) === '')
             <p id="laravel-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
-            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
+            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-160 whitespace-pre-wrap"></pre>
             @else
             <p id="laravel-log-empty" class="hidden text-sm text-gray-600">Log file is empty.</p>
-            <pre id="laravel-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap">{{ $logContent }}</pre>
+            <pre id="laravel-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-160 whitespace-pre-wrap">{{ $logContent }}</pre>
             @endif
         </div>
         </div>

@@ -8,13 +8,12 @@
     'advancedOpen' => false,
     'advancedExternal' => false,
     'advancedActive' => false,
-    'action' => null,
 ])
 
 @php
     $classes = 'bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:border-indigo-300 focus:ring-indigo-300';
     $currentValue = (string) request()->query($name, (string) ($value ?? ''));
-    $queryParams = request()->query();
+    $queryParams = $action === null || $action === url()->current() ? request()->query() : [];
     $excludedQueryParams = [$name, 'page', ...(isset($advanced) ? $advancedFields : [])];
     foreach ($excludedQueryParams as $excludedQueryParam) {
         unset($queryParams[$excludedQueryParam]);
@@ -22,6 +21,9 @@
     $hasAdvancedSearch = isset($advanced) || (bool) $advancedExternal;
 @endphp
 
+@if(app(\App\Services\SiteListControls::class)->definition() && !$hasAdvancedSearch && ($action === null || $action === url()->current()))
+    <x-ui.collection-controls :search-name="$name" :label="$label" :value="$currentValue" :action="$action" {{ $attributes }} />
+@else
 <form
     method="GET"
     action="{{ $action ?? url()->current() }}"
@@ -55,16 +57,16 @@
         <i
             x-show="search || advancedActive"
             x-cloak
-            class="absolute z-10 top-1/2 {{ $hasAdvancedSearch ? 'right-[7.75rem]' : 'right-[4.5rem]' }} transform -translate-y-1/2 text-gray-300 hover:text-gray-400 cursor-pointer fa-solid fa-circle-xmark"
+            class="absolute z-10 top-1/2 {{ $hasAdvancedSearch ? 'right-31' : 'right-18' }} transform -translate-y-1/2 text-gray-300 hover:text-gray-400 cursor-pointer fa-solid fa-circle-xmark"
             x-on:click="
                 search = '';
                 if (advancedActive) {
                     $el.closest('form').querySelectorAll('[data-advanced-search-param]').forEach((input) => input.remove());
                     advancedActive = false;
                     $dispatch('clear-advanced-search');
-                    $nextTick(() => $el.closest('form').submit());
+                    $nextTick(() => $el.closest('form').requestSubmit());
                 } else if ({{ \Illuminate\Support\Js::from($currentValue !== '') }}) {
-                    $nextTick(() => $el.closest('form').submit());
+                    $nextTick(() => $el.closest('form').requestSubmit());
                 }
             "
         ></i>
@@ -75,3 +77,5 @@
         </div>
     @endif
 </form>
+
+@endif

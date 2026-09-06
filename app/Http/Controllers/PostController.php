@@ -26,7 +26,7 @@ class PostController extends Controller
             $query->orWhere('content', 'like', '%' . $request->search . '%');
         }
 
-        $posts = $query->orderBy('created_at', 'desc')->paginate(12)->onEachSide(1);
+        $posts = $query->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))->onEachSide(1);
 
         return view('post.index', [
             'posts' => $posts
@@ -45,7 +45,7 @@ class PostController extends Controller
             $query->orWhere('content', 'like', '%' . $request->search . '%');
         }
 
-        $posts = $query->orderBy('created_at', 'desc')->paginate(12)->onEachSide(1);
+        $posts = $query->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))->onEachSide(1);
 
         return view('admin.post.index', [
             'posts' => $posts

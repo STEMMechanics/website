@@ -17,9 +17,9 @@
                         <h2 id="payment-replacement-dialog-title" class="mt-1 text-xl font-bold text-gray-900">Compare payments</h2>
                         <p class="mt-2 text-sm leading-6 text-gray-600" x-text="replacementDialogData?.description || 'Compare the current payment with the matching EFTPOS transaction before replacing it.'"></p>
                     </div>
-                    <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closeReplacementDialog()" aria-label="Close replacement dialog">
+                    <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeReplacementDialog()" aria-label="Close replacement dialog">
                         <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
+                    </x-ui.button>
                 </div>
             </div>
 
@@ -45,7 +45,7 @@
                     <section class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide text-amber-800">Current payment</h3>
-                            <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200" x-text="replacementDialogData?.source?.label || '-'"></span>
+                            <x-ui.badge class="bg-white text-amber-700 ring-1 ring-amber-200" x-text="replacementDialogData?.source?.label || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-200 bg-white">
                             <template x-for="row in [
@@ -67,7 +67,7 @@
                     <section class="rounded-2xl border p-4" style="border-color: rgb(165 243 252 / 1); background-color: rgb(236 254 255 / 0.6);">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide" style="color: rgb(21 94 117);">Selected match</h3>
-                            <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold ring-1" style="color: rgb(14 116 144); border-color: rgb(165 243 252 / 1); box-shadow: inset 0 0 0 1px rgb(165 243 252 / 1);" x-text="selectedReplacementCandidate()?.label || '-'"></span>
+                            <x-ui.badge class="bg-white ring-1" style="color: rgb(14 116 144); border-color: rgb(165 243 252 / 1); box-shadow: inset 0 0 0 1px rgb(165 243 252 / 1);" x-text="selectedReplacementCandidate()?.label || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y overflow-hidden rounded-xl border bg-white" style="border-color: rgb(165 243 252 / 1);">
                             <template x-for="row in [
@@ -97,12 +97,10 @@
                     @csrf
                     <input type="hidden" name="matched_payment_id" :value="selectedReplacementCandidate()?.id || ''">
                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 sm:mr-auto">
-                        <input
-                            type="checkbox"
-                            name="email_receipt"
-                            value="1"
-                            class="h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                        >
+                        <x-ui.checkbox bare small
+
+ name="email_receipt"
+ value="1" />
                         <span>Resend updated receipt to customer</span>
                     </label>
                     <x-ui.button type="button" color="secondary" x-on:click="closeReplacementDialog()">Cancel</x-ui.button>

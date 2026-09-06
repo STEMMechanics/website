@@ -91,9 +91,9 @@
                                         {{ $passwordConfigured ? 'Update the password used to sign in to this account.' : 'Set a password for this account so you can sign in without waiting for an email link.' }}
                                     </p>
                                 </div>
-                                <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="passwordDialogOpen = false" aria-label="Close password dialog">
+                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="passwordDialogOpen = false" aria-label="Close password dialog">
                                     <i class="fa-solid fa-xmark text-lg"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
                         </div>
 
@@ -121,13 +121,17 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-sm font-semibold text-gray-900">Authenticator app</h3>
-                        <span x-cloak x-show="!$store.tfa.enabled" class="rounded-full bg-red-100 px-2 py-0.5 text-xxs font-semibold text-red-700">Disabled</span>
-                        <span x-cloak x-show="$store.tfa.enabled" class="rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Enabled</span>
+                        <x-ui.badge color="danger" x-cloak x-show="!$store.tfa.enabled">Disabled</x-ui.badge>
+                        <x-ui.badge color="success" x-cloak x-show="$store.tfa.enabled">Enabled</x-ui.badge>
                     </div>
                     <p class="mt-2 text-sm text-gray-600">Use a time-based code from your authenticator app during sign-in.</p>
                     <div class="mt-4 flex flex-wrap items-center gap-2">
                         <a href="#" x-show="$store.tfa.enabled" x-data x-on:click.prevent="resetBackupCodes($event)" class="text-sm font-medium text-primary-color hover:text-primary-color-dark">Reset backup codes</a>
-                        <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
+                        @if(! config('security.admin_mfa_required') || ! $user?->isAdmin())
+                            <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
+                        @else
+                            <p class="text-sm text-gray-600">Required for administrator access.</p>
+                        @endif
                         <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
                     </div>
                 </div>

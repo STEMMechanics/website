@@ -5,45 +5,15 @@
         x-data="{}"
         data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
         x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
-        <form method="GET" action="{{ route('admin.ticket.index') }}">
-            <x-ui.toolbar>
-                <x-slot:left>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <x-ui.checkbox
-                            name="show_inactive"
-                            value="1"
-                            label="Show cancelled/refunded"
-                            :checked="!empty($showInactive)"
-                            :noWrapper="true"
-                            :inline="true"
-                            onchange="this.form.submit()"
-                        />
-                        <x-ui.checkbox
-                            name="group_by_workshop"
-                            value="1"
-                            label="Group by workshop"
-                            :checked="!empty($groupByWorkshop)"
-                            :noWrapper="true"
-                            :inline="true"
-                            onchange="this.form.submit()"
-                        />
-                    </div>
-                </x-slot:left>
-                <x-slot:right>
-                    <div class="flex relative">
-                        <input
-                            class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
-                            autocomplete="off"
-                            placeholder="Search Tickets"
-                            type="text"
-                            name="search"
-                            value="{{ request()->get('search', '') }}"
-                        />
-                        <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
-                    </div>
-                </x-slot:right>
-            </x-ui.toolbar>
-        </form>
+        <x-ui.dynamic-list name="admin-ticket-index">
+
+            <x-slot:presetActions>
+                <form method="GET" action="{{ url()->current() }}">
+                    <x-ui.query-inputs :values="request()->except(['group_by_workshop', 'page'])" />
+                    <x-ui.checkbox name="group_by_workshop" value="1" label="Group by workshop" :checked="!empty($groupByWorkshop)" noWrapper inline onchange="this.form.requestSubmit()" />
+                </form>
+            </x-slot:presetActions>
+        <x-ui.collection-controls class="my-5" />
 
         @if($tickets->isEmpty())
             <x-none-found item="tickets" search="{{ request()->get('search') }}" />
@@ -54,15 +24,15 @@
                     ->map(fn ($group) => $group->count());
                 $previousWorkshopKey = null;
             @endphp
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Ticket #</th>
+                    <x-ui.list-heading field="reference_code" label="Ticket #" />
                     <th>{{ !empty($groupByWorkshop) ? 'Details' : 'Workshop' }}</th>
-                    <th class="hidden md:table-cell">Attendee</th>
-                    <th class="hidden lg:table-cell">Status</th>
-                    <th class="hidden lg:table-cell">Invoice</th>
-                    <th class="hidden md:table-cell">Purchased</th>
-                    <th>Actions</th>
+                    <x-ui.list-heading field="firstname" class="hidden md:table-cell" label="Attendee" />
+                    <x-ui.list-heading class="hidden lg:table-cell text-center!" label="Status" />
+                    <x-ui.list-heading class="hidden lg:table-cell" label="Invoice" />
+                    <x-ui.list-heading field="created_at" class="hidden md:table-cell" label="Purchased" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($tickets as $ticket)
@@ -101,7 +71,7 @@
                             <tr style="background-color: rgb(254 249 195);">
                                 <td colspan="7">
                                     <div class="font-semibold">{{ $workshopTitle }}</div>
-                                    <div class="text-xs text-gray-600">{{ $workshopDate }} · {{ $workshopLocation }}</div>
+                                    <div class="text-xs text-gray-600"><x-ui.date-time>{{ $workshopDate }}</x-ui.date-time> · {{ $workshopLocation }}</div>
                                     <div class="text-xs text-gray-600">Price: {{ $workshopPriceDisplay }}</div>
                                     <div class="text-xs text-gray-600 mt-1">
                                         {{ (int) ($workshopCounts[$workshopKey] ?? 0) }} ticket{{ ((int) ($workshopCounts[$workshopKey] ?? 0) === 1) ? '' : 's' }}
@@ -116,16 +86,16 @@
                             <td>
                                 <div class="whitespace-nowrap">{{ !empty($groupByWorkshop) ? '↳ ' : '' }}{{ $ticket->reference_code ?: $ticket->id }}</div>
                                 @if($ticket->isEarlyBirdTicket())
-                                    <div class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Early bird</div>
+                                    <x-ui.badge color="amber" uppercase class="mt-1">Early bird</x-ui.badge>
                                 @endif
                                 <div class="lg:hidden text-xs text-gray-600 mt-1">{{ $statusText }}</div>
                             </td>
                             <td>
                                 @if(empty($groupByWorkshop))
                                     <div>{{ $workshopTitle }}</div>
-                                    <div class="text-xs text-gray-600">{{ $workshopDate }} · {{ $workshopLocation }}</div>
+                                    <div class="text-xs text-gray-600"><x-ui.date-time>{{ $workshopDate }}</x-ui.date-time> · {{ $workshopLocation }}</div>
                                 @else
-                                    <div class="text-xs text-gray-600">Purchased: {{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">Purchased: <x-ui.date-time>{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                 @endif
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $attendee }} · {{ $ticket->email ?: '-' }}</div>
                                 <div class="lg:hidden text-xs text-gray-600">
@@ -142,7 +112,7 @@
                                 <div>{{ $attendee }}</div>
                                 <div class="text-xs text-gray-600">{{ $ticket->email ?: '-' }}</div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ $statusText }}</td>
+                            <td class="hidden lg:table-cell text-center!">{{ $statusText }}</td>
                             <td class="hidden lg:table-cell text-center">
                                 @if($invoiceUrl)
                                     <a href="{{ $invoiceUrl }}" class="text-primary-color hover:underline">
@@ -152,53 +122,43 @@
                                     --
                                 @endif
                             </td>
-                            <td class="hidden md:table-cell">{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                            <td>
-                                <div class="flex justify-center items-center gap-3 whitespace-nowrap">
+                            <td class="hidden md:table-cell"><x-ui.date-time>{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
+                            <td class="text-center!">
+                                <x-ui.row-actions class="whitespace-nowrap">
                                     @if($canOpenTicketPdf)
-                                        <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Ticket PDF">
-                                            <i class="fa-regular fa-file-pdf"></i>
-                                        </a>
+                                        <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                                     @endif
 
                                     @if($ticket->invoice_id)
-                                        <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Linked Invoice">
-                                            <i class="fa-solid fa-file-invoice-dollar"></i>
-                                        </a>
+                                        <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                                     @endif
 
                                     @if($ticket->workshop)
-                                        <a href="{{ route('admin.workshop.tickets', $ticket->workshop) }}" class="hover:text-primary-color" title="Manage workshop tickets">
-                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                        </a>
+                                        <x-ui.row-action label="Manage workshop tickets" icon="fa-solid fa-arrow-up-right-from-square" tone="neutral" href="{{ route('admin.workshop.tickets', $ticket->workshop) }}" />
                                     @else
                                         <span class="text-gray-300" title="No workshop linked"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
                                     @endif
 
                                     @if($canCancel)
-                                        <button
+                                        <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
-                                            class="hover:text-amber-600"
-                                            title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
                                             x-on:click="SM.openTicketCancelModal(
-                                                @js(route('admin.ticket.cancel', $ticket)),
-                                                @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle),
-                                                @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                                {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
+                                                {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                                 'Cancel Ticket',
-                                                @js($showSquareRefundOption),
-                                                @js($showSquareRefundOption)
+                                                {{ \Illuminate\Support\Js::from($showSquareRefundOption) }},
+                                                {{ \Illuminate\Support\Js::from($showSquareRefundOption) }}
                                             )"
-                                        >
-                                            <i class="fa-solid fa-ban"></i>
-                                        </button>
+                                         />
                                     @else
                                         <span class="text-gray-300" title="Ticket is not cancellable"><i class="fa-solid fa-ban"></i></span>
                                     @endif
-                                </div>
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                         @php($previousWorkshopKey = $workshopKey)
@@ -206,7 +166,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $tickets->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$tickets" />
         @endif
 
         <div
@@ -230,26 +190,26 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-900" for="cancel-reason">Cancellation message</label>
-                        <textarea
+                        <x-ui.textarea-control
                             id="cancel-reason"
                             name="reason"
                             rows="4"
                             x-model="$store.ticketCancelModal.reason"
                             required
                             class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        ></textarea>
+                        ></x-ui.textarea-control>
                         <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in the customer email.</p>
                     </div>
 
                     <label class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                         <div class="flex gap-3">
-                            <input type="checkbox" x-model="$store.ticketCancelModal.emailCustomer" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                            <x-ui.checkbox bare small x-model="$store.ticketCancelModal.emailCustomer" class="mt-1" />
                             <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
                         </div>
 
                         <template x-if="$store.ticketCancelModal.showSquareRefund">
                             <label class="flex gap-3">
-                                <input type="checkbox" x-model="$store.ticketCancelModal.processSquareRefund" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <x-ui.checkbox bare small x-model="$store.ticketCancelModal.processSquareRefund" class="mt-1" />
                                 <span class="block text-sm font-semibold text-gray-900">Process Square refund</span>
                             </label>
                         </template>
@@ -257,15 +217,17 @@
 
                     <div class="flex justify-end gap-3 pt-2">
                         <x-ui.button type="button" color="primary-outline" x-on:click="SM.closeTicketCancelModal()">Keep Ticket</x-ui.button>
-                        <button
+                        <x-ui.button variant="plain"
                             type="submit"
-                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"
                             x-bind:class="'bg-danger-color hover:bg-danger-color-dark focus-visible:outline-danger-color'">
                             <span x-text="$store.ticketCancelModal.submitLabel"></span>
-                        </button>
+                        </x-ui.button>
                     </div>
                 </form>
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

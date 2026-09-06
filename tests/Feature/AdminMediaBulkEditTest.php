@@ -21,19 +21,15 @@ class AdminMediaBulkEditTest extends TestCase
         $first = $this->makeMedia($admin, 'first.jpg', ['visibility' => 'private', 'tags' => 'robotics']);
         $second = $this->makeMedia($admin, 'second.jpg', ['visibility' => 'private', 'tags' => 'robotics']);
 
-        $this->actingAs($admin)
-            ->post(route('admin.media.bulk.select'), [
-                'media_names' => [$first->name, $second->name],
-            ])
-            ->assertRedirect(route('admin.media.bulk.edit'));
-
-        $this->actingAs($admin)
-            ->get(route('admin.media.bulk.edit'))
-            ->assertOk()
-            ->assertSeeText('Editing 2 media items')
-            ->assertSee('robotics')
-            ->assertSeeText($first->title)
-            ->assertSeeText($second->title);
+        $response = $this->actingAs($admin)->postJson(route('admin.media.bulk.select'), [
+            'media_names' => [$first->name, $second->name],
+        ])->assertOk();
+        $html = $response->json('html');
+        $this->assertStringContainsString('Editing 2 media items', $html);
+        $this->assertStringContainsString('robotics', $html);
+        $this->assertStringContainsString('data-media-bulk-edit-form', $html);
+        $this->assertStringNotContainsString('<script', $html);
+        $this->assertStringNotContainsString('<html', $html);
     }
 
     public function test_bulk_update_changes_only_values_that_differ_from_the_displayed_state(): void
@@ -78,11 +74,11 @@ class AdminMediaBulkEditTest extends TestCase
 
         $response = $this->withSession(['admin_media_bulk_selection' => [$first->name, $second->name]])
             ->actingAs($admin)
-            ->get(route('admin.media.bulk.edit'));
+            ->postJson(route('admin.media.bulk.select'), ['media_names' => [$first->name, $second->name]]);
 
-        $response->assertOk()
-            ->assertSee('value="__mixed"', false)
-            ->assertSeeText('Mixed');
+        $response->assertOk();
+        $this->assertStringContainsString('value="__mixed"', $response->json('html'));
+        $this->assertStringContainsString('Mixed', $response->json('html'));
     }
 
     public function test_bulk_update_moves_selected_media_to_another_storage_disk(): void
@@ -116,11 +112,11 @@ class AdminMediaBulkEditTest extends TestCase
 
         $response = $this->withSession(['admin_media_bulk_selection' => [$first->name, $second->name]])
             ->actingAs($admin)
-            ->get(route('admin.media.bulk.edit'));
+            ->postJson(route('admin.media.bulk.select'), ['media_names' => [$first->name, $second->name]]);
 
-        $response->assertOk()
-            ->assertSee('name="storage_disk"', false)
-            ->assertSee('<option value="__mixed" selected>Mixed</option>', false);
+        $response->assertOk();
+        $this->assertStringContainsString('name="storage_disk"', $response->json('html'));
+        $this->assertStringContainsString('<option value="__mixed" selected>Mixed</option>', $response->json('html'));
     }
 
     public function test_media_editor_only_requires_a_new_user_first_name_when_the_create_modal_is_open(): void
@@ -179,9 +175,27 @@ class AdminMediaBulkEditTest extends TestCase
         $admin = $this->makeAdmin();
 
         $this->actingAs($admin)
-            ->get(route('admin.media.bulk.edit'))
-            ->assertRedirect(route('admin.media.index'))
-            ->assertSessionHasErrors('media_names');
+            ->postJson(route('admin.media.bulk.select'), [])
+            ->assertUnprocessable()->assertJsonValidationErrors('media_names');
+        $this->get(route('admin.media.bulk.edit'))->assertRedirect(route('admin.media.index'));
+    }
+
+    public function test_popup_save_uses_explicit_selection_and_returns_validation_errors_as_json(): void
+    {
+        $admin = $this->makeAdmin();
+        $first = $this->makeMedia($admin, 'selected.jpg', ['tags' => 'keep']);
+        $other = $this->makeMedia($admin, 'other-tab.jpg');
+        $this->actingAs($admin)->withSession(['admin_media_bulk_selection' => [$other->name]])
+            ->putJson(route('admin.media.bulk.update'), ['media_names' => [$first->name], 'caption' => 'Changed'])
+            ->assertOk()->assertJson(['success' => true]);
+        $this->assertSame('Changed', $first->fresh()->caption);
+        $this->assertSame('keep', $first->fresh()->tags);
+        $this->assertNotSame('Changed', $other->fresh()->caption);
+        $this->putJson(route('admin.media.bulk.update'), ['caption' => 'No selection'])->assertUnprocessable()->assertJsonValidationErrors('media_names');
+        $this->putJson(route('admin.media.bulk.update'), ['media_names' => [$first->name], 'storage_disk' => 'invalid'])->assertUnprocessable()->assertJsonValidationErrors('storage_disk');
+        $this->postJson(route('admin.media.bulk.select'), ['media_names' => ['missing.jpg']])->assertUnprocessable();
+        $this->actingAs(User::factory()->create())->postJson(route('admin.media.bulk.select'), ['media_names' => [$first->name]])->assertForbidden();
+        $this->putJson(route('admin.media.bulk.update'), ['media_names' => [$first->name], 'caption' => 'Denied'])->assertForbidden();
     }
 
     private function makeAdmin(): User

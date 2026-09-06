@@ -40,10 +40,12 @@
             this.cancelFormAction = '';
             this.cancelTicketLabel = '';
         },
-        showCancelledRefunded: false
+        showCancelledRefunded: true
     }">
-        <x-ui.toolbar break="md">
-            <x-slot:left>
+        <x-ui.dynamic-list name="account-tickets">
+
+        <div class="my-4 flex flex-wrap items-center gap-3">
+
                 @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
                     <div class="rounded border border-amber-200 bg-amber-50 text-center px-4 py-2 flex flex-col w-full md:w-auto">
                         @php
@@ -54,29 +56,25 @@
                         <div class="mt-1 text-xs font-medium text-amber-800">{{ $invoiceCount }} {{ \Illuminate\Support\Str::plural('invoice', $invoiceCount) }}</div>
                     </div>
                 @endif
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.checkbox
-                        label="Show cancelled/refunded"
-                        :noWrapper="true"
-                        :inline="true"
-                        labelClass="whitespace-nowrap"
-                        x-model="showCancelledRefunded" />
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+
+
+
+
+
+        </div>
+        <x-ui.collection-controls class="my-5" />
 
         @if($tickets->isEmpty())
         <x-none-found item="tickets" search="{{ request()->get('search') }}" />
         @else
-        <x-ui.table>
+        <x-ui.table variant="listing">
             <x-slot:header>
-                <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Ticket #</th>
-                <th>Workshop Details</th>
-                <th class="hidden md:table-cell">Status</th>
-                <th class="hidden lg:table-cell">Purchased At</th>
-                <th class="hidden lg:table-cell">Ticket Holder Details</th>
-                <th>Actions</th>
+                <x-ui.list-heading field="reference_code" class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;" label="Ticket #" />
+                <x-ui.list-heading label="Workshop Details" />
+                <x-ui.list-heading class="hidden md:table-cell text-center!" label="Status" />
+                <x-ui.list-heading field="created_at" class="hidden lg:table-cell" label="Purchased At" />
+                <x-ui.list-heading field="firstname" class="hidden lg:table-cell" label="Ticket Holder Details" />
+                <x-ui.list-heading class="text-center!" label="Actions" />
             </x-slot:header>
             <x-slot:body>
                 @foreach ($tickets as $ticket)
@@ -104,7 +102,7 @@
                     <td>
                         <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
                         @if($ticket->isEarlyBirdTicket())
-                            <div class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Early bird</div>
+                            <x-ui.badge color="amber" uppercase class="mt-1">Early bird</x-ui.badge>
                         @endif
                         <div class="md:hidden text-xs text-gray-600 whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
                         @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
@@ -113,82 +111,70 @@
                     </td>
                     <td>
                         <div>{{ $workshopTitle }}</div>
-                        <div class="text-xs text-gray-600">{{ $workshopDate }} - {{ $workshopLocation }}</div>
-                        <div class="lg:hidden text-xs text-gray-600 mt-1">Purchased: {{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                        <div class="text-xs text-gray-600"><x-ui.date-time>{{ $workshopDate }}</x-ui.date-time> - {{ $workshopLocation }}</div>
+                        <div class="lg:hidden text-xs text-gray-600 mt-1">Purchased: <x-ui.date-time>{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                         <div class="lg:hidden text-xs text-gray-600">{{ $ticketHolderName }} - {{ $ticketHolderContact }}</div>
                     </td>
-                    <td class="hidden md:table-cell">
+                    <td class="hidden md:table-cell text-center!">
                         <div class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
                         @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
                             <div class="mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
                         @endif
                     </td>
-                    <td class="hidden lg:table-cell">{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
+                    <td class="hidden lg:table-cell"><x-ui.date-time>{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
                     <td class="hidden lg:table-cell">
                         <div>{{ $ticketHolderName }}</div>
                         <div class="text-xs text-gray-600">{{ $ticketHolderContact }}</div>
                     </td>
-                    <td>
-                        <div class="flex justify-center gap-3 whitespace-nowrap">
+                    <td class="text-center!">
+                        <x-ui.row-actions class="whitespace-nowrap">
                             @if($canOpenTicketPdf)
-                            <a href="{{ route('account.ticket.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Ticket PDF"><i class="fa-regular fa-file-pdf"></i></a>
+                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.ticket.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                             @endif
                             @if($ticket->invoice_id)
-                            <a href="{{ route('account.ticket.invoice.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Linked Invoice"><i class="fa-solid fa-file-invoice-dollar"></i></a>
+                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('account.ticket.invoice.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                             @endif
                             @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
                             @if($canEditHolderDetails)
-                            <button
+                            <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
-                                class="hover:text-primary-color"
-                                title="Edit attendee details"
                                 x-on:click="openEditModal(
-                                                    @js(route('account.ticket.attendee.update', $ticket)),
-                                                    @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle),
+                                                    {{ \Illuminate\Support\Js::from(route('account.ticket.attendee.update', $ticket)) }},
+                                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
                                                     {
-                                                        firstname: @js((string) ($ticket->firstname ?? '')),
-                                                        surname: @js((string) ($ticket->surname ?? '')),
-                                                        email: @js((string) ($ticket->email ?? '')),
-                                                        phone: @js((string) ($ticket->phone ?? ''))
+                                                        firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
+                                                        surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
+                                                        email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
+                                                        phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                     }
-                                                )">
-                                <i class="fa-solid fa-user-pen"></i>
-                            </button>
+                                                )" />
                             @else
-                            <button
+                            <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
-                                class="hover:text-primary-color"
-                                title="Edit attendee details"
-                                x-on:click="SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')">
-                                <i class="fa-solid fa-user-pen"></i>
-                            </button>
+                                x-on:click="SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')" />
                             @endif
                             @else
                             <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
                             @endif
                             @if($canCancel)
-                            <button
+                            <x-ui.row-action label="Cancel ticket" icon="fa-solid fa-ban" tone="warning"
                                 type="button"
-                                class="hover:text-red-600"
-                                title="Cancel ticket"
-                                x-on:click="openCancelModal(@js(route('account.ticket.cancel', $ticket)), @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle))">
-                                <i class="fa-solid fa-ban"></i>
-                            </button>
+                                x-on:click="openCancelModal({{ \Illuminate\Support\Js::from(route('account.ticket.cancel', $ticket)) }}, {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }})" />
                             @else
                             <span class="text-gray-300" title="Ticket can only be cancelled up to 2 hours before start time"><i class="fa-solid fa-ban"></i></span>
                             @endif
-                        </div>
+                        </x-ui.row-actions>
                     </td>
                 </tr>
                 @endforeach
             </x-slot:body>
         </x-ui.table>
 
-        {{ $tickets->appends(request()->query())->links() }}
+        <x-ui.list-pagination :paginator="$tickets" />
         @endif
 
         <div
@@ -242,5 +228,7 @@
                 </form>
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

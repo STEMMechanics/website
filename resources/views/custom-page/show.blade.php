@@ -16,7 +16,7 @@
 
     <x-container class="py-8">
     @if($page->hero?->url)
-            <x-ui.image-hero :image="$page->hero->url" class="mb-8" />
+            <x-ui.image-hero :alt="$page->title" :image="$page->hero->url" class="mb-8" />
         @endif
 
         @unless($page->show_mast)

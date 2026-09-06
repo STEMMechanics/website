@@ -130,6 +130,9 @@ class AccountController extends Controller
             dispatch(new SendEmail($user->email, new UserEmailUpdateRequest($token->id, $user->email, $newEmail)))->onQueue('mail');
         }
 
+        if ($user->isAdmin()) {
+            $userData['dashboard_email_opt_in'] = $request->boolean('dashboard_email_opt_in');
+        }
         $userData['subscribed'] = ($request->get('subscribed', false) === 'on');
         $user->update($userData);
         $user->syncPrimaryOrganisationByName($organisationName);
@@ -285,6 +288,7 @@ class AccountController extends Controller
         if ($user->tfa_secret === null) {
             $tfa = self::getTFAInstance();
             $secret = $tfa->createSecret();
+            session()->put('tfa.enrolment_secret', $secret);
 
             return response()->json([
                 'secret' => $secret,
@@ -297,12 +301,12 @@ class AccountController extends Controller
     public function show_tfa_image(Request $request)
     {
         $user = auth()->user();
-        if ($user->tfa_secret === null && $request->has('secret')) {
+        if ($user->tfa_secret === null && $request->session()->has('tfa.enrolment_secret')) {
             $tfa = self::getTFAInstance();
 
             $qrCodeProvider = new QRCodeProvider();
             $qrCode = $qrCodeProvider->getQRCodeImage(
-                $tfa->getQRText((string) $user->email, $request->get('secret')),
+                $tfa->getQRText((string) $user->email, (string) $request->session()->get('tfa.enrolment_secret')),
                 200
             );
 
@@ -325,6 +329,7 @@ class AccountController extends Controller
             if (self::verifyTfaCode((string) $secret, $code)) {
                 $user->tfa_secret = $secret;
                 $user->save();
+                $request->session()->forget('tfa.enrolment_secret');
 
                 $codes = $user->generateBackupCodes();
 
@@ -344,6 +349,7 @@ class AccountController extends Controller
 
     public function destroy_tfa(Request $request)
     {
+        abort_if(config('security.admin_mfa_required') && $request->user()?->isAdmin(), 403, 'Administrators must keep two-factor authentication enabled.');
         $user = auth()->user();
 
         if ($user->tfa_secret !== null) {

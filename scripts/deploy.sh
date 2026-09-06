@@ -120,7 +120,7 @@ set_env_value() {
   fi
 
   mv "$tmp_file" "$env_file"
-  chmod 664 "$env_file" || true
+  chmod 640 "$env_file" || true
 }
 
 check_runtime_tools() {
@@ -247,7 +247,9 @@ fix_permissions() {
   find "$WORKDIR/public" -type f -exec chmod 644 {} \; || true
   [[ -f "$WORKDIR/public/.htaccess" ]] && chmod 644 "$WORKDIR/public/.htaccess" || true
 
-  chmod -R 775 "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
+  find "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" -type d -exec chmod 750 {} \; || true
+  find "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" -type f -exec chmod 640 {} \; || true
+  [[ -f "$WORKDIR/.env" ]] && chmod 640 "$WORKDIR/.env" || true
 
   if [[ "$(id -u)" -eq 0 ]]; then
     for path in "${chown_paths[@]}"; do
@@ -386,6 +388,9 @@ fix_permissions
 #run_app "cd $WORKDIR && php artisan route:clear"
 run_app "cd $WORKDIR && php artisan optimize:clear"
 run_app "cd $WORKDIR && php artisan optimize"
+if ! run_app "cd $WORKDIR && php artisan security:deployment-check"; then
+  abort_deploy "Deployment security checks failed. Application remains in maintenance mode; correct configuration and rerun deployment."
+fi
 run_app "cd $WORKDIR && php artisan queue:restart"
 run_app "cd $WORKDIR && php artisan search:index-documents"
 

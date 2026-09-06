@@ -23,26 +23,8 @@
             return this.reasonOther.trim().length > 0;
         }
     }">
-        <x-ui.toolbar>
-            <x-slot:left>
-                <form method="GET" action="{{ route('admin.server.square-events') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-                    <div class="w-full sm:w-64">
-                        <x-ui.select label="Event Type" name="event_type">
-                            <option value="">All event types</option>
-                            @foreach($eventTypes as $eventType)
-                                <option value="{{ $eventType }}" {{ request('event_type') === $eventType ? 'selected' : '' }}>{{ $eventType }}</option>
-                            @endforeach
-                        </x-ui.select>
-                    </div>
-                    <div class="w-full sm:w-40 mb-4">
-                        <x-ui.button type="submit" color="outline" class="w-full">Filter</x-ui.button>
-                    </div>
-                </form>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-server-square-events">
+        <x-ui.collection-controls class="my-5" />
 
         @if($groupedEvents->isEmpty())
             <x-none-found item="square events" search="{{ request()->get('search') }}" />
@@ -65,15 +47,15 @@
                     <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Sync Stored Events</x-ui.button>
                 </form>
             </div>
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>ID</th>
-                    <th>Details</th>
-                    <th class="hidden md:table-cell">Amount</th>
-                    <th class="hidden md:table-cell">Type</th>
-                    <th class="hidden lg:table-cell">Square Payment ID</th>
-                    <th class="hidden md:table-cell">Payment</th>
-                    <th>Actions</th>
+                    <x-ui.list-heading label="ID" />
+                    <x-ui.list-heading label="Details" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Amount" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Type" />
+                    <x-ui.list-heading class="hidden lg:table-cell" label="Square Payment ID" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Payment" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($groupedEvents as $eventGroup)
@@ -95,7 +77,7 @@
                                 @endif
                             </td>
                             <td>
-                                <div>{{ $event->processed_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div><x-ui.date-time>{{ $event->processed_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $event->event_type ?: '-' }}</div>
                                 @if($squarePaymentId !== '')
                                     <div class="lg:hidden text-xs font-mono text-gray-600">{{ $squarePaymentId }}</div>
@@ -117,14 +99,14 @@
                                     <div class="md:hidden text-xs mt-1">Payment: #{{ $event->payment_id }}</div>
                                 @endif
                             </td>
-                            <td class="hidden md:table-cell">
+                            <td class="hidden md:table-cell text-center!">
                                 @if($amountCents !== null)
                                     {{ $amountCents < 0 ? '-' : '' }}${{ number_format(abs($amountCents) / 100, 2) }}{{ $amountCurrency !== '' ? ' '.$amountCurrency : '' }}
                                 @else
                                     -
                                 @endif
                             </td>
-                            <td class="hidden md:table-cell">
+                            <td class="hidden md:table-cell text-center!">
                                 {{ $event->event_type ?: '-' }}
                             </td>
                             <td class="hidden lg:table-cell text-xs font-mono">{{ $squarePaymentId !== '' ? $squarePaymentId : '-' }}</td>
@@ -139,31 +121,23 @@
                                     -
                                 @endif
                             </td>
-                            <td>
-                                <div class="flex justify-center gap-3 whitespace-nowrap">
+                            <td class="text-center!">
+                                <x-ui.row-actions class="whitespace-nowrap">
                                     @if($squarePaymentId !== '')
                                         @if($isIgnored)
                                             <form method="POST" action="{{ route('admin.server.square-events.unignore', $event) }}">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="hover:text-primary-color" title="Remove ignore rule">
-                                                    <i class="fa-solid fa-ban"></i>
-                                                </button>
+                                                <x-ui.row-action label="Remove ignore rule" icon="fa-solid fa-ban" tone="warning" type="submit" />
                                             </form>
                                         @else
-                                            <button
+                                            <x-ui.row-action label="Ignore this Square payment ID" icon="fa-solid fa-ban" tone="warning"
                                                 type="button"
-                                                class="hover:text-primary-color"
-                                                title="Ignore this Square payment ID"
-                                                x-on:click.prevent="openIgnore(@js(route('admin.server.square-events.ignore', $event)), @js($squarePaymentId))">
-                                                <i class="fa-solid fa-ban"></i>
-                                            </button>
+                                                x-on:click.prevent="openIgnore({{ \Illuminate\Support\Js::from(route('admin.server.square-events.ignore', $event)) }}, {{ \Illuminate\Support\Js::from($squarePaymentId) }})" />
                                         @endif
                                     @endif
-                                    <a href="{{ route('admin.server.square-events.show', $event) }}" class="hover:text-primary-color" title="View event">
-                                        <i class="fa-regular fa-eye"></i>
-                                    </a>
-                                </div>
+                                    <x-ui.row-action label="View event" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $event) }}" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                         @foreach($childEvents as $childEvent)
@@ -176,7 +150,7 @@
                                     <span class="text-gray-600 pl-5 inline-block">↳ #{{ $childEvent->id }}</span>
                                 </td>
                                 <td>
-                                    <div>{{ $childEvent->processed_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div><x-ui.date-time>{{ $childEvent->processed_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                     <div class="text-xs text-gray-600 mt-1">{{ $childEvent->event_type ?: '-' }}</div>
                                     <div class="text-xs font-mono text-gray-600">{{ $childEvent->event_id ?: '-' }}</div>
                                     @if($childAmountCents !== null)
@@ -185,14 +159,14 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="hidden md:table-cell">
+                                <td class="hidden md:table-cell text-center!">
                                     @if($childAmountCents !== null)
                                         {{ $childAmountCents < 0 ? '-' : '' }}${{ number_format(abs($childAmountCents) / 100, 2) }}{{ $childAmountCurrency !== '' ? ' '.$childAmountCurrency : '' }}
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="hidden md:table-cell">{{ $childEvent->event_type ?: '-' }}</td>
+                                <td class="hidden md:table-cell text-center!">{{ $childEvent->event_type ?: '-' }}</td>
                                 <td class="hidden lg:table-cell text-xs font-mono">{{ $squarePaymentId !== '' ? $squarePaymentId : '-' }}</td>
                                 <td class="hidden md:table-cell">
                                     @if((bool) ($childEvent->is_ignored ?? false))
@@ -205,12 +179,10 @@
                                         -
                                     @endif
                                 </td>
-                                <td>
-                                    <div class="flex justify-center gap-3 whitespace-nowrap">
-                                        <a href="{{ route('admin.server.square-events.show', $childEvent) }}" class="hover:text-primary-color" title="View event">
-                                            <i class="fa-regular fa-eye"></i>
-                                        </a>
-                                    </div>
+                                <td class="text-center!">
+                                    <x-ui.row-actions class="whitespace-nowrap">
+                                        <x-ui.row-action label="View event" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $childEvent) }}" />
+                                    </x-ui.row-actions>
                                 </td>
                             </tr>
                         @endforeach
@@ -218,7 +190,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $groupPage->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$groupPage" />
 
             <div
                 x-show="ignoreOpen"
@@ -228,9 +200,9 @@
                 <div class="w-full max-w-lg rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-lg font-bold">Ignore Square Payment</h3>
-                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeIgnore()">
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeIgnore()">
                             <i class="fa-solid fa-xmark"></i>
-                        </button>
+                        </x-ui.button>
                     </div>
                     <p class="text-sm text-gray-700 mb-3">
                         This will prevent future syncs from creating/linking payment records for
@@ -246,21 +218,23 @@
                         </x-ui.select>
                         <div class="mb-4" x-show="reasonCode === 'other'" x-cloak>
                             <label class="block text-sm pl-1">Other Reason</label>
-                            <textarea name="reason_other" x-model="reasonOther" rows="3" class="bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300"></textarea>
+                            <x-ui.textarea-control name="reason_other" x-model="reasonOther" rows="3" class="bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300"></x-ui.textarea-control>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button type="button"
+                            <x-ui.button variant="plain" type="button"
                                     class="border border-gray-300 bg-white text-gray-800 whitespace-nowrap text-center justify-center rounded-md px-6 py-2 text-sm font-semibold leading-6 shadow-sm hover:bg-gray-50 transition"
-                                    x-on:click.prevent="closeIgnore()">Cancel</button>
-                            <button type="submit"
-                                    class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-8 py-2 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition disabled:cursor-not-allowed disabled:opacity-50"
+                                    x-on:click.prevent="closeIgnore()">Cancel</x-ui.button>
+                            <x-ui.button variant="plain" type="submit"
+                                    class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-8 py-2 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition disabled:cursor-not-allowed disabled:opacity-50"
                                     x-bind:disabled="!canSubmitIgnore()">
                                 Ignore Payment
-                            </button>
+                            </x-ui.button>
                         </div>
                     </form>
                 </div>
             </div>
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

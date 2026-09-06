@@ -39,49 +39,47 @@
                         <div class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg">
                             <div class="mb-3 flex items-center justify-between">
                                 <h3 class="text-lg font-semibold">Email Quote</h3>
-                                <button type="button" class="text-gray-600 hover:text-black" x-on:click.prevent="open = false">
+                                <x-ui.button variant="plain" type="button" class="text-gray-600 hover:text-black" x-on:click.prevent="open = false">
                                     <i class="fa-solid fa-xmark"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
                             <label class="block text-sm pl-1 mt-4" for="quote-recipient-emails">Recipient Email</label>
-                            <input
+                            <x-ui.input-control
                                 id="quote-recipient-emails"
                                 name="recipient_emails"
                                 type="text"
                                 value="{{ (string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? ''))) }}"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('recipient_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                                 x-model="recipientEmails"
-                                placeholder="name@example.com, another@example.com"
-                            />
+                                placeholder="name@example.com, another@example.com" />
                             <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to email multiple recipients.</div>
                             @if($errors->has('recipient_emails'))
                                 <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('recipient_emails') }}</div>
                             @endif
 
                             <label class="block text-sm pl-1 mt-4" for="quote-cc-emails">CC</label>
-                            <input
+                            <x-ui.input-control
                                 id="quote-cc-emails"
                                 name="cc_emails"
                                 type="text"
                                 value="{{ (string) old('cc_emails', '') }}"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('cc_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                                 x-model="ccEmails"
-                                placeholder="cc@example.com, team@example.com"
-                            />
+                                placeholder="cc@example.com, team@example.com" />
                             <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to add multiple CC recipients.</div>
                             @if($errors->has('cc_emails'))
                                 <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('cc_emails') }}</div>
                             @endif
 
                             <label class="block text-sm pl-1 mt-4" for="quote-email-message">Message</label>
-                            <textarea
+                            <x-ui.textarea-control
                                 id="quote-email-message"
                                 name="email_message"
                                 rows="8"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300"
                                 x-model="emailMessage"
                                 placeholder="Compose the full email body. Supports placeholders like @{{name}} and @{{id}}."
-                            >{{ (string) old('email_message', $defaultQuoteEmailMessage) }}</textarea>
+                            >{{ (string) old('email_message', $defaultQuoteEmailMessage) }}</x-ui.textarea-control>
                             <div class="text-xs text-gray-500 ml-2 mt-1">Placeholders: @{{name}}, @{{id}}, @{{total}}, @{{outstanding}}, @{{due}}, @{{pay}}, @{{action}}</div>
                             <div class="mt-4 flex justify-end gap-2">
                                 <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
@@ -554,9 +552,9 @@
             <div class="border border-gray-400 rounded-lg p-4 mb-4" x-init="serializeLineItems()">
                 <div class="flex flex-col gap-3 mb-3 md:flex-row md:items-center md:justify-between">
                     <h3 class="font-bold text-lg">Line Items</h3>
-                    <button type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem('custom')">
+                    <x-ui.button variant="plain" type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem('custom')">
                         <i class="fa-solid fa-plus mr-2"></i>Add Item
-                    </button>
+                    </x-ui.button>
                 </div>
                 @if($errors->has('line_items_json'))
                     <div class="text-xs text-red-600 ml-2 mb-3">{{ $errors->first('line_items_json') }}</div>
@@ -571,7 +569,7 @@
                         <div class="flex flex-col gap-3 md:flex-row md:items-start">
                             <div class="relative w-full md:w-56 shrink-0" x-data="{ open: false }" @click.outside="open = false">
                                 <label class="block text-sm pl-1">Item Type</label>
-                                <button
+                                <x-ui.button variant="plain"
                                     type="button"
                                     class="mt-1 flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm text-gray-900 shadow-sm transition hover:bg-gray-50"
                                     x-on:click.stop.prevent="open = !open"
@@ -581,17 +579,17 @@
                                         <span x-text="itemTypeLabel(item.kind)"></span>
                                     </span>
                                     <i class="fa-solid fa-chevron-down text-gray-400"></i>
-                                </button>
+                                </x-ui.button>
                                 <div x-show="open" x-cloak class="absolute z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
                                     <template x-for="option in itemTypeOptions" :key="option.value">
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="button"
                                             class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-gray-50"
                                             x-on:click.stop.prevent="open = false; selectItemType(index, option.value)"
                                         >
                                             <i class="fa-solid w-4 text-gray-500" x-bind:class="option.icon"></i>
                                             <span x-text="option.label"></span>
-                                        </button>
+                                        </x-ui.button>
                                     </template>
                                 </div>
                             </div>
@@ -601,20 +599,20 @@
                                     <div class="grid grid-cols-12 gap-3">
                                         <div class="col-span-12 md:col-span-7">
                                             <label class="block text-sm pl-1">Store Product</label>
-                                            <select class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_id" x-on:change="item.source_variant_id = 0; applyProductSelection(index)">
+                                            <x-ui.select-control class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_id" x-on:change="item.source_variant_id = 0; applyProductSelection(index)">
                                                 <option value="">Select a product</option>
                                                 <template x-for="product in catalogProducts" :key="product.id">
                                                     <option :value="String(product.id)" :selected="String(item.source_id || '') === String(product.id || '')" x-text="product.title"></option>
                                                 </template>
-                                            </select>
+                                            </x-ui.select-control>
                                         </div>
                                         <div class="col-span-12 md:col-span-5" x-show="variantOptions(item).length > 0">
                                             <label class="block text-sm pl-1">Variant</label>
-                                            <select class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_variant_id" x-on:change="applyProductSelection(index)">
+                                            <x-ui.select-control class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_variant_id" x-on:change="applyProductSelection(index)">
                                                 <template x-for="variant in variantOptions(item)" :key="variant.id">
                                                     <option :value="String(variant.id)" :selected="String(item.source_variant_id || '0') === String(variant.id || '')" x-text="variant.name"></option>
                                                 </template>
-                                            </select>
+                                            </x-ui.select-control>
                                         </div>
                                     </div>
                                 </template>
@@ -622,36 +620,36 @@
                                 <template x-if="item.kind !== 'product'">
                                     <div>
                                         <label class="block text-sm pl-1">Description</label>
-                                        <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" placeholder="Workshop Delivery, Travel Fee, Shipping or custom text" />
+                                        <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" placeholder="Workshop Delivery, Travel Fee, Shipping or custom text" />
                                     </div>
                                 </template>
                             </div>
 
-                            <button type="button" class="self-start text-red-600 hover:text-red-700 md:pt-8" x-on:click.prevent="removeLineItem(index)">
+                            <x-ui.button variant="plain" type="button" class="self-start text-red-600 hover:text-red-700 md:pt-8" x-on:click.prevent="removeLineItem(index)">
                                 <i class="fa-solid fa-trash"></i>
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <div class="mt-3 grid grid-cols-12 gap-3 items-end">
                             <div class="col-span-12 md:col-span-5" x-show="item.kind === 'product'" x-cloak>
                                 <label class="block text-sm pl-1">Description</label>
-                                <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
+                                <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
                             </div>
                             <div class="col-span-6 md:col-span-2">
                                 <label class="block text-sm pl-1">Qty / Hrs</label>
-                                <input type="number" step="any" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
+                                <x-ui.input-control type="number" step="any" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
                             </div>
                             <div class="col-span-6 md:col-span-3">
                                 <label class="block text-sm pl-1">Unit Price (Inc GST)</label>
-                                <input type="text" inputmode="decimal" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" />
+                                <x-ui.input-control type="text" inputmode="decimal" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" />
                             </div>
                             <div class="col-span-6 md:col-span-2">
                                 <label class="block text-sm pl-1">Unit Price (Ex GST, Auto)</label>
-                                <input type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="unitPriceExGst(item)" />
+                                <x-ui.input-control type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="unitPriceExGst(item)" />
                             </div>
                             <div class="col-span-6 md:col-span-2">
                                 <label class="block text-sm pl-1">Sub Total (Inc GST)</label>
-                                <input type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="subtotalIncGst(item)" />
+                                <x-ui.input-control type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="subtotalIncGst(item)" />
                             </div>
                             <div class="col-span-12 md:col-span-2">
                                 <label class="block text-sm pl-1">GST</label>
@@ -670,7 +668,7 @@
 
                         <div class="mt-3">
                             <label class="block text-sm pl-1">Line Item Notes</label>
-                            <textarea rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></textarea>
+                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
                         </div>
                     </div>
                 </template>
@@ -705,21 +703,21 @@
                 :files="$privateFinanceFiles"
             />
 
-            <div class="flex justify-end mt-8 gap-4">
+            <x-ui.editor-actions>
                 @isset($quote)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete</x-ui.button>
                     <x-ui.button
                         type="submit"
                         color="primary-outline"
                         name="save_and_email"
                         value="1"
-                        x-bind:disabled="quoteStatus !== @js(\App\Models\Quote::STATUS_OPEN)"
+                        x-bind:disabled="quoteStatus !== {{ \Illuminate\Support\Js::from(\App\Models\Quote::STATUS_OPEN) }}"
                     >
                         Save and Email
                     </x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
-            </div>
+            </x-ui.editor-actions>
 
         </form>
     </x-container>

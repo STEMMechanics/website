@@ -1,13 +1,12 @@
 <div>
     <form wire:submit.prevent="subscribe" class="flex flex-row justify-center">
-        <input
+        <x-ui.input-control
                 type="text"
                 name="name"
                 wire:model.defer="trap"
                 autocomplete="off"
                 tabindex="-1"
-                class="hidden"
-        />
+                class="hidden" />
 
         <x-ui.input
                 type="email"

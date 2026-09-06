@@ -132,5 +132,7 @@ return [
         'name' => env('MAIL_CONTACT_TO_NAME', env('MAIL_FROM_NAME', 'Example')),
     ],
 
+    'invoice_review_fallback' => env('MAIL_INVOICE_REVIEW_FALLBACK', 'admin@stemmechanics.com.au'),
+
     'admin_bcc' => env('MAIL_ADMIN_BCC', 'admin@stemmechanics.com.au'),
 ];

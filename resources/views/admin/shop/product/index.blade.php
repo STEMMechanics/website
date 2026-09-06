@@ -1,22 +1,15 @@
 <x-layout>
-    <x-mast>Store Products</x-mast>
+    <x-mast>Store Products
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create</x-ui.button></x-slot:actions>
+    </x-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-shop-product">
         @php
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.shop.product.create') }}">Create</x-ui.button>
-                <x-ui.button href="{{ route('admin.shop.product.index', $baseIndexQuery) }}" :color="$selectedFilter === 'all' ? 'primary-outline' : 'outline'">Current Products</x-ui.button>
-                <x-ui.button href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'actionable'])) }}" :color="$selectedFilter === 'actionable' ? 'primary-outline' : 'outline'">Actionable</x-ui.button>
-                <x-ui.button href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'archived'])) }}" :color="$selectedFilter === 'archived' ? 'primary-outline' : 'outline'">Archived</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+        <x-ui.collection-controls class="my-5" />
 
         @if($products->isEmpty())
             <x-none-found item="products" search="{{ request()->get('search') }}" />
@@ -24,14 +17,14 @@
             @php
                 $inventorySummaries = $inventorySummaries ?? [];
             @endphp
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Product</th>
-                    <th class="hidden lg:table-cell">Status</th>
-                    <th class="hidden md:table-cell">Type</th>
-                    <th>Qty Remaining</th>
-                    <th>Price</th>
-                    <th>Action</th>
+                    <x-ui.list-heading label="Product" />
+                    <x-ui.list-heading class="hidden lg:table-cell text-center!" label="Status" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Type" />
+                    <x-ui.list-heading label="Qty Remaining" />
+                    <x-ui.list-heading class="text-center!" label="Price" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($products as $product)
@@ -66,8 +59,8 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ \App\Models\Product::statusLabel((string) $product->status) }}</td>
-                            <td class="hidden md:table-cell">{{ \App\Models\Product::productTypeLabel((string) $product->product_type) }}</td>
+                            <td class="hidden lg:table-cell text-center!">{{ \App\Models\Product::statusLabel((string) $product->status) }}</td>
+                            <td class="hidden md:table-cell text-center!">{{ \App\Models\Product::productTypeLabel((string) $product->product_type) }}</td>
                             <td>
                                 <div class="font-semibold text-gray-900">
                                     @if($product->isDigital())
@@ -99,47 +92,39 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>{{ \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
-                            <td>
-                                <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.shop.product.edit', $product) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                            <td class="text-center!">{{ \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
+                            <td class="text-center!">
+                                <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.product.edit', $product) }}" />
                                     <form method="POST" action="{{ route('admin.shop.product.duplicate', $product) }}">
                                         @csrf
-                                        <button type="submit" class="hover:text-primary-color" title="Duplicate" aria-label="Duplicate {{ $product->title }}">
-                                            <i class="fa-solid fa-copy"></i>
-                                        </button>
+                                        <x-ui.row-action label="Duplicate" icon="fa-solid fa-copy" tone="neutral" type="submit" aria-label="Duplicate {{ $product->title }}" />
                                     </form>
                                     @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
                                         <form method="POST" action="{{ route('admin.shop.product.restore', $product) }}">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="hover:text-primary-color" title="Restore as draft" aria-label="Restore {{ $product->title }} as draft">
-                                                <i class="fa-solid fa-box-open"></i>
-                                            </button>
+                                            <x-ui.row-action label="Restore as draft" icon="fa-solid fa-box-open" tone="neutral" type="submit" aria-label="Restore {{ $product->title }} as draft" />
                                         </form>
                                     @else
                                         <form method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="hover:text-primary-color" title="Archive" aria-label="Archive {{ $product->title }}">
-                                                <i class="fa-solid fa-box-archive"></i>
-                                            </button>
+                                            <x-ui.row-action label="Archive" icon="fa-solid fa-box-archive" tone="neutral" type="submit" aria-label="Archive {{ $product->title }}" />
                                         </form>
                                     @endif
                                     @if(! $product->store_order_items_exists)
-                                        <button
+                                        <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger"
                                             type="button"
-                                            class="hover:text-danger-color"
-                                            title="Delete"
                                             aria-label="Delete {{ $product->title }}"
                                             x-data
                                             x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
-                                        ><i class="fa-solid fa-trash"></i></button>
+                                         />
                                     @endif
                                     @if($product->isActive())
-                                        <a href="{{ route('shop.product.show', $product) }}" class="hover:text-primary-color" title="View"><i class="fa-solid fa-up-right-from-square"></i></a>
+                                        <x-ui.row-action label="View" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('shop.product.show', $product) }}" />
                                     @endif
-                                </div>
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
@@ -147,8 +132,9 @@
             </x-ui.table>
 
             <div class="mt-6">
-                {{ $products->appends(request()->query())->links() }}
+                <x-ui.list-pagination :paginator="$products" />
             </div>
         @endif
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

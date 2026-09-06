@@ -69,6 +69,7 @@
         }
     }"
 >
+    <x-ui.query-inputs :values="request()->only(['list_sort', 'list_direction'])" />
     <div class="flex flex-col gap-4 p-4">
         <section>
             <div class="mb-2 flex items-end justify-between gap-3">
@@ -77,7 +78,7 @@
             </div>
 
             <div class="relative" x-on:click.outside="closeResults()">
-                <input
+                <x-ui.input-control
                         id="matrix_organisation_search"
                         type="search"
                         x-model="organisationSearch"
@@ -92,8 +93,7 @@
                         aria-autocomplete="list"
                         aria-controls="matrix_organisation_results"
                         x-bind:aria-expanded="organisationSearch.trim().length >= 2"
-                        class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300"
-                >
+                        class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                 <div
                         id="matrix_organisation_results"
                         class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
@@ -102,7 +102,7 @@
                         role="listbox"
                 >
                     <template x-for="(organisation, index) in results" :key="organisation.id">
-                        <button
+                        <x-ui.button variant="plain"
                                 type="button"
                                 class="flex w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50"
                                 x-bind:class="{ 'bg-sky-50': index === activeResultIndex }"
@@ -114,7 +114,7 @@
                         >
                             <i class="fa-solid fa-plus text-primary-color"></i>
                             <span x-text="organisation.label"></span>
-                        </button>
+                        </x-ui.button>
                     </template>
                     <div class="px-3 py-3 text-sm text-gray-500" x-show="results.length === 0">No unselected organisations found.</div>
                 </div>
@@ -127,7 +127,7 @@
                     <span class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-sky-50 py-1 pl-3 pr-1.5 text-sm text-sky-800 ring-1 ring-inset ring-sky-200">
                         <input type="hidden" x-bind:name="`organisation_ids[${index}]`" :value="organisation.id">
                         <span class="truncate" x-text="organisation.label"></span>
-                        <button
+                        <x-ui.button variant="plain"
                                 type="button"
                                 class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-sky-500 hover:bg-sky-100 hover:text-red-600"
                                 x-on:click="remove(organisation.id)"
@@ -135,7 +135,7 @@
                                 aria-label="Remove organisation"
                         >
                             <i class="fa-solid fa-xmark text-xs"></i>
-                        </button>
+                        </x-ui.button>
                     </span>
                 </template>
             </div>

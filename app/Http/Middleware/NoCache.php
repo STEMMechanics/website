@@ -15,7 +15,7 @@ class NoCache
         $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('Expires', '0');
-        $response->headers->set('Vary', 'Cookie, Authorization');
+        $response->setVary(['Cookie', 'Authorization'], false);
 
         return $response;
     }

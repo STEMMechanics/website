@@ -19,6 +19,8 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets</x-mast>
 
     <x-container>
+        <x-ui.dynamic-list name="admin-workshop-tickets">
+
         <div
             x-data="{
                 createTicketOpen: @js($createTicketModalOpen),
@@ -84,37 +86,29 @@
         </div>
 
         <div class="my-4 flex flex-col gap-3 md:flex-row md:items-center">
-            <div class="flex flex-1 flex-wrap gap-2">
+            <x-ui.row-actions class="flex-1">
                 <x-ui.button type="button" x-on:click.prevent="createTicketOpen = true">Create Ticket</x-ui.button>
                 <a
                     href="{{ route('admin.workshop.tickets.pdf', $workshop) }}"
                     target="_blank"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                     title="Ticket Roll PDF"
                     aria-label="Ticket Roll PDF"
                 >
                     <i class="fa-regular fa-file-pdf"></i>
                 </a>
-                <button
+                <x-ui.row-action label="Email Ticket Contacts" icon="fa-regular fa-envelope" tone="neutral"
                     type="button"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                     x-on:click.prevent="bulkEmailOpen = true"
-                    title="Email Ticket Contacts"
                     aria-label="Email Ticket Contacts"
-                >
-                    <i class="fa-regular fa-envelope"></i>
-                </button>
-                <button
+                 />
+                <x-ui.row-action label="{{ $smsButtonTitle }}" icon="fa-solid fa-comment-sms" tone="neutral"
                     type="button"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                     x-on:click.prevent="smsOpen = true"
-                    title="{{ $smsButtonTitle }}"
                     aria-label="{{ $smsButtonTitle }}"
-                    @disabled(! $smsButtonEnabled)
-                >
-                    <i class="fa-solid fa-comment-sms"></i>
-                </button>
-            </div>
+                    :disabled="! $smsButtonEnabled"
+                 />
+            </x-ui.row-actions>
             <div class="w-full md:w-auto md:min-w-[18rem]">
                 <x-ui.search name="search" label="Search Tickets" class="w-full" />
             </div>
@@ -123,7 +117,7 @@
         @if($tickets->isEmpty())
         <x-none-found item="tickets" search="{{ request()->get('search') }}" />
         @else
-        <div class="space-y-4 lg:hidden">
+        <div data-list-results class="space-y-4 lg:hidden">
             @foreach($tickets as $ticket)
                 @php
                 $statusText = ucwords(str_replace('-', ' ', (string) ($ticket->status_label ?? '')));
@@ -195,43 +189,43 @@
                         @endif
 
                         @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color"
                                 title="Edit attendee details"
                                 x-on:click="openEditModal(
-                                                @js(route('tickets.attendee.update', $ticket)),
-                                                @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
+                                                {{ \Illuminate\Support\Js::from(route('tickets.attendee.update', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
                                                 {
-                                                    firstname: @js((string) ($ticket->firstname ?? '')),
-                                                    surname: @js((string) ($ticket->surname ?? '')),
-                                                    email: @js((string) ($ticket->email ?? '')),
-                                                    phone: @js((string) ($ticket->phone ?? ''))
+                                                    firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
+                                                    surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
+                                                    email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
+                                                    phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                 }
                                             )">
                                 <i class="fa-solid fa-user-pen"></i>
                                 Reissue
-                            </button>
+                            </x-ui.button>
                         @endif
                     </div>
 
                     @if($canCancel)
                         <div class="mt-4 flex flex-wrap gap-2">
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
                                 title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
                                 x-on:click="SM.openTicketCancelModal(
-                                    @js(route('admin.ticket.cancel', $ticket)),
-                                    @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
-                                    @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                    {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
+                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                    {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                     'Cancel Ticket',
-                                    @js($hasSquarePayment && $hasAnyPayment),
-                                    @js($hasSquarePayment && $hasAnyPayment)
+                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }},
+                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
                                 )">
                                 <i class="fa-solid fa-ban"></i>
                                 Cancel
-                            </button>
+                            </x-ui.button>
                         </div>
                     @endif
                 </section>
@@ -239,15 +233,15 @@
         </div>
 
         <div class="hidden lg:block">
-        <x-ui.table>
+        <x-ui.table variant="listing">
             <x-slot:header>
-                <th>Ticket #</th>
-                <th>Attendee</th>
-                <th>Status</th>
+                <x-ui.list-heading field="reference_code" label="Ticket #" />
+                <x-ui.list-heading field="firstname" label="Attendee" />
+                <x-ui.list-heading class="text-center!" label="Status" />
                 @if($showInvoiceColumn ?? false)
-                <th>Invoice</th>
+                <x-ui.list-heading label="Invoice" />
                 @endif
-                <th>Actions</th>
+                <x-ui.list-heading class="text-center!" label="Actions" />
             </x-slot:header>
             <x-slot:body>
                 @foreach($tickets as $ticket)
@@ -279,7 +273,7 @@
                         <div class="text-xs text-gray-500">{{ $ticket->email ?: '-' }}</div>
                         <div class="text-xs text-gray-500">{{ $attendeeMobile }}</div>
                     </td>
-                    <td class="text-center">
+                    <td class="text-center!">
                         <span>{{ $statusText }}</span>
                     </td>
                     @if($showInvoiceColumn ?? false)
@@ -293,62 +287,50 @@
                         @endif
                     </td>
                     @endif
-                    <td>
-                        <div class="flex justify-center items-center gap-3">
+                    <td class="text-center!">
+                        <x-ui.row-actions>
                             @if($canOpenTicketPdf)
-                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Ticket PDF">
-                                <i class="fa-regular fa-file-pdf"></i>
-                            </a>
+                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                             @endif
                             @if($ticket->invoice_id)
-                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="hover:text-primary-color" title="Open Linked Invoice">
-                                <i class="fa-solid fa-file-invoice-dollar"></i>
-                            </a>
+                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                             @endif
                             @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
-                            <button
+                            <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
-                                class="hover:text-primary-color"
-                                title="Edit attendee details"
                                 x-on:click="openEditModal(
-                                                @js(route('tickets.attendee.update', $ticket)),
-                                                @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
+                                                {{ \Illuminate\Support\Js::from(route('tickets.attendee.update', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
                                                 {
-                                                    firstname: @js((string) ($ticket->firstname ?? '')),
-                                                    surname: @js((string) ($ticket->surname ?? '')),
-                                                    email: @js((string) ($ticket->email ?? '')),
-                                                    phone: @js((string) ($ticket->phone ?? ''))
+                                                    firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
+                                                    surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
+                                                    email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
+                                                    phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                 }
-                                            )">
-                                <i class="fa-solid fa-user-pen"></i>
-                            </button>
+                                            )" />
                             @else
                             <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
                             @endif
 
                             @if($canCancel)
-                            <button
+                            <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}" icon="fa-solid fa-ban" tone="warning"
                                 type="button"
-                                class="hover:text-amber-600"
-                                title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
                                 x-on:click="SM.openTicketCancelModal(
-                                    @js(route('admin.ticket.cancel', $ticket)),
-                                    @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
-                                    @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                    {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
+                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                    {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                     'Cancel Ticket',
-                                    @js($hasSquarePayment && $hasAnyPayment),
-                                    @js($hasSquarePayment && $hasAnyPayment)
-                                )">
-                                <i class="fa-solid fa-ban"></i>
-                            </button>
+                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }},
+                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
+                                )" />
                             @else
                             <span class="text-gray-300" title="Ticket is not cancellable"><i class="fa-solid fa-ban"></i></span>
                             @endif
-                        </div>
+                        </x-ui.row-actions>
                     </td>
                 </tr>
                 @endforeach
@@ -356,7 +338,7 @@
         </x-ui.table>
         </div>
 
-        {{ $tickets->appends(request()->query())->links() }}
+        <x-ui.list-pagination :paginator="$tickets" />
         @endif
 
         <div
@@ -371,9 +353,9 @@
                         <h3 class="text-lg font-bold text-gray-900">Create Ticket</h3>
                         <p class="mt-1 text-sm text-gray-600">Create a free ticket or a reserved pay-at-door ticket for this workshop.</p>
                     </div>
-                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createTicketOpen = false">
+                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createTicketOpen = false">
                         <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    </x-ui.button>
                 </div>
 
                 <form method="POST" action="{{ route('admin.workshop.tickets.store', $workshop) }}" class="mt-4 space-y-4">
@@ -400,12 +382,12 @@
                     <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <input type="hidden" name="email_ticket" value="0" />
                         <x-ui.checkbox
-                            name="email_ticket"
-                            value="1"
-                            label="Email ticket to this email address"
-                            checked="{{ $emailTicketChecked }}"
-                            small
-                            noWrapper />
+ name="email_ticket"
+ value="1"
+ label="Email ticket to this email address"
+ checked="{{ $emailTicketChecked }}"
+ small
+ noWrapper />
                         <div class="mt-2 text-xs text-gray-600">Includes the ticket PDF and the invoice when one was created.</div>
                     </div>
 
@@ -438,26 +420,26 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-900" for="cancel-reason">Cancellation message</label>
-                        <textarea
+                        <x-ui.textarea-control
                             id="cancel-reason"
                             name="reason"
                             rows="4"
                             x-model="$store.ticketCancelModal.reason"
                             required
                             class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        ></textarea>
+                        ></x-ui.textarea-control>
                         <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in the customer email.</p>
                     </div>
 
                     <label class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                         <div class="flex gap-3">
-                            <input type="checkbox" x-model="$store.ticketCancelModal.emailCustomer" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                            <x-ui.checkbox bare small x-model="$store.ticketCancelModal.emailCustomer" class="mt-1" />
                             <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
                         </div>
 
                         <template x-if="$store.ticketCancelModal.showSquareRefund">
                             <label class="flex gap-3">
-                                <input type="checkbox" x-model="$store.ticketCancelModal.processSquareRefund" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <x-ui.checkbox bare small x-model="$store.ticketCancelModal.processSquareRefund" class="mt-1" />
                                 <span class="block text-sm font-semibold text-gray-900">Process Square refund</span>
                             </label>
                         </template>
@@ -465,12 +447,12 @@
 
                     <div class="flex justify-end gap-3 pt-2">
                         <x-ui.button type="button" color="primary-outline" x-on:click="SM.closeTicketCancelModal()">Keep Ticket</x-ui.button>
-                        <button
+                        <x-ui.button variant="plain"
                             type="submit"
-                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"
                             x-bind:class="'bg-danger-color hover:bg-danger-color-dark focus-visible:outline-danger-color'">
                             <span x-text="$store.ticketCancelModal.submitLabel"></span>
-                        </button>
+                        </x-ui.button>
                     </div>
                 </form>
             </div>
@@ -485,9 +467,9 @@
             <div class="relative z-10 w-full max-w-2xl rounded-xl bg-white shadow-xl border border-gray-200 p-6">
                 <div class="mb-3 flex items-center justify-between">
                     <h3 class="text-lg font-bold text-gray-900">Email Ticket Contacts</h3>
-                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="bulkEmailOpen = false">
+                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="bulkEmailOpen = false">
                         <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    </x-ui.button>
                 </div>
                 <form method="POST" action="{{ route('admin.workshop.tickets.email', $workshop) }}" class="mt-4 space-y-3">
                     @csrf
@@ -501,12 +483,12 @@
                     @endif
 
                     <label class="block text-sm pl-1" for="workshop-bulk-email-message">Message</label>
-                    <textarea
+                    <x-ui.textarea-control
                         id="workshop-bulk-email-message"
                         name="email_message"
                         rows="10"
                         class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('email_message') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                        required>{{ (string) old('email_message', '') }}</textarea>
+                        required>{{ (string) old('email_message', '') }}</x-ui.textarea-control>
                     @if($errors->has('email_message'))
                     <div class="text-xs text-red-600 ml-2 mt-1">{{ $errors->first('email_message') }}</div>
                     @endif
@@ -536,9 +518,9 @@
                         <h3 class="text-lg font-bold text-gray-900">Text Ticket Contacts</h3>
                         <p class="mt-1 text-sm text-gray-600">Only ticket holders with a mobile number are selectable.</p>
                     </div>
-                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="smsOpen = false">
+                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="smsOpen = false">
                         <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    </x-ui.button>
                 </div>
 
                 @if(($smsRecipientCount ?? 0) === 0)
@@ -551,12 +533,12 @@
 
                     <div>
                         <label class="block text-sm pl-1" for="workshop-sms-message">Message</label>
-                        <textarea
+                        <x-ui.textarea-control
                             id="workshop-sms-message"
                             name="sms_message"
                             rows="6"
                             class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('sms_message') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                            required>{{ (string) old('sms_message', '') }}</textarea>
+                            required>{{ (string) old('sms_message', '') }}</x-ui.textarea-control>
                         @if($errors->has('sms_message'))
                         <div class="text-xs text-red-600 ml-2 mt-1">{{ $errors->first('sms_message') }}</div>
                         @endif
@@ -576,16 +558,16 @@
                         <div class="mt-2 text-xs text-red-600">{{ $errors->first('sms_recipient_ids') }}</div>
                         @endif
 
-                        <div class="mt-4 max-h-[28rem] space-y-2 overflow-auto pr-1">
+                        <div class="mt-4 max-h-112 space-y-2 overflow-auto pr-1">
                             @foreach($smsRecipients as $recipient)
                                 <label class="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 {{ $recipient['can_message'] ? '' : 'opacity-60' }}">
-                                    <input
-                                        type="checkbox"
-                                        name="sms_recipient_ids[]"
-                                        value="{{ $recipient['ticket_id'] }}"
-                                        @checked(in_array((string) $recipient['ticket_id'], $smsSelectedRecipientIds, true))
-                                        @disabled(! $recipient['can_message'])
-                                        class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color" />
+                                    <x-ui.checkbox bare small
+
+ name="sms_recipient_ids[]"
+ value="{{ $recipient['ticket_id'] }}"
+ :checked="in_array((string) $recipient['ticket_id'], $smsSelectedRecipientIds, true)"
+ :disabled="! $recipient['can_message']"
+ class="mt-1" />
                                     <div class="min-w-0">
                                         <div class="text-sm font-semibold text-gray-900">{{ $recipient['reference'] }} - {{ $recipient['name'] }}</div>
                                         <div class="text-xs text-gray-600">
@@ -637,5 +619,7 @@
             </div>
         </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

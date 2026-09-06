@@ -1,7 +1,16 @@
 <x-layout>
-    <x-mast>Site Options</x-mast>
+    <x-admin.settings-mast>
+        <x-slot:actions>
+            <x-ui.action-menu color="mast" id="site-settings-tools" title="Advanced settings">
+                <x-ui.row-action label="Create setting" icon="fa-plus" tone="primary" href="{{ route('admin.site_option.create') }}" />
+                <x-ui.row-action label="Reset all defaults" icon="fa-rotate-left" tone="danger" type="button" id="site-options-reset-all-button" />
+            </x-ui.action-menu>
+        </x-slot:actions>
+    </x-admin.settings-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
+        <x-ui.dynamic-list name="admin-site-option-index">
+
         <div
             id="site-options-app"
             data-csrf="{{ csrf_token() }}"
@@ -9,24 +18,16 @@
             data-update-url-template="{{ route('admin.site_option.update', ['siteOption' => '__ID__']) }}"
             data-reset-url-template="{{ route('admin.site_option.reset-default', ['siteOption' => '__ID__']) }}"
         >
-            <x-ui.toolbar>
-                <x-slot:left>
-                    <x-ui.button href="{{ route('admin.site_option.create') }}">Create</x-ui.button>
-                    <x-ui.button type="button" color="outline" class="ml-2" id="site-options-reset-all-button">Reset All Defaults</x-ui.button>
-                </x-slot:left>
-                <x-slot:right>
-                    <x-ui.search name="search" label="Search" />
-                </x-slot:right>
-            </x-ui.toolbar>
+            <x-ui.collection-controls class="my-5" />
 
             @if($siteOptions->isEmpty())
             <x-none-found item="site options" search="{{ request()->get('search') }}" />
             @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Name</th>
-                    <th>Value</th>
-                    <th>Actions</th>
+                    <x-ui.list-heading label="Name" />
+                    <x-ui.list-heading label="Value" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($siteOptions as $siteOption)
@@ -67,34 +68,26 @@
                                 {{ $valuePreview !== '' ? $valuePreview : '-' }}
                             </div>
                         </td>
-                        <td>
-                            <div class="flex justify-center gap-3">
-                                <button
+                        <td class="text-center!">
+                            <x-ui.row-actions>
+                                <x-ui.row-action label="Edit value" icon="fa-solid fa-pen-to-square" tone="primary"
                                     type="button"
-                                    class="hover:text-primary-color"
-                                    title="Edit value"
                                     data-edit-option="{{ $siteOption->id }}"
-                                >
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
+                                 />
                                 @if($hasDefault)
-                                    <button
+                                    <x-ui.row-action label="Restore default" icon="fa-solid fa-rotate-left" tone="neutral"
                                         type="button"
-                                        class="hover:text-amber-600"
-                                        title="Restore default"
                                         data-reset-option="{{ $siteOption->id }}"
-                                    >
-                                        <i class="fa-solid fa-rotate-left"></i>
-                                    </button>
+                                     />
                                 @endif
-                            </div>
+                            </x-ui.row-actions>
                         </td>
                     </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $siteOptions->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$siteOptions" />
             @endif
 
             <div
@@ -108,38 +101,36 @@
                             <div class="text-lg font-semibold">Edit Site Option</div>
                             <div id="site-option-modal-name" class="mt-1 text-sm text-gray-600"></div>
                         </div>
-                        <button type="button" class="text-gray-500 transition hover:text-gray-900" id="site-option-modal-close" title="Close">
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" id="site-option-modal-close" title="Close">
                             <i class="fa-solid fa-xmark text-lg"></i>
-                        </button>
+                        </x-ui.button>
                     </div>
                     <div class="p-5">
                         <label for="site-option-modal-value" class="mb-2 block text-sm font-medium text-gray-700">Value</label>
-                        <textarea
+                        <x-ui.textarea-control
                             id="site-option-modal-value"
-                            class="min-h-[20rem] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        ></textarea>
-                        <input
+                            class="min-h-80 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        ></x-ui.textarea-control>
+                        <x-ui.input-control
                             id="site-option-modal-number"
                             type="number"
                             min="1"
                             max="240"
                             step="1"
-                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        />
-                        <select
+                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" />
+                        <x-ui.select-control
                             id="site-option-modal-boolean"
                             class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
                         >
                             <option value="1">Enabled</option>
                             <option value="0">Disabled</option>
-                        </select>
-                        <input
+                        </x-ui.select-control>
+                        <x-ui.input-control
                             id="site-option-modal-secret"
                             type="password"
                             autocomplete="new-password"
                             placeholder="Leave blank to keep the stored value"
-                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                        />
+                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" />
                         <p id="site-option-modal-secret-help" class="mt-2 hidden text-xs text-gray-500">Secret values are not sent to the browser. Enter a new value only when you want to replace the stored secret.</p>
                         <div id="site-option-modal-media-field" class="hidden">
                             <x-ui.media
@@ -157,6 +148,8 @@
                 </div>
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>
 
@@ -168,7 +161,7 @@
 </style>
 
 <script>
-    (() => {
+    SM.onDynamicList('admin-site-option-index', (signal) => {
         const root = document.getElementById('site-options-app');
         if (!root) {
             return;
@@ -526,6 +519,6 @@
             if (event.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
                 closeModal();
             }
-        });
-    })();
+        }, { signal });
+    });
 </script>

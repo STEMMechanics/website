@@ -139,9 +139,9 @@
             <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_24rem]">
                 <div class="p-6 sm:p-8 lg:p-12">
                     <div>
-                        <span class="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold uppercase tracking-wide text-white ring-1 ring-white/20">
+                        <x-ui.badge class="bg-white/15 text-white ring-1 ring-white/20">
                             This month’s challenge
-                        </span>
+                        </x-ui.badge>
                     </div>
 
                     <h2 class="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -210,9 +210,9 @@
                 <div class="mx-auto max-w-6xl">
                     <div class="max-w-2xl">
                         <div>
-                <span class="rounded-full bg-violet-600 px-2 py-1 text-sm font-semibold uppercase text-white">
+                <x-ui.badge color="purple" uppercase variant="solid">
                     How it works
-                </span>
+                </x-ui.badge>
                         </div>
 
                         <h2 class="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
@@ -281,9 +281,9 @@
                 <div class="grid gap-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
                     <div class="p-6 sm:p-8 lg:p-12">
                         <div>
-                <span class="rounded-full bg-emerald-600 px-2 py-1 text-sm font-semibold uppercase text-white">
+                <x-ui.badge color="emerald" uppercase variant="solid">
                     Who it’s for
-                </span>
+                </x-ui.badge>
                         </div>
 
                         <h2 class="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
@@ -373,9 +373,9 @@
                 <div class="mx-auto max-w-6xl">
                     <div class="max-w-2xl">
                         <div>
-                <span class="rounded-full bg-amber-600 px-2 py-1 text-sm font-semibold uppercase text-white">
+                <x-ui.badge color="amber" uppercase variant="solid">
                     Community expectations
-                </span>
+                </x-ui.badge>
                         </div>
 
                         <h2 class="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">

@@ -3,91 +3,75 @@
 @endphp
 
 <x-layout>
-    <x-mast title="Workshops" :tabs="$tabs" />
-
-    <x-container>
-        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: false, hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
-            <x-ui.toolbar break="lg">
-                <x-slot:left>
-                    <div class="flex justify-between w-full items-center gap-2">
-                        <x-ui.button href="{{ route('admin.workshop.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
-                        <div class="flex items-center gap-2">
-                            <x-ui.button
+    <x-mast title="Workshops" :tabs="$tabs"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop.create') }}" >Create</x-ui.button>
+<x-ui.button color="mast"
                                     href="{{ route('admin.workshop-flyer.create') }}"
-                                    color="outline"
-                                    class="h-10 w-10 shrink-0 px-0"
+                                    class="w-8.5 shrink-0 px-0!"
                                     title="Promotional Flyer"
                                     aria-label="Promotional Flyer"
                             >
-                                <i class="fa-solid fa-print"></i>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-print"></i></span>
                             </x-ui.button>
-                            <x-ui.button
+<x-ui.button color="mast"
                                     href="{{ $monthCalendarPdfRoute }}"
                                     target="_blank"
-                                    color="outline"
-                                    class="h-10 w-10 shrink-0 px-0"
+                                    class="w-8.5 shrink-0 px-0!"
                                     title="Calendar PDF"
                                     aria-label="Calendar PDF"
                             >
-                                <i class="fa-regular fa-calendar"></i>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-calendar"></i></span>
                             </x-ui.button>
-                            <x-ui.button
+<x-ui.button color="mast"
                                     href="{{ $monthPickListsPdfRoute }}"
                                     target="_blank"
-                                    color="outline"
-                                    class="h-10 w-10 shrink-0 px-0"
+                                    class="w-8.5 shrink-0 px-0!"
                                     title="Pick Lists PDF"
                                     aria-label="Pick Lists PDF"
                             >
-                                <i class="fa-regular fa-file-pdf"></i>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-file-pdf"></i></span>
                             </x-ui.button>
-                            <x-ui.button
+<x-ui.button color="mast"
                                     href="{{ $monthMaterialsPdfRoute }}"
                                     target="_blank"
-                                    color="outline"
-                                    class="h-10 w-10 shrink-0 px-0"
+                                    class="w-8.5 shrink-0 px-0!"
                                     title="Materials Summary PDF"
                                     aria-label="Materials Summary PDF"
                                     aria-haspopup="dialog"
-                                    x-on:click.prevent="openDialog()"
+                                    x-data x-on:click.prevent="$dispatch('open-workshop-materials')"
                             >
-                                <i class="fa-solid fa-clipboard-list"></i>
-                            </x-ui.button>
-                        </div>
-                    </div>
-                </x-slot:left>
-                <x-slot:right>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-clipboard-list"></i></span>
+                            </x-ui.button></x-slot:actions></x-mast>
+
+    <x-container>
+        <x-ui.dynamic-list name="admin-workshop-index" :show-presets="$view === 'list'">
+
+        <div x-on:open-workshop-materials.window="openDialog()" x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
+
                     <div class="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
                         @if($view === 'month')
                             <div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:justify-start">
-                                <x-ui.button href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
+                                <x-ui.button data-dynamic-link href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </x-ui.button>
                                 <div class="min-w-36 text-center text-sm font-semibold text-gray-900 whitespace-nowrap">{{ $currentMonthLabel }}</div>
-                                <x-ui.button href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
+                                <x-ui.button data-dynamic-link href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </x-ui.button>
                             </div>
-                            <x-ui.checkbox
-                                name="show_cancelled"
-                                value="1"
-                                label="Show cancelled"
-                                label-class="whitespace-nowrap"
-                                :noWrapper="true"
-                                :inline="true"
-                                x-model="showCancelled"
-                            />
+
                         @endif
-                        <x-ui.search name="search" label="Search" />
+
                     </div>
-                </x-slot:right>
-            </x-ui.toolbar>
+
+            @if($view === 'list')
+                <x-ui.collection-controls class="my-5" />
+            @endif
 
             <template x-teleport="body">
                 <div
                     x-show="open"
                     x-cloak
-                    class="fixed inset-0 z-[280] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+                    class="fixed inset-0 z-280 flex items-end justify-center bg-black/50 p-4 sm:items-center"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="materials-summary-dialog-title"
@@ -104,17 +88,17 @@
                                         Generate a PDF for every workshop in {{ $currentMonthLabel }} or only the workshops that are still upcoming.
                                     </p>
                                 </div>
-                                <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closeDialog()" aria-label="Close materials summary dialog">
+                                <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeDialog()" aria-label="Close materials summary dialog">
                                     <i class="fa-solid fa-xmark text-lg"></i>
-                                </button>
+                                </x-ui.button>
                             </div>
                         </div>
 
                         <div class="grid gap-3 border-b border-gray-200 px-6 py-6 sm:grid-cols-2">
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="flex w-full flex-col items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:border-primary-color hover:bg-primary-color-light/10"
-                                @click="launch('all')"
+                                x-on:click="launch('all')"
                             >
                                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
                                     <i class="fa-solid fa-calendar-days text-primary-color"></i>
@@ -123,12 +107,12 @@
                                 <div class="text-sm leading-5 text-gray-600">
                                     Includes every workshop in {{ $currentMonthLabel }}.
                                 </div>
-                            </button>
+                            </x-ui.button>
 
-                            <button
+                            <x-ui.button variant="plain"
                                 type="button"
                                 class="flex w-full flex-col items-start gap-2 rounded-xl border border-primary-color bg-primary-color-light/10 px-4 py-4 text-left transition hover:border-primary-color-dark hover:bg-primary-color-light/20"
-                                @click="launch('upcoming')"
+                                x-on:click="launch('upcoming')"
                             >
                                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
                                     <i class="fa-solid fa-arrow-up-right-dots text-primary-color"></i>
@@ -137,11 +121,11 @@
                                 <div class="text-sm leading-5 text-gray-600">
                                     Starts from now through the rest of {{ $currentMonthLabel }}.
                                 </div>
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <div class="flex justify-end px-6 py-4">
-                            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50" @click="closeDialog()">Cancel</button>
+                            <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50" x-on:click="closeDialog()">Cancel</x-ui.button>
                         </div>
                     </div>
                 </div>
@@ -223,7 +207,7 @@
                                                     <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                     <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                 </div>
-                                                <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                                <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</x-ui.badge>
                                             </div>
                                         </a>
                                     @empty
@@ -241,7 +225,7 @@
                 x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
                 x-on:mouseleave="hoveredWorkshop = null"
             >
-                <table class="min-w-245 w-full table-fixed border-collapse">
+                <x-ui.table variant="plain" table-class="min-w-245 w-full table-fixed border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                             @foreach($weekdays as $weekday)
@@ -283,25 +267,25 @@
                                                     data-workshop-key="{{ $workshop->getKey() }}"
                                                     style="cursor: pointer;"
                                                     x-bind:class="{
-                                                        '!border-primary-color !bg-primary-color-light/10 !text-primary-color-dark': hoveredWorkshop === @js((string) $workshop->getKey()),
+                                                        'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === @js((string) $workshop->getKey()),
                                                         'invisible pointer-events-none': @js((string) $workshop->status === 'cancelled') && ! showCancelled
                                                     }"
                                                     @class([
                                                         'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
-                                                        'lg:relative lg:z-10 lg:-ml-[9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
-                                                        'lg:relative lg:z-10 lg:-mr-[9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
+                                                        'lg:relative lg:z-10 lg:ml-[-9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
+                                                        'lg:relative lg:z-10 lg:mr-[-9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
                                                     ])
                                                 >
                                                     <div class="flex items-start justify-between gap-2">
                                                         <div class="w-full">
                                                             <div class="flex justify-between items-center">
                                                                 @if(! $continuation['before'])
-                                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                                    <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                 @elseif($continuation['ends'])
-                                                                    <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                                                    <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $workshop->ends_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                 @endif
                                                                 @if(! $continuation['before'])
-                                                                    <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</div>
+                                                                    <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($status['class']) }}" title="{{ $status['title'] }}">{{ $status['short_title'] }}</x-ui.badge>
                                                                 @endif
                                                             </div>
                                                             @if($continuation['show_details'])
@@ -321,7 +305,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
 
             @if(! $hasMonthWorkshops)
@@ -333,24 +317,24 @@
             @if($workshops->isEmpty())
                 <x-none-found item="workshops" search="{{ $search }}" />
             @else
-                <x-ui.table>
+                <x-ui.table variant="listing">
                     <x-slot:header>
-                        <th class="w-10 text-center !border-r-0">
+                        <th class="w-10 text-center border-r-0!">
                             <x-ui.checkbox id="admin-workshop-select-page" aria-label="Select all workshops on this page" :noWrapper="true" inputClass="mx-auto" />
                         </th>
-                        <th class="!border-l-0 !pl-1">Title</th>
-                        <th class="hidden lg:table-cell">Status</th>
-                        <th class="hidden lg:table-cell">Location</th>
-                        <th class="hidden md:table-cell">Starts</th>
-                        <th>Action</th>
+                        <x-ui.list-heading class="border-l-0! pl-1!" label="Title" />
+                        <x-ui.list-heading class="hidden lg:table-cell text-center!" label="Status" />
+                        <x-ui.list-heading class="hidden lg:table-cell" label="Location" />
+                        <x-ui.list-heading field="starts_at" class="hidden md:table-cell text-center!" label="Starts" />
+                        <x-ui.list-heading class="text-center!" label="Actions" />
                     </x-slot:header>
                     <x-slot:body>
                         @foreach ($workshops as $workshop)
                             <tr>
-                                <td class="text-center !border-r-0">
+                                <td class="text-center border-r-0!">
                                     <x-ui.checkbox value="{{ $workshop->id }}" label="Select {{ $workshop->title }}" :labelHidden="true" :noWrapper="true" inputClass="admin-workshop-select-item" />
                                 </td>
-                                <td class="!border-l-0 !pl-1">
+                                <td class="border-l-0! pl-1!">
                                     <div class="flex items-center">
                                         <div class="w-12 text-center hidden sm:inline-block">
                                             <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
@@ -363,64 +347,66 @@
                                                 @endif
                                             </div>
                                             <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->adminStatusLabel() }})</div>
-                                            <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
+                                            <div class="md:hidden text-xs text-gray-500"><x-ui.date-time>{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</x-ui.date-time></div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="hidden lg:table-cell whitespace-nowrap text-center">{{ $workshop->adminStatusLabel() }}</td>
+                                <td class="hidden lg:table-cell whitespace-nowrap text-center!">{{ $workshop->adminStatusLabel() }}</td>
                                 <td class="hidden lg:table-cell">{{ $workshop->getLocationName() }}</td>
-                                <td class="hidden md:table-cell">
-                                    <span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y') }}</span><span class="hidden xl:inline">, </span><span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('g:i a') }}</span>
+                                <td class="hidden md:table-cell text-center!">
+                                    <span class="block xl:inline whitespace-nowrap"><x-ui.date-time>{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y') }}</x-ui.date-time></span><span class="hidden xl:inline">, </span><span class="block xl:inline whitespace-nowrap"><x-ui.date-time>{{ \Carbon\Carbon::parse($workshop->starts_at)->format('g:i a') }}</x-ui.date-time></span>
                                 </td>
-                                <td>
-                                    <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.workshop.edit', $workshop) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                                <td class="text-center!">
+                                    <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.workshop.edit', $workshop) }}" />
                                     @if($workshop->registration === 'tickets')
-                                        <a href="{{ route('admin.workshop.tickets', $workshop) }}" class="hover:text-primary-color" title="View tickets"><i class="fa-solid fa-ticket"></i></a>
+                                        <x-ui.row-action label="View tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ route('admin.workshop.tickets', $workshop) }}" />
                                     @endif
                                     @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
-                                        <a href="{{ route('admin.workshop.interests', $workshop) }}" class="inline-flex items-center gap-1 hover:text-primary-color" title="View interest registrations">
-                                            <i class="fa-solid fa-thumbs-up"></i>
-                                        </a>
+                                        <x-ui.row-action label="View interest registrations" icon="fa-solid fa-thumbs-up" tone="neutral" href="{{ route('admin.workshop.interests', $workshop) }}" />
                                     @endif
-                                    <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="hover:text-primary-color" title="Attendance"><i class="fa-solid fa-user-check"></i></a>
-                                    <a href="{{ route('admin.workshop.run-sheet', $workshop) }}" class="hover:text-primary-color" title="Run Sheet"><i class="fa-solid fa-list-check"></i></a>
-                                    <a href="{{ route('admin.workshop.photos', $workshop) }}" class="hover:text-primary-color" title="Photos"><i class="fa-solid fa-images"></i></a>
+                                    <x-ui.row-action label="Attendance" icon="fa-solid fa-user-check" tone="neutral" href="{{ route('admin.workshop.attendance', $workshop) }}" />
+                                    <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
+                                    <x-ui.row-action label="Photos" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.photos', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
-                                        <a href="#" class="hover:text-primary-color" title="Copy public page link" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))"><i class="fa-solid fa-link"></i></a>
+                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))" />
                                     @endif
-                                    <a href="{{ route('admin.workshop.duplicate', $workshop) }}" class="hover:text-primary-color" title="Duplicate"><i class="fa-regular fa-copy"></i></a>
-                                    <a href="#" class="hover:text-red-600" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" title="Delete"><i class="fa-solid fa-trash"></i></a>
-                                    </div>
+                                    <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" href="{{ route('admin.workshop.duplicate', $workshop) }}" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />
+                                    </x-ui.row-actions>
                                 </td>
                             </tr>
                       @endforeach
                     </x-slot:body>
                 </x-ui.table>
 
-                {{ $workshops->appends(request()->query())->links() }}
+
             @endif
-            <form id="admin-workshop-bulk-form" method="POST" action="{{ route('admin.workshop.bulk.select') }}" class="mt-4">
+            <x-ui.list-pagination :paginator="$workshops">
+                <x-slot:actions>
+            <form id="admin-workshop-bulk-form" data-bulk-open="workshop-bulk-edit-dialog" method="POST" action="{{ route('admin.workshop.bulk.select') }}">
                 @csrf
                 <div id="admin-workshop-bulk-inputs"></div>
-                <div class="flex flex-wrap items-center justify-start gap-3">
-                    <x-ui.button type="submit" id="admin-workshop-bulk-edit" disabled>Bulk Edit</x-ui.button>
-                    <x-ui.button type="button" id="admin-workshop-clear-selection" color="outline" disabled>Clear</x-ui.button>
-                    <div class="text-sm"><span id="admin-workshop-selected-count">0</span> selected</div>
+                <div id="admin-workshop-selection-toolbar" class="sm-list-footer-selection" data-selected="false">
+                    <x-ui.bulk-edit-button type="submit" id="admin-workshop-bulk-edit" :count="0" class="px-3 sm:px-8" disabled />
                 </div>
             </form>
+                </x-slot:actions>
+            </x-ui.list-pagination>
+
         @endif
         </div>
+
+        </x-ui.dynamic-list>
+        <x-ui.bulk-editor id="workshop-bulk-edit-dialog" title="Bulk edit workshops" loader-id="workshop-bulk-loader" list="admin-workshop-index" selection-key="admin-workshop-bulk-selection" selection-field="workshop_ids[]" />
     </x-container>
 </x-layout>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    SM.onDynamicList('admin-workshop-index', () => {
         const storageKey = 'admin-workshop-bulk-selection';
         const form = document.getElementById('admin-workshop-bulk-form');
         const inputs = document.getElementById('admin-workshop-bulk-inputs');
-        const count = document.getElementById('admin-workshop-selected-count');
-        const clear = document.getElementById('admin-workshop-clear-selection');
         const bulkEdit = document.getElementById('admin-workshop-bulk-edit');
         const selectPage = document.getElementById('admin-workshop-select-page');
         const itemCheckboxes = Array.from(document.querySelectorAll('.admin-workshop-select-item'));
@@ -434,21 +420,18 @@
         selected = [...new Set(selected)];
 
         @if(session('admin_workshop_bulk_clear_selection'))
-            selected = [];
+            if (!window.SM.workshopSelectionCleared) selected = [];
+            window.SM.workshopSelectionCleared = true;
         @endif
 
+        let renderHeader = () => {};
         const render = () => {
             sessionStorage.setItem(storageKey, JSON.stringify(selected));
             itemCheckboxes.forEach((checkbox) => checkbox.checked = selected.includes(checkbox.value));
-            const pageIds = itemCheckboxes.map((checkbox) => checkbox.value);
-            const selectedOnPage = pageIds.filter((id) => selected.includes(id)).length;
-            if (selectPage) {
-                selectPage.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
-                selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
-            }
-            if (count) count.textContent = String(selected.length);
-            if (clear) clear.disabled = selected.length === 0;
-            if (bulkEdit) bulkEdit.disabled = selected.length === 0;
+            renderHeader();
+            const toolbar = document.getElementById('admin-workshop-selection-toolbar');
+            if (toolbar) toolbar.dataset.selected = String(selected.length > 0);
+            if (bulkEdit) { bulkEdit.disabled = selected.length === 0; bulkEdit.textContent = `Edit ${selected.length} ${selected.length === 1 ? 'item' : 'items'}`; }
             if (inputs) {
                 inputs.replaceChildren(...selected.map((id) => {
                     const input = document.createElement('input');
@@ -466,16 +449,22 @@
                 : selected.filter((id) => id !== checkbox.value);
             render();
         }));
-        selectPage?.addEventListener('change', () => {
-            const pageIds = itemCheckboxes.map((checkbox) => checkbox.value);
-            selected = selectPage.checked
-                ? [...new Set([...selected, ...pageIds])]
-                : selected.filter((id) => !pageIds.includes(id));
-            render();
-        });
-        clear?.addEventListener('click', () => {
-            selected = [];
-            render();
+        const selectionUrl = new URL(window.location.href);
+        selectionUrl.searchParams.set('select_listing', '1');
+        renderHeader = window.SMSelection.bindSelectionCycle({
+            header: selectPage, pageIds: itemCheckboxes.map(input => input.value), getSelected: () => selected,
+            setSelected(ids) {
+                if (ids.length > 5000) { SM.banner('Selection limit', 'Select up to 5000 workshops at a time.', 'warning'); return false; }
+                selected = ids; render();
+            },
+            key: window.SMSelection.selectionKey(selectionUrl),
+            async loadMatching() {
+                const response = await fetch(selectionUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Could not select workshops.');
+                return data.names.map(String);
+            },
+            onError: error => SM.banner('Could not select workshops', error.message, 'danger'),
         });
         render();
     });

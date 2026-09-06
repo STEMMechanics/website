@@ -26,12 +26,12 @@ async function setup({ devices = [], permission = 'default', dismissed = false, 
     };
     const stored = new Map([['sm-push-device', 'device']]);
     const session = new Map(dismissed ? [['sm-push-dismissed:admin', '1']] : []);
-    const writes = [], events = [], alerts = [];
+    const writes = [], events = [], alerts = [], feedback = [];
     const subscription = { toJSON: () => ({ endpoint: 'https://fcm.googleapis.com/example' }) };
     const registration = { pushManager: { getSubscription: async () => subscription } };
     const context = {
         document: { readyState: 'complete', querySelector: selector => selector === '[data-push-root]' ? root : { content: 'csrf' }, querySelectorAll: selector => selector === '[data-push-settings]' ? [settings] : selector === '[data-push-devices]' ? [list] : [] },
-        window: { SM: { alert: (...args) => alerts.push(args) }, confirm: () => confirmed, isSecureContext: true, PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) },
+        window: { SM: { feedback: (...args) => feedback.push(args), alert: (...args) => alerts.push(args), confirm: (_, __, ___, callback) => callback(confirmed) }, isSecureContext: true, PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) },
         Notification: { permission, requestPermission: async () => { events.push('permission'); context.Notification.permission = requestedPermission; return requestedPermission; } },
         navigator: { userAgent, platform: 'Mac', serviceWorker: { ready: Promise.resolve(registration), register: async path => { assert.equal(path, '/site-worker.js'); events.push('worker'); return registration; }, getRegistration: async path => { assert.equal(path, '/site-worker.js'); return registration; } } },
         localStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },
@@ -45,7 +45,7 @@ async function setup({ devices = [], permission = 'default', dismissed = false, 
         },
     };
     await vm.runInNewContext(code, context);
-    return { prompt, enable, disable, settingsEnable, list, empty, status, later, writes, events, session, alerts };
+    return { prompt, enable, disable, settingsEnable, list, empty, status, later, writes, events, session, alerts, feedback };
 }
 
 test('undecided device sees prompt without native permission request', async () => {
@@ -153,8 +153,8 @@ test('test button sends to the selected device and uses a themed success alert',
     assert.equal(app.list.rows[0].querySelector('[data-push-test]').disabled, false);
     await app.list.rows[0].querySelector('[data-push-test]').click();
     assert.equal(app.writes[0].device_id, 'other');
-    assert.equal(app.alerts[0][0], 'Test notification sent');
-    assert.equal(app.alerts[0][2], 'success');
+    assert.equal(app.feedback[0][1], 'Test sent!');
+    assert.equal(app.feedback[0][3], 'success');
 });
 
 test('test is disabled for an inactive device', async () => {

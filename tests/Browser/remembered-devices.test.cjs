@@ -30,6 +30,7 @@ function setup(fetchResponse, { confirmed = true } = {}) {
     const SM = {
         confirm: (_, __, ___, callback) => { pending = callback(confirmed); },
         alert: (...args) => alerts.push(args),
+        feedback: () => {},
     };
     vm.runInNewContext(`${code}\ninitRememberedDeviceActions();`, {
         HTMLButtonElement: Button, HTMLElement: Element, HTMLInputElement: Input,

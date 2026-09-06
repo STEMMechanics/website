@@ -98,7 +98,7 @@
 >
     <x-mast>{{ $workshop->title }}</x-mast>
     <x-container>
-        <x-ui.image-hero :image="$workshop->hero?->url" />
+        <x-ui.image-hero :alt="$workshop->title" :image="$workshop->hero?->url" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
             <div class="flex flex-col flex-1">
                 @if($workshop->relationLoaded('categories') && $workshop->categories->isNotEmpty())
@@ -210,9 +210,9 @@
                                                     <h3 class="text-lg font-bold text-gray-900">I'm Interested</h3>
                                                     <p class="mt-2 text-sm text-gray-700">Leave your details and we’ll record your interest for this workshop.</p>
                                                 </div>
-                                                <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="interestModalOpen = false" aria-label="Close">
+                                                <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="interestModalOpen = false" aria-label="Close">
                                                     <i class="fa-solid fa-xmark"></i>
-                                                </button>
+                                                </x-ui.button>
                                             </div>
 
                                             <form method="POST" action="{{ route('workshop.interest', $workshop) }}" class="mt-6">

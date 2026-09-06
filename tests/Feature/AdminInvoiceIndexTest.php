@@ -56,7 +56,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSeeText('Issued '.now()->subDays(10)->format('M j, Y'));
         $response->assertSeeText('Due '.now()->subDays(2)->format('M j, Y'));
         $response->assertSee('border-emerald-200 bg-emerald-50 text-emerald-800', false);
-        $response->assertSee('hidden md:table-cell text-center', false);
+        $response->assertSee('hidden md:table-cell text-center!', false);
         $response->assertSee('space-y-4 md:hidden', false);
     }
 

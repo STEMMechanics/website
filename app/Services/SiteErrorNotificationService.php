@@ -21,12 +21,14 @@ class SiteErrorNotificationService
             return;
         }
 
+        $context = $this->buildContext($request);
+        $context['errorId'] = (string) \Illuminate\Support\Str::uuid();
+        Log::error('Site error reference', ['error_id' => $context['errorId'], 'exception_class' => $exception::class, 'route' => $context['requestRoute'] ?? 'console']);
         try {
-            Mail::to($recipients)->send(new SiteErrorAlert($exception, $this->buildContext($request)));
+            Mail::to($recipients)->send(new SiteErrorAlert($exception::class, $context));
         } catch (Throwable $mailException) {
             Log::warning('Failed to send site error alert', [
                 'exception' => get_class($mailException),
-                'message' => $mailException->getMessage(),
             ]);
         }
     }
@@ -42,10 +44,7 @@ class SiteErrorNotificationService
 
         return [
             'requestMethod' => (string) $request->method(),
-            'requestUrl' => (string) $request->fullUrl(),
-            'requestUserAgent' => (string) $request->userAgent(),
-            'requestUserId' => (string) ($request->user()->id ?? ''),
-            'requestUserEmail' => (string) ($request->user()->email ?? ''),
+            'requestRoute' => (string) ($request->route()?->getName() ?? 'unmatched'),
         ];
     }
 
@@ -54,7 +53,7 @@ class SiteErrorNotificationService
      */
     private function adminRecipients(): array
     {
-        $configured = preg_split('/[;,]+/', (string) config('mail.admin_bcc', 'admin@stemmechanics.com.au')) ?: [];
+        $configured = preg_split('/[;,]+/', (string) config('security.error_recipients', '')) ?: [];
 
         return collect($configured)
             ->map(fn ($email) => strtolower(trim((string) $email)))

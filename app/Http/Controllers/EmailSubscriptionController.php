@@ -27,7 +27,7 @@ class EmailSubscriptionController extends Controller
 
         $subscriptions = $query
             ->orderBy('created_at', 'desc')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         $subscriptionEmails = $subscriptions->getCollection()
@@ -48,14 +48,17 @@ class EmailSubscriptionController extends Controller
                 ->map(fn (Collection $sentEmails) => $sentEmails->first());
         }
 
+        return view('admin.subscription.index', compact('subscriptions', 'latestNewsletterByEmail'));
+    }
+
+    public function newsletter()
+    {
         $selector = app(NewsletterProductSelectionService::class);
         $currentStoreSelection = $selector->selection();
         new UpcomingWorkshops('', storeSelection: $currentStoreSelection);
         $currentStoreSelection = $selector->selection();
 
-        return view('admin.subscription.index', [
-            'subscriptions' => $subscriptions,
-            'latestNewsletterByEmail' => $latestNewsletterByEmail,
+        return view('admin.newsletter.index', [
             'storePromotion' => $selector->draft(),
             'storeProducts' => Product::query()->active()->orderBy('title')->get(['id', 'title', 'sku']),
             'currentStoreSelection' => $currentStoreSelection,
@@ -151,7 +154,7 @@ class EmailSubscriptionController extends Controller
         session()->flash('message-title', $themeMatchFailed ? 'Theme has no matching products' : 'Newsletter promotion updated');
         session()->flash('message-type', $themeMatchFailed ? 'warning' : 'success');
 
-        return redirect()->route('admin.subscription.index');
+        return redirect()->route('admin.newsletter.index');
     }
 
     public function create()

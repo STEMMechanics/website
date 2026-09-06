@@ -39,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(ContentFilter::class, SiteOptionContentFilter::class);
+        $this->app->scoped(ShopAvailability::class);
+        $this->app->scoped(\App\Support\QueryMetrics::class);
     }
 
     /**
@@ -46,6 +48,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (config('analytics.profile_requests')) {
+            \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $event) {
+                $metrics = app(\App\Support\QueryMetrics::class);
+                $metrics->count++;
+                $metrics->milliseconds += $event->time;
+            });
+        }
         $this->ensurePdfArtifactDirectoriesExist();
 
         $viteHotFile = storage_path('framework/vite.hot');
@@ -63,15 +72,21 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('login', function (Request $request): array {
-            $email = strtolower(trim((string) $request->input('email', '')));
+            $identifier = strtolower(trim((string) $request->input('login', $request->input('email', ''))));
 
-            return [Limit::perMinute(6)->by($request->ip().'|'.$email)];
+            return [
+                Limit::perMinute(20)->by('ip:'.$request->ip()),
+                Limit::perMinute(6)->by('account:'.$request->ip().'|'.hash('sha256', $identifier)),
+            ];
         });
 
         RateLimiter::for('magic-link', function (Request $request): array {
             $email = strtolower(trim((string) $request->input('email', '')));
 
-            return [Limit::perMinute(5)->by($request->ip().'|'.$email)];
+            return [
+                Limit::perMinute(15)->by('ip:'.$request->ip()),
+                Limit::perMinute(5)->by('account:'.$request->ip().'|'.hash('sha256', $email)),
+            ];
         });
 
         RateLimiter::for('invoice-public', function (Request $request): array {
@@ -116,7 +131,7 @@ class AppServiceProvider extends ServiceProvider
                 'actor_user_id' => $actorUserId,
                 'ip_address' => $request?->ip(),
                 'user_agent' => $request?->userAgent(),
-                'url' => $request?->fullUrl(),
+                'url' => $request?->url(),
                 'old_values' => null,
                 'new_values' => [
                     'guard' => $event->guard,

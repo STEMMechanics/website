@@ -1,31 +1,22 @@
 <x-layout title="My Orders">
     <x-mast>My Orders</x-mast>
 
-    <x-container x-data="{ showCancelled: false }">
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.checkbox
-                    label="Show cancelled"
-                    :noWrapper="true"
-                    :inline="true"
-                    x-model="showCancelled" />
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.search name="search" label="Search" />
-            </x-slot:right>
-        </x-ui.toolbar>
+    <x-container x-data="{ showCancelled: true }">
+        <x-ui.dynamic-list name="account-orders">
+
+        <x-ui.collection-controls class="my-5" />
 
         @if($orders->isEmpty())
             <x-none-found item="orders" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Order #</th>
-                    <th>Order Details</th>
-                    <th class="hidden md:table-cell">Status</th>
-                    <th class="hidden lg:table-cell">Placed</th>
-                    <th>Amount</th>
-                    <th>Actions</th>
+                    <x-ui.list-heading field="order_number" class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;" label="Order #" />
+                    <x-ui.list-heading field="order_number" label="Order Details" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Status" />
+                    <x-ui.list-heading field="created_at" class="hidden lg:table-cell" label="Placed" />
+                    <x-ui.list-heading class="text-center!" label="Amount" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($orders as $order)
@@ -60,13 +51,13 @@
                                         - Invoice {{ $invoiceNumber }}
                                     @endif
                                 </div>
-                                <div class="lg:hidden text-xs text-gray-600 mt-1">Placed: {{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div class="lg:hidden text-xs text-gray-600 mt-1">Placed: <x-ui.date-time>{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                             </td>
-                            <td class="hidden md:table-cell">
+                            <td class="hidden md:table-cell text-center!">
                                 <div class="whitespace-nowrap">{{ $statusLabel }}</div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                            <td>
+                            <td class="hidden lg:table-cell"><x-ui.date-time>{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
+                            <td class="text-center!">
                                 <div>Total: ${{ number_format((float) $order->total_amount, 2) }}</div>
                                 @if($invoice)
                                     <div class="text-xs text-gray-600">
@@ -74,31 +65,33 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>
-                                <div class="flex justify-center gap-3 whitespace-nowrap">
+                            <td class="text-center!">
+                                <x-ui.row-actions class="whitespace-nowrap">
                                     @if($canPay)
-                                        <a href="{{ route('account.invoice.show', $invoice) }}" class="hover:text-primary-color" title="Pay order"><i class="fa-solid fa-credit-card"></i></a>
+                                        <x-ui.row-action label="Pay order" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                                     @elseif($invoice)
                                         <span class="text-gray-300" title="Order is already paid or closed"><i class="fa-solid fa-credit-card"></i></span>
                                     @endif
 
-                                    <a href="{{ route('account.order.show', $order) }}" class="hover:text-primary-color" title="View order"><i class="fa-regular fa-eye"></i></a>
+                                    <x-ui.row-action label="View order" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.order.show', $order) }}" />
 
                                     @if($invoice)
-                                        <a href="{{ route('account.invoice.receipts', $invoice) }}" class="hover:text-primary-color" title="View invoice payments"><i class="fa-solid fa-receipt"></i></a>
-                                        <a href="{{ route('account.invoice.pdf', $invoice) }}" class="hover:text-primary-color" title="Open invoice PDF" target="_blank"><i class="fa-regular fa-file-pdf"></i></a>
+                                        <x-ui.row-action label="View invoice payments" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('account.invoice.receipts', $invoice) }}" />
+                                        <x-ui.row-action label="Open invoice PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-receipt"></i></span>
                                         <span class="text-gray-300" title="No linked invoice PDF"><i class="fa-regular fa-file-pdf"></i></span>
                                     @endif
-                                </div>
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $orders->links() }}
+            <x-ui.list-pagination :paginator="$orders" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

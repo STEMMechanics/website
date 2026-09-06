@@ -125,16 +125,34 @@ class WorkshopController extends Controller
             $view = 'list';
         }
 
+        if ($view === 'month') {
+            // Calendar navigation must not inherit hidden list filters.
+            $controls = app(\App\Services\SiteListControls::class);
+            foreach ([...array_keys($controls->filterFields()), 'search', 'list_sort', 'list_direction', 'page'] as $parameter) {
+                $request->query->remove($parameter);
+            }
+            $request->query->set('show_cancelled', '1');
+            $search = '';
+        }
+
         $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
         if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
             $selectedMonth = now()->format('Y-m');
         }
 
+        $workshopQuery = $this->buildWorkshopAdminQuery($search);
+        app(\App\Services\SiteListControls::class)->capturePresetCounts($workshopQuery);
+        if ($request->expectsJson() && $request->boolean('select_listing')) {
+            app(\App\Services\SiteListControls::class)->apply($workshopQuery);
+            $ids = $workshopQuery->limit(5001)->pluck('id');
+            abort_if($ids->count() > 5000, 422, 'Select up to 5000 workshops at a time. Narrow your filters and try again.');
+            return response()->json(['names' => $ids])->header('Cache-Control', 'no-store, private');
+        }
         $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
 
-        $workshops = $this->buildWorkshopAdminQuery($search)
+        $workshops = $workshopQuery
             ->orderBy('starts_at', 'desc')
-            ->paginate(12)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
             ->onEachSide(1);
 
         $tabQuery = array_filter([
@@ -189,19 +207,23 @@ class WorkshopController extends Controller
         ]);
     }
 
-    public function admin_bulk_select(Request $request): RedirectResponse
+    public function admin_bulk_select(Request $request)
     {
         $validated = $request->validate([
-            'workshop_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'workshop_ids' => ['required', 'array', 'min:1', 'max:5000'],
             'workshop_ids.*' => ['required', 'string', 'distinct', Rule::exists('workshops', 'id')],
         ]);
 
+        if ($request->expectsJson()) {
+            return $this->renderBulkWorkshopEditor($request);
+        }
+
         $request->session()->put('admin_workshop_bulk_selection', array_values($validated['workshop_ids']));
 
-        return redirect()->route('admin.workshop.bulk.edit');
+        return redirect()->route('admin.workshop.index');
     }
 
-    public function admin_bulk_edit(Request $request)
+    private function renderBulkWorkshopEditor(Request $request)
     {
         $workshopIds = $this->bulkWorkshopSelection($request);
         if ($workshopIds === []) {
@@ -242,7 +264,7 @@ class WorkshopController extends Controller
             ->sortBy(fn (array $item) => $item['category']->name)
             ->values();
 
-        return response()->view('admin.workshop.bulk-edit', [
+        return response()->json(['html' => view('admin.workshop.partials.bulk-edit', [
             'selectedWorkshops' => $selectedWorkshops,
             'commonValues' => $commonValues,
             'mixedFields' => $mixedFields,
@@ -250,10 +272,10 @@ class WorkshopController extends Controller
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
             'locations' => Location::query()->orderBy('name')->get(),
-        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+        ])->render()])->header('Cache-Control', 'no-store, private');
     }
 
-    public function admin_bulk_update(Request $request): RedirectResponse
+    public function admin_bulk_update(Request $request)
     {
         $workshopIds = $this->bulkWorkshopSelection($request);
         if ($workshopIds === []) {
@@ -316,6 +338,10 @@ class WorkshopController extends Controller
         });
 
         $request->session()->forget('admin_workshop_bulk_selection');
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $workshops->count().' workshops updated']);
+        }
 
         return redirect()->route('admin.workshop.index')
             ->with('message', $workshops->count().' workshop'.($workshops->count() === 1 ? '' : 's').' updated')
@@ -483,7 +509,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->get();
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -545,7 +571,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->get();
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -1233,7 +1259,7 @@ class WorkshopController extends Controller
                 });
             })
             ->orderBy('name')
-            ->paginate(50)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
             ->withQueryString();
 
         return view('admin.workshop.files', [
@@ -1437,7 +1463,7 @@ class WorkshopController extends Controller
             })
             ->orderByDesc('photographed_at')
             ->orderByDesc('media.created_at')
-            ->paginate(24)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(24))
             ->withQueryString();
 
         return view('admin.workshop.photos', [
@@ -2585,7 +2611,7 @@ class WorkshopController extends Controller
                 [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED]
             )
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         return view('admin.workshop.tickets', [
@@ -2945,6 +2971,7 @@ class WorkshopController extends Controller
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
+        app(\App\Services\SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
 
         $activeTickets = collect();
         $cancelledTickets = collect();
@@ -2980,7 +3007,7 @@ class WorkshopController extends Controller
                 ->orderBy('firstname')
                 ->orderBy('surname')
                 ->orderBy('id')
-                ->get();
+                ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
 
             if ($showCancelledTickets) {
                 $cancelledTicketsQuery = Ticket::query()
@@ -2993,7 +3020,7 @@ class WorkshopController extends Controller
                     ->orderBy('firstname')
                     ->orderBy('surname')
                     ->orderBy('id')
-                    ->get();
+                    ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
             }
 
             [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($activeTickets);
@@ -5298,6 +5325,14 @@ class WorkshopController extends Controller
      */
     private function bulkWorkshopSelection(Request $request): array
     {
+        if ($request->expectsJson()) {
+            $validated = $request->validate([
+                'workshop_ids' => ['required', 'array', 'min:1', 'max:5000'],
+                'workshop_ids.*' => ['required', 'string', 'distinct', Rule::exists('workshops', 'id')],
+            ]);
+            return array_values($validated['workshop_ids']);
+        }
+
         return collect($request->session()->get('admin_workshop_bulk_selection', []))
             ->map(fn ($id) => trim((string) $id))
             ->filter()

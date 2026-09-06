@@ -23,6 +23,7 @@ class AnalyticsEvent extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'event_uuid',
         'event_type',
         'session_token',
         'is_session_entry',

@@ -52,7 +52,7 @@ class QuoteController extends Controller
             });
         }
 
-        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
 
         return view('admin.quote.index', [
             'quotes' => $quotes,
@@ -213,7 +213,7 @@ class QuoteController extends Controller
             });
         }
 
-        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
 
         return view('account.quotes', [
             'quotes' => $quotes,

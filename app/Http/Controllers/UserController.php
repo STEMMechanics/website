@@ -23,13 +23,16 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $showGhostUsers = $request->boolean('show_ghost');
-
+        $accountState = $request->query('account_state', $request->boolean('show_ghost') ? 'all' : 'verified');
+        $request->validate(['account_state' => ['nullable', Rule::in(['all', 'verified', 'ghost'])]]);
+        $accountState = $accountState ?: 'all';
+        $request->query->set('account_state', $accountState);
+        $request->query->remove('show_ghost');
+        $showGhostUsers = $accountState !== 'verified';
         $query = User::query();
-
-        if (! $showGhostUsers) {
-            $query->whereNotNull('email_verified_at');
-        }
+        app(\App\Services\SiteListControls::class)->capturePresetCounts($query);
+        if ($accountState === 'verified') $query->whereNotNull('email_verified_at');
+        if ($accountState === 'ghost') $query->whereNull('email_verified_at')->whereNull('anonymized_at');
 
         if ($request->has('search')) {
             $search = trim((string) $request->search);
@@ -57,7 +60,7 @@ class UserController extends Controller
             ->withCount('media')
             ->withSum('media', 'size')
             ->orderBy('created_at', 'desc')
-            ->paginate(12)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
             ->onEachSide(1);
 
         $users->getCollection()->transform(function (User $listedUser): User {
@@ -191,7 +194,7 @@ class UserController extends Controller
             ->withSum('refunds as refunded_amount_sum', 'total_amount')
             ->orderByDesc('received_on')
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         $payments->getCollection()->transform(function (Payment $payment): Payment {
@@ -273,6 +276,7 @@ class UserController extends Controller
         $payload['email_verified_at'] = $email !== '' ? now() : null;
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
+        if ($user->isAdmin()) $payload['dashboard_email_opt_in'] = $request->boolean('dashboard_email_opt_in');
         $user->update($payload);
         $user->syncPrimaryOrganisationByName((string) ($validated['organisation_name'] ?? ''));
         $this->syncGroups($user, (string) ($validated['groups'] ?? ''));

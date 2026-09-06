@@ -23,7 +23,7 @@
     <x-mast title="Workshops" :tabs="$tabs" />
     <section class="bg-gray-100">
         <x-container class="pt-4">
-            <div class="flex gap-3 justify-between">
+            <div class="flex flex-wrap items-start gap-3 justify-between md:flex-nowrap md:items-center">
                 @if(! $isCalendarView && ($workshopCategories ?? collect())->isNotEmpty())
                     <form method="GET" action="{{ $isPast ? route('workshop.past.index') : route('workshop.index') }}" class="flex items-center gap-2">
                         <input type="hidden" name="view" value="cards">
@@ -44,35 +44,31 @@
                     </form>
                 @else
                     @if($hasSchoolHolidayDays)
-                        <div class="mx-auto flex w-full items-center gap-2 text-sm text-gray-600">
-                            <span class="inline-block h-6 w-6 rounded border border-amber-400 bg-amber-50"></span>
+                        <div class="flex w-full items-center gap-2 text-sm text-gray-600 md:w-auto md:flex-1">
+                            <span class="inline-block h-6 w-6 shrink-0 rounded border border-amber-400 bg-amber-50"></span>
                             <span class="italic text-xs font-semibold">{{ $schoolHolidayLabel ?? 'School holidays' }}</span>
                         </div>
                     @endif
                 @endif
 
-                <div class="flex items-center justify-end gap-2">
-                    <x-ui.button
-                        href="{{ $toggleViewRoute }}"
-                        color="outline"
-                        class="px-3"
-                        title="{{ $toggleViewTitle }}"
-                        aria-label="{{ $toggleViewTitle }}"
-                    >
-                        <i class="{{ $toggleViewIcon }}"></i>
-                        <span class="sr-only">{{ $toggleViewTitle }}</span>
+                <nav aria-label="Workshop views and feed" class="ml-auto inline-flex shrink-0 self-start overflow-hidden rounded border border-gray-300 bg-white shadow-sm">
+                    <x-ui.button variant="plain"
+                        :href="$isCalendarView ? $toggleViewRoute : request()->fullUrl()"
+                        aria-label="Card view" :aria-current="!$isCalendarView ? 'page' : null"
+                        class="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium transition {{ !$isCalendarView ? 'bg-sky-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-sky-600' }}">
+                        <i class="fa-solid fa-grip" aria-hidden="true"></i><span>Cards</span>
                     </x-ui.button>
-                    <x-ui.button
-                        href="{{ route('workshop.feed') }}"
-                        color="outline"
-                        class="px-3"
-                        title="RSS feed"
-                        aria-label="RSS feed"
-                    >
-                        <i class="fa-solid fa-rss"></i>
-                        <span class="sr-only">RSS feed</span>
+                    <x-ui.button variant="plain"
+                        :href="$isCalendarView ? request()->fullUrl() : $toggleViewRoute"
+                        aria-label="Calendar view" :aria-current="$isCalendarView ? 'page' : null"
+                        class="inline-flex items-center gap-2 border-l border-gray-300 px-3 sm:px-4 py-2.5 text-sm font-medium transition {{ $isCalendarView ? 'bg-sky-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50 hover:text-sky-600' }}">
+                        <i class="fa-regular fa-calendar-days" aria-hidden="true"></i><span>Month</span>
                     </x-ui.button>
-                </div>
+                    <x-ui.button variant="plain" :href="route('workshop.feed')" aria-label="RSS feed"
+                        class="inline-flex items-center gap-2 border-l border-gray-300 bg-white px-3 sm:px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-sky-600">
+                        <i class="fa-solid fa-rss" aria-hidden="true"></i><span>RSS</span>
+                    </x-ui.button>
+                </nav>
             </div>
         </x-container>
         @if($isCalendarView)
@@ -133,7 +129,7 @@
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                             <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
-                                                        <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
+                                                        <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.badge>
                                                     </div>
                                                 </a>
                                             @empty
@@ -182,7 +178,7 @@
                         x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
                         x-on:mouseleave="hoveredWorkshop = null"
                     >
-                        <table class="min-w-245 w-full table-fixed border-collapse">
+                        <x-ui.table variant="plain" table-class="min-w-245 w-full table-fixed border-collapse">
                         <thead>
                             <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                                 <th class="px-3 py-2 text-center font-semibold">Sun</th>
@@ -235,22 +231,22 @@
                                                         data-calendar-lane="{{ $lane }}"
                                                         data-workshop-key="{{ $workshop->getKey() }}"
                                                         style="cursor: pointer;"
-                                                        x-bind:class="{ '!border-primary-color !bg-primary-color-light/10 !text-primary-color-dark': hoveredWorkshop === @js((string) $workshop->getKey()) }"
+                                                        x-bind:class="{ 'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === @js((string) $workshop->getKey()) }"
                                                         @class([
                                                         'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
-                                                        'lg:relative lg:z-10 lg:-ml-[9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
-                                                        'lg:relative lg:z-10 lg:-mr-[9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
+                                                        'lg:relative lg:z-10 lg:ml-[-9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],
+                                                        'lg:relative lg:z-10 lg:mr-[-9px] lg:rounded-r-none lg:border-r-0 lg:pr-4' => $continuation['after'],
                                                     ])>
                                                         <div class="flex items-start justify-between gap-2">
                                                             <div class="w-full">
                                                                 <div class="flex justify-between items-center">
                                                                     @if(! $continuation['before'])
-                                                                        <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                                                        <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                     @elseif($continuation['ends'])
-                                                                        <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                                                        <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $workshop->ends_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                     @endif
                                                                     @if(! $continuation['before'])
-                                                                        <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</div>
+                                                                        <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.badge>
                                                                     @endif
                                                                 </div>
                                                                 @if($continuation['show_details'])
@@ -270,7 +266,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                        </table>
+                        </x-ui.table>
                     </div>
                 </x-container>
 
@@ -304,5 +300,6 @@
                 </x-container>
             @endif
         @endif
+
     </section>
 </x-layout>

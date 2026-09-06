@@ -1,5 +1,6 @@
 @props([
 'name' => null,
+'bare' => false,
 'id' => null,
 'label' => null,
 'checked' => false,
@@ -15,7 +16,8 @@
 ])
 
 @php
-$resolvedId = $id ?: ($name ?: null);
+$resolvedId = $id ?: ($bare ? null : ($name ?: null));
+$inputClass = $bare ? twMerge($inputClass, $attributes->get('class')) : $inputClass;
 $isMixed = filter_var($mixed, FILTER_VALIDATE_BOOLEAN);
 $hasBoundValue = $attributes->has('value') || $attributes->has('x-bind:value') || $attributes->has(':value');
 $sizeClasses = $small
@@ -26,23 +28,15 @@ $hasLabel = ($label !== null && $label !== '') || $labelHidden;
 $containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), ($info ? 'items-start' : 'items-center'), ($noWrapper ? $attributes->get('class') : '')]);
 @endphp
 
+@if($bare)
+    @include('components.ui.partials.checkbox-input')
+@else
 @if(!$noWrapper)
 <div class="{{ twMerge([$wrapperClasses, $attributes->get('class')]) }}">
 @endif
     @if($hasLabel)
         <label class="sm-ui-checkbox {{ $small ? 'small ' : '' }}{{ $containerClasses }}">
-            <input
-                type="checkbox"
-                @if($checked) checked @endif
-                @if($disabled) disabled @endif
-                @if($resolvedId) id="{{ $resolvedId }}" @endif
-                @if($name) name="{{ $name }}" @endif
-                @if(!$hasBoundValue) value="1" @endif
-                @if($isMixed && !$attributes->has('aria-checked')) aria-checked="mixed" @endif
-                @if($isMixed) data-indeterminate="true" @endif
-                @if($isMixed && !$attributes->has('x-init')) x-init="$el.indeterminate = true" @endif
-                class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
-                {{ $attributes->except('class') }} />
+            @include('components.ui.partials.checkbox-input')
 
             <div>
                 <div class="{{ twMerge(['text-sm','pl-2'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</div>
@@ -53,20 +47,11 @@ $containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), ($info ? 'items
         </label>
     @else
         <div class="sm-ui-checkbox {{ $small ? 'small ' : '' }}{{ $containerClasses }}">
-            <input
-                type="checkbox"
-                @if($checked) checked @endif
-                @if($disabled) disabled @endif
-                @if($resolvedId) id="{{ $resolvedId }}" @endif
-                @if($name) name="{{ $name }}" @endif
-                @if(!$hasBoundValue) value="1" @endif
-                @if($isMixed && !$attributes->has('aria-checked')) aria-checked="mixed" @endif
-                @if($isMixed) data-indeterminate="true" @endif
-                @if($isMixed && !$attributes->has('x-init')) x-init="$el.indeterminate = true" @endif
-                class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
-                {{ $attributes->except('class') }} />
+            @include('components.ui.partials.checkbox-input')
         </div>
     @endif
 @if(!$noWrapper)
 </div>
+@endif
+
 @endif

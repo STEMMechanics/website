@@ -1,7 +1,4 @@
-<x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Bulk Edit Workshops</x-mast>
-
-    <x-container>
+<div class="p-5">
         <details class="group my-4 rounded-xl border border-gray-200 bg-white">
             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-gray-900">
                 <span>Editing {{ $selectedWorkshops->count() }} workshops</span>
@@ -22,17 +19,20 @@
             </div>
         </details>
 
-        <form method="POST" action="{{ route('admin.workshop.bulk.update') }}"
+        <form data-bulk-save method="POST" action="{{ route('admin.workshop.bulk.update') }}"
               x-data="{ registration: @js(old('registration', $mixedFields['registration'] ? '__mixed' : $commonValues['registration'])) }">
             @csrf
             @method('PUT')
+            @foreach($selectedWorkshops as $selectedWorkshop)
+                <input type="hidden" name="workshop_ids[]" value="{{ $selectedWorkshop->id }}">
+            @endforeach
 
             <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4">
                 <div class="mb-4">
                     <h2 class="text-base font-semibold text-gray-900">Fields</h2>
                 </div>
 
-                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <x-ui.grid class="gap-5 md:grid-cols-2">
                     @php($typeValue = old('type', $mixedFields['type'] ? '__mixed' : $commonValues['type']))
                     <x-ui.select label="Type" name="type" :value="$typeValue" class="mb-0">
                         @if($mixedFields['type'] || $typeValue === '__mixed')<option value="__mixed" @selected($typeValue === '__mixed')>Mixed</option>@endif
@@ -100,13 +100,13 @@
                     }" x-on:click.outside="close()">
                         <input type="hidden" name="requested_by_user_id" :value="id">
                         <label for="bulk_requested_by_search" class="mb-1 block pl-1 text-sm">Requested By</label>
-                        <input id="bulk_requested_by_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search name, email, or organisation" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_requested_by_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        <x-ui.input-control id="bulk_requested_by_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search name, email, or organisation" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_requested_by_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                         <div id="bulk_requested_by_results" role="listbox" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
                             <template x-for="(item, index) in results" :key="item.id">
-                                <button type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)">
+                                <x-ui.button variant="plain" type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)">
                                     <span class="block text-sm text-gray-900" x-text="item.name"></span>
                                     <span class="block text-xs text-gray-500" x-text="`${item.email}${item.organisation_name ? ` · ${item.organisation_name}` : ''}`"></span>
-                                </button>
+                                </x-ui.button>
                             </template>
                         </div>
                     </div>
@@ -162,10 +162,10 @@
                     }" x-on:click.outside="close()">
                         <input type="hidden" name="hosted_for_organisation_id" :value="id">
                         <label for="bulk_hosted_for_search" class="mb-1 block pl-1 text-sm">Hosted For</label>
-                        <input id="bulk_hosted_for_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search organisations" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_hosted_for_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300">
+                        <x-ui.input-control id="bulk_hosted_for_search" type="search" x-model="search" x-on:input.debounce.350ms="find()" x-on:keydown.down.prevent="move(1)" x-on:keydown.up.prevent="move(-1)" x-on:keydown.enter="if (selectedIndex >= 0) { $event.preventDefault(); apply(); }" x-on:keydown.escape="close()" autocomplete="off" placeholder="Search organisations" role="combobox" aria-autocomplete="list" x-bind:aria-expanded="results.length > 0" aria-controls="bulk_hosted_for_results" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                         <div id="bulk_hosted_for_results" role="listbox" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="search.trim().length >= 2 && !searching && results.length > 0" x-cloak>
                             <template x-for="(item, index) in results" :key="item.id">
-                                <button type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)" x-text="item.label"></button>
+                                <x-ui.button variant="plain" type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)" x-text="item.label"></x-ui.button>
                             </template>
                         </div>
                     </div>
@@ -184,12 +184,12 @@
                             <div>
                                 <input x-ref="{{ $field }}State" type="hidden" name="{{ $field }}" value="{{ $booleanValue }}">
                                 <x-ui.checkbox
-                                    :label="$label"
-                                    :checked="$booleanValue === '1'"
-                                    :mixed="$booleanValue === '__mixed'"
-                                    x-on:change="$refs.{{ $field }}State.value = $el.checked ? '1' : '0'"
-                                    class="mb-0"
-                                />
+ :label="$label"
+ :checked="$booleanValue === '1'"
+ :mixed="$booleanValue === '__mixed'"
+ x-on:change="$refs.{{ $field }}State.value = $el.checked ? '1' : '0'"
+ class="mb-0"
+ />
                             </div>
                         @endforeach
                     </div>
@@ -216,7 +216,7 @@
                             <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" :value="$commonValues['max_tickets']" :placeholder="$mixedFields['max_tickets'] ? 'Mixed' : ''" class="mb-0" />
                         </div>
                     </div>
-                </div>
+                </x-ui.grid>
             </div>
 
             <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4">
@@ -232,15 +232,15 @@
                                     value="{{ $linked['category']->id }}"
                                     @disabled(! in_array((string) $linked['category']->id, array_map('strval', old('remove_category_ids', [])), true))
                                 >
-                                <span x-show="!removed" class="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-800">
+                                <x-ui.badge x-show="!removed" class="inline-flex items-center gap-2 bg-sky-100 text-sky-800">
                                     <span class="inline-flex h-3 w-3 items-center justify-center">
                                         <i class="{{ $linked['category']->iconClass() }}"></i>
                                     </span>
                                     <span>{{ $linked['category']->name }} · <span class="font-normal">({{ $linked['count'] }}/{{ $linked['total'] }})</span></span>
-                                    <button type="button" x-on:click="removed = true" class="hover:text-red-700" aria-label="Remove {{ $linked['category']->name }}">
+                                    <x-ui.button variant="plain" type="button" x-on:click="removed = true" class="hover:text-red-700" aria-label="Remove {{ $linked['category']->name }}">
                                         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                                    </button>
-                                </span>
+                                    </x-ui.button>
+                                </x-ui.badge>
                             </span>
                         @endforeach
                     </div>
@@ -251,11 +251,11 @@
                     @foreach($workshopCategories as $category)
                         <label class="flex cursor-pointer items-center text-sm">
                             <x-ui.checkbox
-                                    name="add_category_ids[]"
-                                    value="{{ $category->id }}"
-                                    :checked="in_array((string) $category->id, array_map('strval', old('add_category_ids', [])), true)"
-                                    :noWrapper="true"
-                            />
+ name="add_category_ids[]"
+ value="{{ $category->id }}"
+ :checked="in_array((string) $category->id, array_map('strval', old('add_category_ids', [])), true)"
+ :noWrapper="true"
+ />
                             <span class="inline-flex h-8 w-8 items-center justify-center text-gray-600">
                                 <i class="{{ $category->iconClass() }}"></i>
                             </span>
@@ -266,9 +266,8 @@
             </div>
 
             <div class="mb-8 flex flex-wrap justify-end gap-2">
-                <x-ui.button href="{{ route('admin.workshop.index') }}" color="outline">Cancel</x-ui.button>
-                <x-ui.button type="submit">Update {{ $selectedWorkshops->count() }} Workshops</x-ui.button>
+                <x-ui.button data-close-dialog color="outline">Cancel</x-ui.button>
+                <x-ui.button type="submit">Save changes</x-ui.button>
             </div>
         </form>
-    </x-container>
-</x-layout>
+</div>

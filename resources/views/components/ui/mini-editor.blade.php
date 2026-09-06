@@ -20,3 +20,7 @@
     </div>
     <div x-ref="element" class="{{ $contentClass }}"></div>
 </div>
+
+@pushOnce('head', 'mini-editor-assets')
+    @vite('resources/js/editor/MiniEditor.js')
+@endPushOnce

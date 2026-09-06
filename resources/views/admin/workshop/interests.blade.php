@@ -32,7 +32,7 @@
                 <p class="mt-4 text-sm text-gray-600">No one has registered interest for this workshop yet.</p>
             @else
                 <div class="mt-4 overflow-auto rounded-lg border border-gray-200">
-                    <table class="w-full min-w-[48rem] text-sm">
+                    <x-ui.table variant="plain" table-class="w-full min-w-3xl text-sm">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-2 text-left">Name</th>
@@ -74,12 +74,12 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-gray-600">
-                                        {{ $interest->created_at?->format('j M Y g:i a') ?? '-' }}
+                                        <x-ui.date-time>{{ $interest->created_at?->format('j M Y g:i a') ?? '-' }}</x-ui.date-time>
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
             @endif
         </div>

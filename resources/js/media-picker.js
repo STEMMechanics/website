@@ -565,6 +565,7 @@ const SMMediaPicker = {
             'selected[]': store.selected,
         };
 
+        if (store.passwordless_only) params.passwordless_only = 1;
         if (store.public_usable_only) {
             params.public_usable_only = 1;
         }
@@ -645,7 +646,7 @@ const SMMediaPicker = {
                         <h3 class="text-2xl font-bold mb-2">Drop files to upload</h3>
                         <p>or</p>
                         <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
-                            <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
+                            <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
                         </div>
                         <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" />
                         <p class="text-xs mt-2">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
@@ -693,7 +694,7 @@ const SMMediaPicker = {
                             <div>
                                 <button
                                     type="button"
-                                    class="bg-primary-color hover:bg-primary-color-dark justify-center rounded-md text-white px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition mr-6"
+                                    class="bg-primary-color hover:bg-primary-color-dark justify-center rounded-md text-white px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition mr-6"
                                     x-bind:disabled="!$store.media.camera_ready || $store.media.camera_countdown_active"
                                     x-on:click.prevent="SMMediaPicker.startCameraCountdown()"
                                 >
@@ -701,7 +702,7 @@ const SMMediaPicker = {
                                 </button>
                                 <button
                                     type="button"
-                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                                     x-bind:disabled="$store.media.camera_countdown_active"
                                     x-on:click.prevent="SMMediaPicker.toggleCameraFlipX()"
                                     title="Flip horizontally"
@@ -710,7 +711,7 @@ const SMMediaPicker = {
                                 </button>
                                 <button
                                     type="button"
-                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                                     x-bind:disabled="$store.media.camera_countdown_active"
                                     x-on:click.prevent="SMMediaPicker.toggleCameraFlipY()"
                                     title="Flip vertically"
@@ -719,7 +720,7 @@ const SMMediaPicker = {
                                 </button>
                                 <button
                                     type="button"
-                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                                     x-on:click.prevent="SMMediaPicker.stopCamera(); $nextTick(() => SMMediaPicker.startCamera())"
                                     title="Restart Camera"
                                 >
@@ -732,14 +733,14 @@ const SMMediaPicker = {
                 <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
-                            <input class="bg-white grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
-                            <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            <input class="bg-white grow px-2.5 py-1 text-xs text-gray-900 rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
+                            <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </form>
                     <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap" :class="{ 'pointer-events-none opacity-60': $store.media.uploading }">
                     <template x-for="item in $store.media.items" :key="item.name">
                         <li
-                            class="flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
+                            class="flex text-center p-1 items-center flex-col h-40 w-56 border-2 rounded relative"
                             :class="{
                                 'cursor-pointer border-primary-color': $store.media.selected.some(i => i === item.name),
                                 'cursor-pointer border-white': !$store.media.selected.some(i => i === item.name) && !$store.media.disabled.some(i => i === item.name),
@@ -843,7 +844,7 @@ const SMMediaPicker = {
             </div>
             <div
                 x-show="showFileDrop && !$store.media.uploading"
-                class="fixed flex top-0 left-0 w-full h-full z-10 bg-sky-800 bg-opacity-95 text-white items-center p-4"
+                class="fixed flex top-0 left-0 w-full h-full z-10 bg-sky-800/95 text-white items-center p-4"
                 x-on:dragenter.prevent="showFileDrop = true"
                 x-on:dragover.prevent="showFileDrop = true"
                 x-on:drop.prevent="if ($store.media.uploading) { showFileDrop = false; return; } SMMediaPicker.upload($event.dataTransfer.files); showFileDrop = false;"
@@ -941,6 +942,7 @@ const SMMediaPicker = {
         store.allow_uploads = options.allow_uploads;
         store.allow_browser = options.allow_browser;
         store.public_usable_only = options.public_usable_only;
+        store.passwordless_only = options.passwordless_only === true;
         store.upload_fields = options.upload_fields && typeof options.upload_fields === 'object' ? JSON.parse(JSON.stringify(options.upload_fields)) : {};
         store.allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
         store.camera_supported = store.allow_camera && SMMediaPicker.cameraSupported();

@@ -13,11 +13,22 @@ class SecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
+        if (! config('security.indexable', false) || $request->routeIs('admin.*', 'account.*', 'shop.cart*', 'shop.checkout*', 'shop.order*', 'shop.payment*', 'workshop.ticket.flow.*') || $request->is('admin', 'admin/*', 'account', 'account/*', 'login', 'register', 'tickets', 'tickets/*', 'invoices/*', 'quotes/*', 'cart', 'checkout', 'checkout/*') || $request->hasAny(['token', 'signature'])) {
+            $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        }
+        if ($request->hasAny(['token', 'signature'])) {
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+        }
+
+        if (config('security.csp_report_only', true)) {
+            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+        }
+
         // Hide PHP runtime/version details from response headers.
         $response->headers->remove('X-Powered-By');
 
         // Prevent the site from being embedded in frames on other origins.
-        if (!$response->headers->has('X-Frame-Options')) {
+        if (! $response->headers->has('X-Frame-Options')) {
             $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         }
 
@@ -35,7 +46,7 @@ class SecurityHeaders
             $cspLower = strtolower($csp);
             foreach ($requiredDirectives as $directive) {
                 $name = strtolower(strtok($directive, ' '));
-                if (!str_contains($cspLower, $name)) {
+                if (! str_contains($cspLower, $name)) {
                     $csp .= '; '.$directive;
                 }
             }
@@ -43,17 +54,17 @@ class SecurityHeaders
         }
 
         // Stop MIME sniffing and enforce declared Content-Type.
-        if (!$response->headers->has('X-Content-Type-Options')) {
+        if (! $response->headers->has('X-Content-Type-Options')) {
             $response->headers->set('X-Content-Type-Options', 'nosniff');
         }
 
         // Limit referrer leakage while preserving basic analytics/navigation.
-        if (!$response->headers->has('Referrer-Policy')) {
+        if (! $response->headers->has('Referrer-Policy')) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
 
         // Disable browser features the app does not require.
-        if (!$response->headers->has('Permissions-Policy')) {
+        if (! $response->headers->has('Permissions-Policy')) {
             $response->headers->set(
                 'Permissions-Policy',
                 'camera=(), microphone=(), geolocation=(), payment=(self), usb=()'
@@ -61,7 +72,7 @@ class SecurityHeaders
         }
 
         // Enforce HTTPS on subsequent requests when this request is secure.
-        if ($request->isSecure() && !$response->headers->has('Strict-Transport-Security')) {
+        if ($request->isSecure() && ! $response->headers->has('Strict-Transport-Security')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 

@@ -66,6 +66,7 @@ class TicketController extends Controller
                     ->orWhere('created_at', '>=', now()->subMinutes(10));
             });
 
+        app(\App\Services\SiteListControls::class)->capturePresetCounts($query);
         if ($request->filled('search')) {
             $search = trim((string) $request->search);
             $query->where(function ($builder) use ($search) {
@@ -82,7 +83,7 @@ class TicketController extends Controller
 
         $tickets = $query
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         return view('account.tickets', [
@@ -105,13 +106,6 @@ class TicketController extends Controller
                 $builder->where('status', '!=', Ticket::STATUS_HOLD)
                     ->orWhere('created_at', '>=', now()->subMinutes(10));
             });
-
-        if (! $showInactive) {
-            $query->whereNotIn('status', [
-                Ticket::STATUS_CANCELLED,
-                Ticket::STATUS_REISSUED,
-            ]);
-        }
 
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search'));
@@ -142,7 +136,7 @@ class TicketController extends Controller
             $query->orderByDesc('created_at');
         }
 
-        $tickets = $query->paginate(30)->onEachSide(1);
+        $tickets = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(30))->onEachSide(1);
 
         return view('admin.ticket.index', [
             'tickets' => $tickets,
@@ -678,7 +672,7 @@ class TicketController extends Controller
         $receipts = $query
             ->orderByDesc('received_on')
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         return view('tickets.invoice-receipts', [

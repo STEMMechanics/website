@@ -17,6 +17,8 @@
     <x-mast>Sent SMS</x-mast>
 
     <x-container>
+        <x-ui.dynamic-list name="admin-server-sent-sms">
+
         <div
             data-sent-sms-root
             x-data="{
@@ -194,22 +196,7 @@
                 </x-ui.button>
             </div>
 
-            <form method="GET" action="{{ route('admin.server.sent-sms') }}" class="mb-4 flex w-full flex-row flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <div class="w-full min-w-[12rem] sm:w-auto sm:flex-none">
-                    <x-ui.select label="Status" name="status" innerClass="w-full" selectClass="pr-10" class="mb-0">
-                        <option value="">All statuses</option>
-                        @foreach($statuses as $status)
-                            <option value="{{ $status }}" @selected(request()->query('status') === $status)>{{ ucfirst($status) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                </div>
-                <div class="w-full min-w-0 flex-1">
-                    <x-ui.input name="search" label="Search" :value="request('search')" class="w-full mb-0" />
-                </div>
-                <div class="w-full sm:w-auto sm:flex-none">
-                    <x-ui.button type="submit" color="outline">Apply</x-ui.button>
-                </div>
-            </form>
+            <x-ui.collection-controls class="my-4" />
 
             @if($messages->isEmpty())
                 <x-none-found item="sent SMS" search="{{ request()->get('search') }}" />
@@ -240,7 +227,7 @@
                                     <div class="text-xs text-gray-500">{{ $sentAt?->format('g:i a') ?? '-' }}</div>
                                 </div>
                                 <div class="shrink-0">
-                                    <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">{{ ucfirst($status) }}</span>
+                                    <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
                                 </div>
                             </div>
 
@@ -261,18 +248,18 @@
 
                                 <div>
                                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Message</div>
-                                    <div class="mt-0.5 break-words text-sm text-gray-900">{{ $messagePreview }}</div>
+                                    <div class="mt-0.5 wrap-break-word text-sm text-gray-900">{{ $messagePreview }}</div>
                                     @if($sms->reference)
                                         <div class="mt-1 text-xs text-gray-500">Ref: <span class="font-mono">{{ $sms->reference }}</span></div>
                                     @endif
                                 </div>
 
-                                <div class="grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-2">
+                                <x-ui.grid class="gap-2 text-xs text-gray-600 sm:grid-cols-2">
                                     <div>Origin: <span class="font-mono">{{ $sms->origin ?: '-' }}</span></div>
                                     <div>Provider ID: <span class="font-mono">{{ $sms->provider_message_id ?: '-' }}</span></div>
                                     <div class="sm:col-span-2">Initiated by: {{ $initiatedByLabel !== '' ? $initiatedByLabel : '-' }}</div>
                                     <div class="sm:col-span-2">Response: {{ $sms->response_status_label ?? '-' }}</div>
-                                </div>
+                                </x-ui.grid>
                             </div>
 
                             @if($errorPreview !== '')
@@ -307,7 +294,7 @@
                                                     <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                                 @endif
                                             </div>
-                                            <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
+                                            <div class="mt-2 wrap-break-word text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
                                         </div>
                                         @if(! $isAcknowledged)
                                             <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
@@ -326,14 +313,14 @@
                 </div>
 
                 <div class="hidden md:block" data-sent-sms-desktop-table>
-                    <x-ui.table>
+                    <x-ui.table variant="listing">
                         <x-slot:header>
-                            <th>Sent</th>
-                            <th>To</th>
-                            <th>Message</th>
-                            <th class="hidden lg:table-cell">Details</th>
-                            <th>Status</th>
-                            <th>Response</th>
+                            <x-ui.list-heading class="text-center!" label="Sent" />
+                            <x-ui.list-heading field="recipient" label="To" />
+                            <x-ui.list-heading label="Message" />
+                            <x-ui.list-heading class="hidden lg:table-cell" label="Details" />
+                            <x-ui.list-heading class="text-center!" label="Status" />
+                            <x-ui.list-heading label="Response" />
                         </x-slot:header>
                         <x-slot:body>
                             @foreach($messages as $sms)
@@ -354,9 +341,9 @@
                                     $threadReplies = collect(data_get($repliesBySentSmsId, (string) $sms->id, []));
                                 @endphp
                                 <tr id="sent-sms-{{ $sms->id }}" class="{{ $errorPreview !== '' ? 'border-b-0' : '' }}">
-                                    <td>
-                                        <div class="whitespace-nowrap text-sm">{{ $sentAt?->format('M j, Y') ?? '-' }}</div>
-                                        <div class="text-xs text-gray-500">{{ $sentAt?->format('g:i a') ?? '-' }}</div>
+                                    <td class="text-center!">
+                                        <div class="whitespace-nowrap text-sm"><x-ui.date-time>{{ $sentAt?->format('M j, Y') ?? '-' }}</x-ui.date-time></div>
+                                        <div class="text-xs text-gray-500"><x-ui.date-time>{{ $sentAt?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                     </td>
                                     <td>
                                         @if($recipientLabel !== '' && strcasecmp($recipientLabel, $recipientPhone) !== 0)
@@ -371,7 +358,7 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <div class="max-w-[22rem] break-words">{{ $messagePreview }}</div>
+                                        <div class="max-w-88 wrap-break-word">{{ $messagePreview }}</div>
                                         @if($sms->reference)
                                             <div class="mt-1 text-xs text-gray-500">Ref: <span class="font-mono">{{ $sms->reference }}</span></div>
                                         @endif
@@ -383,8 +370,8 @@
                                             <div>Initiated by: {{ $initiatedByLabel !== '' ? $initiatedByLabel : '-' }}</div>
                                         </div>
                                     </td>
-                                    <td>
-                                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">{{ ucfirst($status) }}</span>
+                                    <td class="text-center!">
+                                        <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
                                     </td>
                                     <td class="text-xs text-gray-700">{{ $sms->response_status_label ?? '-' }}</td>
                                 </tr>
@@ -418,14 +405,14 @@
                                                         <div class="text-xs text-gray-500">
                                                             <span class="font-semibold uppercase tracking-wide text-gray-500">↳ Reply</span>
                                                             <span class="mx-1">·</span>
-                                                            <span>{{ data_get($reply, 'received_at')?->format('M j, Y g:i a') ?? '-' }}</span>
+                                                            <span><x-ui.date-time>{{ data_get($reply, 'received_at')?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></span>
                                                             <span class="mx-1">·</span>
                                                             <span>From {{ $replyFrom }}</span>
                                                             @if(data_get($reply, 'opted_out', false))
                                                                 <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                                             @endif
                                                         </div>
-                                                        <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
+                                                        <div class="mt-2 wrap-break-word text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
                                                     </div>
                                                     @if(! $isAcknowledged)
                                                         <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
@@ -447,7 +434,7 @@
                 </div>
 
                 <div class="mt-6">
-                    {{ $messages->appends(request()->query())->links() }}
+                    <x-ui.list-pagination :paginator="$messages" />
                 </div>
             @endif
 
@@ -490,7 +477,7 @@
                                                 <x-ui.badge color="danger" size="xs">Opted out</x-ui.badge>
                                             @endif
                                         </div>
-                                        <div class="mt-2 break-words text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
+                                        <div class="mt-2 wrap-break-word text-sm text-gray-900">{{ data_get($reply, 'message', '') }}</div>
                                     </div>
                                     @if(! $isAcknowledged)
                                         <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
@@ -521,9 +508,9 @@
                         @csrf
                         <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                             <h2 id="sent-sms-modal-title" class="text-sm font-semibold text-gray-900">Send SMS</h2>
-                            <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50" aria-label="Close SMS dialog" x-on:click="sendSmsOpen = false">
+                            <x-ui.button variant="plain" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50" aria-label="Close SMS dialog" x-on:click="sendSmsOpen = false">
                                 &times;
-                            </button>
+                            </x-ui.button>
                         </div>
 
                         <div class="space-y-4 p-4">
@@ -549,13 +536,13 @@
 
                             <div>
                                 <label for="sent-sms-message" class="block text-sm pl-1">Message</label>
-                                <textarea
+                                <x-ui.textarea-control
                                     id="sent-sms-message"
                                     name="message"
                                     rows="6"
                                     class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
                                     x-model="smsMessage"
-                                >{{ old('message') }}</textarea>
+                                >{{ old('message') }}</x-ui.textarea-control>
                             </div>
                             <div class="flex items-center justify-between gap-3 text-xs text-gray-500">
                                 <div x-text="smsStats.label"></div>
@@ -573,5 +560,7 @@
                 </div>
             </div>
         </div>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

@@ -1,5 +1,7 @@
 <x-layout>
-    <x-mast>Workshop Categories</x-mast>
+    <x-mast>Workshop Categories
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-category.create') }}">Create</x-ui.button></x-slot:actions>
+    </x-mast>
 
     <x-container
         class="mt-4"
@@ -24,21 +26,18 @@
         }"
         x-on:keydown.escape.window="if (deleteOpen) closeDeleteDialog()"
     >
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.workshop-category.create') }}">Create</x-ui.button>
-            </x-slot:left>
-        </x-ui.toolbar>
+        <x-ui.dynamic-list name="admin-workshop-category-index">
+        <x-ui.collection-controls class="my-5" />
 
         @if($categories->isEmpty())
             <x-none-found item="categories" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
-                    <th>Category</th>
-                    <th class="hidden md:table-cell text-center">Slug</th>
-                    <th class="hidden md:table-cell text-center">Workshops</th>
-                    <th>Action</th>
+                    <x-ui.list-heading field="name" label="Category" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center" label="Slug" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center" label="Workshops" />
+                    <x-ui.list-heading class="text-center!" label="Actions" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($categories as $category)
@@ -55,18 +54,14 @@
                             </td>
                             <td class="hidden md:table-cell text-center text-gray-600">{{ $category->slug }}</td>
                             <td class="hidden md:table-cell text-center text-gray-600">{{ (int) $category->workshops_count }}</td>
-                            <td>
-                                <div class="flex items-center justify-center gap-3">
-                                    <a href="{{ route('admin.workshop-category.edit', $category) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
-                                    <button
+                            <td class="text-center!">
+                                <x-ui.row-actions>
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.workshop-category.edit', $category) }}" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger"
                                         type="button"
-                                        class="hover:text-danger-color"
-                                        title="Delete"
-                                        x-on:click="openDeleteDialog(@js(route('admin.workshop-category.destroy', $category)), @js($category->name), @js((int) $category->workshops_count))"
-                                    >
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </div>
+                                        x-on:click="openDeleteDialog({{ \Illuminate\Support\Js::from(route('admin.workshop-category.destroy', $category)) }}, {{ \Illuminate\Support\Js::from($category->name) }}, {{ \Illuminate\Support\Js::from((int) $category->workshops_count) }})"
+                                     />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @endforeach
@@ -78,7 +73,7 @@
             x-cloak
             x-show="deleteOpen"
             x-transition.opacity
-            class="fixed inset-0 z-[300] flex items-center justify-center bg-gray-900/60 px-4 py-8"
+            class="fixed inset-0 z-300 flex items-center justify-center bg-gray-900/60 px-4 py-8"
             role="dialog"
             aria-modal="true"
             aria-labelledby="workshop-category-delete-title"
@@ -127,5 +122,6 @@
                 </div>
             </form>
         </div>
-    </x-container>
+    </x-ui.dynamic-list>
+</x-container>
 </x-layout>

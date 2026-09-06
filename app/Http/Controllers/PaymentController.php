@@ -64,7 +64,7 @@ class PaymentController extends Controller
         $payments = $query
             ->orderByDesc('received_on')
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         $creditPayments = Payment::query()
@@ -122,7 +122,7 @@ class PaymentController extends Controller
             });
         }
 
-        if ($request->boolean('unallocated_only')) {
+        $unallocatedFilter = function ($query): void {
             $query->whereRaw('(
                 total_amount - (
                     SELECT COALESCE(SUM(ipa.allocated_amount), 0)
@@ -134,9 +134,15 @@ class PaymentController extends Controller
                 FROM payments r
                 WHERE r.refund_of_payment_id = payments.id
             ) > 0.0001');
-        }
+        };
+        $request->attributes->set('collection_preset_counts', [
+            'All payments' => (clone $query)->count(),
+            'Unallocated' => (clone $query)->tap($unallocatedFilter)->count(),
+        ]);
+        if ($request->boolean('unallocated_only')) $unallocatedFilter($query);
 
-        $payments = $query->orderBy('received_on', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+
+        $payments = $query->orderBy('received_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
         $paymentReplacementDialogDataById = $payments->getCollection()
             ->mapWithKeys(function (Payment $payment): array {
                 $matchingPayments = $this->matchingEftposPaymentsForReplacement($payment)
@@ -214,6 +220,7 @@ class PaymentController extends Controller
             });
         }
 
+        app(\App\Services\SiteListControls::class)->capturePresetCounts($query);
         $displayQuery = clone $query;
         if ($hideCompleted) {
             $displayQuery->where('status', '!=', SquareRefundOperation::STATUS_COMPLETED);
@@ -221,7 +228,7 @@ class PaymentController extends Controller
 
         $manualRefunds = $displayQuery
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
             ->onEachSide(1);
 
         $summaryQuery = clone $query;

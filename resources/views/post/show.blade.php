@@ -3,7 +3,7 @@
         @php
             $postContent = \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($post->content ?? ''));
         @endphp
-        <x-ui.image-hero :image="$post->hero?->url" class="my-8" />
+        <x-ui.image-hero :alt="$post->title" :image="$post->hero?->url" class="my-8" />
         <h1 class="text-3xl font-bold mb-2">{{ $post->title }}</h1>
         <div class="flex justify-between align-middle mb-4">
             <p class="text-gray-500 font-semibold">{{ $post->created_at->format('F j, Y') }}</p>

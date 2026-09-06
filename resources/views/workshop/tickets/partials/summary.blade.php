@@ -4,7 +4,7 @@
     $resolvedTotalActionAttributes = new \Illuminate\View\ComponentAttributeBag(is_array($totalActionAttributes ?? null) ? $totalActionAttributes : []);
 @endphp
 
-<table class="text-sm mb-4">
+<x-ui.table variant="plain" table-class="text-sm mb-4">
     <tr>
         <th class="text-left pr-4 w-24">Workshop</th>
         <td>{{ $workshop->title }}</td>
@@ -47,9 +47,9 @@
             <td class="{{ $valueClass }}">
                 @if($label === 'Total Cost' && $resolvedTotalActionLabel !== '')
                     <div class="relative w-full pr-28">
-                        <button {{ $resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'absolute right-0 top-1/2 inline-flex shrink-0 -translate-y-1/2 items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color disabled:cursor-not-allowed disabled:opacity-50']) }}>
+                        <x-ui.button variant="plain" :type="$resolvedTotalActionAttributes->get('type', 'button')" :button-attributes="$resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'absolute right-0 top-1/2 inline-flex shrink-0 -translate-y-1/2 items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color disabled:cursor-not-allowed disabled:opacity-50'])">
                             {{ $resolvedTotalActionLabel }}
-                        </button>
+                        </x-ui.button>
                         <span class="font-semibold">{{ $row['value'] ?? '-' }}</span>
                     </div>
                 @elseif($valueHtml !== null)
@@ -60,4 +60,4 @@
             </td>
         </tr>
     @endforeach
-</table>
+</x-ui.table>

@@ -2,23 +2,10 @@
     <x-mast>Sent Emails</x-mast>
 
     <x-container>
+        <x-ui.dynamic-list name="admin-server-sent-emails">
+
         <div class="my-4">
-            <form method="GET" action="{{ route('admin.server.sent-emails') }}" class="w-full flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-                <div class="w-full sm:w-64">
-                    <x-ui.select label="Status" name="status">
-                        <option value="">All statuses</option>
-                        @foreach($statuses as $status)
-                            <option value="{{ $status }}" {{ request('status') === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                </div>
-                <div class="w-full sm:flex-1">
-                    <x-ui.input name="search" label="Search" :value="request('search')" />
-                </div>
-                <div class="w-full sm:w-40 mb-4">
-                    <x-ui.button type="submit" color="outline">Apply</x-ui.button>
-                </div>
-            </form>
+            <x-ui.collection-controls />
             <div class="mt-2 text-xs text-gray-500">
                 Search by recipient, template class, error text, or record ID.
             </div>
@@ -27,18 +14,16 @@
         @if($emails->isEmpty())
             <x-none-found item="sent emails" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
+            <x-ui.table variant="listing">
                 <x-slot:header>
                     <th>
                         <span class="md:hidden">Email</span>
                         <span class="hidden md:inline">Created</span>
                     </th>
-                    <th class="hidden md:table-cell">Details</th>
-                    <th class="hidden md:table-cell">Sent</th>
-                    <th class="hidden md:table-cell">Failed</th>
-                    <th class="hidden lg:table-cell">Error</th>
-                    <th class="hidden md:table-cell">Record ID</th>
-                    <th>Status</th>
+                    <x-ui.list-heading field="mailable_class" class="hidden md:table-cell" label="Details" />
+                    <x-ui.list-heading class="hidden md:table-cell text-center!" label="Sent" />
+                    <x-ui.list-heading class="hidden md:table-cell" label="Record ID" />
+                    <x-ui.list-heading class="text-center!" label="Status" />
                 </x-slot:header>
                 <x-slot:body>
                     @foreach($emails as $email)
@@ -54,11 +39,11 @@
                         @endphp
                         <tr>
                             <td>
-                                <div class="text-xs sm:text-sm">{{ $email->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div class="text-xs sm:text-sm"><x-ui.date-time>{{ $email->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                                 <div class="md:hidden mt-1">{{ $email->recipient }}</div>
                                 <div class="md:hidden text-xs font-medium">{{ class_basename($email->mailable_class) }}</div>
                                 @if($email->scheduled_for_at)
-                                    <div class="md:hidden text-xs text-sky-700 mt-1">Scheduled for {{ $email->scheduled_for_at->format('M j, Y g:i a') }}</div>
+                                    <div class="md:hidden text-xs text-sky-700 mt-1">Scheduled for <x-ui.date-time>{{ $email->scheduled_for_at->format('M j, Y g:i a') }}</x-ui.date-time></div>
                                 @endif
                                 @if($status === \App\Models\SentEmail::STATUS_SKIPPED)
                                     <div class="md:hidden text-xs text-slate-700 mt-1">Skipped because the email was already sent.</div>
@@ -70,26 +55,37 @@
                                 <div>{{ $email->recipient }}</div>
                                 <div class="font-medium">{{ class_basename($email->mailable_class) }}</div>
                                 @if($email->scheduled_for_at)
-                                    <div class="text-xs text-sky-700">Scheduled for {{ $email->scheduled_for_at->format('M j, Y g:i a') }}</div>
+                                    <div class="text-xs text-sky-700">Scheduled for <x-ui.date-time>{{ $email->scheduled_for_at->format('M j, Y g:i a') }}</x-ui.date-time></div>
                                 @endif
                                 @if($status === \App\Models\SentEmail::STATUS_SKIPPED)
                                     <div class="text-xs text-slate-700">Skipped because the email was already sent.</div>
                                 @endif
                                 <div class="text-xs text-gray-500 break-all">{{ $email->mailable_class }}</div>
                             </td>
-                            <td class="hidden md:table-cell">{{ $email->sent_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                            <td class="hidden md:table-cell">{{ $email->failed_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                            <td class="hidden lg:table-cell text-xs text-red-700">{{ $email->error_message ?? '-' }}</td>
+                            <td class="hidden md:table-cell text-center!"><x-ui.date-time>{{ $email->sent_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
                             <td class="hidden md:table-cell text-xs font-mono">{{ $email->id }}</td>
-                            <td>
-                                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">{{ ucfirst($status) }}</span>
+                            <td class="text-center! whitespace-nowrap">
+                                <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
+                                @if($status === 'failed' || $email->failed_at || $email->error_message)
+                                    <x-ui.button variant="plain" data-open-dialog="email-failure-{{ $email->id }}" aria-haspopup="dialog" aria-controls="email-failure-{{ $email->id }}" aria-label="View failure details for email {{ $email->id }}" class="inline-flex h-8 w-8 items-center justify-center p-0! text-slate-500 hover:text-red-700">
+                                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                    </x-ui.button>
+                                    <x-ui.list-dialog id="email-failure-{{ $email->id }}" title="Email failure details">
+                                        <dl class="space-y-4 p-5 text-left whitespace-normal">
+                                            <div><dt class="font-semibold">Failed at</dt><dd>{{ $email->failed_at?->format('M j, Y g:i a') ?? 'Not recorded' }}</dd></div>
+                                            <div><dt class="font-semibold">Error</dt><dd class="whitespace-pre-wrap wrap-break-word text-sm text-red-700">{{ $email->error_message ?: 'No error details recorded.' }}</dd></div>
+                                        </dl>
+                                    </x-ui.list-dialog>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $emails->appends(request()->query())->links() }}
+            <x-ui.list-pagination :paginator="$emails" />
         @endif
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

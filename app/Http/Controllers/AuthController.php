@@ -12,6 +12,7 @@ use App\Models\Token;
 use App\Models\User;
 use App\Support\AltchaTrust;
 use App\Support\RememberedDeviceManager;
+use App\Support\SafeRedirect;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -81,9 +82,13 @@ class AuthController extends Controller
         $rules = [
             'login' => 'required|string|max:255',
             'password' => 'nullable|string|max:255',
+            'totp' => 'nullable|string|max:100',
+            'otp' => 'nullable|string|max:100',
+            'code' => 'nullable|string|max:100',
+            'backup_code' => 'nullable|string|max:100',
         ];
         if (AltchaTrust::shouldRequire($request)) {
-            $rules['altcha'] = ['required', new ValidAltcha()];
+            $rules['altcha'] = ['required', new ValidAltcha];
         }
 
         $request->validate($rules, [
@@ -93,6 +98,15 @@ class AuthController extends Controller
             AltchaTrust::markVerified($request);
         }
 
+        if (config('security.generic_login') && $request->input('method') === 'email') {
+            \App\Jobs\RequestLoginLink::dispatch($login, array_filter([
+                'url' => session()->pull('url.intended', null),
+                'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                'remember_email_value' => $rememberEmailProvided ? $login : null,
+            ], fn ($value) => $value !== null));
+
+            return view('auth.login-link');
+        }
         $forceEmailLogin = false;
         $rememberEmailValue = $rememberEmailProvided ? ($rememberEmail ? '1' : '0') : '0';
         $password = (string) $request->input('password', '');
@@ -101,14 +115,24 @@ class AuthController extends Controller
 
         if ($otpCode !== '') {
             $user = $this->findUserByLogin($login);
-            if ($user) {
-                if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)) {
+            if ($user && trim((string) $user->tfa_secret) !== '') {
+                if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)
+                    && (! config('security.admin_mfa_required') || ! $user->isAdmin()
+                        || \Illuminate\Support\Facades\Cache::add('mfa-used:'.hash('sha256', $user->id.'|'.$otpCode), true, 300))) {
                     $pendingPasswordData = $this->pullPendingPasswordLoginData($request, $user);
                     if ($pendingPasswordData !== null) {
-                        return $this->loginByUser($user, $pendingPasswordData);
+                        return $this->loginByUser($user, $pendingPasswordData, mfaVerified: true);
                     }
 
-                    if ($user->canUseEmailLogin()) {
+                    if ($this->allowsAuthenticatorLogin($user)) {
+                        return $this->loginByUser($user, array_filter([
+                            'url' => session()->pull('url.intended', null),
+                            'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                            'remember_email_value' => $rememberEmailProvided ? $login : null,
+                        ], fn ($value) => $value !== null), mfaVerified: true);
+                    }
+
+                    if ($user->canUseEmailLogin() && (! config('security.admin_mfa_required') || ! $user->isAdmin())) {
                         return $this->loginByUser($user, ['url' => session()->pull('url.intended', null)]);
                     }
                 }
@@ -116,7 +140,8 @@ class AuthController extends Controller
 
             return view('auth.login-2fa', [
                 'login' => $login,
-                'allowEmailMethod' => $user?->canUseEmailLogin() ?? false,
+                'allowEmailMethod' => config('security.generic_login') || ($user?->canUseEmailLogin() ?? false),
+                'allowPasswordMethod' => $user?->canUsePasswordLogin() ?? false,
             ])->withErrors([
                 'totp' => 'The 2FA code is not valid',
             ]);
@@ -124,7 +149,7 @@ class AuthController extends Controller
 
         if ($request->has('backup_code')) {
             $user = $this->findUserByLogin($login);
-            if ($user) {
+            if ($user && trim((string) $user->tfa_secret) !== '') {
                 if ($user->verifyBackupCode($request->backup_code)) {
                     $pendingPasswordData = $this->pullPendingPasswordLoginData($request, $user);
                     if ($pendingPasswordData !== null) {
@@ -132,10 +157,21 @@ class AuthController extends Controller
                             dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
                         }
 
-                        return $this->loginByUser($user, $pendingPasswordData);
+                        return $this->loginByUser($user, $pendingPasswordData, mfaVerified: true);
                     }
 
-                    if ($user->canUseEmailLogin()) {
+                    if ($this->allowsAuthenticatorLogin($user)) {
+                        if ($user->canReceiveEmail()) {
+                            dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
+                        }
+                        return $this->loginByUser($user, array_filter([
+                            'url' => session()->pull('url.intended', null),
+                            'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                            'remember_email_value' => $rememberEmailProvided ? $login : null,
+                        ], fn ($value) => $value !== null), mfaVerified: true);
+                    }
+
+                    if ($user->canUseEmailLogin() && (! config('security.admin_mfa_required') || ! $user->isAdmin())) {
                         if ($user->canReceiveEmail()) {
                             dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
                         }
@@ -148,7 +184,8 @@ class AuthController extends Controller
             return view('auth.login-2fa', [
                 'login' => $login,
                 'method' => 'backup',
-                'allowEmailMethod' => $user?->canUseEmailLogin() ?? false,
+                'allowEmailMethod' => config('security.generic_login') || ($user?->canUseEmailLogin() ?? false),
+                'allowPasswordMethod' => $user?->canUsePasswordLogin() ?? false,
             ])->withErrors([
                 'backup_code' => 'The backup code is not valid',
             ]);
@@ -157,6 +194,9 @@ class AuthController extends Controller
         if ($request->has('method')) {
             if ($request->get('method') === 'email') {
                 $forceEmailLogin = true;
+            } elseif ($request->get('method') === 'password') {
+                $user = $this->findUserByLogin($login);
+                return $this->passwordPromptView($login, $user?->canUseEmailLogin() ?? false, $rememberEmailValue, trim((string) $user?->tfa_secret) !== '');
             } else {
                 abort(404);
             }
@@ -168,8 +208,9 @@ class AuthController extends Controller
             if (! $user || ! $user->canUsePasswordLogin() || ! Hash::check($password, (string) $user->password)) {
                 return $this->passwordPromptView(
                     $login,
-                    $user?->canUseEmailLogin() ?? false,
-                    $rememberEmailValue
+                    config('security.generic_login') || ($user?->canUseEmailLogin() ?? false),
+                    $rememberEmailValue,
+                    trim((string) $user?->tfa_secret) !== ''
                 )->withErrors([
                     'password' => 'The password is not valid.',
                 ]);
@@ -186,6 +227,7 @@ class AuthController extends Controller
                     'user' => $user,
                     'login' => $login,
                     'allowEmailMethod' => $user->canUseEmailLogin(),
+                    'allowPasswordMethod' => $user->canUsePasswordLogin(),
                 ]);
             }
 
@@ -203,6 +245,7 @@ class AuthController extends Controller
                 'user' => $user,
                 'login' => $login,
                 'allowEmailMethod' => $user->canUseEmailLogin(),
+                'allowPasswordMethod' => $user->canUsePasswordLogin(),
             ]);
         }
 
@@ -221,6 +264,7 @@ class AuthController extends Controller
                     'user' => $user,
                     'login' => $login,
                     'allowEmailMethod' => $user->canUseEmailLogin(),
+                    'allowPasswordMethod' => $user->canUsePasswordLogin(),
                 ]);
             }
 
@@ -238,6 +282,9 @@ class AuthController extends Controller
             return view('auth.login-link');
         }
 
+        if (config('security.generic_login')) {
+            return view('auth.login-link');
+        }
         session()->flash('status', 'not-found');
 
         return view('auth.login', [
@@ -257,8 +304,7 @@ class AuthController extends Controller
 
         if ($token) {
             $user = $token->user;
-            if ($user instanceof User) {
-                $token->delete();
+            if ($user instanceof User && Token::query()->whereKey($token->getKey())->delete() === 1) {
 
                 return $this->loginByUser($user, $token->data);
             }
@@ -284,11 +330,16 @@ class AuthController extends Controller
         ?string $message = null,
         ?string $title = null,
         string $type = 'success',
-        bool $flashMessage = true
+        bool $flashMessage = true,
+        bool $mfaVerified = false
     ) {
         $url = null;
         if (isset($data['url']) && $data['url']) {
             $url = $data['url'];
+        }
+
+        if (! SafeRedirect::allows($url)) {
+            $url = null;
         }
 
         if (is_string($url)) {
@@ -298,8 +349,12 @@ class AuthController extends Controller
             }
         }
 
+        request()->session()->forget('privileged_mfa');
         Auth::login($user);
         request()->session()->regenerate();
+        if ($mfaVerified) {
+            \App\Http\Middleware\RequirePrivilegedMfa::confirm(request(), $user);
+        }
         $this->rememberedDeviceManager->refreshCurrentDeviceForUser(request(), $user);
         if (array_key_exists('remember_email', $data)) {
             if ((bool) $data['remember_email']) {
@@ -413,7 +468,7 @@ class AuthController extends Controller
             'email' => 'required|email',
         ];
         if (AltchaTrust::shouldRequire($request)) {
-            $rules['altcha'] = ['required', new ValidAltcha()];
+            $rules['altcha'] = ['required', new ValidAltcha];
         }
 
         $request->validate($rules, [
@@ -494,6 +549,12 @@ class AuthController extends Controller
         return redirect()->route('index');
     }
 
+    private function allowsAuthenticatorLogin(User $user): bool
+    {
+        return $user->email_verified_at !== null
+            && $user->tfa_secret !== null;
+    }
+
     private function findVerifiedUserByLogin(string $login): ?User
     {
         $user = $this->findUserByLogin($login);
@@ -553,11 +614,12 @@ class AuthController extends Controller
         $request->session()->forget(self::PASSWORD_LOGIN_SESSION_KEY);
     }
 
-    private function passwordPromptView(string $login, bool $allowEmailMethod, string $rememberEmailValue = '0'): View
+    private function passwordPromptView(string $login, bool $allowEmailMethod, string $rememberEmailValue = '0', bool $allowAuthenticatorMethod = false): View
     {
         return view('auth.login-password', [
             'login' => $login,
             'allowEmailMethod' => $allowEmailMethod,
+            'allowAuthenticatorMethod' => $allowAuthenticatorMethod,
             'rememberEmailValue' => $rememberEmailValue,
         ]);
     }

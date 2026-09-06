@@ -12,28 +12,28 @@
             ['text', 'fa-font', 'Text'],
             ['pan', 'fa-hand', 'Pan'],
         ] as [$tool, $icon, $label])
-            <button type="button" x-bind:class="canvasToolButtonClass('{{ $tool }}')" x-on:click="setCanvasTool('{{ $tool }}')" title="{{ $label }}" aria-label="{{ $label }}">
+            <x-ui.button variant="plain" type="button" x-bind:class="canvasToolButtonClass('{{ $tool }}')" x-on:click="setCanvasTool('{{ $tool }}')" title="{{ $label }}" aria-label="{{ $label }}">
                 <i class="{{ str_contains($icon, 'fa-regular') ? $icon : 'fa-solid '.$icon }}"></i>
-            </button>
+            </x-ui.button>
         @endforeach
 
         <span class="mx-1 h-6 border-l border-gray-300" aria-hidden="true"></span>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()" title="Zoom in" aria-label="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()" title="Zoom out" aria-label="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()" title="Reset view" aria-label="Reset view"><i class="fa-solid fa-arrows-to-dot"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()" title="Export PNG" aria-label="Export PNG"><i class="fa-solid fa-file-arrow-down"></i></button>
-        <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()" title="Clear drawing" aria-label="Clear drawing"><i class="fa-solid fa-trash-can"></i></button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()" title="Zoom in" aria-label="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()" title="Zoom out" aria-label="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()" title="Reset view" aria-label="Reset view"><i class="fa-solid fa-arrows-to-dot"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()" title="Export PNG" aria-label="Export PNG"><i class="fa-solid fa-file-arrow-down"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()" title="Clear drawing" aria-label="Clear drawing"><i class="fa-solid fa-trash-can"></i></x-ui.button>
 
         <span class="mx-1 h-6 border-l border-gray-300" aria-hidden="true"></span>
         <label class="flex h-9 items-center gap-1 rounded-md border border-gray-300 bg-white px-2" title="Colour">
             <i class="fa-solid fa-palette text-gray-500" aria-hidden="true"></i>
-            <input type="color" class="h-6 w-7 cursor-pointer border-0 bg-transparent p-0" x-model="canvasColor" x-on:input="setCanvasColor($event.target.value)" aria-label="Drawing colour">
+            <x-ui.input-control type="color" class="h-6 w-7 cursor-pointer border-0 bg-transparent p-0" x-model="canvasColor" x-on:input="setCanvasColor($event.target.value)" aria-label="Drawing colour" />
         </label>
         <label class="flex h-9 items-center gap-2 rounded-md border border-gray-300 bg-white px-2" title="Stroke width">
             <i class="fa-solid fa-minus text-gray-500" aria-hidden="true"></i>
-            <input type="range" min="1" max="48" step="1" class="w-24" x-model="canvasBrushSize" x-on:input="setCanvasBrushSize($event.target.value)" aria-label="Drawing line width">
+            <x-ui.input-control type="range" min="1" max="48" step="1" class="w-24" x-model="canvasBrushSize" x-on:input="setCanvasBrushSize($event.target.value)" aria-label="Drawing line width" />
             <span class="w-8 text-right text-xs text-gray-600" x-text="canvasBrushSize + 'px'"></span>
         </label>
         <span class="ml-auto text-xs text-gray-500">Zoom <span x-text="canvasZoomPercent + '%'"></span></span>

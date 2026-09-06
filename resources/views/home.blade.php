@@ -1,9 +1,16 @@
+@php
+    $hero = \App\Support\HomeHero::content();
+    $heroImageUrl = \App\Support\HomeHero::imageUrl($hero);
+@endphp
 <x-layout
     id="home"
     title="Home"
     description="Hands-on STEM workshops in Cairns and across Queensland, including coding, robotics, creative tech, and community programs."
     :canonical="route('index')"
 >
+    @pushOnce('head')
+        <link rel="preload" as="image" href="{{ $heroImageUrl }}" fetchpriority="high" />
+    @endPushOnce
     <style>
         @keyframes home-hero-blob {
             0%, 100% {
@@ -28,24 +35,7 @@
             }
         }
     </style>
-    <section id="banner" class="relative isolate overflow-hidden bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.72),rgba(0,0,0,.18)),url({{asset('home-hero.webp')}})">
-        <x-container class="py-24 sm:py-28 lg:py-32 relative">
-            <div class="z-10 absolute right-4 bottom-4 rounded-full bg-black/65 px-3 py-1 text-xs text-white shadow-lg">Steady Hand Game in Ravenshoe</div>
-            <div class="relative max-w-4xl">
-                <div class="absolute -left-4 top-4 -z-10 h-72 w-[20rem] rounded-[52%_48%_58%_42%/43%_55%_45%_57%] bg-amber-300/16 blur-3xl sm:-left-10 sm:h-120 sm:w-120"></div>
-                <div class="relative inline-block w-full max-w-3xl min-h-88 sm:min-h-96 lg:min-h-104">
-                    <div class="absolute -top-10 -left-20 -bottom-15 md:bottom-0 right-0 rounded-[40%_60%_28%_72%/66%_30%_70%_34%] bg-[#00a6f4bf] shadow-2xl ring-1 ring-black/10 home-hero-blob-bg"></div>
-
-                    <div class="relative px-7 py-8 sm:px-10 sm:py-10">
-                        <p class="mb-3 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white ring-1 ring-white/20">Join the fun</p>
-                        <h2 class="max-w-2xl text-3xl font-bold text-white sm:text-4xl">Workshops that feel playful, practical, and a little unexpected.</h2>
-                        <p class="mt-4 max-w-2xl text-white/90">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
-                        <p class="mt-3 max-w-2xl text-white/90">Our fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills they need to solve any problem that comes their way.</p>
-                    </div>
-                </div>
-            </div>
-        </x-container>
-    </section>
+    <x-home-hero :hero="$hero" :image-url="$heroImageUrl" />
     <section id="events" class="bg-gray-50">
         <x-container class="relative py-16">
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -87,7 +77,9 @@
             <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
                 <div class="overflow-hidden sm:min-h-80 lg:order-2 lg:min-h-80 rounded-lg">
                     <img
-                        src="{{ asset('home-schools.webp') }}"
+                        src="{{ asset('home-schools-768.webp') }}"
+                        srcset="{{ asset('home-schools-480.webp') }} 480w, {{ asset('home-schools-768.webp') }} 768w, {{ asset('home-schools-1024.webp') }} 1024w"
+                        sizes="(min-width: 1024px) 45vw, 100vw" width="4032" height="3024"
                         alt="A workshop scene for schools and groups"
                         class="h-48 w-full object-cover object-center sm:h-64 lg:h-full"
                         loading="lazy"
@@ -136,7 +128,7 @@
             <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
                 <div class="overflow-hidden order-0 sm:min-h-80 lg:min-h-80 rounded-lg">
                     <img
-                            src="{{ asset('home-green-screen.webp') }}"
+                            src="{{ asset('home-green-screen-480.webp') }}" width="600" height="600"
                             alt="Children building and learning together in a workshop"
                             class="h-48 w-full object-cover object-center sm:h-64 lg:h-full"
                             loading="lazy"

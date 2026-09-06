@@ -52,9 +52,9 @@
                         </div>
                         <div>
                             <div class="flex gap-2">
-                                <div class="whitespace-nowrap rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-lg font-semibold uppercase tracking-wide text-gray-600">
+                                <x-ui.badge class="whitespace-nowrap border border-gray-200 bg-gray-50 text-lg text-gray-600">
                                     Quote {{ $quote->quote_number }}
-                                </div>
+                                </x-ui.badge>
                             </div>
                         </div>
                     </div>
@@ -100,13 +100,13 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr class="text-left text-gray-600">
                             <th class="px-6 py-3 font-medium">Item</th>
                             <th class="px-6 py-3 font-medium text-right">Qty</th>
                             <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
-                            <th class="px-6 py-3 font-medium text-right">Subtotal <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
+                            <th class="px-6 py-3 font-medium text-center!">Subtotal <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
@@ -123,7 +123,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-right align-top text-gray-700">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
                                 <td class="px-6 py-4 text-right align-top text-gray-700">${{ number_format((float) ($item['unit_price'] ?? 0), 2) }}</td>
-                                <td class="px-6 py-4 text-right align-top font-medium text-gray-950">${{ number_format((float) ($item['line_total'] ?? 0), 2) }}</td>
+                                <td class="px-6 py-4 align-top font-medium text-gray-950 text-center!">${{ number_format((float) ($item['line_total'] ?? 0), 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -141,7 +141,7 @@
                             <td class="px-6 pb-4 text-right font-semibold text-gray-950 text-lg">${{ number_format((float) $quote->total_amount, 2) }}</td>
                         </tr>
                     </tfoot>
-                </table>
+                </x-ui.table>
             </div>
         </div>
     </div>

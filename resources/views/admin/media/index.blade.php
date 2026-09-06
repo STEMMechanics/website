@@ -1,105 +1,16 @@
-<x-layout>
-    <x-mast>Media</x-mast>
-
-    <x-container>
-        @php
-            $mediaQuery = request()->except(['page', 'unused_only']);
-            $unusedMediaRoute = route('admin.media.index', array_merge($mediaQuery, ['unused_only' => 1]));
-            $allMediaRoute = route('admin.media.index', $mediaQuery);
-        @endphp
-        @if(isset($filteredOwner) && $filteredOwner)
-            <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                Showing media for <strong>{{ $filteredOwner->getName() ?: $filteredOwner->email }}</strong>.
-                <a href="{{ route('admin.media.index') }}" class="ml-2 text-primary-color hover:underline">Clear filter</a>
-            </div>
-        @endif
-        @if($unusedOnly)
-            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Showing media with no detected site references.
-                <a href="{{ $allMediaRoute }}" class="ml-2 text-primary-color hover:underline">Show all media</a>
-            </div>
-        @endif
-        <div class="flex gap-4 my-4">
-            <div class="flex-1 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <div class="text-base font-semibold text-gray-900">Quick upload</div>
-                        <div class="text-sm text-gray-600">Drop multiple files here to create media items with default values and your account as the owner.</div>
-                    </div>
-                    <label for="admin-media-bulk-upload-input" class="inline-flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
-                        Browse files
-                    </label>
-                </div>
-                <label
-                    for="admin-media-bulk-upload-input"
-                    id="admin-media-bulk-upload-dropzone"
-                    class="mt-4 block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center text-sm text-gray-500 transition"
-                >
-                    Drop files here or click Browse files
-                </label>
-                <input id="admin-media-bulk-upload-input" type="file" multiple class="hidden" />
-                <div id="admin-media-bulk-upload-status" class="mt-3 hidden rounded border px-3 py-2 text-sm">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                        <div class="font-medium" id="admin-media-bulk-upload-status-text"></div>
-                        <div class="text-xs text-gray-500" id="admin-media-bulk-upload-status-percent"></div>
-                    </div>
-                    <div class="h-2 w-full overflow-hidden rounded bg-gray-200">
-                        <div id="admin-media-bulk-upload-status-bar" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>
-                    </div>
-                </div>
-            </div>
-            <x-ui.button
-                    href="{{ $toggleViewRoute }}"
-                    color="outline"
-                    class="h-10 w-10 shrink-0 px-0"
-                    title="{{ $toggleViewTitle }}"
-                    aria-label="{{ $toggleViewTitle }}"
-            >
-                <i class="{{ $toggleViewIcon }}"></i>
-                <span class="sr-only">{{ $toggleViewTitle }}</span>
-            </x-ui.button>
-        </div>
-        <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
-            <div class="flex flex-col gap-4">
-                <div>
-                    <div class="flex flex-wrap gap-2">
-                        <x-ui.button href="{{ route('admin.media.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
-                        <x-ui.button href="{{ route('admin.media.duplicates') }}" color="outline" class="w-full sm:w-auto">
-                            Find Duplicates
-                            @if((int) ($duplicateAttentionCount ?? 0) > 0)
-                                <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">{{ (int) $duplicateAttentionCount }}</span>
-                            @endif
-                        </x-ui.button>
-                        <x-ui.button type="button" color="outline" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()" class="w-full sm:w-auto">Regenerate Missing Variants</x-ui.button>
-                        @if($unusedOnly)
-                            <x-ui.button href="{{ $allMediaRoute }}" color="outline" class="w-full sm:w-auto">Show All</x-ui.button>
-                        @else
-                            <x-ui.button href="{{ $unusedMediaRoute }}" color="outline" class="w-full sm:w-auto">Unused Only</x-ui.button>
-                        @endif
-                    </div>
-                </div>
-                <div>
-                    <div class="font-bold text-sm mb-2">Search & Filter</div>
-                    <form method="GET" action="{{ route('admin.media.index') }}" class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        @if($view === 'photos')
-                            <input type="hidden" name="view" value="photos" />
-                        @endif
-                        <x-ui.input name="search" label="Search media" value="{{ request('search') }}" class="mb-0" noLabel="true" />
-                        <x-ui.input name="workshop" label="Workshop" value="{{ request('workshop') }}" class="mb-0" noLabel="true" />
-                        <x-ui.input name="location" label="Location" value="{{ request('location') }}" class="mb-0" noLabel="true" />
-                        <div class="flex gap-2">
-                            <x-ui.select name="visibility" label="Visibility" class="mb-0 min-w-40 flex-1" selectClass="min-w-40" noLabel="true">
-                            <option value="">Any visibility</option>
-                            <option value="private" @selected(request('visibility') === 'private')>Private</option>
-                            <option value="protected" @selected(request('visibility') === 'protected')>Protected</option>
-                            <option value="public" @selected(request('visibility') === 'public')>Public</option>
-                            </x-ui.select>
-                            <x-ui.button type="submit" color="outline">Filter</x-ui.button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<x-layout title="Media">
+    <x-mast title="Media" description="Manage your files, photos and shared resources.">
+        <x-slot:breadcrumbs><a href="{{ route('admin.dashboard') }}" class="hover:underline">Dashboard</a></x-slot:breadcrumbs>
+        <x-slot:actions>
+                    <x-ui.page-upload color="mast" id="admin-media-bulk-upload" />
+                    <x-ui.action-menu color="mast" id="media-tools" title="Media tools">
+                        <a href="{{ route('admin.media.create') }}"><i class="fa-solid fa-file-circle-plus"></i>Create with metadata</a>
+                        <a href="{{ route('admin.media.duplicates') }}"><i class="fa-solid fa-clone"></i>Find Duplicates <x-ui.badge color="warning">{{ $duplicateAttentionCount }}</x-ui.badge></a>
+                        <x-ui.button variant="plain" id="regenerate-missing-variants-button" onclick="this.closest('dialog').close(); confirmRegenerateMissingVariants()"><i class="fa-solid fa-arrows-rotate"></i>Regenerate Missing Variants</x-ui.button>
+                    </x-ui.action-menu>
+        </x-slot:actions>
+    </x-mast>
+    <x-container class="py-5 sm:py-8">
         <div id="regenerate-missing-variants-status" class="hidden mb-4 rounded border border-gray-200 bg-gray-50 px-3 py-2">
             <div class="mb-1 flex items-center justify-between">
                 <div class="text-sm font-semibold text-gray-700" id="regenerate-missing-variants-status-title">Regenerating Missing Variants</div>
@@ -114,191 +25,101 @@
                 <ul id="regenerate-missing-variants-status-errors-list" class="mt-1 space-y-1 text-xs"></ul>
             </div>
         </div>
-        <form id="admin-media-bulk-form" method="POST" action="{{ route('admin.media.bulk.select') }}" class="mb-4 hidden rounded-xl border border-sky-200 bg-sky-50 p-3">
-            @csrf
-            <div id="admin-media-bulk-inputs"></div>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="text-sm font-semibold text-sky-900"><span id="admin-media-selected-count">0</span> media items selected</div>
-                <div class="flex gap-2">
-                    <x-ui.button type="button" color="outline" id="admin-media-clear-selection">Clear Selection</x-ui.button>
-                    <x-ui.button type="submit">Bulk Edit</x-ui.button>
+            <x-ui.dynamic-list name="admin-media-index">
+                @php
+                    $filterLabels = ['search' => 'Search', 'type' => 'Type', 'usage' => 'Usage', 'mime_type' => 'MIME', 'name_pattern' => 'Name matches', 'tags_include' => 'Has all tags', 'tags_exclude' => 'Without tags', 'visibility' => 'Visibility', 'storage_disk' => 'Storage', 'workshop' => 'Workshop', 'location' => 'Location', 'size_min' => 'Min MB', 'size_max' => 'Max MB', 'uploaded_from' => 'From', 'uploaded_to' => 'To', 'user_id' => 'Owner'];
+                    $activeFilters = collect(request()->only(array_keys($filterLabels)))->filter(fn ($value) => is_scalar($value) && (string) $value !== '');
+                    $presetFilters = ['all' => [], 'images' => ['type' => 'image'], 'unused' => ['usage' => 'unused']];
+                    $presetItems = collect(['all' => 'All media', 'images' => 'Images', 'unused' => 'Unused'])->map(fn ($title, $key) => ['title' => $title, 'count' => $presetCounts[$key], 'active' => $activeFilters->all() == $presetFilters[$key], 'route' => route('admin.media.index', array_merge(request()->only(['view', 'sort', 'direction', 'per_page']), $presetFilters[$key]))])->values()->all();
+                    $clearUrl = route('admin.media.index', request()->only(['view', 'sort', 'direction', 'per_page']));
+                @endphp
+                <div data-filter-controls data-filter-schema="{{ json_encode(collect($filterLabels)->map(fn ($label, $key) => ['label' => $label, 'type' => 'text', 'count' => $key !== 'search'])->all()) }}" data-filter-search="search">
+                <x-ui.preset-views :items="$presetItems" label="Media presets" />
+                <div class="my-5 flex flex-wrap items-center gap-3">
+                    <x-ui.button color="outline" data-open-dialog="media-filter-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none"><i class="fa-solid fa-filter mr-2"></i>Filters <x-ui.badge data-filter-count color="sky" class="ml-2" :hidden="$activeFilters->except('search')->isEmpty()">{{ $activeFilters->except('search')->count() }}</x-ui.badge></x-ui.button>
+                    <x-ui.button color="outline" data-open-dialog="media-sort-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none lg:hidden"><i class="fa-solid fa-arrow-down-short-wide mr-2"></i>{{ \App\Services\MediaListFilters::SORTS[request('sort', 'created_at')] }} <span class="ml-1">{{ request('direction', 'desc') === 'asc' ? '↑' : '↓' }}</span></x-ui.button>
+                    <nav data-view-tabs aria-label="Media layout" class="ml-auto flex rounded-lg border border-slate-200 bg-white p-1">
+                        @foreach(['table' => ['Table view', 'fa-table-list'], 'photos' => ['Photo view', 'fa-table-cells-large']] as $mode => [$label, $icon])
+                            <a href="{{ route('admin.media.index', array_merge(request()->except(['page', 'view']), ['view' => $mode])) }}" aria-label="{{ $label }}" @if($view === $mode) aria-current="page" @endif class="flex h-9 w-10 items-center justify-center rounded-md {{ $view === $mode ? 'bg-sky-50 text-primary-color' : 'text-slate-500' }}"><i class="fa-solid {{ $icon }}"></i></a>
+                        @endforeach
+                    </nav>
                 </div>
-            </div>
-        </form>
-
-        @if($media->isEmpty())
-            <x-none-found item="media" search="{{ request()->get('search') }}" />
-        @else
-            @if($view === 'table')
-            <x-ui.table>
-                <x-slot:header>
-                    <th class="w-8 !border-r-0">
-                        <x-ui.checkbox
-                            id="admin-media-select-page"
-                            label="Select all media on this page"
-                            labelHidden="true"
-                            small="true"
-                            noWrapper="true"
-                            inputClass="text-primary-color"
-                        />
-                    </th>
-                    <th class="!border-l-0 !pl-0">Title</th>
-                    <th class="hidden lg:table-cell">Owner</th>
-                    <th class="hidden md:table-cell">Type</th>
-                    <th class="hidden md:table-cell">Size</th>
-                    <th class="hidden md:table-cell">Uploaded</th>
-                    <th>Action</th>
-                </x-slot:header>
-                <x-slot:body>
-                    @foreach ($media as $medium)
-                        <tr>
-                            <td class="w-8 !border-r-0">
-                                <x-ui.checkbox
-                                    :id="'admin-media-select-'.md5((string) $medium->name)"
-                                    :value="$medium->name"
-                                    :label="'Select '.$medium->title"
-                                    labelHidden="true"
-                                    small="true"
-                                    noWrapper="true"
-                                    class="admin-media-select-item-wrap"
-                                    inputClass="admin-media-select-item text-primary-color"
-                                />
-                            </td>
-                            <td class="!border-l-0 !pl-0">
-                                <div class="flex items-center">
-                                    <div class="relative mr-3 shrink-0">
-                                        <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 inline rounded" alt="{{ $medium->title }}" {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }} />
-                                    </div>
-                                    <div>
-                                        <a href="{{ route('admin.media.edit', $medium) }}" class="whitespace-normal font-semibold text-gray-900 hover:text-primary-color">
-                                            {{ $medium->title }}
-                                        </a>{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}
-                                        <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
-                                        @php
-                                            $visibility = (string) ($medium->visibility ?? 'private');
-                                            $statusLabel = match ($visibility) {
-                                                'public' => 'Public',
-                                                'protected' => 'Protected',
-                                                default => 'Private',
-                                            };
-                                            $statusClass = match ($visibility) {
-                                                'public' => 'bg-green-100 text-green-700',
-                                                'protected' => 'bg-amber-100 text-amber-800',
-                                                default => 'bg-slate-100 text-slate-700',
-                                            };
-                                        @endphp
-                                        <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
-                                            <span class="rounded-full px-2 py-0.5 {{ $statusClass }}">{{ $statusLabel }}</span>
-                                            @if($medium->is_private && $visibility !== 'public')
-                                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Private owner</span>
-                                            @endif
-                                            @if($medium->password !== null)
-                                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Password protected</span>
-                                            @endif
-                                        </div>
-                                        <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</div>
-                                        <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="hidden lg:table-cell">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</td>
-                            <td class="hidden md:table-cell">{{ $medium->file_type }}</td>
-                            <td class="hidden md:table-cell">{{ \App\Helpers::bytesToString($medium->size) }}</td>
-                            <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</td>
-                            <td>
-                                <div class="flex justify-center gap-3">
-                                    <a href="{{ route('admin.media.edit', $medium) }}" title="Edit media item" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
-                                    <a href="#" class="hover:text-primary-color" title="Copy media link" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')"><i class="fa-solid fa-link"></i></a>
-                                    <a href="{{ $medium->url }}?download" class="hover:text-primary-color" title="Download media"><i class="fa-solid fa-download"></i></a>
-                                    <a href="#" class="hover:text-red-600" title="Delete media item" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')"><i class="fa-solid fa-trash"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                  @endforeach
-                </x-slot:body>
-            </x-ui.table>
-            @else
-                <div class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-                    <x-ui.checkbox
-                        id="admin-media-select-page"
-                        label="Select all media on this page"
-                        small="true"
-                        noWrapper="true"
-                        inputClass="text-primary-color"
-                    />
-                    <span class="text-sm text-gray-500">{{ $media->count() }} {{ \Illuminate\Support\Str::plural('item', $media->count()) }} on this page</span>
+                    <div data-filter-chips @if($activeFilters->isEmpty()) hidden @endif class="mb-5 flex flex-wrap items-center gap-2">
+                        @foreach($activeFilters as $key => $value)
+                            <x-ui.filter-chip :label="$filterLabels[$key].': '.($key === 'user_id' && $filteredOwner ? ($filteredOwner->getName() ?: $filteredOwner->email) : $value)" :url="request()->fullUrlWithQuery([$key => null, 'page' => null])" />
+                        @endforeach
+                        <a data-dynamic-link href="{{ $clearUrl }}" class="ml-auto text-sm text-primary-color underline">Clear filters</a>
+                    </div>
+                @include('admin.media.partials.filters')
                 </div>
-
-                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    @foreach ($media as $medium)
-                        @php
-                            $visibility = (string) ($medium->visibility ?? 'private');
-                            $previewUrl = str_starts_with((string) $medium->mime_type, 'image/')
-                                ? $medium->url('md')
-                                : $medium->thumbnail;
-                            $statusLabel = match ($visibility) {
-                                'public' => 'Public',
-                                'protected' => 'Protected',
-                                default => 'Private',
-                            };
-                            $statusClass = match ($visibility) {
-                                'public' => 'bg-green-100 text-green-700',
-                                'protected' => 'bg-amber-100 text-amber-800',
-                                default => 'bg-slate-100 text-slate-700',
-                            };
-                        @endphp
-                        <article class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-300 hover:shadow-md">
-                            <div class="absolute left-3 top-3 z-10">
-                                <x-ui.checkbox
-                                    :id="'admin-media-select-photos-'.md5((string) $medium->name)"
-                                    :value="$medium->name"
-                                    :label="'Select '.$medium->title"
-                                    labelHidden="true"
-                                    small="true"
-                                    noWrapper="true"
-                                    class="admin-media-select-item-wrap"
-                                    inputClass="admin-media-select-item text-primary-color"
-                                />
-                            </div>
-                            <a href="{{ route('admin.media.edit', $medium) }}" class="flex aspect-square items-center justify-center overflow-hidden bg-gray-100">
-                                <img
-                                    src="{{ $previewUrl }}"
-                                    class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
-                                    alt="{{ $medium->title }}"
-                                    loading="lazy"
-                                    {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }}
-                                />
-                            </a>
-                            <div class="p-3">
-                                <a href="{{ route('admin.media.edit', $medium) }}" class="block truncate font-semibold text-gray-900 hover:text-primary-color" title="{{ $medium->title }}">{{ $medium->title }}</a>
-                                <div class="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500">
-                                    <span class="truncate">{{ $medium->file_type }}</span>
-                                    <span class="shrink-0">{{ \App\Helpers::bytesToString($medium->size) }}</span>
-                                </div>
-                                <div class="mt-2 flex flex-wrap gap-1 text-[10px]">
-                                    <span class="rounded-full px-2 py-0.5 {{ $statusClass }}">{{ $statusLabel }}</span>
-                                    @if($medium->password !== null)
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">Protected</span>
-                                    @endif
-                                </div>
-                                <div class="mt-3 flex items-center justify-end gap-4 border-t border-gray-100 pt-3 text-sm text-gray-600">
-                                    <a href="{{ route('admin.media.edit', $medium) }}" title="Edit media item" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
-                                    <a href="#" class="hover:text-primary-color" title="Copy media link" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')"><i class="fa-solid fa-link"></i></a>
-                                    <a href="{{ $medium->url }}?download" class="hover:text-primary-color" title="Download media"><i class="fa-solid fa-download"></i></a>
-                                    <a href="#" class="hover:text-red-600" title="Delete media item" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')"><i class="fa-solid fa-trash"></i></a>
-                                </div>
-                            </div>
-                        </article>
-                    @endforeach
+                <div data-media-selection data-selecting="false" data-selection-url="{{ route('admin.media.selection', request()->query()) }}" data-total="{{ $media->total() }}" @if(session('admin_media_bulk_clear_selection')) data-clear-selection @endif>
+                    @if($media->isEmpty())
+                        <x-none-found item="media" :search="request('search')" />
+                    @elseif($view === 'table')
+                        <x-ui.table variant="listing" class="rounded-xl border border-slate-200 bg-white" caption="Media files">
+                            <x-slot:header>
+                                <th class="sm-selection-cell"><x-ui.checkbox id="admin-media-select-page" label="Select all media on this page" aria-label="Select all media on this page" labelHidden bare small /></th>
+                                <x-ui.sort-heading field="title" label="File" />
+                                <th class="hidden xl:table-cell">Owner</th>
+                                <x-ui.sort-heading field="mime_type" label="Type" center class="hidden lg:table-cell" />
+                                <x-ui.sort-heading field="size" label="Size" center class="hidden sm:table-cell" />
+                                <x-ui.sort-heading field="visibility" label="Visibility" center class="hidden lg:table-cell" />
+                                <x-ui.sort-heading field="created_at" label="Uploaded" center class="hidden lg:table-cell" />
+                                <th class="text-center!"><span class="hidden sm:inline">Actions</span></th>
+                            </x-slot:header>
+                            <x-slot:body>
+                                @foreach($media as $medium)
+                                    <tr>
+                                        <td class="sm-selection-cell"><x-ui.checkbox :value="$medium->name" :label="'Select '.$medium->title" :aria-label="'Select '.$medium->title" labelHidden bare small class="admin-media-select-item" /></td>
+                                        <td><div class="flex min-w-0 items-center gap-3"><img src="{{ $medium->thumbnail }}" alt="" class="h-12 w-12 shrink-0 rounded-lg bg-slate-50 object-contain" @if(in_array($medium->status, ['processing', 'queued'])) data-thumbnail="{{ $medium->name }}" @endif loading="lazy"><div class="min-w-0"><a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a><div class="sm-media-filename">{{ $medium->name }}</div><div class="mt-1 flex flex-wrap items-center gap-2 lg:hidden"><x-ui.media-visibility :media="$medium" />@if($medium->is_private && $medium->visibility !== 'public')<x-ui.badge color="slate">Private owner</x-ui.badge>@endif<span class="text-xs text-slate-500 sm:hidden">{{ \App\Helpers::bytesToString($medium->size) }}</span></div></div></div></td>
+                                        <td class="hidden xl:table-cell text-sm text-slate-600">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</td>
+                                        <td class="hidden lg:table-cell text-center!">{{ $medium->file_type }}</td>
+                                        <td class="hidden sm:table-cell text-center!"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString($medium->size) }}</x-ui.nonbreaking></td>
+                                        <td class="hidden lg:table-cell text-center!"><x-ui.media-visibility :media="$medium" />@if($medium->is_private && $medium->visibility !== 'public')<x-ui.badge color="slate">Private owner</x-ui.badge>@endif</td>
+                                        <td class="hidden lg:table-cell text-center!"><x-ui.date-time>{{ $medium->created_at->format('M j Y, g:i a') }}</x-ui.date-time></td>
+                                        <td class="text-center! whitespace-nowrap">@include('admin.media.partials.actions')</td>
+                                    </tr>
+                                @endforeach
+                            </x-slot:body>
+                        </x-ui.table>
+                    @else
+                        <div class="sm-selection-cell mb-3"><x-ui.checkbox id="admin-media-select-page" label="Select all media on this page" aria-label="Select all media on this page" bare small /></div>
+                        <div data-list-results class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+                            @foreach($media as $medium)
+                                <article class="min-w-0 rounded-xl border border-slate-200 bg-white p-2">
+                                    <div class="sm-selection-cell pb-2"><x-ui.checkbox :id="'admin-media-select-photos-'.md5($medium->name)" :value="$medium->name" :label="'Select '.$medium->title" :aria-label="'Select '.$medium->title" labelHidden bare small class="admin-media-select-item" /></div>
+                                    <a href="{{ route('admin.media.edit', $medium) }}" class="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-slate-50"><img src="{{ str_starts_with($medium->mime_type, 'image/') ? $medium->url('md', true) : $medium->thumbnail }}" alt="{{ $medium->title }}" class="h-full w-full object-contain" loading="lazy" @if(in_array($medium->status, ['processing', 'queued'])) data-thumbnail="{{ $medium->name }}" @endif></a>
+                                    <div class="mt-2 flex items-center gap-2"><div class="min-w-0 flex-1"><a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a><div class="text-xs text-slate-500">{{ \App\Helpers::bytesToString($medium->size) }}</div></div>@include('admin.media.partials.actions')</div>
+                                </article>
+                            @endforeach
+                        </div>
+                    @endif
+                <x-ui.list-pagination :paginator="$media->appends(request()->query())" label="files">
+                    <x-slot:actions>
+                    <form id="admin-media-bulk-form" method="POST" action="{{ route('admin.media.bulk.select') }}">
+                        @csrf
+                        <div id="admin-media-bulk-inputs"></div>
+                        <div id="admin-media-selection-toolbar" class="sm-list-bulkbar mb-0!" data-selected="false">
+                            <x-ui.bulk-edit-button type="submit" id="admin-media-edit-selected" :count="0" data-bulk-selected class="ml-auto px-3 sm:px-8" disabled />
+                            <x-ui.button variant="plain" data-toggle-selection class="ml-auto lg:hidden text-primary-color underline">Select</x-ui.button>
+                        </div>
+                    </form>
+                    </x-slot:actions>
+                </x-ui.list-pagination>
                 </div>
-            @endif
-
-            {{ $media->appends(request()->query())->links() }}
-        @endif
-
+            </x-ui.dynamic-list>
+        <x-ui.bulk-editor id="media-bulk-edit-dialog" title="Bulk edit media" loader-id="media-bulk-loader" />
+        <x-ui.list-dialog id="media-edit-dialog" title="Edit media details" kind="edit">
+            <form data-media-edit-form class="p-5 space-y-4">
+                <x-ui.input name="title" label="Title" required class="mb-0"  aria-label="Title" />
+                <x-ui.select name="visibility" label="Visibility" class="mb-0" aria-label="Visibility"><option value="private">Private</option><option value="protected">Protected</option><option value="public">Public</option></x-ui.select>
+                <x-ui.input name="tags" label="Tags (comma separated)" maxlength="255" class="mb-0"  aria-label="Tags (comma separated)" />
+                <x-ui.input type="textarea" name="caption" label="Caption" class="mb-0"  aria-label="Caption" />
+                <div class="flex justify-end gap-3"><x-ui.button color="outline" data-close-dialog>Cancel</x-ui.button><x-ui.button type="submit">Save changes</x-ui.button></div>
+            </form>
+        </x-ui.list-dialog>
     </x-container>
 </x-layout>
-
 <script>
     const regenerateMissingVariantsState = {
         startUrl: @json(route('admin.media.regenerate-missing-variants')),
@@ -357,179 +178,6 @@
             elements.errorsList.appendChild(li);
         });
     }
-
-    function adminMediaBulkUploadElements() {
-        return {
-            container: document.getElementById('admin-media-bulk-upload'),
-            dropzone: document.getElementById('admin-media-bulk-upload-dropzone'),
-            input: document.getElementById('admin-media-bulk-upload-input'),
-            status: document.getElementById('admin-media-bulk-upload-status'),
-            statusText: document.getElementById('admin-media-bulk-upload-status-text'),
-            statusPercent: document.getElementById('admin-media-bulk-upload-status-percent'),
-            statusBar: document.getElementById('admin-media-bulk-upload-status-bar'),
-        };
-    }
-
-    function setAdminMediaBulkUploadStatus(message, tone = 'neutral', progress = null) {
-        const elements = adminMediaBulkUploadElements();
-        if (!elements.status) {
-            return;
-        }
-
-        if (!message) {
-            elements.status.classList.add('hidden');
-            if (elements.statusText) {
-                elements.statusText.textContent = '';
-            }
-            if (elements.statusPercent) {
-                elements.statusPercent.textContent = '';
-            }
-            if (elements.statusBar) {
-                elements.statusBar.style.width = '0%';
-            }
-            elements.status.className = 'mt-3 hidden rounded border px-3 py-2 text-sm';
-            return;
-        }
-
-        elements.status.classList.remove('hidden');
-        if (elements.statusText) {
-            elements.statusText.textContent = message;
-        }
-        if (elements.statusPercent) {
-            const percent = Number.isFinite(Number(progress)) ? Math.max(0, Math.min(100, Number(progress))) : null;
-            elements.statusPercent.textContent = percent === null ? '' : `${Math.round(percent)}%`;
-        }
-        if (elements.statusBar) {
-            const percent = Number.isFinite(Number(progress)) ? Math.max(0, Math.min(100, Number(progress))) : 0;
-            elements.statusBar.style.width = `${percent}%`;
-        }
-        elements.status.className = 'mt-3 rounded border px-3 py-2 text-sm';
-
-        if (tone === 'error') {
-            elements.status.classList.add('border-red-200', 'bg-red-50', 'text-red-800');
-        } else if (tone === 'success') {
-            elements.status.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
-        } else {
-            elements.status.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-700');
-        }
-    }
-
-    function uploadAdminMediaFiles(fileList) {
-        const files = Array.from(fileList || []);
-        const elements = adminMediaBulkUploadElements();
-        const totalBytes = files.reduce((sum, file) => sum + Number(file?.size || 0), 0);
-
-        if (files.length === 0) {
-            return;
-        }
-
-        if (!window.SM || typeof window.SM.upload !== 'function') {
-            setAdminMediaBulkUploadStatus('Upload is not available in this browser.', 'error');
-            return;
-        }
-
-        if (elements.input) {
-            elements.input.disabled = true;
-        }
-
-        const titles = files.map((file) => {
-            if (window.SM && typeof window.SM.toTitleCase === 'function') {
-                return window.SM.toTitleCase(file.name);
-            }
-
-            return String(file.name || '');
-        });
-
-        setAdminMediaBulkUploadStatus(files.length > 1
-            ? `Preparing ${files.length} uploads...`
-            : `Preparing ${files[0].name}...`);
-
-        SM.upload(files, (response) => {
-            if (!response || response.success !== true) {
-                if (elements.input) {
-                    elements.input.disabled = false;
-                }
-                return;
-            }
-
-            setAdminMediaBulkUploadStatus(
-                files.length > 1
-                    ? `${files.length} files uploaded successfully. Refreshing...`
-                    : `${files[0].name} uploaded successfully. Refreshing...`,
-                'success',
-                100
-            );
-
-            window.setTimeout(() => {
-                window.location.reload();
-            }, 500);
-        }, titles, {
-            showModal: false,
-            successDelayMs: 0,
-            onProgress: ({ file, index, count, percent }) => {
-                const completedBytes = files
-                    .slice(0, index)
-                    .reduce((sum, previousFile) => sum + Number(previousFile?.size || 0), 0);
-                const currentLoaded = Math.max(0, Math.min(Number(file?.size || 0), Number(percent || 0) / 100 * Number(file?.size || 0)));
-                const overallTotal = totalBytes > 0 ? totalBytes : 1;
-                const overallProgress = Math.max(0, Math.min(100, ((completedBytes + currentLoaded) / overallTotal) * 100));
-
-                setAdminMediaBulkUploadStatus(
-                    count > 1
-                        ? `Uploading ${index + 1} of ${count}: ${file.name} (${Math.round(percent)}%)`
-                        : `Uploading ${file.name} (${Math.round(percent)}%)`,
-                    'neutral',
-                    overallProgress
-                );
-            },
-            onError: (message) => {
-                if (elements.input) {
-                    elements.input.disabled = false;
-                }
-                setAdminMediaBulkUploadStatus(message || 'An error occurred while uploading the file(s).', 'error');
-            },
-        });
-
-        if (elements.input) {
-            elements.input.value = '';
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const elements = adminMediaBulkUploadElements();
-        if (!elements.dropzone || !elements.input) {
-            return;
-        }
-
-        const preventDefaults = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        };
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
-            elements.dropzone.addEventListener(eventName, preventDefaults);
-        });
-
-        ['dragenter', 'dragover'].forEach((eventName) => {
-            elements.dropzone.addEventListener(eventName, () => {
-                elements.dropzone.classList.add('border-primary-color', 'ring-2', 'ring-primary-color');
-            });
-        });
-
-        ['dragleave', 'drop'].forEach((eventName) => {
-            elements.dropzone.addEventListener(eventName, () => {
-                elements.dropzone.classList.remove('border-primary-color', 'ring-2', 'ring-primary-color');
-            });
-        });
-
-        elements.dropzone.addEventListener('drop', (event) => {
-            uploadAdminMediaFiles(event.dataTransfer?.files || []);
-        });
-
-        elements.input.addEventListener('change', (event) => {
-            uploadAdminMediaFiles(event.target?.files || []);
-        });
-    });
 
     function updateRegenerateMissingVariantsUI(status) {
         const elements = regenerateMissingVariantsElements();
@@ -674,77 +322,4 @@
             }
         );
     }
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const storageKey = 'admin-media-bulk-selection';
-        const form = document.getElementById('admin-media-bulk-form');
-        const inputs = document.getElementById('admin-media-bulk-inputs');
-        const count = document.getElementById('admin-media-selected-count');
-        const clear = document.getElementById('admin-media-clear-selection');
-        const selectPage = document.getElementById('admin-media-select-page');
-        const itemCheckboxes = Array.from(document.querySelectorAll('.admin-media-select-item'));
-        let selected = [];
-
-        try {
-            selected = JSON.parse(sessionStorage.getItem(storageKey) || '[]').map(String);
-        } catch (error) {
-            selected = [];
-        }
-        selected = [...new Set(selected)];
-
-        @if(session('admin_media_bulk_clear_selection'))
-            selected = [];
-        @endif
-
-        const render = () => {
-            sessionStorage.setItem(storageKey, JSON.stringify(selected));
-            itemCheckboxes.forEach((checkbox) => {
-                checkbox.checked = selected.includes(checkbox.value);
-            });
-
-            const pageNames = itemCheckboxes.map((checkbox) => checkbox.value);
-            const selectedOnPage = pageNames.filter((name) => selected.includes(name)).length;
-            if (selectPage) {
-                selectPage.checked = pageNames.length > 0 && selectedOnPage === pageNames.length;
-                selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageNames.length;
-            }
-
-            if (count) count.textContent = String(selected.length);
-            if (form) form.classList.toggle('hidden', selected.length === 0);
-            if (inputs) {
-                inputs.replaceChildren(...selected.map((name) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'media_names[]';
-                    input.value = name;
-                    return input;
-                }));
-            }
-        };
-
-        itemCheckboxes.forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-                selected = checkbox.checked
-                    ? [...new Set([...selected, checkbox.value])]
-                    : selected.filter((name) => name !== checkbox.value);
-                render();
-            });
-        });
-
-        selectPage?.addEventListener('change', () => {
-            const pageNames = itemCheckboxes.map((checkbox) => checkbox.value);
-            selected = selectPage.checked
-                ? [...new Set([...selected, ...pageNames])]
-                : selected.filter((name) => !pageNames.includes(name));
-            render();
-        });
-
-        clear?.addEventListener('click', () => {
-            selected = [];
-            render();
-        });
-
-        render();
-    });
 </script>

@@ -377,6 +377,7 @@
     </style>
 
     <x-container class="py-8">
+
         <div data-shop-catalog data-current-view="{{ $selectedView }}">
             <div class="flex items-start gap-3">
                 @if(($categories ?? collect())->isNotEmpty())
@@ -481,12 +482,13 @@
                                 </x-ui.select>
                             </form>
 
+
                             <div class="hidden sm:inline-block text-sm text-gray-600 flex-1 text-center">
                                 Showing <span class="font-semibold text-gray-900">{{ $firstResult }}-{{ $lastResult }}</span> of <span class="font-semibold text-gray-900">{{ $totalResults }}</span> result{{ $totalResults === 1 ? '' : 's' }}
                             </div>
 
                             <div class="hidden md:inline-flex overflow-hidden rounded border border-gray-300 bg-white shadow-sm self-start lg:self-auto">
-                                <button
+                                <x-ui.button variant="plain"
                                     type="button"
                                     data-shop-view-button="grid"
                                     class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition"
@@ -494,8 +496,8 @@
                                 >
                                     <i class="fa-solid fa-grip"></i>
                                     <span>Grid</span>
-                                </button>
-                                <button
+                                </x-ui.button>
+                                <x-ui.button variant="plain"
                                     type="button"
                                     data-shop-view-button="list"
                                     class="inline-flex items-center gap-2 border-l border-gray-300 px-4 py-2.5 text-sm font-medium transition"
@@ -503,7 +505,7 @@
                                 >
                                     <i class="fa-solid fa-list"></i>
                                     <span>List</span>
-                                </button>
+                                </x-ui.button>
                             </div>
                         </div>
 
@@ -546,6 +548,11 @@
                                                 src="{{ $product->hero?->url ? $product->hero->url.'?md' : $product->primaryImageUrl() }}"
                                                 alt="{{ $product->title }}"
                                                 class="shop-product-card-image h-64 w-full object-cover"
+                                                width="768" height="576" loading="{{ $loop->index < 2 ? 'eager' : 'lazy' }}" fetchpriority="{{ $loop->first ? 'high' : 'auto' }}"
+                                                @if($product->hero)
+                                                    srcset="{{ $product->hero->url }}?sm 300w, {{ $product->hero->url }}?md 768w, {{ $product->hero->url }}?lg 1024w"
+                                                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                                                @endif
                                             />
                                         </div>
 
@@ -577,9 +584,9 @@
 {{--                            @endif--}}
                             <div class="flex flex-wrap items-center gap-2 -ml-1">
                                 @if($product->isDigital())
-                                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                    <x-ui.badge class="bg-emerald-100 text-emerald-800">
                                                                 {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
-                                                            </span>
+                                                            </x-ui.badge>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -644,6 +651,7 @@
                 </div>
             </div>
         </div>
+
     </x-container>
 
     <script>
@@ -653,7 +661,8 @@
                 return;
             }
 
-            if (window.SM && window.SM.shopCart) {
+            if (window.SM && window.SM.shopCart && !window.SM.shopCatalogConfigured) {
+                window.SM.shopCatalogConfigured = true;
                 window.SM.shopCart.configure({
                     showUrl: @js(route('shop.cart.show')),
                     updateUrl: @js(route('shop.cart.update')),
@@ -716,7 +725,7 @@
                 if (pushHistory && window.history && typeof window.history.replaceState === 'function') {
                     var url = new URL(window.location.href);
                     url.searchParams.set('view', currentView);
-                    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+                    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
                 }
             }
 

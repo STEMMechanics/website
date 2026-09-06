@@ -2,18 +2,19 @@
     <x-mast>BAS Report</x-mast>
 
     <x-container>
+        <x-ui.dynamic-list name="admin-bas-index">
+
         <form method="GET" action="{{ route('admin.bas.index') }}" class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-col gap-3 sm:flex-wrap sm:flex-row sm:items-end">
             <div class="flex flex-col sm:flex-row gap-3 items-center w-full">
                 <div class="flex-1 w-full">
                     <label for="month" class="block text-sm font-medium text-gray-700 mb-1">Reporting Month</label>
-                    <input
+                    <x-ui.input-control
                         id="month"
                         name="month"
                         type="month"
                         value="{{ $selectedMonth }}"
                         class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300"
-                        required
-                    />
+                        required />
                     <div class="mt-1 text-xs text-gray-500">Format: YYYY-MM (example: 2026-02)</div>
                 </div>
                 <div class="w-full sm:w-auto">
@@ -29,7 +30,7 @@
 
         <h3 class="font-semibold text-lg pt-4 pb-1">Period: {{ $periodStart->format('M j, Y') }} - {{ $periodEnd->format('M j, Y') }}</h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <x-ui.grid class="md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <div class="text-xs uppercase tracking-wide text-gray-500">Sales (Processed Payments)</div>
                 <div class="text-xl font-semibold mt-2">{{ money((float) $summary['payments_inc']) }}</div>
@@ -47,12 +48,14 @@
                 <div class="text-xl font-semibold mt-2">{{ money((float) $summary['net_gst']) }}</div>
                 <div class="text-sm text-gray-600 mt-1">GST Collected - GST Paid</div>
             </div>
-        </div>
+        </x-ui.grid>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <x-ui.grid class="xl:grid-cols-2 gap-6">
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 class="text-lg font-semibold mb-3">Processed Payments</h3>
-                @if($customerPayments->isEmpty())
+                <p class="text-sm text-slate-500">Table filters narrow displayed rows. Monthly totals and exports cover the entire reporting month.</p>
+                <x-ui.collection-controls scope="bas_payments" class="my-4" />
+                    @if($customerPayments->isEmpty())
                     <p class="text-sm text-gray-600">No processed payments in this month.</p>
                 @else
                     <div class="space-y-3 md:hidden">
@@ -77,23 +80,23 @@
                     </div>
 
                     <div class="-mx-4 hidden sm:mx-0 md:block">
-                        <x-ui.table>
+                        <x-ui.table variant="listing">
                             <x-slot:header>
-                                <th>Date</th>
-                                <th class="hidden md:table-cell">Customer</th>
-                                <th>Summary</th>
-                                <th>Total <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
+                                <x-ui.list-heading scope="bas_payments" class="text-center!" label="Date" />
+                                <x-ui.list-heading scope="bas_payments" class="hidden md:table-cell" label="Customer" />
+                                <x-ui.list-heading scope="bas_payments" label="Summary" />
+                                <th class="text-center!">Total <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($customerPayments as $payment)
                                     <tr>
-                                        <td>
-                                            <div><span class="whitespace-nowrap">{{ $payment->received_on?->format('M j, Y') ?? '-' }}</span> <span class="whitespace-nowrap">{{ $payment->received_on?->format('g:i a') ?? '-' }}</span></div>
+                                        <td class="text-center!">
+                                            <div><span class="whitespace-nowrap"><x-ui.date-time>{{ $payment->received_on?->format('M j, Y') ?? '-' }}</x-ui.date-time></span> <span class="whitespace-nowrap"><x-ui.date-time>{{ $payment->received_on?->format('g:i a') ?? '-' }}</x-ui.date-time></span></div>
                                             <div class="md:hidden text-xs text-gray-600 mt-1">{{ $payment->user?->getName() ?? '-' }}</div>
                                         </td>
                                         <td class="hidden md:table-cell">{{ $payment->user?->getName() ?? '-' }}</td>
                                         <td>{{ $payment->bas_summary ?: '-' }}</td>
-                                        <td class="text-right">
+                                        <td class="text-center!">
                                             <div>{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</div>
                                             <div class="text-xs">GST: {{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</div>
                                         </td>
@@ -107,7 +110,8 @@
 
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 class="text-lg font-semibold mb-3">Expenses</h3>
-                @if($expenses->isEmpty())
+                <x-ui.collection-controls scope="bas_expenses" class="my-4" />
+                    @if($expenses->isEmpty())
                     <p class="text-sm text-gray-600">No expenses in this month.</p>
                 @else
                     <div class="space-y-3 md:hidden">
@@ -137,13 +141,13 @@
                     </div>
 
                     <div class="-mx-4 hidden sm:mx-0 md:block">
-                        <x-ui.table>
+                        <x-ui.table variant="listing">
                             <x-slot:header>
-                                <th>Date</th>
-                                <th class="hidden md:table-cell">Supplier</th>
-                                <th class="hidden md:table-cell">Invoice ID</th>
-                                <th>Description</th>
-                                <th>Total <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
+                                <x-ui.list-heading scope="bas_expenses" class="text-center!" label="Date" />
+                                <x-ui.list-heading scope="bas_expenses" class="hidden md:table-cell" label="Supplier" />
+                                <x-ui.list-heading scope="bas_expenses" class="hidden md:table-cell" label="Invoice ID" />
+                                <x-ui.list-heading scope="bas_expenses" label="Description" />
+                                <th class="text-center!">Total <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($expenses as $expense)
@@ -152,15 +156,15 @@
                                         $expenseGst = round((float) $expense->gst_amount, 2);
                                     @endphp
                                     <tr>
-                                        <td>
-                                            <div>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</div>
+                                        <td class="text-center!">
+                                            <div><x-ui.date-time>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</x-ui.date-time></div>
                                             <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                             <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                         </td>
                                         <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
                                         <td class="hidden md:table-cell">{{ $expense->invoice_id ?: '-' }}</td>
                                         <td>{{ $expense->description ?: '-' }}</td>
-                                        <td class="text-right">
+                                        <td class="text-center!">
                                             <div>{{ money($expenseTotal) }}</div>
                                             <div class="text-xs">GST: {{ money($expenseGst) }}</div>
                                         </td>
@@ -171,6 +175,8 @@
                     </div>
                 @endif
             </div>
-        </div>
+        </x-ui.grid>
+
+        </x-ui.dynamic-list>
     </x-container>
 </x-layout>

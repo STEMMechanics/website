@@ -31,8 +31,32 @@ class SiteOptionController extends Controller
         }
 
         return view('admin.site-option.index', [
-            'siteOptions' => $query->orderBy('name')->paginate(30)->onEachSide(1),
+            'siteOptions' => $query->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(30))->onEachSide(1),
         ]);
+    }
+
+    public function hero(): View
+    {
+        $hero = \App\Support\HomeHero::content();
+        return view('admin.site-option.hero', ['hero' => $hero, 'heroImageUrl' => \App\Support\HomeHero::imageUrl($hero)]);
+    }
+
+    public function updateHero(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'hero_image' => ['nullable', 'string', 'max:255'],
+            'caption' => ['nullable', 'string', 'max:200'],
+            'eyebrow' => ['nullable', 'string', 'max:80'],
+            'heading' => ['required', 'string', 'max:220'],
+            'body' => ['nullable', 'string', 'max:2400'],
+        ]);
+        if (!empty($data['hero_image']) && !\App\Support\HomeHero::publicImages()->whereKey($data['hero_image'])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['hero_image' => 'Choose a public image without password protection.']);
+        }
+        $hero = ['image' => $data['hero_image'] ?? ''];
+        foreach (['caption', 'eyebrow', 'heading', 'body'] as $key) $hero[$key] = $data[$key] ?? '';
+        SiteOption::updateOrCreate(['name' => \App\Support\HomeHero::OPTION], ['value' => json_encode($hero, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]);
+        return redirect()->route('admin.site_option.hero')->with(['message' => 'Homepage settings updated.', 'message-title' => 'Changes saved', 'message-type' => 'success']);
     }
 
     public function create(): View
