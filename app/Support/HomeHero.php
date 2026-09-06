@@ -31,10 +31,14 @@ class HomeHero
 
     public static function imageUrl(array $hero): string
     {
-        $media = empty($hero['image']) ? null : self::publicImages()->find($hero['image']);
+        $image = $hero['image'] ?? '';
+        $media = is_string($image) && $image !== '' ? self::publicImages()->whereKey($image)->first() : null;
         return $media?->url('lg') ?: asset('home-hero-1024.webp');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<Media>
+     */
     public static function publicImages(): \Illuminate\Database\Eloquent\Builder
     {
         return Media::query()->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%');

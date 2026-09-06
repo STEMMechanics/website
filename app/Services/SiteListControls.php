@@ -294,6 +294,9 @@ class SiteListControls
                     'active' => \App\Models\Ticket::activePurchasedStatuses(),
                     'cancelled' => [\App\Models\Ticket::STATUS_CANCELLED],
                     'reissued' => [\App\Models\Ticket::STATUS_REISSUED],
+                    default => throw \Illuminate\Validation\ValidationException::withMessages([
+                        'ticket_status' => 'Select a valid ticket status.',
+                    ]),
                 }];
             }
             if ($statuses) $query->whereIn('tickets.status', array_unique($statuses));

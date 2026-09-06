@@ -66,7 +66,7 @@ class MediaListFilters
         foreach ([9, 10, 13] as $char) $tags = "REPLACE($tags, CHAR($char), ' ')";
         for ($i = 0; $i < 8; $i++) $tags = "REPLACE($tags, '  ', ' ')";
         $tags = "TRIM(REPLACE(REPLACE($tags, ', ', ','), ' ,', ','))";
-        $tags = $query->getConnection()->getDriverName() === 'sqlite' ? "(',' || $tags || ',')" : "CONCAT(',', $tags, ',')";
+        $tags = $query->getModel()->getConnection()->getDriverName() === 'sqlite' ? "(',' || $tags || ',')" : "CONCAT(',', $tags, ',')";
         foreach (['tags_include' => 'LIKE', 'tags_exclude' => 'NOT LIKE'] as $field => $operator) {
             foreach (array_unique(array_filter(array_map('trim', explode(',', (string) $request->query($field, ''))))) as $tag) {
                 $tag = mb_strtolower(preg_replace('/\s+/u', ' ', $tag));
