@@ -8,12 +8,12 @@
         @php($collectionPresets = $showPresets ? app(\App\Services\SiteListControls::class)->presets() : [])
         @if($collectionPresets)
             @isset($presetActions)
-                <div class="mt-4 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between lg:gap-0 lg:border-b lg:border-slate-300">
+                <div class="mt-4 first:mt-0 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between lg:gap-0 lg:border-b lg:border-slate-300">
                     <x-ui.preset-views :items="$collectionPresets" class="min-w-0 lg:flex-1 lg:border-b-0!" />
                     <div class="shrink-0 lg:flex lg:items-center lg:pl-6">{{ $presetActions }}</div>
                 </div>
             @else
-                <x-ui.preset-views :items="$collectionPresets" class="mt-4" />
+                <x-ui.preset-views :items="$collectionPresets" class="mt-4 first:mt-0" />
             @endisset
         @endif
         {{ $slot }}

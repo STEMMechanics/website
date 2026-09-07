@@ -9,7 +9,7 @@
     $id = 'collection-'.str_replace('.', '-', request()->route()->getName()).($scope ? '-'.$scope : '').'-'.Str::uuid();
     $active = collect(request()->only(array_keys($fields)))->filter(fn ($value, $key) => (is_array($value) ? count($value) > 0 : (is_scalar($value) && (string) $value !== '')) && (!array_key_exists('default', $fields[$key]) || (string) $value !== (string) $fields[$key]['default']));
 @endphp
-<div data-filter-controls data-filter-schema="{{ json_encode($fields) }}" data-filter-search="{{ $searchName }}" {{ $attributes->class(['min-w-0 w-full my-5']) }}>
+<div data-filter-controls data-filter-schema="{{ json_encode($fields) }}" data-filter-search="{{ $searchName }}" {{ $attributes->class(['min-w-0 w-full my-5 first:mt-0']) }}>
     <div class="flex flex-wrap items-center gap-3">
         <form method="GET" action="{{ $action ?? url()->current() }}" class="flex min-w-0 flex-1 basis-full items-center gap-3 lg:basis-auto">
             <x-ui.query-inputs :values="request()->except([$searchName, ...array_keys($pageReset)])" />

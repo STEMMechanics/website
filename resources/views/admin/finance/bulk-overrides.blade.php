@@ -5,7 +5,7 @@
     <div class="space-y-5 p-5">
         <p class="text-sm text-slate-600">Edit {{ count($ids) }} selected {{ $kind }}. Only fields you change are applied.</p>
         @if($kind === 'expenses')
-            <section class="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
+            <section class="space-y-4">
                 <h2 class="font-semibold">Fields</h2>
                 <p class="text-sm text-slate-500">Matching values are shown. Mixed values are marked Mixed. Only values you change are applied to every selected expense.</p>
                 @foreach(['supplier' => 'Supplier', 'description' => 'Description', 'paid_on' => 'Date'] as $field => $label)
@@ -18,7 +18,7 @@
                 @endforeach
             </section>
         @endif
-        <section class="space-y-4 rounded-xl border border-gray-200 bg-white p-4">
+        <section class="space-y-4">
             <h2 class="font-semibold">Cost centre allocation</h2>
             <x-ui.checkbox name="allocation_override" value="1" label="Override allocations" x-model="enabled" />
             <p class="text-sm text-slate-600">Apply these percentages to each total excluding GST. Enabling overrides replaces existing allocations. Fill one field to 100% to use a single cost centre.</p>
