@@ -537,9 +537,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return $this->groups->contains(fn (UserGroup $group) => (string) $group->slug === $normalized);
         }
 
-        return $this->groups()
-            ->where('slug', $normalized)
-            ->exists();
+        return in_array($normalized, app(\App\Support\RequestMemo::class)->remember('user-groups:'.$this->id, fn () => $this->groups()->pluck('slug')->all()), true);
     }
 
     public function backupCodes()

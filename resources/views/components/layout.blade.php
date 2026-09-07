@@ -10,6 +10,9 @@
     'jsonLd' => null,
 ])
 
+@if(request()->attributes->get('sm_fragment'))
+    {{ $slot }}
+@else
 @php
     $siteName = 'STEMMechanics';
     $pageTitle = trim((string) ($title ?? ''));
@@ -141,3 +144,5 @@
 @livewireScripts
 </body>
 </html>
+
+@endif

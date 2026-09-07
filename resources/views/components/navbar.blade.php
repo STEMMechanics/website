@@ -11,7 +11,6 @@
 <nav data-site-navbar class="{{ $navClass }}" @if($navStyle !== '') style="{{ $navStyle }}" @endif>
     @php
         $navUser = auth()->user();
-        \App\Models\Quote::expireOpenQuotes();
         $hasMyOrders = $navUser ? $navUser->storeOrders()->exists() : false;
         $hasMyQuotes = $navUser ? $navUser->quotes()->visibleToCustomer()->exists() : false;
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
@@ -24,26 +23,18 @@
         ]);
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
-        $manualRefundQueueCount = $isAdmin
-            ? \App\Models\SquareRefundOperation::query()
-                ->whereIn('status', [
-                    \App\Models\SquareRefundOperation::STATUS_FAILED,
-                    \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED,
-                ])
-                ->count()
-            : 0;
+        $operationCounts = $isAdmin ? app(\App\Support\AdminBadgeCache::class)->remember('operations', fn () => [
+            'refunds' => \App\Models\SquareRefundOperation::whereIn('status', [\App\Models\SquareRefundOperation::STATUS_FAILED, \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED])->count(),
+            'orders' => \App\Models\StoreOrder::actionRequiredCount(),
+            'sms' => \App\Models\InboundSms::where('provider', 'smsflow')->where('topic', 'sms.incoming')->whereNull('acknowledged_at')->count(),
+        ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
+        $manualRefundQueueCount = $operationCounts['refunds'];
         $financeAttention = $isAdmin ? app(\App\Services\Finance\FinanceAttention::class)->counts() : ['invoices' => 0, 'expenses' => 0];
-        $storeOrderActionCount = $isAdmin ? \App\Models\StoreOrder::actionRequiredCount() : 0;
+        $storeOrderActionCount = $operationCounts['orders'];
         $mediaDuplicateCount = $isAdmin
             ? app(\App\Services\MediaDuplicateService::class)->attentionCount(app(\App\Services\ImagePerceptualHash::class))
             : 0;
-        $unacknowledgedSmsReplyCount = $isAdmin
-            ? \App\Models\InboundSms::query()
-                ->where('provider', 'smsflow')
-                ->where('topic', 'sms.incoming')
-                ->whereNull('acknowledged_at')
-                ->count()
-            : 0;
+        $unacknowledgedSmsReplyCount = $operationCounts['sms'];
         $adminNavSections = $isAdmin ? [
                 [
                     'title' => 'Store',

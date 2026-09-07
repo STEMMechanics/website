@@ -48,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\CanonicalHost::class,
             TrackAnalytics::class,
             \App\Http\Middleware\ProfileRequests::class,
+            \App\Http\Middleware\RenderFragment::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'webhooks/square',
