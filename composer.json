@@ -25,7 +25,7 @@
         "robthree/twofactorauth": "^3.0",
         "setasign/fpdf": "^1.8.6",
         "setasign/fpdi": "^2.6",
-        "tales-from-a-dev/tailwind-merge-php": "^0.3.0"
+        "tales-from-a-dev/tailwind-merge-php": "^0.4.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
