@@ -40,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(ContentFilter::class, SiteOptionContentFilter::class);
         $this->app->scoped(ShopAvailability::class);
+        $this->app->scoped(\App\Support\TailwindMerge::class);
         $this->app->scoped(\App\Support\QueryMetrics::class);
     }
 
