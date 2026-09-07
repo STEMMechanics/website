@@ -77,7 +77,7 @@ class DeploymentConfigurationTest extends TestCase
         $admin = User::factory()->create();
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin)->get(route('admin.server.index'))->assertOk()
-            ->assertSee('Deployment configuration')->assertSee('Needs attention')->assertSee('Review needed')
+            ->assertSee('Configuration')->assertSee('Needs attention')->assertSee('Review needed')
             ->assertSee('SMSFLOW_WEBHOOK_SECRET')->assertSee('php artisan config:cache')
             ->assertDontSee('unique-private-callback-secret')->assertDontSee('unique-private-api-key');
     }

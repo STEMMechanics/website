@@ -3,104 +3,107 @@
 
     <x-container>
         <div id="server-info-app" data-csrf="{{ csrf_token() }}" data-maintenance-refresh-url="{{ route('admin.site_option.maintenance-refresh') }}">
-        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <h3 class="text-lg font-bold mb-3">Runtime</h3>
-            <x-ui.grid class="md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                @foreach($serverInfo as $label => $value)
-                <div class="py-1 border-b border-gray-100">
-                    <span class="font-semibold">{{ $label }}:</span>
-                    <span class="break-all">{{ $value }}</span>
-                </div>
-                @endforeach
-            </x-ui.grid>
-        </div>
+        <details open class="group/runtime my-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                <i class="fa-solid fa-chevron-right shrink-0 text-sm transition-transform group-open/runtime:rotate-90" aria-hidden="true"></i>
+                <h3 class="text-lg font-bold">Runtime</h3>
+            </summary>
+            <div class="pt-3">
+                <x-ui.grid class="md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                    @foreach($serverInfo as $label => $value)
+                    <div class="py-1 border-b border-gray-100">
+                        <span class="font-semibold">{{ $label }}:</span>
+                        <span class="break-all">{{ $value }}</span>
+                    </div>
+                    @endforeach
+                </x-ui.grid>
+            </div>
+        </details>
 
-        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
-                <div>
-                    <h3 class="text-lg font-bold">Site Dependencies</h3>
-                    <p class="mt-1 text-sm text-gray-600">Detected using the same PHP process and command path as this admin page.</p>
-                </div>
+        <details class="group/dependencies my-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                <i class="fa-solid fa-chevron-right shrink-0 text-sm transition-transform group-open/dependencies:rotate-90" aria-hidden="true"></i>
+                <h3 class="min-w-0 flex-1 wrap-break-word text-lg font-bold">Site Dependencies</h3>
                 @php($missingDependencyCount = collect($serverDependencies)->where('installed', false)->count())
-                <x-ui.badge class="inline-flex items-center border {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                <x-ui.badge class="ml-auto inline-flex shrink-0 items-center border {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
                     {{ $missingDependencyCount === 0 ? 'All detected' : $missingDependencyCount.' missing' }}
                 </x-ui.badge>
-            </div>
-
-            <div class="space-y-3 md:hidden">
-                @foreach($serverDependencies as $dependency)
-                    <article class="rounded-lg border border-gray-200 bg-white p-3">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
-                                <div class="mt-0.5 wrap-break-word text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+            </summary>
+            <div class="pt-3">
+                <div class="space-y-3 md:hidden">
+                    @foreach($serverDependencies as $dependency)
+                        <article class="rounded-lg border border-gray-200 bg-white p-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
+                                    <div class="mt-0.5 wrap-break-word text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+                                </div>
+                                <x-ui.badge class="inline-flex shrink-0 items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                    {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                                </x-ui.badge>
                             </div>
-                            <x-ui.badge class="inline-flex shrink-0 items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
-                                {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
-                            </x-ui.badge>
-                        </div>
-                        <dl class="mt-3 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
-                            <dt class="font-semibold text-gray-500">Requirement</dt>
-                            <dd class="text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</dd>
-                            <dt class="font-semibold text-gray-500">Version</dt>
-                            <dd class="wrap-break-word text-gray-700">{{ $dependency['version'] }}</dd>
-                            <dt class="font-semibold text-gray-500">Used for</dt>
-                            <dd class="text-gray-700">{{ $dependency['purpose'] }}</dd>
-                        </dl>
-                    </article>
-                @endforeach
-            </div>
-
-            <div class="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
-                <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
-                        <tr>
-                            <th class="px-3 py-2">Dependency</th>
-                            <th class="px-3 py-2">Requirement</th>
-                            <th class="px-3 py-2 text-center!">Status</th>
-                            <th class="px-3 py-2">Version</th>
-                            <th class="px-3 py-2">Used for</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 bg-white">
-                        @foreach($serverDependencies as $dependency)
-                            <tr>
-                                <td class="px-3 py-2 align-top">
-                                    <div class="font-semibold text-gray-900">{{ $dependency['name'] }}</div>
-                                    <div class="text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
-                                </td>
-                                <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
-                                <td class="px-3 py-2 align-top text-center!">
-                                    <x-ui.badge class="inline-flex items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
-                                        {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
-                                    </x-ui.badge>
-                                </td>
-                                <td class="max-w-sm wrap-break-word px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
-                                <td class="max-w-md px-3 py-2 align-top text-gray-700">{{ $dependency['purpose'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </x-ui.table>
-            </div>
-            <p class="mt-3 text-xs text-gray-500">Feature dependencies are required when their related site feature is used. A missing command may also mean it is not available on the web server process PATH.</p>
-        </div>
-
-        <section class="my-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" aria-labelledby="deployment-configuration-title">
-            <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h3 id="deployment-configuration-title" class="text-lg font-bold">Deployment configuration</h3>
-                    <p class="mt-1 text-sm text-gray-600">Effective settings loaded by this site, checked against the deployment guide. Secret values are never displayed. Development settings may intentionally differ.</p>
+                            <dl class="mt-3 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+                                <dt class="font-semibold text-gray-500">Requirement</dt>
+                                <dd class="text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</dd>
+                                <dt class="font-semibold text-gray-500">Version</dt>
+                                <dd class="wrap-break-word text-gray-700">{{ $dependency['version'] }}</dd>
+                                <dt class="font-semibold text-gray-500">Used for</dt>
+                                <dd class="text-gray-700">{{ $dependency['purpose'] }}</dd>
+                            </dl>
+                        </article>
+                    @endforeach
                 </div>
-                @php($configurationFailures = collect($deploymentChecks)->where('status', 'fail')->count())
-                <x-ui.badge :color="$configurationFailures ? 'danger' : 'success'">{{ $configurationFailures ? $configurationFailures.' need attention' : 'No configuration failures' }}</x-ui.badge>
+
+                <div class="hidden overflow-x-auto rounded-lg border border-gray-200 md:block">
+                    <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+                            <tr>
+                                <th class="px-3 py-2">Dependency</th>
+                                <th class="px-3 py-2">Requirement</th>
+                                <th class="px-3 py-2 text-center!">Status</th>
+                                <th class="px-3 py-2">Version</th>
+                                <th class="px-3 py-2">Used for</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @foreach($serverDependencies as $dependency)
+                                <tr>
+                                    <td class="px-3 py-2 align-top">
+                                        <div class="font-semibold text-gray-900">{{ $dependency['name'] }}</div>
+                                        <div class="text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
+                                    </td>
+                                    <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
+                                    <td class="px-3 py-2 align-top text-center!">
+                                        <x-ui.badge class="inline-flex items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                            {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                                        </x-ui.badge>
+                                    </td>
+                                    <td class="max-w-sm wrap-break-word px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
+                                    <td class="max-w-md px-3 py-2 align-top text-gray-700">{{ $dependency['purpose'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-ui.table>
+                </div>
+                <p class="mt-3 text-xs text-gray-500">Feature dependencies are required when their related site feature is used. A missing command may also mean it is not available on the web server process PATH.</p>
             </div>
-            <p class="mb-4 text-sm text-gray-600">Review needed means the setting is optional, context-dependent, or needs an external check. After changing environment settings, run <code>php artisan config:cache</code>, restart queue workers and refresh this page. The deployment command uses these same checks.</p>
-            <x-ui.grid class="lg:grid-cols-2">
-                @foreach($deploymentChecks as $check)
-                    <x-admin.configuration-check :check="$check" />
-                @endforeach
-            </x-ui.grid>
-        </section>
+        </details>
+
+        <details class="group/configuration my-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" aria-labelledby="deployment-configuration-title">
+            <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                <i class="fa-solid fa-chevron-right shrink-0 text-sm transition-transform group-open/configuration:rotate-90" aria-hidden="true"></i>
+                <h3 id="deployment-configuration-title" class="min-w-0 flex-1 wrap-break-word text-base font-bold sm:text-lg">Configuration</h3>
+                @php($configurationFailures = collect($deploymentChecks)->where('status', 'fail')->count())
+                <x-ui.badge class="ml-auto max-w-[40%] shrink-0 whitespace-normal text-center" :color="$configurationFailures ? 'danger' : 'success'">{{ $configurationFailures ? $configurationFailures.' need attention' : 'No configuration failures' }}</x-ui.badge>
+            </summary>
+            <div class="pt-3">
+                <x-ui.grid class="lg:grid-cols-2">
+                    @foreach($deploymentChecks as $check)
+                        <x-admin.configuration-check :check="$check" />
+                    @endforeach
+                </x-ui.grid>
+            </div>
+        </details>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
