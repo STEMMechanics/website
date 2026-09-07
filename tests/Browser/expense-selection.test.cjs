@@ -8,21 +8,23 @@ function setup(selected = []) {
     const items = ['1', '2', '1', '2'].map(checkbox);
     const headers = [checkbox(''), checkbox('')];
     const button = {}, inputs = { replaceChildren(...children) { this.children = children; } };
+    const allocate = { href: 'https://example.test/admin/allocation-overrides/expenses', setAttribute(key, value) { this[key] = value; }, addEventListener(name, fn) { this.click = fn; } };
     const controls = { dataset: {} };
     const form = { querySelector: key => key.startsWith('button') ? button : inputs };
     let stored = JSON.stringify(selected);
     const context = {
+        URL,
         SM: { onDynamicList: (name, callback) => callback() },
         sessionStorage: { getItem: () => stored, setItem: (_, value) => { stored = value; } },
         document: {
             querySelectorAll: key => key === '.admin-expense-select-item' ? items : headers,
-            getElementById: key => key === 'admin-expense-export-form' ? form : controls,
+            getElementById: key => key === 'admin-expense-export-form' ? form : key === 'admin-expense-allocate' ? allocate : controls,
             createElement: () => ({}),
         },
     };
     const source = fs.readFileSync('resources/views/admin/expense/index.blade.php', 'utf8').split('<script>')[1].split('</script>')[0];
     vm.runInNewContext(source, context);
-    return { items, headers, button, inputs, controls, stored: () => JSON.parse(stored) };
+    return { allocate, items, headers, button, inputs, controls, stored: () => JSON.parse(stored) };
 }
 
 test('export label counts unique selections across pages and uses singular for one', () => {
@@ -47,4 +49,16 @@ test('the header clears off-page selections and synchronises the mobile checkbox
     assert.equal(app.headers[1].indeterminate, false);
     assert.equal(app.button.disabled, true);
     assert.equal(app.inputs.children.length, 0);
+});
+
+
+test('bulk allocation links include cross-page selections and cap at 200 records', () => {
+    const app = setup(['1', '14']);
+    assert.deepEqual(new URL(app.allocate.href).searchParams.getAll('ids[]'), ['1', '14']);
+    assert.equal(app.allocate['aria-disabled'], 'false');
+    const large = setup(Array.from({ length: 201 }, (_, i) => String(i + 1)));
+    let prevented = false;
+    large.allocate.click({ preventDefault() { prevented = true; }, stopImmediatePropagation() {} });
+    assert.equal(prevented, true);
+    assert.equal(large.allocate['aria-disabled'], 'true');
 });

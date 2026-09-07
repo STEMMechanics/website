@@ -16,6 +16,7 @@
             invoiceEmailSubjectLine: {{ json_encode((string) old('subject_line', session('invoice-email-subject-line', ''))) }},
             invoiceEmailCcEmails: {{ json_encode((string) old('cc_emails', session('invoice-email-cc-emails', ''))) }},
             invoiceEmailMessage: {{ json_encode((string) old('email_message', session('invoice-email-message', ''))) }},
+            invoiceEmailTemplateOnly: false,
             invoiceEmailSubjectOpen: false,
             invoiceEmailCcOpen: false,
             invoiceEmailHelpOpen: false,

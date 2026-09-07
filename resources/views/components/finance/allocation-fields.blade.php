@@ -3,11 +3,16 @@
     @foreach($categories->values()->split($columns) as $column)
         <div class="space-y-3">
             @foreach($column as $category)
-                <div class="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-4">
-                    <label for="{{ $idPrefix }}-{{ $category->id }}" class="text-sm text-slate-700">{{ $category->name }}:</label>
-                    <div class="relative">
+                <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_11rem] items-center gap-2">
+                    <label for="{{ $idPrefix }}-{{ $category->id }}" class="min-w-0 break-words text-sm text-slate-700">{{ $category->name }}:</label>
+                    <div class="flex items-center gap-1">
+                    <div class="relative min-w-0 flex-1">
                         <span class="pointer-events-none absolute left-3 top-2 text-slate-500" aria-hidden="true">$</span>
                         <x-ui.input-control type="number" :id="$idPrefix.'-'.$category->id" :name="$prefix.'['.$category->id.']'" class="pl-7! text-right tabular-nums" min="0" max="10000000" step="0.01" x-model="values['{{ $category->id }}']" x-on:blur="format('{{ $category->id }}')" x-bind:disabled="!enabled" required />
+                    </div>
+                    <button type="button" class="inline-flex size-10 shrink-0 items-center justify-center rounded border border-slate-300 text-primary-color hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" x-on:click="allocateRemaining('{{ $category->id }}')" x-bind:disabled="!enabled || remaining <= 0" aria-label="Allocate remaining amount to {{ $category->name }}" title="Allocate remaining amount to {{ $category->name }}">
+                        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                    </button>
                     </div>
                 </div>
             @endforeach

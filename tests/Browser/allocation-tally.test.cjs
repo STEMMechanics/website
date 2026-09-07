@@ -66,3 +66,24 @@ test('automatic rounding fills its destination only up to the plan allowance', (
     tally.previewInvoice({ items: [], total: 3500 }, [], { rounding_category_id: 2 });
     assert.equal(tally.values[2], '1.00');
 });
+
+test('remaining button adds the exact balance to an existing amount and is safe to repeat', () => {
+    const { tally } = setup({ values: { 1: '10.01', 2: '20.00' }, total: 10001, exact: true });
+    tally.allocateRemaining('1');
+    assert.equal(tally.values[1], '80.01');
+    assert.equal(tally.remaining, 0);
+    tally.allocateRemaining('1');
+    assert.equal(tally.values[1], '80.01');
+    tally.total = 9000;
+    tally.allocateRemaining('1');
+    assert.equal(tally.values[1], '80.01');
+});
+
+test('remaining button respects automatic mode and ignores unknown fields', () => {
+    const { tally } = setup({ values: { 1: '10.00' }, total: 10000, enabled: false });
+    tally.allocateRemaining('1');
+    assert.equal(tally.values[1], '10.00');
+    tally.enabled = true;
+    tally.allocateRemaining('2');
+    assert.equal(tally.values[2], undefined);
+});

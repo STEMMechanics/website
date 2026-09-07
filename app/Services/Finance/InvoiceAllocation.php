@@ -6,9 +6,24 @@ use App\Models\Invoice;
 use App\Models\Ticket;
 use App\Models\Workshop;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class InvoiceAllocation
 {
+    /** Save inside the caller's finance-settings transaction lock. */
+    public function saveManual(Invoice $invoice, array $context, array $targets, string $userId): void
+    {
+        $planner = app(FinancePlanner::class);
+        $budget = $context['budget'];
+        if ($budget) {
+            DB::table('finance_budget_revisions')->insert(['budget_id' => $budget->id, 'before' => json_encode(['assumptions' => $planner->decode($budget->assumptions), 'targets' => $context['targets']]), 'after' => json_encode(['assumptions' => $context['assumptions'], 'targets' => $targets, 'changed_by' => $userId]), 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('finance_budgets')->where('id', $budget->id)->update(['targets' => json_encode($targets), 'assumptions' => json_encode($context['assumptions']), 'manual' => true, 'updated_at' => now()]);
+        } else {
+            $row = ['workshop_id' => $context['workshopId'], 'name' => $context['workshop']->title ?? 'Invoice '.$invoice->invoice_number, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $context['version']->id, 'targets' => $targets, 'warning' => null, 'manual' => true];
+            $planner->apply(['token' => (string) Str::uuid(), 'rows' => [$row]], $userId, [0]);
+        }
+    }
+
     public function context(Invoice $invoice, ?int $versionId = null, ?array $supplied = null): array
     {
         $planner = app(FinancePlanner::class);
@@ -33,7 +48,9 @@ class InvoiceAllocation
         }
         $version = PricingVersion::forDate($date, $budget ? (int) $budget->pricing_version_id : ($versionId ?? $workshop?->pricing_version_id));
         $assumptions = $budget ? $planner->decode($budget->assumptions) : ['participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60 : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
-        if ($supplied !== null && $workshop) { $assumptions['supplied_categories'] = $supplied; }
+        if ($supplied !== null && $workshop) {
+            $assumptions['supplied_categories'] = $supplied;
+        }
         $rules = $planner->decode($version->rules);
         $suggestedTargets = [];
         $automaticWarning = null;
@@ -49,6 +66,7 @@ class InvoiceAllocation
                     $details = $line->details_json['workshop'] ?? null;
                     if (! is_array($details) || empty($details['hours']) || empty($details['seats'])) {
                         $automaticWarning = 'Add hours and seats to each workshop line before applying pricing defaults. Existing combined lines need an explicit breakdown.';
+
                         continue;
                     }
                     $inputs = ['participants' => (int) $details['seats'], 'hours' => (float) $details['hours'], 'venue_supplied' => (bool) ($details['venue_supplied'] ?? true), 'travel_minutes' => 0, 'supplied_categories' => $details['supplied_categories'] ?? [], 'gst_applicable' => (float) $line->tax_rate > 0];
@@ -60,6 +78,7 @@ class InvoiceAllocation
                     $units = $line->details_json['travel']['billable_units'] ?? null;
                     if ($units === null) {
                         $automaticWarning = 'Set the billable 15-minute units on travel lines before applying pricing defaults.';
+
                         continue;
                     }
                     $assumptions['lines'][] = ['kind' => 'travel', 'units' => (int) $units, 'gst_applicable' => (float) $line->tax_rate > 0, 'supplied_categories' => $line->details_json['travel']['supplied_categories'] ?? []];
@@ -89,6 +108,7 @@ class InvoiceAllocation
 
         return compact('budget', 'categories', 'targets', 'income', 'funding', 'total', 'ids', 'workshopId', 'workshop', 'version', 'assumptions', 'date', 'warning', 'suggestedTargets', 'automaticWarning', 'editorTargets', 'roundingAmount');
     }
+
     public function sync(Invoice $invoice, ?string $userId, bool $force = false, ?int $versionId = null, ?array $supplied = null): void
     {
         DB::transaction(function () use ($invoice, $userId, $force, $versionId, $supplied): void {
@@ -110,9 +130,8 @@ class InvoiceAllocation
                 }
             } else {
                 $row = ['workshop_id' => $context['workshopId'], 'name' => $context['workshop']->title ?? 'Invoice '.$invoice->invoice_number, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $context['version']->id, 'targets' => $context['suggestedTargets'], 'warning' => null, 'manual' => false];
-                $planner->apply(['token' => (string) \Illuminate\Support\Str::uuid(), 'rows' => [$row]], $userId, [0]);
+                $planner->apply(['token' => (string) Str::uuid(), 'rows' => [$row]], $userId, [0]);
             }
         });
     }
-
 }
