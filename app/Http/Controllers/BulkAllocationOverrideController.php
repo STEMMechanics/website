@@ -19,7 +19,17 @@ class BulkAllocationOverrideController extends Controller
         $ids = $this->ids($request, $kind);
         $categories = DB::table('finance_categories')->where('active', true)->where('kind', 'cost')->orderBy('priority')->get();
 
-        return response()->json(['html' => view('admin.finance.bulk-overrides', compact('kind', 'ids', 'categories'))->render()]);
+        $common = $mixed = [];
+        if ($kind === 'expenses') {
+            $expenses = Expense::whereIn('id', $ids)->get();
+            foreach (['supplier', 'description', 'paid_on'] as $field) {
+                $values = $expenses->map(fn (Expense $expense) => $field === 'paid_on' ? ($expense->paid_on?->format('Y-m-d') ?? '') : (string) $expense->$field)->uniqueStrict();
+                $mixed[$field] = $values->count() > 1;
+                $common[$field] = $mixed[$field] ? '' : $values->first();
+            }
+        }
+
+        return response()->json(['html' => view('admin.finance.bulk-overrides', compact('kind', 'ids', 'categories', 'common', 'mixed'))->render()]);
     }
 
     public function apply(Request $request, string $kind): JsonResponse

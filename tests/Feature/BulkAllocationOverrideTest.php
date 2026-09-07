@@ -53,6 +53,19 @@ class BulkAllocationOverrideTest extends TestCase
         $this->assertDatabaseCount('finance_expense_splits', 0);
     }
 
+    public function test_shared_values_are_prefilled_and_differing_values_show_mixed_without_enable_checkboxes(): void
+    {
+        $this->admin();
+        $a = Expense::factory()->create(['supplier' => 'Shared Supplier', 'description' => 'First description', 'paid_on' => '2026-09-01']);
+        $b = Expense::factory()->create(['supplier' => 'Shared Supplier', 'description' => 'Second description', 'paid_on' => '2026-09-02']);
+        $html = $this->postJson(route('admin.allocation-overrides.edit', ['kind' => 'expenses']), ['ids' => [$a->id, $b->id]])->assertOk()->json('html');
+        $this->assertStringContainsString('value="Shared Supplier"', $html);
+        $this->assertStringContainsString('placeholder="Mixed"', $html);
+        $this->assertStringNotContainsString('Change supplier', $html);
+        $this->assertStringNotContainsString('Change description', $html);
+        $this->assertStringContainsString('Override allocations', $html);
+    }
+
     public function test_percentages_apply_to_each_current_net_total_with_exact_rounding(): void
     {
         $this->admin();
