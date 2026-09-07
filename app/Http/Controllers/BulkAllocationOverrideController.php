@@ -90,7 +90,7 @@ class BulkAllocationOverrideController extends Controller
         $seen = [];
         foreach ($records as $record) {
             $warning = $categoriesValid ? null : 'A cost centre is no longer active.';
-            if ($kind === 'expenses') {
+            if ($record instanceof Expense) {
                 $existing = DB::table('finance_expense_splits')->where('expense_id', $record->id)->orderBy('category_id')->get()->toArray();
                 $net = $planner->cents($record->total_amount) - $planner->cents($record->gst_amount);
                 $name = $record->supplier.' · expense #'.$record->id;

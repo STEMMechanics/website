@@ -6,6 +6,10 @@ on:
     branches: ["main"]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   laravel-tests:
     runs-on: ubuntu-latest
@@ -17,6 +21,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          coverage: none
           tools: composer:v2
           extensions: imagick, mbstring, fileinfo, zip, redis
 
@@ -81,4 +86,27 @@ jobs:
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php -d memory_limit=1G vendor/bin/phpunit
+        run: php -d memory_limit=1G vendor/bin/phpunit --log-junit storage/logs/phpunit.xml
+
+      - name: Report slowest tests
+        if: always()
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path('storage/logs/phpunit.xml')
+          if report.exists():
+              tests = list(ET.parse(report).iter('testcase'))
+              tests.sort(key=lambda test: float(test.get('time', '0')), reverse=True)
+              lines = ['## Slowest PHPUnit tests', '', '| Seconds | Test |', '| ---: | --- |']
+              for test in tests[:20]:
+                  name = f"{test.get('classname', '')}::{test.get('name', '')}"
+                  name = name.replace('|', '&#124;').replace('\n', ' ')
+                  lines.append(f"| {float(test.get('time', '0')):.3f} | {name} |")
+              summary = '\n'.join(lines) + '\n'
+              print(summary)
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+                  output.write(summary)
+          PYTHON
