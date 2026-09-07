@@ -11,8 +11,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  laravel-tests:
+  phpunit:
+    name: PHPUnit shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@v7
@@ -82,11 +87,14 @@ jobs:
           DB_DATABASE: database/database.sqlite
         run: php artisan migrate --force
 
+      - name: Check test distribution
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: Run PHPUnit
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php -d memory_limit=1G vendor/bin/phpunit --log-junit storage/logs/phpunit.xml
+        run: python3 .github/scripts/phpunit_shard.py --shard ${{ matrix.shard }} --count 4
 
       - name: Report slowest tests
         if: always()
@@ -110,3 +118,14 @@ jobs:
               with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
                   output.write(summary)
           PYTHON
+
+  laravel-tests:
+    name: laravel-tests
+    needs: phpunit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every PHPUnit shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.phpunit.result }}
+        run: test "$SHARD_RESULT" = success
