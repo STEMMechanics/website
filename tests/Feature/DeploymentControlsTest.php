@@ -177,7 +177,8 @@ class DeploymentControlsTest extends TestCase
         }
 
         $this->get(route('security.mfa.show'))->assertOk()
-            ->assertSee('href="'.route('logout.show').'"', false)->assertSee('Log out');
+            ->assertSee('href="'.route('logout.show').'"', false)->assertSee('Log out')
+            ->assertDontSee('data-push-root', false);
         $this->get(route('logout.show'))->assertOk()
             ->assertSee('image-background')->assertSee('id="logout-confirm-form"', false)
             ->assertSee('Are you sure you want to log out of your account?');
@@ -185,6 +186,7 @@ class DeploymentControlsTest extends TestCase
         $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
         $this->post(route('security.mfa.verify'), ['code' => $code])
             ->assertRedirect(route('admin.dashboard'))->assertSessionHas('privileged_mfa');
+        $this->get(route('admin.dashboard'))->assertOk()->assertSee('data-push-root', false);
     }
 
     public function test_administrator_verification_still_limits_repeated_attempts_per_account(): void
