@@ -137,7 +137,7 @@
 <div {{ $id ? 'id='.$id : '' }} class="grow">{{ $slot }}</div>
 <x-footer />
 <x-ui.flash-notifications />
-@if(auth()->user()?->isAdmin())
+@if(auth()->user()?->isAdmin() && !request()->routeIs('security.mfa.*'))
     <x-push-prompt />
 @endif
 @stack('scripts')
