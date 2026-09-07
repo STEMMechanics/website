@@ -58,6 +58,11 @@ class SiteListControls
     public function nativeFields(): array
     {
         if ($this->scope) return [];
+        return app(\App\Support\RequestMemo::class)->remember('list-native-fields:'.request()->route()?->getName(), fn () => $this->resolveNativeFields());
+    }
+
+    private function resolveNativeFields(): array
+    {
         return match (request()->route()?->getName()) {
             'admin.workshop.history', 'admin.workshop.history.csv', 'admin.workshop.history.pdf', 'admin.workshop.coverage', 'admin.workshop.coverage.csv', 'admin.workshop.coverage.pdf' => [
                 'organisation_ids' => ['label' => 'Organisations', 'type' => 'array'],

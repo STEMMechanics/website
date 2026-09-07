@@ -8,16 +8,16 @@
         @if($inline)<input type="hidden" name="inline" value="1">@endif
         <input type="hidden" name="budget_id" value="{{ $allocation['budget']->id ?? '' }}">
         @if(! $allocation['budget'])
-            <div class="mb-5" x-data="{ versionId: @js((string) $allocation['version']->id) }">
+            <div class="mb-5" x-data="{ versionId: @js((string) $allocation['version']->id), editorUrl: @js(route('admin.invoice.allocation.edit', $invoice)) }">
                 <x-ui.select name="version_id" label="Allocation plan" x-model="versionId">
                     @foreach(\Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $allocation['version']->id)->orderByDesc('effective_from')->orderByDesc('id')->get() as $version)
                         <option value="{{ $version->id }}">{{ $version->name }}{{ $version->archived ? ' (archived)' : '' }}</option>
                     @endforeach
                 </x-ui.select>
                 @if($inline)
-                    <x-ui.button color="outline" data-allocation-load href="{{ route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]) }}" x-bind:href="@js(route('admin.invoice.allocation.edit', $invoice)) + '?inline=1&version_id=' + versionId">Load plan</x-ui.button>
+                    <x-ui.button color="outline" data-allocation-load href="{{ route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]) }}" x-bind:href="editorUrl + '?inline=1&version_id=' + versionId">Load plan</x-ui.button>
                 @else
-                    <x-ui.button color="outline" data-record-editor href="{{ route('admin.invoice.allocation.edit', $invoice) }}" x-bind:href="@js(route('admin.invoice.allocation.edit', $invoice)) + '?version_id=' + versionId">Load plan</x-ui.button>
+                    <x-ui.button color="outline" data-record-editor href="{{ route('admin.invoice.allocation.edit', $invoice) }}" x-bind:href="editorUrl + '?version_id=' + versionId">Load plan</x-ui.button>
                 @endif
             </div>
         @else

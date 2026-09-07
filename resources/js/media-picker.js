@@ -1037,7 +1037,8 @@ const SMMediaPicker = {
 
 window.SMMediaPicker = SMMediaPicker;
 
-document.addEventListener('DOMContentLoaded', () => {
+const initializeMediaStore = () => {
+    if (Alpine.store('media')) return;
     Alpine.store('media', {
         require_mime_type: '*',
         allow_multiple: true,
@@ -1070,4 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
         custom_tabs: [],
         custom_tab_state: {},
     });
-});
+};
+
+if (window.Alpine?.store) initializeMediaStore();
+else document.addEventListener('alpine:init', initializeMediaStore, { once: true });

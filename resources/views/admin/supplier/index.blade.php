@@ -7,7 +7,7 @@
     <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-suppliers">
             <x-ui.collection-controls class="my-5" />
-            <x-ui.table variant="listing">
+            <x-ui.table variant="listing" mobileCards>
                 <thead>
                     <tr>
                         <x-ui.list-heading label="Supplier" field="name" />
@@ -20,14 +20,14 @@
                 <tbody data-list-results>
                     @forelse($suppliers as $supplier)
                         <tr>
-                            <td><a class="font-semibold hover:text-primary-color" href="{{ route('admin.supplier.show', $supplier) }}">{{ $supplier->name }}</a></td>
-                            <td class="text-center">
+                            <td data-mobile-primary><a class="font-semibold hover:text-primary-color" href="{{ route('admin.supplier.show', $supplier) }}">{{ $supplier->name }}</a></td>
+                            <td data-mobile-wide data-label="Cost centre" class="text-center">
                                 <x-ui.badge :color="$supplier->category_id ? 'slate' : 'amber'">{{ $categories[$supplier->category_id] ?? 'Choose cost centre' }}</x-ui.badge>
                             </td>
-                            <td class="text-center whitespace-nowrap">{{ number_format($supplier->expenses_count) }}</td>
-                            <td class="text-center whitespace-nowrap">{{ money((float) $supplier->expenses_sum_total_amount) }}</td>
-                            <td class="text-center whitespace-nowrap">
-                                <x-ui.row-actions>
+                            <td data-label="Expenses" class="text-center whitespace-nowrap">{{ number_format($supplier->expenses_count) }}</td>
+                            <td data-label="Total incl GST" class="text-center whitespace-nowrap">{{ money((float) $supplier->expenses_sum_total_amount) }}</td>
+                            <td data-mobile-actions class="text-center whitespace-nowrap">
+                                <x-ui.row-actions :menu="false">
                                     <x-ui.row-action label="Edit supplier" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.supplier.edit', $supplier) }}" />
                                 <x-ui.row-action label="View expenses" icon="fa-solid fa-receipt" href="{{ route('admin.expense.index', ['supplier_id' => $supplier->id]) }}" />
                                 </x-ui.row-actions>

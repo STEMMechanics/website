@@ -441,9 +441,9 @@ class SiteOption extends Model
 
     public static function value(string $name, ?string $default = null): ?string
     {
-        $value = static::query()
+        $value = app(\App\Support\RequestMemo::class)->remember('site-option:'.$name, fn () => static::query()
             ->where('name', $name)
-            ->value('value');
+            ->value('value'));
 
         return $value ?? $default;
     }

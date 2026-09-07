@@ -41,22 +41,22 @@
                 @foreach ($expenses as $expense)
                     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-4">
-                            <div class="flex items-start gap-3">
+                            <div class="flex min-w-0 items-start gap-3">
                                 <x-ui.checkbox value="{{ $expense->id }}" label="Select expense {{ $expense->id }}" :labelHidden="true" :noWrapper="true" inputClass="admin-expense-select-item mt-1" />
-                                <div>
+                                <div class="min-w-0 break-words">
                                 <a href="{{ route('admin.expense.edit', $expense) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</a>
                                 <div class="mt-1 text-xs text-gray-600">{{ $expense->supplier ?: '-' }}</div>
                                 <div class="text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                 </div>
                             </div>
-                            <div class="text-right">
+                            <div class="shrink-0 text-right">
                                 <div class="font-semibold text-gray-950">${{ number_format((float) $expense->total_amount, 2) }}</div>
                                 <div class="text-xs text-gray-600">GST: ${{ number_format((float) $expense->gst_amount, 2) }}</div>
                             </div>
                         </div>
 
                         @if(trim((string) $expense->description) !== '')
-                            <div class="mt-3 text-sm text-gray-700">{{ $expense->description }}</div>
+                            <div class="mt-3 break-words text-sm text-gray-700">{{ $expense->description }}</div>
                         @endif
 
                         @if(! $expense->receipt_document_exists)
@@ -143,7 +143,12 @@
             </div>
 
             <x-ui.list-pagination :paginator="$expenses"><x-slot:actions>
-        <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to export their attachments.">
+        <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to edit or export their attachments.">
+            <form id="admin-expense-bulk-form" method="POST" action="{{ route('admin.allocation-overrides.edit', ['kind' => 'expenses']) }}" data-bulk-open="finance-bulk-editor">
+                @csrf
+                <div data-bulk-inputs></div>
+                <x-ui.bulk-edit-button type="submit" id="admin-expense-allocate" :count="0" disabled />
+            </form>
             <form id="admin-expense-export-form" method="POST" action="{{ route('admin.expense.export.zip') }}">
                 @csrf
                 <div class="admin-expense-export-inputs"></div>
@@ -157,6 +162,7 @@
         </x-ui.dynamic-list>
     </x-container>
 <x-ui.record-dialog />
+<x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit expenses" loader-id="finance-bulk-loader" list="admin-expense-index" selection-key="admin-expense-export-selection" selection-field="ids[]" />
 </x-layout>
 
 <script>
@@ -185,6 +191,17 @@
             });
             const controls = document.getElementById('admin-expense-export-controls');
             if (controls) controls.dataset.selected = String(selected.length > 0);
+            const bulkForm = document.getElementById('admin-expense-bulk-form');
+            if (bulkForm) {
+                const allocate = bulkForm.querySelector('button[type="submit"]');
+                allocate.disabled = !selected.length || selected.length > 200;
+                allocate.textContent = selected.length > 200 ? 'Select up to 200 to edit' : 'Edit ' + selected.length + ' items';
+                bulkForm.querySelector('[data-bulk-inputs]').replaceChildren(...selected.map(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = 'ids[]'; input.value = id;
+                    return input;
+                }));
+            }
             if (form) {
                 const button = form.querySelector('button[type="submit"]');
                 button.disabled = selected.length === 0;

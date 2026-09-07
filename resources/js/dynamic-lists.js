@@ -134,7 +134,7 @@ export async function loadList(root, url, { historyMode = 'push', paging = false
     setStatus(root, true, 'Updating results…');
     try {
         const response = await fetch(url.href, {
-            signal, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html' },
+            signal, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html', 'X-SM-Fragment': `list:${name}` },
         });
         if (signal.aborted || requestVersion !== version) return;
         // Authentication redirects and incompatible pages use their normal navigation flow.

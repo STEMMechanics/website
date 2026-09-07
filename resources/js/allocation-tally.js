@@ -29,6 +29,10 @@ export function allocationTally(config) {
         get valid() { return !this.enabled || (!config.exact || this.remaining === 0); },
         money(cents) { return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' }); },
         format(id) { this.values[id] = (this.cents(this.values[id]) / 100).toFixed(2); },
+        allocateRemaining(id) {
+            if (!this.enabled || this.remaining <= 0 || !Object.hasOwn(this.values, id)) return;
+            this.values[id] = ((this.cents(this.values[id]) + this.remaining) / 100).toFixed(2);
+        },
         refreshDefaults() {
             if (!config.defaults || this.enabled) return;
             const name = document.getElementById(config.supplierInput)?.value.trim().toLowerCase() || '';

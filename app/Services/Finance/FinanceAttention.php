@@ -42,9 +42,11 @@ class FinanceAttention
 
     public function counts(): array
     {
-        if (request()->attributes->has('finance_attention_counts')) {
-            return request()->attributes->get('finance_attention_counts');
-        }
+        return app(\App\Support\AdminBadgeCache::class)->remember('finance', fn () => $this->calculateCounts());
+    }
+
+    private function calculateCounts(): array
+    {
         $overdue = Invoice::query();
         $this->overdue($overdue);
         $unallocated = Invoice::query();
@@ -55,7 +57,6 @@ class FinanceAttention
             ->where(fn ($part) => $this->overdue($part))
             ->orWhere(fn ($part) => $this->unallocatedInvoices($part)));
         $counts = ['overdue' => $overdue->count(), 'unallocated_invoices' => $unallocated->count(), 'invoices' => $invoices->count(), 'expenses' => $expenses->count()];
-        request()->attributes->set('finance_attention_counts', $counts);
         return $counts;
     }
 }
