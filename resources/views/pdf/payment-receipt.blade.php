@@ -123,7 +123,7 @@
                 @foreach($purchasedItemRows as $item)
                 <tr>
                     <td>{{ (string) ($item['description'] ?? '') }}</td>
-                    <td class="center">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
+                    <td class="center">{{ $item['quantity_label'] ?? rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
                     <td class="right">$ {{ number_format((float) ($item['line_total_inc_tax'] ?? 0), 2) }}</td>
                 </tr>
                 @endforeach

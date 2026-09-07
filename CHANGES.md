@@ -2,70 +2,14 @@
 
 ## Current
 
-- Improved public, admin, and PDF workshop calendars so multi-day workshops span every visible date, retain stable lanes across overlaps and week/month boundaries, share hover highlighting, and present compact continuation and end details.
-- Added exact and perceptual media duplicate detection with safe reference merging, upload reuse, similarity scanning, ignored-match controls, and admin attention badges.
-- Improved exact media duplicate review with clearly selected keeper images, responsive multi-record groups, one-step group merging, and advanced metadata comparison across every duplicate.
-- Added unique external workshop registration click tracking and unified dashboard registration reporting across external links and internal ticket sales.
-- Improved workshop template and run-sheet workflows with a scrollable TipTap editor, always-ready blank task rows, prefix-based task categories, compact grouped checklists, collapsible page sections, and cleaner two-column PDF tasks.
-- Expanded pick list templates into workshop templates with overview details, reorderable tasks and notes, editable TipTap run sheets, drag-and-drop attachments, and reusable workshop-specific overrides.
-- Added workshop run-sheet pages with persistent task and material checkboxes, workshop notes, drawings, responsive task layouts, and canonical `/run-sheet` links throughout the admin interface.
-- Reworked workshop and template PDFs with shared layouts, three-column tasks and materials, page numbering, workshop notes, run-sheet drawings, and appended image or multi-page PDF attachments.
-- Added facilitator-based workshop task reminders with configurable offsets and delivery times, queue-backed email delivery, reminder history, safe rescheduling, overdue cancellation, test resend controls, and authenticated task completion links.
-- Updated the Ignore Square Payment reason menu to use the standard admin select component.
-- Added an admin user merge workflow that safely moves workshops, media, tickets, attendance, finance records, orders, organisations, groups, and other associations into a clearly selected destination account before removing the duplicate.
-- Added support for email-less ghost users, including nullable email storage, required first names, workshop requester search, and clear login-unavailable notices in the user editor.
-- Replaced legacy user organisation text with a primary organisation relationship and kept organisation names consistent across user, workshop, checkout, invoice, quote, and reporting workflows.
-- Reworked workshop attendance around individual records, including explicitly anonymous attendees, migration of legacy aggregate counts, attendee-neutral sign-in fields, consistent zero-value reporting, and Attendance tabs across workshop administration pages.
-- Fixed organisation deletion redirects, ghost-user requester search in the workshop editor, and empty workshop-history PDF status columns.
-- Added organisation records with parent/child relationships, searchable contact linking, and consistent organisation terminology across admin workflows.
-- Linked workshop delivery history to hosted-for organisations and requesting contacts, including migration of legacy workshop and user organisation text without losing existing associations.
-- Added detailed workshop history and organisation coverage matrix reports with focused filters, CSV exports, and print-ready PDF exports.
-- Updated report category pickers to show all available categories as soon as the field is focused.
-- Added persistent bulk selection and editing to the admin media library, including mixed-value handling and workshop photo/file link management.
-- Unified the workshop Files and Photos uploaders with shared local/existing media selection, staged metadata, clear item status, and image/video validation.
-- Improved media usage details and workshop linking controls so file and photo associations can be reviewed, changed, or removed from the media editor.
-- Prevented proxied Vite development assets from being cached or served without the configured application-origin CORS headers.
-- Reduced the newsletter upcoming-workshop lead time to 6 hours so next-morning sessions are included in Wednesday sends.
-- Excluded cancelled workshops from admin month PDF exports and expanded each calendar day cell to show all workshops instead of collapsing extra entries into a `+N more` summary.
-- Improved workshop pick list sketch pad loading and changed the toolbar export action to download the drawing instead of duplicating the page save action.
-- Prevent stale Vite hot-mode files from being used on non-local hosts so deployed pages keep loading built assets.
-- Improved workshop media uploads so new file drops append to the pending list, default dates use workshop/metadata dates, and new uploads default to public visibility.
-- Added an invoice write-off flow for uncollectable invoices without cancelling linked tickets or attendance records.
-- Added configurable school holiday shading and calendar keys to public and admin workshop month views.
-- Updated Axios to clear the high-severity npm audit advisory.
-- Update TipTap packages to `3.28.0` together so `@tiptap/react` peer dependencies stay aligned.
-- Restrict SAST push workflow runs to `main` to avoid duplicate PR checks.
-- Update Guzzle dependencies to clear the `GHSA-94pj-82f3-465w` Composer audit advisory.
-- Improved admin workshop calendar status badges, cancellation toggles, draft visibility, delete redirects, and category selection.
-- Added select all checkbox in pick lists
-- Added support for mixed checkboxes
-- Updated Tiptap dependencies to `3.27.1` so `highlight` and `typography` stay aligned with `core`, `pm`, `react`, and `starter-kit`
-- Trim dependency audit workflow to pull requests and manual runs only
-- Update Guzzle dependencies to clear Composer audit findings
-- Upgrade Vite stack to clear the npm audit/esbuild issue
-- Set GitHub Actions PHP jobs to PHP 8.4 for Composer compatibility
-- Update GitHub Actions to ignore ext-redis during Composer install and use Node 24-compatible actions
-- Moved CI workflows to GitHub Actions and updated Renovate for GitHub
-- Added `{document}` placeholder support to PDF footer questions text
-- Added trustProxies
-- Change Navbar colour on dev sites
-- Updated cancellation email template
-- UI Improvements
-- Manual refund for credit
-- Bugfix for private file settings
-- Support xsendfile and max public upload size
-- Fix drag-drop on file ui control
-- Fix password not saved on creating files
-- Fix zip last processing error
-- Fix password processing error
-- Added SMS Gateway support
-- Dependency updates
-- Only show Cancellation reason for ticketed workshops
-- Added Early Bird options
-- Added Admin Dashboard
-- UI Fixes
-- Fixes to Renovate
-- Make deploy script resolve app path automatically
+- Improved workshop calendars, attendance, registration and organisation management.
+- Expanded workshop templates, run sheets, pick lists and PDF exports.
+- Improved media uploads, duplicate detection and file management.
+- Added facilitator reminders and improved notification workflows.
+- Improved administrative reporting and document workflows.
+- Refined shared interface components and mobile layouts.
+- Improved application configuration, build reliability and deployment tooling.
+- Updated dependencies and automated checks.
 
 ## 1.4.5
 

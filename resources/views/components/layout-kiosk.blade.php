@@ -15,10 +15,6 @@
 <body class="min-h-screen bg-gray-100 antialiased">
     {{ $slot }}
 
-    @if (session('message'))
-        <script>
-            SM.alert('{{ session('message-title') }}', '{{ session('message') }}', '{{ session('message-type') }}');
-        </script>
-    @endif
+    <x-ui.flash-notifications />
 </body>
 </html>

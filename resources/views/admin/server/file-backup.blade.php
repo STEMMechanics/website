@@ -1,6 +1,5 @@
 <x-layout>
     @php
-        $notice = is_array(session('message')) ? session('message') : null;
         $backupMode = (string) ($backup['mode'] ?? '');
         $isIncremental = $backupMode === \App\Services\FileBackupService::MODE_INCREMENTAL;
         $currentPath = trim((string) ($pathPrefix ?? ''), '/');
@@ -20,11 +19,6 @@
     </x-mast>
 
     <x-container>
-        @if(isset($notice) && is_array($notice))
-            <div class="mb-4 rounded-md border px-3 py-2 text-sm {{ ($notice['type'] ?? '') === 'success' ? 'border-green-200 bg-green-50 text-green-800' : (($notice['type'] ?? '') === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-800') }}">
-                {{ (string) ($notice['text'] ?? '') }}
-            </div>
-        @endif
 
         <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" x-data="fileBackupArchive(@js($archiveRun), @js(route('admin.server.files.archive', ['mode' => $backupMode, 'filename' => $backup['filename']])), @js(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])))" x-init="init()">
             <div class="flex flex-wrap items-center justify-between gap-3">

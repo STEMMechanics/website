@@ -9,9 +9,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
 use App\Http\Controllers\CairnsMinecraftController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\FinanceFileController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
@@ -22,6 +24,7 @@ use App\Http\Controllers\OrganisationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PickListTemplateController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PrivilegedMfaController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\SearchController;
@@ -70,6 +73,8 @@ Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'intere
 Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
 Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
 Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');
+Route::get('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'equipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment');
+Route::post('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'saveEquipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment.save');
 Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'payment'])->name('workshop.ticket.flow.payment');
 Route::post('workshops/{workshop}/tickets/voucher', [WorkshopTicketFlowController::class, 'updateVoucher'])->name('workshop.ticket.flow.voucher');
 Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');
@@ -438,6 +443,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_update'])->name('admin.workshop.update');
     Route::delete('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_destroy'])->name('admin.workshop.destroy');
 
+    Route::get('/admin/suppliers', [\App\Http\Controllers\SupplierController::class, 'index'])->name('admin.supplier.index');
+    Route::get('/admin/suppliers/create', [\App\Http\Controllers\SupplierController::class, 'create'])->name('admin.supplier.create');
+    Route::post('/admin/suppliers', [\App\Http\Controllers\SupplierController::class, 'store'])->name('admin.supplier.store');
+    Route::get('/admin/suppliers/{supplier}/edit', [\App\Http\Controllers\SupplierController::class, 'edit'])->name('admin.supplier.edit');
+    Route::put('/admin/suppliers/{supplier}', [\App\Http\Controllers\SupplierController::class, 'update'])->name('admin.supplier.update');
+    Route::get('/admin/suppliers/{supplier}', [ExpenseController::class, 'supplier'])->name('admin.supplier.show');
+    Route::post('/admin/expenses/{expense}/allocation', [ExpenseController::class, 'allocation'])->name('admin.expense.allocation');
     Route::get('/admin/expenses', [ExpenseController::class, 'index'])->name('admin.expense.index');
     Route::post('/admin/expenses/export/zip', [ExpenseController::class, 'exportZip'])->name('admin.expense.export.zip');
     Route::get('/admin/expenses/create', [ExpenseController::class, 'create'])->name('admin.expense.create');
@@ -471,6 +483,10 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/invoices', [InvoiceController::class, 'index'])->name('admin.invoice.index');
     Route::get('/admin/invoices/create', [InvoiceController::class, 'create'])->name('admin.invoice.create');
     Route::post('/admin/invoices', [InvoiceController::class, 'store'])->name('admin.invoice.store');
+    Route::get('/admin/invoices/bulk-allocation', [\App\Http\Controllers\InvoiceBulkAllocationController::class, 'preview'])->name('admin.invoice.bulk-allocation.preview');
+    Route::post('/admin/invoices/bulk-allocation', [\App\Http\Controllers\InvoiceBulkAllocationController::class, 'apply'])->name('admin.invoice.bulk-allocation.apply');
+    Route::get('/admin/invoices/{invoice}/cost-centres', [\App\Http\Controllers\InvoiceAllocationController::class, 'edit'])->name('admin.invoice.allocation.edit');
+    Route::post('/admin/invoices/{invoice}/cost-centres', [\App\Http\Controllers\InvoiceAllocationController::class, 'store'])->name('admin.invoice.allocation.store');
     Route::get('/admin/invoices/{invoice}', [InvoiceController::class, 'edit'])->name('admin.invoice.edit');
     Route::put('/admin/invoices/{invoice}', [InvoiceController::class, 'update'])->name('admin.invoice.update');
     Route::delete('/admin/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('admin.invoice.destroy');
@@ -554,6 +570,33 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/reminders/bulk/edit', [ReminderController::class, 'bulkEditor'])->name('admin.reminder.bulk.edit');
     Route::put('/admin/reminders/bulk', [ReminderController::class, 'bulkUpdate'])->name('admin.reminder.bulk.update');
     Route::post('/admin/reminders/{reminder}/send-now', [ReminderController::class, 'sendNow'])->name('admin.reminder.send-now');
+    Route::post('/admin/finance/transfers', [FinanceController::class, 'transfer'])->name('admin.finance.transfer');
+    Route::get('/admin/cost-centres', [\App\Http\Controllers\CostCentreController::class, 'index'])->name('admin.cost-centre.index');
+    Route::post('/admin/cost-centres/allocations/{version}/archive', [\App\Http\Controllers\CostCentreController::class, 'archiveVersion'])->whereNumber('version')->name('admin.cost-centre.version.archive');
+    Route::delete('/admin/cost-centres/allocations/{version}', [\App\Http\Controllers\CostCentreController::class, 'destroyVersion'])->whereNumber('version')->name('admin.cost-centre.version.destroy');
+    Route::post('/admin/cost-centres/allocations/default-version', [\App\Http\Controllers\CostCentreController::class, 'defaultVersion'])->name('admin.cost-centre.default-version');
+    Route::get('/admin/cost-centres/allocations', [\App\Http\Controllers\CostCentreController::class, 'allocations'])->name('admin.cost-centre.allocations');
+    Route::get('/admin/cost-centres/edit', [\App\Http\Controllers\CostCentreController::class, 'editor'])->name('admin.cost-centre.edit');
+    Route::post('/admin/cost-centres', [\App\Http\Controllers\CostCentreController::class, 'store'])->name('admin.cost-centre.store');
+    Route::get('/admin/cost-centres/transfer', [\App\Http\Controllers\CostCentreController::class, 'transferEditor'])->name('admin.cost-centre.transfer.edit');
+    Route::post('/admin/cost-centres/transfer', [\App\Http\Controllers\CostCentreController::class, 'transfer'])->name('admin.cost-centre.transfer');
+    Route::get('/admin/cost-centres/gst', [\App\Http\Controllers\CostCentreController::class, 'gst'])->name('admin.cost-centre.gst');
+    Route::get('/admin/cost-centres/{centre}', [\App\Http\Controllers\CostCentreController::class, 'show'])->whereNumber('centre')->name('admin.cost-centre.show');
+    Route::get('/admin/finance/workshop-costings', [\App\Http\Controllers\WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.index');
+    Route::get('/admin/finance/workshop-costings/pdf', [\App\Http\Controllers\WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.pdf');
+    Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance.index');
+    Route::post('/admin/finance/categories', [FinanceController::class, 'category'])->name('admin.finance.category');
+    Route::post('/admin/finance/pricing', [FinanceController::class, 'pricing'])->name('admin.finance.pricing');
+    Route::get('/admin/timesheet/contributions/new', [\App\Http\Controllers\OwnerContributionController::class, 'editor'])->name('admin.timesheet.contribution.edit');
+    Route::post('/admin/timesheet/contributions', [\App\Http\Controllers\OwnerContributionController::class, 'store'])->name('admin.timesheet.contribution.store');
+    Route::get('/admin/timesheet', [\App\Http\Controllers\TimesheetController::class, 'index'])->name('admin.timesheet.index');
+    Route::get('/admin/timesheet/edit', [\App\Http\Controllers\TimesheetController::class, 'editor'])->name('admin.timesheet.edit');
+    Route::post('/admin/timesheet', [\App\Http\Controllers\TimesheetController::class, 'store'])->name('admin.timesheet.store');
+    Route::post('/admin/finance/time', [FinanceController::class, 'time'])->name('admin.finance.time');
+    Route::post('/admin/finance/drawings', [FinanceController::class, 'drawing'])->name('admin.finance.drawing');
+    Route::post('/admin/finance/drawings/{drawing}', [FinanceController::class, 'drawingStatus'])->name('admin.finance.drawingStatus');
+    Route::post('/admin/finance/gst', [FinanceController::class, 'settlement'])->name('admin.finance.settlement');
+
     Route::get('/admin/bas', [BasController::class, 'index'])->name('admin.bas.index');
     Route::get('/admin/bas/export/csv', [BasController::class, 'exportCsv'])->name('admin.bas.export.csv');
     Route::get('/admin/bas/export/pdf', [BasController::class, 'exportPdf'])->name('admin.bas.export.pdf');
@@ -563,10 +606,10 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 
 Route::fallback([CustomPageController::class, 'fallback']);
 
-Route::post('/security/csp-reports', \App\Http\Controllers\CspReportController::class)
+Route::post('/security/csp-reports', CspReportController::class)
     ->middleware('throttle:30,1,csp-reports:')->name('security.csp-report');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
-    Route::post('/account/verify-administrator', [\App\Http\Controllers\PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1,administrator-mfa:')->name('security.mfa.verify');
+    Route::get('/account/verify-administrator', [PrivilegedMfaController::class, 'show'])->name('security.mfa.show');
+    Route::post('/account/verify-administrator', [PrivilegedMfaController::class, 'verify'])->middleware('throttle:6,1,administrator-mfa:')->name('security.mfa.verify');
 });

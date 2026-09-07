@@ -70,14 +70,29 @@ class SiteListControls
                 'include_cancelled' => ['label' => 'Include cancelled and drafts', 'type' => 'boolean'],
                 'include_children' => ['label' => 'Include child organisations', 'type' => 'boolean'],
             ],
+            'admin.cost-centre.index' => ['state' => ['label' => 'Status', 'type' => 'select', 'options' => ['all' => 'All', 'active' => 'Active', 'archived' => 'Archived'], 'default' => 'all', 'clear' => 'all']],
+            'admin.supplier.index' => [
+                'cost_centre_id' => ['label' => 'Cost centre', 'type' => 'select', 'options' => \Illuminate\Support\Facades\DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->pluck('name', 'id')->all()],
+            ],
             'shop.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
             'workshop.index', 'workshop.past.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
             'admin.workshop.index' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1', 'default' => '1']],
             'admin.workshop.attendance' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1']],
-            'admin.invoice.index', 'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
+            'admin.invoice.index' => [
+                'status' => ['label' => 'Status', 'type' => 'array', 'options' => array_combine(\App\Models\Invoice::STATUSES, array_map(fn ($status) => ucwords(str_replace('_', ' ', $status)), \App\Models\Invoice::STATUSES))],
+                'customer' => ['label' => 'Customer name or email', 'type' => 'text'],
+                'line_types' => ['label' => 'Contains line types', 'type' => 'array', 'options' => ['ticket' => 'Ticket', 'workshop' => 'Workshop', 'multi_workshop' => 'Multi Workshop Delivery', 'travel' => 'Travel', 'product' => 'Product', 'custom' => 'Custom / other']],
+                'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Not allocated', 'automatic' => 'Automatic', 'manual' => 'Manual override']],
+                'allocation_plan' => ['label' => 'Allocation plan', 'type' => 'select', 'options' => \Illuminate\Support\Facades\DB::table('finance_pricing_versions')->orderBy('name')->get()->mapWithKeys(fn ($plan) => [(string) $plan->id => $plan->name.($plan->is_snapshot ? ' (saved revision)' : ($plan->archived ? ' (archived)' : ''))])->all()],
+                'payment_from' => ['label' => 'Payment date — From', 'type' => 'date'],
+                'payment_to' => ['label' => 'Payment date — To', 'type' => 'date'],
+            ],
+            'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
             'admin.server.square-events', 'admin.server.square-webhooks' => ['event_type' => ['label' => 'Event type', 'type' => 'text']],
             'admin.workshop.files', 'admin.workshop.photos' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
             'admin.expense.index' => [
+                'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
+                'supplier_id' => ['label' => 'Supplier account', 'type' => 'select', 'options' => \App\Models\Supplier::orderBy('name')->pluck('name', 'id')->all()],
                 'supplier' => ['label' => 'Supplier', 'type' => 'text'],
                 'description' => ['label' => 'Description', 'type' => 'text'],
                 'invoice_id' => ['label' => 'Invoice ID', 'type' => 'text'],
@@ -287,6 +302,13 @@ class SiteListControls
             if ($field['type'] === 'array' && isset($field['options'])) $rules[$key.'.*'] = ['string', Rule::in(array_keys($field['options']))];
         }
         $data = Validator::make(request()->query(), $rules)->validate();
+        if (request()->routeIs('admin.invoice.index')) { app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($query, $data); }
+        if (request()->routeIs('admin.expense.index') && ! empty($data['allocation_state'])) {
+            $match = fn ($part) => app(\App\Services\Finance\FinanceAttention::class)->unallocatedExpenses($part);
+            if ($data['allocation_state'] === 'not_allocated') { $query->where($match); }
+            else { $query->whereNot($match); }
+        }
+
         if (request()->routeIs('admin.ticket.index')) {
             $statuses = [];
             foreach ($data['ticket_status'] ?? [] as $status) {

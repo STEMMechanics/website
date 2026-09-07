@@ -5,6 +5,8 @@ use App\Mail\UpcomingWorkshops;
 use App\Models\Invoice;
 use App\Models\Media;
 use App\Models\Ticket;
+use App\Services\DashboardSnapshot;
+use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -210,10 +212,15 @@ Schedule::command('workplan:send-fortnightly')
     ->withoutOverlapping();
 
 Artisan::command('analytics:snapshot', function () {
-    foreach (\App\Services\DashboardSnapshot::PERIODS as $period) {
-        app(\App\Services\DashboardSnapshot::class)->refresh($period);
+    foreach (DashboardSnapshot::PERIODS as $period) {
+        app(DashboardSnapshot::class)->refresh($period);
     }
     $this->info('Dashboard snapshots refreshed.');
 })->purpose('Precompute administrator dashboard aggregates')->everyFiveMinutes()->withoutOverlapping();
 
 Schedule::command('queue:prune-failed --hours=168')->daily()->withoutOverlapping();
+
+Artisan::command('finance:allocate', function () {
+    $count = app(FinancePlanner::class)->automate();
+    $this->info("Created {$count} workshop budgets; refreshed eligible invoice line allocations.");
+})->purpose('Create and refresh opted-in workshop and invoice allocations using effective pricing versions')->hourly()->withoutOverlapping();

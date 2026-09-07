@@ -837,7 +837,7 @@ if (isset($workshop)) {
                             name="starts_at"
                             value="{{ $workshopStartValue }}"
                             onchange="updatedStartsAt()"
-                            x-ref="startsAt"
+                            x-ref="startsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
                             x-on:input="manualStartsAt = $event.target.value"
                             x-on:change="manualStartsAt = $event.target.value"
                             x-bind:value="manualStartsAt"
@@ -850,7 +850,7 @@ if (isset($workshop)) {
                             name="ends_at"
                             value="{{ $workshopEndValue }}"
                             onchange="updatedEndsAt()"
-                            x-ref="endsAt"
+                            x-ref="endsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
                             x-on:input="manualEndsAt = $event.target.value"
                             x-on:change="manualEndsAt = $event.target.value"
                             x-bind:value="manualEndsAt"
@@ -946,17 +946,93 @@ if (isset($workshop)) {
                     </div>
                     <div class="hidden flex-1 sm:block" aria-hidden="true"></div>
                 </div>
+                        @php
+                            $ticketBudget = isset($workshop) ? \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first() : null;
+                            $ticketPlan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $ticketBudget ? (int) $ticketBudget->pricing_version_id : (old('pricing_version_id', $workshop->pricing_version_id ?? null) ?: null));
+                            $ticketPlans = \Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $ticketPlan->id)->orderBy('name')->get();
+                            $ticketPlanOptions = $ticketPlans->mapWithKeys(fn ($version) => [$version->id => array_merge(json_decode($version->prices, true), ['rules' => json_decode($version->rules, true)])]);
+                        @endphp
+                        <div x-data="{
+                            price: @js(old('price', $workshop->price ?? '')),
+                            automatic: @js((bool) old('price_is_automatic', $workshop->price_is_automatic ?? false)),
+                            planId: @js((string) $ticketPlan->id),
+                            plans: @js($ticketPlanOptions),
+                            get plan() { return this.plans[this.planId]; },
+                            breakdown: { categories: {}, total: 0, participants: 0 },
+                            maxBreakdown: { categories: {}, total: 0, participants: 0 },
+                            reprice(force = false) {
+                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets);
+                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false);
+                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic);
+                                if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
+                                this.price = next;
+                            }
+                        }" x-effect="const r = registration; $nextTick(() => reprice());" x-on:workshop-pricing-changed.window="reprice()">
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.input label="Price" name="price" info="Leave blank to hide from public. Also supports Free, TBD or TBC" value="{{ $workshop->price ?? '' }}" />
+                            <div x-show="registration === 'tickets'" x-cloak>
+                                <x-ui.select label="Allocation plan" name="pricing_version_id" x-model="planId" x-on:blur="reprice()" :disabled="(bool) $ticketBudget">
+                                    @foreach($ticketPlans as $option)
+                                        <option value="{{ $option->id }}">{{ $option->name }}{{ $option->archived ? ' (archived)' : '' }}</option>
+                                    @endforeach
+                                </x-ui.select>
+                                @if($ticketBudget)
+                                    <input type="hidden" name="pricing_version_id" value="{{ $ticketPlan->id }}">
+                                    <p class="mb-3 text-xs text-slate-500">This workshop already has saved allocations using this plan.</p>
+                                @endif
+                            </div>
+                            <input type="hidden" name="price_is_automatic" x-bind:value="registration === 'tickets' && automatic ? 1 : 0">
+                            <label class="block text-sm" for="workshop-price">Price</label>
+                            <div class="relative mt-1">
+                                <x-ui.input-control id="workshop-price" name="price" x-model="price" x-bind:class="registration === 'tickets' ? 'pr-11' : ''"
+                                    x-on:input="automatic = false" x-on:blur="reprice()" />
+                                <x-ui.button variant="plain" type="button" x-show="registration === 'tickets' && String(price ?? '').trim() !== ''" x-cloak
+                                    aria-label="Refresh suggested ticket price" title="Refresh suggested ticket price from the allocation plan"
+                                    class="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-primary-color"
+                                    x-on:click="reprice(true)">
+                                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                                </x-ui.button>
+                            </div>
+                            @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            <p class="mb-4 mt-1 text-xs text-gray-500">Leave blank to hide from public. Also supports Free, TBD or TBC.</p>
                     </div>
                     <div class="flex-1">
                         <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
                     </div>
                 </div>
+
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
+                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
+                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
+                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
+                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
+                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
+                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
+                        </x-ui.select>
+                    </div>
+                    <div class="flex-1">
+                        <span x-show="registration==='tickets'">
+                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" x-on:blur="$dispatch('workshop-pricing-changed')" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
+                        </span>
+                        <span x-show="registration==='link'">
+                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{!! isset($workshop) ? $workshop->registration_data : '' !!}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <span x-show="registration==='email'">
+                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <span x-show="registration==='message'">
+                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
+                    </div>
+                </div>
+                <div class="grid items-start gap-x-8 lg:grid-cols-2" x-show="registration === 'tickets'" x-cloak>
                 <x-ui.collapsible-section
                     :open="$earlyBirdSectionOpen"
                     title="Early Bird"
+                    variant="panel"
                     x-show="registration==='tickets'"
                 >
                     <x-slot:summary>
@@ -977,32 +1053,8 @@ if (isset($workshop)) {
                         <div class="flex-1"></div>
                     </div>
                 </x-ui.collapsible-section>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
-                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
-                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
-                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
-                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
-                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
-                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="flex-1">
-                        <span x-show="registration==='tickets'">
-                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
-                        </span>
-                        <span x-show="registration==='link'">
-                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{!! isset($workshop) ? $workshop->registration_data : '' !!}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <span x-show="registration==='email'">
-                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <span x-show="registration==='message'">
-                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
-                    </div>
+                    <x-finance.workshop-allocation-preview :budget="$ticketBudget" />
+                </div>
                 </div>
                 <div x-show="registration==='tickets'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1015,6 +1067,14 @@ if (isset($workshop)) {
                             <i class="fa-solid fa-paperclip mr-2"></i>Configure
                         </x-ui.button>
                     </div>
+                </div>
+                <div x-show="registration === 'tickets'" x-cloak>
+                    <x-ui.collapsible-section title="Optional equipment" variant="panel" subtitle="Offer store products with a ticket">
+                        <x-ui.select name="optional_product_ids[]" label="Products" multiple
+                            :value="old('optional_product_ids', $workshop->optional_product_ids ?? [])"
+                            :options="\App\Models\Product::query()->active()->orderBy('title')->pluck('title', 'id')->all()" />
+                        <p class="text-sm text-gray-600">Customers can choose equipment and use the store’s delivery options during ticket checkout.</p>
+                    </x-ui.collapsible-section>
                 </div>
                 <input type="hidden" name="participant_files" x-bind:value="JSON.stringify(participantFiles)">
                 <div

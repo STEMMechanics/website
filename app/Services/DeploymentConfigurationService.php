@@ -61,7 +61,13 @@ class DeploymentConfigurationService
             }
             unset($row);
         }
+        $pushSubject = trim((string) config('webpush.subject'));
+        $validPushSubject = (str_starts_with($pushSubject, 'mailto:') && filter_var(substr($pushSubject, 7), FILTER_VALIDATE_EMAIL) !== false)
+            || (filter_var($pushSubject, FILTER_VALIDATE_URL) !== false && parse_url($pushSubject, PHP_URL_SCHEME) === 'https');
         $extra = [
+            ['Push notification public key', trim((string) config('webpush.public_key')) !== '' ? 'pass' : 'fail', 'VAPID_PUBLIC_KEY', 'Set VAPID_PUBLIC_KEY to your existing push public key. If no key pair exists, run php artisan push:generate-keys once and store both generated keys in the server environment. Keep the same pair across deployments so existing devices remain subscribed.', false],
+            ['Push notification private key', trim((string) config('webpush.private_key')) !== '' ? 'pass' : 'fail', 'VAPID_PRIVATE_KEY', 'Set VAPID_PRIVATE_KEY to the private key paired with VAPID_PUBLIC_KEY. After updating the environment, run php artisan config:cache and php artisan queue:restart. Keep the private key secret. Key presence alone does not verify delivery; use Test on a subscribed device.', false],
+            ['Push notification contact', $validPushSubject ? 'pass' : 'fail', 'VAPID_SUBJECT', 'Set VAPID_SUBJECT to a monitored mailto: address or an HTTPS contact URL. When omitted, this site uses APP_URL. Refresh cached configuration and restart workers after changes. Push delivery needs a worker processing the mail queue.', false],
             ['SMSFlow outbound callback URL', $this->callbackStatus(), 'SMSFLOW_CALLBACK_URL', 'Configure the intended HTTPS /webhooks/smsflow URL for outgoing-message callbacks. If using a query credential, webhook_secret must match SMSFLOW_WEBHOOK_SECRET. Otherwise verify that the provider sends the bearer header. An unset URL may be intentional when callbacks are configured directly at the provider.', false],
             ['Analytics queue connection', $this->durableQueue((string) (config('analytics.queue_connection') ?: config('queue.default'))) ? 'pass' : 'fail', 'ANALYTICS_QUEUE_CONNECTION', 'Use a durable configured queue connection, or leave unset to use QUEUE_CONNECTION. Run a worker listening on the analytics queue.', true],
             ['Analytics migration', $this->analyticsSchemaReady() ? 'pass' : 'fail', 'Database migrations', 'Run php artisan migrate --force before restarting workers. Analytics needs the event_uuid column for retry protection.', true],

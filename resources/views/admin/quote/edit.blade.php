@@ -136,6 +136,14 @@
 
                             return {
                                 ...item,
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
                                 kind,
                                 source_id: sourceId !== '' && sourceId !== null && sourceId !== undefined
                                     ? String(parseInt(sourceId || 0, 10) || '')
@@ -160,6 +168,7 @@
                 itemTypeOptions: [
                     { value: 'product', label: 'Store Product', icon: 'fa-box' },
                     { value: 'shipping', label: 'Shipping', icon: 'fa-truck' },
+                    { value: 'multi_workshop', label: 'Multi Workshop Delivery', icon: 'fa-layer-group' },
                     { value: 'workshop', label: 'Workshop Delivery', icon: 'fa-chalkboard-user' },
                     { value: 'travel', label: 'Travel Fee', icon: 'fa-route' },
                     { value: 'custom', label: 'Custom', icon: 'fa-pen-to-square' },
@@ -167,13 +176,14 @@
                 defaultDescriptionForKind(kind) {
                     return {
                         shipping: 'Shipping',
-                        workshop: 'Workshop Delivery',
+                        workshop: 'Workshop Delivery', multi_workshop: 'Multi Workshop Delivery',
                         travel: 'Travel Fee',
                     }[kind] ?? '';
                 },
                 defaultLineItem(kind = 'custom') {
                     return {
                         kind,
+                        auto_pricing: true, legacy_workshop: false, travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {},
                         source_id: '',
                         source_variant_id: 0,
                         description: this.defaultDescriptionForKind(kind),
@@ -263,7 +273,11 @@
                     }
 
                     item.kind = kind;
+                    if (kind === 'multi_workshop' &amp;&amp; !item.workshops?.length) SM.addWorkshopRow(item);
+                    SM.updateWorkshopLine(item);
                     this.applyKind(index);
+                    SM.updateWorkshopLine(item);
+                    this.serializeLineItems();
                 },
                 applyProductSelection(index) {
                     const item = this.lineItems[index];
@@ -625,9 +639,7 @@
                                 </template>
                             </div>
 
-                            <x-ui.button variant="plain" type="button" class="self-start text-red-600 hover:text-red-700 md:pt-8" x-on:click.prevent="removeLineItem(index)">
-                                <i class="fa-solid fa-trash"></i>
-                            </x-ui.button>
+                            <div class="self-start md:pt-6"><x-ui.row-action label="Remove line item" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" /></div>
                         </div>
 
                         <div class="mt-3 grid grid-cols-12 gap-3 items-end">
@@ -635,13 +647,14 @@
                                 <label class="block text-sm pl-1">Description</label>
                                 <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
                             </div>
+                            <div class="col-span-12"><x-finance.workshop-line-fields :inclusive="true" /></div>
                             <div class="col-span-6 md:col-span-2">
-                                <label class="block text-sm pl-1">Qty / Hrs</label>
-                                <x-ui.input-control type="number" step="any" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
+                                <label class="block text-sm pl-1" x-text="item.kind === 'workshop' ? 'Billable quantity' : 'Qty / Hrs'">Qty / Hrs</label>
+                                <div class="relative"><x-ui.input-control type="number" step="any" min="0" class="pr-11! disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || (item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats) || (item.kind === 'travel' &amp;&amp; item.travel_units !== '' &amp;&amp; item.travel_units != null)" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" /><x-finance.line-refresh /></div>
                             </div>
                             <div class="col-span-6 md:col-span-3">
                                 <label class="block text-sm pl-1">Unit Price (Inc GST)</label>
-                                <x-ui.input-control type="text" inputmode="decimal" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" />
+                                <div class="relative"><x-ui.input-control type="text" inputmode="decimal" class="pr-11! disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div>
                             </div>
                             <div class="col-span-6 md:col-span-2">
                                 <label class="block text-sm pl-1">Unit Price (Ex GST, Auto)</label>
@@ -661,14 +674,14 @@
                                     x-model="item.gst_applicable"
                                     x-bind:name="'quote_line_item_gst_' + index"
                                     x-bind:id="'quote_line_item_gst_' + index"
-                                    x-on:change="serializeLineItems()"
+                                    x-on:change="SM.updateWorkshopLine(item); serializeLineItems()"
                                 />
                             </div>
                         </div>
 
                         <div class="mt-3">
                             <label class="block text-sm pl-1">Line Item Notes</label>
-                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
+                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:readonly="item.kind === 'multi_workshop'" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
                         </div>
                     </div>
                 </template>

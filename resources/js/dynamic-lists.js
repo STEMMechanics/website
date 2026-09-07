@@ -3,7 +3,7 @@ export function listUrl(form, submitter = null) {
     const url = new URL(form.action, window.location.href);
     url.search = new URLSearchParams(new FormData(form, submitter)).toString();
     for (const key of [...url.searchParams.keys()]) {
-        if (key === 'page' || key.endsWith('_page')) url.searchParams.delete(key);
+        if (key === 'page' || (key.endsWith('_page') && key !== 'per_page' && !key.endsWith('_per_page'))) url.searchParams.delete(key);
     }
     return url;
 }

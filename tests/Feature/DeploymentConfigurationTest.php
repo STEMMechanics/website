@@ -12,6 +12,25 @@ class DeploymentConfigurationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_push_configuration_flags_missing_settings_without_exposing_keys(): void
+    {
+        config(['webpush.public_key' => null, 'webpush.private_key' => '', 'webpush.subject' => 'invalid']);
+        $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');
+        foreach (['Push notification public key', 'Push notification private key', 'Push notification contact'] as $label) {
+            $this->assertSame('fail', $checks[$label]['status']);
+            $this->assertFalse($checks[$label]['blocking']);
+        }
+        config(['webpush.public_key' => 'test-public-secret', 'webpush.private_key' => 'test-private-secret', 'webpush.subject' => 'mailto:admin@example.com']);
+        $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');
+        $this->assertSame('pass', $checks['Push notification public key']['status']);
+        $this->assertSame('pass', $checks['Push notification private key']['status']);
+        $this->assertSame('pass', $checks['Push notification contact']['status']);
+        $this->assertStringNotContainsString('test-public-secret', $checks->toJson());
+        $this->assertStringNotContainsString('test-private-secret', $checks->toJson());
+        config(['webpush.subject' => 'https://example.com']);
+        $this->assertSame('pass', collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label')['Push notification contact']['status']);
+    }
+
     public function test_configuration_checks_validate_values_without_disclosing_secrets(): void
     {
         config([

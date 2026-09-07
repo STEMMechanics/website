@@ -158,7 +158,7 @@
             <thead>
                 <tr>
                     <th style="width:58%;">DESCRIPTION</th>
-                    <th class="center" style="width:14%;">HRS / QTY</th>
+                    <th class="center" style="width:14%;">QTY<br><span class="excl">Hours × seats<br>for workshops</span></th>
                     <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
                     <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                 </tr>
@@ -179,7 +179,7 @@
                         {!! $renderLineNotes($lineNotes) !!}
                         @endif
                     </td>
-                    <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
+                    <td class="center">{{ \App\Services\Finance\WorkshopLine::quantityLabel($item) }}</td>
                     <td class="right">$ {{ number_format($unitEx, 2) }}</td>
                     <td class="right">$ {{ number_format($lineEx, 2) }}</td>
                 </tr>

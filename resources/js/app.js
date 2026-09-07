@@ -20,7 +20,17 @@ import './dynamic-lists.js';
 import './list-controls';
 import './admin-media-list';
 import './bulk-editor';
+import './record-editor';
+import './allocation-tally';
+import './workshop-line';
 
 import './reminder-list';
+import './invoice-allocation-list';
 
 import './list-reorder';
+
+import './allocation-plan-preview';
+
+import './invoice-allocation-editor';
+
+import './drawing-type-picker';

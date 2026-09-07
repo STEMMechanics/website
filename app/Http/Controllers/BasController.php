@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Services\Finance\GstCalculator;
+use App\Services\SiteListControls;
+use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -12,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipArchive;
 
@@ -20,8 +24,9 @@ class BasController extends Controller
     public function index(Request $request): View
     {
         $data = $this->buildBasData($request);
-        $data['expenses'] = (new \App\Services\SiteListControls('bas_expenses'))->applyCollection($data['expenses']);
-        $data['customerPayments'] = (new \App\Services\SiteListControls('bas_payments'))->applyCollection($data['customerPayments']);
+        $data['expenses'] = (new SiteListControls('bas_expenses'))->applyCollection($data['expenses']);
+        $data['customerPayments'] = (new SiteListControls('bas_payments'))->applyCollection($data['customerPayments']);
+
         return view('admin.bas.index', $data);
     }
 
@@ -48,7 +53,7 @@ class BasController extends Controller
         return $this->buildBasPdf($data)->stream($filename);
     }
 
-    public function downloadAll(Request $request): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function downloadAll(Request $request): BinaryFileResponse
     {
         $data = $this->buildBasData($request);
         $month = (string) $data['selectedMonth'];
@@ -57,7 +62,7 @@ class BasController extends Controller
             throw new RuntimeException('Unable to create temporary BAS archive.');
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
             @unlink($zipPath);
             throw new RuntimeException('Unable to create BAS archive.');
@@ -118,7 +123,7 @@ class BasController extends Controller
 
         $customerPayments->each(function (Payment $payment): void {
             $signedTotal = $this->paymentSignedAmount($payment);
-            $signedGst = $this->paymentGstAmount($payment);
+            $signedGst = app(GstCalculator::class)->paymentGstAmount($payment);
             $payment->setAttribute('bas_total_amount', $signedTotal);
             $payment->setAttribute('bas_gst_amount', $signedGst);
             $payment->setAttribute('bas_ex_amount', round($signedTotal - $signedGst, 2));
@@ -206,7 +211,7 @@ class BasController extends Controller
         return $content !== false ? $content : '';
     }
 
-    private function buildBasPdf(array $data): \Barryvdh\DomPDF\PDF
+    private function buildBasPdf(array $data): PDF
     {
         if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             abort(500, 'BAS PDF generation requires barryvdh/laravel-dompdf.');
@@ -216,29 +221,6 @@ class BasController extends Controller
             ->setOption([
                 'enable_font_subsetting' => true,
             ]);
-    }
-
-    private function paymentGstAmount(Payment $payment): float
-    {
-        $baseGst = $this->paymentBaseGstAmount($payment);
-
-        if ($payment->isRefund() && $baseGst <= 0.0001) {
-            $original = $payment->refundOf;
-            if ($original instanceof Payment) {
-                $originalAmount = abs(round((float) $original->total_amount, 2));
-                $refundAmount = abs(round((float) $payment->total_amount, 2));
-                if ($originalAmount > 0.0001 && $refundAmount > 0.0001) {
-                    $ratio = max(0.0, min(1.0, $refundAmount / $originalAmount));
-                    $baseGst = round($this->paymentBaseGstAmount($original) * $ratio, 2);
-                }
-            }
-        }
-
-        if ($payment->isRefund()) {
-            return -abs($baseGst);
-        }
-
-        return abs($baseGst);
     }
 
     private function paymentSignedAmount(Payment $payment): float
@@ -311,34 +293,5 @@ class BasController extends Controller
         }
 
         return Str::limit($summary, 100);
-    }
-
-    private function paymentBaseGstAmount(Payment $payment): float
-    {
-        $storedGst = round((float) $payment->gst_amount, 2);
-        if (abs($storedGst) > 0.0001) {
-            return abs($storedGst);
-        }
-
-        $calculatedGst = 0.0;
-        foreach ($payment->allocations as $allocation) {
-            $invoice = $allocation->invoice;
-            if (! $invoice) {
-                continue;
-            }
-
-            $allocatedAmount = (float) $allocation->allocated_amount;
-            $invoiceTotal = (float) $invoice->total_amount;
-            $invoiceGst = (float) $invoice->gst_amount;
-
-            if ($allocatedAmount <= 0 || $invoiceTotal <= 0 || $invoiceGst <= 0) {
-                continue;
-            }
-
-            $ratio = max(0.0, min(1.0, $allocatedAmount / $invoiceTotal));
-            $calculatedGst += $invoiceGst * $ratio;
-        }
-
-        return abs(round($calculatedGst, 2));
     }
 }

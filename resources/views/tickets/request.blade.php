@@ -2,11 +2,6 @@
     <x-mast>My Tickets</x-mast>
 
     <x-container class="mt-4 max-w-xl mx-auto">
-        @if(session('inline_message'))
-            <div class="mb-4 rounded-lg border px-4 py-3 text-sm {{ session('inline_message_type') === 'success' ? 'border-green-300 bg-green-50 text-green-800' : 'border-gray-300 bg-gray-50 text-gray-800' }}">
-                {{ session('inline_message') }}
-            </div>
-        @endif
 
         <p class="mb-4 text-sm text-gray-600">
             Enter your email address and we will send you a secure link to view your tickets.

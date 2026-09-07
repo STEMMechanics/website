@@ -133,11 +133,7 @@
 <x-navbar />
 <div {{ $id ? 'id='.$id : '' }} class="grow">{{ $slot }}</div>
 <x-footer />
-@if (session('message'))
-    <script>
-        SM.alert(@js(session('message-title')), @js(session('message')), @js(session('message-type')));
-    </script>
-@endif
+<x-ui.flash-notifications />
 @if(auth()->user()?->isAdmin())
     <x-push-prompt />
 @endif

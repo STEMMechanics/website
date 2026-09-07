@@ -177,11 +177,75 @@ class WorkshopTicketFlowController extends Controller
         ];
         $this->putFlowSession($workshop, $sessionPayload);
 
+        app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->clear();
+        if (! empty($workshop->optional_product_ids)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
+
         if ($ticketService->ticketPriceAmount($workshop) <= 0.0001) {
             return $this->completeFreeCheckout($workshop, $sessionPayload, $ticketService);
         }
 
         return redirect()->route('workshop.ticket.flow.payment', $workshop);
+    }
+
+    public function equipment(Workshop $workshop, WorkshopTicketService $tickets, \App\Services\WorkshopEquipmentService $equipment): View|RedirectResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+        $session = $this->getFlowSession($workshop);
+        if (! $session || $this->holdsExpired($workshop, $session['hold_ids'] ?? [], $tickets)) {
+            return redirect()->route('workshop.ticket.flow.start', $workshop);
+        }
+        if ($session['payment_complete'] ?? false) { return redirect()->route('workshop.ticket.flow.details', $workshop); }
+        return view('workshop.tickets.equipment', ['workshop' => $workshop, 'session' => $session, 'products' => $equipment->products($workshop)] + $equipment->summary($workshop, $session));
+    }
+
+    public function saveEquipment(Request $request, Workshop $workshop, WorkshopTicketService $tickets, \App\Services\WorkshopEquipmentService $equipment): RedirectResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+        $session = $this->getFlowSession($workshop);
+        if (! $session || $this->holdsExpired($workshop, $session['hold_ids'] ?? [], $tickets)) {
+            return redirect()->route('workshop.ticket.flow.start', $workshop);
+        }
+        if ($session['payment_complete'] ?? false) { return redirect()->route('workshop.ticket.flow.details', $workshop); }
+        if ($request->input('action') === 'skip') {
+            $equipment->cart($workshop)->clear();
+            $session['equipment_customer'] = [];
+            $session['equipment_confirmed_total'] = 0.0;
+            $session['equipment_lines'] = [];
+            $session['equipment_reviewed'] = true;
+            $this->putFlowSession($workshop, $session);
+            return redirect()->route('workshop.ticket.flow.payment', $workshop);
+        }
+        $data = $request->validate([
+            'quantities' => 'nullable|array|max:30', 'quantities.*' => 'integer|min:0|max:99',
+            'variants' => 'nullable|array|max:30', 'variants.*' => 'nullable|integer',
+            'shipping_method_code' => 'nullable|string|max:40', 'consolidate_shipments' => 'nullable|boolean',
+            'billing_address' => 'nullable|string|max:255', 'billing_address2' => 'nullable|string|max:255',
+            'billing_city' => 'nullable|string|max:120', 'billing_state' => 'nullable|in:ACT,NSW,NT,QLD,SA,TAS,VIC,WA',
+            'billing_postcode' => ['nullable', 'regex:/^\d{4}$/'], 'preorder_acknowledged' => 'nullable|boolean',
+        ]);
+        $equipment->select($workshop, $data['quantities'] ?? [], $data['variants'] ?? []);
+        $purchaser = $session['purchaser'];
+        $customer = $data + ['billing_name' => trim($purchaser['firstname'].' '.$purchaser['surname']), 'billing_email' => $purchaser['email'], 'billing_phone' => $purchaser['phone'], 'billing_country' => 'Australia', 'shipping_country' => 'Australia'];
+        foreach (['name', 'phone', 'address', 'address2', 'city', 'state', 'postcode'] as $field) { $customer['shipping_'.$field] = $customer['billing_'.$field] ?? ''; }
+        $session['equipment_customer'] = $customer;
+        $session['equipment_reviewed'] = false;
+        $review = $equipment->summary($workshop, $session);
+        $this->putFlowSession($workshop, $session);
+        if ($request->input('action') === 'continue') {
+            $equipment->assertReady($review, $request->float('confirmed_total'));
+            if ($review['lines']->isNotEmpty()) {
+                $request->validate(['billing_address' => 'required', 'billing_city' => 'required', 'billing_state' => 'required', 'billing_postcode' => 'required']);
+                $codes = collect($review['summary']['shipping_methods'] ?? [])->pluck('code')->all();
+                if ($codes && ! in_array($data['shipping_method_code'] ?? '', $codes, true)) { throw ValidationException::withMessages(['shipping_method_code' => 'Choose a delivery option.']); }
+                if ($review['summary']['contains_preorder'] ?? false) { $request->validate(['preorder_acknowledged' => 'accepted']); }
+            }
+            $session['equipment_confirmed_total'] = (float) $review['summary']['total'];
+            $session['equipment_lines'] = $review['cart']->contents()['lines'] ?? [];
+            $session['equipment_reviewed'] = true;
+            $this->putFlowSession($workshop, $session);
+            return redirect()->route('workshop.ticket.flow.payment', $workshop);
+        }
+        return redirect()->route('workshop.ticket.flow.equipment', $workshop);
     }
 
     public function payment(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
@@ -196,6 +260,8 @@ class WorkshopTicketFlowController extends Controller
         if (($session['payment_complete'] ?? false) === true) {
             return redirect()->route('workshop.ticket.flow.details', $workshop);
         }
+
+        if (! empty($workshop->optional_product_ids) && ! ($session['equipment_reviewed'] ?? false)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
 
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
@@ -223,6 +289,8 @@ class WorkshopTicketFlowController extends Controller
             'ticketPricing' => $checkoutTotals['ticket_pricing'],
             'ticketPriceAmount' => $checkoutTotals['ticket_price_amount'],
             'totalAmount' => $checkoutTotals['total_amount'],
+            'equipmentAmount' => $checkoutTotals['equipment_amount'],
+            'equipmentQuoteRequired' => (bool) (app(\App\Services\WorkshopEquipmentService::class)->summary($workshop, $session)['summary']['shipping_quote']['requires_manual_quote'] ?? false),
             'voucherCode' => $checkoutTotals['voucher_code'],
             'voucherDiscountAmount' => $checkoutTotals['voucher_discount_amount'],
             'voucherButtonLabel' => $checkoutTotals['voucher_code'] !== '' ? 'Change voucher' : 'Add voucher',
@@ -255,6 +323,9 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
+        if ($session['payment_complete'] ?? false) { return redirect()->route('workshop.ticket.flow.details', $workshop); }
+        if (! empty($workshop->optional_product_ids) && ! ($session['equipment_reviewed'] ?? false)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
+
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
             session()->flash('message', $workshop->usesClassroomRegistration()
@@ -285,6 +356,10 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
+        $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
+        $equipment = $equipmentService->summary($workshop, $session);
+        if (($session['equipment_reviewed'] ?? false) || $equipment['lines']->isNotEmpty()) { $equipmentService->assertReady($equipment, $session['equipment_confirmed_total'] ?? null, $session['equipment_lines'] ?? null); }
+
         $holdIds = $checkoutTotals['hold_ids'];
         $tickets = Ticket::query()
             ->where('workshop_id', $workshop->id)
@@ -295,7 +370,7 @@ class WorkshopTicketFlowController extends Controller
         $amount = $checkoutTotals['total_amount'];
         $creditUser = $checkoutTotals['credit_user'];
         $accountCreditAvailable = $checkoutTotals['account_credit_available'];
-        if ($amount <= 0.0001) {
+        if ($amount <= 0.0001 && $equipment['lines']->isEmpty()) {
             $session = $checkoutTotals['session'];
 
             return $this->completeFreeCheckout($workshop, $session, $ticketService);
@@ -363,7 +438,33 @@ class WorkshopTicketFlowController extends Controller
                 }
             }
 
-            $remainingAmount = $invoice instanceof Invoice ? round((float) $invoice->outstandingAmount(), 2) : 0.0;
+            $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
+            $equipment = $equipmentService->summary($workshop, $session);
+            $equipmentOrder = null;
+            $equipmentQuote = null;
+            $equipmentInvoice = null;
+            if ($equipment['lines']->isNotEmpty()) {
+                $equipmentService->assertReady($equipment, $session['equipment_confirmed_total'] ?? null, $session['equipment_lines'] ?? null);
+                $customer = ($session['equipment_customer'] ?? []) + ['notes' => 'Equipment for workshop: '.$workshop->title];
+                // Credit is applied explicitly across both invoices below.
+                $customer['payment_method'] = 'bank_transfer';
+                if ($equipment['summary']['shipping_quote']['requires_manual_quote'] ?? false) {
+                    $equipmentQuote = app(\App\Services\StoreOrderService::class)->createQuoteRequestFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null);
+                } else {
+                $equipmentOrder = app(\App\Services\StoreOrderService::class)->createFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null);
+                $equipmentInvoice = $equipmentOrder->invoice;
+                if (abs((float) $equipmentOrder->total_amount - (float) $session['equipment_confirmed_total']) > 0.001) {
+                    throw ValidationException::withMessages(['equipment' => 'Equipment prices have changed. Please review your equipment total.']);
+                }
+                if ($equipmentInvoice && $invoice) { $equipmentInvoice->update(['due_date' => $invoice->due_date]); }
+                if ($equipmentInvoice && $creditUser instanceof User && $applyAccountCredit) {
+                    $creditApplied += $this->accountCredit->applyCreditToInvoice($equipmentInvoice, $creditUser, (float) $equipmentInvoice->outstandingAmount());
+                    $equipmentInvoice->refresh();
+                }
+                }
+            }
+            $invoices = collect([$invoice, $equipmentInvoice])->filter();
+            $remainingAmount = round($invoices->sum(fn (Invoice $document) => (float) $document->outstandingAmount()), 2);
             if ($paymentMethod === 'credit' && $remainingAmount > 0.0001) {
                 throw ValidationException::withMessages([
                     'payment_method' => 'Your account credit does not cover this ticket order.',
@@ -461,22 +562,19 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->square_gateway_updated_at = $this->squareDateTime($payment['updated_at'] ?? null);
                 $customerPayment->save();
 
-                if ($invoice) {
-                    $invoice->status = Invoice::STATUS_PAID;
-                    $invoice->save();
-                    $customerPayment->allocations()->create([
-                        'invoice_id' => $invoice->id,
-                        'allocated_amount' => $remainingAmount,
-                    ]);
-
+                foreach ($invoices as $document) {
+                    $outstanding = round((float) $document->outstandingAmount(), 2);
+                    if ($outstanding > 0) {
+                        $customerPayment->allocations()->create(['invoice_id' => $document->id, 'allocated_amount' => $outstanding]);
+                    }
+                    $document->update(['status' => Invoice::STATUS_PAID]);
                 }
-            } elseif ($invoice && $remainingAmount > 0.0001) {
-                $invoice->status = Invoice::STATUS_ISSUED;
-                $invoice->save();
-            } elseif ($invoice) {
-                $invoice->status = Invoice::STATUS_PAID;
-                $invoice->save();
+            } else {
+                foreach ($invoices as $document) {
+                    $document->update(['status' => $document->outstandingAmount() > 0.0001 ? Invoice::STATUS_ISSUED : Invoice::STATUS_PAID]);
+                }
             }
+            if ($equipmentOrder) { app(\App\Services\StoreOrderService::class)->syncOrderState($equipmentOrder->fresh()); }
 
             $lineIdByTicketId = [];
             if ($invoice) {
@@ -506,6 +604,8 @@ class WorkshopTicketFlowController extends Controller
             }
 
             return [
+                'equipment_order_id' => $equipmentOrder?->id,
+                'equipment_quote_id' => $equipmentQuote?->id,
                 'invoice_id' => $invoice?->id,
                 'payment_method' => $effectivePaymentMethod,
                 'payment_id' => isset($customerPayment) ? (int) $customerPayment->id : null,
@@ -514,6 +614,13 @@ class WorkshopTicketFlowController extends Controller
         });
         $ticketService->syncManagedTicketStatus($workshop);
 
+        $session['equipment_order_id'] = $result['equipment_order_id'];
+        $session['equipment_quote_id'] = $result['equipment_quote_id'];
+        if ($result['equipment_order_id']) {
+            $order = \App\Models\StoreOrder::findOrFail($result['equipment_order_id']);
+            app(\App\Services\StoreOrderService::class)->queueDeferredOrderEmailToCustomer($order);
+        }
+        app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->clear();
         $session['invoice_id'] = $result['invoice_id'];
         $session['payment_method'] = $result['payment_method'];
         $session['payment_id'] = $result['payment_id'] ?? null;
@@ -527,7 +634,7 @@ class WorkshopTicketFlowController extends Controller
             recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
             recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
             paymentMethod: (string) $result['payment_method'],
-            amount: $amount
+            amount: round($amount - (float) $checkoutTotals['equipment_amount'], 2)
         );
         $session['email_delivery_id'] = $delivery->id;
         $this->putFlowSession($workshop, $session);
@@ -701,6 +808,7 @@ class WorkshopTicketFlowController extends Controller
      *     account_terms_days: int,
      *     apply_account_credit_default: bool,
      *     credit_debug: array<string, mixed>,
+     *     equipment_amount: float,
      *     ticket_pricing: array<string, mixed>
      * }
      */
@@ -764,6 +872,9 @@ class WorkshopTicketFlowController extends Controller
 
         $voucherDiscountAmount = round(min($subtotal, (float) ($voucherEvaluation['discount_amount'] ?? 0)), 2);
         $totalAmount = round(max(0, $subtotal - $voucherDiscountAmount), 2);
+        $equipment = app(\App\Services\WorkshopEquipmentService::class)->summary($workshop, $session);
+        $equipmentAmount = (float) $equipment['summary']['total'];
+        $totalAmount = round($totalAmount + $equipmentAmount, 2);
 
         return [
             'session' => $session,
@@ -782,6 +893,7 @@ class WorkshopTicketFlowController extends Controller
             'apply_account_credit_default' => $applyAccountCreditDefault,
             'credit_debug' => $creditDebug,
             'ticket_pricing' => $ticketPricing,
+            'equipment_amount' => $equipmentAmount,
         ];
     }
 

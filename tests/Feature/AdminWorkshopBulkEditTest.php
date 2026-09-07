@@ -15,6 +15,18 @@ class AdminWorkshopBulkEditTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_manual_bulk_price_edit_clears_automatic_pricing_flag(): void
+    {
+        $admin = $this->makeAdmin();
+        $hero = $this->makeHero($admin);
+        $workshop = Workshop::factory()->create(['user_id' => $admin->id, 'hero_media_name' => $hero->name, 'location_id' => Location::factory()->create()->id, 'registration' => 'tickets', 'max_tickets' => 10, 'price' => '19.50', 'price_is_automatic' => true]);
+        $this->assertTrue($workshop->fresh()->price_is_automatic);
+        $this->withSession(['admin_workshop_bulk_selection' => [$workshop->id]])->actingAs($admin)
+            ->put(route('admin.workshop.bulk.update'), ['price' => '22.00'])->assertSessionHasNoErrors();
+        $this->assertFalse($workshop->fresh()->price_is_automatic);
+        $this->assertSame('22.00', $workshop->fresh()->price);
+    }
+
     public function test_admin_can_open_bulk_editor_for_selected_workshops(): void
     {
         $admin = $this->makeAdmin();

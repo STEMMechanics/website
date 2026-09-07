@@ -247,8 +247,9 @@ fix_permissions() {
   find "$WORKDIR/public" -type f -exec chmod 644 {} \; || true
   [[ -f "$WORKDIR/public/.htaccess" ]] && chmod 644 "$WORKDIR/public/.htaccess" || true
 
-  find "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" -type d -exec chmod 750 {} \; || true
-  find "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" -type f -exec chmod 640 {} \; || true
+  # Preserve the existing permissions for separate PHP and Nginx containers.
+  # Nginx must be able to read media after an authorised X-Accel-Redirect.
+  chmod -R 775 "$WORKDIR/storage" "$WORKDIR/bootstrap/cache" || true
   [[ -f "$WORKDIR/.env" ]] && chmod 640 "$WORKDIR/.env" || true
 
   if [[ "$(id -u)" -eq 0 ]]; then

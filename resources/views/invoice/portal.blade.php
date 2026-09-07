@@ -124,6 +124,7 @@
                             'description' => (string) ($line->description ?? ''),
                             'notes' => (string) ($line->notes ?? ''),
                             'quantity' => (float) ($line->quantity ?? 0),
+                            'quantity_label' => \App\Services\Finance\WorkshopLine::quantityLabel($line->toArray()),
                             'unit_price_ex_tax' => (float) ($line->unit_price_ex_tax ?? 0),
                             'tax_amount' => (float) ($line->tax_amount ?? 0),
                             'line_total_inc_tax' => (float) ($line->line_total_inc_tax ?? 0),
@@ -180,7 +181,7 @@
                                                 $displayQuantity = '0';
                                             }
                                         @endphp
-                                        <td class="px-6 py-4 text-right">{{ $displayQuantity }}</td>
+                                        <td class="px-6 py-4 text-right">{{ $line['quantity_label'] ?? $displayQuantity }}</td>
                                         <td class="px-6 py-4 text-right">${{ number_format((float) $line['unit_price_ex_tax'], 2) }}</td>
                                         <td class="px-6 py-4 text-center!">${{ number_format((float) $line['tax_amount'], 2) }}</td>
                                         <td class="px-6 py-4 font-medium text-gray-950 text-center!">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>

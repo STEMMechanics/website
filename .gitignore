@@ -266,3 +266,10 @@ phpcbf.phar
 /deploy.sh
 /docs/
 /storage/framework/vite.hot
+
+### Internal documentation and local reference files ###
+/audits/
+/TODO.md
+/WEB_PUSH.md
+/tmp/
+/*.pdf

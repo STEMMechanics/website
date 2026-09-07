@@ -1,7 +1,8 @@
 @php
     $savedLineItems = old('line_items_json');
     $isLocked = isset($invoice) && ! $invoice->canEditContents();
-    $userLookupOptions = collect($users ?? [])->map(function ($user) {
+    $siteInvoiceEmailTemplate = app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults();
+    $userLookupOptions = collect($users ?? [])->map(function ($user) use ($siteInvoiceEmailTemplate) {
         $name = trim((string) $user->getName());
         $email = trim((string) ($user->email ?? ''));
         $company = trim((string) ($user->primaryOrganisation?->name ?? ''));
@@ -14,7 +15,7 @@
             $label .= ' ('.$email.')';
         }
 
-        $siteTemplate = app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults();
+        $siteTemplate = $siteInvoiceEmailTemplate;
         $organisation = $user->primaryOrganisation;
         $organisationHasTemplate = $organisation && collect([
             $organisation->invoice_email_to,
@@ -135,9 +136,7 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.invoice.index" backTitle="Invoices">{{ isset($invoice) ? 'Edit' : 'Create' }} Invoice</x-mast>
 
-<x-container class="mt-4">
     <div
         x-data="{
         invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
@@ -181,17 +180,17 @@
         }"
         x-on:admin-linked-user-changed.window="selectedInvoiceUserId = String($event.detail?.userId || '')"
     >
-        @isset($invoice)
-            @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
-                <x-ui.toolbar break="md" class="mb-4">
-                    <x-slot:right>
-                        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                            <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
-                            <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
+        <x-mast backRoute="admin.invoice.index" backTitle="Invoices" :title="isset($invoice) ? 'Invoice '.$invoice->invoice_number : 'Create Invoice'">
+            @if(isset($invoice))
+                <x-slot:actions>
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                            <x-ui.button color="mast" type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
+                            @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
+                            <x-ui.button color="mast" type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
                             @if($invoiceCanAcceptPayment)
                                 <x-ui.button
                                     type="button"
-                                    color="secondary"
+                                    color="mast"
                                     x-data
                                     x-on:click.prevent="
                                         fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
@@ -215,22 +214,29 @@
                                     "
                                     class="w-full sm:w-auto"
                                 >Copy Payment Link</x-ui.button>
-                                <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                                <x-ui.button color="mast" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                            @endif
                             @endif
                         </div>
-                    </x-slot:right>
-                </x-ui.toolbar>
+                </x-slot:actions>
             @endif
+        </x-mast>
+        <x-admin.invoice-email-modal :deferred="!isset($invoice)" form-id="invoice-edit-form" />
+
+        <x-container class="py-5 sm:py-8">
+        <div class="grid items-start gap-6 {{ isset($invoice) ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : '' }}">
+        @isset($invoice)
+            <aside class="min-w-0 space-y-5 xl:order-2">
             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
-            <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
-                <div class="flex flex-wrap gap-6 text-sm">
-                    <div><strong>Total:</strong> ${{ number_format((float) $invoice->total_amount, 2) }}</div>
-                    <div><strong>Due (after adjustments):</strong> ${{ number_format($invoiceDueAmount, 2) }}</div>
-                    <div><strong>Allocated:</strong> ${{ number_format($invoiceGrossAllocatedAmount, 2) }}</div>
-                    <div><strong>Refunded:</strong> ${{ number_format($invoiceRefundedAmount, 2) }}</div>
-                    <div><strong>Net Allocated:</strong> ${{ number_format($invoiceNetAllocatedAmount, 2) }}</div>
-                    <div><strong>Remaining:</strong> ${{ number_format($invoiceRemainingAmount, 2) }}</div>
-                </div>
+            <x-finance.panel title="Payments">
+                <dl class="space-y-3 text-sm">
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Total:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format((float) $invoice->total_amount, 2) }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Due (after adjustments):</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format($invoiceDueAmount, 2) }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Allocated:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format($invoiceGrossAllocatedAmount, 2) }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Refunded:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format($invoiceRefundedAmount, 2) }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Net Allocated:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format($invoiceNetAllocatedAmount, 2) }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Remaining:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format($invoiceRemainingAmount, 2) }}</dd></div>
+                </dl>
                 @if((string) $invoice->status === \App\Models\Invoice::STATUS_WRITTEN_OFF)
                     <div class="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800">
                         <div><strong>Written off:</strong> {{ $invoice->written_off_at?->format('M j, Y g:i a') ?? '-' }}</div>
@@ -248,7 +254,7 @@
                     @if($invoicePaymentRows->isEmpty())
                         <div class="text-sm text-gray-500">No payments allocated to this invoice yet.</div>
                     @else
-                        <div class="space-y-3 md:hidden">
+                        <div class="space-y-3">
                             @foreach($invoicePaymentRows as $row)
                                 @php
                                     $payment = $row['payment'];
@@ -298,77 +304,21 @@
                                 @endforeach
                             @endforeach
                         </div>
-                        <div class="hidden md:block overflow-x-auto">
-                            <x-ui.table variant="plain" table-class="w-full min-w-208 text-sm">
-                                <thead>
-                                    <tr class="border-b border-gray-200">
-                                        <th class="py-2 pr-3 text-center!">Date</th>
-                                        <th class="text-left py-2 pr-3">Payment #</th>
-                                        <th class="text-left py-2 pr-3">Method</th>
-                                        <th class="text-right py-2 pr-3">Invoice Effect</th>
-                                        <th class="text-center! py-2">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($invoicePaymentRows as $row)
-                                        @php
-                                            $payment = $row['payment'];
-                                            $refunds = $row['refunds'];
-                                        @endphp
-                                        <tr class="border-b border-gray-100">
-                                            <td class="py-2 pr-3 text-center!"><x-ui.date-time>{{ $payment?->received_on?->format('M j, Y g:i a') ?? $payment?->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
-                                            <td class="py-2 pr-3">{{ $payment?->id ? '#'.$payment->id : '-' }}</td>
-                                            <td class="py-2 pr-3">{{ $payment?->payment_method ? \App\Models\Payment::paymentMethodLabel((string) $payment->payment_method) : '-' }}</td>
-                                            <td class="py-2 pr-3 text-right">
-                                                ${{ number_format((float) $row['allocated_amount'], 2) }}
-                                            </td>
-                                            <td class="text-center! py-2">
-                                                @if($payment)
-                                                    <x-ui.row-action label="Open payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $payment) }}" />
-                                                    <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $payment]) }}" target="_blank" />
-                                                    <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $payment, 'download' => 1]) }}" />
-                                                @else
-                                                    -
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @foreach($refunds as $refund)
-                                            <tr class="border-b border-gray-100 bg-gray-50">
-                                                <td class="py-2 pr-3 text-center!"><x-ui.date-time>{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
-                                                <td class="py-2 pr-3">
-                                                    #{{ $refund->id }}
-                                                    <div class="text-xs text-gray-500">Refund for #{{ $payment?->id ?? '-' }}</div>
-                                                </td>
-                                                <td class="py-2 pr-3">
-                                                    {{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}
-                                                    <div class="text-xs text-gray-500">Refund</div>
-                                                </td>
-                                                <td class="py-2 pr-3 text-right">-${{ number_format((float) $refund->total_amount, 2) }}</td>
-                                                <td class="text-center! py-2">
-                                                    <x-ui.row-action label="Open refund record" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
-                                                    <x-ui.row-action label="View refund receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $refund]) }}" target="_blank" />
-                                                    <x-ui.row-action label="Download refund receipt" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" />
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    @endforeach
-                                </tbody>
-                            </x-ui.table>
-                        </div>
+
                     @endif
                 </div>
                 <div class="mt-6" id="tax-adjustments">
-                    <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="mb-3 flex flex-col items-start gap-3">
                         <h3 class="font-semibold">Tax Adjustment Notes</h3>
                         @if($isLocked)
-                            <x-ui.button color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}" class="w-full sm:w-auto">Create Tax Adjustment Note</x-ui.button>
+                            <x-ui.button color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}" class="w-full min-w-0 whitespace-normal px-3">Create Tax Adjustment Note</x-ui.button>
                         @endif
                     </div>
                     @if($invoiceAdjustments->isEmpty())
                         <div class="text-sm text-gray-500">No tax adjustment notes linked to this invoice yet.</div>
                     @else
                         <div class="overflow-x-auto">
-                            <x-ui.table variant="plain" table-class="w-full min-w-2xl text-sm">
+                            <x-ui.table variant="plain" table-class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b border-gray-200">
                                         <th class="text-left py-2 pr-3">Document #</th>
@@ -393,14 +343,20 @@
                         </div>
                     @endif
                 </div>
-            </div>
+            </x-finance.panel>
             @endif
+            <x-finance.panel title="Cost centre allocation">
+                <div id="invoice-cost-centres" data-record-refresh>
+                    @include('admin.invoice.allocation-form', ['inline' => true, 'allocation' => app(\App\Services\Finance\InvoiceAllocation::class)->context($invoice)])
+                </div>
+            </x-finance.panel>
+            </aside>
         @endisset
 
-        <x-admin.invoice-email-modal :deferred="!isset($invoice)" form-id="invoice-edit-form" />
 
         <form
             id="invoice-edit-form"
+            class="min-w-0 xl:order-1"
             method="POST"
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-data="{
@@ -444,8 +400,17 @@
                             return [];
                         }
 
-                        return parsed.map((item) => ({
-                            kind: item.kind || 'generic',
+                        return parsed.map((item) => SM.hydrateTravelLine({
+                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                            kind: !item.kind || item.kind === 'generic' ? 'custom' : item.kind,
                             description: item.description || '',
                             notes: item.notes || '',
                             quantity: parseFloat(item.quantity || 0),
@@ -462,7 +427,15 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => ({
-                            kind: (item.kind || 'generic').trim() || 'generic',
+                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                            kind: (item.kind || 'custom').trim() || 'custom',
                             description: (item.description || '').trim(),
                             notes: (item.notes || '').trim(),
                             quantity: parseFloat(item.quantity || 0),
@@ -472,12 +445,13 @@
                         .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
+                    this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
                 },
                 addLineItem() {
                     if (this.isLocked) {
                         return;
                     }
-                    this.lineItems.push({ kind: 'generic', description: '', notes: '', quantity: 1, unit_price: 0, gst_applicable: true });
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, gst_applicable: true });
                 },
                 removeLineItem(index) {
                     if (this.isLocked) {
@@ -515,29 +489,13 @@
                     return Number.isFinite(value) ? value.toFixed(2) : '0.00';
                 },
                 calculateSubtotal() {
-                    let subtotal = 0;
-                    this.lineItems.forEach((item) => {
-                        const qty = parseFloat(item.quantity || 0);
-                        const price = parseFloat(item.unit_price || 0);
-                        subtotal += qty * price;
-                    });
-                    return subtotal;
+                    return this.lineItems.reduce((total, item) => total + SM.lineAmounts(item).net, 0);
                 },
                 calculateGst() {
-                    let gst = 0;
-                    this.lineItems.forEach((item) => {
-                        const qty = parseFloat(item.quantity || 0);
-                        const price = parseFloat(item.unit_price || 0);
-                        if (item.gst_applicable !== false) {
-                            gst += (qty * price) * 0.10;
-                        }
-                    });
-                    return gst;
+                    return this.lineItems.reduce((total, item) => total + SM.lineAmounts(item).tax, 0);
                 },
                 lineTotalExFormatted(item) {
-                    const qty = parseFloat(item?.quantity || 0);
-                    const price = parseFloat(item?.unit_price || 0);
-                    return this.normalizeMoney(qty * price);
+                    return this.normalizeMoney(SM.lineAmounts(item).net);
                 },
                 subtotalAmountFormatted() {
                     return this.normalizeMoney(this.calculateSubtotal());
@@ -773,7 +731,7 @@
                     This document is issued and locked. To change amounts/items, create a tax adjustment note.
                 </div>
             @endif
-            <div class="flex gap-8">
+            <div class="grid gap-x-6 sm:grid-cols-2">
                 <div class="flex-1">
                     <x-ui.input
                         label="Invoice Number"
@@ -782,10 +740,7 @@
                         :disabled="$isLocked"
                     />
                 </div>
-                <div class="flex-1"></div>
-            </div>
-
-            <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+                <div class="mb-4 self-end rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm {{ $isLocked ? '' : 'sm:col-span-2' }}">
                 <div><strong>Status:</strong> {{ \App\Models\Invoice::statusLabel((string) (isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)) }}</div>
                 @if(! $isLocked)
                     <div class="mt-2">
@@ -822,6 +777,8 @@
                         </div>
                     </div>
                 @endif
+            </div>
+
             </div>
 
             <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', isset($invoice) ? ($invoice->purchase_order_number ?? '') : '') }}" />
@@ -918,7 +875,7 @@
                 @endif
             </div>
 
-            <fieldset @if($isLocked) disabled @endif>
+            <fieldset class="rounded-xl border border-slate-200 bg-white p-5" @if($isLocked) disabled @endif>
 
             <x-admin.user-selector-inline
                 :users="$users ?? collect()"
@@ -930,7 +887,7 @@
                 :disabled="$isLocked"
             />
 
-            <div class="flex gap-8">
+            <div class="grid gap-x-6 sm:grid-cols-2">
                 <div class="flex-1">
                     <x-ui.input
                         type="date"
@@ -965,83 +922,57 @@
                 </div>
             </div>
 
-            <div class="border rounded-lg p-4 mb-4" x-init="serializeLineItems()">
+            <div class="mt-4 mb-4 border-y border-slate-200 py-5" x-init="serializeLineItems()">
                 <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h3 class="font-bold text-lg">Line Items</h3>
-                    @if(! $isLocked)
-                        <x-ui.button variant="plain" type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white w-full whitespace-nowrap text-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition sm:w-auto" x-on:click.prevent="addLineItem()">Add Item</x-ui.button>
-                    @endif
                 </div>
 
                 <template x-if="lineItems.length === 0">
                     <div class="text-sm text-gray-500">No line items yet.</div>
                 </template>
 
-                <template x-for="(item, index) in lineItems" :key="index">
-                        <x-ui.grid class="gap-3 mb-4 border-b border-gray-300 pb-6 items-start md:grid-cols-12">
-                            <div class="md:col-span-2">
-                                <label class="block text-sm pl-1" :for="`line_item_kind_${index}`">Type</label>
-                                <x-ui.select
-                                    name="line_item_kind"
-                                noLabel="true"
-                                class="mb-0"
-                                innerClass="mt-1"
-                                x-bind:id="`line_item_kind_${index}`"
-                                x-model="item.kind"
-                                x-on:change="serializeLineItems()"
-                            >
-                                <option value="generic">Generic</option>
-                                <option value="product">Product</option>
-                                <option value="ticket">Ticket</option>
-                                </x-ui.select>
-                            </div>
-                            <div class="md:col-span-3">
-                                <label class="block text-sm pl-1">Description</label>
-                                <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm pl-1">Qty / Hrs</label>
-                                <x-ui.input-control type="number" step="any" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
-                            </div>
-                        <div class="md:col-span-4">
-                            <label class="block text-sm pl-1">Unit Price (Ex GST)</label>
-                            <div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div class="min-w-0 flex-1">
-                                    <x-ui.input-control type="number" step="0.01" class="disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" />
-                                    <div class="mt-1 text-xs text-gray-600">
-                                        Total (Ex GST): $<span x-text="lineTotalExFormatted(item)"></span>
+                <x-ui.table variant="listing" table-class="min-w-[44rem] w-full">
+                    <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (ex GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
+                    <template x-for="(item, index) in lineItems" :key="index">
+                        <tbody x-data="{ expanded: false }" class="[&>tr>td]:bg-white!">
+                            <tr>
+                                <td class="min-w-64">
+                                    <div class="flex items-center gap-2">
+                                        <x-ui.button href="#" role="button" variant="plain" class="flex h-11 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-sky-50 hover:text-primary-color" x-on:click.prevent="expanded = !expanded" x-on:keydown.space.prevent="expanded = !expanded" x-bind:aria-expanded="expanded" x-bind:aria-label="expanded ? 'Collapse details and notes' : 'Expand details and notes'">
+                                            <i class="fa-solid text-sm" x-bind:class="expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                                        </x-ui.button>
+                                    <x-ui.select label="Type" :noLabel="true" class="mb-0 min-w-0 flex-1" x-model="item.kind" x-on:change="if (item.kind === 'multi_workshop') { item.auto_pricing = true; expanded = true; if (!item.workshops?.length) SM.addWorkshopRow(item); } if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.updateWorkshopLine(item); serializeLineItems()">
+                                        <option value="workshop">Workshop Delivery</option><option value="multi_workshop">Multi Workshop Delivery</option><option value="travel">Travel Fee</option><option value="product">Store Product</option><option value="shipping">Shipping</option><option value="custom">Custom</option><option value="ticket">Ticket</option>
+                                    </x-ui.select>
                                     </div>
+                                </td>
+                                <td><div class="relative"><x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats" x-on:input="if (item.kind === 'travel') { item.travel_hours = item.quantity; SM.updateWorkshopLine(item); } serializeLineItems()" /><x-finance.line-refresh /></div></td>
+                                <td><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price excluding GST" type="number" step="0.01" class="h-11 pl-6! pr-11!" x-model="item.unit_price" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" /><x-finance.line-refresh :price="true" /></div></td>
+                                <td class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
+                                <td class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).net + SM.lineAmounts(item).tax)"></span></td>
+                                <td class="text-center">@if(! $isLocked)<x-ui.row-action label="Remove line item" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />@endif</td>
+                            </tr>
+                            <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
+                                <div class="ml-10">
+                                <div class="mb-3"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
+                                <x-finance.workshop-line-fields />
+                                <div x-show="item.kind === 'workshop'" class="mt-3 max-w-xs"><x-ui.input label="Workshop date" type="date" x-model="item.workshop_date" x-on:change="serializeLineItems()" /></div>
+                                <label class="mt-4 block text-sm">Line item notes</label>
+                                <x-ui.textarea-control aria-label="Line item notes" x-bind:readonly="item.kind === 'multi_workshop'" rows="4" class="mt-2 w-full resize-y" x-model="item.notes" x-on:input="serializeLineItems()" />
                                 </div>
-                                <x-ui.checkbox
- class="shrink-0 mt-1"
- :label="'GST applies'"
- :inline="true"
- :noWrapper="true"
- :disabled="$isLocked"
- x-model="item.gst_applicable"
- x-bind:name="'line_item_gst_' + index"
- x-bind:id="'line_item_gst_' + index"
- x-on:change="serializeLineItems()"
- />
-                            </div>
-                        </div>
-                        @if(! $isLocked)
-                        <div class="md:col-span-1">
-                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700 h-[42px]" x-on:click.prevent="removeLineItem(index)">
-                                    <i class="fa-solid fa-trash"></i>
-                                </x-ui.button>
-                        </div>
-                        @endif
-                        <div class="md:col-span-12">
-                            <label class="block text-sm pl-1">Line Item Notes</label>
-                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full max-w-none resize-y text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
-                        </div>
-                    </x-ui.grid>
-                </template>
+                            </td></tr>
+                        </tbody>
+                    </template>
+                </x-ui.table>
+                @if(! $isLocked)
+                    <div class="mt-4 flex justify-end">
+                        <x-ui.button type="button" x-on:click.prevent="addLineItem()">Add Item</x-ui.button>
+                    </div>
+                @endif
             </div>
 
-            <div class="flex gap-8">
-                <div class="flex-1">
+            <div class="grid gap-x-6 sm:grid-cols-2">
+                <div class="min-w-0 sm:col-start-2">
                     <x-ui.input
                         type="text"
                         label="Subtotal (Ex GST, Auto)"
@@ -1051,7 +982,7 @@
                         readonly="true"
                     />
                 </div>
-                <div class="flex-1">
+                <div class="min-w-0 sm:col-start-2">
                     <x-ui.input
                         type="text"
                         label="GST Amount (Auto)"
@@ -1061,10 +992,8 @@
                         readonly="true"
                     />
                 </div>
-            </div>
 
-            <div class="flex gap-8">
-                <div class="flex-1">
+                <div class="min-w-0 sm:col-start-2">
                     <x-ui.input
                         type="text"
                         label="Total Amount (Auto, incl GST)"
@@ -1074,11 +1003,16 @@
                         readonly="true"
                     />
                 </div>
-                <div class="flex-1"></div>
             </div>
 
             </fieldset>
+            <section class="mt-5">
+                @empty($invoice)
+                    <x-finance.invoice-allocation-preview />
+                @endempty
+            </section>
 
+            <section class="mt-5 rounded-xl border border-slate-200 bg-white p-5">
             <x-ui.input type="textarea" label="Private Notes" name="notes" value="{{ old('notes', isset($invoice) ? ($invoice->notes ?? '') : '') }}" />
             <x-admin.finance-file-manager
                 label="Private Files"
@@ -1091,6 +1025,7 @@
                 :files="$privateFinanceFiles"
             />
 
+            </section>
             @if(isset($invoice))
                 <x-ui.editor-actions>
                     @php
@@ -1106,47 +1041,51 @@
                         $invoiceConfirmButtonText = $isDraftInvoice ? 'Delete' : 'Cancel Invoice';
                         $invoiceCancelButtonText = $isDraftInvoice ? 'Cancel' : 'Keep Invoice';
                     @endphp
-                    @if($isDraftInvoice)
-                        <x-ui.row-action data-editor-delete label="Delete Draft" icon="fa-solid fa-trash" tone="danger"
-                            type="button"
-                            x-data
-                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
-                         />
-                    @elseif($canCancelInvoice)
-                        <x-ui.row-action label="Cancel Invoice" icon="fa-solid fa-ban" tone="warning"
-                            type="button"
-                            x-data
-                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
-                         />
-                    @else
-                        <x-ui.row-action label="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}" icon="fa-solid fa-ban" tone="warning"
-                            type="button"
-                            disabled
-                         />
-                    @endif
-                    @if(! $isDraftInvoice)
-                        @if($canWriteOffInvoice)
-                            <x-ui.row-action label="Write Off Invoice" icon="fa-solid fa-file-circle-minus" tone="neutral"
+                    <div data-editor-delete class="flex flex-wrap items-center gap-3">
+                        @if($isDraftInvoice)
+                            <x-ui.button color="danger-outline"
                                 type="button"
-                                x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
-                             />
+                                x-data
+                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                             ><i class="fa-solid fa-trash mr-2" aria-hidden="true"></i>Delete Draft</x-ui.button>
+                        @elseif($canCancelInvoice)
+                            <x-ui.button color="yellow-outline"
+                                type="button"
+                                x-data
+                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                             ><i class="fa-solid fa-ban mr-2" aria-hidden="true"></i>Cancel Invoice</x-ui.button>
                         @else
-                            <x-ui.row-action label="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}" icon="fa-solid fa-file-circle-minus" tone="neutral"
+                            <x-ui.button color="yellow-outline"
                                 type="button"
                                 disabled
-                             />
+                             title="{{ $cancelBlockReason }}" ><i class="fa-solid fa-ban mr-2" aria-hidden="true"></i>Cancel Invoice</x-ui.button>
                         @endif
-                    @endif
-                    <x-ui.button
-                        type="submit"
-                        color="primary-outline"
-                        name="save_and_email"
-                        value="1"
-                        x-bind:disabled="!canSaveAndEmail()"
-                    >
-                        Save and Email
-                    </x-ui.button>
-                    <x-ui.button type="submit">Save</x-ui.button>
+                        @if(! $isDraftInvoice)
+                            @if($canWriteOffInvoice)
+                                <x-ui.button color="secondary"
+                                    type="button"
+                                    x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                 ><i class="fa-solid fa-file-circle-minus mr-2" aria-hidden="true"></i>Write Off Invoice</x-ui.button>
+                            @else
+                                <x-ui.button color="secondary"
+                                    type="button"
+                                    disabled
+                                 title="{{ $writeOffBlockReason }}" ><i class="fa-solid fa-file-circle-minus mr-2" aria-hidden="true"></i>Write Off Invoice</x-ui.button>
+                            @endif
+                        @endif
+                    </div>
+                    <div class="ml-auto flex flex-wrap justify-end gap-3">
+                        <x-ui.button
+                            type="submit"
+                            color="primary-outline"
+                            name="save_and_email"
+                            value="1"
+                            x-bind:disabled="!canSaveAndEmail()"
+                        >
+                            Save and Email
+                        </x-ui.button>
+                        <x-ui.button type="submit">Save</x-ui.button>
+                    </div>
                 </x-ui.editor-actions>
             @else
                 <x-ui.editor-actions>
@@ -1155,8 +1094,10 @@
             @endif
 
         </form>
+        </div>
+        </x-container>
     </div>
-    </x-container>
+    <x-ui.record-dialog />
     <script>
         window.SM = window.SM || {};
         window.SM.submitInvoiceWriteOff = function (action, csrfToken) {
