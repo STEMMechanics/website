@@ -6,14 +6,17 @@ namespace App\Support;
 
 use Illuminate\View\ComponentAttributeBag;
 use TalesFromADev\TailwindMerge\TailwindMerge as TailwindMergeEngine;
+use TalesFromADev\TailwindMerge\TailwindMergeInterface;
 use Traversable;
 
 class TailwindMerge
 {
+    /** @var array<string, string> */
+    private array $mergedClasses = [];
+
     public function __construct(
-        private readonly TailwindMergeEngine $engine = new TailwindMergeEngine()
-    ) {
-    }
+        private readonly TailwindMergeInterface $engine = new TailwindMergeEngine
+    ) {}
 
     public function merge(...$args): string
     {
@@ -26,7 +29,19 @@ class TailwindMerge
             return '';
         }
 
-        return $this->engine->merge(implode(' ', $tokens));
+        $classes = implode(' ', $tokens);
+        if (isset($this->mergedClasses[$classes])) {
+            return $this->mergedClasses[$classes];
+        }
+
+        // Rows reuse the same component styles. Resolve each combination once
+        // per request, with a bounded cache for large exports and worker jobs.
+        $merged = $this->engine->merge($classes);
+        if (count($this->mergedClasses) >= 512) {
+            unset($this->mergedClasses[array_key_first($this->mergedClasses)]);
+        }
+
+        return $this->mergedClasses[$classes] = $merged;
     }
 
     /**
@@ -63,6 +78,7 @@ class TailwindMerge
                     if ($entry) {
                         $result = array_merge($result, $this->flatten($key));
                     }
+
                     continue;
                 }
 
