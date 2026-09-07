@@ -8,7 +8,8 @@ function setup(selected = []) {
     const items = ['1', '2', '1', '2'].map(checkbox);
     const headers = [checkbox(''), checkbox('')];
     const button = {}, inputs = { replaceChildren(...children) { this.children = children; } };
-    const allocate = { href: 'https://example.test/admin/allocation-overrides/expenses', setAttribute(key, value) { this[key] = value; }, addEventListener(name, fn) { this.click = fn; } };
+    const allocate = {}, bulkInputs = { replaceChildren(...children) { this.children = children; } };
+    const bulkForm = { querySelector: key => key.startsWith('button') ? allocate : bulkInputs };
     const controls = { dataset: {} };
     const form = { querySelector: key => key.startsWith('button') ? button : inputs };
     let stored = JSON.stringify(selected);
@@ -18,13 +19,13 @@ function setup(selected = []) {
         sessionStorage: { getItem: () => stored, setItem: (_, value) => { stored = value; } },
         document: {
             querySelectorAll: key => key === '.admin-expense-select-item' ? items : headers,
-            getElementById: key => key === 'admin-expense-export-form' ? form : key === 'admin-expense-allocate' ? allocate : controls,
+            getElementById: key => key === 'admin-expense-export-form' ? form : key === 'admin-expense-bulk-form' ? bulkForm : controls,
             createElement: () => ({}),
         },
     };
     const source = fs.readFileSync('resources/views/admin/expense/index.blade.php', 'utf8').split('<script>')[1].split('</script>')[0];
     vm.runInNewContext(source, context);
-    return { allocate, items, headers, button, inputs, controls, stored: () => JSON.parse(stored) };
+    return { allocate, bulkInputs, items, headers, button, inputs, controls, stored: () => JSON.parse(stored) };
 }
 
 test('export label counts unique selections across pages and uses singular for one', () => {
@@ -52,13 +53,11 @@ test('the header clears off-page selections and synchronises the mobile checkbox
 });
 
 
-test('bulk allocation links include cross-page selections and cap at 200 records', () => {
+test('bulk editor receives cross-page selections and caps at 200 records', () => {
     const app = setup(['1', '14']);
-    assert.deepEqual(new URL(app.allocate.href).searchParams.getAll('ids[]'), ['1', '14']);
-    assert.equal(app.allocate['aria-disabled'], 'false');
+    assert.deepEqual(app.bulkInputs.children.map(input => input.value), ['1', '14']);
+    assert.equal(app.bulkInputs.children[0].name, 'ids[]');
+    assert.equal(app.allocate.disabled, false);
     const large = setup(Array.from({ length: 201 }, (_, i) => String(i + 1)));
-    let prevented = false;
-    large.allocate.click({ preventDefault() { prevented = true; }, stopImmediatePropagation() {} });
-    assert.equal(prevented, true);
-    assert.equal(large.allocate['aria-disabled'], 'true');
+    assert.equal(large.allocate.disabled, true);
 });

@@ -87,3 +87,16 @@ test('remaining button respects automatic mode and ignores unknown fields', () =
     tally.allocateRemaining('2');
     assert.equal(tally.values[2], undefined);
 });
+
+
+test('percentage fill respects the override checkbox and fills exactly to 100 percent', () => {
+    const { tally } = setup({ values: { 1: '33.33', 2: '0.00' }, total: 10000, exact: true, enabled: false });
+    tally.allocateRemaining('2');
+    assert.equal(tally.values[2], '0.00');
+    tally.enabled = true;
+    assert.equal(tally.valid, false);
+    tally.allocateRemaining('2');
+    assert.equal(tally.values[2], '66.67');
+    assert.equal(tally.allocated, 10000);
+    assert.equal(tally.valid, true);
+});

@@ -4,7 +4,6 @@
         x-data="{ originalPlanId: @js((string) $version->id), previewBaseUrl: @js(route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'review' => 1])), planId: @js((string) $version->id), selected: @js($preview ? collect($preview['rows'])->filter(fn ($row) => !$row['warning'])->keys()->map(fn ($key) => (string) $key)->values()->all() : []) }">
         @csrf
         <p class="mb-4 text-sm">{{ count($invoiceIds) }} invoices selected. Existing allocations and manual overrides are preserved.</p>
-        <p class="mb-4"><x-ui.button color="outline" class="whitespace-normal" data-record-editor data-record-title="Bulk allocation overrides" :href="route('admin.allocation-overrides.edit', ['kind' => 'invoices', 'ids' => $invoiceIds])">Set a single cost centre or percentage split</x-ui.button></p>
         <x-ui.select label="Allocation plan" x-model="planId">
             @foreach($plans as $plan)<option value="{{ $plan->id }}">{{ $plan->name }}</option>@endforeach
         </x-ui.select>

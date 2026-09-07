@@ -143,8 +143,12 @@
             </div>
 
             <x-ui.list-pagination :paginator="$expenses"><x-slot:actions>
-        <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to allocate or export their attachments.">
-            <x-ui.button color="outline" id="admin-expense-allocate" data-record-editor data-record-title="Bulk allocation overrides" :href="route('admin.allocation-overrides.edit', ['kind' => 'expenses'])">Allocate selected</x-ui.button>
+        <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to edit or export their attachments.">
+            <form id="admin-expense-bulk-form" method="POST" action="{{ route('admin.allocation-overrides.edit', ['kind' => 'expenses']) }}" data-bulk-open="finance-bulk-editor">
+                @csrf
+                <div data-bulk-inputs></div>
+                <x-ui.bulk-edit-button type="submit" id="admin-expense-allocate" :count="0" disabled />
+            </form>
             <form id="admin-expense-export-form" method="POST" action="{{ route('admin.expense.export.zip') }}">
                 @csrf
                 <div class="admin-expense-export-inputs"></div>
@@ -158,6 +162,7 @@
         </x-ui.dynamic-list>
     </x-container>
 <x-ui.record-dialog />
+<x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit expenses" loader-id="finance-bulk-loader" list="admin-expense-index" selection-key="admin-expense-export-selection" selection-field="ids[]" />
 </x-layout>
 
 <script>
@@ -186,14 +191,16 @@
             });
             const controls = document.getElementById('admin-expense-export-controls');
             if (controls) controls.dataset.selected = String(selected.length > 0);
-            const allocate = document.getElementById('admin-expense-allocate');
-            if (allocate) {
-                const url = new URL(allocate.href);
-                url.search = '';
-                selected.forEach(id => url.searchParams.append('ids[]', id));
-                allocate.href = url.href;
-                allocate.textContent = selected.length > 200 ? 'Select up to 200 to allocate' : 'Allocate ' + selected.length + ' expenses';
-                allocate.setAttribute('aria-disabled', String(!selected.length || selected.length > 200));
+            const bulkForm = document.getElementById('admin-expense-bulk-form');
+            if (bulkForm) {
+                const allocate = bulkForm.querySelector('button[type="submit"]');
+                allocate.disabled = !selected.length || selected.length > 200;
+                allocate.textContent = selected.length > 200 ? 'Select up to 200 to edit' : 'Edit ' + selected.length + ' items';
+                bulkForm.querySelector('[data-bulk-inputs]').replaceChildren(...selected.map(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = 'ids[]'; input.value = id;
+                    return input;
+                }));
             }
             if (form) {
                 const button = form.querySelector('button[type="submit"]');
@@ -223,9 +230,6 @@
                 : [];
             render();
         }));
-        document.getElementById('admin-expense-allocate')?.addEventListener('click', event => {
-            if (!selected.length || selected.length > 200) { event.preventDefault(); event.stopImmediatePropagation(); }
-        });
         render();
     });
 </script>
