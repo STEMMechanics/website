@@ -1,6 +1,6 @@
-@props(['tableClass' => '', 'caption' => null, 'variant' => 'default'])
+@props(['tableClass' => '', 'caption' => null, 'variant' => 'default', 'mobileCards' => false])
 
-<div {{ $attributes->class(['min-w-0 w-full max-w-full overflow-x-auto', 'rounded-xl border border-slate-200 bg-white' => $variant === 'listing']) }}>
+<div {{ $attributes->class(['min-w-0 w-full max-w-full overflow-x-auto', 'rounded-xl border border-slate-200 bg-white' => $variant === 'listing', 'sm-mobile-cards' => $mobileCards]) }}>
     <table class="{{ twMerge($variant === 'listing' ? 'sm-data-table' : ($variant === 'plain' ? 'w-full' : 'table'), $tableClass) }}">
         @if($caption)<caption class="sr-only">{{ $caption }}</caption>@endif
         @if(isset($header))

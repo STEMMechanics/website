@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
         plugins: [
             laravel({
                 hotFile: 'storage/framework/vite.hot',
-                input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/editor/TipTap.js', 'resources/js/editor/MiniEditor.js'],
+                input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/workshop-pick-list.js', 'resources/js/editor/TipTap.js', 'resources/js/editor/MiniEditor.js'],
                 refresh: true,
             }),
             react(),

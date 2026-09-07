@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast title="Allocate invoices" />
     <form method="POST" action="{{ route('admin.invoice.bulk-allocation.apply') }}" data-record-form data-record-wide
-        x-data="{ planId: @js((string) $version->id), selected: @js($preview ? collect($preview['rows'])->filter(fn ($row) => !$row['warning'])->keys()->map(fn ($key) => (string) $key)->values()->all() : []) }">
+        x-data="{ originalPlanId: @js((string) $version->id), previewBaseUrl: @js(route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'review' => 1])), planId: @js((string) $version->id), selected: @js($preview ? collect($preview['rows'])->filter(fn ($row) => !$row['warning'])->keys()->map(fn ($key) => (string) $key)->values()->all() : []) }">
         @csrf
         <p class="mb-4 text-sm">{{ count($invoiceIds) }} invoices selected. Existing allocations and manual overrides are preserved.</p>
         <x-ui.select label="Allocation plan" x-model="planId">
@@ -9,7 +9,7 @@
         </x-ui.select>
         <x-ui.button color="outline" data-record-editor
             href="{{ route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'version_id' => $version->id, 'review' => 1]) }}"
-            x-bind:href="@js(route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'review' => 1])) + '&version_id=' + planId">Preview allocations</x-ui.button>
+            x-bind:href="previewBaseUrl + '&version_id=' + planId">Preview allocations</x-ui.button>
         @if($preview)
             <input type="hidden" name="token" value="{{ $preview['token'] }}">
             <p class="my-4 text-sm text-slate-600">Preview using <strong>{{ $version->name }}</strong>. Figures exclude GST. Workshop allocations include every linked ticket invoice, including invoices outside your selection.</p>
@@ -41,7 +41,7 @@
                 </tbody>
             </x-ui.table>
             <p class="mb-4 text-xs text-slate-500">Missing hours, seats or line types must be corrected on the invoice before it can use automatic allocations. Preview again after corrections. This changes cost-centre allocations, not invoice prices or payments.</p>
-            <div class="flex justify-end"><x-ui.button type="submit" x-bind:disabled="!selected.length || planId !== @js((string) $version->id)" x-text="'Apply to ' + selected.length + ' records'">Apply allocations</x-ui.button></div>
+            <div class="flex justify-end"><x-ui.button type="submit" x-bind:disabled="!selected.length || planId !== originalPlanId" x-text="'Apply to ' + selected.length + ' records'">Apply allocations</x-ui.button></div>
         @else
             <x-ui.button type="submit" class="hidden" disabled>Apply allocations</x-ui.button>
         @endif

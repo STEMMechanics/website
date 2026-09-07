@@ -10,15 +10,15 @@
             <x-ui.preset-views :items="collect(['all' => 'All cost centres', 'active' => 'Active', 'archived' => 'Archived'])->map(fn ($title, $key) => ['title' => $title, 'count' => $counts[$key], 'active' => $state === $key, 'route' => request()->fullUrlWithQuery(['state' => $key, 'page' => null])])->values()->all()" />
             <x-ui.collection-controls label="Search cost centres" />
             <p class="mb-4 text-sm text-slate-600">@if($cash['settings']->opening_date)Balances start from {{ $cash['settings']->opening_date }}. These are allocated funds, not separate bank balances. GST is reserved for BAS.@else Balances start from zero and include all recorded payments and expenses.@endif</p>
-            <x-ui.table variant="listing">
+            <x-ui.table variant="listing" mobileCards>
                 <thead><tr><x-ui.list-heading field="name" label="Cost centre" /><th class="text-center">Status</th><x-ui.list-heading field="priority" label="Priority" class="text-center" /><x-ui.list-heading field="balance" label="Balance" class="text-center" /><th class="text-center whitespace-nowrap">Actions</th></tr></thead>
                 <tbody data-list-results>@forelse($centres as $centre)
                     <tr>
-                        <td><a class="font-semibold hover:text-primary-color" href="{{ $centre->id === 'gst' ? route('admin.cost-centre.gst') : route('admin.cost-centre.show', $centre->id) }}">{{ $centre->name }}</a></td>
-                        <td class="text-center"><x-ui.badge :color="$centre->kind !== 'cost' ? 'sky' : ($centre->active ? 'green' : 'slate')">{{ $centre->kind !== 'cost' ? 'System' : ($centre->active ? 'Active' : 'Archived') }}</x-ui.badge></td>
-                        <td class="text-center whitespace-nowrap">{{ $centre->kind === 'gst' ? '—' : $centre->priority }}</td>
-                        <td @class(['text-center whitespace-nowrap tabular-nums', 'text-red-600' => $centre->balance < 0])>{{ money($centre->balance / 100) }}</td>
-                        <td class="text-center whitespace-nowrap"><x-ui.row-actions>
+                        <td data-mobile-primary><a class="font-semibold hover:text-primary-color" href="{{ $centre->id === 'gst' ? route('admin.cost-centre.gst') : route('admin.cost-centre.show', $centre->id) }}">{{ $centre->name }}</a></td>
+                        <td data-label="Status" class="text-center"><x-ui.badge :color="$centre->kind !== 'cost' ? 'sky' : ($centre->active ? 'green' : 'slate')">{{ $centre->kind !== 'cost' ? 'System' : ($centre->active ? 'Active' : 'Archived') }}</x-ui.badge></td>
+                        <td data-label="Priority" class="text-center whitespace-nowrap">{{ $centre->kind === 'gst' ? '—' : $centre->priority }}</td>
+                        <td data-label="Balance" @class(['text-center whitespace-nowrap tabular-nums', 'text-red-600' => $centre->balance < 0])>{{ money($centre->balance / 100) }}</td>
+                        <td data-mobile-actions class="text-center whitespace-nowrap"><x-ui.row-actions :menu="false">
                             <x-ui.row-action label="View transactions" icon="fa-solid fa-receipt" href="{{ $centre->id === 'gst' ? route('admin.cost-centre.gst') : route('admin.cost-centre.show', $centre->id) }}" />
                             @if($centre->kind !== 'gst')<x-ui.row-action label="Edit cost centre" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.cost-centre.edit', ['id' => $centre->id]) }}" />@endif
                         </x-ui.row-actions></td>

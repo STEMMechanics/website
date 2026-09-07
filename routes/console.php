@@ -224,3 +224,8 @@ Artisan::command('finance:allocate', function () {
     $count = app(FinancePlanner::class)->automate();
     $this->info("Created {$count} workshop budgets; refreshed eligible invoice line allocations.");
 })->purpose('Create and refresh opted-in workshop and invoice allocations using effective pricing versions')->hourly()->withoutOverlapping();
+
+Artisan::command('quotes:expire', function () {
+    \App\Models\Quote::expireOpenQuotes();
+    $this->info('Expired quotes updated.');
+})->purpose('Expire open quotes outside page rendering')->everyMinute()->withoutOverlapping();

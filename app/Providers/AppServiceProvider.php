@@ -40,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(ContentFilter::class, SiteOptionContentFilter::class);
         $this->app->scoped(ShopAvailability::class);
+        $this->app->scoped(\App\Support\RequestMemo::class);
+        $this->app->scoped(\App\Support\AdminBadgeCache::class);
         $this->app->scoped(\App\Support\TailwindMerge::class);
         $this->app->scoped(\App\Support\QueryMetrics::class);
     }
@@ -49,6 +51,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\DB::listen(fn ($event) => app(\App\Support\AdminBadgeCache::class)->written($event));
+        Event::listen(\Illuminate\Database\Events\TransactionCommitted::class, function ($event): void {
+            if ($event->connection->transactionLevel() === 0) {
+                app(\App\Support\AdminBadgeCache::class)->committed($event->connectionName);
+            }
+        });
+        Event::listen(\Illuminate\Database\Events\TransactionRolledBack::class, function ($event): void {
+            app(\App\Support\RequestMemo::class)->clear();
+            if ($event->connection->transactionLevel() === 0) {
+                app(\App\Support\AdminBadgeCache::class)->rolledBack($event->connectionName);
+            }
+        });
         if (config('analytics.profile_requests')) {
             \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $event) {
                 $metrics = app(\App\Support\QueryMetrics::class);
@@ -167,6 +181,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('components.layout', function ($view): void {
+            if (request()->attributes->get('sm_fragment')) {
+                return;
+            }
             $notice = (string) config('app.notice', '');
 
             try {
@@ -184,6 +201,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer(['components.layout', 'components.navbar', 'components.footer'], function ($view): void {
+            if (request()->attributes->get('sm_fragment')) {
+                return;
+            }
             $shopAvailability = app(ShopAvailability::class);
 
             $view->with('publicShopAvailable', $shopAvailability->isPubliclyAvailable());

@@ -1803,3 +1803,21 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-editor-actions > [data-editor-delete], .sm-editor-actions > :has([data-editor-delete]) { order: -1; margin-right: auto; }
 .sm-editor-actions .sm-row-action { width: auto; padding-inline: 1rem; gap: .5rem; }
 .sm-editor-actions .sm-row-action-label { display: inline; }
+
+/* One set of rows: readable cards on phones, sortable tables on larger screens. */
+@media (max-width: 639px) {
+    .sm-mobile-cards { overflow: visible; border: 0; background: transparent; }
+    .sm-mobile-cards .sm-data-table { display: block; }
+    .sm-mobile-cards .sm-data-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .sm-mobile-cards .sm-data-table tbody { display: grid; gap: .85rem; }
+    .sm-mobile-cards .sm-data-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem 1rem; padding: 1rem; border: 1px solid #e2e8f0; border-radius: .85rem; background: white; }
+    .sm-mobile-cards .sm-data-table tbody tr > td { display: block; min-width: 0; padding: 0; border: 0; text-align: left !important; white-space: normal; overflow-wrap: anywhere; }
+    .sm-mobile-cards td[data-label]::before { content: attr(data-label); display: block; margin-bottom: .3rem; color: #64748b; font-size: .75rem; font-weight: 400; }
+    .sm-mobile-cards td[data-mobile-primary], .sm-mobile-cards td[data-mobile-wide], .sm-mobile-cards td[data-mobile-actions], .sm-mobile-cards td[colspan] { grid-column: 1 / -1; }
+    .sm-mobile-cards td[data-mobile-primary] { font-size: 1rem; }
+    .sm-mobile-cards td[data-mobile-primary] a { display: block; padding-block: .25rem; }
+    .sm-mobile-cards td[data-mobile-actions] { padding-top: .65rem !important; border-top: 1px solid #f1f5f9 !important; }
+    .sm-mobile-cards td[data-mobile-actions] .sm-row-actions { justify-content: flex-start; flex-wrap: wrap; }
+    .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action { width: auto; padding-inline: .7rem; gap: .4rem; }
+    .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action .sm-row-action-label { display: inline; font-size: .75rem; }
+}

@@ -16,7 +16,7 @@ document.addEventListener('click', async event => {
     content.setAttribute('aria-busy', 'true');
     openListDialog(dialog, link);
     try {
-        const response = await fetch(link.href, { signal, credentials: 'same-origin' });
+        const response = await fetch(link.href, { signal, credentials: 'same-origin', headers: { 'X-SM-Fragment': 'record' } });
         if (!response.ok || response.redirected) throw new Error('Refresh the page and try again.');
         const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
         const form = doc.querySelector('[data-record-form]');

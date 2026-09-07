@@ -1,12 +1,12 @@
 @php($defaultVersionId = $defaultVersionId ?? \Illuminate\Support\Facades\DB::table('finance_settings')->where('id', 1)->value('default_pricing_version_id'))
 
-    <x-ui.table variant="listing">
+    <x-ui.table variant="listing" mobileCards>
         <thead><tr><x-ui.list-heading field="name" label="Plan" /><th class="text-center">Actions</th></tr></thead>
         <tbody data-list-results>
             @foreach($versions as $version)
                 <tr>
-                    <td><div class="flex flex-wrap items-center gap-2"><span>{{ $version->name }}</span>@if((int) ($defaultVersionId ?? 0) === $version->id)<x-ui.badge color="success">Default</x-ui.badge>@endif @if($version->archived)<x-ui.badge color="gray">Archived</x-ui.badge>@endif</div></td>
-                    <td class="text-center whitespace-nowrap"><x-ui.row-actions>
+                    <td data-mobile-primary><div class="flex flex-wrap items-center gap-2"><span>{{ $version->name }}</span>@if((int) ($defaultVersionId ?? 0) === $version->id)<x-ui.badge color="success">Default</x-ui.badge>@endif @if($version->archived)<x-ui.badge color="gray">Archived</x-ui.badge>@endif</div></td>
+                    <td data-mobile-actions class="text-center whitespace-nowrap"><x-ui.row-actions>
                         <x-ui.row-action label="Edit allocation plan" icon="fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'edit_id' => $version->id]) }}" />
                         <x-ui.row-action label="Copy allocation plan" icon="fa-copy" data-record-editor href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'template_id' => $version->id]) }}" />
                         @if(! $version->archived && (int) ($defaultVersionId ?? 0) !== $version->id)

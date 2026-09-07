@@ -21,6 +21,9 @@ return [
 
     'default' => env('CACHE_STORE', 'database'),
 
+    // Optional independent store for short-lived admin notification counts.
+    'admin_badges_store' => env('ADMIN_BADGE_CACHE_STORE'),
+
     /*
     |--------------------------------------------------------------------------
     | Cache Stores

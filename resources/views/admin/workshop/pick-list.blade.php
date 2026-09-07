@@ -1,4 +1,7 @@
 <x-layout>
+    @push('head')
+        @vite('resources/js/workshop-pick-list.js')
+    @endpush
     <x-mast backRoute="workshop.index" backTitle="Workshops">Run Sheet</x-mast>
 
     <x-container>

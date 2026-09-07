@@ -18,6 +18,17 @@ function initialise() {
         button.textContent = `Allocate ${selected.length} invoices`;
         button.setAttribute('aria-disabled', String(!selected.length));
         button.classList.toggle('opacity-50', !selected.length);
+        const bulkForm = root.querySelector('#admin-invoice-bulk-form');
+        if (bulkForm) {
+            const edit = bulkForm.querySelector('button[type="submit"]');
+            edit.disabled = !selected.length;
+            edit.textContent = `Edit ${selected.length} items`;
+            bulkForm.querySelector('[data-bulk-inputs]').replaceChildren(...selected.map(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = 'ids[]'; input.value = id;
+                return input;
+            }));
+        }
         renders.forEach(update => update());
     };
     const setSelected = values => {

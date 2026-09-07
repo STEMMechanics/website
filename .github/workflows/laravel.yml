@@ -6,9 +6,18 @@ on:
     branches: ["main"]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  laravel-tests:
+  phpunit:
+    name: PHPUnit shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@v7
@@ -17,6 +26,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          coverage: none
           tools: composer:v2
           extensions: imagick, mbstring, fileinfo, zip, redis
 
@@ -77,8 +87,45 @@ jobs:
           DB_DATABASE: database/database.sqlite
         run: php artisan migrate --force
 
+      - name: Check test distribution
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: Run PHPUnit
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: database/database.sqlite
-        run: php -d memory_limit=1G vendor/bin/phpunit
+        run: python3 .github/scripts/phpunit_shard.py --shard ${{ matrix.shard }} --count 4
+
+      - name: Report slowest tests
+        if: always()
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path('storage/logs/phpunit.xml')
+          if report.exists():
+              tests = list(ET.parse(report).iter('testcase'))
+              tests.sort(key=lambda test: float(test.get('time', '0')), reverse=True)
+              lines = ['## Slowest PHPUnit tests', '', '| Seconds | Test |', '| ---: | --- |']
+              for test in tests[:20]:
+                  name = f"{test.get('classname', '')}::{test.get('name', '')}"
+                  name = name.replace('|', '&#124;').replace('\n', ' ')
+                  lines.append(f"| {float(test.get('time', '0')):.3f} | {name} |")
+              summary = '\n'.join(lines) + '\n'
+              print(summary)
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+                  output.write(summary)
+          PYTHON
+
+  laravel-tests:
+    name: laravel-tests
+    needs: phpunit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every PHPUnit shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.phpunit.result }}
+        run: test "$SHARD_RESULT" = success

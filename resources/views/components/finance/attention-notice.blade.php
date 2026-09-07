@@ -4,7 +4,7 @@
     $total = $counts[$kind];
 @endphp
 @if($total > 0)
-    <aside class="my-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" aria-label="Finance items needing attention">
+    <aside class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" aria-label="Finance items needing attention">
         <p class="font-semibold">{{ $total }} {{ \Illuminate\Support\Str::plural($kind === 'invoices' ? 'invoice' : 'expense', $total) }} {{ $total === 1 ? 'needs' : 'need' }} attention</p>
         <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
             @if($kind === 'invoices')

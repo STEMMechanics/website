@@ -483,6 +483,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/invoices', [InvoiceController::class, 'index'])->name('admin.invoice.index');
     Route::get('/admin/invoices/create', [InvoiceController::class, 'create'])->name('admin.invoice.create');
     Route::post('/admin/invoices', [InvoiceController::class, 'store'])->name('admin.invoice.store');
+    Route::post('/admin/allocation-overrides/{kind}/edit', [\App\Http\Controllers\BulkAllocationOverrideController::class, 'edit'])->whereIn('kind', ['invoices', 'expenses'])->name('admin.allocation-overrides.edit');
+    Route::post('/admin/allocation-overrides/{kind}', [\App\Http\Controllers\BulkAllocationOverrideController::class, 'apply'])->whereIn('kind', ['invoices', 'expenses'])->name('admin.allocation-overrides.apply');
     Route::get('/admin/invoices/bulk-allocation', [\App\Http\Controllers\InvoiceBulkAllocationController::class, 'preview'])->name('admin.invoice.bulk-allocation.preview');
     Route::post('/admin/invoices/bulk-allocation', [\App\Http\Controllers\InvoiceBulkAllocationController::class, 'apply'])->name('admin.invoice.bulk-allocation.apply');
     Route::get('/admin/invoices/{invoice}/cost-centres', [\App\Http\Controllers\InvoiceAllocationController::class, 'edit'])->name('admin.invoice.allocation.edit');

@@ -235,3 +235,17 @@ test('changing rows per page keeps page sizes and resets only page numbers', () 
     assert.equal(url.searchParams.has('page'), false);
     assert.equal(url.searchParams.has('expenses_page'), false);
 });
+
+test('refresh requests only its list fragment and preserves the page title', async () => {
+    const app = setup();
+    let headers;
+    app.page({ title: '', querySelectorAll: () => [{ dataset: app.root.dataset, querySelector: () => ({ childNodes: ['fragment'], querySelector: () => null }) }] });
+    app.context.fetch = async (url, options) => {
+        headers = options.headers;
+        return { ok: true, url, headers: { get: () => 'text/html' }, text: async () => '<section></section>' };
+    };
+    await app.loadList(app.root, new URL('https://example.test/products?page=2'));
+    assert.equal(headers['X-SM-Fragment'], 'list:products');
+    assert.equal(app.context.document.title, 'Before');
+    assert.deepEqual(app.content.nodes, ['fragment']);
+});
