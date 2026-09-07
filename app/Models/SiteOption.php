@@ -20,6 +20,16 @@ class SiteOption extends Model
     public static function defaultDefinitions(): array
     {
         return [
+            'finance.fortnight-start' => [
+                'value' => '2026-07-06',
+                'description' => 'First day of a pay fortnight. Timesheet periods run for 14 days from this date.',
+                'input_type' => 'date',
+            ],
+            'finance.cash-buffer' => [
+                'value' => '0.00',
+                'description' => 'Minimum business cash buffer in dollars. Retained when calculating available drawings, after GST, protected cost-centre funds and pending drawings. Set 0 for no extra buffer.',
+                'input_type' => 'number',
+            ],
             \App\Support\HomeHero::OPTION => [
                 'value' => json_encode(\App\Support\HomeHero::defaults(), JSON_UNESCAPED_SLASHES),
                 'description' => 'Homepage hero image and text. Use Homepage settings for a live preview.',
@@ -92,8 +102,8 @@ class SiteOption extends Model
                 'description' => 'Footer terms text for invoice, quote, and tax adjustment PDFs.',
             ],
             'document.footer.travel' => [
-                'value' => 'The first 30 minutes of travel is free; $28.00 every additional 15 minutes.',
-                'description' => 'Footer travel text for invoice, quote, and tax adjustment PDFs.',
+                'value' => 'Travel generally includes the first 30 minutes at no charge, with additional travel charged at {travel_rate_ex_gst} (ex GST) per 15 minutes, unless otherwise agreed.',
+                'description' => 'Footer travel text for invoice, quote, and tax adjustment PDFs. Use {travel_rate_ex_gst} for the saved travel rate per 15 minutes, including the dollar sign. Mixed or unavailable rates show “Travel charges are as itemised or otherwise agreed.”',
             ],
             'document.footer.questions' => [
                 'value' => 'If you have any questions about this {document}, please feel free to contact us.',

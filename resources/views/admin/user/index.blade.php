@@ -7,11 +7,6 @@
         <x-ui.dynamic-list name="admin-user">
         <x-ui.collection-controls class="my-5" />
 
-        @if(session('status'))
-        <div class="mb-4 text-green-600">
-            {{ session('status') }}
-        </div>
-        @endif
 
         @if($users->isEmpty())
         <x-none-found item="users" search="{{ request()->get('search') }}" />

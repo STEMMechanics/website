@@ -41,14 +41,39 @@ class FinancePlanningTest extends TestCase
         return app(FinancePlanner::class)->preview(['version_id' => 1, 'invoice_ids' => [$invoice->id], 'participants' => 4, 'hours' => 2, 'travel_minutes' => 45, 'venue_supplied' => false]);
     }
 
+    public function test_finance_site_settings_validate_dates_and_control_available_drawings(): void
+    {
+        $this->actingAs($this->admin());
+        $buffer = \App\Models\SiteOption::where('name', 'finance.cash-buffer')->firstOrFail();
+        $anchor = \App\Models\SiteOption::where('name', 'finance.fortnight-start')->firstOrFail();
+        $this->putJson(route('admin.site_option.update', $buffer), ['value' => '-1'])->assertUnprocessable();
+        $this->putJson(route('admin.site_option.update', $anchor), ['value' => 'invalid'])->assertUnprocessable();
+        $this->putJson(route('admin.site_option.update', $anchor), ['value' => '2026-09-13'])->assertOk();
+        $this->get(route('admin.timesheet.index', ['fortnight' => '2026-09-14']))->assertOk()->assertViewHas('fortnight', fn ($date) => $date->toDateString() === '2026-09-13');
+        DB::table('finance_settings')->where('id', 1)->update(['opening_cash_cents' => 10000]);
+        $before = app(FinancePlanner::class)->cash()['available'];
+        $this->putJson(route('admin.site_option.update', $buffer), ['value' => '10.50'])->assertOk();
+        $this->assertSame($before - 1050, app(FinancePlanner::class)->cash()['available']);
+    }
+
     public function test_all_finance_sections_render_and_non_admin_is_denied(): void
     {
         $user = $this->admin();
-        foreach (['overview', 'budgets', 'pricing', 'suppliers', 'time', 'drawings', 'gst', 'setup'] as $tab) {
-            $this->actingAs($user)->get(route('admin.finance.index', ['tab' => $tab]))->assertOk()->assertSee('Finance planning');
-        }
+        $this->actingAs($user)->get(route('admin.finance.index'))->assertRedirect(route('admin.cost-centre.index'));
+        $this->get(route('admin.finance.index', ['tab' => 'pricing']))->assertRedirect(route('admin.cost-centre.allocations'));
+        $this->get(route('admin.finance.index', ['tab' => 'setup']))->assertRedirect(route('admin.site_option.index', ['search' => 'finance.']));
         $this->actingAs(User::factory()->create())->get(route('admin.finance.index'))->assertForbidden();
         $this->post(route('admin.finance.drawing'), ['amount' => 1, 'token' => (string) Str::uuid()])->assertForbidden();
+    }
+
+    public function test_pricing_does_not_calculate_unrelated_finance_reports(): void
+    {
+        $this->partialMock(FinancePlanner::class, function ($mock): void {
+            $mock->shouldNotReceive('gst');
+            $mock->shouldNotReceive('cash');
+            $mock->shouldNotReceive('earned');
+        });
+        $this->actingAs($this->admin())->get(route('admin.finance.index', ['tab' => 'pricing']))->assertRedirect(route('admin.cost-centre.allocations'));
     }
 
     public function test_preview_is_read_only_and_apply_is_idempotent_with_reversal_history(): void
@@ -102,11 +127,12 @@ class FinancePlanningTest extends TestCase
         $user = $this->admin();
         $planner = app(FinancePlanner::class);
         $expense = Expense::factory()->create(['supplier' => 'Mixed Supplier', 'total_amount' => 11, 'gst_amount' => 1]);
-        $this->actingAs($user)->post(route('admin.finance.supplier'), ['supplier' => 'Mixed Supplier', 'mode' => 'split', 'splits' => [1 => 33.33, 2 => 66.67]])->assertSessionHasNoErrors();
+        $this->actingAs($user);
+        DB::table('finance_supplier_rules')->where('id', $expense->supplier_id)->update(['mode' => 'split', 'splits' => json_encode([1 => 33.33, 2 => 66.67])]);
         $this->assertSame([1 => 333, 2 => 667], $planner->expenseSplits($expense));
-        $this->post(route('admin.finance.expense', $expense), ['splits' => [1 => 10]])->assertSessionHasNoErrors();
+        $this->post(route('admin.expense.allocation', $expense), ['splits' => [1 => 10]])->assertSessionHasNoErrors();
         $this->assertSame([1 => 1000], $planner->expenseSplits($expense));
-        $this->post(route('admin.finance.expense', $expense), ['splits' => [1 => 11]])->assertSessionHasErrors('splits');
+        $this->post(route('admin.expense.allocation', $expense), ['splits' => [1 => 11]])->assertSessionHasErrors('splits');
     }
 
     public function test_historical_allocations_do_not_recreate_available_cash(): void
@@ -130,10 +156,11 @@ class FinancePlanningTest extends TestCase
         $this->actingAs($user)->post(route('admin.finance.time'), ['date' => '2026-09-05', 'activity' => 'Preparation', 'minutes' => 120, 'rate' => 60])->assertSessionHasNoErrors();
         $this->post(route('admin.finance.drawing'), ['amount' => 10, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'opening_cash_cents' => 10000, 'opening_gst_cents' => 2000, 'buffer_cents' => 1000]);
+        \App\Models\SiteOption::updateOrCreate(['name' => 'finance.cash-buffer'], ['value' => '10.00']);
         $this->post(route('admin.finance.drawing'), ['amount' => 80, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         $token = (string) Str::uuid();
-        $this->post(route('admin.finance.drawing'), ['amount' => 70, 'token' => $token])->assertSessionHasNoErrors();
-        $this->post(route('admin.finance.drawing'), ['amount' => 70, 'token' => $token])->assertSessionHasNoErrors();
+        $this->post(route('admin.finance.drawing'), ['amount' => 70, 'token' => $token])->assertSessionHasNoErrors()->assertRedirect(route('admin.timesheet.index', ['tab' => 'drawings']));
+        $this->post(route('admin.finance.drawing'), ['amount' => 70, 'token' => $token])->assertSessionHasNoErrors()->assertRedirect(route('admin.timesheet.index', ['tab' => 'drawings']));
         $this->assertDatabaseCount('finance_drawings', 1);
         $this->assertSame(0, app(FinancePlanner::class)->cash()['available']);
         $id = DB::table('finance_drawings')->value('id');
@@ -167,7 +194,7 @@ class FinancePlanningTest extends TestCase
         $ticket = Ticket::factory()->create(['invoice_id' => $first->id]);
         $workshop = $ticket->workshop;
         $workshop->update(['starts_at' => '2026-09-05 10:00:00', 'ends_at' => '2026-09-05 12:00:00']);
-        DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'auto_budget' => true]);
+        DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'auto_budget' => true, 'default_pricing_version_id' => 1]);
         DB::table('finance_pricing_versions')->where('id', 1)->update(['created_by' => $admin->id]);
         $this->assertSame(1, $planner->automate());
         $budget = DB::table('finance_budgets')->first();
@@ -179,25 +206,17 @@ class FinancePlanningTest extends TestCase
         $this->assertDatabaseCount('finance_budgets', 1);
         $this->assertDatabaseCount('finance_budget_revisions', 1);
         $this->assertSame(1000, $planner->decode(DB::table('finance_budgets')->value('targets'))[2]);
-        $this->actingAs($admin)->get(route('admin.finance.index', ['tab' => 'budgets']))->assertOk()->assertSee($workshop->title);
+        $this->actingAs($admin)->get(route('admin.cost-centre.allocations', ['tab' => 'allocations']))->assertOk()->assertSee('Allocation Plans')->assertDontSee('Preview allocations');
         $planner->reverse($budget->batch_id);
         $planner->automate();
         $this->assertDatabaseCount('finance_budgets', 0);
     }
 
-    public function test_preview_post_keeps_inputs_and_rejects_expired_or_changed_previews(): void
+    public function test_bulk_preview_routes_are_removed(): void
     {
-        $this->travelTo(now()->setDate(2026, 9, 6));
-        $admin = $this->admin();
-        $invoice = $this->invoice();
-        $this->actingAs($admin)->post(route('admin.finance.preview'), ['version_id' => 1, 'from' => '2026-09-01', 'to' => '2026-09-06', 'invoice_numbers' => $invoice->invoice_number, 'participants' => 4, 'hours' => 2])->assertSessionHasNoErrors();
-        $this->get(route('admin.finance.index', ['tab' => 'budgets']))->assertOk()->assertSee('Review before applying')->assertSee('Suggested customer total');
-        $preview = session('finance.preview');
-        $this->post(route('admin.finance.apply'), ['token' => $preview['token'], 'selected' => [0], 'targets' => [0 => [1 => 30]]])->assertSessionHasNoErrors();
-        $budget = DB::table('finance_budgets')->first();
-        $this->assertSame(3000, app(FinancePlanner::class)->decode($budget->targets)[1]);
-        $this->assertTrue((bool) $budget->manual);
-        $this->post(route('admin.finance.apply'), ['token' => $preview['token'], 'selected' => [0]])->assertSessionHasErrors('preview');
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.finance.preview'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.finance.apply'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.finance.reverse'));
     }
 
     public function test_pending_bank_transfers_do_not_fund_budgets_or_drawings(): void
@@ -212,16 +231,20 @@ class FinancePlanningTest extends TestCase
         $this->assertSame(0, $planner->gst('2026-09-01', '2026-09-06')['net']);
     }
 
-    public function test_commitments_protect_cash_without_double_reserving_a_category(): void
+    public function test_legacy_commitments_do_not_reserve_cash_or_limit_transfers(): void
     {
-        $this->travelTo(now()->setDate(2026, 9, 6));
         $admin = $this->admin();
         DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'opening_cash_cents' => 20000]);
         DB::table('finance_categories')->where('id', 1)->update(['opening_cents' => 5000]);
-        $this->actingAs($admin)->post(route('admin.finance.commitment'), ['category_id' => 1, 'description' => 'Venue booking', 'due_on' => '2026-09-07', 'amount' => 70])->assertSessionHasNoErrors();
-        $this->assertSame(13000, app(FinancePlanner::class)->cash()['available']);
-        $this->post(route('admin.finance.closeCommitment', DB::table('finance_commitments')->value('id')), ['status' => 'cancelled'])->assertSessionHasNoErrors();
-        $this->assertSame(15000, app(FinancePlanner::class)->cash()['available']);
+        DB::table('finance_commitments')->insert(['category_id' => 1, 'description' => 'Legacy booking', 'due_on' => '2026-09-07', 'cents' => 7000, 'status' => 'open', 'created_at' => now(), 'updated_at' => now()]);
+        $planner = app(FinancePlanner::class);
+        $this->assertSame(15000, $planner->cash()['available']);
+        $planner->transfer(['from_category_id' => 1, 'category_id' => 2, 'amount' => 50, 'reason' => 'Move balance'], $admin->id);
+        $this->assertSame(0, $planner->cash()['reserves'][1]);
+        $this->assertSame(5000, $planner->cash()['reserves'][2]);
+        $this->actingAs($admin)->get(route('admin.cost-centre.index'))->assertOk()->assertDontSee('Committed');
+        $this->get(route('admin.finance.index', ['tab' => 'commitments']))->assertRedirect(route('admin.finance.index'));
+        $this->post('/admin/finance/commitments', [])->assertStatus(405);
     }
 
     public function test_pricing_versions_preserve_old_rates_and_reject_invalid_categories(): void
@@ -229,8 +252,8 @@ class FinancePlanningTest extends TestCase
         $admin = $this->admin();
         $data = ['name' => 'Older rates', 'effective_from' => '2025-07-01', 'rules' => [['category_id' => 1, 'basis' => 'workshop', 'rate' => 20]], 'public' => [10, 20, 30, 40], 'organisation' => [8, 16, 24, 32]];
         $this->actingAs($admin)->post(route('admin.finance.pricing'), $data)->assertSessionHasNoErrors();
-        $this->assertDatabaseCount('finance_pricing_versions', 2);
-        $this->assertSame(5000, app(FinancePlanner::class)->decode(DB::table('finance_pricing_versions')->where('id', 1)->value('rules'))[0]['rate_cents']);
+        $this->assertDatabaseCount('finance_pricing_versions', 3);
+        $this->assertSame(4500, app(FinancePlanner::class)->decode(DB::table('finance_pricing_versions')->where('id', 1)->value('rules'))[0]['rate_cents']);
         $data['rules'][0]['category_id'] = 9999;
         $this->post(route('admin.finance.pricing'), $data)->assertSessionHasErrors('rules.0.category_id');
     }
@@ -256,10 +279,11 @@ class FinancePlanningTest extends TestCase
         $admin = $this->admin();
         $planner = app(FinancePlanner::class);
         $expense = Expense::factory()->create(['supplier' => 'Tiny amounts', 'total_amount' => 0.02, 'gst_amount' => 0]);
-        $this->actingAs($admin)->post(route('admin.finance.supplier'), ['supplier' => 'Tiny amounts', 'mode' => 'split', 'splits' => [1 => 25, 2 => 25, 3 => 25, 4 => 25]])->assertSessionHasNoErrors();
+        $this->actingAs($admin);
+        DB::table('finance_supplier_rules')->where('id', $expense->supplier_id)->update(['mode' => 'split', 'splits' => json_encode([1 => 25, 2 => 25, 3 => 25, 4 => 25])]);
         $this->assertSame(2, array_sum($planner->expenseSplits($expense)));
         $this->assertGreaterThanOrEqual(0, min($planner->expenseSplits($expense)));
-        $this->post(route('admin.finance.expense', $expense), ['splits' => [1 => 0.02]])->assertSessionHasNoErrors();
+        $this->post(route('admin.expense.allocation', $expense), ['splits' => [1 => 0.02]])->assertSessionHasNoErrors();
         $expense->update(['total_amount' => 0.03]);
         $this->assertSame([], $planner->expenseSplits($expense));
         $first = $this->invoice(0.02);
@@ -269,5 +293,27 @@ class FinancePlanningTest extends TestCase
         InvoicePaymentAllocation::factory()->create(['payment_id' => $payment->id, 'invoice_id' => $second->id, 'allocated_amount' => 0.01]);
         Payment::factory()->create(['kind' => 'refund', 'payment_method' => 'cash', 'refund_of_payment_id' => $payment->id, 'total_amount' => 0.01, 'gst_amount' => 0, 'received_on' => '2026-09-03']);
         $this->assertSame(1, $planner->income([$first->id])['net'] + $planner->income([$second->id])['net']);
+    }
+
+    public function test_flat_venue_rate_covers_each_hour_and_replaces_unused_legacy_rules(): void
+    {
+        $planner = app(FinancePlanner::class);
+        $latest = DB::table('finance_pricing_versions')->orderByDesc('id')->first();
+        $rules = $planner->decode($latest->rules);
+        $venue = array_values(array_filter($rules, fn ($rule) => $rule['basis'] === 'venue_hour'));
+        $this->assertSame(4500, $venue[0]['rate_cents']);
+        $this->assertArrayNotHasKey('extra_cents', $venue[0]);
+        $inputs = ['participants' => 0, 'hours' => 1, 'travel_minutes' => 0, 'venue_supplied' => false];
+        foreach ([1, 2, 3, 4, 1.5] as $hours) {
+            $inputs['hours'] = $hours;
+            $this->assertSame((int) ($hours * 4500), $planner->targets($venue, $inputs)[1]);
+        }
+        $inputs['venue_supplied'] = true;
+        $this->assertSame(0, $planner->targets($venue, $inputs)[1]);
+        $old = $planner->decode(DB::table('finance_pricing_versions')->where('id', 1)->value('rules'));
+        $inputs['venue_supplied'] = false;
+        $inputs['hours'] = 3;
+        $this->assertSame(13500, $planner->targets($old, $inputs)[1]);
+        $this->actingAs($this->admin())->get(route('admin.cost-centre.allocations', ['tab' => 'editor']))->assertOk()->assertSee('Per delivery hour')->assertSee('Suppliable')->assertDontSee('Additional venue hour')->assertDontSee('Venue: first hour');
     }
 }

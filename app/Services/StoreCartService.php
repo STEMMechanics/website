@@ -34,17 +34,18 @@ class StoreCartService
 
     public function __construct(
         private readonly StoreShippingService $shipping,
-        private readonly StoreCouponService $coupons
+        private readonly StoreCouponService $coupons,
+        private readonly string $sessionKey = self::SESSION_KEY
     ) {}
 
     public function contents(): array
     {
-        $raw = session()->get(self::SESSION_KEY);
-        if ($raw === null) {
+        $raw = session()->get($this->sessionKey);
+        if ($raw === null && $this->sessionKey === self::SESSION_KEY) {
             $raw = session()->get(self::LEGACY_SESSION_KEY, []);
 
             if ($raw !== []) {
-                session()->put(self::SESSION_KEY, $raw);
+                session()->put($this->sessionKey, $raw);
                 session()->forget(self::LEGACY_SESSION_KEY);
             }
         }
@@ -52,7 +53,7 @@ class StoreCartService
         $normalized = $this->normalizeContents($raw);
 
         if ($normalized !== $raw) {
-            session()->put(self::SESSION_KEY, $normalized);
+            session()->put($this->sessionKey, $normalized);
         }
 
         return $normalized;
@@ -597,7 +598,7 @@ class StoreCartService
 
     public function clear(): void
     {
-        session()->forget(self::SESSION_KEY);
+        session()->forget($this->sessionKey);
         $this->resetResolvedState();
     }
 
@@ -868,7 +869,7 @@ class StoreCartService
 
     private function persistContents(array $contents): void
     {
-        session()->put(self::SESSION_KEY, [
+        session()->put($this->sessionKey, [
             'lines' => $contents['lines'] ?? [],
             'coupon_code' => $contents['coupon_code'] ?? null,
             'shipping_method_code' => $this->normalizeShippingMethodCode($contents['shipping_method_code'] ?? null),

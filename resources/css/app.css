@@ -304,6 +304,26 @@ details.ui-collapsible-section .ui-collapsible-section__content {
     @apply border-t border-gray-200 px-4 py-4;
 }
 
+details.ui-collapsible-section.ui-collapsible-section--panel {
+    @apply mb-5 min-w-0 bg-gray-50 shadow-none;
+}
+
+details.ui-collapsible-section--panel .ui-collapsible-section__summary-title {
+    @apply flex-col items-start gap-1;
+}
+
+details.ui-collapsible-section--panel .ui-collapsible-section__summary-text {
+    @apply whitespace-normal overflow-visible text-clip;
+}
+
+details.ui-collapsible-section--panel .ui-collapsible-section__summary-text--title {
+    @apply text-base;
+}
+
+details.ui-collapsible-section--panel .ui-collapsible-section__summary-text--subtitle {
+    @apply text-sm text-gray-600;
+}
+
 details.sm-collapsible-node {
     @apply my-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50;
 }
@@ -1135,6 +1155,13 @@ body.image-resize-active {
 }
 
 /* resources/views/components/ui/checkbox.blade.php */
+/* :disabled also matches checkboxes inside a disabled fieldset. */
+.sm-ui-checkbox > input[type="checkbox"]:disabled ~ div,
+.sm-ui-checkbox > input[type="checkbox"]:disabled ~ div > div {
+    color: #9CA3AF;
+    cursor: not-allowed;
+}
+
 .sm-ui-checkbox input[type="checkbox"]:checked::after,
 .sm-checkbox-input:checked::after {
     content: '';
@@ -1696,6 +1723,7 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 
 /* Filter builders are centered modals at every viewport size. */
 .sm-list-dialog.sm-list-dialog-filters { inset: 0; margin: auto; width: 40rem; max-width: calc(100vw - 2rem); max-height: min(85dvh, 48rem); border-radius: .85rem; }
+.sm-list-dialog.sm-list-dialog-filters:has([data-record-wide]) { width: 64rem; }
 .sm-list-dialog.sm-list-dialog-filters::backdrop { background: rgb(15 23 42 / .35); }
 
 

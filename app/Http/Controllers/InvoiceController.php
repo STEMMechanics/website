@@ -50,24 +50,18 @@ class InvoiceController extends Controller
         $query = Invoice::query()
             ->with(['user.primaryOrganisation', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets', 'storeOrders.items.trackingEntries']);
 
-        $status = trim((string) $request->query('status', ''));
-        if ($status !== '' && in_array($status, Invoice::STATUSES, true)) {
-            if ($status === Invoice::STATUS_OVERDUE) {
-                $query->where(function ($builder): void {
-                    $builder->where('status', Invoice::STATUS_OVERDUE)
-                        ->orWhere(function ($overdueQuery): void {
-                            $overdueQuery->where('total_amount', '>', 0)
-                                ->whereDate('due_date', '<', today())
-                                ->whereIn('status', [
-                                    Invoice::STATUS_ISSUED,
-                                    Invoice::STATUS_SENT,
-                                    Invoice::STATUS_OVERDUE,
-                                ]);
-                        });
-                });
-            } else {
-                $query->where('status', $status);
-            }
+        $statuses = $request->query('status', []);
+        if (is_string($statuses)) {
+            $statuses = $statuses === '' ? [] : [$statuses];
+            $request->query->set('status', $statuses);
+        }
+        if (is_array($statuses) && $statuses !== []) {
+            $query->where(function ($matches) use ($statuses): void {
+                $matches->whereIn('status', array_diff($statuses, [Invoice::STATUS_OVERDUE]));
+                if (in_array(Invoice::STATUS_OVERDUE, $statuses, true)) {
+                    $matches->orWhere(fn ($overdue) => app(\App\Services\Finance\FinanceAttention::class)->overdue($overdue));
+                }
+            });
         }
 
         if ($request->filled('search')) {
@@ -86,6 +80,12 @@ class InvoiceController extends Controller
             });
         }
 
+        app(\App\Services\SiteListControls::class)->apply($query);
+        if ($request->boolean('allocation_selection')) {
+            $ids = (clone $query)->reorder()->limit(201)->pluck('invoices.id');
+            if ($ids->count() > 200) { throw \Illuminate\Validation\ValidationException::withMessages(['selection' => 'Narrow your filters to at most 200 invoices per allocation batch.']); }
+            return response()->json(['names' => $ids->map(fn ($id) => (string) $id)->all()]);
+        }
         $summaryInvoices = (clone $query)->get();
         $summaryOutstandingAmount = round($summaryInvoices->sum(function (Invoice $invoice): float {
             return $this->outstandingAmountForIndexInvoice($invoice);
@@ -99,7 +99,7 @@ class InvoiceController extends Controller
                 : 0;
         }), 2);
 
-        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
         $invoiceEmailDefaults = $invoices->getCollection()
             ->mapWithKeys(function (Invoice $invoice): array {
                 return [(string) $invoice->id => $this->invoiceEmailPayload($invoice)];
@@ -119,7 +119,7 @@ class InvoiceController extends Controller
     {
         return view('admin.invoice.edit', [
             'invoice' => null,
-            'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
@@ -164,6 +164,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
@@ -194,7 +195,7 @@ class InvoiceController extends Controller
 
         return view('admin.invoice.edit', [
             'invoice' => $invoice,
-            'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
             'invoiceEmailDefaultPayload' => $this->invoiceEmailPayload($invoice),
@@ -272,6 +273,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
@@ -1852,6 +1854,7 @@ class InvoiceController extends Controller
             'creditReferenceSummary' => $creditReferenceSummary,
             'orderTotalAmount' => round((float) $invoice->total_amount, 2),
             'purchasedItems' => $invoice->lines()->orderBy('line_number')->get()->map(fn ($line): array => [
+                'quantity_label' => \App\Services\Finance\WorkshopLine::quantityLabel($line->toArray()),
                 'description' => (string) $line->description,
                 'quantity' => (float) $line->quantity,
                 'line_total_inc_tax' => (float) $line->line_total_inc_tax,
@@ -2168,7 +2171,7 @@ class InvoiceController extends Controller
 
     private function paginateLineItemsForPdf(Invoice $invoice): array
     {
-        $items = $this->invoiceLineItemsForPayload($invoice);
+        $items = \App\Services\Finance\InvoicePdfLines::prepare($this->invoiceLineItemsForPayload($invoice));
 
         if (count($items) === 0) {
             return [[]];
@@ -2384,6 +2387,7 @@ class InvoiceController extends Controller
 
     private function normalizeLineItem(array $item): ?array
     {
+        $item = \App\Services\Finance\WorkshopLine::normalize($item);
         $description = trim((string) ($item['description'] ?? ''));
         $notes = trim((string) ($item['notes'] ?? ''));
         $quantity = (float) ($item['quantity'] ?? $item['qty'] ?? 0);
@@ -2398,6 +2402,15 @@ class InvoiceController extends Controller
 
         $lineTotalExTax = round($quantity * $unitPriceExTax, 2);
         $taxAmount = round($lineTotalExTax * $taxRate, 2);
+        $inclusive = $item['details_json']['inclusive_unit_price'] ?? null;
+        if ($inclusive !== null) {
+            validator(['inclusive' => $inclusive], ['inclusive' => 'numeric|min:0|max:100000'])->validate();
+            $gross = round($quantity * (float) $inclusive, 2);
+            $lineTotalExTax = round($gross / (1 + $taxRate), 2);
+            $taxAmount = round($gross - $lineTotalExTax, 2);
+            $unitPriceExTax = (float) $inclusive / (1 + $taxRate);
+        }
+
 
         return [
             'kind' => trim((string) ($item['kind'] ?? 'generic')) ?: 'generic',

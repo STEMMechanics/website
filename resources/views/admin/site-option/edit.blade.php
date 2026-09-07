@@ -28,9 +28,12 @@
                     <option value="1" {{ ($siteOption->value ?? '1') === '1' ? 'selected' : '' }}>Enabled</option>
                     <option value="0" {{ ($siteOption->value ?? '') === '0' ? 'selected' : '' }}>Disabled</option>
                 </x-ui.select>
+            @elseif($inputType === 'date')
+                <x-ui.input type="date" label="Value" name="value" :value="$siteOption->value ?? ''" />
             @elseif($inputType === 'number')
                 <x-ui.input
                     type="number"
+                    :step="($siteOption->name ?? '') === 'finance.cash-buffer' ? '0.01' : 'any'"
                     label="Value"
                     name="value"
                     value="{{ $siteOption->value ?? '' }}"

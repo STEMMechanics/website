@@ -213,21 +213,25 @@ class QuoteWorkflowService
             $unitPrice = (float) ($lineItem['unit_price'] ?? 0);
             $lineTotal = round($quantity * $unitPrice, 2);
             $taxRate = (($lineItem['gst_applicable'] ?? true) === true) ? 0.10 : 0.00;
+            $amounts = \App\Services\Finance\WorkshopLine::amounts($lineItem, $quantity, $unitPrice, $taxRate);
+            $lineTotal = $amounts['net'];
 
             $invoice->lines()->create([
                 'line_number' => $index + 1,
                 'kind' => (string) ($lineItem['kind'] ?? 'generic'),
                 'description' => trim((string) ($lineItem['description'] ?? '')),
                 'notes' => trim((string) ($lineItem['notes'] ?? '')),
-                'details_json' => [],
+                'details_json' => $lineItem['details_json'] ?? [],
                 'quantity' => $quantity,
                 'unit_price_ex_tax' => $unitPrice,
                 'tax_rate' => $taxRate,
                 'line_total_ex_tax' => $lineTotal,
-                'tax_amount' => round($lineTotal * $taxRate, 2),
-                'line_total_inc_tax' => round($lineTotal * (1 + $taxRate), 2),
+                'tax_amount' => $amounts['tax'],
+                'line_total_inc_tax' => $amounts['gross'],
             ]);
         }
+
+        app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
 
         return $invoice->fresh('lines');
     }
@@ -388,7 +392,7 @@ class QuoteWorkflowService
 
         foreach ($lineItems as $lineItem) {
             if (($lineItem['gst_applicable'] ?? true) === true) {
-                $gst += ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
+                $gst += isset($lineItem['details_json']['inclusive_unit_price']) ? \App\Services\Finance\WorkshopLine::amounts($lineItem, (float) $lineItem['quantity'], (float) $lineItem['unit_price'], 0.1)['tax'] : ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
             }
         }
 

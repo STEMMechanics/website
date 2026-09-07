@@ -21,6 +21,21 @@ class AdminInvoiceEditTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_draft_invoice_has_pdf_action_and_draft_watermark_without_issuing_it(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        \App\Models\UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $invoice = \App\Models\Invoice::factory()->create(['status' => 'draft']);
+        $this->actingAs($user)->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('Open PDF');
+        $html = view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [$invoice->lines], 'adjustments' => collect(), 'publicPayUrl' => null])->render();
+        $this->assertStringContainsString('<div class="watermark">DRAFT</div>', $html);
+        $this->get(route('admin.invoice.pdf', $invoice))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertSame('draft', $invoice->fresh()->status);
+        $invoice->update(['status' => 'sent']);
+        $html = view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [$invoice->lines], 'adjustments' => collect(), 'publicPayUrl' => null])->render();
+        $this->assertStringNotContainsString('<div class="watermark">DRAFT</div>', $html);
+    }
+
     public function test_admin_invoice_edit_shows_zero_remaining_for_cancelled_invoice(): void
     {
         $admin = $this->createAdminUser();
@@ -39,7 +54,7 @@ class AdminInvoiceEditTest extends TestCase
             ->assertOk()
             ->assertSeeText('Cancelled')
             ->assertSeeText('Due (after adjustments): $0.00')
-            ->assertSee('Remaining:</strong> $0.00', false);
+            ->assertSee('Remaining:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">$0.00', false);
     }
 
     public function test_admin_can_write_off_ticket_invoice_without_cancelling_ticket(): void
@@ -94,7 +109,7 @@ class AdminInvoiceEditTest extends TestCase
             ->assertSeeText('Written off')
             ->assertSeeText('Customer attended, but payment will not be recovered.')
             ->assertSeeText('Due (after adjustments): $0.00')
-            ->assertSee('Remaining:</strong> $0.00', false)
+            ->assertSee('Remaining:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">$0.00', false)
             ->assertDontSeeText('Copy Payment Link')
             ->assertDontSeeText('Record Payment');
     }
@@ -311,7 +326,7 @@ class AdminInvoiceEditTest extends TestCase
         $this->assertSame(1, (int) $order->fresh('items')->items->first()->inventory_reserved_quantity);
     }
 
-    public function test_admin_invoice_edit_renders_line_item_notes_as_a_full_width_row(): void
+    public function test_admin_invoice_edit_renders_visible_full_width_notes(): void
     {
         $admin = $this->createAdminUser();
         $customer = User::factory()->create();
@@ -340,8 +355,8 @@ class AdminInvoiceEditTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.invoice.edit', $invoice))
             ->assertOk()
-            ->assertSee('Line Item Notes')
-            ->assertSee('md:col-span-12', false);
+            ->assertSee('aria-label="Line item notes"', false)->assertSee('Line item notes')
+            ->assertSee('colspan="6"', false);
     }
 
     public function test_admin_invoice_edit_disables_cancel_action_when_tax_adjustment_exists(): void

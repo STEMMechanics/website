@@ -151,7 +151,9 @@
 
         @foreach($pages as $pageIndex => $pageItems)
         <div class="page">
-            @if($isCancelled)
+            @if($invoice->status === \App\Models\Invoice::STATUS_DRAFT)
+            <div class="watermark">DRAFT</div>
+            @elseif($isCancelled)
             <div class="watermark">CANCELLED</div>
             @endif
             @if($pageIndex === 0)
@@ -243,10 +245,15 @@
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
+                    $typeLabel = ['multi_workshop' => 'Workshop Delivery', 'workshop' => 'Workshop Delivery', 'travel' => 'Travel Fee', 'product' => 'Store Product', 'ticket' => 'Ticket', 'shipping' => 'Shipping'][$lineKind] ?? '';
                     @endphp
                     <tr>
                         <td>
-                            <div class="line-desc">{{ $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
+
+                            <div class="line-desc"><strong>{{ $typeLabel !== '' ? $typeLabel : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</strong></div>
+                            @if($typeLabel !== '' && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), $typeLabel) !== 0)
+                                <div class="line-note">{{ $lineDescription }}</div>
+                            @endif
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
                             @endif
@@ -254,7 +261,7 @@
                             <div class="line-note"><strong>Ship to:</strong> {{ implode(', ', $shippingNoteParts) }}</div>
                             @endif
                         </td>
-                        <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
+                        <td class="center">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
                         <td class="right">$ {{ number_format($unitEx, 2) }}</td>
                         <td class="right">$ {{ number_format($lineEx, 2) }}</td>
                     </tr>

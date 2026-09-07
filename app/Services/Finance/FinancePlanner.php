@@ -13,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class FinancePlanner
 {
+    // A null opening date means the complete recorded history, starting from zero.
+    // This is the earliest date supported by MySQL's date/time columns.
+    private const HISTORY_START = '1000-01-01';
+
     public function cents(mixed $amount): int
     {
         return (int) round((float) $amount * 100);
@@ -31,13 +35,13 @@ class FinancePlanner
                 'participant' => $inputs['participants'],
                 'hour' => $inputs['hours'],
                 'travel' => (int) ceil(max(0, $inputs['travel_minutes'] - ($inputs['travel_free_minutes'] ?? 30)) / 15),
-                'venue' => $inputs['venue_supplied'] ? 0 : 1,
+                'venue_hour' => ($inputs['supplied_categories'][$rule['category_id']] ?? $inputs['venue_supplied']) ? 0 : $inputs['hours'],
                 default => 1,
             };
-            $cents = (int) round($rule['rate_cents'] * $units);
-            if ($rule['basis'] === 'venue' && ! $inputs['venue_supplied']) {
-                $cents += (int) round(max(0, $inputs['hours'] - 1) * ($rule['extra_cents'] ?? 0));
+            if (! empty($rule['suppliable']) && ($inputs['supplied_categories'][$rule['category_id']] ?? (! empty($rule['venue_default']) && ($inputs['venue_supplied'] ?? false)))) {
+                $units = 0;
             }
+            $cents = (int) round($rule['rate_cents'] * $units);
             $id = $rule['category_id'];
             $targets[$id] = ($targets[$id] ?? 0) + $cents;
         }
@@ -54,6 +58,18 @@ class FinancePlanner
         $rows = [];
         if (! empty($input['invoice_ids'])) {
             foreach (Invoice::query()->whereIn('id', $input['invoice_ids'])->get() as $invoice) {
+                if (! isset($input['participants'], $input['hours'])) {
+                    $context = app(InvoiceAllocation::class)->context($invoice, (int) $version->id);
+                    if ($context['workshopId'] && collect($rows)->contains('workshop_id', $context['workshopId'])) {
+                        continue;
+                    }
+                    $warning = $context['budget'] ? 'Already allocated — existing allocations will be preserved.' : ($context['warning'] ?? $context['automaticWarning']);
+                    if (! $context['suggestedTargets'] && ! $warning) {
+                        $warning = 'Enter participants and duration overrides, or add a workshop breakdown to this invoice.';
+                    }
+                    $rows[] = ['workshop_id' => $context['workshopId'], 'name' => $context['workshop']->title ?? 'Invoice '.$invoice->invoice_number, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $version->id, 'targets' => $context['suggestedTargets'], 'warning' => $warning, 'income' => $context['income'], 'suggested_price_cents' => null, 'structured' => true];
+                    continue;
+                }
                 $assumptions = ['participants' => (int) $input['participants'], 'hours' => (float) $input['hours'], 'travel_minutes' => (int) $input['travel_minutes'], 'venue_supplied' => (bool) $input['venue_supplied']];
                 $rows[] = $this->previewRow(null, 'Invoice '.$invoice->invoice_number, $invoice->issue_date?->toDateString() ?? now()->toDateString(), [$invoice->id], $assumptions, $version, $rules);
             }
@@ -66,7 +82,8 @@ class FinancePlanner
                 $tickets = Ticket::query()->where('workshop_id', $workshop->id)->get();
                 $invoiceIds = $tickets->pluck('invoice_id')->filter()->merge(DB::table('invoice_lines')->where('source_type', $workshop->getMorphClass())->where('source_id', $workshop->id)->pluck('invoice_id'))->unique()->values()->all();
                 $assumptions = [
-                    'participants' => (int) ($input['participants'] ?? $tickets->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count()),
+                    'participants' => (int) ($input['participants'] ?? $tickets->whereIn('status', Ticket::activePurchasedStatuses())->count()),
+                    'pricing_participants' => min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($this->decode($version->prices)['pricing_participants'] ?? 10)),
                     'hours' => (float) ($input['hours'] ?? max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60),
                     'travel_minutes' => (int) ($input['travel_minutes'] ?? 0),
                     'venue_supplied' => isset($input['venue_supplied']) ? (bool) $input['venue_supplied'] : (bool) $workshop->hosted_for_organisation_id,
@@ -83,7 +100,7 @@ class FinancePlanner
         }
         unset($row);
         foreach ($rows as &$row) {
-            $row['manual'] = ! empty($input['invoice_ids']) || count(array_intersect(['participants', 'hours', 'travel_minutes', 'venue_supplied'], array_keys($input))) > 0;
+            $row['manual'] = empty($row['structured']) && (! empty($input['invoice_ids']) || count(array_intersect(['participants', 'hours', 'travel_minutes', 'venue_supplied'], array_keys($input))) > 0);
         }
         unset($row);
 
@@ -105,7 +122,15 @@ class FinancePlanner
         $targets = $this->targets($rules, $inputs);
         $hourIndex = (int) ceil($inputs['hours']) - 1;
         $price = $prices[$inputs['venue_supplied'] ? 'organisation' : 'public'][$hourIndex] ?? null;
-        $suggested = $price === null ? null : $price * $inputs['participants'] + (int) ceil(max(0, $inputs['travel_minutes'] - ($prices['travel_free_minutes'] ?? 30)) / 15) * ($prices['travel_cents'] ?? 3400);
+        $travelUnits = (int) ceil(max(0, $inputs['travel_minutes'] - ($prices['travel_free_minutes'] ?? 30)) / 15);
+        // New versions derive the workshop charge from costs; keep historical price tables intact.
+        $workshopCosts = $this->targets($rules, array_replace($inputs, ['travel_minutes' => 0]));
+        $workshopPrice = $price === null ? (int) round(array_sum($workshopCosts) * 1.1) : $price * $inputs['participants'];
+        $travelRules = array_filter($rules, fn ($rule) => $rule['basis'] === 'travel');
+        $travelPrice = $travelRules ? array_sum(array_column($travelRules, 'rate_cents')) * 1.1 : ($prices['travel_cents'] ?? 3400);
+        $travelStep = (int) ($prices['travel_rounding_step'] ?? 0);
+        $travelPrice = $travelStep > 0 ? ceil(($travelPrice - 0.000001) / $travelStep) * $travelStep : round($travelPrice);
+        $suggested = $workshopPrice + (int) ($travelUnits * $travelPrice);
 
         return ['workshop_id' => $workshopId, 'name' => $name, 'date' => $date, 'invoice_ids' => $invoiceIds, 'assumptions' => $inputs, 'version_id' => $version->id, 'targets' => $targets, 'warning' => $warning, 'income' => $this->income($invoiceIds), 'suggested_price_cents' => $suggested];
     }
@@ -172,7 +197,7 @@ class FinancePlanner
         });
     }
 
-    private function received(Payment $payment): bool
+    public function received(Payment $payment): bool
     {
         return ! $payment->isPendingBankTransfer()
             && ! in_array($payment->payment_method, [Payment::PAYMENT_METHOD_CREDIT, Payment::PAYMENT_METHOD_ACCOUNT_TERMS], true)
@@ -203,7 +228,15 @@ class FinancePlanner
     /** Actual received cash, proportioned by invoice payment allocation. Refunds follow the original payment. */
     public function income(array $invoiceIds, ?string $from = null): array
     {
-        $gross = $gst = 0;
+        $events = collect($this->incomeEvents($invoiceIds))->filter(fn ($event) => !$from || substr($event['date'], 0, 10) >= $from);
+        $gross = $events->sum('gross');
+        $gst = $events->sum('gst');
+        return ['gross' => $gross, 'gst' => $gst, 'net' => $gross - $gst];
+    }
+
+    public function incomeEvents(array $invoiceIds): array
+    {
+        $events = [];
         $payments = Payment::query()->with(['allocations.invoice', 'refunds.allocations.invoice'])->where('kind', Payment::KIND_PAYMENT)->whereHas('allocations', fn ($q) => $q->whereIn('invoice_id', $invoiceIds))->get();
         foreach ($payments as $payment) {
             $total = $this->cents($payment->total_amount);
@@ -211,12 +244,11 @@ class FinancePlanner
                 continue;
             }
             $tax = $this->cents(app(GstCalculator::class)->paymentGstAmount($payment));
-            if ($payment->received_on && $payment->received_on->lte(now()) && (! $from || $payment->received_on->toDateString() >= $from)) {
-                $gross += $this->share($total, $payment, $invoiceIds);
-                $gst += $this->share($tax, $payment, $invoiceIds);
+            if ($payment->received_on && $payment->received_on->lte(now())) {
+                $events[] = ['id' => $payment->id, 'date' => $payment->received_on->format('Y-m-d H:i:s'), 'type' => 'invoice', 'gross' => $this->share($total, $payment, $invoiceIds), 'gst' => $this->share($tax, $payment, $invoiceIds)];
             }
             foreach ($payment->refunds as $refund) {
-                if (! $this->received($refund) || ! $refund->received_on || $refund->received_on->gt(now()) || ($from && $refund->received_on->toDateString() < $from)) {
+                if (! $this->received($refund) || ! $refund->received_on || $refund->received_on->gt(now())) {
                     continue;
                 }
                 $refundTotal = abs($this->cents($refund->total_amount));
@@ -225,24 +257,79 @@ class FinancePlanner
                 if (! $refundTax) {
                     $refundTax = (int) round($tax * min(1, $refundTotal / $total));
                 }
-                $gross -= $this->share($refundTotal, $refundSource, $invoiceIds);
-                $gst -= $this->share($refundTax, $refundSource, $invoiceIds);
+                $events[] = ['id' => $refund->id, 'date' => $refund->received_on->format('Y-m-d H:i:s'), 'type' => 'refund', 'gross' => -$this->share($refundTotal, $refundSource, $invoiceIds), 'gst' => -$this->share($refundTax, $refundSource, $invoiceIds)];
             }
         }
 
-        return ['gross' => $gross, 'gst' => $gst, 'net' => $gross - $gst];
+        return collect($events)->sortBy([['date', 'asc'], ['id', 'asc']])->values()->all();
     }
 
-    public function funding(array $targets, int $net): array
+    public function rounding(object $version, array $assumptions): array
+    {
+        $prices = $this->decode($version->prices);
+        $step = (int) ($prices['rounding_step'] ?? 0);
+        $category = $prices['rounding_category_id'] ?? null;
+        $limit = 0;
+        if (($step > 0 || ($prices['travel_rounding_step'] ?? 0) > 0) && $category) {
+            $rules = array_filter($this->decode($version->rules), fn ($rule) => $rule['basis'] !== 'travel');
+            foreach ($assumptions['lines'] ?? [$assumptions] as $inputs) {
+                if (($inputs['kind'] ?? '') === 'travel') {
+                    $travelStep = (int) ($prices['travel_rounding_step'] ?? 0);
+                    $multiplier = ($inputs['gst_applicable'] ?? true) ? 1.1 : 1;
+                    $travelRules = array_filter($this->decode($version->rules), fn ($rule) => $rule['basis'] === 'travel');
+                    $raw = $travelRules ? array_sum(array_column($travelRules, 'rate_cents')) * $multiplier : (float) ($prices['travel_cents'] ?? 3400);
+                    foreach ($this->decode($version->rules) as $rule) {
+                        if ($rule['basis'] === 'travel' && ($rule['suppliable'] ?? false) && ($inputs['supplied_categories'][$rule['category_id']] ?? false)) {
+                            $raw -= $rule['rate_cents'] * $multiplier;
+                        }
+                    }
+                    $raw = max(0, $raw);
+                    if ($travelStep > 0) {
+                        $rounded = ceil(($raw - 0.000001) / $travelStep) * $travelStep;
+                        $limit += max(0, (int) round(($rounded - $raw) * $inputs['units'] / $multiplier));
+                    }
+                    continue;
+                }
+                if ($step <= 0) { continue; }
+                $units = (int) ($inputs['participants'] ?? 0) * (isset($assumptions['lines']) ? (float) ($inputs['hours'] ?? 0) : 1);
+                if ($units <= 0) { continue; }
+                $pricingInputs = $inputs;
+                $pricingUnits = $units;
+                if (! isset($assumptions['lines'])) {
+                    $pricingInputs['participants'] = max(1, (int) ($inputs['pricing_participants'] ?? $prices['pricing_participants'] ?? 10));
+                    $pricingUnits = $pricingInputs['participants'];
+                }
+                $cost = array_sum($this->targets($rules, $pricingInputs + ['travel_minutes' => 0, 'venue_supplied' => false]));
+                $multiplier = ($inputs['gst_applicable'] ?? true) ? 1.1 : 1;
+                $gross = (int) round(ceil(($cost * $multiplier / $pricingUnits - 0.000001) / $step) * $step * $units);
+                $limit += max(0, (int) round($gross / $multiplier - $cost * $units / $pricingUnits));
+            }
+        }
+        return ['category_id' => $category, 'limit' => $limit];
+    }
+
+    private function budgetRounding(object $budget): array
+    {
+        if ($budget->manual) { return []; }
+        $version = DB::table('finance_pricing_versions')->where('id', $budget->pricing_version_id)->first();
+        return $version ? $this->rounding($version, $this->decode($budget->assumptions)) : [];
+    }
+
+    public function funding(array $targets, int $net, array $rounding = [], ?\Illuminate\Support\Collection $categories = null): array
     {
         $remaining = max(0, $net);
         $funded = [];
-        foreach (DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get() as $category) {
+        foreach ($categories ?? DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get() as $category) {
             $amount = min($remaining, $targets[$category->id] ?? 0);
             $funded[$category->id] = $amount;
             $remaining -= $amount;
         }
 
+        if (! empty($rounding['category_id'])) {
+            $extra = min($remaining, $rounding['limit'] ?? 0);
+            $funded[$rounding['category_id']] = ($funded[$rounding['category_id']] ?? 0) + $extra;
+            $remaining -= $extra;
+        }
         return ['categories' => $funded, 'surplus' => $remaining, 'shortfall' => max(0, array_sum($targets) - $net)];
     }
 
@@ -262,13 +349,61 @@ class FinancePlanner
         return $ids;
     }
 
+    public function costCentreLedger(object $category): \Illuminate\Support\Collection
+    {
+        $settings = DB::table('finance_settings')->where('id', 1)->first();
+        $from = $settings->opening_date ?? self::HISTORY_START;
+        $rows = collect();
+        $fundingCategories = DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get();
+        $add = function ($key, $date, $type, $description, $amount, $links = []) use ($rows) {
+            if ($amount) $rows->push(compact('key', 'date', 'type', 'description', 'amount', 'links'));
+        };
+        $add('opening', $from.' 00:00:00', 'opening', 'Opening balance', (int) $category->opening_cents);
+        foreach (Expense::whereBetween('paid_on', [$from, today()->toDateString()])->get() as $expense) {
+            $add('expense-'.$expense->id, $expense->paid_on->format('Y-m-d H:i:s'), 'expense', $expense->supplier.' · '.$expense->description, -($this->expenseSplits($expense)[$category->id] ?? 0), [['label' => 'View expense', 'url' => route('admin.expense.edit', $expense)]]);
+        }
+        foreach (DB::table('finance_budgets')->get() as $budget) {
+            $ids = $this->budgetInvoiceIds($budget);
+            $targets = $this->decode($budget->targets);
+            $rounding = $this->budgetRounding($budget);
+            if (!($targets[$category->id] ?? 0) && ($rounding['category_id'] ?? null) != $category->id) continue;
+            $links = Invoice::whereIn('id', $ids)->get(['id', 'invoice_number'])->map(fn ($invoice) => ['label' => 'Invoice '.$invoice->invoice_number, 'url' => route('admin.invoice.edit', $invoice)])->all();
+            $net = $previous = 0;
+            foreach ($this->incomeEvents($ids) as $event) {
+                $net += $event['gross'] - $event['gst'];
+                $funded = $this->funding($targets, $net, $rounding, $fundingCategories)['categories'][$category->id] ?? 0;
+                if (substr($event['date'], 0, 10) >= $from) {
+                    $add('payment-'.$event['id'].'-'.$budget->id, $event['date'], $event['type'], $budget->name.' · '.($event['type'] === 'refund' ? 'Refund' : 'Payment received'), $funded - $previous, $links);
+                }
+                $previous = $funded;
+            }
+        }
+        $names = DB::table('finance_categories')->pluck('name', 'id');
+        foreach (DB::table('finance_fund_transfers')->where(fn ($q) => $q->where('category_id', $category->id)->orWhere('from_category_id', $category->id))->get() as $transfer) {
+            $add('transfer-'.$transfer->id, $transfer->created_at, 'transfer', ($names[$transfer->from_category_id] ?? 'Business cash').' → '.($names[$transfer->category_id] ?? '').' · '.$transfer->reason, $transfer->category_id == $category->id ? $transfer->cents : -$transfer->cents);
+        }
+        if ($category->kind === 'owner') {
+            foreach (DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'paid')->whereBetween('paid_on', [$from, today()->toDateString()])->get() as $drawing) {
+                $add('drawing-'.$drawing->id, substr($drawing->paid_on, 0, 10).' 00:00:00', 'drawing', $drawing->reference ?: 'Owner drawing', -$drawing->cents);
+            }
+        }
+        foreach (DB::table('finance_owner_contributions')->whereBetween('date', [$from, today()->toDateString()])->get() as $contribution) {
+            $add('contribution-'.$contribution->id, $contribution->date.' 00:00:00', 'contribution', $contribution->reference, $this->decode($contribution->splits)[$category->id] ?? 0, [['label' => 'Owner contributions', 'url' => route('admin.timesheet.index', ['tab' => 'contributions'])]]);
+        }
+        $balance = 0;
+        return $rows->sortBy([['date', 'asc'], ['key', 'asc']])->map(function ($row) use (&$balance) {
+            $balance += $row['amount'];
+            return $row + ['balance' => $balance, 'amount_display' => $row['amount'] / 100];
+        })->reverse()->values();
+    }
+
     public function budgetReport(object $budget): array
     {
         $invoiceIds = $this->budgetInvoiceIds($budget);
         $income = $this->income($invoiceIds);
         $targets = $this->decode($budget->targets);
 
-        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $income['net']), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
+        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $income['net'], $this->budgetRounding($budget)), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
     }
 
     /** An explicit split wins; supplier rules are fallback defaults, never applied twice. */
@@ -282,7 +417,9 @@ class FinancePlanner
 
             return $manual->mapWithKeys(fn ($row) => [$row->category_id => (int) $row->cents])->all();
         }
-        $rule = DB::table('finance_supplier_rules')->where('supplier', mb_strtolower(trim((string) $expense->supplier)))->first();
+        $rule = $expense->supplier_id
+            ? DB::table('finance_supplier_rules')->where('id', $expense->supplier_id)->first()
+            : DB::table('finance_supplier_rules')->where('supplier', mb_strtolower(trim((string) $expense->supplier)))->first();
         if (! $rule) {
             return [];
         }
@@ -325,48 +462,46 @@ class FinancePlanner
         $uncategorised = 0;
         $receivedNet = 0;
         $allocatedNet = 0;
-        if ($settings->opening_date) {
-            $from = $settings->opening_date;
-            $today = now()->toDateString();
-            foreach (Payment::query()->with(['allocations.invoice', 'refundOf.allocations.invoice'])->whereBetween('received_on', [$from.' 00:00:00', now()])->whereIn('kind', Payment::KINDS)->get() as $payment) {
-                if (! $this->received($payment)) {
-                    continue;
-                }
-                $signed = ($payment->kind === Payment::KIND_REFUND ? -1 : 1) * abs($this->cents($payment->total_amount));
-                $cash += $signed;
-                $receivedNet += $signed - $this->cents(app(GstCalculator::class)->paymentGstAmount($payment));
+        $from = $settings->opening_date ?? self::HISTORY_START;
+        $today = now()->toDateString();
+        foreach (Payment::query()->with(['allocations.invoice', 'refundOf.allocations.invoice'])->whereBetween('received_on', [$from.' 00:00:00', now()])->whereIn('kind', Payment::KINDS)->get() as $payment) {
+            if (! $this->received($payment)) {
+                continue;
             }
-            $expenses = Expense::query()->whereBetween('paid_on', [$from, $today])->get();
-            foreach ($expenses as $expense) {
-                $cash -= $this->cents($expense->total_amount);
-                $splits = $this->expenseSplits($expense);
-                $uncategorised += max(0, $this->cents($expense->total_amount) - $this->cents($expense->gst_amount) - array_sum($splits));
-                foreach ($splits as $id => $amount) {
-                    $reserves[$id] = ($reserves[$id] ?? 0) - $amount;
-                }
+            $signed = ($payment->kind === Payment::KIND_REFUND ? -1 : 1) * abs($this->cents($payment->total_amount));
+            $cash += $signed;
+            $receivedNet += $signed - $this->cents(app(GstCalculator::class)->paymentGstAmount($payment));
+        }
+        $expenses = Expense::query()->whereBetween('paid_on', [$from, $today])->get();
+        foreach ($expenses as $expense) {
+            $cash -= $this->cents($expense->total_amount);
+            $splits = $this->expenseSplits($expense);
+            $uncategorised += max(0, $this->cents($expense->total_amount) - $this->cents($expense->gst_amount) - array_sum($splits));
+            foreach ($splits as $id => $amount) {
+                $reserves[$id] = ($reserves[$id] ?? 0) - $amount;
             }
-            foreach (DB::table('finance_budgets')->get() as $budget) {
-                $ids = $this->budgetInvoiceIds($budget);
-                $targets = $this->decode($budget->targets);
-                $all = $this->income($ids);
-                $live = $this->income($ids, $from);
-                $allocatedNet += $live['net'];
-                $before = $this->funding($targets, $all['net'] - $live['net']);
-                $after = $this->funding($targets, $all['net']);
-                foreach ($after['categories'] as $id => $amount) {
-                    $reserves[$id] = ($reserves[$id] ?? 0) + $amount - ($before['categories'][$id] ?? 0);
-                }
+        }
+        foreach (DB::table('finance_budgets')->get() as $budget) {
+            $ids = $this->budgetInvoiceIds($budget);
+            $targets = $this->decode($budget->targets);
+            $all = $this->income($ids);
+            $live = $settings->opening_date ? $this->income($ids, $from) : $all;
+            $allocatedNet += $live['net'];
+            $before = $this->funding($targets, $all['net'] - $live['net'], $this->budgetRounding($budget));
+            $after = $this->funding($targets, $all['net'], $this->budgetRounding($budget));
+            foreach ($after['categories'] as $id => $amount) {
+                $reserves[$id] = ($reserves[$id] ?? 0) + $amount - ($before['categories'][$id] ?? 0);
             }
-            $gst += $this->gst($from, $today)['net'];
-            $settled = (int) DB::table('finance_gst_settlements')->whereBetween('paid_on', [$from, $today])->sum('cents');
-            $gst -= $settled;
-            $cash -= $settled;
-            $drawn = (int) DB::table('finance_drawings')->where('status', 'paid')->whereBetween('paid_on', [$from, $today])->sum('cents');
-            $cash -= $drawn;
-            $ownerCategory = $categories->firstWhere('kind', 'owner');
-            if ($ownerCategory) {
-                $reserves[$ownerCategory->id] -= $drawn;
-            }
+        }
+        $gst += $this->gst($from, $today)['net'];
+        $settled = (int) DB::table('finance_gst_settlements')->whereBetween('paid_on', [$from, $today])->sum('cents');
+        $gst -= $settled;
+        $cash -= $settled;
+        $drawn = (int) DB::table('finance_drawings')->where('status', 'paid')->whereBetween('paid_on', [$from, $today])->sum('cents');
+        $cash -= $drawn;
+        $ownerCategory = $categories->firstWhere('kind', 'owner');
+        if ($ownerCategory) {
+            $reserves[$ownerCategory->id] -= (int) DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'paid')->whereBetween('paid_on', [$from, $today])->sum('cents');
         }
         foreach (DB::table('finance_fund_transfers')->get() as $transfer) {
             $reserves[$transfer->category_id] = ($reserves[$transfer->category_id] ?? 0) + $transfer->cents;
@@ -374,31 +509,40 @@ class FinancePlanner
                 $reserves[$transfer->from_category_id] = ($reserves[$transfer->from_category_id] ?? 0) - $transfer->cents;
             }
         }
+        foreach (DB::table('finance_owner_contributions')->whereBetween('date', [$from, $today])->get() as $contribution) {
+            $cash += $contribution->cents;
+            foreach ($this->decode($contribution->splits) as $id => $amount) $reserves[$id] = ($reserves[$id] ?? 0) + $amount;
+        }
         $pending = (int) DB::table('finance_drawings')->where('status', 'pending')->sum('cents');
         $protected = 0;
         foreach ($categories as $category) {
             if ($category->kind !== 'owner') {
-                $commitment = (int) DB::table('finance_commitments')->where('category_id', $category->id)->where('status', 'open')->sum('cents');
-                $protected += max(0, $reserves[$category->id] ?? 0, $commitment);
+                $protected += max(0, $reserves[$category->id] ?? 0);
             }
         }
 
         $unallocatedIncome = max(0, $receivedNet - $allocatedNet);
         $protected += $unallocatedIncome;
 
-        return ['unallocated_income' => $unallocatedIncome, 'settings' => $settings, 'cash' => $cash, 'gst' => $gst, 'reserves' => $reserves, 'uncategorised' => $uncategorised, 'protected' => $protected, 'pending' => $pending, 'available' => $settings->opening_date ? max(0, $cash - max(0, $gst) - $protected - $settings->buffer_cents - $pending) : 0];
+        return ['unallocated_income' => $unallocatedIncome, 'settings' => $settings, 'cash' => $cash, 'gst' => $gst, 'reserves' => $reserves, 'uncategorised' => $uncategorised, 'protected' => $protected, 'pending' => $pending, 'available' => max(0, $cash - max(0, $gst) - $protected - $this->cents(\App\Models\SiteOption::value('finance.cash-buffer', '0')) - $pending)];
     }
 
     public function transfer(array $data, string $user): void
     {
         DB::transaction(function () use ($data, $user): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            if (! DB::table('finance_categories')->where('id', $data['category_id'])->where('kind', 'cost')->where('active', true)->exists()) {
+                throw ValidationException::withMessages(['category_id' => 'Choose an active cost centre.']);
+            }
+            if (! empty($data['from_category_id']) && ! DB::table('finance_categories')->where('id', $data['from_category_id'])->where('kind', 'cost')->exists()) {
+                throw ValidationException::withMessages(['from_category_id' => 'System funds cannot be transferred.']);
+            }
             $cash = $this->cash();
             $amount = $this->cents($data['amount']);
             $from = $data['from_category_id'] ?? null;
-            $available = $from ? ($cash['reserves'][$from] ?? 0) - (int) DB::table('finance_commitments')->where('category_id', $from)->where('status', 'open')->sum('cents') : $cash['available'];
-            if (! $cash['settings']->opening_date || $amount > $available || $from == $data['category_id']) {
-                throw ValidationException::withMessages(['amount' => 'Choose different funds and an amount covered by the source’s uncommitted balance.']);
+            $available = $from ? ($cash['reserves'][$from] ?? 0) : $cash['available'];
+            if ($amount > $available || $from == $data['category_id']) {
+                throw ValidationException::withMessages(['amount' => 'Choose different funds and an amount covered by the source’s balance.']);
             }
             DB::table('finance_fund_transfers')->insert(['from_category_id' => $from, 'category_id' => $data['category_id'], 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'], 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
         });
@@ -409,27 +553,24 @@ class FinancePlanner
         return (int) DB::table('finance_time_entries')->where('user_id', $user)->get()->sum(fn ($row) => (int) round($row->minutes * $row->rate_cents / 60));
     }
 
-    public function prepareDrawing(string $user, int $cents, string $token): void
+    public function prepareDrawing(string $user, int $cents, string $token, string $purpose = 'time'): void
     {
-        DB::transaction(function () use ($user, $cents, $token): void {
+        DB::transaction(function () use ($user, $cents, $token, $purpose): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             if (DB::table('finance_drawings')->where('token', $token)->exists()) {
                 return;
             }
-            $outstanding = $this->earned($user) - (int) DB::table('finance_drawings')->where('user_id', $user)->whereIn('status', ['pending', 'paid'])->sum('cents');
+            $outstanding = ($purpose === 'contribution' ? (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents') : $this->earned($user)) - (int) DB::table('finance_drawings')->where('user_id', $user)->where('purpose', $purpose)->whereIn('status', ['pending', 'paid'])->sum('cents');
             if ($cents <= 0 || $cents > min($outstanding, $this->cash()['available'])) {
-                throw ValidationException::withMessages(['amount' => 'This exceeds your undrawn time target or available cash. Reconcile cash and reserves first.']);
+                throw ValidationException::withMessages(['amount' => 'This exceeds the outstanding amount or available cash.']);
             }
-            DB::table('finance_drawings')->insert(['user_id' => $user, 'token' => $token, 'cents' => $cents, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('finance_drawings')->insert(['user_id' => $user, 'token' => $token, 'purpose' => $purpose, 'cents' => $cents, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
         });
     }
 
     public function automate(): int
     {
         $settings = DB::table('finance_settings')->where('id', 1)->first();
-        if (! $settings->auto_budget || ! $settings->opening_date) {
-            return 0;
-        }
         foreach (DB::table('finance_budgets')->where('manual', false)->whereNotNull('workshop_id')->get() as $budget) {
             DB::transaction(function () use ($budget): void {
                 DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
@@ -442,7 +583,7 @@ class FinancePlanner
                     return;
                 }
                 $assumptions = $this->decode($current->assumptions);
-                $assumptions['participants'] = Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count();
+                $assumptions['participants'] = Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', Ticket::activePurchasedStatuses())->count();
                 $assumptions['hours'] = max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60;
                 $version = DB::table('finance_pricing_versions')->where('id', $current->pricing_version_id)->first();
                 $targets = $this->targets($this->decode($version->rules), $assumptions);
@@ -460,19 +601,18 @@ class FinancePlanner
             });
         }
         $excluded = [];
+        $excludedInvoices = [];
         foreach (DB::table('finance_batches')->whereNotNull('reversed_at')->get() as $batch) {
             foreach ($this->decode($batch->snapshot) as $row) {
+                $excludedInvoices = array_merge($excludedInvoices, $row['invoice_ids']);
                 if ($row['workshop_id']) {
                     $excluded[] = $row['workshop_id'];
                 }
             }
         }
         $count = 0;
-        foreach (Workshop::query()->whereNotIn('id', $excluded)->whereDate('starts_at', '>=', $settings->opening_date)->whereDate('starts_at', '<=', now()->addYear()->toDateString())->whereNotIn('id', DB::table('finance_budgets')->whereNotNull('workshop_id')->select('workshop_id'))->orderBy('starts_at')->limit(200)->get() as $workshop) {
-            $version = DB::table('finance_pricing_versions')->where('effective_from', '<=', $workshop->starts_at->toDateString())->orderByDesc('effective_from')->orderByDesc('id')->first();
-            if (! $version) {
-                continue;
-            }
+        foreach (Workshop::query()->whereNotIn('id', $excluded)->whereDate('starts_at', '>=', $settings->opening_date ?? self::HISTORY_START)->whereDate('starts_at', '<=', now()->addYear()->toDateString())->whereNotIn('id', DB::table('finance_budgets')->whereNotNull('workshop_id')->select('workshop_id'))->orderBy('starts_at')->limit(200)->get() as $workshop) {
+            $version = PricingVersion::forDate($workshop->starts_at->toDateString(), $workshop->pricing_version_id);
             $preview = $this->preview(['version_id' => $version->id, 'from' => $workshop->starts_at->toDateString(), 'to' => $workshop->starts_at->toDateString()]);
             $selected = [];
             foreach ($preview['rows'] as $key => $row) {
@@ -484,6 +624,10 @@ class FinancePlanner
                 $this->apply($preview, $version->created_by, $selected);
                 $count++;
             }
+        }
+
+        foreach (Invoice::query()->whereNotIn('id', $excludedInvoices)->whereNotNull('created_by')->whereHas('lines', fn ($query) => $query->whereIn('kind', ['workshop', 'multi_workshop', 'travel']))->whereDate('issue_date', '>=', $settings->opening_date ?? self::HISTORY_START)->lazyById(100) as $invoice) {
+            app(InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
         }
 
         return $count;

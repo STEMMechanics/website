@@ -277,8 +277,8 @@ class ExpenseDocumentNamingTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSeeText('No Attachment Supplier');
-        $response->assertDontSeeText('With Attachment Supplier');
+        $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'No Attachment Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'With Attachment Supplier'));
     }
 
     public function test_expense_index_can_search_by_total_amount(): void
@@ -310,8 +310,8 @@ class ExpenseDocumentNamingTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSeeText('Amount Match Supplier');
-        $response->assertDontSeeText('Amount Miss Supplier');
+        $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'Amount Match Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Amount Miss Supplier'));
     }
 
     public function test_expense_index_can_search_by_gst_amount(): void
@@ -343,8 +343,8 @@ class ExpenseDocumentNamingTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSeeText('GST Match Supplier');
-        $response->assertDontSeeText('GST Miss Supplier');
+        $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'GST Match Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'GST Miss Supplier'));
     }
 
     public function test_expense_index_can_search_extracted_attachment_text(): void
@@ -371,15 +371,15 @@ class ExpenseDocumentNamingTest extends TestCase
             'search' => 'arlec',
         ]))
             ->assertOk()
-            ->assertDontSeeText('Attachment Match Supplier');
+            ->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Attachment Match Supplier'));
 
         $response = $this->actingAs($admin)->get(route('admin.expense.index', [
             'attachment' => 'arlec',
         ]));
 
         $response->assertOk();
-        $response->assertSeeText('Attachment Match Supplier');
-        $response->assertDontSeeText('Attachment Miss Supplier');
+        $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'Attachment Match Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Attachment Miss Supplier'));
     }
 
     public function test_empty_advanced_search_uses_an_advanced_filter_message(): void

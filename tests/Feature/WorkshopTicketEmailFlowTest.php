@@ -41,6 +41,92 @@ class WorkshopTicketEmailFlowTest extends TestCase
         parent::tearDown();
     }
 
+    public static function equipmentPaymentMethods(): array
+    {
+        return [['bank_transfer'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('equipmentPaymentMethods')]
+    public function test_optional_equipment_creates_a_separate_store_invoice_using_existing_pickup(string $method): void
+    {
+        Queue::fake();
+        $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 25, 'inventory_quantity' => 10]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
+        $regularCart = app(\App\Services\StoreCartService::class);
+        $regularCart->add($product, null, 3);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), ['quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'equipment@example.com', 'phone' => '0400123456'])
+            ->assertRedirect(route('workshop.ticket.flow.equipment', $workshop));
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk();
+        $data = ['quantities' => [$product->id => 1], 'shipping_method_code' => 'pickup', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Equipment total');
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 25])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Equipment &amp; delivery', false);
+        if (in_array($method, ['price_changed', 'stock_changed'], true)) {
+            $product->update($method === 'price_changed' ? ['price' => 30] : ['inventory_quantity' => 0]);
+            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasErrors('equipment');
+            $this->assertDatabaseCount('store_orders', 0);
+            $this->assertDatabaseCount('invoices', 0);
+            return;
+        }
+        if ($method !== 'bank_transfer') {
+            config(['services.square.location_id' => 'TEST']);
+            $gateway = Mockery::mock(SquareApiService::class);
+            $gateway->shouldReceive('isEnabled')->andReturn(true);
+            $charge = $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(fn ($payload) => $payload['amount_money']['amount'] === 4000));
+            if ($method === 'declined') {
+                $charge->andThrow(new \RuntimeException('Declined'));
+                $gateway->shouldReceive('userFacingPaymentErrorMessage')->andReturn('Card declined');
+            } else {
+                $charge->andReturn(['payment' => ['id' => 'equipment-payment', 'status' => 'COMPLETED', 'amount_money' => ['amount' => 4000]]]);
+            }
+            $this->app->instance(SquareApiService::class, $gateway);
+        }
+        $response = $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => $method === 'declined' ? 'credit_card' : $method, 'source_id' => 'test-token']);
+        if ($method === 'declined') {
+            $response->assertSessionHasErrors('payment_method');
+            $this->assertDatabaseCount('store_orders', 0);
+            $this->assertDatabaseCount('payments', 0);
+            $this->assertDatabaseCount('invoices', 0);
+            $this->assertSame(10, $product->fresh()->inventory_quantity);
+            return;
+        }
+        $response->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $order = \App\Models\StoreOrder::firstOrFail();
+        $ticket = Ticket::where('workshop_id', $workshop->id)->firstOrFail();
+        $this->assertNotEquals($ticket->invoice_id, $order->invoice_id);
+        $this->assertSame('25.00', $order->total_amount);
+        $this->assertSame('15.00', $ticket->invoice->total_amount);
+        $this->assertSame('pickup', $order->shipping_method_code);
+        if ($method === 'credit_card') {
+            $payment = Payment::firstOrFail();
+            $this->assertSame('40.00', $payment->total_amount);
+            $this->assertEqualsCanonicalizing([15, 25], $payment->allocations()->pluck('allocated_amount')->map(fn ($amount) => (float) $amount)->all());
+            $this->assertSame(0.0, (float) $order->invoice->outstandingAmount());
+            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'credit_card', 'source_id' => 'test-token'])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+            $this->assertDatabaseCount('payments', 1);
+            $this->assertDatabaseCount('store_orders', 1);
+        }
+
+        $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+    }
+
+    public function test_equipment_manual_shipping_quote_does_not_charge_equipment_with_tickets(): void
+    {
+        Queue::fake();
+        $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 25, 'inventory_quantity' => 10, 'shipping_units' => 0.0, 'min_satchel_rank' => 1]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), ['quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'quote-equipment@example.com', 'phone' => '0400123456']);
+        $data = ['quantities' => [$product->id => 1], 'shipping_method_code' => 'request_quote', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 0])->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('not charged now');
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('quotes', 1);
+        $this->assertDatabaseCount('store_orders', 0);
+        $this->assertSame('15.00', Invoice::firstOrFail()->total_amount);
+    }
+
     public function test_ticket_checkout_allocates_early_bird_pricing_only_up_to_the_configured_limit(): void
     {
         Queue::fake();

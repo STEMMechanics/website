@@ -10,7 +10,7 @@
     $ticketPricing = is_array($ticketPricing ?? null) ? $ticketPricing : [];
     $pricingItems = is_array($ticketPricing['items'] ?? null) ? $ticketPricing['items'] : [];
     $ticketSubtotal = round((float) ($ticketPricing['subtotal_amount'] ?? ((float) $ticketPriceAmount * (int) ($holdCount ?? 0))), 2);
-    $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount), 2);
+    $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount) + (float) ($equipmentAmount ?? 0), 2);
     $hasAmountDue = $ticketTotal > 0.0001;
     $earlyBirdSummary = $workshop->earlyBirdSummaryLabel();
     $summaryRows = [];
@@ -45,6 +45,8 @@
     } else {
         $summaryRows[] = ['type' => 'spacer'];
     }
+    if ($equipmentQuoteRequired ?? false) { $summaryRows[] = ['label' => 'Equipment', 'value' => 'Quote requested separately; not charged now']; }
+    if (($equipmentAmount ?? 0) > 0) { $summaryRows[] = ['label' => 'Equipment & delivery', 'value' => money($equipmentAmount)]; }
     $summaryRows[] = [
         'label' => 'Total Cost',
         'value' => $ticketTotal > 0 ? '$'.number_format($ticketTotal, 2) : 'Free',
@@ -77,6 +79,10 @@
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Payment</h2>
 
+                @if(!empty($workshop->optional_product_ids))
+                    <x-ui.button color="outline" class="mb-4" :href="route('workshop.ticket.flow.equipment', $workshop)">Change equipment or delivery</x-ui.button>
+                @endif
+                @error('equipment')<p class="mb-4 text-sm text-red-600">{{ $message }}</p>@enderror
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,
                     'rows' => $summaryRows,

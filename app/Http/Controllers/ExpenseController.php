@@ -4,8 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Helpers;
 use App\Models\Expense;
+use App\Models\Supplier;
+use App\Services\Finance\ExpenseAllocation;
+use App\Services\Finance\FinancePlanner;
 use App\Services\PdfTextExtractor;
+use App\Services\SiteListControls;
+use App\Support\ListPageSize;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -23,7 +29,22 @@ class ExpenseController extends Controller
 
     public function index(Request $request)
     {
+        $data = $request->validate(['supplier_id' => 'nullable|integer|exists:finance_supplier_rules,id']);
+
+        return $this->listing($request, isset($data['supplier_id']) ? Supplier::findOrFail($data['supplier_id']) : null);
+    }
+
+    public function supplier(Request $request, Supplier $supplier)
+    {
+        return $this->listing($request, $supplier);
+    }
+
+    private function listing(Request $request, ?Supplier $supplier = null)
+    {
         $query = Expense::query()->with('creator');
+        if ($supplier !== null) {
+            $query->where('supplier_id', $supplier->id);
+        }
 
         if ($request->filled('search')) {
             $search = trim((string) $request->search);
@@ -49,14 +70,27 @@ class ExpenseController extends Controller
             });
         }
 
-        $expenses = $query->orderBy('paid_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $expenses = $query->orderBy('paid_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
         $expenses->getCollection()->each(function (Expense $expense): void {
             $expense->setAttribute('receipt_document_exists', $expense->hasReceiptDocument());
         });
 
         return view('admin.expense.index', [
             'expenses' => $expenses,
+            'selectedSupplier' => $supplier,
+            'supplierCostCentre' => $supplier?->category_id ? DB::table('finance_categories')->where('id', $supplier->category_id)->value('name') : null,
         ]);
+    }
+
+    public function allocation(Request $request, FinancePlanner $planner, Expense $expense): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $expense): void {
+            DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $expense->refresh();
+            app(ExpenseAllocation::class)->save($request, $expense, true);
+        });
+
+        return redirect()->route('admin.expense.edit', $expense)->with('message', 'Expense allocation saved.')->with('message-type', 'success');
     }
 
     public function exportZip(Request $request): BinaryFileResponse
@@ -91,10 +125,13 @@ class ExpenseController extends Controller
         return response()->download($zipPath, $exportName.'.zip')->deleteFileAfterSend(true);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        $data = $request->validate(['supplier' => 'nullable|string|max:255']);
+
         return view('admin.expense.edit', [
             'supplierSuggestions' => $this->supplierSuggestions(),
+            'supplierName' => $data['supplier'] ?? '',
         ]);
     }
 
@@ -105,7 +142,11 @@ class ExpenseController extends Controller
         $expense = new Expense;
         $expense->fill($validated);
         $expense->created_by = Auth::id();
-        $expense->save();
+        DB::transaction(function () use ($request, $expense): void {
+            DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $expense->save();
+            app(ExpenseAllocation::class)->save($request, $expense);
+        });
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
         $this->renameDocumentToCurrentConvention($expense);
@@ -138,7 +179,11 @@ class ExpenseController extends Controller
         $validated = $this->validateRequest($request);
 
         $expense->fill($validated);
-        $expense->save();
+        DB::transaction(function () use ($request, $expense): void {
+            DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $expense->save();
+            app(ExpenseAllocation::class)->save($request, $expense);
+        });
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
         $this->renameDocumentToCurrentConvention($expense);
@@ -214,7 +259,7 @@ class ExpenseController extends Controller
             'invoice_id' => ['required', 'string', 'max:120'],
             'paid_on' => ['nullable', 'date'],
             'total_amount' => ['required', 'numeric', 'min:0'],
-            'gst_amount' => ['required', 'numeric', 'min:0'],
+            'gst_amount' => ['required', 'numeric', 'min:0', 'lte:total_amount'],
             'receipt_document_file' => ['nullable', 'file', 'max:'.$maxSize],
         ]);
     }
@@ -391,17 +436,7 @@ class ExpenseController extends Controller
 
     private function supplierSuggestions(): array
     {
-        return Expense::query()
-            ->whereNotNull('supplier')
-            ->whereRaw("TRIM(supplier) <> ''")
-            ->select('supplier')
-            ->distinct()
-            ->orderBy('supplier')
-            ->pluck('supplier')
-            ->map(fn ($supplier) => trim((string) $supplier))
-            ->filter(fn ($supplier) => $supplier !== '')
-            ->values()
-            ->all();
+        return Supplier::query()->orderBy('name')->pluck('name')->all();
     }
 
     private function decimalSearchExpression(string $column): string

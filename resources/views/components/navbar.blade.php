@@ -32,7 +32,7 @@
                 ])
                 ->count()
             : 0;
-        $overdueInvoiceCount = $isAdmin ? \App\Models\Invoice::overdueCount() : 0;
+        $financeAttention = $isAdmin ? app(\App\Services\Finance\FinanceAttention::class)->counts() : ['invoices' => 0, 'expenses' => 0];
         $storeOrderActionCount = $isAdmin ? \App\Models\StoreOrder::actionRequiredCount() : 0;
         $mediaDuplicateCount = $isAdmin
             ? app(\App\Services\MediaDuplicateService::class)->attentionCount(app(\App\Services\ImagePerceptualHash::class))
@@ -83,13 +83,16 @@
                 [
                     'title' => 'Finance',
                     'items' => [
-                    ['label' => 'Finance planning', 'route' => route('admin.finance.index'), 'icon' => 'fa-solid fa-wallet', 'active' => ['admin.finance.*']],
                     ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.bas.*']],
-                    ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*']],
+                    ['label' => 'Suppliers', 'route' => route('admin.supplier.index'), 'icon' => 'fa-solid fa-truck', 'active' => ['admin.supplier.*']],
+                    ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*'], 'badge' => $financeAttention['expenses']],
                     ['label' => 'Refunds', 'route' => route('admin.payment.refunds'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.payment.refunds*'], 'badge' => $manualRefundQueueCount],
-                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*'], 'badge' => $overdueInvoiceCount],
+                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*'], 'badge' => $financeAttention['invoices']],
                     ['label' => 'Payments', 'route' => route('admin.payment.index'), 'icon' => 'fa-solid fa-money-check-dollar', 'active' => ['admin.payment.index', 'admin.payment.create', 'admin.payment.edit', 'admin.payment.receipt', 'admin.payment.square.*', 'admin.payment.refund.manual']],
                     ['label' => 'Quotes', 'route' => route('admin.quote.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.quote.*']],
+                    ['label' => 'Cost centres', 'route' => route('admin.cost-centre.index'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.cost-centre.*']],
+                    ['label' => 'Workshop costings', 'route' => route('admin.workshop-costing.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.workshop-costing.*']],
+                    ['label' => 'Owner finances', 'route' => route('admin.timesheet.index'), 'icon' => 'fa-solid fa-clock', 'active' => ['admin.timesheet.*']],
                     ['label' => 'Square Events', 'route' => route('admin.server.square-events'), 'icon' => 'fa-solid fa-plug-circle-bolt', 'active' => ['admin.server.square-events*', 'admin.server.square-webhooks*']],
                 ],
             ],

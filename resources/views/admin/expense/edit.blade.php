@@ -19,7 +19,8 @@
             <x-ui.input
                 label="Supplier"
                 name="supplier"
-                value="{{ $expense->supplier ?? '' }}"
+                id="expense-supplier"
+                value="{{ $expense->supplier ?? $supplierName ?? '' }}"
                 required
                 :suggestions="$supplierSuggestions ?? []"
                 info="Start typing to choose an existing supplier or enter a new one."
@@ -34,7 +35,7 @@
             />
             <x-ui.input type="date" label="Expense Date" name="paid_on" id="expense-paid-on" value="{{ $defaultPaidOn }}" />
 
-            <div class="flex gap-8">
+            <div class="grid gap-x-6 sm:grid-cols-2">
                 <div class="flex-1">
                     <x-ui.input
                         type="number"
@@ -120,6 +121,8 @@
                 </div>
                 <div id="expense-receipt-preview-note" class="mt-2 hidden text-xs text-gray-500" aria-live="polite"></div>
             </div>
+
+            <x-finance.expense-allocation :expense="$expense ?? null" />
 
             <x-ui.editor-actions>
                 @isset($expense)

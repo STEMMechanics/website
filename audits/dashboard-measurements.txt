@@ -1,6 +1,0 @@
-Development database measurement, 2026-09-05; not a production load test.
-Command: php artisan performance:dashboard --runs=3
-Analytics rows: 39225
-Run 1: 42 queries; 335.56 database ms; 344.91 total ms; 40370176 peak bytes
-Run 2: 42 queries; 271.76 database ms; 276.13 total ms; 40370176 peak bytes
-Run 3: 42 queries; 291.97 database ms; 296.89 total ms; 40370176 peak bytes

@@ -34,6 +34,16 @@ class Expense extends Model
         'receipt_document_indexed_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Expense $expense): void {
+            if (! $expense->exists || $expense->isDirty('supplier') || $expense->supplier_id === null) {
+                $name = trim((string) $expense->supplier);
+                $expense->supplier_id = $name === '' ? null : Supplier::forName($name)->id;
+            }
+        });
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

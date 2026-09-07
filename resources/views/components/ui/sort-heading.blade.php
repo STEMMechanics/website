@@ -1,7 +1,7 @@
-@props(['field', 'label', 'default' => 'created_at', 'center' => false])
+@props(['field', 'label', 'default' => 'created_at', 'center' => false, 'defaultDirection' => 'desc'])
 @php
     $active = request('sort', $default) === $field;
-    $direction = request('direction', 'desc');
+    $direction = request('direction', $defaultDirection);
     $next = $active && $direction === 'asc' ? 'desc' : 'asc';
     $url = request()->fullUrlWithQuery(['sort' => $field, 'direction' => $next, 'page' => null]);
 @endphp

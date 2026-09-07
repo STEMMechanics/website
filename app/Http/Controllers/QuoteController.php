@@ -829,6 +829,7 @@ class QuoteController extends Controller
                 continue;
             }
 
+            $item = \App\Services\Finance\WorkshopLine::normalize($item);
             $description = trim((string) ($item['description'] ?? ''));
             $notes = trim((string) ($item['notes'] ?? ''));
             $quantity = (float) ($item['quantity'] ?? 0);
@@ -839,14 +840,15 @@ class QuoteController extends Controller
                 continue;
             }
 
-            $lineTotal = round($quantity * $unitPrice, 2);
+            $amounts = \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
+            $lineTotal = $amounts['net'];
 
             $lineItems[] = array_merge($item, [
                 'description' => $description,
                 'notes' => $notes,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
-                'line_total' => $lineTotal,
+                'line_total' => $lineTotal, 'tax_amount' => $amounts['tax'], 'line_total_inc_tax' => $amounts['gross'],
                 'gst_applicable' => $gstApplicable,
             ]);
         }
@@ -888,7 +890,7 @@ class QuoteController extends Controller
 
         foreach ($lineItems as $lineItem) {
             if (($lineItem['gst_applicable'] ?? true) === true) {
-                $gst += ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
+                $gst += isset($lineItem['details_json']['inclusive_unit_price']) ? \App\Services\Finance\WorkshopLine::amounts($lineItem, (float) $lineItem['quantity'], (float) $lineItem['unit_price'], 0.1)['tax'] : ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
             }
         }
 

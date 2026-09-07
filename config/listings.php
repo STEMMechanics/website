@@ -246,4 +246,24 @@ $lists['admin.server.backups'] = ['fields' => [
 ]];
 $lists['tickets.invoice.receipts'] = $lists['account.invoice.receipts'];
 $lists['admin.user.index']['description'] = 'Manage users, verification status and account access.';
+$lists['admin.supplier.index'] = ['model' => \App\Models\Supplier::class, 'description' => 'Manage suppliers and their default cost centres.', 'fields' => [
+    'name' => ['label' => 'Supplier', 'type' => 'text'],
+    'cost_centre' => ['label' => 'Cost centre', 'type' => 'text', 'filter' => false, 'sort_sql' => '(select name from finance_categories where finance_categories.id = finance_supplier_rules.category_id)'],
+    'expenses_count' => ['label' => 'Expenses', 'type' => 'number', 'filter' => false, 'sort_sql' => 'expenses_count'],
+    'expenses_total_amount' => ['label' => 'Total expenses', 'type' => 'number', 'filter' => false, 'sort_sql' => 'expenses_sum_total_amount'],
+]];
+$lists['admin.supplier.show'] = $lists['admin.expense.index'];
+$lists['admin.supplier.show']['description'] = 'Expenses received from this supplier.';
+$lists['admin.cost-centre.index'] = ['fields' => [
+    'name' => ['label' => 'Name', 'type' => 'text', 'filter' => false],
+    'priority' => ['label' => 'Priority', 'type' => 'number', 'filter' => false],
+    'balance' => ['label' => 'Balance', 'type' => 'number', 'filter' => false],
+]];
+$lists['admin.cost-centre.show'] = ['fields' => [
+    'date' => ['label' => 'Date', 'type' => 'date'],
+    'description' => ['label' => 'Description', 'type' => 'text'],
+    'amount_display' => ['label' => 'Amount', 'type' => 'number'],
+]];
+$lists['admin.cost-centre.gst'] = $lists['admin.cost-centre.show'];
+$lists['admin.cost-centre.show']['fields']['type'] = ['label' => 'Transaction type', 'type' => 'select', 'options' => ['invoice' => 'Invoices', 'refund' => 'Refunds', 'expense' => 'Expenses', 'transfer' => 'Transfers', 'drawing' => 'Drawings', 'opening' => 'Opening balance', 'contribution' => 'Owner contributions']];
 return $lists;

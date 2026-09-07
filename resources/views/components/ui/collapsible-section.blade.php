@@ -2,6 +2,7 @@
     'title' => '',
     'subtitle' => '',
     'open' => false,
+    'variant' => 'default',
 ])
 
 @php
@@ -10,7 +11,7 @@
 @endphp
 
 <details
-    {{ $attributes->class(['ui-collapsible-section']) }}
+    {{ $attributes->class(['ui-collapsible-section', 'ui-collapsible-section--panel' => $variant === 'panel']) }}
     @if($open) open @endif
 >
     <summary class="ui-collapsible-section__summary">

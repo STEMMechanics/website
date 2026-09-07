@@ -222,5 +222,5 @@ Schedule::command('queue:prune-failed --hours=168')->daily()->withoutOverlapping
 
 Artisan::command('finance:allocate', function () {
     $count = app(FinancePlanner::class)->automate();
-    $this->info("Created {$count} workshop budgets.");
-})->purpose('Create opted-in workshop budgets using effective pricing versions')->hourly()->withoutOverlapping();
+    $this->info("Created {$count} workshop budgets; refreshed eligible invoice line allocations.");
+})->purpose('Create and refresh opted-in workshop and invoice allocations using effective pricing versions')->hourly()->withoutOverlapping();

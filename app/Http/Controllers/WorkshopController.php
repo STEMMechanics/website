@@ -316,6 +316,7 @@ class WorkshopController extends Controller
         DB::transaction(function () use ($workshops, $changes, $addCategoryIds, $removeCategoryIds): void {
             foreach ($workshops as $workshop) {
                 $itemChanges = $changes;
+                if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) { $itemChanges['price_is_automatic'] = false; }
                 if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL) {
                     $itemChanges['location_id'] = null;
                 }
@@ -999,6 +1000,10 @@ class WorkshopController extends Controller
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
+            'price_is_automatic' => 'nullable|boolean',
+            'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
+            'optional_product_ids' => 'nullable|array|max:30',
+            'optional_product_ids.*' => 'integer|distinct|exists:products,id',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
@@ -1024,6 +1029,13 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
+        $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
+        if ($request->input('registration') === 'tickets') {
+            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
+            $workshopData['pricing_version_id'] = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
+        }
+
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
         $workshopData['user_id'] = auth()->user()->id;
         $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
@@ -2096,6 +2108,10 @@ class WorkshopController extends Controller
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
+            'price_is_automatic' => 'nullable|boolean',
+            'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
+            'optional_product_ids' => 'nullable|array|max:30',
+            'optional_product_ids.*' => 'integer|distinct|exists:products,id',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
@@ -2131,6 +2147,14 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
+        $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
+        if ($request->input('registration') === 'tickets') {
+            $savedPlan = \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
+            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
+            $workshopData['pricing_version_id'] = $savedPlan ?? \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: ($workshop->pricing_version_id ?? null))->id;
+        }
+
         $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
             ? (string) $request->input('facilitator_user_id')
             : $this->defaultFacilitatorUserId($workshop);

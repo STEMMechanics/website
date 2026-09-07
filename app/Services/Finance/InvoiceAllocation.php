@@ -1,0 +1,118 @@
+<?php
+
+namespace App\Services\Finance;
+
+use App\Models\Invoice;
+use App\Models\Ticket;
+use App\Models\Workshop;
+use Illuminate\Support\Facades\DB;
+
+class InvoiceAllocation
+{
+    public function context(Invoice $invoice, ?int $versionId = null, ?array $supplied = null): array
+    {
+        $planner = app(FinancePlanner::class);
+        $budget = DB::table('finance_budgets')->whereIn('id', DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->select('budget_id'))->first();
+        $workshopIds = Ticket::where('invoice_id', $invoice->id)->pluck('workshop_id')->unique()->values();
+        if (! $budget && $workshopIds->count() === 1) {
+            $budget = DB::table('finance_budgets')->where('workshop_id', $workshopIds->first())->first();
+        }
+        $warning = null;
+        $workshopId = $budget->workshop_id ?? ($workshopIds->count() === 1 ? $workshopIds->first() : null);
+        $ids = $budget ? $planner->budgetInvoiceIds($budget) : ($workshopId ? Ticket::where('workshop_id', $workshopId)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all() : [$invoice->id]);
+        if (! $budget && $workshopIds->count() > 1) {
+            $warning = 'This invoice covers multiple workshops and needs a combined allocation breakdown.';
+        }
+        if (! $budget && $workshopId && (DB::table('finance_budget_invoices')->whereIn('invoice_id', $ids)->exists() || Ticket::whereIn('invoice_id', $ids)->where('workshop_id', '!=', $workshopId)->exists())) {
+            $warning = 'These workshops share invoice allocations and cannot be allocated separately.';
+        }
+        $date = $invoice->issue_date?->toDateString() ?? today()->toDateString();
+        $workshop = $workshopId ? Workshop::find($workshopId) : null;
+        if ($workshop) {
+            $date = $workshop->starts_at->toDateString();
+        }
+        $version = PricingVersion::forDate($date, $budget ? (int) $budget->pricing_version_id : ($versionId ?? $workshop?->pricing_version_id));
+        $assumptions = $budget ? $planner->decode($budget->assumptions) : ['participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60 : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
+        if ($supplied !== null && $workshop) { $assumptions['supplied_categories'] = $supplied; }
+        $rules = $planner->decode($version->rules);
+        $suggestedTargets = [];
+        $automaticWarning = null;
+        if ($workshop) {
+            $assumptions['pricing_participants'] ??= min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($planner->decode($version->prices)['pricing_participants'] ?? 10));
+            $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60, 'venue_supplied' => (bool) $workshop->hosted_for_organisation_id]);
+            $suggestedTargets = $planner->targets($rules, $assumptions);
+        } else {
+            $assumptions = ['source' => 'invoice_lines', 'lines' => []];
+            foreach (WorkshopLine::allocationLines($invoice->lines()->get()->toArray()) as $lineData) {
+                $line = (object) $lineData;
+                if ($line->kind === 'workshop') {
+                    $details = $line->details_json['workshop'] ?? null;
+                    if (! is_array($details) || empty($details['hours']) || empty($details['seats'])) {
+                        $automaticWarning = 'Add hours and seats to each workshop line before applying pricing defaults. Existing combined lines need an explicit breakdown.';
+                        continue;
+                    }
+                    $inputs = ['participants' => (int) $details['seats'], 'hours' => (float) $details['hours'], 'venue_supplied' => (bool) ($details['venue_supplied'] ?? true), 'travel_minutes' => 0, 'supplied_categories' => $details['supplied_categories'] ?? [], 'gst_applicable' => (float) $line->tax_rate > 0];
+                    $assumptions['lines'][] = ['line_number' => $line->line_number] + $inputs;
+                    foreach ($planner->targets(array_filter($rules, fn ($rule) => $rule['basis'] !== 'travel'), $inputs) as $id => $amount) {
+                        $suggestedTargets[$id] = ($suggestedTargets[$id] ?? 0) + $amount;
+                    }
+                } elseif ($line->kind === 'travel') {
+                    $units = $line->details_json['travel']['billable_units'] ?? null;
+                    if ($units === null) {
+                        $automaticWarning = 'Set the billable 15-minute units on travel lines before applying pricing defaults.';
+                        continue;
+                    }
+                    $assumptions['lines'][] = ['kind' => 'travel', 'units' => (int) $units, 'gst_applicable' => (float) $line->tax_rate > 0, 'supplied_categories' => $line->details_json['travel']['supplied_categories'] ?? []];
+                    foreach ($rules as $rule) {
+                        if ($rule['basis'] === 'travel') {
+                            $id = $rule['category_id'];
+                            $suggestedTargets[$id] = ($suggestedTargets[$id] ?? 0) + (int) round((! empty($rule['suppliable']) && ($line->details_json['travel']['supplied_categories'][$id] ?? false) ? 0 : $units) * $rule['rate_cents']);
+                        }
+                    }
+                }
+            }
+        }
+        $targets = $budget ? $planner->decode($budget->targets) : $suggestedTargets;
+
+        $income = $planner->income($ids);
+        $funding = $planner->funding($targets, $income['net'], ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions));
+        $total = Invoice::whereIn('id', $ids)->get(['total_amount', 'gst_amount'])->sum(fn ($item) => $planner->cents($item->total_amount) - $planner->cents($item->gst_amount));
+
+        $editorTargets = $targets;
+        $rounding = ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions);
+        $roundingAmount = min(max(0, $total - array_sum($targets)), (int) ($rounding['limit'] ?? 0));
+        if (! empty($rounding['category_id']) && $roundingAmount > 0) {
+            $id = $rounding['category_id'];
+            $editorTargets[$id] = ($editorTargets[$id] ?? 0) + $roundingAmount;
+        }
+        $categories = DB::table('finance_categories')->where(fn ($query) => $query->where('active', true)->orWhereIn('id', array_keys($editorTargets)))->orderBy('priority')->get();
+
+        return compact('budget', 'categories', 'targets', 'income', 'funding', 'total', 'ids', 'workshopId', 'workshop', 'version', 'assumptions', 'date', 'warning', 'suggestedTargets', 'automaticWarning', 'editorTargets', 'roundingAmount');
+    }
+    public function sync(Invoice $invoice, ?string $userId, bool $force = false, ?int $versionId = null, ?array $supplied = null): void
+    {
+        DB::transaction(function () use ($invoice, $userId, $force, $versionId, $supplied): void {
+            DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $context = $this->context($invoice, $versionId, $supplied);
+            $budget = $context['budget'];
+            $userId ??= $context['version']->created_by;
+            if (! $userId) {
+                return;
+            }
+            if ($context['warning'] || $context['automaticWarning'] || (! $context['suggestedTargets'] && ! $budget) || ($budget && $budget->manual && ! $force)) {
+                return;
+            }
+            $planner = app(FinancePlanner::class);
+            if ($budget) {
+                if ($planner->decode($budget->targets) !== $context['suggestedTargets'] || $planner->decode($budget->assumptions) !== $context['assumptions'] || $budget->manual) {
+                    DB::table('finance_budget_revisions')->insert(['budget_id' => $budget->id, 'before' => json_encode(['assumptions' => $planner->decode($budget->assumptions), 'targets' => $planner->decode($budget->targets)]), 'after' => json_encode(['assumptions' => $context['assumptions'], 'targets' => $context['suggestedTargets'], 'changed_by' => $userId]), 'created_at' => now(), 'updated_at' => now()]);
+                    DB::table('finance_budgets')->where('id', $budget->id)->update(['targets' => json_encode($context['suggestedTargets']), 'assumptions' => json_encode($context['assumptions']), 'manual' => false, 'updated_at' => now()]);
+                }
+            } else {
+                $row = ['workshop_id' => $context['workshopId'], 'name' => $context['workshop']->title ?? 'Invoice '.$invoice->invoice_number, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $context['version']->id, 'targets' => $context['suggestedTargets'], 'warning' => null, 'manual' => false];
+                $planner->apply(['token' => (string) \Illuminate\Support\Str::uuid(), 'rows' => [$row]], $userId, [0]);
+            }
+        });
+    }
+
+}

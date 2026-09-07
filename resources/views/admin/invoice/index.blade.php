@@ -5,6 +5,7 @@
 
     <x-container class="mt-4">
         <x-ui.dynamic-list name="admin-invoice-index">
+        <x-finance.attention-notice kind="invoices" />
 
         <div
             x-data="{
@@ -56,6 +57,7 @@
         @if($invoices->isEmpty())
         <x-none-found item="invoices" search="{{ request()->get('search') }}" />
         @else
+            <div class="mb-3 md:hidden"><x-ui.checkbox bare small data-invoice-select-all aria-label="Select invoices" /> <span class="text-sm">Select invoices</span></div>
             <div data-list-results class="space-y-4 md:hidden">
                 @foreach ($invoices as $invoice)
                     @php
@@ -83,6 +85,7 @@
                         $invoiceEmailPayload = $invoiceEmailDefaults[(string) $invoice->id] ?? [];
                     @endphp
                     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <x-ui.checkbox bare small data-invoice-select :value="(string) $invoice->id" :aria-label="'Select invoice '.$invoice->invoice_number" />
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0">
                                 <a href="{{ route('admin.invoice.edit', $invoice) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $invoice->invoice_number }}</a>
@@ -219,6 +222,7 @@
             <div class="hidden md:block">
                 <x-ui.table variant="listing">
                     <x-slot:header>
+                        <th class="w-10"><x-ui.checkbox bare small data-invoice-select-all aria-label="Select invoices" /></th>
                         <x-ui.list-heading label="Invoice" />
                         <x-ui.list-heading field="invoice_number" label="Details" />
                         <x-ui.list-heading class="hidden md:table-cell text-center!" label="Status" />
@@ -252,6 +256,7 @@
                                 $isCreditDocument = ((float) $invoice->total_amount) < 0;
                             @endphp
                             <tr>
+                                <td><x-ui.checkbox bare small data-invoice-select :value="(string) $invoice->id" :aria-label="'Select invoice '.$invoice->invoice_number" /></td>
                                 <td>
                                     <a href="{{ route('admin.invoice.edit', $invoice) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $invoice->invoice_number }}</a>
                                 </td>
@@ -358,7 +363,7 @@
                                 </td>
                             </tr>
                             @foreach(($invoice->taxAdjustments ?? collect())->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0) as $adjustment)
-                                <tr class="bg-gray-50">
+                                <tr class="bg-gray-50"><td></td>
                                     <td class="text-center!">↳ {{ $adjustment->adjustment_number }}</td>
                                     <td>
                                         <div class="whitespace-nowrap">Tax Adjustment</div>
@@ -388,6 +393,7 @@
             </div>
 
         <x-ui.list-pagination :paginator="$invoices" />
+        <div class="mt-3 flex justify-end"><x-ui.button color="secondary" data-invoice-allocate data-record-editor href="{{ route('admin.invoice.bulk-allocation.preview') }}">Allocate 0 invoices</x-ui.button></div>
         @endif
 
         <x-admin.invoice-email-modal />
@@ -396,6 +402,7 @@
         </x-ui.dynamic-list>
     </x-container>
 
+    <x-ui.record-dialog />
 </x-layout>
 
 <script>

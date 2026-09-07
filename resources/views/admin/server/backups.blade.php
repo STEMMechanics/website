@@ -39,12 +39,6 @@
                 </div>
             </div>
 
-            @if(is_array(session('database_backup_notice')))
-                @php($dbNotice = session('database_backup_notice'))
-                <div class="mb-3 rounded-md border px-3 py-2 text-sm {{ ($dbNotice['type'] ?? '') === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800' }}">
-                    {{ (string) ($dbNotice['text'] ?? '') }}
-                </div>
-            @endif
 
             <p class="text-xs text-gray-600 mb-3">Hourly backups are scheduled via Laravel Scheduler command <code>database:backup</code>. When <code>--keep</code> is omitted, retention uses site option <code>backup.database.keep</code> (currently {{ number_format((int) $databaseBackupKeepCount) }} files). Offsite backups can be run with <code>backup:remote</code> using the <code>backup.remote.*</code> site options.</p>
 
@@ -116,12 +110,6 @@
                 </div>
             </div>
 
-            @if(is_array(session('file_backup_notice')))
-                @php($fileNotice = session('file_backup_notice'))
-                <div class="mb-3 rounded-md border px-3 py-2 text-sm {{ ($fileNotice['type'] ?? '') === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800' }}">
-                    {{ (string) ($fileNotice['text'] ?? '') }}
-                </div>
-            @endif
 
             <p class="text-xs text-gray-600 mb-3">Monthly full backups are scheduled via <code>files:backup --full</code> and nightly incrementals via <code>files:backup --incremental --window=24h</code>. When <code>--keep</code> is omitted, retention uses <code>backup.files.full.keep</code> (currently {{ number_format((int) $fileBackupFullKeepCount) }} runs) and <code>backup.files.incremental.keep</code> (currently {{ number_format((int) $fileBackupIncrementalKeepCount) }} runs). File backups are written to <code>/storage/backups/files</code> for offsite sync and restore.</p>
 

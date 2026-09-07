@@ -1,10 +1,23 @@
 <x-layout>
-    <x-mast>Expenses
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.expense.create') }}">Record</x-ui.button></x-slot:actions>
-    </x-mast>
+    @if(isset($selectedSupplier))
+        <x-mast backRoute="admin.supplier.index" backTitle="Suppliers" :title="$selectedSupplier->name" description="Expenses received from this supplier.">
+            <x-slot:actions>
+                <x-ui.button color="mast" data-record-editor href="{{ route('admin.supplier.edit', $selectedSupplier) }}">Edit supplier</x-ui.button>
+                <x-ui.button color="mast" href="{{ route('admin.expense.create', ['supplier' => $selectedSupplier->name]) }}">Record expense</x-ui.button>
+            </x-slot:actions>
+        </x-mast>
+    @else
+        <x-mast>Expenses
+            <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.expense.create') }}">Record</x-ui.button></x-slot:actions>
+        </x-mast>
+    @endif
 
     <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-expense-index">
+        <x-finance.attention-notice kind="expenses" />
+        @if(isset($selectedSupplier))
+            <p class="mt-4 text-sm">Default cost centre: <x-ui.badge :color="$supplierCostCentre ? 'slate' : 'amber'">{{ $supplierCostCentre ? $supplierCostCentre : 'Choose cost centre' }}</x-ui.badge></p>
+        @endif
 
         @php($hasAdvancedFilters = collect(['supplier', 'description', 'invoice_id', 'attachment', 'paid_from', 'paid_to', 'no_attachment'])->contains(fn ($field) => request()->filled($field)))
         <div
@@ -24,6 +37,7 @@
             @endif
         @else
             <div data-list-results class="space-y-4 md:hidden">
+                <x-ui.checkbox label="Select visible expenses / clear selection" inputClass="admin-expense-select-page" />
                 @foreach ($expenses as $expense)
                     <article class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-4">
@@ -70,7 +84,7 @@
                 <x-ui.table variant="listing">
                     <x-slot:header>
                         <th class="w-10 text-center border-r-0!">
-                            <x-ui.checkbox id="admin-expense-select-page" aria-label="Select all expenses on this page" :noWrapper="true" inputClass="mx-auto" />
+                            <x-ui.checkbox id="admin-expense-select-page" aria-label="Select visible expenses or clear all selected expenses" :noWrapper="true" inputClass="admin-expense-select-page mx-auto" />
                         </th>
                         <x-ui.list-heading field="description" class="border-l-0! pl-1!" label="Expense" />
                         <x-ui.list-heading class="hidden md:table-cell" label="Supplier" />
@@ -130,12 +144,10 @@
 
             <x-ui.list-pagination :paginator="$expenses"><x-slot:actions>
         <x-ui.selection-toolbar id="admin-expense-export-controls" hint="Select expenses to export their attachments.">
-            <x-slot:count><span id="admin-expense-selected-count">0</span></x-slot:count>
-            <x-slot:clear><x-ui.button variant="plain" id="admin-expense-clear-selection" class="text-sm font-semibold text-primary-color underline underline-offset-4" disabled>Clear selection</x-ui.button></x-slot:clear>
             <form id="admin-expense-export-form" method="POST" action="{{ route('admin.expense.export.zip') }}">
                 @csrf
                 <div class="admin-expense-export-inputs"></div>
-                <x-ui.button type="submit" disabled>Export selected</x-ui.button>
+                <x-ui.button type="submit" disabled>Export 0 items</x-ui.button>
             </form>
         </x-ui.selection-toolbar>
 </x-slot:actions></x-ui.list-pagination>
@@ -144,15 +156,14 @@
 
         </x-ui.dynamic-list>
     </x-container>
+<x-ui.record-dialog />
 </x-layout>
 
 <script>
     SM.onDynamicList('admin-expense-index', () => {
         const storageKey = 'admin-expense-export-selection';
         const itemCheckboxes = Array.from(document.querySelectorAll('.admin-expense-select-item'));
-        const selectPage = document.getElementById('admin-expense-select-page');
-        const count = document.getElementById('admin-expense-selected-count');
-        const clear = document.getElementById('admin-expense-clear-selection');
+        const pageCheckboxes = Array.from(document.querySelectorAll('.admin-expense-select-page'));
         const form = document.getElementById('admin-expense-export-form');
         let selected = [];
 
@@ -168,15 +179,16 @@
             itemCheckboxes.forEach((checkbox) => checkbox.checked = selected.includes(checkbox.value));
             const pageIds = [...new Set(itemCheckboxes.map((checkbox) => checkbox.value))];
             const selectedOnPage = pageIds.filter((id) => selected.includes(id)).length;
-            if (selectPage) {
-                selectPage.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
-                selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
-            }
-            if (count) count.textContent = String(selected.length);
-            document.getElementById('admin-expense-export-controls').dataset.selected = String(selected.length > 0);
-            if (clear) clear.disabled = selected.length === 0;
+            pageCheckboxes.forEach((checkbox) => {
+                checkbox.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
+                checkbox.indeterminate = selected.length > 0 && !checkbox.checked;
+            });
+            const controls = document.getElementById('admin-expense-export-controls');
+            if (controls) controls.dataset.selected = String(selected.length > 0);
             if (form) {
-                form.querySelector('button[type="submit"]').disabled = selected.length === 0;
+                const button = form.querySelector('button[type="submit"]');
+                button.disabled = selected.length === 0;
+                button.textContent = 'Export ' + selected.length + (selected.length === 1 ? ' item' : ' items');
                 const container = form.querySelector('.admin-expense-export-inputs');
                 container.replaceChildren(...selected.map((id) => {
                     const input = document.createElement('input');
@@ -194,17 +206,13 @@
                 : selected.filter((id) => id !== checkbox.value);
             render();
         }));
-        selectPage?.addEventListener('change', () => {
+        pageCheckboxes.forEach((selectPage) => selectPage.addEventListener('change', () => {
             const pageIds = [...new Set(itemCheckboxes.map((checkbox) => checkbox.value))];
             selected = selectPage.checked
                 ? [...new Set([...selected, ...pageIds])]
-                : selected.filter((id) => !pageIds.includes(id));
+                : [];
             render();
-        });
-        clear?.addEventListener('click', () => {
-            selected = [];
-            render();
-        });
+        }));
         render();
     });
 </script>

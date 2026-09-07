@@ -290,10 +290,14 @@
             const inputType = String(row.dataset.optionInputType || 'textarea');
             const decodedValue = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
             modalValue.value = decodedValue;
+            modalNumber.type = inputType === 'date' ? 'date' : 'number';
+            modalNumber.removeAttribute('min');
+            modalNumber.removeAttribute('max');
+            modalNumber.step = row.dataset.optionName === 'finance.cash-buffer' ? '0.01' : '1';
             modalNumber.value = decodedValue;
             modalBoolean.value = decodedValue === '0' ? '0' : '1';
             modalValue.classList.toggle('hidden', inputType !== 'textarea');
-            modalNumber.classList.toggle('hidden', inputType !== 'number');
+            modalNumber.classList.toggle('hidden', !['number', 'date'].includes(inputType));
             modalBoolean.classList.toggle('hidden', inputType !== 'boolean');
             modalSecret.value = '';
             modalSecret.classList.toggle('hidden', inputType !== 'secret');
@@ -315,7 +319,7 @@
             modal.classList.add('flex');
             modal.setAttribute('aria-hidden', 'false');
             setTimeout(() => {
-                if (inputType === 'number') {
+                if (['number', 'date'].includes(inputType)) {
                     modalNumber.focus();
                     return;
                 }
@@ -426,7 +430,7 @@
                 const row = rowForId(currentOptionId);
                 const inputType = String(row?.dataset.optionInputType || 'textarea');
                 let valueToSave = modalValue.value;
-                if (inputType === 'number') {
+                if (['number', 'date'].includes(inputType)) {
                     valueToSave = modalNumber.value;
                 }
                 if (inputType === 'boolean') {
