@@ -437,16 +437,39 @@ class FinancePlanner
 
     public function gst(string $from, string $to): array
     {
-        $sales = 0;
-        foreach (Payment::query()->with(['allocations.invoice', 'refundOf.allocations.invoice'])->whereBetween('received_on', [$from.' 00:00:00', $to.' 23:59:59'])->whereIn('kind', Payment::KINDS)->get() as $payment) {
-            if (! $this->received($payment)) {
-                continue;
-            }
-            $sales += $this->cents(app(GstCalculator::class)->paymentGstAmount($payment));
-        }
-        $credits = $this->cents(Expense::query()->whereBetween('paid_on', [$from, $to])->sum('gst_amount'));
+        $months = $this->gstMonths($from, $to);
+        $sales = array_sum(array_column($months, 'sales'));
+        $credits = array_sum(array_column($months, 'credits'));
 
         return ['sales' => $sales, 'credits' => $credits, 'net' => $sales - $credits];
+    }
+
+    /** @return array<string, array{sales: int, credits: int, net: int}> */
+    public function gstMonths(string $from, string $to): array
+    {
+        $months = [];
+        Payment::query()->with(['allocations.invoice', 'refundOf.allocations.invoice'])
+            ->whereBetween('received_on', [$from.' 00:00:00', $to.' 23:59:59'])
+            ->whereIn('kind', Payment::KINDS)->chunkById(500, function ($payments) use (&$months) {
+                foreach ($payments as $payment) {
+                    if (! $this->received($payment)) {
+                        continue;
+                    }
+                    $key = $payment->received_on->format('Y-m');
+                    $months[$key] ??= ['sales' => 0, 'credits' => 0, 'net' => 0];
+                    $months[$key]['sales'] += $this->cents(app(GstCalculator::class)->paymentGstAmount($payment));
+                }
+            });
+        foreach (Expense::query()->whereBetween('paid_on', [$from, $to])->select(['id', 'paid_on', 'gst_amount'])->lazyById(500) as $expense) {
+            $key = $expense->paid_on->format('Y-m');
+            $months[$key] ??= ['sales' => 0, 'credits' => 0, 'net' => 0];
+            $months[$key]['credits'] += $this->cents($expense->gst_amount);
+        }
+        foreach ($months as &$month) {
+            $month['net'] = $month['sales'] - $month['credits'];
+        }
+
+        return $months;
     }
 
     public function cash(): array

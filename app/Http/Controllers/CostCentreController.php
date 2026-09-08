@@ -208,9 +208,16 @@ class CostCentreController extends Controller
         $data = $request->validate(['month' => 'nullable|date_format:Y-m', 'tab' => ['nullable', Rule::in(['summary', 'income', 'expenses'])]]);
         $tab = $data['tab'] ?? 'summary';
         $month = Carbon::parse(($data['month'] ?? now()->format('Y-m')).'-01');
-        $gst = $planner->gst($month->toDateString(), $month->copy()->endOfMonth()->toDateString());
+        $historyStart = $month->copy()->subMonths(11);
+        $totals = $planner->gstMonths(($tab === 'summary' ? $historyStart : $month)->toDateString(), $month->copy()->endOfMonth()->toDateString());
+        $gst = $totals[$month->format('Y-m')] ?? ['sales' => 0, 'credits' => 0, 'net' => 0];
         $cash = $planner->cash();
-        $settlements = DB::table('finance_gst_settlements')->orderByDesc('period')->paginate(ListPageSize::resolve(25))->withQueryString();
+        $settlements = $tab === 'summary' ? DB::table('finance_gst_settlements')->whereBetween('period', [$historyStart->toDateString(), $month->toDateString()])->get()->keyBy('period') : collect();
+        $history = collect(range(0, 11))->map(function ($offset) use ($month, $totals, $settlements) {
+            $period = $month->copy()->subMonths($offset);
+
+            return ['month' => $period, 'settlement' => $settlements->get($period->toDateString())] + ($totals[$period->format('Y-m')] ?? ['sales' => 0, 'credits' => 0, 'net' => 0]);
+        });
 
         $rows = collect();
         if ($tab === 'expenses') {
@@ -234,7 +241,7 @@ class CostCentreController extends Controller
         $rows = $rows->map(fn ($row) => $row + ['amount_display' => $row['amount'] / 100])->sortByDesc('date');
         $records = $this->paginate(app(SiteListControls::class)->applyCollection($rows));
 
-        return view('admin.cost-centre.gst', compact('month', 'gst', 'cash', 'settlements', 'tab', 'records'));
+        return view('admin.cost-centre.gst', compact('month', 'gst', 'cash', 'history', 'historyStart', 'tab', 'records'));
     }
 
     private function paginate(Collection $rows): LengthAwarePaginator

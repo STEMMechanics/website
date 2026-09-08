@@ -132,15 +132,14 @@ class FinanceController extends Controller
 
     public function settlement(Request $request, FinancePlanner $planner): RedirectResponse
     {
-        $data = $request->validate(['period' => 'required|date_format:Y-m|unique:finance_gst_settlements,period', 'paid_on' => 'required|date_format:Y-m-d|before_or_equal:today', 'amount' => 'required|numeric|between:-10000000,10000000', 'reference' => 'required|string|max:255']);
+        $data = $request->validate(['period' => 'required|date_format:Y-m|unique:finance_gst_settlements,period', 'paid_on' => 'required|date_format:Y-m-d|before_or_equal:today', 'amount' => 'required|numeric|between:-10000000,10000000', 'reference' => 'nullable|string|max:255']);
         if (DB::table('finance_gst_settlements')->where('period', $data['period'].'-01')->exists()) {
             throw ValidationException::withMessages(['period' => 'This month already has a settlement.']);
         }
-        DB::table('finance_gst_settlements')->insert(['period' => $data['period'].'-01', 'paid_on' => $data['paid_on'], 'cents' => $planner->cents($data['amount']), 'reference' => $data['reference'], 'created_by' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('finance_gst_settlements')->insert(['period' => $data['period'].'-01', 'paid_on' => $data['paid_on'], 'cents' => $planner->cents($data['amount']), 'reference' => $data['reference'] ?? '', 'created_by' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
 
-        return redirect()->route('admin.cost-centre.gst')->with('message', 'GST settlement recorded.')->with('message-type', 'success');
+        return redirect()->route('admin.cost-centre.gst', ['month' => $data['period']])->with('message', 'GST settlement recorded.')->with('message-type', 'success');
     }
-
 
     private function back(string $tab, ?string $message = null): RedirectResponse
     {
