@@ -81,7 +81,10 @@ class SiteListControls
             ],
             'shop.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
             'workshop.index', 'workshop.past.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
-            'admin.workshop.index' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1', 'default' => '1']],
+            'admin.workshop.index' => [
+                'show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1', 'default' => '1'],
+                'allocation_state' => ['label' => 'Workshop allocation', 'type' => 'select', 'options' => ['needs_review' => 'Ready for review']],
+            ],
             'admin.workshop.attendance' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1']],
             'admin.invoice.index' => [
                 'status' => ['label' => 'Status', 'type' => 'array', 'options' => array_combine(\App\Models\Invoice::STATUSES, array_map(fn ($status) => ucwords(str_replace('_', ' ', $status)), \App\Models\Invoice::STATUSES))],
@@ -310,6 +313,10 @@ class SiteListControls
             if ($field['type'] === 'array' && isset($field['options'])) $rules[$key.'.*'] = ['string', Rule::in(array_keys($field['options']))];
         }
         $data = Validator::make(request()->query(), $rules)->validate();
+        if (request()->routeIs('admin.workshop.index') && ($data['allocation_state'] ?? '') === 'needs_review') {
+            $ids = collect(app(\App\Services\Finance\WorkshopAllocation::class)->attention())->pluck('workshop.id');
+            $query->whereIn('workshops.id', $ids);
+        }
         if (request()->routeIs('admin.invoice.index')) { app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($query, $data); }
         if (request()->routeIs('admin.expense.index', 'admin.supplier.show') && ! empty($data['allocation_state'])) {
             $match = fn ($part) => app(\App\Services\Finance\FinanceAttention::class)->unallocatedExpenses($part);
