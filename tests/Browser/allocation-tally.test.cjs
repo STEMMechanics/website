@@ -100,3 +100,23 @@ test('percentage fill respects the override checkbox and fills exactly to 100 pe
     assert.equal(tally.allocated, 10000);
     assert.equal(tally.valid, true);
 });
+
+
+test('workshop supplied choices recalculate defaults and remain effective when leaving manual override', () => {
+    const { tally } = setup({ values: { 1: '0.00', 2: '5.00' }, enabled: false, total: 4000,
+        workshopDefaults: { selected: { 1: true }, supplied: { 1: 0, 2: 500 }, notSupplied: { 1: 3000, 2: 500 } } });
+    tally.supplied[1] = false;
+    tally.refreshWorkshopDefaults();
+    assert.equal(tally.values[1], '30.00');
+    assert.equal(tally.remaining, 500);
+    tally.enabled = true;
+    tally.values[1] = '12.00';
+    tally.supplied[1] = true;
+    tally.refreshWorkshopDefaults();
+    assert.equal(tally.values[1], '12.00');
+    tally.enabled = false;
+    tally.refreshWorkshopDefaults();
+    assert.equal(tally.values[1], '0.00');
+    assert.equal(tally.values[2], '5.00');
+    assert.equal(tally.remaining, 3500);
+});

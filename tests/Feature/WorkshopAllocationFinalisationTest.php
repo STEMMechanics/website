@@ -49,6 +49,50 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->post(route('admin.workshop.allocation.store', $fixture['workshop']), ['source_hash' => $service->state($fixture['workshop'])['hash'], 'outcomes_reviewed' => 1, 'override' => 1, 'targets' => [1 => 100]])->assertSessionHasNoErrors()->assertRedirect();
     }
 
+    public function test_supplied_items_can_override_host_defaults_and_survive_finalisation(): void
+    {
+        $f = $this->fixture();
+        $f['workshop']->update(['hosted_for_organisation_id' => \App\Models\Organisation::factory()->create()->id, 'pricing_version_id' => 1]);
+        DB::table('finance_pricing_versions')->where('id', 1)->update(['rules' => json_encode([
+            ['category_id' => 1, 'basis' => 'flat', 'rate_cents' => 3000, 'suppliable' => true, 'venue_default' => true],
+            ['category_id' => 2, 'basis' => 'flat', 'rate_cents' => 500, 'suppliable' => true],
+            ['category_id' => 3, 'basis' => 'flat', 'rate_cents' => 1000],
+        ])]);
+        $service = app(WorkshopAllocation::class);
+        $this->assertSame(0, $service->context($f['workshop'])['suggestedTargets'][1]);
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Venue hire supplied')->assertSee('Supplied items');
+        $this->post(route('admin.workshop.allocation.store', $f['workshop']), [
+            'source_hash' => $service->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1,
+            'supplied_categories' => [1 => '0', 2 => '1'],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $context = $service->context($f['workshop']);
+        $this->assertSame(3000, $context['targets'][1]);
+        $this->assertSame(0, $context['targets'][2]);
+        $this->assertSame(1000, $context['targets'][3]);
+        $this->assertFalse($context['assumptions']['supplied_categories'][1]);
+        $this->assertTrue($context['assumptions']['supplied_categories'][2]);
+        $this->assertFalse((bool) $context['budget']->manual);
+        $this->post(route('admin.workshop.allocation.store', $f['workshop']), [
+            'source_hash' => $service->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1,
+            'revision' => hash('sha256', json_encode((array) $context['budget'])),
+            'supplied_categories' => [1 => '1', 2 => '0'],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $context = $service->context($f['workshop']);
+        $this->assertSame(0, $context['targets'][1]);
+        $this->assertSame(500, $context['targets'][2]);
+        $this->assertDatabaseCount('finance_budget_revisions', 2);
+    }
+
+    public function test_supplied_items_reject_unknown_categories_and_invalid_values(): void
+    {
+        $f = $this->fixture();
+        $base = ['source_hash' => app(WorkshopAllocation::class)->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1];
+        foreach ([[999999 => '1'], [1 => 'invalid']] as $supplied) {
+            $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), $base + ['supplied_categories' => $supplied])->assertUnprocessable();
+        }
+        $this->assertDatabaseCount('finance_budgets', 0);
+    }
+
     private function cancelAndRefund(array $f): void
     {
         $f['workshop']->update(['status' => 'cancelled']);

@@ -1,6 +1,14 @@
 export function allocationTally(config) {
     return {
         values: config.values || {},
+        supplied: config.workshopDefaults?.selected || {},
+        refreshWorkshopDefaults() {
+            if (!config.workshopDefaults || this.enabled) return;
+            Object.keys(this.values).forEach(id => {
+                const targets = this.supplied[id] ? config.workshopDefaults.supplied : config.workshopDefaults.notSupplied;
+                this.values[id] = ((targets[id] || 0) / 100).toFixed(2);
+            });
+        },
         previewFingerprint: null,
         previewDirty: false,
         previewInvoice(detail, rules, prices = {}) {
