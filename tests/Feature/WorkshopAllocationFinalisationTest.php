@@ -171,10 +171,12 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->finalise($f);
         $budget = DB::table('finance_budgets')->first();
         $this->assertTrue($service->isCurrent($budget));
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Update allocation')->assertDontSee('Finalise allocation');
         $this->assertSame(10000, app(FinancePlanner::class)->budgetReport($budget)['funding']['categories'][1]);
         $f['ticket']->update(['attended_at' => now()]);
         $this->assertSame('Allocation needs review', $service->state($f['workshop'])['status']);
         $this->assertFalse($service->isCurrent($budget));
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Finalise allocation')->assertDontSee('Update allocation');
         $this->assertSame(0, app(FinancePlanner::class)->budgetReport($budget)['funding']['categories'][1]);
         $this->assertSame($budget->targets, DB::table('finance_budgets')->value('targets'));
         $this->assertDatabaseCount('finance_budget_revisions', 1);

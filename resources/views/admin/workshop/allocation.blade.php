@@ -49,7 +49,7 @@
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="workshop-allocation" :exact="false" totalLabel="Received excluding GST" :shortfall="true" :show-totals="false" />
             @if($state['ready'])
                 <div class="mt-8 flex justify-end">
-                    <x-ui.button type="submit">Finalise allocation</x-ui.button>
+                    <x-ui.button type="submit" :disabled="(bool) $state['current']" x-bind:disabled="{{ $state['current'] ? '!allocationChanged' : 'false' }}">{{ $state['current'] ? 'Update allocation' : 'Finalise allocation' }}</x-ui.button>
                 </div>
             @elseif($state['status'] !== 'No allocation required')
                 <p class="mt-4 text-sm text-slate-600">Finalise after the workshop ends and payment outcomes are resolved.</p>
