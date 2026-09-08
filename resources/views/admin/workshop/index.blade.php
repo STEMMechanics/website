@@ -43,12 +43,7 @@
                             </x-ui.button></x-slot:actions></x-mast>
 
     <x-container class="py-5 sm:py-8">
-        @php
-            $allocationCount = app(\App\Services\Finance\FinanceAttention::class)->counts()['workshops'] ?? 0;
-        @endphp
-        @if($allocationCount)
-            <aside class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm"><a class="underline" href="{{ route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']) }}">{{ $allocationCount }} {{ Str::plural('workshop allocation', $allocationCount) }} ready for review</a></aside>
-        @endif
+        <x-finance.attention-notice kind="workshops" />
         <x-ui.dynamic-list name="admin-workshop-index" :show-presets="$view === 'list'">
 
         <div x-on:open-workshop-materials.window="openDialog()" x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">

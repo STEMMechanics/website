@@ -54,9 +54,20 @@ class WorkshopAllocation
             'events' => $events,
         ];
         $hash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
-        $ready = $workshop->ends_at && $workshop->ends_at->lte(now()) && $pending === 0 && ! $unresolved;
+        // Settled cancellations with no retained receipts need no initial allocation.
+        $noAllocationRequired = $workshop->status === 'cancelled' && ! $budget?->finalised_at
+            && $pending === 0 && ! $unresolved && array_sum(array_column($events, 'gross')) === 0;
+        $ready = ! $noAllocationRequired && $workshop->ends_at && $workshop->ends_at->lte(now()) && $pending === 0 && ! $unresolved;
         $current = $budget && $budget->finalised_at && hash_equals((string) $budget->source_hash, $hash);
-        $status = $current ? 'Finalised' : ($budget?->finalised_at ? 'Allocation needs review' : ($ready ? 'Ready to finalise' : ($pending ? $pending.' payment outcomes outstanding' : ($unresolved ? 'Invoice breakdown needs review' : 'Estimated'))));
+        $status = match (true) {
+            (bool) $current => 'Finalised',
+            (bool) $budget?->finalised_at => 'Allocation needs review',
+            $noAllocationRequired => 'No allocation required',
+            (bool) $ready => 'Ready for review',
+            $pending > 0 => $pending.' payment outcomes outstanding',
+            $unresolved => 'Invoice breakdown needs review',
+            default => 'Estimated',
+        };
 
         return compact('hash', 'ready', 'current', 'status', 'pending', 'unresolved');
     }

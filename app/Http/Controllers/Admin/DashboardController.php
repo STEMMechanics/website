@@ -16,6 +16,7 @@ class DashboardController extends Controller
     {
         return view('admin.dashboard.index', app(\App\Services\DashboardSnapshot::class)->get((string) $request->query('period', 'overview')) + [
             'workplan' => $workplans->build(),
+            'allocationTasks' => app(\App\Services\Finance\WorkshopAllocation::class)->attention(),
         ]);
     }
 

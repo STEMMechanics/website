@@ -138,7 +138,7 @@ class WorkshopLineAllocationTest extends TestCase
         $this->assertSame($planId, $context['version']->id);
         $this->assertSame([6 => 12000], $context['targets']);
         $allocator->sync($invoice, $admin->id);
-        $this->get(route('admin.workshop.edit', $ticket->workshop))->assertOk()->assertSee('Review workshop allocation')->assertSee('Online workshops');
+        $this->get(route('admin.workshop.edit', $ticket->workshop))->assertOk()->assertSee(route('admin.workshop.allocation.edit', $ticket->workshop))->assertSee('Online workshops');
         $this->assertDatabaseCount('finance_budgets', 0);
         DB::table('finance_settings')->where('id', 1)->update(['default_pricing_version_id' => 1]);
         $context = app(\App\Services\Finance\WorkshopAllocation::class)->context($ticket->workshop);

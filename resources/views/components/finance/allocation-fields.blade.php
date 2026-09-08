@@ -1,4 +1,4 @@
-@props(['categories', 'prefix' => 'splits', 'idPrefix' => 'allocation', 'exact' => true, 'columns' => 2, 'percentage' => false, 'totalLabel' => null, 'shortfall' => false])
+@props(['categories', 'prefix' => 'splits', 'idPrefix' => 'allocation', 'exact' => true, 'columns' => 2, 'percentage' => false, 'totalLabel' => null, 'shortfall' => false, 'showTotals' => true])
 <div class="grid gap-x-10 gap-y-4 {{ $columns === 2 ? 'lg:grid-cols-2' : '' }}">
     @foreach($categories->values()->split($columns) as $column)
         <div class="space-y-3">
@@ -20,7 +20,7 @@
     @endforeach
     @if($percentage)
         <p class="border-t border-slate-200 pt-4 text-sm" aria-live="polite" x-bind:class="enabled && remaining !== 0 ? 'text-amber-700' : 'text-slate-700'">Total: <strong class="tabular-nums" x-text="(allocated / 100).toFixed(2) + '%'"></strong><span x-show="enabled && remaining !== 0"> — must equal 100%.</span></p>
-    @else
+    @elseif($showTotals)
     <dl class="{{ $columns === 2 ? 'lg:col-start-2' : '' }} space-y-2 border-t border-slate-200 pt-4 text-sm" aria-live="polite">
         <div class="flex justify-between gap-4"><dt>{{ $totalLabel ?? ($exact ? 'Expense excluding GST' : 'Invoice total excluding GST') }}</dt><dd class="font-semibold tabular-nums" x-text="money(total)"></dd></div>
         <div class="flex justify-between gap-4"><dt>{{ $exact ? 'Allocated' : 'Allocation targets' }}</dt><dd class="font-semibold tabular-nums" x-text="money(allocated)"></dd></div>

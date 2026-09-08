@@ -49,11 +49,70 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->post(route('admin.workshop.allocation.store', $fixture['workshop']), ['source_hash' => $service->state($fixture['workshop'])['hash'], 'outcomes_reviewed' => 1, 'override' => 1, 'targets' => [1 => 100]])->assertSessionHasNoErrors()->assertRedirect();
     }
 
+    private function cancelAndRefund(array $f): void
+    {
+        $f['workshop']->update(['status' => 'cancelled']);
+        $f['invoice']->update(['status' => Invoice::STATUS_CANCELLED]);
+        $refund = Payment::factory()->create(['kind' => Payment::KIND_REFUND, 'refund_of_payment_id' => $f['payment']->id, 'total_amount' => 110, 'gst_amount' => 10, 'payment_method' => Payment::PAYMENT_METHOD_CASH, 'received_on' => now()]);
+        InvoicePaymentAllocation::factory()->create(['invoice_id' => $f['invoice']->id, 'payment_id' => $refund->id, 'allocated_amount' => -110]);
+    }
+
+    public function test_settled_cancelled_workshop_without_an_allocation_needs_no_review(): void
+    {
+        $f = $this->fixture();
+        $this->cancelAndRefund($f);
+        $service = app(WorkshopAllocation::class);
+        $state = $service->state($f['workshop']);
+        $this->assertSame('No allocation required', $state['status']);
+        $this->assertFalse($state['ready']);
+        $this->assertEmpty($service->attention());
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('No allocation required')->assertDontSee('Finalise allocation');
+        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $state['hash'], 'outcomes_reviewed' => 1])->assertUnprocessable();
+    }
+
+    public function test_cancelled_workshop_without_receipts_is_exempt_only_after_payment_outcomes_settle(): void
+    {
+        $f = $this->fixture();
+        $f['workshop']->update(['status' => 'cancelled']);
+        $f['payment']->update(['payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER, 'cleared_at' => null]);
+        $service = app(WorkshopAllocation::class);
+        $this->assertNotSame('No allocation required', $service->state($f['workshop'])['status']);
+        $f['invoice']->update(['status' => Invoice::STATUS_CANCELLED]);
+        $this->assertSame('No allocation required', $service->state($f['workshop'])['status']);
+    }
+
+    public function test_cancelled_workshop_with_retained_income_or_previous_allocation_still_needs_review(): void
+    {
+        $f = $this->fixture();
+        $f['workshop']->update(['status' => 'cancelled']);
+        $service = app(WorkshopAllocation::class);
+        $this->assertTrue($service->state($f['workshop'])['ready']);
+        $this->assertCount(1, $service->attention());
+        $this->finalise($f);
+        $this->cancelAndRefund($f);
+        $this->assertSame('Allocation needs review', $service->state($f['workshop'])['status']);
+        $this->assertCount(1, $service->attention());
+    }
+
+    public function test_dashboard_review_task_and_workshop_tabs_follow_finalisation(): void
+    {
+        $f = $this->fixture();
+        $url = route('admin.workshop.allocation.edit', $f['workshop']);
+        $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 1)->assertSee($url);
+        foreach (['edit', 'attendance', 'files', 'photos', 'allocation.edit'] as $page) {
+            $this->get(route('admin.workshop.'.$page, $f['workshop']))->assertOk()->assertSee($url)->assertSee('Allocation ready for review');
+        }
+        $this->finalise($f);
+        $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 0);
+        $f['ticket']->update(['attended_at' => now()]);
+        $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 1);
+    }
+
     public function test_workshop_finalises_once_and_later_changes_require_review(): void
     {
         $f = $this->fixture();
         $service = app(WorkshopAllocation::class);
-        $this->assertSame('Ready to finalise', $service->state($f['workshop'])['status']);
+        $this->assertSame('Ready for review', $service->state($f['workshop'])['status']);
         $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Received excluding GST')->assertSee('Finalise allocation');
         $this->get(route('admin.invoice.allocation.edit', $f['invoice']))->assertOk()->assertSee('Ticket allocation managed by workshop')->assertDontSee('Save allocation');
         $this->postJson(route('admin.invoice.allocation.store', $f['invoice']), ['targets' => [1 => 100]])->assertUnprocessable();

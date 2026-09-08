@@ -34,10 +34,3 @@
     <p class="mt-3 text-xs text-slate-500">Pricing attendance / full capacity. Actual allocations use purchased tickets and payments received.</p>
 
 </x-ui.collapsible-section>
-@if(isset($workshop))
-    <div class="mt-4 border-t border-slate-200 pt-4 text-sm">
-        @php($allocationState = app(\App\Services\Finance\WorkshopAllocation::class)->state($workshop, $budget))
-        <x-ui.badge class="mr-3" :color="$allocationState['current'] ? 'success' : 'warning'">{{ $allocationState['status'] }}</x-ui.badge>
-        <a class="text-primary-color underline" href="{{ route('admin.workshop.allocation.edit', $workshop) }}">Review workshop allocation</a>
-    </div>
-@endif
