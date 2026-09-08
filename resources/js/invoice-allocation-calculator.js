@@ -1,3 +1,5 @@
+import { attachDraggableDialog } from './draggable-dialog';
+
 export function calculateAllocationRows(plan, rows) {
     if (!plan || !rows.length || rows.length > 50) return null;
     const totals = {};
@@ -45,7 +47,11 @@ window.SM.invoiceAllocationCalculator = config => {
                 const dialog = document.getElementById(config.dialogId);
                 const closed = () => { this.isOpen = dialog.open; };
                 dialog.addEventListener('close', closed);
-                this.cleanup = () => dialog.removeEventListener('close', closed);
+                const stopDragging = attachDraggableDialog(dialog);
+                this.cleanup = () => {
+                    dialog.removeEventListener('close', closed);
+                    stopDragging();
+                };
             });
         },
         launch(total) {
