@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\Finance\FinancePlanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -146,5 +147,43 @@ class CostCentreTest extends TestCase
         }
         $this->postJson(route('admin.cost-centre.store'), ['name' => 'Bad', 'priority' => 80, 'active' => 1])->assertForbidden();
         $this->postJson(route('admin.cost-centre.transfer'), ['category_id' => 1, 'amount' => 1, 'reason' => 'Bad'])->assertForbidden();
+    }
+
+    public function test_gst_history_groups_received_cash_and_credits_by_month_and_retains_settlement_amounts(): void
+    {
+        $this->actingAs($this->admin());
+        $invoice = Invoice::factory()->create(['total_amount' => 110, 'gst_amount' => 10]);
+        $payment = Payment::factory()->create(['kind' => 'payment', 'payment_method' => 'cash', 'total_amount' => 110, 'gst_amount' => 10, 'received_on' => '2026-08-02']);
+        InvoicePaymentAllocation::factory()->create(['payment_id' => $payment->id, 'invoice_id' => $invoice->id, 'allocated_amount' => 110]);
+        Payment::factory()->create(['kind' => 'refund', 'payment_method' => 'cash', 'refund_of_payment_id' => $payment->id, 'total_amount' => 22, 'gst_amount' => 2, 'received_on' => '2026-09-02']);
+        Payment::factory()->create(['kind' => 'payment', 'payment_method' => 'bank_transfer', 'gateway_status' => 'PENDING', 'total_amount' => 110, 'gst_amount' => 10, 'received_on' => '2026-08-03']);
+        Expense::factory()->create(['total_amount' => 33, 'gst_amount' => 3, 'paid_on' => '2026-08-04']);
+        Expense::factory()->create(['total_amount' => 22, 'gst_amount' => 2, 'paid_on' => '2026-09-04']);
+        Expense::factory()->create(['total_amount' => 55, 'gst_amount' => 5, 'paid_on' => null]);
+        DB::table('finance_gst_settlements')->insert(['period' => '2026-08-01', 'paid_on' => '2026-09-01', 'cents' => 699, 'reference' => 'myGov card receipt']);
+        $response = $this->get(route('admin.cost-centre.gst', ['month' => '2026-09']))->assertOk()->assertSee('BAS / GST history')->assertSee('myGov card receipt');
+        $history = $response->viewData('history');
+        $this->assertCount(12, $history);
+        $this->assertSame(-400, $history[0]['net']);
+        $this->assertSame(1000, $history[1]['sales']);
+        $this->assertSame(300, $history[1]['credits']);
+        $this->assertSame(700, $history[1]['net']);
+        $this->assertSame(699, (int) $history[1]['settlement']->cents);
+        $this->assertSame(0, $history[2]['net']);
+        $this->assertNull($history[2]['settlement']);
+        $this->assertSame('2025-10', $history[11]['month']->format('Y-m'));
+        $this->get(route('admin.cost-centre.gst', ['month' => '2025-09']))->assertOk()->assertViewHas('historyStart', fn ($date) => $date->format('Y-m') === '2024-10');
+    }
+
+    public function test_gst_settlement_reference_is_optional_and_returns_to_the_recorded_month(): void
+    {
+        $this->actingAs($this->admin());
+        $this->travelTo(Carbon::parse('2026-09-08'));
+        $data = ['period' => '2026-08', 'paid_on' => '2026-09-08', 'amount' => '-229'];
+        $this->post(route('admin.finance.settlement'), $data)->assertSessionHasNoErrors()->assertRedirect(route('admin.cost-centre.gst', ['month' => '2026-08']));
+        $this->assertDatabaseHas('finance_gst_settlements', ['period' => '2026-08-01', 'cents' => -22900, 'reference' => '']);
+        $this->post(route('admin.finance.settlement'), $data)->assertSessionHasErrors('period');
+        $this->get(route('admin.cost-centre.gst', ['month' => '2026-08']))->assertOk()->assertSee('Receipt / note (optional)')->assertSee('-$229.00');
+        $this->travelBack();
     }
 }
