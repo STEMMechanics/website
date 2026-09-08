@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 function setup() {
     const dialog = { showModal() {}, close() {} };
-    const context = { window: {}, document: { getElementById: () => dialog } };
+    const context = { attachDraggableDialog: () => () => {}, window: {}, document: { getElementById: () => dialog } };
     for (const file of ['allocation-tally', 'workshop-line', 'invoice-allocation-calculator']) {
-        vm.runInNewContext(fs.readFileSync(`resources/js/${file}.js`, 'utf8').replace('export function', 'function'), context);
+        vm.runInNewContext(fs.readFileSync(`resources/js/${file}.js`, 'utf8').replace(/^import .*;$/m, '').replace('export function', 'function'), context);
     }
     return context;
 }

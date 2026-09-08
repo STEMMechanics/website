@@ -1821,3 +1821,8 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action { width: auto; padding-inline: .7rem; gap: .4rem; }
     .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action .sm-row-action-label { display: inline; font-size: .75rem; }
 }
+
+@media (min-width: 768px) {
+    [data-dialog-drag-handle] { cursor: move; touch-action: none; user-select: none; }
+    [data-dialog-drag-handle] button { cursor: pointer; }
+}
