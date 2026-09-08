@@ -16,18 +16,11 @@
         <x-ui.dynamic-list name="admin-expense-index">
         <x-finance.attention-notice kind="expenses" />
         @if(isset($selectedSupplier))
-            <p class="mt-4 text-sm">Default cost centre: <x-ui.badge :color="$supplierCostCentre ? 'slate' : 'amber'">{{ $supplierCostCentre ? $supplierCostCentre : 'Choose cost centre' }}</x-ui.badge></p>
+            <p class="my-4 first:mt-0 text-sm">Default cost centre: <x-ui.badge :color="$supplierCostCentre ? 'slate' : 'amber'">{{ $supplierCostCentre ? $supplierCostCentre : 'Choose cost centre' }}</x-ui.badge></p>
         @endif
 
-        @php($hasAdvancedFilters = collect(['supplier', 'description', 'invoice_id', 'attachment', 'paid_from', 'paid_to', 'no_attachment'])->contains(fn ($field) => request()->filled($field)))
-        <div
-            x-data="{ advancedOpen: {{ \Illuminate\Support\Js::from($hasAdvancedFilters) }} }"
-            x-on:toggle-advanced-search.window="advancedOpen = !advancedOpen"
-            x-on:clear-advanced-search.window="advancedOpen = false"
-        >
-        <x-ui.collection-controls class="my-5" />
-
-        </div>
+        @php($hasAdvancedFilters = collect(array_keys(app(\App\Services\SiteListControls::class)->filterFields()))->contains(fn ($field) => request()->filled($field)))
+        <x-ui.collection-controls />
 
         @if($expenses->isEmpty())
             @if($hasAdvancedFilters && ! request()->filled('search'))
