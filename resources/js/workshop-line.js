@@ -207,14 +207,17 @@ window.SM.courseEditor = (format, sessions) => ({
     addSession() {
         this.courseSessions.push({ id: crypto.randomUUID(), label: '', starts_at: '', ends_at: '' });
     },
-    generateSessions() {
+    async generateSessions() {
         const start = new Date(this.generateStart || this.manualStartsAt);
         const count = Number(this.generateCount), minutes = Number(this.generateMinutes);
         if (!Number.isFinite(start.getTime()) || !Number.isInteger(count) || count < 1 || count > 104 || minutes < 1) {
             this.scheduleError = 'Choose a first session, 1–104 weeks and a positive duration.';
             return;
         }
-        if (this.courseSessions.length && !window.confirm('Replace the current session schedule? Sessions with attendance cannot be removed.')) return;
+        if (this.courseSessions.length) {
+            const result = await window.SM.confirm('Replace session schedule?', 'Sessions with recorded attendance cannot be removed.', 'Replace sessions');
+            if (!result?.isConfirmed) return;
+        }
         this.scheduleError = '';
         const local = date => SM.toLocalISOString(date).slice(0, 16);
         this.courseSessions = Array.from({ length: count }, (_, i) => {

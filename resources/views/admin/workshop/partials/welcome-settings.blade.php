@@ -41,7 +41,7 @@
                     <x-ui.button type="button" color="outline" onclick="window.open(@js(route('admin.workshop.welcome.preview', $workshopModel)), '_blank', 'noopener')">Preview saved email</x-ui.button>
                     <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="send">Send now</x-ui.button>
                     @if($welcomeCounts->get('sent', 0))
-                        <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="resend" onclick="return confirm('Resend the saved welcome email to all active ticket contacts?')" color="outline">Resend to active contacts</x-ui.button>
+                        <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="resend" x-on:click.prevent="const button = $el; const result = await SM.confirm('Resend welcome email?', 'The saved email will be sent again to all active ticket contacts.', 'Resend'); if (result?.isConfirmed) button.form.requestSubmit(button)" color="outline">Resend to active contacts</x-ui.button>
                     @endif
                     @if($welcomeCounts->get('failed', 0))
                         <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="retry" color="outline">Retry failed emails</x-ui.button>

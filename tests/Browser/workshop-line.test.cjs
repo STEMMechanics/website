@@ -258,3 +258,18 @@ test('course ticket pricing and allocation use teaching hours rather than eight 
     editor.courseSessions.pop();
     assert.equal(editor.courseTeachingHours(), 1);
 });
+
+test('regenerating course sessions uses the shared confirmation and preserves cancelled edits', async () => {
+    context.SM = context.window.SM;
+    context.crypto = require('node:crypto');
+    context.SM.toLocalISOString = date => date.toISOString();
+    const original = [{ id: 'saved-session', starts_at: '2026-10-01T10:00', ends_at: '2026-10-01T11:00' }];
+    const editor = { ...context.SM.courseEditor('course', original), manualStartsAt: '2026-10-01T10:00', $dispatch() {} };
+    context.SM.confirm = async () => ({ isConfirmed: false });
+    await editor.generateSessions();
+    assert.equal(editor.courseSessions, original);
+    context.SM.confirm = async () => ({ isConfirmed: true });
+    await editor.generateSessions();
+    assert.equal(editor.courseSessions.length, 8);
+    assert.equal(editor.courseTeachingHours(), 8);
+});
