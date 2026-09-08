@@ -114,7 +114,7 @@
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
                     @if($pageMenuAttentionCount > 0)
-                        <x-ui.badge color="warning" variant="solid" class="absolute -right-1 -top-2 min-w-4 px-1 py-0 text-xxs">{{ $pageMenuAttentionCount }}</x-ui.badge>
+                        <x-ui.badge color="warning" variant="solid" class="absolute -right-1 -top-2 min-w-4 px-1 py-0 text-[11px] leading-4">{{ $pageMenuAttentionCount }}</x-ui.badge>
                     @endif
                 </button>
                 <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()">
@@ -149,7 +149,7 @@
                             aria-label="Cart"
                     >
                         <i class="fa-solid fa-cart-shopping text-base"></i>
-                        <x-ui.badge color="danger" variant="solid" x-cloak x-show="cartCount() > 0" x-text="cartCount()" class="absolute -right-3 -top-2 min-w-4 px-1 py-0 text-xxs"></x-ui.badge>
+                        <x-ui.badge color="danger" variant="solid" x-cloak x-show="cartCount() > 0" x-text="cartCount()" class="absolute -right-3 -top-2 min-w-4 px-1 py-0 text-[11px] leading-4"></x-ui.badge>
                     </button>
                 @endif
             </div>

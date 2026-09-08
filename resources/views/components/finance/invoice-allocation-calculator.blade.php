@@ -6,18 +6,15 @@
     $calculatorConfig = ['dialogId' => $calculatorId, 'plans' => $calculatorPlans, 'planId' => $calculatorPlans->contains('id', $allocation['version']->id) ? $allocation['version']->id : $calculatorPlans->first()['id'] ?? '', 'categories' => $allocation['categories']->map(fn ($category) => ['id' => $category->id, 'name' => $category->name])];
 @endphp
 <div x-data="SM.invoiceAllocationCalculator(@js($calculatorConfig))" x-on:open-allocation-calculator.window="if ($event.detail.dialogId === dialogId) launch($el.closest('form') ? Alpine.$data($el.closest('form')).total : 0)">
-    <x-ui.list-dialog :id="$calculatorId" title="Calculate cost centre allocation" kind="bulk">
+    <x-ui.list-dialog :id="$calculatorId" title="Calculate cost centre allocation" kind="bulk" draggable>
         <x-slot:headerActions>
             <x-ui.button type="button" variant="plain" x-on:click="minimise()" aria-label="Minimise allocation calculator" title="Minimise" class="h-11 w-11 rounded-lg p-0! text-slate-500"><i class="fa-solid fa-minus" aria-hidden="true"></i></x-ui.button>
         </x-slot:headerActions>
         <div class="space-y-6 p-5" x-on:keydown.enter="if ($event.target.matches('input')) $event.preventDefault()">
             <fieldset x-bind:disabled="!isOpen" class="space-y-5" x-on:input="recalculate()" x-on:change="recalculate()">
-                <div>
-                    <label for="{{ $calculatorId }}-plan" class="block text-sm font-medium">Allocation plan</label>
-                    <select id="{{ $calculatorId }}-plan" class="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2" x-model="planId">
-                        <template x-for="plan in plans" :key="plan.id"><option :value="plan.id" x-text="plan.name"></option></template>
-                    </select>
-                </div>
+                <x-ui.select label="Allocation plan" :name="$calculatorId.'-plan'" :id="$calculatorId.'-plan'" x-model="planId">
+                    <template x-for="plan in plans" :key="plan.id"><option :value="plan.id" x-text="plan.name"></option></template>
+                </x-ui.select>
                 <div class="space-y-5">
                     <template x-for="(row, index) in rows" :key="row.id">
                         <section>
