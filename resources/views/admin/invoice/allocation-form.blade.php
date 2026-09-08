@@ -26,7 +26,13 @@
         @if($allocation['warning'])
             <p class="mb-4 text-amber-800">{{ $allocation['warning'] }}</p>
         @else
-            @if($allocation['workshopId'])<p class="mb-4 text-sm text-slate-600">This is the shared allocation for {{ $allocation['workshop']?->title }}. Changes apply to all {{ count($allocation['ids']) }} linked invoices.</p>@endif
+            @if($allocation['workshopId'])
+                <div class="mb-4 text-sm text-slate-600">
+                    <p class="font-semibold">Shared workshop allocation</p>
+                    <p>These are totals for {{ $allocation['workshop']?->title }} across {{ count($allocation['ids']) }} linked invoices, not amounts for each ticket. Payments from those invoices fund one shared allocation. Changes here update that allocation for the whole workshop.</p>
+                    <a class="mt-2 inline-block text-primary-color underline" href="{{ route('admin.workshop.edit', $allocation['workshop'] ?? $allocation['workshopId']) }}">View workshop</a>
+                </div>
+            @endif
             <p class="mb-5 text-sm text-slate-600">Set the amounts each cost centre should receive. Funding follows received payments, excluding GST, in priority order. Targets may exceed receipts for an underfunded workshop. Saving an override protects it from automatic recalculation.</p>
             <p class="mb-4 text-sm"><a class="text-primary-color underline" href="{{ route('admin.cost-centre.allocations', ['tab' => 'versions']) }}">Pricing defaults</a> · {{ $allocation['version']->name }}</p>
             @if($allocation['automaticWarning'])<p class="mb-4 text-sm text-amber-800">{{ $allocation['automaticWarning'] }}</p>@endif

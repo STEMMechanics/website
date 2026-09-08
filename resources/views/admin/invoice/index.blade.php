@@ -123,6 +123,7 @@
 
                         <x-ui.row-actions class="mt-4">
                             <x-ui.row-action label="Edit invoice" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.invoice.edit', $invoice) }}" />
+                            @include('admin.invoice.workshop-actions')
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                                 <x-ui.row-action label="Download PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.invoice.pdf', $invoice) }}" />
                                 <x-ui.row-action label="Email Invoice PDF" icon="fa-regular fa-envelope" tone="neutral"
@@ -289,6 +290,7 @@
                                 <td class="text-center!">
                                     <x-ui.row-actions class="whitespace-nowrap text-sm">
                                         <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.invoice.edit', $invoice) }}" />
+                                        @include('admin.invoice.workshop-actions')
                                         @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                                             <x-ui.row-action label="Download PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.invoice.pdf', $invoice) }}" />
                                             @php

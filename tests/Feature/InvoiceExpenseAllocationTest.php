@@ -58,7 +58,14 @@ class InvoiceExpenseAllocationTest extends TestCase
         $this->actingAs($this->admin())->postJson(route('admin.invoice.allocation.store', $invoices[0]), ['targets' => [1 => 100]])->assertOk();
         $this->assertDatabaseCount('finance_budgets', 1);
         $this->assertDatabaseCount('finance_budget_invoices', 2);
-        $this->get(route('admin.invoice.allocation.edit', $invoices[1]))->assertOk()->assertSee('2');
+        $this->get(route('admin.invoice.allocation.edit', $invoices[1]))->assertOk()
+            ->assertSee('Shared workshop allocation')->assertSee('not amounts for each ticket')
+            ->assertSee(route('admin.workshop.edit', $workshop));
+        $contexts = $invoices->map(fn ($invoice) => app(\App\Services\Finance\InvoiceAllocation::class)->context($invoice));
+        $this->assertSame($contexts[0]['budget']->id, $contexts[1]['budget']->id);
+        $this->assertSame([1 => 10000], $contexts[0]['targets']);
+        $this->assertSame($contexts[0]['targets'], $contexts[1]['targets']);
+        $this->assertEqualsCanonicalizing($invoices->pluck('id')->all(), $contexts[0]['ids']);
         $this->postJson(route('admin.invoice.allocation.store', $invoices[1]), ['targets' => [1 => 100]])->assertUnprocessable();
         $this->assertDatabaseCount('finance_budgets', 1);
     }
