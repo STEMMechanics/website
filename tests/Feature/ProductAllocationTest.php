@@ -57,7 +57,7 @@ class ProductAllocationTest extends TestCase
         $this->assertArrayNotHasKey('product_allocation_snapshot', $line->toArray());
         $this->config($product, ['fixed' => [2 => 900], 'percent' => [6 => 10000]], $variant);
         $this->assertSame([2 => 1000, 6 => 1000], app(ProductAllocation::class)->lines($invoice)[$invoice->id.':'.$line->line_number]['targets']);
-        $this->get(route('admin.product-allocation.edit', ['product' => $product, 'variant' => $variant->id]))->assertOk()->assertSee('Use base product allocation');
+        $this->get(route('admin.product-allocation.edit', ['product' => $product, 'variant' => $variant->id]))->assertRedirect(route('admin.shop.product.edit', $product).'#cost-centre-allocation');
         $this->get(route('admin.product-allocation.profiles'))->assertOk()->assertSee('Tape and assembly');
         $this->post(route('admin.product-allocation.save', $product), ['mode' => 'custom', 'percent' => [1 => '80', 2 => '30']])->assertSessionHasErrors('percent');
         $otherVariant = ProductVariant::factory()->create();

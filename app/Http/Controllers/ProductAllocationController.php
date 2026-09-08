@@ -40,17 +40,9 @@ class ProductAllocationController extends Controller
         return redirect()->route('admin.product-allocation.profiles')->with('message', 'Product allocation profile saved. Existing invoice allocations are unchanged.')->with('message-type', 'success');
     }
 
-    public function edit(Request $request, Product $product): View
+    public function edit(Request $request, Product $product): RedirectResponse
     {
-        $request->validate(['variant' => ['nullable', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $product->id)]]);
-
-        return view('admin.shop.product.allocations', [
-            'variantId' => $request->filled('variant') ? $request->integer('variant') : null,
-            'product' => $product->load('variants'),
-            'configs' => DB::table('finance_product_allocations')->where('product_id', $product->id)->get()->keyBy('scope'),
-            'profiles' => DB::table('finance_product_profiles')->orderBy('name')->get(),
-            'categories' => $this->categories(),
-        ]);
+        return redirect()->to(route('admin.shop.product.edit', $product).'#cost-centre-allocation');
     }
 
     public function save(Request $request, Product $product, ProductAllocation $allocations): RedirectResponse
