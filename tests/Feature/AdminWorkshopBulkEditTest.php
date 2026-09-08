@@ -46,7 +46,7 @@ class AdminWorkshopBulkEditTest extends TestCase
         $this->assertStringContainsString('8+', $html);
         $this->assertStringNotContainsString('<html', $html);
         $this->get(route('admin.workshop.edit', $first))->assertOk()
-            ->assertSee('aria-label="Breadcrumb"', false)->assertSee('Edit Workshop');
+            ->assertSee('aria-label="Breadcrumb"', false)->assertSee($first->title);
     }
 
     public function test_bulk_update_changes_only_submitted_shared_values(): void

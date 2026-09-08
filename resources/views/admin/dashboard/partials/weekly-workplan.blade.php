@@ -7,7 +7,7 @@
         + $workplan['pendingTransfers']->count();
     $outstandingReminderCount = $workplan['reminders']
         ->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())
-        ->count();
+        ->count() + count($allocationTasks ?? []);
 @endphp
 
 <details open class="w-full group rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -48,6 +48,13 @@
                         @php($workshopLocation = trim((string) $workshop->getLocationName()))
                         <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}{{ $workshopLocation !== '' ? ' · '.$workshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
+                    @foreach($allocationTasks ?? [] as $task)
+                        <a href="{{ route('admin.workshop.allocation.edit', $task['workshop']) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50">
+                            <i class="fa-solid fa-circle-exclamation mt-0.5 w-4 text-amber-600" aria-hidden="true"></i>
+                            <span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $task['workshop']->title }} · Review allocation</span><span class="text-xs text-gray-500">{{ $task['workshop']->starts_at?->format('D j M Y') }} · {{ $task['status'] }}</span></span>
+                            <i class="fa-solid fa-arrow-right mt-1 text-xs text-gray-400" aria-hidden="true"></i>
+                        </a>
+                    @endforeach
                     @foreach($workplan['reminders'] as $reminder)
                         @php($reminderTaskName = (string) str($reminder->subject)->after('Workshop task: ')->before(' — '))
                         @php($reminderWorkshopName = $reminder->remindable instanceof \App\Models\Workshop ? $reminder->remindable->title : '')
@@ -55,7 +62,7 @@
                         @php($reminderCompleted = $reminder->isCompletedWorkshopTask())
                         <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 {{ $reminderCompleted ? 'text-gray-400' : 'text-emerald-600' }}"></i><span class="min-w-0 flex-1 {{ $reminderCompleted ? 'text-gray-400 line-through' : '' }}"><span class="block font-semibold {{ $reminderCompleted ? '' : 'text-gray-900' }}">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs {{ $reminderCompleted ? '' : 'text-gray-500' }}">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
-                    @if($workplan['scheduledInvoices']->isEmpty() && $workplan['dueInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty())
+                    @if($workplan['scheduledInvoices']->isEmpty() && $workplan['dueInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty() && empty($allocationTasks))
                         <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this fortnight.</p>
                     @endif
                 </div>

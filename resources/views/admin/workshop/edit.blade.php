@@ -99,30 +99,12 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
 
 $workshopTabs = null;
 if (isset($workshop)) {
-    $workshopTabs = [
-        [
-            'title' => 'Details',
-            'route' => route('admin.workshop.edit', $workshop),
-            'active' => true,
-        ],
-        [
-            'title' => 'Attendance',
-            'route' => route('admin.workshop.attendance', $workshop),
-        ],
-        [
-            'title' => 'Files',
-            'route' => route('admin.workshop.files', $workshop),
-        ],
-        [
-            'title' => 'Photos',
-            'route' => route('admin.workshop.photos', $workshop),
-        ],
-    ];
+    $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
 }
 @endphp
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
-        <x-slot>{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-slot>
+        <x-slot>{{ isset($workshop) ? $workshop->title : 'Create Workshop' }}</x-slot>
         @isset($workshop)
             <x-slot:actions>
                 <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
@@ -134,7 +116,8 @@ if (isset($workshop)) {
         @endisset
     </x-mast>
 
-    <x-container class="mt-4">
+    <x-container class="py-5 sm:py-8">
+        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <form x-data="{
             type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),

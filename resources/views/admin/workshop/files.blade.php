@@ -1,23 +1,5 @@
 @php
-    $workshopTabs = [
-        [
-            'title' => 'Details',
-            'route' => route('admin.workshop.edit', $workshop),
-        ],
-        [
-            'title' => 'Attendance',
-            'route' => route('admin.workshop.attendance', $workshop),
-        ],
-        [
-            'title' => 'Files',
-            'route' => route('admin.workshop.files', $workshop),
-            'active' => true,
-        ],
-        [
-            'title' => 'Photos',
-            'route' => route('admin.workshop.photos', $workshop),
-        ],
-    ];
+    $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
     $dateLabel = $workshop->starts_at
         ? $workshop->starts_at->format('D j M Y, g:ia').($workshop->ends_at ? ' – '.$workshop->ends_at->format('g:ia') : '')
         : 'No date set';
@@ -29,12 +11,13 @@
 @endphp
 
 <x-layout title="Workshop Files - {{ $workshop->title }}">
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Files<x-slot:actions>
+    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Files<x-slot:actions>
         <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-upload', { id: 'workshop_files_pending' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
         <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-browse', { id: 'workshop_files_pending' })">Browse media</x-ui.button>
     </x-slot:actions></x-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
+        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <div class="mb-4">
             <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
                 <div>

@@ -86,6 +86,9 @@
                                 <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
                                 <span class="sr-only">(opens in a new tab)</span>
                             @endif
+                            @if(!empty($tab['attention']))
+                                <i class="fa-solid fa-circle-exclamation text-amber-600" role="img" aria-label="Allocation needs review"></i>
+                            @endif
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
                                 <x-ui.badge color="success" aria-label="{{ (int) $tab['badge'] }} unread items" class="min-w-5 justify-center leading-none">{{ number_format((int) $tab['badge']) }}</x-ui.badge>
                             @endif
