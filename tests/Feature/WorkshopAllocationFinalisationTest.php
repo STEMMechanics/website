@@ -49,7 +49,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->post(route('admin.workshop.allocation.store', $fixture['workshop']), ['source_hash' => $service->state($fixture['workshop'])['hash'], 'outcomes_reviewed' => 1, 'override' => 1, 'targets' => [1 => 100]])->assertSessionHasNoErrors()->assertRedirect();
     }
 
-    public function test_supplied_items_can_override_host_defaults_and_survive_finalisation(): void
+    public function test_hosted_workshop_defaults_to_nothing_supplied_and_preserves_explicit_choices(): void
     {
         $f = $this->fixture();
         $f['workshop']->update(['hosted_for_organisation_id' => \App\Models\Organisation::factory()->create()->id, 'pricing_version_id' => 1]);
@@ -59,7 +59,9 @@ class WorkshopAllocationFinalisationTest extends TestCase
             ['category_id' => 3, 'basis' => 'flat', 'rate_cents' => 1000],
         ])]);
         $service = app(WorkshopAllocation::class);
-        $this->assertSame(0, $service->context($f['workshop'])['suggestedTargets'][1]);
+        $this->assertSame(3000, $service->context($f['workshop'])['suggestedTargets'][1]);
+        $this->assertSame(500, $service->context($f['workshop'])['suggestedTargets'][2]);
+        $this->assertFalse($service->context($f['workshop'])['assumptions']['venue_supplied']);
         $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Venue hire supplied')->assertSee('Supplied items');
         $this->post(route('admin.workshop.allocation.store', $f['workshop']), [
             'source_hash' => $service->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1,
