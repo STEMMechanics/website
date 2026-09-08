@@ -22,6 +22,14 @@ class UiBadgeTest extends TestCase
         $this->assertStringContainsString('fa-solid fa-star', $html);
     }
 
+    public function test_count_badge_uses_compact_sizing_and_white_warning_theme(): void
+    {
+        $html = Blade::render('<x-ui.badge color="warning" variant="solid" size="count" class="absolute -right-1 -top-2">3</x-ui.badge>');
+        $this->assertStringContainsString('text-white', $html);
+        $this->assertStringContainsString('text-[11px]', $html);
+        $this->assertStringContainsString('leading-4', $html);
+    }
+
     public function test_badge_consumers_do_not_override_theme_colours(): void
     {
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(resource_path('views'))) as $file) {
