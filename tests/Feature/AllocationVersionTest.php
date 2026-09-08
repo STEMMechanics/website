@@ -191,9 +191,8 @@ class AllocationVersionTest extends TestCase
         $ticket = \App\Models\Ticket::factory()->create(['invoice_id' => $ticketInvoice->id, 'status' => \App\Models\Ticket::STATUS_PAID]);
         $this->postJson(route('admin.invoice.allocation.store', $ticketInvoice), ['version_id' => $version->id,
             'use_defaults' => 1, 'supplied_categories' => [1 => 1, 2 => 0],
-        ])->assertOk();
-        app(InvoiceAllocation::class)->sync($ticketInvoice, auth()->id());
-        $shared = app(InvoiceAllocation::class)->context($ticketInvoice);
+        ])->assertUnprocessable();
+        $shared = app(InvoiceAllocation::class)->context($ticketInvoice, $version->id, [1 => true, 2 => false], $ticket->workshop);
         $this->assertTrue($shared['assumptions']['supplied_categories'][1]);
         $this->assertSame(0, $shared['targets'][1] ?? 0);
         $this->assertSame(500, $shared['targets'][2]);

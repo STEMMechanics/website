@@ -1053,7 +1053,7 @@ if (isset($workshop)) {
                         <div class="flex-1"></div>
                     </div>
                 </x-ui.collapsible-section>
-                    <x-finance.workshop-allocation-preview :budget="$ticketBudget" />
+                    <x-finance.workshop-allocation-preview :budget="$ticketBudget" :workshop="$workshop ?? null" />
                 </div>
                 </div>
                 <div x-show="registration==='tickets'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">

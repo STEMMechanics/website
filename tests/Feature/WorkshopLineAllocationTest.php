@@ -115,10 +115,10 @@ class WorkshopLineAllocationTest extends TestCase
         Ticket::factory()->create(['invoice_id' => $second->id, 'workshop_id' => $workshop->id]);
         app(InvoiceAllocation::class)->sync($first, $admin->id);
         app(InvoiceAllocation::class)->sync($second, $admin->id);
-        $this->assertDatabaseCount('finance_budgets', 1);
-        $this->assertDatabaseCount('finance_budget_invoices', 2);
-        $this->assertSame(1000, app(InvoiceAllocation::class)->context($first)['targets'][2]);
-        $this->assertSame(12000, app(InvoiceAllocation::class)->context($second)['targets'][6]);
+        $this->assertDatabaseCount('finance_budgets', 0);
+        $context = app(\App\Services\Finance\WorkshopAllocation::class)->context($workshop);
+        $this->assertSame(1000, $context['targets'][2]);
+        $this->assertSame(12000, $context['targets'][6]);
     }
 
     public function test_ticket_allocations_use_the_workshop_plan_and_keep_it_when_the_default_changes(): void
@@ -134,14 +134,16 @@ class WorkshopLineAllocationTest extends TestCase
         $invoice = Invoice::factory()->create();
         $ticket->update(['invoice_id' => $invoice->id]);
         $allocator = app(InvoiceAllocation::class);
-        $context = $allocator->context($invoice);
+        $context = app(\App\Services\Finance\WorkshopAllocation::class)->context($ticket->workshop);
         $this->assertSame($planId, $context['version']->id);
         $this->assertSame([6 => 12000], $context['targets']);
         $allocator->sync($invoice, $admin->id);
-        $this->get(route('admin.workshop.edit', $ticket->workshop))->assertOk()->assertSee('Saved cost centre allocation')->assertSee('Online workshops');
-        $ticket->workshop->update(['pricing_version_id' => null]);
-        $this->assertSame($planId, $allocator->context($invoice)['version']->id);
-        $this->assertSame([6 => 12000], $allocator->context($invoice)['targets']);
+        $this->get(route('admin.workshop.edit', $ticket->workshop))->assertOk()->assertSee('Review workshop allocation')->assertSee('Online workshops');
+        $this->assertDatabaseCount('finance_budgets', 0);
+        DB::table('finance_settings')->where('id', 1)->update(['default_pricing_version_id' => 1]);
+        $context = app(\App\Services\Finance\WorkshopAllocation::class)->context($ticket->workshop);
+        $this->assertSame($planId, $context['version']->id);
+        $this->assertSame([6 => 12000], $context['targets']);
     }
 
     public function test_multiple_workshops_and_travel_apply_their_own_units(): void

@@ -439,6 +439,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/tickets/cancel/bulk', [TicketController::class, 'adminBulkCancel'])->name('admin.ticket.cancel.bulk');
     Route::post('/admin/tickets/{ticket}/cancel', [TicketController::class, 'adminCancel'])->name('admin.ticket.cancel');
     Route::post('/admin/workshops', [WorkshopController::class, 'admin_store'])->name('admin.workshop.store');
+    Route::get('/admin/workshop-allocations', [\App\Http\Controllers\WorkshopAllocationController::class, 'index'])->name('admin.workshop.allocations');
+    Route::get('/admin/workshops/{workshop}/allocation', [\App\Http\Controllers\WorkshopAllocationController::class, 'edit'])->name('admin.workshop.allocation.edit');
+    Route::post('/admin/workshops/{workshop}/allocation', [\App\Http\Controllers\WorkshopAllocationController::class, 'store'])->name('admin.workshop.allocation.store');
     Route::get('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_edit'])->name('admin.workshop.edit');
     Route::put('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_update'])->name('admin.workshop.update');
     Route::delete('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_destroy'])->name('admin.workshop.destroy');

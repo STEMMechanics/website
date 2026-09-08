@@ -42,32 +42,20 @@ class InvoiceExpenseAllocationTest extends TestCase
     {
         $invoice = Invoice::factory()->create(['total_amount' => 110, 'gst_amount' => 10]);
         $this->actingAs($this->admin())->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('data-allocation-inline', false);
-        $this->get(route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]))->assertOk()->assertSee('data-allocation-load', false);
+        $this->get(route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]))->assertOk()->assertDontSee('data-allocation-load', false)->assertSee('Save allocation');
         $response = $this->postJson(route('admin.invoice.allocation.store', $invoice), ['inline' => 1, 'targets' => [1 => '100.00']])->assertOk();
         $this->assertStringContainsString('data-allocation-inline', $response->json('html'));
         $this->assertSame('110.00', $invoice->fresh()->total_amount);
     }
 
-    public function test_ticket_invoices_share_one_workshop_allocation(): void
+    public function test_ticket_invoice_allocations_are_managed_on_the_workshop(): void
     {
         $workshop = Workshop::findOrFail(Ticket::factory()->create()->workshop_id);
-        $invoices = Invoice::factory()->count(2)->create();
-        foreach ($invoices as $invoice) {
-            Ticket::factory()->create(['workshop_id' => $workshop->id, 'invoice_id' => $invoice->id]);
-        }
-        $this->actingAs($this->admin())->postJson(route('admin.invoice.allocation.store', $invoices[0]), ['targets' => [1 => 100]])->assertOk();
-        $this->assertDatabaseCount('finance_budgets', 1);
-        $this->assertDatabaseCount('finance_budget_invoices', 2);
-        $this->get(route('admin.invoice.allocation.edit', $invoices[1]))->assertOk()
-            ->assertSee('Shared workshop allocation')->assertSee('not amounts for each ticket')
-            ->assertSee(route('admin.workshop.edit', $workshop));
-        $contexts = $invoices->map(fn ($invoice) => app(\App\Services\Finance\InvoiceAllocation::class)->context($invoice));
-        $this->assertSame($contexts[0]['budget']->id, $contexts[1]['budget']->id);
-        $this->assertSame([1 => 10000], $contexts[0]['targets']);
-        $this->assertSame($contexts[0]['targets'], $contexts[1]['targets']);
-        $this->assertEqualsCanonicalizing($invoices->pluck('id')->all(), $contexts[0]['ids']);
-        $this->postJson(route('admin.invoice.allocation.store', $invoices[1]), ['targets' => [1 => 100]])->assertUnprocessable();
-        $this->assertDatabaseCount('finance_budgets', 1);
+        $invoice = Invoice::factory()->create();
+        Ticket::factory()->create(['workshop_id' => $workshop->id, 'invoice_id' => $invoice->id]);
+        $this->actingAs($this->admin())->postJson(route('admin.invoice.allocation.store', $invoice), ['targets' => [1 => 100]])->assertUnprocessable();
+        $this->get(route('admin.invoice.allocation.edit', $invoice))->assertOk()->assertSee('Ticket allocation managed by workshop')->assertDontSee('Save allocation');
+        $this->assertDatabaseCount('finance_budgets', 0);
     }
 
     public function test_expense_tally_can_find_the_supplier_autocomplete_for_default_allocations(): void

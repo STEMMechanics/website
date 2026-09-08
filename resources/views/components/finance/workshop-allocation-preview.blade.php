@@ -1,4 +1,4 @@
-@props(['budget' => null])
+@props(['budget' => null, 'workshop' => null])
 @php
     $categories = \Illuminate\Support\Facades\DB::table('finance_categories')->orderBy('priority')->get();
 @endphp
@@ -33,23 +33,11 @@
     </x-ui.table>
     <p class="mt-3 text-xs text-slate-500">Pricing attendance / full capacity. Actual allocations use purchased tickets and payments received.</p>
 
-@if($budget)
-    @php
-        $report = app(\App\Services\Finance\FinancePlanner::class)->budgetReport($budget);
-    @endphp
-    <section class="mt-4 border-t border-gray-200 pt-4">
-        <h3 class="mb-3 font-semibold text-gray-900">Saved cost centre allocation</h3>
-        <dl class="space-y-2 text-sm">
-            @foreach($categories as $category)
-                @if(($report['targets'][$category->id] ?? 0) || ($report['funding']['categories'][$category->id] ?? 0))
-                    <div class="flex justify-between gap-3">
-                        <dt>{{ $category->name }}</dt>
-                        <dd class="whitespace-nowrap tabular-nums">{{ money(($report['funding']['categories'][$category->id] ?? 0) / 100) }} <span class="text-slate-500">/ {{ money(($report['targets'][$category->id] ?? 0) / 100) }}</span></dd>
-                    </div>
-                @endif
-            @endforeach
-        </dl>
-        <p class="mt-3 text-xs text-slate-500">Funded / target, excluding GST. Shared across the workshop’s ticket invoices.{{ $budget->manual ? ' Manual override.' : '' }}</p>
-    </section>
-@endif
 </x-ui.collapsible-section>
+@if(isset($workshop))
+    <div class="mt-4 border-t border-slate-200 pt-4 text-sm">
+        @php($allocationState = app(\App\Services\Finance\WorkshopAllocation::class)->state($workshop, $budget))
+        <x-ui.badge class="mr-3" :color="$allocationState['current'] ? 'success' : 'warning'">{{ $allocationState['status'] }}</x-ui.badge>
+        <a class="text-primary-color underline" href="{{ route('admin.workshop.allocation.edit', $workshop) }}">Review workshop allocation</a>
+    </div>
+@endif

@@ -51,25 +51,16 @@ class InvoiceBulkAllocationTest extends TestCase
         $this->assertSame('330.00', $invoice->fresh()->total_amount);
     }
 
-    public function test_ticket_invoices_are_grouped_with_unselected_workshop_invoices(): void
+    public function test_ticket_invoices_are_not_allocated_by_invoice_bulk_actions(): void
     {
         $this->admin();
-        $first = Invoice::factory()->create();
-        $second = Invoice::factory()->create();
-        $ticket = Ticket::factory()->create(['invoice_id' => $first->id]);
-        Ticket::factory()->create(['invoice_id' => $second->id, 'workshop_id' => $ticket->workshop_id]);
-        $preview = $this->preview([$first->id]);
+        $invoice = Invoice::factory()->create();
+        Ticket::factory()->create(['invoice_id' => $invoice->id]);
+        $preview = $this->preview([$invoice->id]);
         $this->assertCount(1, $preview['rows']);
-        $this->assertCount(2, $preview['rows'][0]['invoice_ids']);
-        $this->assertSame(1, $preview['rows'][0]['selected_invoice_count']);
-        $this->postJson(route('admin.invoice.bulk-allocation.apply'), ['token' => $preview['token'], 'selected' => [0]])->assertOk();
-        $this->assertDatabaseCount('finance_budgets', 1);
-        $this->assertDatabaseCount('finance_budget_invoices', 2);
-        $third = Invoice::factory()->create();
-        Ticket::factory()->create(['invoice_id' => $third->id, 'workshop_id' => $ticket->workshop_id]);
-        $response = $this->getJson(route('admin.invoice.index', ['allocation_selection' => 1, 'allocation_state' => 'automatic', 'line_types' => ['ticket']]))->assertOk();
-        $this->assertContains((string) $third->id, $response->json('names'));
-
+        $this->assertSame('Allocation managed by workshop.', $preview['rows'][0]['warning']);
+        $this->postJson(route('admin.invoice.bulk-allocation.apply'), ['token' => $preview['token'], 'selected' => [0]])->assertUnprocessable();
+        $this->assertDatabaseCount('finance_budgets', 0);
     }
 
     public function test_stale_blocked_tampered_and_other_users_previews_cannot_be_applied(): void

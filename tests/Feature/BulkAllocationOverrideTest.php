@@ -122,7 +122,7 @@ class BulkAllocationOverrideTest extends TestCase
         $this->assertDatabaseCount('finance_budget_revisions', 1);
     }
 
-    public function test_shared_invoice_allocations_require_complete_selection_and_apply_once(): void
+    public function test_bulk_invoice_editor_cannot_change_workshop_allocations(): void
     {
         $this->admin();
         $a = Invoice::factory()->create();
@@ -131,9 +131,9 @@ class BulkAllocationOverrideTest extends TestCase
         Ticket::factory()->create(['invoice_id' => $b->id, 'workshop_id' => $ticket->workshop_id]);
         $this->apply('invoices', [$a->id], $this->override())->assertUnprocessable();
         $this->assertDatabaseCount('finance_budgets', 0);
-        $this->apply('invoices', [$a->id, $b->id], $this->override())->assertOk();
-        $this->assertDatabaseCount('finance_budgets', 1);
-        $this->assertDatabaseCount('finance_budget_invoices', 2);
+        $this->apply('invoices', [$a->id, $b->id], $this->override())->assertUnprocessable();
+        $this->assertDatabaseCount('finance_budgets', 0);
+        $this->assertDatabaseCount('finance_budget_invoices', 0);
     }
 
     public function test_invalid_record_rolls_back_all_metadata_and_allocations(): void

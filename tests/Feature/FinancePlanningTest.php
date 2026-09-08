@@ -185,31 +185,15 @@ class FinancePlanningTest extends TestCase
         $this->assertSame(0, $planner->cash()['gst']);
     }
 
-    public function test_workshop_tickets_share_one_budget_and_automation_updates_without_touching_overrides(): void
+    public function test_workshop_ticket_allocations_wait_for_explicit_finalisation(): void
     {
-        $this->travelTo(now()->setDate(2026, 9, 6));
         $admin = $this->admin();
-        $planner = app(FinancePlanner::class);
-        $first = $this->invoice();
-        $ticket = Ticket::factory()->create(['invoice_id' => $first->id]);
-        $workshop = $ticket->workshop;
-        $workshop->update(['starts_at' => '2026-09-05 10:00:00', 'ends_at' => '2026-09-05 12:00:00']);
-        DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'auto_budget' => true, 'default_pricing_version_id' => 1]);
-        DB::table('finance_pricing_versions')->where('id', 1)->update(['created_by' => $admin->id]);
-        $this->assertSame(1, $planner->automate());
-        $budget = DB::table('finance_budgets')->first();
-        $this->assertSame(500, $planner->decode($budget->targets)[2]);
-        $second = $this->invoice();
-        Ticket::factory()->create(['workshop_id' => $workshop->id, 'invoice_id' => $second->id]);
-        $this->assertSame(20000, $planner->budgetReport($budget)['income']['net']);
-        $this->assertSame(0, $planner->automate());
-        $this->assertDatabaseCount('finance_budgets', 1);
-        $this->assertDatabaseCount('finance_budget_revisions', 1);
-        $this->assertSame(1000, $planner->decode(DB::table('finance_budgets')->value('targets'))[2]);
-        $this->actingAs($admin)->get(route('admin.cost-centre.allocations', ['tab' => 'allocations']))->assertOk()->assertSee('Allocation Plans')->assertDontSee('Preview allocations');
-        $planner->reverse($budget->batch_id);
-        $planner->automate();
+        $invoice = $this->invoice();
+        Ticket::factory()->create(['invoice_id' => $invoice->id]);
+        DB::table('finance_settings')->where('id', 1)->update(['auto_budget' => true]);
+        $this->assertSame(0, app(FinancePlanner::class)->automate());
         $this->assertDatabaseCount('finance_budgets', 0);
+        $this->assertSame(10000, app(FinancePlanner::class)->cash()['unallocated_income']);
     }
 
     public function test_bulk_preview_routes_are_removed(): void
