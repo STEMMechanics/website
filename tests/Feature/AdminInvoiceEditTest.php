@@ -433,6 +433,23 @@ class AdminInvoiceEditTest extends TestCase
             ->assertSee('data-bwignore="true"', false);
     }
 
+    public function test_ticket_invoice_actions_link_each_workshop_once_in_both_layouts(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        $invoice = Invoice::factory()->create(['status' => 'sent']);
+        $ticket = Ticket::factory()->create(['invoice_id' => $invoice->id]);
+        Ticket::factory()->create(['invoice_id' => $invoice->id, 'workshop_id' => $ticket->workshop_id]);
+        $secondWorkshop = $ticket->workshop->replicate();
+        $secondWorkshop->title = 'Second linked workshop';
+        $secondWorkshop->save();
+        Ticket::factory()->create(['invoice_id' => $invoice->id, 'workshop_id' => $secondWorkshop->id]);
+        $response = $this->get(route('admin.invoice.index'))->assertOk();
+        foreach ([$ticket->workshop, $secondWorkshop] as $workshop) {
+            $this->assertSame(2, substr_count($response->getContent(), 'href="'.route('admin.workshop.edit', $workshop).'"'));
+        }
+        $response->assertSee('View workshop: Second linked workshop');
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

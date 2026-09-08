@@ -48,7 +48,7 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $query = Invoice::query()
-            ->with(['user.primaryOrganisation', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets', 'storeOrders.items.trackingEntries']);
+            ->with(['user.primaryOrganisation', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets.workshop:id,title', 'storeOrders.items.trackingEntries']);
 
         $statuses = $request->query('status', []);
         if (is_string($statuses)) {
