@@ -104,7 +104,6 @@
     <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Attendance</x-mast>
 
     <x-container class="py-5 sm:py-8">
-        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <x-slot:left>
                 <div class="flex flex-col">
@@ -719,7 +718,7 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
+                <h2 class="mt-5 mb-3 text-lg font-semibold">Ticketed Attendance</h2>
                 <x-ui.collection-controls class="my-5" label="Find ticket or person" />
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>

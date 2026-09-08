@@ -3,12 +3,15 @@
         <x-slot:actions><x-ui.button color="mast" :href="route('workshop.show', $workshop)" target="_blank" rel="noopener noreferrer">View public page <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i></x-ui.button></x-slot:actions>
     </x-mast>
     <x-container class="py-5 sm:py-8">
-        <x-finance.workshop-review-notice :workshop="$workshop" />
-        <h2 class="mb-2 text-lg font-semibold">Cost centre allocation</h2>
-        <p class="mb-5 text-sm text-slate-500">{{ $allocation['version']->name }}</p>
-        @if($state['current'] || ! $state['ready'])
-            <x-ui.badge class="mb-4" :color="$state['current'] ? 'success' : 'secondary'">{{ $state['status'] }}</x-ui.badge>
-        @endif
+        <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-semibold">Cost centre allocation</h2>
+                <p class="mt-1 text-sm text-slate-500">{{ $allocation['version']->name }}</p>
+            </div>
+            @if($state['current'] || ! $state['ready'])
+                <x-ui.badge :color="$state['current'] ? 'success' : 'secondary'">{{ $state['status'] }}</x-ui.badge>
+            @endif
+        </div>
         @unless($state['status'] === 'No allocation required')
         @php
             $values = $allocation['categories']->mapWithKeys(fn ($category) => [$category->id => number_format(($allocation['targets'][$category->id] ?? 0) / 100, 2, '.', '')])->all();
@@ -23,26 +26,31 @@
             ];
         @endphp
         <form method="POST" action="{{ route('admin.workshop.allocation.store', $workshop) }}" x-data="SM.allocationTally(@js(['values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $allocation['total'], 'exact' => false, 'enabled' => $state['ready'] && (bool) ($allocation['budget']->manual ?? false)]))">
-            <dl class="mb-6 grid gap-4 sm:grid-cols-3" aria-live="polite">
-                <div><dt class="text-sm text-slate-600">Received excluding GST</dt><dd class="text-xl font-semibold tabular-nums" x-text="money(total)"></dd></div>
-                <div><dt class="text-sm text-slate-600">Allocation targets</dt><dd class="text-xl font-semibold tabular-nums" x-text="money(allocated)"></dd></div>
-                <div :class="remaining === 0 ? 'text-emerald-700' : 'text-amber-700'"><dt class="text-sm" x-text="remaining < 0 ? 'Shortfall' : 'Unallocated'"></dt><dd class="text-xl font-semibold tabular-nums" x-text="money(Math.abs(remaining))"></dd></div>
+            <dl class="mb-8 grid gap-3 sm:grid-cols-3" aria-live="polite">
+                <div class="flex items-center justify-between gap-3 rounded-xl bg-white p-4 sm:block"><dt class="text-sm text-slate-600">Received excluding GST</dt><dd class="text-xl font-semibold tabular-nums sm:mt-2" x-text="money(total)"></dd></div>
+                <div class="flex items-center justify-between gap-3 rounded-xl bg-white p-4 sm:block"><dt class="text-sm text-slate-600">Allocation targets</dt><dd class="text-xl font-semibold tabular-nums sm:mt-2" x-text="money(allocated)"></dd></div>
+                <div class="flex items-center justify-between gap-3 rounded-xl bg-white p-4 sm:block" :class="remaining === 0 ? 'text-emerald-700' : 'text-amber-700'"><dt class="text-sm" x-text="remaining < 0 ? 'Shortfall' : 'Unallocated'"></dt><dd class="text-xl font-semibold tabular-nums sm:mt-2" x-text="money(Math.abs(remaining))"></dd></div>
             </dl>
             @csrf
             <input type="hidden" name="source_hash" value="{{ $state['hash'] }}">
             <input type="hidden" name="revision" value="{{ $allocation['budget'] ? hash('sha256', json_encode((array) $allocation['budget'])) : '' }}">
             @if($suppliable->isNotEmpty())
-                <fieldset @disabled(! $state['ready']) x-on:change="refreshWorkshopDefaults()">
+                <fieldset class="mb-8" @disabled(! $state['ready']) x-on:change="refreshWorkshopDefaults()">
                     <legend class="mb-2 text-sm font-semibold">Supplied items</legend>
-                    <p class="mb-3 text-sm text-slate-600">Tick items provided at no cost to us. Untick to include their cost in the default allocation.</p>
                     <x-finance.supplied-options :rules="$rules" :categories="$allocation['categories']" :values="$selected" model="supplied" />
                 </fieldset>
             @endif
-            @if($state['ready'])<x-ui.checkbox name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />@endif
+            <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <h3 class="text-sm font-semibold">Allocation amounts</h3>
+                @if($state['ready'])
+                    <x-ui.checkbox :no-wrapper="true" name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />
+                @endif
+            </div>
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="workshop-allocation" :exact="false" totalLabel="Received excluding GST" :shortfall="true" :show-totals="false" />
             @if($state['ready'])
-                <x-ui.checkbox class="mt-5" name="outcomes_reviewed" value="1" label="Workshop complete; attendance, cancellations and payment outcomes reviewed" required />
-                <x-ui.button class="mt-4" type="submit">Finalise allocation</x-ui.button>
+                <div class="mt-8 flex justify-end">
+                    <x-ui.button type="submit">Finalise allocation</x-ui.button>
+                </div>
             @elseif($state['status'] !== 'No allocation required')
                 <p class="mt-4 text-sm text-slate-600">Finalise after the workshop ends and payment outcomes are resolved.</p>
             @endif

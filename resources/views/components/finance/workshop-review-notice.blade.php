@@ -8,9 +8,6 @@
         <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
         <div class="min-w-0">
             <p class="font-semibold">{{ $state['status'] === 'Allocation needs review' ? 'Allocation needs review' : 'Allocation ready for review' }}</p>
-            @unless(request()->routeIs('admin.workshop.allocation.edit'))
-                <a class="mt-2 inline-block underline underline-offset-2" href="{{ route('admin.workshop.allocation.edit', $workshop) }}">Review allocation</a>
-            @endunless
         </div>
     </aside>
 @endif
