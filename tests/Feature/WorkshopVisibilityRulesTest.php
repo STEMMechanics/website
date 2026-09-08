@@ -296,7 +296,8 @@ class WorkshopVisibilityRulesTest extends TestCase
             $response->assertSee('title="Next month"', false);
             $response->assertSee('Workshop this month');
             $response->assertSee('Open');
-            $response->assertSee('sm-banner-open', false);
+            $response->assertSee('bg-emerald-600', false);
+            $response->assertDontSee('sm-banner-open', false);
             $response->assertSee('Cancelled workshop');
             $response->assertSee('Canc.', false);
             $response->assertSee('title="Cancelled"', false);
