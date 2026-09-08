@@ -42,7 +42,6 @@ class ShopProductController extends Controller
             'Current products' => Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->count(),
             'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
             'Actionable' => $actionableCount,
-            'Allocation review' => $allocationAttentionCount,
         ]);
         $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
         if ($scope === 'archived') $query->where('status', Product::STATUS_ARCHIVED);

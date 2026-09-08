@@ -9,7 +9,7 @@
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <x-finance.attention-notice kind="products" :total="$allocationAttentionCount" />
+        <div class="mt-4"><x-finance.attention-notice kind="products" :total="$allocationAttentionCount" /></div>
         <x-ui.collection-controls class="mb-5" />
 
         @if($products->isEmpty())

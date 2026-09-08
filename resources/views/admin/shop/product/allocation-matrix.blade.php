@@ -7,7 +7,7 @@
     <x-ui.collapsible-section title="Cost centre allocation" variant="product" :open="!isset($product) || $errors->has('product_allocations_json')">
         <x-slot:summary><span x-text="summary" x-bind:class="summary !== 'All options allocated' ? 'text-amber-800' : ''"></span></x-slot:summary>
         <input type="hidden" name="product_allocations_json" x-bind:value="payload">
-        <p class="text-sm text-slate-600">Amounts per pack, excluding GST. Percentages split the remainder after fixed costs.</p>
+        <p class="text-sm text-slate-600">Amounts per pack, excluding GST.</p>
         @error('product_allocations_json')<p role="alert" class="text-sm text-red-700">{{ $message }}</p>@enderror
         <div class="md:hidden">
             <x-ui.select label="Product option" name="allocation_option" id="allocation_option" x-model="selectedColumn">
@@ -23,10 +23,7 @@
                             <th scope="col" class="min-w-40 px-3 py-3 font-normal" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'">
                                 <div class="font-semibold" x-text="column.name"></div>
                                 <div class="mt-1 text-xs text-slate-500" x-text="'$' + Number(column.price || 0).toFixed(2) + ' inc GST'"></div>
-                                <div class="mt-2 h-5 text-xs">
-                                    <span x-show="inherited(column)" class="text-slate-500">Uses base allocation</span>
-                                    <x-ui.button variant="plain" type="button" x-show="column.variant && !inherited(column)" x-on:click="useBase(column)" class="text-primary-color underline underline-offset-2">Use base allocation</x-ui.button>
-                                </div>
+
                             </th>
                         </template>
                     </tr>
@@ -39,14 +36,8 @@
                                 <td class="px-3 py-3 align-top" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'">
                                     <div class="w-32 space-y-2">
                                         <div class="relative">
-                                            <span class="pointer-events-none absolute left-3 top-2 text-slate-500" x-text="values(column)[{{ $category->id }}].percentage ? '%' : '$'"></span>
+                                            <span class="pointer-events-none absolute left-3 top-2 text-slate-500">$</span>
                                             <x-ui.input-control type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" class="h-9 pl-7 pr-2 text-right tabular-nums" x-bind:aria-label="column.name + ' — ' + $el.closest('tr').dataset.categoryName + ' amount'" x-bind:value="values(column)[{{ $category->id }}].amount" x-on:input="setValue(column, {{ $category->id }}, $event.target.value)" x-on:blur="format(column, {{ $category->id }})" />
-                                        </div>
-                                        <x-ui.checkbox small noWrapper label="Percentage" x-bind:aria-label="column.name + ' — ' + $el.closest('tr').dataset.categoryName + ' is percentage'" x-bind:checked="values(column)[{{ $category->id }}].percentage" x-on:change="toggleType(column, {{ $category->id }}, $event.target.checked)" />
-                                        <div x-show="values(column)[{{ $category->id }}].extraPercent !== ''" x-cloak>
-                                            <label class="block text-xs text-slate-500">Additional remainder %
-                                                <x-ui.input-control type="text" inputmode="decimal" class="mt-1 h-9 text-right tabular-nums" x-bind:value="values(column)[{{ $category->id }}].extraPercent" x-on:input="setValue(column, {{ $category->id }}, $event.target.value, true)" x-on:blur="format(column, {{ $category->id }}, true)" />
-                                            </label>
                                         </div>
                                     </div>
                                 </td>
@@ -69,6 +60,5 @@
                 </tfoot>
             </x-ui.table>
         </div>
-        <p class="text-xs text-slate-500">Saved with the product. Existing invoice allocations keep their saved figures.</p>
     </x-ui.collapsible-section>
 </div>
