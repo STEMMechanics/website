@@ -722,7 +722,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <td class="text-center">{{ $fileInfo['dimensions'] ?? '-' }}</td>
                                         <td class="text-center!"><x-ui.nonbreaking>{{ $fileInfo['size_human'] ?? '-' }}</x-ui.nonbreaking></td>
                                         <td class="text-center!">
-                                            <x-ui.badge class="inline-flex items-center {{ $fileInfo['exists'] ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200' }}">
+                                            <x-ui.badge :color="$fileInfo['exists'] ? 'success' : 'danger'">
                                                 {{ $fileInfo['exists'] ? 'Exists' : 'Missing' }}
                                             </x-ui.badge>
                                         </td>

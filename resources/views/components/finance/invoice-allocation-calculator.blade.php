@@ -7,6 +7,9 @@
 @endphp
 <div x-data="SM.invoiceAllocationCalculator(@js($calculatorConfig))" x-on:open-allocation-calculator.window="if ($event.detail.dialogId === dialogId) launch($el.closest('form') ? Alpine.$data($el.closest('form')).total : 0)">
     <x-ui.list-dialog :id="$calculatorId" title="Calculate cost centre allocation" kind="bulk">
+        <x-slot:headerActions>
+            <x-ui.button type="button" variant="plain" x-on:click="minimise()" aria-label="Minimise allocation calculator" title="Minimise" class="h-11 w-11 rounded-lg p-0! text-slate-500"><i class="fa-solid fa-minus" aria-hidden="true"></i></x-ui.button>
+        </x-slot:headerActions>
         <div class="space-y-6 p-5" x-on:keydown.enter="if ($event.target.matches('input')) $event.preventDefault()">
             <fieldset x-bind:disabled="!isOpen" class="space-y-5" x-on:input="recalculate()" x-on:change="recalculate()">
                 <div>
@@ -49,4 +52,13 @@
             <x-ui.button type="button" x-on:click="apply()" x-bind:disabled="!canApply">Apply to invoice</x-ui.button>
         </div>
     </x-ui.list-dialog>
+    <template x-teleport="body">
+        <div x-cloak x-show="minimised" class="fixed inset-x-3 bottom-3 z-50 flex items-center rounded-xl border border-slate-300 bg-white shadow-lg sm:left-auto sm:right-5 sm:w-80">
+            <button type="button" x-ref="restoreCalculator" x-on:click="$dispatch('open-allocation-calculator', { dialogId })" aria-label="Restore allocation calculator" aria-haspopup="dialog" aria-controls="{{ $calculatorId }}" class="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-color">
+                <i class="fa-solid fa-calculator text-primary-color" aria-hidden="true"></i>
+                <span class="flex-1">Allocation calculator</span>
+                <i class="fa-solid fa-window-restore text-slate-500" aria-hidden="true"></i>
+            </button>
+        </div>
+    </template>
 </div>

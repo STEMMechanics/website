@@ -14,7 +14,7 @@
                     @forelse($records as $record)
                         <tr>
                             <td class="text-center whitespace-nowrap">{{ substr($record['date'], 0, 10) }}</td>
-                            <td class="text-center whitespace-nowrap"><x-ui.badge :color="match($record['type']) { 'invoice' => 'green', 'refund', 'expense', 'drawing' => 'orange', 'transfer' => 'blue', default => 'gray' }">{{ ['invoice' => 'Invoice', 'refund' => 'Refund', 'expense' => 'Expense', 'transfer' => 'Transfer', 'drawing' => 'Drawing', 'opening' => 'Opening balance', 'contribution' => 'Contribution'][$record['type']] }}</x-ui.badge></td>
+                            <td class="text-center whitespace-nowrap"><x-ui.badge :color="match($record['type']) { 'invoice' => 'success', 'refund', 'expense', 'drawing' => 'orange', 'transfer' => 'sky', default => 'gray' }">{{ ['invoice' => 'Invoice', 'refund' => 'Refund', 'expense' => 'Expense', 'transfer' => 'Transfer', 'drawing' => 'Drawing', 'opening' => 'Opening balance', 'contribution' => 'Contribution'][$record['type']] }}</x-ui.badge></td>
                             <td>{{ $record['description'] }}</td>
                             <td class="text-center whitespace-nowrap {{ $record['amount'] < 0 ? 'text-red-600' : 'text-green-700' }}">{{ money($record['amount'] / 100) }}</td>
                             <td class="text-center whitespace-nowrap font-semibold {{ $record['balance'] < 0 ? 'text-red-600' : '' }}">{{ money($record['balance'] / 100) }}</td>

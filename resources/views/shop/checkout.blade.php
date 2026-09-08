@@ -512,9 +512,9 @@
                                 <div class="mt-5" x-show="requiresPayment && paymentMethod === 'credit_card'" x-cloak x-init="initSquareCard()">
                                     <div class="flex items-center justify-between gap-4">
                                         <label class="block text-sm font-semibold text-gray-900">Card Details</label>
-                                        <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                                        <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                             Secure payment by Square
-                                        </a>
+                                        </x-ui.badge>
                                     </div>
                                     <div x-ref="squareCardContainer" class="mt-4" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                                     <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">

@@ -64,7 +64,7 @@
             @if($recommendationAnalytics['placements']->isNotEmpty())
                 <div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">
                     @foreach($recommendationAnalytics['placements'] as $placement)
-                        <x-ui.badge class="bg-gray-100">{{ str_replace('_', ' ', ucfirst((string) ($placement->recommendation_placement ?: 'unknown'))) }}: {{ number_format((int) $placement->clicks) }} / {{ number_format((int) $placement->impressions) }}</x-ui.badge>
+                        <x-ui.badge color="gray">{{ str_replace('_', ' ', ucfirst((string) ($placement->recommendation_placement ?: 'unknown'))) }}: {{ number_format((int) $placement->clicks) }} / {{ number_format((int) $placement->impressions) }}</x-ui.badge>
                     @endforeach
                 </div>
             @endif

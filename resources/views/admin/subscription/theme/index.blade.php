@@ -23,7 +23,7 @@
                             <td><div class="font-semibold text-gray-900">{{ $theme->name }}</div><div class="text-xs text-gray-500">{{ $theme->title }}</div></td>
                             <td class="hidden md:table-cell">{{ collect($theme->category_slugs)->map(fn ($slug) => ucfirst($slug))->join(', ') }}</td>
                             <td class="hidden md:table-cell">{{ $theme->matchLabel() }}</td>
-                            <td class="text-center!"><x-ui.badge :color="$theme->is_active ? 'success' : 'secondary'">{{ $theme->is_active ? 'Active' : 'Inactive' }}</x-ui.badge></td>
+                            <td class="text-center!"><x-ui.badge :color="$theme->is_active ? 'success' : 'gray'">{{ $theme->is_active ? 'Active' : 'Inactive' }}</x-ui.badge></td>
                             <td class="text-center!"><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.subscription.theme.edit', $theme) }}" /></td>
                         </tr>
                     @endforeach

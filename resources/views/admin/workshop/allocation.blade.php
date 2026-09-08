@@ -9,7 +9,7 @@
                 <p class="mt-1 text-sm text-slate-500">{{ $allocation['version']->name }}</p>
             </div>
             @if($state['current'] || ! $state['ready'])
-                <x-ui.badge :color="$state['current'] ? 'success' : 'secondary'">{{ $state['status'] }}</x-ui.badge>
+                <x-ui.badge :color="$state['current'] ? 'success' : 'gray'">{{ $state['status'] }}</x-ui.badge>
             @endif
         </div>
         @unless($state['status'] === 'No allocation required')

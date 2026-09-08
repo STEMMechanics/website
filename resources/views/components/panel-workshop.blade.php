@@ -45,10 +45,10 @@
                 <div class="absolute bottom-0 right-0">
                     <div class="mb-2 mr-2 flex flex-wrap gap-1.5">
                         @foreach($workshop->categories as $category)
-                            <span class="inline-flex items-center gap-1 rounded-full border border-gray-400 bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600">
+                            <x-ui.badge color="gray" class="gap-1 px-2 py-0.5">
                                     <i class="{{ $category->iconClass() }}"></i>
                                     {{ $category->name }}
-                                </span>
+                                </x-ui.badge>
                         @endforeach
                     </div>
                 </div>

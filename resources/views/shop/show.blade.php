@@ -602,7 +602,7 @@
 
                             <div class="mt-2 flex flex-wrap items-center gap-3">
                                 @if($product->isDigital())
-                                    <x-ui.badge class="bg-emerald-100 tracking-[0.16em] text-emerald-800">
+                                    <x-ui.badge color="success" class="tracking-[0.16em]">
                                         {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
                                     </x-ui.badge>
                                 @endif
@@ -614,7 +614,7 @@
                                     />
                                 @endforeach
                                 @if(!$product->isPurchasable())
-                                    <x-stock-indicator tone="danger" :label="'Out of stock'" class="rounded-full bg-red-100 px-3 py-1" />
+                                    <x-ui.badge color="danger" icon="fa-solid fa-circle-xmark">Out of stock</x-ui.badge>
                                 @endif
                             </div>
 

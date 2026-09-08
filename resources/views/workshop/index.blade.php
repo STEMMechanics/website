@@ -129,7 +129,7 @@
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
                                                             <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
-                                                        <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.badge>
+                                                        <x-ui.workshop-status-badge :status="$statusClass" class="shrink-0" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.workshop-status-badge>
                                                     </div>
                                                 </a>
                                             @empty
@@ -246,7 +246,7 @@
                                                                         <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $workshop->ends_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                     @endif
                                                                     @if(! $continuation['before'])
-                                                                        <x-ui.badge class="shrink-0 border border-white/50 text-white sm-banner-{{ strtolower($statusClass) }}" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.badge>
+                                                                        <x-ui.workshop-status-badge :status="$statusClass" class="shrink-0" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.workshop-status-badge>
                                                                     @endif
                                                                 </div>
                                                                 @if($continuation['show_details'])

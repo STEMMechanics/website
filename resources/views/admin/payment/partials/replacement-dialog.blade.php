@@ -45,7 +45,7 @@
                     <section class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide text-amber-800">Current payment</h3>
-                            <x-ui.badge class="bg-white text-amber-700 ring-1 ring-amber-200" x-text="replacementDialogData?.source?.label || '-'"></x-ui.badge>
+                            <x-ui.badge color="warning" variant="outline" x-text="replacementDialogData?.source?.label || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-200 bg-white">
                             <template x-for="row in [
@@ -67,7 +67,7 @@
                     <section class="rounded-2xl border p-4" style="border-color: rgb(165 243 252 / 1); background-color: rgb(236 254 255 / 0.6);">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide" style="color: rgb(21 94 117);">Selected match</h3>
-                            <x-ui.badge class="bg-white ring-1" style="color: rgb(14 116 144); border-color: rgb(165 243 252 / 1); box-shadow: inset 0 0 0 1px rgb(165 243 252 / 1);" x-text="selectedReplacementCandidate()?.label || '-'"></x-ui.badge>
+                            <x-ui.badge color="sky" variant="outline" x-text="selectedReplacementCandidate()?.label || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y overflow-hidden rounded-xl border bg-white" style="border-color: rgb(165 243 252 / 1);">
                             <template x-for="row in [

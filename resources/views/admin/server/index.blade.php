@@ -25,7 +25,7 @@
                 <i class="fa-solid fa-chevron-right shrink-0 text-sm transition-transform group-open/dependencies:rotate-90" aria-hidden="true"></i>
                 <h3 class="min-w-0 flex-1 wrap-break-word text-lg font-bold">Site Dependencies</h3>
                 @php($missingDependencyCount = collect($serverDependencies)->where('installed', false)->count())
-                <x-ui.badge class="ml-auto inline-flex shrink-0 items-center border {{ $missingDependencyCount === 0 ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                <x-ui.badge :color="$missingDependencyCount === 0 ? 'success' : 'danger'" class="ml-auto shrink-0">
                     {{ $missingDependencyCount === 0 ? 'All detected' : $missingDependencyCount.' missing' }}
                 </x-ui.badge>
             </summary>
@@ -38,7 +38,7 @@
                                     <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
                                     <div class="mt-0.5 wrap-break-word text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
                                 </div>
-                                <x-ui.badge class="inline-flex shrink-0 items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                <x-ui.badge :color="$dependency['installed'] ? 'success' : 'danger'" class="shrink-0">
                                     {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
                                 </x-ui.badge>
                             </div>
@@ -74,7 +74,7 @@
                                     </td>
                                     <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
                                     <td class="px-3 py-2 align-top text-center!">
-                                        <x-ui.badge class="inline-flex items-center border {{ $dependency['installed'] ? 'border-green-200 bg-green-100 text-green-800' : 'border-red-200 bg-red-100 text-red-800' }}">
+                                        <x-ui.badge :color="$dependency['installed'] ? 'success' : 'danger'">
                                             {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
                                         </x-ui.badge>
                                     </td>

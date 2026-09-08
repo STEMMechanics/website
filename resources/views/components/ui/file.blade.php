@@ -44,10 +44,10 @@
                 <div class="mt-1 text-xs text-gray-500">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
                 <div class="mt-2 flex flex-col items-center gap-2">
                     <div id="{{ $stateId }}" class="hidden not-[.hidden]:flex flex-col items-center text-center text-xs text-primary-color">
-                        <span class="inline-flex items-center justify-center gap-2 rounded-full bg-primary-color/10 px-2.5 py-1 font-medium">
+                        <x-ui.badge color="primary" class="gap-2 font-medium">
                             <i class="fa-solid fa-circle-notch animate-spin"></i>
                             <span id="{{ $stateTextId }}">Uploading...</span>
-                        </span>
+                        </x-ui.badge>
                         <div id="{{ $stateDetailId }}" class="mt-1 text-[11px] font-mono tabular-nums whitespace-nowrap text-gray-500"></div>
                         <div class="mt-2 h-2 w-56 overflow-hidden rounded bg-gray-200">
                             <div id="{{ $stateProgressBarId }}" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>

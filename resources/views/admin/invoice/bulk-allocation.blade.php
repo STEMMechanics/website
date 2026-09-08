@@ -27,7 +27,7 @@
                                     <p class="mt-1 text-xs text-amber-800">{{ $row['warning'] }}</p>
                                     <a class="text-xs text-primary-color underline" href="{{ route('admin.invoice.edit', $row['invoice_ids'][0]) }}" target="_blank" rel="noopener">Review invoice</a>
                                 @else
-                                    <x-ui.badge color="green">Ready</x-ui.badge>
+                                    <x-ui.badge color="success">Ready</x-ui.badge>
                                     <details class="mt-2 text-xs"><summary class="cursor-pointer text-primary-color">Cost-centre breakdown (funded / target)</summary>
                                         <dl class="mt-2 space-y-1">@foreach($categories as $category)@if(($row['targets'][$category->id] ?? 0) || ($row['funding']['categories'][$category->id] ?? 0))<div class="flex justify-between gap-4"><dt>{{ $category->name }}</dt><dd class="whitespace-nowrap">{{ money(($row['funding']['categories'][$category->id] ?? 0) / 100) }} / {{ money(($row['targets'][$category->id] ?? 0) / 100) }}</dd></div>@endif@endforeach</dl>
                                     </details>

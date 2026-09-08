@@ -205,10 +205,10 @@
                     @foreach($messages as $sms)
                         @php
                             $status = $sms->status ?: \App\Models\SentSms::STATUS_QUEUED;
-                            $statusClass = match ($status) {
-                                \App\Models\SentSms::STATUS_FAILED => 'text-red-700 bg-red-100 border-red-200',
-                                \App\Models\SentSms::STATUS_QUEUED => 'text-amber-700 bg-amber-100 border-amber-200',
-                                default => 'text-green-700 bg-green-100 border-green-200',
+                            $statusTone = match ($status) {
+                                \App\Models\SentSms::STATUS_FAILED => 'danger',
+                                \App\Models\SentSms::STATUS_QUEUED => 'warning',
+                                default => 'success',
                             };
                             $recipientLabel = trim((string) ($sms->recipient_display_name ?? ''));
                             $recipientPhone = trim((string) ($sms->recipient_phone_display ?? $sms->recipient));
@@ -227,7 +227,7 @@
                                     <div class="text-xs text-gray-500">{{ $sentAt?->format('g:i a') ?? '-' }}</div>
                                 </div>
                                 <div class="shrink-0">
-                                    <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
+                                    <x-ui.badge :color="$statusTone" class="text-center">{{ ucfirst($status) }}</x-ui.badge>
                                 </div>
                             </div>
 
@@ -326,10 +326,10 @@
                             @foreach($messages as $sms)
                                 @php
                                     $status = $sms->status ?: \App\Models\SentSms::STATUS_QUEUED;
-                                    $statusClass = match ($status) {
-                                        \App\Models\SentSms::STATUS_FAILED => 'text-red-700 bg-red-100 border-red-200',
-                                        \App\Models\SentSms::STATUS_QUEUED => 'text-amber-700 bg-amber-100 border-amber-200',
-                                        default => 'text-green-700 bg-green-100 border-green-200',
+                                    $statusTone = match ($status) {
+                                        \App\Models\SentSms::STATUS_FAILED => 'danger',
+                                        \App\Models\SentSms::STATUS_QUEUED => 'warning',
+                                        default => 'success',
                                     };
                                     $recipientLabel = trim((string) ($sms->recipient_display_name ?? ''));
                                     $recipientPhone = trim((string) ($sms->recipient_phone_display ?? $sms->recipient));
@@ -371,7 +371,7 @@
                                         </div>
                                     </td>
                                     <td class="text-center!">
-                                        <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
+                                        <x-ui.badge :color="$statusTone" class="text-center">{{ ucfirst($status) }}</x-ui.badge>
                                     </td>
                                     <td class="text-xs text-gray-700">{{ $sms->response_status_label ?? '-' }}</td>
                                 </tr>

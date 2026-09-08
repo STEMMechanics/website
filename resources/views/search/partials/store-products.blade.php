@@ -63,7 +63,7 @@
                             @endif
                             <div class="flex flex-wrap items-center gap-2 -ml-1">
                                 @if($product->isDigital())
-                                    <x-ui.badge class="bg-emerald-100 text-emerald-800">
+                                    <x-ui.badge color="success">
                                         {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
                                     </x-ui.badge>
                                 @endif

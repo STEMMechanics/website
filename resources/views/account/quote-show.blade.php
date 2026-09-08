@@ -52,7 +52,7 @@
                         </div>
                         <div>
                             <div class="flex gap-2">
-                                <x-ui.badge class="whitespace-nowrap border border-gray-200 bg-gray-50 text-lg text-gray-600">
+                                <x-ui.badge color="gray" class="whitespace-nowrap text-lg">
                                     Quote {{ $quote->quote_number }}
                                 </x-ui.badge>
                             </div>

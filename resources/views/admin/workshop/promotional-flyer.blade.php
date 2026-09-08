@@ -36,7 +36,7 @@
                                     <span x-show="selected.length <= 3" x-cloak>They will appear on each of the three DL flyers.</span>
                                 </p>
                             </div>
-                            <x-ui.badge class="bg-slate-100 font-bold text-slate-700"><span x-text="selected.length"></span> / 6 selected</x-ui.badge>
+                            <x-ui.badge color="slate" class="font-bold"><span x-text="selected.length"></span> / 6 selected</x-ui.badge>
                         </div>
 
                         @error('workshop_ids')

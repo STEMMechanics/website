@@ -13,7 +13,7 @@
                 </div>
 
                 <div class="mt-8 max-w-3xl">
-                    <x-ui.badge class="inline-flex bg-primary-color-light text-white">Independent and based in Cairns</x-ui.badge>
+                    <x-ui.badge color="primary" variant="solid">Independent and based in Cairns</x-ui.badge>
                     <h2 class="mt-4 text-3xl font-semibold text-gray-900">Practical STEM learning, delivered with care, clarity, and real-world experience.</h2>
                     <p class="mt-4 text-base leading-7 text-gray-600">STEMMechanics is an education studio created by James Collins to deliver STEM workshops and creative technology programs for schools, libraries, community organisations, and events. The aim is to make technology learning feel structured, approachable, and genuinely engaging, with programs that are well planned without becoming rigid or impersonal.</p>
                     <p class="mt-4 text-base leading-7 text-gray-600">That approach comes from years of experience delivering digital literacy programs, workshop series, ICT support, eSports events, media projects, and regional STEM initiatives across Queensland. STEMMechanics brings that experience together in a way that is organised enough for partners to rely on and human enough for learners to feel comfortable participating.</p>
