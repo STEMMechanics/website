@@ -1,7 +1,14 @@
 export function allocationTally(config) {
+    const signature = (values, supplied, enabled) => JSON.stringify([
+        !!enabled,
+        Object.keys(values).sort().map(id => [id, Math.round(Number(values[id] || 0) * 100)]),
+        Object.keys(supplied).sort().map(id => [id, !!supplied[id]]),
+    ]);
+    const initialSignature = signature(config.values || {}, config.workshopDefaults?.selected || {}, config.enabled ?? true);
     return {
         values: config.values || {},
         supplied: config.workshopDefaults?.selected || {},
+        get allocationChanged() { return signature(this.values, this.supplied, this.enabled) !== initialSignature; },
         refreshWorkshopDefaults() {
             if (!config.workshopDefaults || this.enabled) return;
             Object.keys(this.values).forEach(id => {

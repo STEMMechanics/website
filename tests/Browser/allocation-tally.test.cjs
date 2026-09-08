@@ -120,3 +120,29 @@ test('workshop supplied choices recalculate defaults and remain effective when l
     assert.equal(tally.values[2], '5.00');
     assert.equal(tally.remaining, 3500);
 });
+
+
+test('allocation changes compare amounts in cents and reset when edits are reverted', () => {
+    const { tally } = setup({ values: { 1: '30.00' }, enabled: true });
+    assert.equal(tally.allocationChanged, false);
+    tally.values[1] = '30';
+    assert.equal(tally.allocationChanged, false);
+    tally.values[1] = '30.01';
+    assert.equal(tally.allocationChanged, true);
+    tally.values[1] = '30.00';
+    assert.equal(tally.allocationChanged, false);
+});
+
+test('supplied choices and override mode count as changes even when the amounts stay the same', () => {
+    const { tally } = setup({ values: { 1: '0.00' }, enabled: false,
+        workshopDefaults: { selected: { 1: false }, supplied: { 1: 0 }, notSupplied: { 1: 0 } } });
+    tally.supplied[1] = true;
+    assert.equal(tally.allocationChanged, true);
+    tally.supplied[1] = false;
+    assert.equal(tally.allocationChanged, false);
+    tally.enabled = true;
+    assert.equal(tally.allocationChanged, true);
+    tally.enabled = false;
+    tally.refreshWorkshopDefaults();
+    assert.equal(tally.allocationChanged, false);
+});
