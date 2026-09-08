@@ -5,7 +5,7 @@
         <div class="grid gap-6 2xl:grid-cols-[minmax(0,1.15fr)_22rem]">
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="max-w-3xl">
-                    <x-ui.badge class="bg-primary-color-light text-white inline-flex">Send a message</x-ui.badge>
+                    <x-ui.badge color="primary" variant="solid">Send a message</x-ui.badge>
                     <h2 class="mt-4 text-3xl font-semibold text-gray-900">Tell us what you need</h2>
                     <p class="mt-3 text-base leading-7 text-gray-600">Use the form below for workshop bookings, school or community programs, technical questions, invoice support, or general enquiries. If your request is time-sensitive, include the best way to reach you.</p>
                 </div>

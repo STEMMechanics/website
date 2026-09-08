@@ -29,12 +29,12 @@
                     @foreach($emails as $email)
                         @php
                             $status = $email->status ?? 'sent';
-                            $statusClass = match ($status) {
-                                'failed' => 'text-red-700 bg-red-100 border-red-200',
-                                'skipped' => 'text-slate-700 bg-slate-100 border-slate-200',
-                                'scheduled' => 'text-sky-700 bg-sky-100 border-sky-200',
-                                'queued' => 'text-amber-700 bg-amber-100 border-amber-200',
-                                default => 'text-green-700 bg-green-100 border-green-200',
+                            $statusTone = match ($status) {
+                                'failed' => 'danger',
+                                'skipped' => 'slate',
+                                'scheduled' => 'sky',
+                                'queued' => 'warning',
+                                default => 'success',
                             };
                         @endphp
                         <tr>
@@ -65,7 +65,7 @@
                             <td class="hidden md:table-cell text-center!"><x-ui.date-time>{{ $email->sent_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></td>
                             <td class="hidden md:table-cell text-xs font-mono">{{ $email->id }}</td>
                             <td class="text-center! whitespace-nowrap">
-                                <x-ui.badge class="inline-flex items-center border text-center {{ $statusClass }}">{{ ucfirst($status) }}</x-ui.badge>
+                                <x-ui.badge :color="$statusTone" class="text-center">{{ ucfirst($status) }}</x-ui.badge>
                                 @if($status === 'failed' || $email->failed_at || $email->error_message)
                                     <x-ui.button variant="plain" data-open-dialog="email-failure-{{ $email->id }}" aria-haspopup="dialog" aria-controls="email-failure-{{ $email->id }}" aria-label="View failure details for email {{ $email->id }}" class="inline-flex h-8 w-8 items-center justify-center p-0! text-slate-500 hover:text-red-700">
                                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>

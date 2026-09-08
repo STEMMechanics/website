@@ -139,7 +139,7 @@
             <div class="grid gap-0 lg:grid-cols-[minmax(0,1fr)_24rem]">
                 <div class="p-6 sm:p-8 lg:p-12">
                     <div>
-                        <x-ui.badge class="bg-white/15 text-white ring-1 ring-white/20">
+                        <x-ui.badge color="inverse">
                             This month’s challenge
                         </x-ui.badge>
                     </div>

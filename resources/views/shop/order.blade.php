@@ -67,7 +67,7 @@
                         </div>
                         <div class="flex flex-wrap gap-2">
                             @if((string) $order->status === \App\Models\StoreOrder::STATUS_CANCELLED)
-                                <x-ui.badge class="bg-rose-100 tracking-[0.16em] text-rose-800">
+                                <x-ui.badge color="danger" class="tracking-[0.16em]">
                                     Cancelled
                                 </x-ui.badge>
                             @elseif($isQuoteRequested)
@@ -75,7 +75,7 @@
                                     Quote requested
                                 </x-ui.badge>
                             @else
-                                <x-ui.badge class="{{ $isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} tracking-[0.16em]">
+                                <x-ui.badge :color="$isPaid ? 'success' : 'warning'" class="tracking-[0.16em]">
                                 {{ $isPaid ? 'Paid' : 'Pending payment' }}
                                 </x-ui.badge>
                             @endif
@@ -259,7 +259,7 @@
                                     {{ $isAccountView ? 'Open your files directly from this order.' : 'Verify Email to Download. Each unlocked download link expires after 15 minutes.' }}
                                 </p>
                             </div>
-                            <x-ui.badge class="bg-white tracking-[0.16em] text-emerald-800">
+                            <x-ui.badge color="success" variant="outline" class="tracking-[0.16em]">
                                 {{ $downloadableItems->sum(fn ($item) => $item->downloads->count()) }} file{{ $downloadableItems->sum(fn ($item) => $item->downloads->count()) === 1 ? '' : 's' }}
                             </x-ui.badge>
                         </div>
@@ -376,7 +376,7 @@
                                     <div class="flex justify-between">
                                         <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
                                             @if($cancelledTotal > 0)
-                                                <x-ui.badge class="bg-rose-100 text-rose-800">Cancelled qty {{ $cancelledTotal }}</x-ui.badge>
+                                                <x-ui.badge color="danger">Cancelled qty {{ $cancelledTotal }}</x-ui.badge>
                                             @endif
                                         </div>
                                         <div class="mt-3 flex flex-wrap gap-2 items-center">
@@ -576,9 +576,9 @@
                             <div x-init="initSquareCard()">
                                 <div class="mb-2 flex items-center justify-between">
                                     <label class="block text-sm">Card Details</label>
-                                    <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                                    <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                         Secure payment by Square
-                                    </a>
+                                    </x-ui.badge>
                                 </div>
                                 <div class="relative">
                                     <div x-ref="squareCardContainer" class="min-h-22 bg-white transition" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>

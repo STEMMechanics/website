@@ -177,9 +177,9 @@
                     <div x-show="!expired && !isFullyCoveredByCredit() && paymentMethod === 'credit_card' && remainingAfterCredit() > 0.0001" x-cloak x-init="initSquareCard()">
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm">Card Details</label>
-                            <a href="https://squareup.com/au/en" target="_blank" class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs text-blue-700" rel="noopener noreferrer">
+                            <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank"  rel="noopener noreferrer">
                                 Secure payment by Square
-                            </a>
+                            </x-ui.badge>
                         </div>
                         <div class="relative">
                             <div x-ref="squareCardContainer"

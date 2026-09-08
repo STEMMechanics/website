@@ -15,7 +15,7 @@
                 <tbody data-list-results>@forelse($centres as $centre)
                     <tr>
                         <td data-mobile-primary><a class="font-semibold hover:text-primary-color" href="{{ $centre->id === 'gst' ? route('admin.cost-centre.gst') : route('admin.cost-centre.show', $centre->id) }}">{{ $centre->name }}</a></td>
-                        <td data-label="Status" class="text-center"><x-ui.badge :color="$centre->kind !== 'cost' ? 'sky' : ($centre->active ? 'green' : 'slate')">{{ $centre->kind !== 'cost' ? 'System' : ($centre->active ? 'Active' : 'Archived') }}</x-ui.badge></td>
+                        <td data-label="Status" class="text-center"><x-ui.badge :color="$centre->kind !== 'cost' ? 'sky' : ($centre->active ? 'success' : 'slate')">{{ $centre->kind !== 'cost' ? 'System' : ($centre->active ? 'Active' : 'Archived') }}</x-ui.badge></td>
                         <td data-label="Priority" class="text-center whitespace-nowrap">{{ $centre->kind === 'gst' ? '—' : $centre->priority }}</td>
                         <td data-label="Balance" @class(['text-center whitespace-nowrap tabular-nums', 'text-red-600' => $centre->balance < 0])>{{ money($centre->balance / 100) }}</td>
                         <td data-mobile-actions class="text-center whitespace-nowrap"><x-ui.row-actions :menu="false">

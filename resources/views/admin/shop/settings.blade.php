@@ -396,8 +396,8 @@
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="text-lg font-semibold text-gray-900" x-text="method.name || method.code || `Delivery Channel ${index + 1}`"></h3>
-                                        <x-ui.badge class="border border-gray-200 bg-white font-medium text-gray-600" x-text="channelUsesFreeCollection(method) ? 'Collection' : 'Shipping'"></x-ui.badge>
-                                        <x-ui.badge class="border border-gray-200 bg-white font-medium text-gray-500" x-show="!method.is_active" x-cloak>Inactive</x-ui.badge>
+                                        <x-ui.badge color="gray" variant="outline" class="font-medium" x-text="channelUsesFreeCollection(method) ? 'Collection' : 'Shipping'"></x-ui.badge>
+                                        <x-ui.badge color="gray" variant="outline" class="font-medium" x-show="!method.is_active" x-cloak>Inactive</x-ui.badge>
                                     </div>
                                     <p class="mt-2 text-sm text-gray-500" x-text="channelUsesFreeCollection(method) ? 'No package pricing set. This will behave as a free collection or pickup option.' : 'Customers can choose this channel when its package options fit their order.'"></p>
                                 </div>
@@ -571,7 +571,7 @@
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h3 class="text-lg font-semibold text-gray-900">Request Quote</h3>
-                                    <x-ui.badge class="border border-amber-200 bg-white font-medium text-amber-800">System option</x-ui.badge>
+                                    <x-ui.badge color="warning" variant="outline" class="font-medium">System option</x-ui.badge>
                                 </div>
                                 <p class="mt-2 text-sm text-gray-600">Shown only when no active channel marked “Can replace a manual quote” can fulfil the cart.</p>
                             </div>

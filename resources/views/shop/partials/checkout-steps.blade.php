@@ -11,7 +11,7 @@
             $isCurrent = $current === $key;
             $isComplete = $current === 'payment' && $key === 'details';
         @endphp
-        <x-ui.badge class="inline-flex items-center gap-3 border font-medium {{ $isCurrent ? 'border-primary-color bg-primary-color text-white' : ($isComplete ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-gray-300 bg-white text-gray-600') }}">
+        <x-ui.badge :color="$isCurrent ? 'primary' : ($isComplete ? 'success' : 'gray')" :variant="$isCurrent ? 'solid' : ($isComplete ? 'soft' : 'outline')" class="gap-3 font-medium">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full {{ $isCurrent ? 'bg-white/20 text-white' : ($isComplete ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600') }}">
                 {{ $isComplete ? '✓' : $step['number'] }}
             </span>

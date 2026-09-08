@@ -180,9 +180,9 @@
                         <div x-init="initSquareCard()">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="block text-sm">Card Details</label>
-                                <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                                <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                     Secure payment by Square
-                                </a>
+                                </x-ui.badge>
                             </div>
                             <div class="relative rounded-lg border border-gray-200 bg-white p-4">
                                 <div x-ref="squareCardContainer" class="min-h-[88px] transition" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>

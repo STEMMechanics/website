@@ -232,7 +232,7 @@
                                     value="{{ $linked['category']->id }}"
                                     @disabled(! in_array((string) $linked['category']->id, array_map('strval', old('remove_category_ids', [])), true))
                                 >
-                                <x-ui.badge x-show="!removed" class="inline-flex items-center gap-2 bg-sky-100 text-sky-800">
+                                <x-ui.badge x-show="!removed" color="sky" class="gap-2">
                                     <span class="inline-flex h-3 w-3 items-center justify-center">
                                         <i class="{{ $linked['category']->iconClass() }}"></i>
                                     </span>

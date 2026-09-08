@@ -41,6 +41,9 @@
     ];
 
     $toneMap = [
+        'inverse' => [
+            'soft' => ['border-white/20', 'bg-white/15', 'text-white'],
+        ],
         'gray' => [
             'soft' => ['border-gray-200', 'bg-gray-50', 'text-gray-700'],
             'solid' => ['border-gray-600', 'bg-gray-600', 'text-white'],

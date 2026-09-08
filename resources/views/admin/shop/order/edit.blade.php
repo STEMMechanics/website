@@ -1210,7 +1210,7 @@
                         <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">Store Order</div>
                         <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                             <h2 class="text-2xl font-bold text-gray-900 xl:text-[1.9rem]">{{ $order->order_number }}</h2>
-                            <x-ui.badge class="border border-gray-200 bg-gray-50 text-gray-600" x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</x-ui.badge>
+                            <x-ui.badge color="gray" x-text="statusLabel(displayStatusCode())">{{ $order->statusLabel() }}</x-ui.badge>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -1470,45 +1470,45 @@
 
                                     <div class="flex flex-col gap-3 ml-12 lg:flex-row lg:items-start lg:justify-between">
                                         <div class="flex min-w-0 flex-1 flex-wrap gap-2 text-[11px] font-semibold text-gray-700">
-                                            <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-gray-50">
+                                            <x-ui.badge color="gray" class="gap-1">
                                                 <i class="fa-solid fa-clipboard-list text-gray-400" aria-hidden="true"></i>
                                                 <span>Ordered <span x-text="orderedQuantity({{ $item->id }})">{{ $orderedQty }}</span></span>
                                             </x-ui.badge>
                                             @if($order->usesPickup())
-                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
+                                                <x-ui.badge color="success" class="gap-1">
                                                     <i class="fa-solid fa-check text-emerald-500" aria-hidden="true"></i>
                                                     <span>Ready <span x-text="readyPickup({{ $item->id }})">{{ $readyPickup }}</span></span>
                                                 </x-ui.badge>
-                                                <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-white">
+                                                <x-ui.badge color="gray" variant="outline" class="gap-1">
                                                     <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
                                                     <span>To prepare <span x-text="remainingPickupToReady({{ $item->id }})">{{ $remainingPickupToReady }}</span></span>
                                                 </x-ui.badge>
                                             @else
-                                                <x-ui.badge class="inline-flex items-center gap-1 border border-gray-200 bg-white">
+                                                <x-ui.badge color="gray" variant="outline" class="gap-1">
                                                     <i class="fa-solid fa-box text-sky-500" aria-hidden="true"></i>
                                                     <span>Open <span x-text="openQuantity({{ $item->id }})">{{ $remainingTotal }}</span></span>
                                                 </x-ui.badge>
                                             @endif
-                                            <x-ui.badge class="inline-flex items-center gap-1 border border-rose-200 bg-rose-50 text-rose-800">
+                                            <x-ui.badge color="danger" class="gap-1">
                                                 <i class="fa-solid fa-circle-xmark text-rose-500" aria-hidden="true"></i>
                                                 <span>Cancelled <span x-text="cancelledQuantity({{ $item->id }})">{{ $cancelledTotal }}</span></span>
                                             </x-ui.badge>
                                             @if($order->usesPickup())
-                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
+                                                <x-ui.badge color="success" class="gap-1">
                                                     <i class="fa-solid fa-box-check text-emerald-500" aria-hidden="true"></i>
                                                     <span>Collected <span x-text="collectedQuantity({{ $item->id }})">{{ $collectedTotal }}</span></span>
                                                 </x-ui.badge>
                                             @else
-                                                <x-ui.badge class="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-800">
+                                                <x-ui.badge color="success" class="gap-1">
                                                     <i class="fa-solid fa-truck-fast text-emerald-500" aria-hidden="true"></i>
                                                     <span>Shipped <span x-text="dispatchedQuantity({{ $item->id }})">{{ $dispatchedTotal }}</span></span>
                                                 </x-ui.badge>
                                             @endif
-                                            <x-ui.badge class="inline-flex items-center gap-1 border border-amber-200 bg-amber-50 text-amber-800">
+                                            <x-ui.badge color="warning" class="gap-1">
                                                 <i class="fa-solid fa-warehouse text-amber-500" aria-hidden="true"></i>
                                                 <span>Reserved <span x-text="reservedQuantity({{ $item->id }})">{{ $reservedQty }}</span></span>
                                             </x-ui.badge>
-                                            <x-ui.badge class="inline-flex items-center gap-1 border border-sky-200 bg-sky-50 text-sky-800">
+                                            <x-ui.badge color="sky" class="gap-1">
                                                 <i class="fa-solid fa-hourglass-half text-sky-500" aria-hidden="true"></i>
                                                 <span>Backorder <span x-text="remainingDelayed({{ $item->id }})">{{ $remainingDelayed }}</span></span>
                                             </x-ui.badge>

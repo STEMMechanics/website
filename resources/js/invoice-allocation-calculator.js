@@ -30,6 +30,7 @@ window.SM.invoiceAllocationCalculator = config => {
         rows: [],
         nextId: 0,
         isOpen: false,
+        minimised: false,
         inputsValid: false,
         get plan() { return this.plans.find(plan => String(plan.id) === String(this.planId)); },
         get supplies() {
@@ -42,16 +43,23 @@ window.SM.invoiceAllocationCalculator = config => {
         init() {
             this.$nextTick(() => {
                 const dialog = document.getElementById(config.dialogId);
-                const closed = () => { this.isOpen = false; };
+                const closed = () => { this.isOpen = dialog.open; };
                 dialog.addEventListener('close', closed);
                 this.cleanup = () => dialog.removeEventListener('close', closed);
             });
         },
         launch(total) {
             this.total = total;
+            this.minimised = false;
             if (!this.rows.length) this.addRow();
             this.isOpen = true;
             document.getElementById(config.dialogId).showModal();
+        },
+        minimise() {
+            this.minimised = true;
+            this.isOpen = false;
+            document.getElementById(config.dialogId).close();
+            this.$nextTick(() => this.$refs.restoreCalculator.focus());
         },
         addRow() {
             if (this.rows.length >= 50) return;

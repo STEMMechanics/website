@@ -75,10 +75,10 @@
                 Clear file
             </button>
             <div id="{{ $fileStateId }}" class="hidden text-xs text-primary-color">
-                <span class="inline-flex items-center gap-2 rounded-full bg-primary-color/10 px-2.5 py-1 font-medium">
+                <x-ui.badge color="primary" class="gap-2 font-medium">
                     <i class="fa-solid fa-circle-notch animate-spin"></i>
                     <span>Uploading...</span>
-                </span>
+                </x-ui.badge>
             </div>
         </div>
 
