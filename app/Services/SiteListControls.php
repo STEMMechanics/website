@@ -95,7 +95,7 @@ class SiteListControls
             'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
             'admin.server.square-events', 'admin.server.square-webhooks' => ['event_type' => ['label' => 'Event type', 'type' => 'text']],
             'admin.workshop.files', 'admin.workshop.photos' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
-            'admin.expense.index' => [
+            'admin.expense.index', 'admin.supplier.show' => [
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
                 'supplier_id' => ['label' => 'Supplier account', 'type' => 'select', 'options' => \App\Models\Supplier::orderBy('name')->pluck('name', 'id')->all()],
                 'supplier' => ['label' => 'Supplier', 'type' => 'text'],
@@ -308,7 +308,7 @@ class SiteListControls
         }
         $data = Validator::make(request()->query(), $rules)->validate();
         if (request()->routeIs('admin.invoice.index')) { app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($query, $data); }
-        if (request()->routeIs('admin.expense.index') && ! empty($data['allocation_state'])) {
+        if (request()->routeIs('admin.expense.index', 'admin.supplier.show') && ! empty($data['allocation_state'])) {
             $match = fn ($part) => app(\App\Services\Finance\FinanceAttention::class)->unallocatedExpenses($part);
             if ($data['allocation_state'] === 'not_allocated') { $query->where($match); }
             else { $query->whereNot($match); }
