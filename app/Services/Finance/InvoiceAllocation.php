@@ -48,7 +48,7 @@ class InvoiceAllocation
         $automaticWarning = null;
         if ($workshop) {
             $assumptions['pricing_participants'] ??= min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($planner->decode($version->prices)['pricing_participants'] ?? 10));
-            $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60, 'venue_supplied' => (bool) $workshop->hosted_for_organisation_id]);
+            $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60, 'venue_supplied' => (bool) ($assumptions['venue_supplied'] ?? false)]);
             $suggestedTargets = $planner->targets($rules, $assumptions);
         } else {
             $assumptions = ['source' => 'invoice_lines', 'lines' => []];

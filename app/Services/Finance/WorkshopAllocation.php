@@ -12,11 +12,18 @@ use Illuminate\Validation\ValidationException;
 
 class WorkshopAllocation
 {
-    public function context(Workshop $workshop): array
+    public function context(Workshop $workshop, ?array $supplied = null): array
     {
         $invoice = Invoice::whereIn('id', Ticket::where('workshop_id', $workshop->id)->whereNotNull('invoice_id')->select('invoice_id'))->first()
             ?? new Invoice(['issue_date' => $workshop->starts_at]);
-        $context = app(InvoiceAllocation::class)->context($invoice, null, null, $workshop);
+        $context = app(InvoiceAllocation::class)->context($invoice, null, $supplied, $workshop);
+        if ($supplied !== null) {
+            $rules = json_decode($context['version']->rules, true, 512, JSON_THROW_ON_ERROR);
+            $suppliable = collect($rules)->filter(fn ($rule) => ($rule['suppliable'] ?? false) || $rule['basis'] === 'venue_hour')->pluck('category_id')->all();
+            if (array_diff(array_keys($supplied), $suppliable)) {
+                throw ValidationException::withMessages(['supplied_categories' => 'Choose supplied items from this allocation plan.']);
+            }
+        }
         $context['total'] = max(0, $context['income']['net']);
         if (! ($context['budget']->manual ?? false)) {
             $context['targets'] = $context['suggestedTargets'];
@@ -116,7 +123,7 @@ class WorkshopAllocation
             if (! $state['ready'] || ! hash_equals($state['hash'], $data['source_hash'])) {
                 throw ValidationException::withMessages(['allocation' => 'Workshop or payment details changed, or outcomes remain outstanding. Refresh and review before finalising.']);
             }
-            $context = $this->context($workshop);
+            $context = $this->context($workshop, isset($data['supplied_categories']) ? array_map(fn ($value) => (bool) $value, $data['supplied_categories']) : null);
             $budget = $context['budget'];
             if (($budget ? hash('sha256', json_encode((array) $budget)) : '') !== (string) ($data['revision'] ?? '')) {
                 throw ValidationException::withMessages(['allocation' => 'This allocation changed. Refresh before finalising.']);
