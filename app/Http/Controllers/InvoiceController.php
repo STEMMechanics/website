@@ -2363,10 +2363,11 @@ class InvoiceController extends Controller
 
     private function replaceInvoiceLines(Invoice $invoice, array $lineItems): void
     {
+        $previous = $invoice->lines()->get();
         $invoice->lines()->delete();
 
         foreach (array_values($lineItems) as $index => $lineItem) {
-            $invoice->lines()->create([
+            $line = new \App\Models\InvoiceLine([
                 'line_number' => $index + 1,
                 'kind' => (string) ($lineItem['kind'] ?? 'generic'),
                 'description' => (string) ($lineItem['description'] ?? ''),
@@ -2382,6 +2383,13 @@ class InvoiceController extends Controller
                 'source_id' => $lineItem['source_id'] ?? null,
                 'original_invoice_line_id' => $lineItem['original_invoice_line_id'] ?? null,
             ]);
+            $old = isset($lineItem['id']) ? $previous->firstWhere('id', $lineItem['id']) : $previous->firstWhere('line_number', $index + 1);
+            if ($old && $old->kind === $line->kind && $old->source_type === $line->source_type && (string) $old->source_id === (string) $line->source_id
+                && data_get($old->details_json, 'variant_id') === data_get($line->details_json, 'variant_id')
+                && data_get($old->details_json, 'store_context.variant_id') === data_get($line->details_json, 'store_context.variant_id')) {
+                $line->product_allocation_snapshot = $old->product_allocation_snapshot ?? [];
+            }
+            $invoice->lines()->save($line);
         }
     }
 
@@ -2413,6 +2421,7 @@ class InvoiceController extends Controller
 
 
         return [
+            'id' => isset($item['id']) ? (int) $item['id'] : null,
             'kind' => trim((string) ($item['kind'] ?? 'generic')) ?: 'generic',
             'description' => $description,
             'notes' => $notes,

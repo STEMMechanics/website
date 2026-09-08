@@ -1,4 +1,6 @@
 @php
+    $productSnapshots = $invoice->lines->filter(fn ($line) => ! empty($line->product_allocation_snapshot))->mapWithKeys(fn ($line) => [$line->id => $line->product_allocation_snapshot])->all();
+    $hasWorkshopPricing = $invoice->lines->whereIn('kind', ['workshop', 'travel', 'multi_workshop'])->isNotEmpty();
     $hasPricingDefaults = array_sum($allocation['suggestedTargets']) > 0;
     $linkedWorkshops = $invoice->tickets()->with('workshop')->get()->pluck('workshop')->filter()->unique('id');
 @endphp
@@ -12,7 +14,7 @@
         $values = $allocation['categories']->mapWithKeys(fn ($category) => [$category->id => number_format(($allocation['editorTargets'][$category->id] ?? $allocation['targets'][$category->id] ?? 0) / 100, 2, '.', '')])->all();
     @endphp
     @php($previewRules = json_decode($allocation['version']->rules, true))
-    <form x-on:allocation-calculated.stop="applyCalculatorValues($event.detail)" x-on:invoice-lines-updated.window="@if($inline && $linkedWorkshops->isEmpty()) previewInvoice($event.detail, @js($previewRules), @js(json_decode($allocation['version']->prices, true))); @endif" method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline @else data-record-form @endif x-data="SM.allocationTally(@js(['values' => $values, 'total' => $allocation['total'], 'exact' => false, 'enabled' => ! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false)]))">
+    <form x-on:allocation-calculated.stop="applyCalculatorValues($event.detail)" x-on:invoice-lines-updated.window="@if($inline && $linkedWorkshops->isEmpty()) previewInvoice($event.detail, @js($previewRules), @js(json_decode($allocation['version']->prices, true))); @endif" method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline @else data-record-form @endif x-data="SM.allocationTally(@js(['values' => $values, 'products' => $productSnapshots, 'total' => $allocation['total'], 'exact' => false, 'enabled' => ! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false)]))">
         @unless($inline)
             <div class="mb-4 flex justify-end"><x-finance.allocation-calculator-button :invoice="$invoice" :inline="false" /></div>
         @endunless
@@ -20,7 +22,7 @@
         @csrf
         @if($inline)<input type="hidden" name="inline" value="1">@endif
         <input type="hidden" name="budget_id" value="{{ $allocation['budget']->id ?? '' }}">
-        @if(! $allocation['budget'] && $hasPricingDefaults)
+        @if(! $allocation['budget'] && $hasPricingDefaults && $hasWorkshopPricing)
             <div class="mb-5" x-data="{ versionId: @js((string) $allocation['version']->id), editorUrl: @js(route('admin.invoice.allocation.edit', $invoice)) }">
                 <x-ui.select name="version_id" label="Allocation plan" x-model="versionId">
                     @foreach(\Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $allocation['version']->id)->orderByDesc('effective_from')->orderByDesc('id')->get() as $version)
@@ -63,7 +65,7 @@
                 </div>
             @endif
             @if($hasPricingDefaults)
-            <x-ui.checkbox name="use_defaults" value="1" x-on:change="enabled = !$event.target.checked" label="Use pricing defaults" x-bind:checked="!enabled" />
+            <x-ui.checkbox name="use_defaults" value="1" x-on:change="enabled = !$event.target.checked" :label="$productSnapshots ? 'Use saved allocation defaults' : 'Use pricing defaults'" x-bind:checked="!enabled" />
             <p class="mb-4 mt-2 text-xs text-slate-600">Untick to enter a manual override.</p>
             @endif
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="invoice-allocation" :exact="false" :totalLabel="$linkedWorkshops->isNotEmpty() ? 'Non-ticket items excluding GST' : null" :shortfall="true" :columns="$inline ? 1 : 2" />

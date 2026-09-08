@@ -127,6 +127,7 @@ class SiteListControls
             'admin.shop.product.index' => [
                 'status_scope' => ['label' => 'Products', 'type' => 'select', 'options' => ['all' => 'All statuses', 'current' => 'Current products', 'archived' => 'Archived'], 'clear' => 'all'],
                 'inventory' => ['label' => 'Inventory', 'type' => 'select', 'options' => ['actionable' => 'Needs attention']],
+                'allocation_state' => ['label' => 'Cost centre allocation', 'type' => 'select', 'options' => ['needs_review' => 'Needs review', 'allocated' => 'Allocated']],
             ],
             'admin.reminder.index' => ['view' => ['label' => 'Delivery', 'type' => 'select', 'options' => ['all' => 'All reminders', 'upcoming' => 'Upcoming', 'sent' => 'Sent', 'failed' => 'Failed'], 'clear' => 'all']],
             default => [],

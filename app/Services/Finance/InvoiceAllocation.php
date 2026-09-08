@@ -83,14 +83,25 @@ class InvoiceAllocation
                 }
             }
         }
+        if (! $workshop) {
+            $assumptions['product_lines'] = app(ProductAllocation::class)->lines($invoice);
+            foreach ($assumptions['product_lines'] as $productLine) {
+                foreach ($productLine['targets'] as $id => $amount) {
+                    $suggestedTargets[$id] = ($suggestedTargets[$id] ?? 0) + $amount;
+                }
+            }
+        }
         $targets = $budget ? $planner->decode($budget->targets) : $suggestedTargets;
 
         $income = $parts->income($ids, $workshopId);
-        $funding = $planner->funding($targets, $income['net'], ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions));
+        $rounding = ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions);
+        if (! empty($rounding['product_lines'])) {
+            $rounding['received_lines'] = app(ProductAllocation::class)->balances($parts->events($ids, $workshopId));
+        }
+        $funding = $planner->funding($targets, $income['net'], $rounding);
         $total = Invoice::with(['lines', 'tickets'])->whereIn('id', $ids)->get()->sum(fn ($item) => $parts->total($item, $workshopId));
 
         $editorTargets = $targets;
-        $rounding = ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions);
         $roundingAmount = min(max(0, $total - array_sum($targets)), (int) ($rounding['limit'] ?? 0));
         if (! empty($rounding['category_id']) && $roundingAmount > 0) {
             $id = $rounding['category_id'];
@@ -108,6 +119,10 @@ class InvoiceAllocation
             $context = $this->context($invoice, $versionId, $supplied);
             $budget = $context['budget'];
             $userId ??= $context['version']->created_by;
+            if (! $userId) {
+                $author = $invoice->lines->pluck('product_allocation_snapshot.updated_by')->filter()->first();
+                $userId = $author ? \App\Models\User::whereKey($author)->value('id') : null;
+            }
             if (! $userId) {
                 return;
             }

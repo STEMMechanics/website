@@ -324,6 +324,28 @@ details.ui-collapsible-section--panel .ui-collapsible-section__summary-text--sub
     @apply text-sm text-gray-600;
 }
 
+details.ui-collapsible-section--product > summary {
+    @apply justify-start gap-3;
+}
+details.ui-collapsible-section--product > summary .ui-collapsible-section__summary-title {
+    @apply flex-wrap gap-x-3 gap-y-1;
+}
+details.ui-collapsible-section--product > summary .ui-collapsible-section__summary-text--title {
+    @apply text-base font-semibold;
+}
+details.ui-collapsible-section--product > summary .ui-collapsible-section__summary-text--subtitle {
+    @apply whitespace-normal text-sm;
+}
+details.ui-collapsible-section--product[open] > summary .ui-collapsible-section__summary-text--subtitle {
+    display: none;
+}
+details.ui-collapsible-section--product[open] > summary .ui-collapsible-section__chevron {
+    transform: rotate(90deg);
+}
+details.ui-collapsible-section--product > .ui-collapsible-section__content {
+    @apply space-y-4 border-0 pt-0;
+}
+
 details.sm-collapsible-node {
     @apply my-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50;
 }

@@ -30,6 +30,11 @@ export function allocationTally(config) {
             this.total = detail.total;
             if (!this.enabled) {
                 const targets = window.SM.lineCostAllocations(detail.items, rules);
+                if (config.products && window.SM.productLineCostAllocations) {
+                    for (const [id, amount] of Object.entries(window.SM.productLineCostAllocations(detail.items, this.total, config.products))) {
+                        targets[id] = (targets[id] || 0) + amount;
+                    }
+                }
                 const remaining = Math.max(0, this.total - Object.values(targets).reduce((sum, amount) => sum + amount, 0));
                 if (prices.rounding_category_id && window.SM.invoiceRoundingAllowance) {
                     const extra = Math.min(remaining, window.SM.invoiceRoundingAllowance(detail.items, rules, prices));

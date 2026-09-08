@@ -120,10 +120,12 @@
         : '');
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">{{ isset($product) ? 'Edit' : 'Create' }} Product</x-mast>
+    <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">{{ isset($product) ? 'Edit' : 'Create' }} Product
+    </x-mast>
 
     <x-container class="mt-4">
         <form
+            x-on:invalid.capture="let section = $event.target.closest('details'); while (section) { section.open = true; section = section.parentElement.closest('details'); }"
             method="POST"
             action="{{ route('admin.shop.product.'.(isset($product) ? 'update' : 'store'), $product ?? []) }}"
             x-data="{
@@ -395,7 +397,8 @@
                 @method('PUT')
             @endisset
 
-            <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+            <x-ui.collapsible-section title="Product" variant="product" :open="true">
+                <x-slot:summary><span x-text="title || 'Product information'"></span></x-slot:summary>
                 <div class="grid gap-4 md:grid-cols-2">
                     <x-ui.input name="title" label="Title" :value="$product->title ?? ''" x-model="title" x-on:blur="handleTitleInput()" />
                     <x-ui.input name="slug" label="Slug" :value="$product->slug ?? ''" x-model="slug" x-on:input="handleSlugInput()" />
@@ -405,10 +408,41 @@
                     label="Subtitle"
                     :value="$product->subtitle ?? ''"
                 />
-                <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+
+                <div class="grid gap-4 md:grid-cols-3">
+                    <x-ui.input name="sku" label="Base SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" required info="Required. Used on orders and inventory records." />
+                    <x-ui.select
+                        name="status"
+                        label="Status"
+                        x-model="status"
+                    >
+                        @foreach(\App\Models\Product::STATUSES as $status)
+                            <option value="{{ $status }}" @selected(old('status', $product->status ?? \App\Models\Product::STATUS_DRAFT) === $status)>{{ \App\Models\Product::statusLabel($status) }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.checkbox
+ name="is_featured"
+ label="Featured product"
+ :checked="(bool) old('is_featured', $product->is_featured ?? false)"
+ class="mt-7"
+ x-model="isFeatured"
+ x-bind:disabled="status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'"
+ />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <x-ui.select name="product_type" label="Product Type" x-model="productType">
+                        @foreach(\App\Models\Product::PRODUCT_TYPES as $type)
+                            <option value="{{ $type }}">{{ \App\Models\Product::productTypeLabel($type) }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.input name="sort_order" label="Sort Order" type="number" min="0" :value="$product->sort_order ?? 0" />
+                </div>
+            </x-ui.collapsible-section>
+
+            <x-ui.collapsible-section title="Categories" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ $categories->whereIn('id', $selectedCategoryIds)->pluck('name')->implode(', ') ?: 'No categories selected' }}</x-slot:summary>
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
                             <p class="text-xs text-gray-500">Assign any number of managed categories to this product.</p>
                         </div>
                         <x-ui.button href="{{ route('admin.shop.category.index') }}" color="outline" class="shrink-0">Manage Categories</x-ui.button>
@@ -445,35 +479,9 @@
                             @endforeach
                         </div>
                     @endif
-                </div>
-                <div class="grid gap-4 md:grid-cols-3">
-                    <x-ui.input name="sku" label="Base SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" required info="Required. Used on orders and inventory records." />
-                    <x-ui.select
-                        name="status"
-                        label="Status"
-                        x-model="status"
-                    >
-                        @foreach(\App\Models\Product::STATUSES as $status)
-                            <option value="{{ $status }}" @selected(old('status', $product->status ?? \App\Models\Product::STATUS_DRAFT) === $status)>{{ \App\Models\Product::statusLabel($status) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.checkbox
- name="is_featured"
- label="Featured product"
- :checked="(bool) old('is_featured', $product->is_featured ?? false)"
- class="mt-7"
- x-model="isFeatured"
- x-bind:disabled="status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'"
- />
-                </div>
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <x-ui.select name="product_type" label="Product Type" x-model="productType">
-                        @foreach(\App\Models\Product::PRODUCT_TYPES as $type)
-                            <option value="{{ $type }}">{{ \App\Models\Product::productTypeLabel($type) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.input name="sort_order" label="Sort Order" type="number" min="0" :value="$product->sort_order ?? 0" />
-                </div>
+            </x-ui.collapsible-section>
+            <x-ui.collapsible-section title="Description" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ \Illuminate\Support\Str::limit(strip_tags($product->short_description ?? $productDescription), 90) ?: 'No description added' }}</x-slot:summary>
                 <x-ui.input name="short_description" label="Short Description" :value="$product->short_description ?? ''" />
                 <x-ui.editor name="description" label="Description" :value="$productDescription" />
                 <x-ui.input
@@ -485,10 +493,20 @@
                     info="Alternative names and related words, separated by spaces or commas. Used by site search and product-page metadata; not shown in the product description."
                 />
 
-                <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                <x-ui.input
+                    name="caution_message"
+                    type="textarea"
+                    rows="3"
+                    label="Product Warning"
+                    :value="$product->caution_message ?? ''"
+                    info="Optional. Displayed to customers with a caution icon."
+                    placeholder="Not suitable for children under 3 years."
+                />
+            </x-ui.collapsible-section>
+            <x-ui.collapsible-section title="Specifications" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary><span x-text="productDetails.filter(detail => detail.key || detail.value).length + ' product details'"></span></x-slot:summary>
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Product Details</h3>
                             <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age. Values may include <code>{sku}</code>, which follows the selected variant.</p>
                         </div>
                         <x-ui.button type="button" color="outline" x-on:click="addProductDetail()">Add Detail</x-ui.button>
@@ -529,25 +547,9 @@
                         </x-ui.table>
                     </div>
                     <p class="mt-4 text-sm text-gray-500" x-show="productDetails.length === 0">No structured details added.</p>
-                </div>
-
-                <x-ui.input
-                    name="caution_message"
-                    type="textarea"
-                    rows="3"
-                    label="Product Warning"
-                    :value="$product->caution_message ?? ''"
-                    info="Optional. Displayed to customers with a caution icon."
-                    placeholder="Not suitable for children under 3 years."
-                />
-            </div>
-
-            <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">Item Price and Inventory</h2>
-                    </div>
-                </div>
+            </x-ui.collapsible-section>
+            <x-ui.collapsible-section title="Item Price and Inventory" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary><span x-text="'$' + Number(basePrice || 0).toFixed(2) + ' · ' + (allowBackorder ? 'Back orders allowed' : 'No back orders')"></span></x-slot:summary>
 
                 <div class="grid md:gap-4 md:grid-cols-2">
                     <div class="flex flex-col gap-2">
@@ -608,14 +610,10 @@
                         @endif
                     </div>
                 </div>
-            </div>
+            </x-ui.collapsible-section>
 
-            <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">Packaging</h2>
-                    </div>
-                </div>
+            <x-ui.collapsible-section title="Packaging" variant="product" :open="!isset($product) || $errors->any()" x-show="productType === 'physical'" x-cloak>
+                <x-slot:summary><span x-text="boxOnly ? 'Rigid parcel shipping' : 'Standard packaging'"></span></x-slot:summary>
 
                 <input type="hidden" name="shipping_units" value="0" step="0.001">
                 <input type="hidden" name="min_satchel_rank" value="1">
@@ -641,16 +639,13 @@
  />
                     </div>
                 </div>
-            </div>
+            </x-ui.collapsible-section>
 
-            <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                Digital products ignore parcel packing and shipping fields, unlock their download files after payment, and can use licence tiers when you want to sell different usage rights.
-            </div>
 
-            <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+            <x-ui.collapsible-section title="Variants" titleExpression="productType === 'digital' ? 'Licence Tiers' : 'Variants'" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary><span x-text="variants.length + ' additional option' + (variants.length === 1 ? '' : 's')"></span></x-slot:summary>
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Tiers' : 'Variants'"></h2>
                         <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak class="text-sm text-gray-600">Use variants for pack sizes, colours, or other options. Leave price, weight, or dimensions blank to inherit the base product values.</p>
                         <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Add only the extra tiers you want to offer.</p>
                     </div>
@@ -852,20 +847,26 @@
                         </div>
                     </template>
                 </div>
-            </div>
+            </x-ui.collapsible-section>
 
-            <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+            @include('admin.shop.product.allocation-matrix')
+
+            <x-ui.collapsible-section title="Images and Downloads" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ isset($product) ? (($product->hero_media_name ? 'Hero image · ' : '').$product->galleryMedia->count().' gallery images') : 'Product images and digital files' }}</x-slot:summary>
+                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-slate-600">
+                    Digital products ignore parcel packing and shipping fields, unlock their download files after payment, and can use licence tiers when you want to sell different usage rights.
+                </div>
                 <x-ui.media label="Hero Image" name="hero_media_name" value="{{ $product->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
                 <x-ui.gallery name="gallery_files" label="Gallery" value="{{ $galleryFilesValue }}" editor="true" />
                 <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak>
                     <x-ui.filelist name="download_files" label="Digital Download Files" :value="$downloadFilesValue" editor="true" />
                 </div>
-            </div>
+            </x-ui.collapsible-section>
 
-            <div class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+            <x-ui.collapsible-section title="Admin Notes & Alerts" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ filled($product->private_notes ?? null) ? 'Private notes added' : 'No private notes' }} · Low-stock alerts</x-slot:summary>
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900">Admin Notes & Alerts</h2>
                         <p class="text-sm text-gray-600">Private notes stay in admin only. Low-stock alerts help surface products that need ordering attention.</p>
                     </div>
                 </div>
@@ -895,7 +896,7 @@
                         @endif
                     </div>
                 </div>
-            </div>
+            </x-ui.collapsible-section>
 
             <x-ui.editor-actions>
                 <div class="ml-auto flex flex-wrap justify-end gap-3">

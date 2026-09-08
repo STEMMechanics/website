@@ -26,10 +26,14 @@ class ShopProductController extends Controller
         $legacyFilter = $this->normalizeIndexFilter($request->query('filter'));
         $scope = $request->query('status_scope', $legacyFilter === 'archived' ? 'archived' : 'current') ?: 'all';
         $inventory = $request->query('inventory', $legacyFilter === 'actionable' ? 'actionable' : '');
-        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])]]);
+        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
         $request->query->set('status_scope', $scope);
         if ($inventory) $request->query->set('inventory', $inventory);
         $request->query->remove('filter');
+        $allocationAttentionIds = app(\App\Services\Finance\ProductAllocationEditor::class)->attentionIds();
+        $allocationAttentionCount = Product::where('status', '!=', Product::STATUS_ARCHIVED)->whereIn('id', $allocationAttentionIds)->count();
+        if ($request->query('allocation_state') === 'needs_review') $query->whereIn('id', $allocationAttentionIds);
+        elseif ($request->query('allocation_state') === 'allocated') $query->whereNotIn('id', $allocationAttentionIds);
         $actionableCount = 0;
         Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->with('variants')->chunkById(200, function ($products) use (&$actionableCount) {
             $actionableCount += collect($this->inventoryIndexSummaries($products))->where('actionable', true)->count();
@@ -77,6 +81,8 @@ class ShopProductController extends Controller
         return view('admin.shop.product.index', [
             'products' => $products,
             'inventorySummaries' => $inventorySummaries,
+            'allocationAttentionIds' => $allocationAttentionIds,
+            'allocationAttentionCount' => $allocationAttentionCount,
             'selectedFilter' => $selectedFilter,
         ]);
     }
@@ -91,7 +97,7 @@ class ShopProductController extends Controller
     public function store(Request $request, StoreInventoryAllocatorService $allocator): RedirectResponse
     {
         $product = new Product;
-        $this->saveProduct($request, $product, $allocator);
+        DB::transaction(fn () => $this->saveProduct($request, $product, $allocator));
 
         session()->flash('message', 'Product has been created.');
         session()->flash('message-title', 'Product created');
@@ -113,7 +119,7 @@ class ShopProductController extends Controller
 
     public function update(Request $request, Product $product, StoreInventoryAllocatorService $allocator): RedirectResponse
     {
-        $this->saveProduct($request, $product, $allocator);
+        DB::transaction(fn () => $this->saveProduct($request, $product, $allocator));
 
         session()->flash('message', 'Product has been updated.');
         session()->flash('message-title', 'Product updated');
@@ -215,6 +221,7 @@ class ShopProductController extends Controller
 
     private function saveProduct(Request $request, Product $product, StoreInventoryAllocatorService $allocator): void
     {
+        $productAllocations = app(\App\Services\Finance\ProductAllocationEditor::class)->validate($request);
         $previousProductInventory = $product->exists ? $product->inventory_quantity : null;
         $previousVariantInventory = $product->exists
             ? $product->variants()->pluck('inventory_quantity', 'id')->map(fn ($quantity) => $quantity !== null ? (int) $quantity : null)->all()
@@ -419,7 +426,8 @@ class ShopProductController extends Controller
         $product->updateFiles($request->input('gallery_files'), 'gallery');
         $product->updateFiles($isDigital ? $request->input('download_files') : null, 'downloads');
 
-        $this->syncVariants($product, $normalizedVariants, $isDigital);
+        $savedVariants = $this->syncVariants($product, $normalizedVariants, $isDigital);
+        app(\App\Services\Finance\ProductAllocationEditor::class)->save($product, $savedVariants, $productAllocations, $request->user()->id);
         $freshProduct = $product->fresh('variants');
         $this->allocateRestockedInventory($freshProduct, $previousProductInventory, $previousVariantInventory, $allocator);
 
@@ -720,10 +728,11 @@ class ShopProductController extends Controller
         return $variants;
     }
 
-    private function syncVariants(Product $product, Collection $variants, bool $isDigital): void
+    private function syncVariants(Product $product, Collection $variants, bool $isDigital): array
     {
         $existingVariants = $product->variants()->get()->keyBy('id');
         $submittedIds = [];
+        $savedVariants = [];
 
         foreach ($variants as $variantData) {
             $variant = $variantData['id'] !== null
@@ -771,6 +780,7 @@ class ShopProductController extends Controller
             }
 
             $submittedIds[] = (int) $variant->id;
+            $savedVariants[$variantData['row_index']] = $variant;
         }
 
         foreach ($existingVariants as $existingVariant) {
@@ -787,6 +797,8 @@ class ShopProductController extends Controller
 
             $existingVariant->delete();
         }
+
+        return $savedVariants;
     }
 
     private function allocateRestockedInventory(

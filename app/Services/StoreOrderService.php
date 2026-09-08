@@ -3124,6 +3124,7 @@ class StoreOrderService
                 $invoiceLine->line_total_inc_tax = round((float) $line->line_price, 2);
                 $invoiceLine->source_type = Product::class;
                 $invoiceLine->source_id = $line->product->id;
+                $invoiceLine->details_json = ['variant_id' => $line->variant?->id];
                 $invoiceLine->save();
             }
 
@@ -3211,6 +3212,10 @@ class StoreOrderService
                 'tax_amount' => $discountBreakdown['tax_amount'],
                 'line_total_inc_tax' => round(-1 * (float) $totals['discount'], 2),
             ]);
+        }
+
+        if ($invoice instanceof Invoice && $invoice->lines()->where('kind', 'product')->get()->contains(fn ($line) => ! empty($line->product_allocation_snapshot))) {
+            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, null);
         }
 
         return $order->load(['invoice', 'items.downloads.media', 'coupon']);

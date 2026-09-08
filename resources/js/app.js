@@ -21,6 +21,8 @@ import './admin-media-list';
 import './bulk-editor';
 import './record-editor';
 import './allocation-tally';
+import './product-allocation';
+import './product-allocation-editor';
 import './workshop-line';
 
 import './reminder-list';

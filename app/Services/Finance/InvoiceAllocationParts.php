@@ -105,7 +105,32 @@ class InvoiceAllocationParts
                 }
                 $net = $this->portion($event['gross'] - $event['gst'], $eventWeights, $this->key($workshopId));
                 $tax = $this->portion($event['gst'], $eventWeights, $this->key($workshopId));
-                $events[] = array_merge($event, ['id' => $event['id'].'-'.$invoice->id, 'gross' => $net + $tax, 'gst' => $tax]);
+                $lineNet = [];
+                if ($invoice->lines->contains(fn ($line) => ! empty($line->product_allocation_snapshot))) {
+                    $lineWeights = $invoice->lines->mapWithKeys(fn ($line) => [$invoice->id.':'.$line->line_number => max(0, $planner->cents($line->line_total_ex_tax))])->all();
+                    if ($refund) {
+                        $adjustedLines = [];
+                        foreach ($refund->allocations->where('invoice_id', $invoice->id) as $allocation) {
+                            foreach ($allocation->taxAdjustment->lines ?? [] as $adjustmentLine) {
+                                $line = $invoice->lines->firstWhere('id', $adjustmentLine->invoice_line_id);
+                                if (! $line) {
+                                    $adjustedLines = [];
+                                    break 2;
+                                }
+                                $key = $invoice->id.':'.$line->line_number;
+                                $adjustedLines[$key] = ($adjustedLines[$key] ?? 0) + abs($planner->cents($adjustmentLine->line_total_ex_tax));
+                            }
+                        }
+                        if (array_sum($adjustedLines)) {
+                            $lineWeights = $adjustedLines;
+                        }
+                    }
+                    $lineNet = app(ProductAllocation::class)->split(abs($event['gross'] - $event['gst']), $lineWeights);
+                    if ($event['gross'] - $event['gst'] < 0) {
+                        $lineNet = array_map(fn ($amount) => -$amount, $lineNet);
+                    }
+                }
+                $events[] = array_merge($event, ['id' => $event['id'].'-'.$invoice->id, 'gross' => $net + $tax, 'gst' => $tax, 'line_net' => $lineNet]);
             }
         }
 

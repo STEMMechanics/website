@@ -9,7 +9,8 @@
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <x-ui.collection-controls class="my-5" />
+        <div class="mt-4"><x-finance.attention-notice kind="products" :total="$allocationAttentionCount" /></div>
+        <x-ui.collection-controls class="mb-5" />
 
         @if($products->isEmpty())
             <x-none-found item="products" search="{{ request()->get('search') }}" />
@@ -56,6 +57,9 @@
                                             </div>
                                         @endif
                                         <div class="text-xs text-gray-500">{{ $product->slug }}</div>
+                                        @if(in_array($product->id, $allocationAttentionIds, true))
+                                            <x-ui.badge class="mt-1" tone="warning" icon="fa-solid fa-circle-exclamation" :href="route('admin.shop.product.edit', $product).'#cost-centre-allocation'">Allocation needs review</x-ui.badge>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
