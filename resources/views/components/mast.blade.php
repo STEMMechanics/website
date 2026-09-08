@@ -80,16 +80,14 @@
                     <a href="{{ $tab['route'] }}"
                        @if(!empty($tab['external'])) target="_blank" rel="noopener noreferrer" @endif
                        class="shrink-0 rounded-t-md px-4 py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
-                        <span class="inline-flex items-center gap-2">
+                        <span class="inline-flex items-center {{ !empty($tab['attention']) ? 'gap-1' : 'gap-2' }}">
                             <span>{{ $tab['title'] }}</span>
                             @if(!empty($tab['external']))
                                 <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
                                 <span class="sr-only">(opens in a new tab)</span>
                             @endif
                             @if(!empty($tab['attention']))
-                                <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-900" role="img" aria-label="Allocation needs review">
-                                    <i class="fa-solid fa-exclamation text-xs" aria-hidden="true"></i>
-                                </span>
+                                <i class="fa-solid fa-circle-exclamation shrink-0 rounded-full bg-white text-amber-600 leading-none" role="img" aria-label="Allocation needs review"></i>
                             @endif
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
                                 <x-ui.badge color="success" aria-label="{{ (int) $tab['badge'] }} unread items" class="min-w-5 justify-center leading-none">{{ number_format((int) $tab['badge']) }}</x-ui.badge>

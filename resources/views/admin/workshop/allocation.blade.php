@@ -3,7 +3,6 @@
         <x-slot:actions><x-ui.button color="mast" :href="route('workshop.show', $workshop)" target="_blank" rel="noopener noreferrer">View public page <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i></x-ui.button></x-slot:actions>
     </x-mast>
     <x-container class="py-5 sm:py-8">
-        <x-finance.workshop-review-notice :workshop="$workshop" />
         <h2 class="mb-2 text-lg font-semibold">Cost centre allocation</h2>
         <p class="mb-5 text-sm text-slate-500">{{ $allocation['version']->name }}</p>
         @if($state['current'] || ! $state['ready'])

@@ -104,7 +104,6 @@
     <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Attendance</x-mast>
 
     <x-container class="py-5 sm:py-8">
-        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <x-slot:left>
                 <div class="flex flex-col">

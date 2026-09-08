@@ -17,7 +17,6 @@
     </x-slot:actions></x-mast>
 
     <x-container class="py-5 sm:py-8">
-        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <div class="mb-4">
             <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
                 <div>

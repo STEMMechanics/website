@@ -146,7 +146,12 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $url = route('admin.workshop.allocation.edit', $f['workshop']);
         $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 1)->assertSee($url);
         foreach (['edit', 'attendance', 'files', 'photos', 'allocation.edit'] as $page) {
-            $this->get(route('admin.workshop.'.$page, $f['workshop']))->assertOk()->assertSee($url)->assertSee('Allocation ready for review');
+            $response = $this->get(route('admin.workshop.'.$page, $f['workshop']))->assertOk()->assertSee($url);
+            if ($page === 'edit') {
+                $response->assertSee('Allocation ready for review')->assertDontSee('>Review allocation</a>', false);
+            } else {
+                $response->assertDontSee('aria-label="Workshop allocation review"', false);
+            }
         }
         $this->finalise($f);
         $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 0);
