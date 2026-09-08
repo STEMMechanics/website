@@ -12,6 +12,8 @@ class InvoiceLine extends Model
 {
     use HasFactory;
 
+    protected $hidden = ['product_allocation_snapshot'];
+
     protected $fillable = [
         'invoice_id',
         'line_number',
@@ -32,6 +34,7 @@ class InvoiceLine extends Model
 
     protected $casts = [
         'details_json' => 'array',
+        'product_allocation_snapshot' => 'array',
         'quantity' => 'decimal:2',
         'unit_price_ex_tax' => 'decimal:2',
         'tax_rate' => 'decimal:4',
@@ -39,6 +42,15 @@ class InvoiceLine extends Model
         'tax_amount' => 'decimal:2',
         'line_total_inc_tax' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $line): void {
+            if ($line->product_allocation_snapshot === null) {
+                $line->product_allocation_snapshot = app(\App\Services\Finance\ProductAllocation::class)->snapshot($line) ?? [];
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Invoice, $this>

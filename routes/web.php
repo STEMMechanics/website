@@ -576,6 +576,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/reminders/bulk', [ReminderController::class, 'bulkUpdate'])->name('admin.reminder.bulk.update');
     Route::post('/admin/reminders/{reminder}/send-now', [ReminderController::class, 'sendNow'])->name('admin.reminder.send-now');
     Route::post('/admin/finance/transfers', [FinanceController::class, 'transfer'])->name('admin.finance.transfer');
+    Route::get('/admin/cost-centres/product-profiles', [\App\Http\Controllers\ProductAllocationController::class, 'profiles'])->name('admin.product-allocation.profiles');
+    Route::post('/admin/cost-centres/product-profiles', [\App\Http\Controllers\ProductAllocationController::class, 'saveProfile'])->name('admin.product-allocation.profile.save');
+    Route::get('/admin/products/{product}/allocations', [\App\Http\Controllers\ProductAllocationController::class, 'edit'])->name('admin.product-allocation.edit');
+    Route::post('/admin/products/{product}/allocations', [\App\Http\Controllers\ProductAllocationController::class, 'save'])->name('admin.product-allocation.save');
+    Route::post('/admin/invoices/{invoice}/product-allocations', [\App\Http\Controllers\ProductAllocationController::class, 'apply'])->name('admin.product-allocation.apply');
     Route::get('/admin/cost-centres', [\App\Http\Controllers\CostCentreController::class, 'index'])->name('admin.cost-centre.index');
     Route::post('/admin/cost-centres/allocations/{version}/archive', [\App\Http\Controllers\CostCentreController::class, 'archiveVersion'])->whereNumber('version')->name('admin.cost-centre.version.archive');
     Route::delete('/admin/cost-centres/allocations/{version}', [\App\Http\Controllers\CostCentreController::class, 'destroyVersion'])->whereNumber('version')->name('admin.cost-centre.version.destroy');

@@ -397,6 +397,7 @@
                         }
 
                         return parsed.map((item) => SM.hydrateTravelLine({
+                            id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
                             travel_hours: item.travel_hours ?? '',
                             travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
@@ -431,6 +432,7 @@
                             workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
                             supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
                             venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                            id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
                             kind: (item.kind || 'custom').trim() || 'custom',
                             description: (item.description || '').trim(),
                             notes: (item.notes || '').trim(),

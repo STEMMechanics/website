@@ -120,7 +120,9 @@
         : '');
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">{{ isset($product) ? 'Edit' : 'Create' }} Product</x-mast>
+    <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">{{ isset($product) ? 'Edit' : 'Create' }} Product
+        @isset($product)<x-slot:actions><x-ui.button color="mast" :href="route('admin.product-allocation.edit', $product)">Cost centre allocation</x-ui.button></x-slot:actions>@endisset
+    </x-mast>
 
     <x-container class="mt-4">
         <form

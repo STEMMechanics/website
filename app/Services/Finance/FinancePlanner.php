@@ -306,7 +306,7 @@ class FinancePlanner
                 $limit += max(0, (int) round($gross / $multiplier - $cost * $units / $pricingUnits));
             }
         }
-        return ['category_id' => $category, 'limit' => $limit];
+        return ['category_id' => $category, 'limit' => $limit] + (empty($assumptions['product_lines']) ? [] : ['product_lines' => $assumptions['product_lines']]);
     }
 
     private function budgetRounding(object $budget, ?FinanceReportData $data = null): array
@@ -318,6 +318,9 @@ class FinancePlanner
 
     public function funding(array $targets, int $net, array $rounding = [], ?\Illuminate\Support\Collection $categories = null): array
     {
+        if (! empty($rounding['product_lines'])) {
+            return app(ProductAllocation::class)->funding($targets, $net, $rounding, $categories);
+        }
         $remaining = max(0, $net);
         $funded = [];
         foreach ($categories ?? DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get() as $category) {
@@ -366,6 +369,9 @@ class FinancePlanner
             $net = $previous = 0;
             foreach (app(InvoiceAllocationParts::class)->events($ids, $budget->workshop_id, $data) as $event) {
                 $net += $event['gross'] - $event['gst'];
+                foreach ($event['line_net'] ?? [] as $key => $amount) {
+                    $rounding['received_lines'][$key] = ($rounding['received_lines'][$key] ?? 0) + $amount;
+                }
                 $funded = $this->funding($targets, $net, $rounding, $fundingCategories)['categories'][$category->id] ?? 0;
                 if (substr($event['date'], 0, 10) >= $from) {
                     $add('payment-'.$event['id'].'-'.$budget->id, $event['date'], $event['type'], $budget->name.' · '.($event['type'] === 'refund' ? 'Refund' : 'Payment received'), $funded - $previous, $links);
@@ -398,7 +404,12 @@ class FinancePlanner
         $income = app(InvoiceAllocationParts::class)->income($invoiceIds, $budget->workshop_id);
         $targets = $this->decode($budget->targets);
 
-        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget) ? 0 : $income['net'], $this->budgetRounding($budget)), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
+        $rounding = $this->budgetRounding($budget);
+        if (! empty($rounding['product_lines'])) {
+            $rounding['received_lines'] = app(ProductAllocation::class)->balances(app(InvoiceAllocationParts::class)->events($invoiceIds, $budget->workshop_id));
+        }
+
+        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget) ? 0 : $income['net'], $rounding), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
     }
 
     /** An explicit split wins; supplier rules are fallback defaults, never applied twice. */
@@ -509,8 +520,12 @@ class FinancePlanner
             $all = app(InvoiceAllocationParts::class)->income($ids, $budget->workshop_id, null, $data);
             $live = $settings->opening_date ? app(InvoiceAllocationParts::class)->income($ids, $budget->workshop_id, $from, $data) : $all;
             $allocatedNet += $live['net'];
-            $before = $this->funding($targets, $all['net'] - $live['net'], $this->budgetRounding($budget, $data), $categories);
-            $after = $this->funding($targets, $all['net'], $this->budgetRounding($budget, $data), $categories);
+            $rounding = $this->budgetRounding($budget, $data);
+            $events = empty($rounding['product_lines']) ? [] : app(InvoiceAllocationParts::class)->events($ids, $budget->workshop_id, $data);
+            $beforeLines = app(ProductAllocation::class)->balances(array_filter($events, fn ($event) => substr($event['date'], 0, 10) < $from));
+            $afterLines = app(ProductAllocation::class)->balances($events);
+            $before = $this->funding($targets, $all['net'] - $live['net'], $rounding + ['received_lines' => $beforeLines], $categories);
+            $after = $this->funding($targets, $all['net'], $rounding + ['received_lines' => $afterLines], $categories);
             foreach ($after['categories'] as $id => $amount) {
                 $reserves[$id] = ($reserves[$id] ?? 0) + $amount - ($before['categories'][$id] ?? 0);
             }
