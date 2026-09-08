@@ -29,6 +29,7 @@ import './invoice-allocation-list';
 import './list-reorder';
 
 import './allocation-plan-preview';
+import './invoice-allocation-calculator';
 
 import './invoice-allocation-editor';
 
