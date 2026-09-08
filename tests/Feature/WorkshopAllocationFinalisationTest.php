@@ -163,4 +163,24 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->actingAs(User::factory()->create())->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertForbidden();
         $this->post(route('admin.workshop.allocation.store', $f['workshop']), [])->assertForbidden();
     }
+    public function test_review_notice_filters_the_workshop_list_and_supports_clearing(): void
+    {
+        $f = $this->fixture();
+        $other = $f['workshop']->replicate();
+        $other->title = 'Unrelated workshop';
+        $other->save();
+        $url = route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']);
+        $this->get(route('admin.workshop.index'))->assertOk()->assertSee($url)
+            ->assertViewHas('workshops', fn ($rows) => $rows->total() === 2);
+        $this->get($url)->assertOk()->assertSee('Workshop allocation: Ready for review')->assertSee('Clear filters')
+            ->assertViewHas('workshops', fn ($rows) => $rows->pluck('id')->all() === [$f['workshop']->id]);
+        $this->getJson($url.'&select_listing=1')->assertOk()->assertJsonPath('names', [$f['workshop']->id]);
+        $this->get($url.'&search=Unrelated')->assertOk()->assertViewHas('workshops', fn ($rows) => $rows->isEmpty());
+        $this->get(route('admin.workshop.allocations'))->assertRedirect($url);
+        $this->getJson(route('admin.workshop.index', ['allocation_state' => 'invalid']))->assertUnprocessable();
+        $this->finalise($f);
+        $this->get($url)->assertOk()->assertViewHas('workshops', fn ($rows) => $rows->isEmpty());
+        $this->get(route('admin.workshop.index'))->assertOk()->assertViewHas('workshops', fn ($rows) => $rows->total() === 2);
+    }
+
 }

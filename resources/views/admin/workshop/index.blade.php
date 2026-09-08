@@ -42,12 +42,12 @@
                                 <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-clipboard-list"></i></span>
                             </x-ui.button></x-slot:actions></x-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
         @php
             $allocationCount = app(\App\Services\Finance\FinanceAttention::class)->counts()['workshops'] ?? 0;
         @endphp
         @if($allocationCount)
-            <aside class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm"><a class="underline" href="{{ route('admin.workshop.allocations') }}">{{ $allocationCount }} {{ Str::plural('workshop allocation', $allocationCount) }} ready for review</a></aside>
+            <aside class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm"><a class="underline" href="{{ route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']) }}">{{ $allocationCount }} {{ Str::plural('workshop allocation', $allocationCount) }} ready for review</a></aside>
         @endif
         <x-ui.dynamic-list name="admin-workshop-index" :show-presets="$view === 'list'">
 

@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 
 class WorkshopAllocationController extends Controller
 {
-    public function index(WorkshopAllocation $allocations)
+    public function index()
     {
-        return view('admin.workshop.allocations', ['rows' => $allocations->attention()]);
+        return redirect()->route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']);
     }
 
     public function edit(Workshop $workshop, WorkshopAllocation $allocations)
