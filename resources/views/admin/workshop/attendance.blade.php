@@ -718,7 +718,7 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
+                <h2 class="mt-5 mb-3 text-lg font-semibold">Ticketed Attendance</h2>
                 <x-ui.collection-controls class="my-5" label="Find ticket or person" />
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>
