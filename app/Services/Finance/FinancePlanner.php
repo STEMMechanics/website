@@ -15,7 +15,7 @@ class FinancePlanner
 {
     // A null opening date means the complete recorded history, starting from zero.
     // This is the earliest date supported by MySQL's date/time columns.
-    private const HISTORY_START = '1000-01-01';
+    public const HISTORY_START = '1000-01-01';
 
     public function cents(mixed $amount): int
     {
@@ -148,11 +148,11 @@ class FinancePlanner
                 if (! in_array((string) $key, array_map('strval', $selected), true) || $row['warning']) {
                     continue;
                 }
-                if (($row['workshop_id'] && DB::table('finance_budgets')->where('workshop_id', $row['workshop_id'])->exists()) || DB::table('finance_budget_invoices')->whereIn('invoice_id', $row['invoice_ids'])->exists()) {
+                if (($row['workshop_id'] && DB::table('finance_budgets')->where('workshop_id', $row['workshop_id'])->exists()) || (! $row['workshop_id'] && DB::table('finance_budget_invoices')->whereIn('invoice_id', $row['invoice_ids'])->whereIn('budget_id', DB::table('finance_budgets')->whereNull('workshop_id')->select('id'))->exists())) {
                     throw ValidationException::withMessages(['preview' => 'These records have changed. Generate a new preview.']);
                 }
                 // Refresh receipts before committing; receipt amounts are never a frozen cash balance.
-                $row['income'] = $this->income($row['invoice_ids']);
+                $row['income'] = app(InvoiceAllocationParts::class)->income($row['invoice_ids'], $row['workshop_id']);
                 $originalTargets = $row['targets'];
                 if (isset($overrides[$key])) {
                     foreach ($overrides[$key] as $category => $amount) {
@@ -336,18 +336,9 @@ class FinancePlanner
 
     public function budgetInvoiceIds(object $budget): array
     {
-        $ids = DB::table('finance_budget_invoices')->where('budget_id', $budget->id)->pluck('invoice_id')->all();
-        if (! $budget->workshop_id) {
-            return $ids;
-        }
-        $candidates = Ticket::query()->where('workshop_id', $budget->workshop_id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique();
-        foreach ($candidates as $id) {
-            if (! in_array($id, $ids) && ! DB::table('finance_budget_invoices')->where('invoice_id', $id)->where('budget_id', '!=', $budget->id)->exists() && ! Ticket::query()->where('invoice_id', $id)->where('workshop_id', '!=', $budget->workshop_id)->exists()) {
-                $ids[] = $id;
-            }
-        }
-
-        return $ids;
+        return $budget->workshop_id
+            ? Ticket::where('workshop_id', $budget->workshop_id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all()
+            : DB::table('finance_budget_invoices')->where('budget_id', $budget->id)->pluck('invoice_id')->all();
     }
 
     public function costCentreLedger(object $category): \Illuminate\Support\Collection
@@ -366,13 +357,14 @@ class FinancePlanner
             $add('expense-'.$expense->id, $expense->paid_on->format('Y-m-d H:i:s'), 'expense', $expense->supplier.' · '.$expense->description, -($this->expenseSplits($expense, $data)[$category->id] ?? 0), [['label' => 'View expense', 'url' => route('admin.expense.edit', $expense)]]);
         }
         foreach ($data->budgets as $budget) {
+            if ($budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget, $data)) continue;
             $ids = $data->invoiceIds($budget);
             $targets = $this->decode($budget->targets);
             $rounding = $this->budgetRounding($budget, $data);
             if (!($targets[$category->id] ?? 0) && ($rounding['category_id'] ?? null) != $category->id) continue;
             $links = $data->invoices->only($ids)->map(fn ($invoice) => ['label' => 'Invoice '.$invoice->invoice_number, 'url' => route('admin.invoice.edit', $invoice->id)])->values()->all();
             $net = $previous = 0;
-            foreach ($this->incomeEvents($ids, $data) as $event) {
+            foreach (app(InvoiceAllocationParts::class)->events($ids, $budget->workshop_id, $data) as $event) {
                 $net += $event['gross'] - $event['gst'];
                 $funded = $this->funding($targets, $net, $rounding, $fundingCategories)['categories'][$category->id] ?? 0;
                 if (substr($event['date'], 0, 10) >= $from) {
@@ -403,10 +395,10 @@ class FinancePlanner
     public function budgetReport(object $budget): array
     {
         $invoiceIds = $this->budgetInvoiceIds($budget);
-        $income = $this->income($invoiceIds);
+        $income = app(InvoiceAllocationParts::class)->income($invoiceIds, $budget->workshop_id);
         $targets = $this->decode($budget->targets);
 
-        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $income['net'], $this->budgetRounding($budget)), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
+        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget) ? 0 : $income['net'], $this->budgetRounding($budget)), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
     }
 
     /** An explicit split wins; supplier rules are fallback defaults, never applied twice. */
@@ -488,10 +480,11 @@ class FinancePlanner
             }
         }
         foreach ($data->budgets as $budget) {
+            if ($budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget, $data)) continue;
             $ids = $data->invoiceIds($budget);
             $targets = $this->decode($budget->targets);
-            $all = $this->income($ids, null, $data);
-            $live = $settings->opening_date ? $this->income($ids, $from, $data) : $all;
+            $all = app(InvoiceAllocationParts::class)->income($ids, $budget->workshop_id, null, $data);
+            $live = $settings->opening_date ? app(InvoiceAllocationParts::class)->income($ids, $budget->workshop_id, $from, $data) : $all;
             $allocatedNet += $live['net'];
             $before = $this->funding($targets, $all['net'] - $live['net'], $this->budgetRounding($budget, $data), $categories);
             $after = $this->funding($targets, $all['net'], $this->budgetRounding($budget, $data), $categories);
@@ -577,61 +570,13 @@ class FinancePlanner
     public function automate(): int
     {
         $settings = DB::table('finance_settings')->where('id', 1)->first();
-        foreach (DB::table('finance_budgets')->where('manual', false)->whereNotNull('workshop_id')->get() as $budget) {
-            DB::transaction(function () use ($budget): void {
-                DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
-                $current = DB::table('finance_budgets')->where('id', $budget->id)->lockForUpdate()->first();
-                if (! $current || $current->manual) {
-                    return;
-                }
-                $workshop = Workshop::query()->find($current->workshop_id);
-                if (! $workshop) {
-                    return;
-                }
-                $assumptions = $this->decode($current->assumptions);
-                $assumptions['participants'] = Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', Ticket::activePurchasedStatuses())->count();
-                $assumptions['hours'] = max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60;
-                $version = DB::table('finance_pricing_versions')->where('id', $current->pricing_version_id)->first();
-                $targets = $this->targets($this->decode($version->rules), $assumptions);
-                if ($targets !== $this->decode($current->targets)) {
-                    DB::table('finance_budget_revisions')->insert(['budget_id' => $current->id, 'before' => json_encode(['assumptions' => $this->decode($current->assumptions), 'targets' => $this->decode($current->targets)]), 'after' => json_encode(['assumptions' => $assumptions, 'targets' => $targets]), 'created_at' => now(), 'updated_at' => now()]);
-                    DB::table('finance_budgets')->where('id', $current->id)->update(['assumptions' => json_encode($assumptions), 'targets' => json_encode($targets), 'updated_at' => now()]);
-                }
-                // New ticket invoices join this workshop budget; never steal an existing allocation.
-                $ids = Ticket::query()->where('workshop_id', $workshop->id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique();
-                foreach ($ids as $invoiceId) {
-                    if (! DB::table('finance_budget_invoices')->where('invoice_id', $invoiceId)->exists() && ! Ticket::query()->where('invoice_id', $invoiceId)->where('workshop_id', '!=', $workshop->id)->exists()) {
-                        DB::table('finance_budget_invoices')->insert(['budget_id' => $current->id, 'invoice_id' => $invoiceId]);
-                    }
-                }
-            });
-        }
-        $excluded = [];
         $excludedInvoices = [];
         foreach (DB::table('finance_batches')->whereNotNull('reversed_at')->get() as $batch) {
             foreach ($this->decode($batch->snapshot) as $row) {
                 $excludedInvoices = array_merge($excludedInvoices, $row['invoice_ids']);
-                if ($row['workshop_id']) {
-                    $excluded[] = $row['workshop_id'];
-                }
             }
         }
         $count = 0;
-        foreach (Workshop::query()->whereNotIn('id', $excluded)->whereDate('starts_at', '>=', $settings->opening_date ?? self::HISTORY_START)->whereDate('starts_at', '<=', now()->addYear()->toDateString())->whereNotIn('id', DB::table('finance_budgets')->whereNotNull('workshop_id')->select('workshop_id'))->orderBy('starts_at')->limit(200)->get() as $workshop) {
-            $version = PricingVersion::forDate($workshop->starts_at->toDateString(), $workshop->pricing_version_id);
-            $preview = $this->preview(['version_id' => $version->id, 'from' => $workshop->starts_at->toDateString(), 'to' => $workshop->starts_at->toDateString()]);
-            $selected = [];
-            foreach ($preview['rows'] as $key => $row) {
-                if ($row['workshop_id'] === $workshop->id && ! $row['warning']) {
-                    $selected[] = $key;
-                }
-            }
-            if ($selected && $version->created_by) {
-                $this->apply($preview, $version->created_by, $selected);
-                $count++;
-            }
-        }
-
         foreach (Invoice::query()->whereNotIn('id', $excludedInvoices)->whereNotNull('created_by')->whereHas('lines', fn ($query) => $query->whereIn('kind', ['workshop', 'multi_workshop', 'travel']))->whereDate('issue_date', '>=', $settings->opening_date ?? self::HISTORY_START)->lazyById(100) as $invoice) {
             app(InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
         }

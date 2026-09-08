@@ -62,7 +62,7 @@ class InvoiceBulkAllocationController extends Controller
             return DB::table('finance_budgets')->where('batch_id', $batch)->count();
         });
 
-        return response()->json(['action' => 'invoice-allocation', 'message' => "Applied the plan to {$count} allocation groups. Ticket invoices share their workshop allocation."]);
+        return response()->json(['action' => 'invoice-allocation', 'message' => "Applied the plan to {$count} invoice allocations."]);
     }
 
     private function build(FinancePlanner $planner, array $ids, int $version): array

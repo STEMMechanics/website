@@ -42,7 +42,7 @@ class AdminBadgeCache
             app(RequestMemo::class)->clear();
         }
         $group = match ($table) {
-            'invoices', 'expenses', 'finance_supplier_rules', 'finance_expense_splits', 'finance_budgets', 'finance_budget_invoices', 'tickets' => 'finance',
+            'invoices', 'expenses', 'finance_supplier_rules', 'finance_expense_splits', 'finance_budgets', 'finance_budget_invoices', 'tickets', 'workshops', 'invoice_lines', 'payments', 'invoice_payment_allocations', 'tax_adjustments', 'tax_adjustment_lines' => 'finance',
             'store_orders', 'square_refund_operations', 'inbound_sms' => 'operations',
             default => null,
         };
@@ -50,6 +50,7 @@ class AdminBadgeCache
             return;
         }
         $this->values = [];
+        app(RequestMemo::class)->clear();
         $this->dirty[$event->connectionName][$group] = true;
         if ($event->connection->transactionLevel() === 0) {
             $this->committed($event->connectionName);

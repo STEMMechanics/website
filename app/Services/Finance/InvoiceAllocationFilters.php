@@ -51,7 +51,10 @@ class InvoiceAllocationFilters
 
                 return;
             }
-            $budgets = DB::table('finance_budgets')->select('id');
+            $budgets = DB::table('finance_budgets')->whereNull('workshop_id')->select('id');
+            if (($data['allocation_state'] ?? '') === 'not_allocated') {
+                $query->where(fn ($part) => $part->whereDoesntHave('tickets')->orWhereHas('lines', fn ($lines) => $lines->where('kind', '!=', 'ticket')->where('line_total_ex_tax', '>', 0)));
+            }
             if (($data['allocation_state'] ?? '') === 'manual') {
                 $budgets->where('manual', true);
             }
@@ -62,8 +65,7 @@ class InvoiceAllocationFilters
                 $budgets->where('pricing_version_id', $data['allocation_plan']);
             }
             $match = function ($invoices) use ($budgets) {
-                $invoices->whereIn('invoices.id', DB::table('finance_budget_invoices')->whereIn('budget_id', clone $budgets)->select('invoice_id'))
-                    ->orWhereHas('tickets', fn ($tickets) => $tickets->whereIn('workshop_id', (clone $budgets)->select('workshop_id')->whereNotNull('workshop_id')));
+                $invoices->whereIn('invoices.id', DB::table('finance_budget_invoices')->whereIn('budget_id', clone $budgets)->select('invoice_id'));
             };
             if (($data['allocation_state'] ?? '') === 'not_allocated') {
                 $query->whereNot($match);

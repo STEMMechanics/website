@@ -24,25 +24,17 @@ class InvoiceAllocation
         }
     }
 
-    public function context(Invoice $invoice, ?int $versionId = null, ?array $supplied = null): array
+    public function context(Invoice $invoice, ?int $versionId = null, ?array $supplied = null, ?Workshop $workshop = null): array
     {
         $planner = app(FinancePlanner::class);
-        $budget = DB::table('finance_budgets')->whereIn('id', DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->select('budget_id'))->first();
-        $workshopIds = Ticket::where('invoice_id', $invoice->id)->pluck('workshop_id')->unique()->values();
-        if (! $budget && $workshopIds->count() === 1) {
-            $budget = DB::table('finance_budgets')->where('workshop_id', $workshopIds->first())->first();
-        }
-        $warning = null;
-        $workshopId = $budget->workshop_id ?? ($workshopIds->count() === 1 ? $workshopIds->first() : null);
-        $ids = $budget ? $planner->budgetInvoiceIds($budget) : ($workshopId ? Ticket::where('workshop_id', $workshopId)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all() : [$invoice->id]);
-        if (! $budget && $workshopIds->count() > 1) {
-            $warning = 'This invoice covers multiple workshops and needs a combined allocation breakdown.';
-        }
-        if (! $budget && $workshopId && (DB::table('finance_budget_invoices')->whereIn('invoice_id', $ids)->exists() || Ticket::whereIn('invoice_id', $ids)->where('workshop_id', '!=', $workshopId)->exists())) {
-            $warning = 'These workshops share invoice allocations and cannot be allocated separately.';
-        }
+        $parts = app(InvoiceAllocationParts::class);
+        $budget = $workshop
+            ? DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first()
+            : DB::table('finance_budgets')->whereNull('workshop_id')->whereIn('id', DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->select('budget_id'))->first();
+        $workshopId = $workshop?->id;
+        $ids = $workshop ? Ticket::where('workshop_id', $workshop->id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all() : [$invoice->id];
+        $warning = ! $workshop && $parts->total($invoice) <= 0 && $invoice->tickets()->exists() ? 'Allocation managed by workshop.' : null;
         $date = $invoice->issue_date?->toDateString() ?? today()->toDateString();
-        $workshop = $workshopId ? Workshop::find($workshopId) : null;
         if ($workshop) {
             $date = $workshop->starts_at->toDateString();
         }
@@ -60,7 +52,7 @@ class InvoiceAllocation
             $suggestedTargets = $planner->targets($rules, $assumptions);
         } else {
             $assumptions = ['source' => 'invoice_lines', 'lines' => []];
-            foreach (WorkshopLine::allocationLines($invoice->lines()->get()->toArray()) as $lineData) {
+            foreach (WorkshopLine::allocationLines($invoice->lines()->get()->filter(fn ($line) => $parts->lineKey($line, $invoice->loadMissing('tickets')) === 'invoice')->toArray()) as $lineData) {
                 $line = (object) $lineData;
                 if ($line->kind === 'workshop') {
                     $details = $line->details_json['workshop'] ?? null;
@@ -93,9 +85,9 @@ class InvoiceAllocation
         }
         $targets = $budget ? $planner->decode($budget->targets) : $suggestedTargets;
 
-        $income = $planner->income($ids);
+        $income = $parts->income($ids, $workshopId);
         $funding = $planner->funding($targets, $income['net'], ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions));
-        $total = Invoice::whereIn('id', $ids)->get(['total_amount', 'gst_amount'])->sum(fn ($item) => $planner->cents($item->total_amount) - $planner->cents($item->gst_amount));
+        $total = Invoice::with(['lines', 'tickets'])->whereIn('id', $ids)->get()->sum(fn ($item) => $parts->total($item, $workshopId));
 
         $editorTargets = $targets;
         $rounding = ($budget->manual ?? false) ? [] : $planner->rounding($version, $assumptions);

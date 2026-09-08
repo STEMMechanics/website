@@ -61,7 +61,7 @@
                 [
                     'title' => 'Workshops & Community',
                     'items' => [
-                    ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
+                    ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*'], 'badge' => $financeAttention['workshops'] ?? 0],
                     ['label' => 'Workshop Flyers', 'route' => route('admin.workshop-flyer.create'), 'icon' => 'fa-solid fa-print', 'active' => ['admin.workshop-flyer.*']],
                     ['label' => 'Workshop History', 'route' => route('admin.workshop.history'), 'icon' => 'fa-solid fa-clock-rotate-left', 'active' => ['admin.workshop.history*']],
                     ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],

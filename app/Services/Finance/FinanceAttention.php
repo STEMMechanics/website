@@ -56,7 +56,7 @@ class FinanceAttention
         $invoices = Invoice::query()->where(fn ($query) => $query
             ->where(fn ($part) => $this->overdue($part))
             ->orWhere(fn ($part) => $this->unallocatedInvoices($part)));
-        $counts = ['overdue' => $overdue->count(), 'unallocated_invoices' => $unallocated->count(), 'invoices' => $invoices->count(), 'expenses' => $expenses->count()];
+        $counts = ['overdue' => $overdue->count(), 'unallocated_invoices' => $unallocated->count(), 'invoices' => $invoices->count(), 'expenses' => $expenses->count(), 'workshops' => count(app(WorkshopAllocation::class)->attention())];
         return $counts;
     }
 }

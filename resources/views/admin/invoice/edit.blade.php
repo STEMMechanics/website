@@ -550,7 +550,7 @@
                 syncLinkedUserId() {
                     const matched = this.linkedUsers.find((option) => option.label === this.linkedUserLabel);
                     const userId = matched?.id || this.linkedUserMap[this.linkedUserLabel] || '';
-                    this.$refs.linkedUserId.value = userId;
+                    if (this.$refs.linkedUserId) this.$refs.linkedUserId.value = userId;
                 },
                 refreshLinkedUsers() {
                     const needle = String(this.linkedUserLabel || '').toLowerCase().trim();
