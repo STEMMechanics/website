@@ -26,9 +26,9 @@ class AdminBadgeCache
         }
 
         return $this->values[$key] ??= (function () use ($group, $date, $resolve) {
-            $generation = Cache::store(config('cache.admin_badges_store'))->get('admin-badges:v1:'.$group.':generation', 'initial');
+            $generation = Cache::store(config('cache.admin_badges_store') ?: null)->get('admin-badges:v1:'.$group.':generation', 'initial');
 
-            return Cache::store(config('cache.admin_badges_store'))->remember('admin-badges:v1:'.$group.':'.$date.':'.$generation, 60, $resolve);
+            return Cache::store(config('cache.admin_badges_store') ?: null)->remember('admin-badges:v1:'.$group.':'.$date.':'.$generation, 60, $resolve);
         })();
     }
 
@@ -62,7 +62,7 @@ class AdminBadgeCache
         foreach (array_keys($this->dirty[$connection] ?? []) as $group) {
             // A concurrent reader may finish computing the old generation;
             // subsequent requests will never use that stale result.
-            Cache::store(config('cache.admin_badges_store'))->put('admin-badges:v1:'.$group.':generation', (string) Str::uuid(), now()->addDay());
+            Cache::store(config('cache.admin_badges_store') ?: null)->put('admin-badges:v1:'.$group.':generation', (string) Str::uuid(), now()->addDay());
         }
         unset($this->dirty[$connection]);
         $this->values = [];

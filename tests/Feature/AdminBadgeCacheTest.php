@@ -86,4 +86,14 @@ class AdminBadgeCacheTest extends TestCase
         DB::table('inbound_sms')->where('id', 0)->update(['acknowledged_at' => now()]);
         $this->assertSame(2, app(AdminBadgeCache::class)->remember('operations', $resolve));
     }
+    public function test_blank_badge_store_uses_the_default_cache_for_workshop_changes(): void
+    {
+        config(['cache.admin_badges_store' => '', 'cache.default' => 'array']);
+        $cache = app(\App\Support\AdminBadgeCache::class);
+        $this->assertSame(1, $cache->remember('finance', fn () => 1));
+        $workshop = \App\Models\Ticket::factory()->create()->workshop;
+        $workshop->update(['ends_at' => now()]);
+        $this->assertSame(2, $cache->remember('finance', fn () => 2));
+    }
+
 }
