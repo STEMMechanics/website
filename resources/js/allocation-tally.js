@@ -16,6 +16,11 @@ export function allocationTally(config) {
                 this.values[id] = ((targets[id] || 0) / 100).toFixed(2);
             });
         },
+        applyCalculatorValues(detail) {
+            if (!detail?.values || !Object.keys(this.values).every(id => Object.hasOwn(detail.values, id) && Number.isFinite(Number(detail.values[id])) && Number(detail.values[id]) >= 0 && Number(detail.values[id]) <= 10000000)) return;
+            this.enabled = true;
+            Object.keys(this.values).forEach(id => { this.values[id] = (this.cents(detail.values[id]) / 100).toFixed(2); });
+        },
         previewFingerprint: null,
         previewDirty: false,
         previewInvoice(detail, rules, prices = {}) {

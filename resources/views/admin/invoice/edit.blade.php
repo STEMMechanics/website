@@ -345,11 +345,7 @@
                 </div>
             </x-finance.panel>
             @endif
-            <x-finance.panel title="Cost centre allocation">
-                <div id="invoice-cost-centres" data-record-refresh>
-                    @include('admin.invoice.allocation-form', ['inline' => true, 'allocation' => app(\App\Services\Finance\InvoiceAllocation::class)->context($invoice)])
-                </div>
-            </x-finance.panel>
+            @include('admin.invoice.allocation-panel')
             </aside>
         @endisset
 
