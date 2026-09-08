@@ -53,6 +53,10 @@ class WorkshopTicketOrderEmailService
 
         try {
             $this->dispatchCombinedEmail($lockedDelivery);
+            $workshop = Workshop::find($lockedDelivery->workshop_id);
+            if ($workshop) {
+                app(WorkshopWelcomeService::class)->queueForBooking($workshop);
+            }
 
             return true;
         } catch (Throwable $e) {
@@ -225,6 +229,7 @@ class WorkshopTicketOrderEmailService
                 'location' => $workshop instanceof Workshop ? (string) $workshop->getLocationDisplay(true) : '-',
                 'registration' => 'tickets',
                 'courseUrl' => $workshop instanceof Workshop ? route('workshop.show', $workshop) : null,
+                'schedule' => $workshop instanceof Workshop && $workshop->isCourse() ? $workshop->courseScheduleDisplayLines() : [],
                 'participantInformation' => $workshop instanceof Workshop ? (string) ($workshop->participant_information ?? '') : '',
             ],
             tickets: $ticketRows,

@@ -60,11 +60,14 @@ class WorkshopAllocation
             'invoices' => $invoices->map(fn ($invoice) => [$invoice->id, $invoice->status, $invoice->total_amount, $invoice->gst_amount, $invoice->lines->toArray(), $invoice->taxAdjustments->toArray()])->all(),
             'events' => $events,
         ];
+        if ($workshop->isCourse()) {
+            $source['sessions'] = $workshop->effectiveScheduleEntries();
+        }
         $hash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
         // Settled cancellations with no retained receipts need no initial allocation.
         $noAllocationRequired = $workshop->status === 'cancelled' && ! $budget?->finalised_at
             && $pending === 0 && ! $unresolved && array_sum(array_column($events, 'gross')) === 0;
-        $ready = ! $noAllocationRequired && $workshop->ends_at && $workshop->ends_at->lte(now()) && $pending === 0 && ! $unresolved;
+        $ready = ! $noAllocationRequired && $workshop->effectiveEndsAt() && $workshop->effectiveEndsAt()->lte(now()) && $pending === 0 && ! $unresolved;
         $current = $budget && $budget->finalised_at && hash_equals((string) $budget->source_hash, $hash);
         $status = match (true) {
             (bool) $current => 'Finalised',
@@ -100,7 +103,7 @@ class WorkshopAllocation
         return app(RequestMemo::class)->remember('workshop-allocation-attention', function () {
             $from = DB::table('finance_settings')->where('id', 1)->value('opening_date') ?? FinancePlanner::HISTORY_START;
             $rows = [];
-            $workshops = Workshop::with('tickets')->where('ends_at', '<=', now())->whereDate('starts_at', '>=', $from)->whereHas('tickets')->orderBy('ends_at')->get();
+            $workshops = Workshop::with('tickets')->where(fn ($query) => $query->where('ends_at', '<=', now())->orWhere('format', 'course'))->whereDate('starts_at', '>=', $from)->whereHas('tickets')->orderBy('ends_at')->get();
             $budgets = DB::table('finance_budgets')->whereIn('workshop_id', $workshops->pluck('id'))->get()->keyBy('workshop_id');
             $reportData = new FinanceReportData(collect(), $workshops->values()->map(fn ($workshop, $index) => $budgets->get($workshop->id) ?? (object) ['id' => -$index - 1, 'workshop_id' => $workshop->id, 'pricing_version_id' => $workshop->pricing_version_id]));
             foreach ($workshops as $workshop) {

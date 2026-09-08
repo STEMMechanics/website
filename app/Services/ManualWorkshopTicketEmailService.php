@@ -43,6 +43,7 @@ class ManualWorkshopTicketEmailService
             workshop: [
                 'id' => (string) ($workshop->id ?? ''),
                 'title' => (string) ($workshop->title ?? ''),
+                'schedule' => $workshop?->isCourse() ? $workshop->courseScheduleDisplayLines() : [],
                 'time' => (string) ($workshop->getTicketTimeRangeLabel() ?? '-'),
                 'location' => (string) ($workshop->getLocationDisplay(true) ?? '-'),
             ],
@@ -61,6 +62,9 @@ class ManualWorkshopTicketEmailService
             attachments: $attachments,
             ticketCount: 1,
         )))->onQueue('mail');
+        if ($workshop) {
+            app(WorkshopWelcomeService::class)->queueForBooking($workshop);
+        }
     }
 
     private function buildTicketAttachment(Ticket $ticket): ?array

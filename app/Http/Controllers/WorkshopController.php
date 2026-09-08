@@ -624,6 +624,21 @@ class WorkshopController extends Controller
                 continue;
             }
 
+            if ($workshop->isCourse()) {
+                foreach ($workshop->effectiveScheduleEntries() as $session) {
+                    $from = Carbon::parse($session['starts_at'])->startOfDay()->max($rangeStart);
+                    $to = Carbon::parse($session['ends_at'])->subSecond()->startOfDay()->min($rangeEnd);
+                    for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
+                        $key = $date->toDateString();
+                        $workshopsByDate[$key] ??= collect();
+                        if (! $workshopsByDate[$key]->contains('id', $workshop->id)) {
+                            $workshopsByDate[$key]->push($workshop);
+                        }
+                    }
+                }
+                continue;
+            }
+
             $workshopStart = $workshop->starts_at->copy();
             $workshopEnd = ($workshop->ends_at ?? $workshop->starts_at)->copy();
             if ($workshopEnd->lessThan($workshopStart)) {
@@ -871,12 +886,12 @@ class WorkshopController extends Controller
 
         if ($past) {
             return $query
-                ->where('starts_at', '<', Carbon::now())
+                ->where(fn ($query) => $query->where(fn ($ordinary) => $ordinary->where('format', 'workshop')->where('starts_at', '<', now()))->orWhere(fn ($course) => $course->where('format', 'course')->where('ends_at', '<', now())))
                 ->orderBy('starts_at', 'desc');
         }
 
         return $query
-            ->where('starts_at', '>=', Carbon::now()->subDays(8))
+            ->where(fn ($query) => $query->where('starts_at', '>=', Carbon::now()->subDays(8))->orWhere(fn ($course) => $course->where('format', 'course')->where('ends_at', '>=', now())))
             ->orderBy('starts_at', 'asc');
     }
 
@@ -1029,6 +1044,7 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         if ($request->input('registration') === 'tickets') {
@@ -1109,6 +1125,9 @@ class WorkshopController extends Controller
         $workshop = Workshop::create($workshopData);
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
+        if ($request->exists('format')) {
+            $workshop->updateFiles($request->input('welcome_files', []), 'welcome_attachments');
+        }
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles([], 'private');
         app(ReminderService::class)->syncWorkshop($workshop);
@@ -2147,6 +2166,7 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request, $workshop));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         if ($request->input('registration') === 'tickets') {
@@ -2309,6 +2329,9 @@ class WorkshopController extends Controller
         $workshop->update($workshopData);
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
+        if ($request->exists('format')) {
+            $workshop->updateFiles($request->input('welcome_files', []), 'welcome_attachments');
+        }
         app(ReminderService::class)->syncWorkshop($workshop->fresh());
         if ($shouldReflagEarlyBirdTickets && $newEarlyBirdTicketLimit !== null) {
             $this->reflagEarlyBirdTicketsForLimit($workshop, $newEarlyBirdTicketLimit);
@@ -2992,6 +3015,8 @@ class WorkshopController extends Controller
 
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
+        $courseSession = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        request()->attributes->set('course_session', $courseSession);
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
@@ -3226,6 +3251,19 @@ class WorkshopController extends Controller
             return redirect()->route('admin.workshop.attendance', $workshop);
         }
 
+        if ($workshop->isCourse()) {
+            $request->validate(['session_id' => ['required', Rule::in(array_column($workshop->effectiveScheduleEntries(), 'id'))]]);
+            $activeIds = $workshop->tickets()->whereIn('status', Ticket::activePurchasedStatuses())->pluck('id')->all();
+            $selected = array_values(array_intersect($validated['attended_ticket_ids'] ?? [], $activeIds));
+            $sessionId = $request->string('session_id')->toString();
+            app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $sessionId, $selected, $activeIds);
+
+            return $request->expectsJson() ? response()->json([
+                'message' => 'Session attendance saved.', 'attended_ticket_ids' => $selected,
+                'saved_at_iso' => now()->toIso8601String(), 'saved_at_display' => now()->format('M j, Y g:i a'),
+            ]) : redirect()->route('admin.workshop.attendance', [$workshop, 'session_id' => $sessionId]);
+        }
+
         $selectedIds = collect($validated['attended_ticket_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)
@@ -3292,7 +3330,7 @@ class WorkshopController extends Controller
             session()->flash('message-title', 'Payment not recorded');
             session()->flash('message-type', 'warning');
 
-            return redirect()->route('admin.workshop.attendance', $workshop);
+            return redirect()->route('admin.workshop.attendance', [$workshop, 'session_id' => $request->input('session_id')]);
         }
 
         $rawPaymentRows = $request->input('payments', []);
@@ -3411,7 +3449,7 @@ class WorkshopController extends Controller
             session()->flash('message-title', 'No payment needed');
             session()->flash('message-type', 'warning');
 
-            return redirect()->route('admin.workshop.attendance', $workshop);
+            return redirect()->route('admin.workshop.attendance', [$workshop, 'session_id' => $request->input('session_id')]);
         }
 
         $invoiceUserIds = collect($invoiceIds)
@@ -3472,8 +3510,17 @@ class WorkshopController extends Controller
         $totalOutstanding = round((float) collect($outstandingByInvoiceId)->sum(), 2);
         $totalPaymentAmount = round((float) $recordedPaymentLines->sum('amount'), 2);
         $compReason = 'Waived at workshop attendance';
-        $syncAttendance = $request->boolean('sync_attendance', false);
-        $markAttended = $request->boolean('mark_attended', false);
+        if ($workshop->isCourse()) {
+            $request->validate(['session_id' => ['required', Rule::in(array_column($workshop->effectiveScheduleEntries(), 'id'))]]);
+        }
+        $courseAttendance = function () use ($workshop, $request, $selectedTicketIds, $attendedTicketIds): void {
+            if ($workshop->isCourse() && ($request->boolean('sync_attendance') || $request->boolean('mark_attended'))) {
+                app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $request->string('session_id')->toString(),
+                    $request->boolean('sync_attendance') ? $attendedTicketIds : $selectedTicketIds, $selectedTicketIds);
+            }
+        };
+        $syncAttendance = ! $workshop->isCourse() && $request->boolean('sync_attendance', false);
+        $markAttended = ! $workshop->isCourse() && $request->boolean('mark_attended', false);
         $emailReceipt = $request->boolean('email_receipt', false);
         $now = now();
         $syncInvoiceIds = array_keys($outstandingByInvoiceId);
@@ -3493,6 +3540,7 @@ class WorkshopController extends Controller
                 ->all();
 
             DB::transaction(function () use (
+                $courseAttendance,
                 $tickets,
                 $selectedTicketIds,
                 $attendedTicketIds,
@@ -3503,6 +3551,7 @@ class WorkshopController extends Controller
                 &$compAppliedTotal,
                 &$waiverEmailPayloads
             ): void {
+                $courseAttendance();
                 $selectedTicketsByInvoice = $tickets->groupBy(fn (Ticket $ticket): string => (string) ((int) ($ticket->invoice_id ?? 0)));
 
                 foreach ($selectedTicketsByInvoice as $invoiceIdString => $invoiceTickets) {
@@ -3631,6 +3680,7 @@ class WorkshopController extends Controller
             }
 
             DB::transaction(function () use (
+                $courseAttendance,
                 $selectedExistingPaymentIds,
                 $recordedPaymentLines,
                 $outstandingByInvoiceId,
@@ -3643,6 +3693,7 @@ class WorkshopController extends Controller
                 $now,
                 &$receiptEmailPayloads
             ): void {
+                $courseAttendance();
                 $remainingByInvoice = $outstandingByInvoiceId;
 
                 foreach ($selectedExistingPaymentIds as $paymentId) {
@@ -3826,7 +3877,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Ticket payment saved');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.attendance', $workshop);
+        return redirect()->route('admin.workshop.attendance', [$workshop, 'session_id' => $request->input('session_id')]);
     }
 
     public function admin_attendance_dropin_store(Request $request, Workshop $workshop)
@@ -4010,6 +4061,9 @@ class WorkshopController extends Controller
     private function buildAttendanceExportRows(Workshop $workshop): array
     {
         $rows = [];
+        $session = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        $attendance = $session ? DB::table('workshop_session_attendance')->where('workshop_id', $workshop->id)
+            ->where('session_id', $session['id'])->pluck('attended_at', 'ticket_id') : collect();
 
         $dropIns = WorkshopAttendance::query()
             ->where('workshop_id', $workshop->id)
@@ -4047,8 +4101,11 @@ class WorkshopController extends Controller
                 ->get();
 
             foreach ($tickets as $ticket) {
+                if ($session) {
+                    $ticket->attended_at = $attendance->get($ticket->id);
+                }
                 $rows[] = [
-                    'source' => 'ticket',
+                    'source' => $session ? 'ticket: '.($session['label'] ?: Carbon::parse($session['starts_at'])->format('j M Y g:ia')) : 'ticket',
                     'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
                     'guardian_name' => '',
                     'email' => trim((string) ($ticket->email ?? '')),
@@ -5200,7 +5257,8 @@ class WorkshopController extends Controller
         $updatedLocationType = (string) ($workshopData['type'] ?? $originalLocationType);
         $changedFields = [];
 
-        if ($originalStartsAt !== $updatedStartsAt || $originalEndsAt !== $updatedEndsAt) {
+        if ($originalStartsAt !== $updatedStartsAt || $originalEndsAt !== $updatedEndsAt
+            || (isset($workshopData['course_sessions']) && $workshopData['course_sessions'] !== ($workshop->course_sessions ?? []))) {
             $changedFields[] = 'schedule';
         }
 
@@ -5214,8 +5272,8 @@ class WorkshopController extends Controller
 
         return [
             'changed_fields' => $changedFields,
-            'old_schedule' => $this->formatWorkshopTicketChangeSchedule($workshop->starts_at, $workshop->ends_at),
-            'new_schedule' => $this->formatWorkshopTicketChangeSchedule(
+            'old_schedule' => $workshop->isCourse() ? implode("\n", $workshop->courseScheduleDisplayLines()) : $this->formatWorkshopTicketChangeSchedule($workshop->starts_at, $workshop->ends_at),
+            'new_schedule' => ($workshopData['format'] ?? $workshop->format) === 'course' ? implode("\n", (new Workshop($workshopData))->courseScheduleDisplayLines()) : $this->formatWorkshopTicketChangeSchedule(
                 $workshopData['starts_at'] ?? $workshop->starts_at,
                 $workshopData['ends_at'] ?? $workshop->ends_at
             ),

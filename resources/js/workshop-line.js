@@ -107,16 +107,16 @@ window.SM.lineCostAllocations = (items, rules) => {
     return totals;
 };
 
-window.SM.workshopPrice = (plan, registration, current, start, end, seats, force = false) => {
+window.SM.workshopPrice = (plan, registration, current, start, end, seats, force = false, teachingHours = null) => {
     if (registration !== 'tickets' || (!force && String(current ?? '').trim() !== '')) return current;
-    const hours = (new Date(end) - new Date(start)) / 3600000;
+    const hours = teachingHours ?? (new Date(end) - new Date(start)) / 3600000;
     const count = Number(seats);
     if (!Number.isFinite(hours) || hours <= 0 || !Number.isInteger(count) || count <= 0) return current;
     return window.SM.suggestTicketPrice(plan, hours, Math.min(count, Number(plan.pricing_participants || 10))) ?? current;
 };
 
-window.SM.ticketCostBreakdown = (plan, start, end, maxTickets, capAtPricingAttendance = true) => {
-    const hours = (new Date(end) - new Date(start)) / 3600000;
+window.SM.ticketCostBreakdown = (plan, start, end, maxTickets, capAtPricingAttendance = true, teachingHours = null) => {
+    const hours = teachingHours ?? (new Date(end) - new Date(start)) / 3600000;
     const capacity = Number(maxTickets);
     const participants = Number.isInteger(capacity) && capacity > 0 ? (capAtPricingAttendance ? Math.min(capacity, Number(plan.pricing_participants || 10)) : capacity) : 0;
     if (!(hours > 0 && participants > 0)) return { categories: {}, total: 0, participants };
@@ -189,3 +189,41 @@ function updateMultipleWorkshops(item, plan, inclusive) {
     item.details_json.inclusive_unit_price = gross / 100 / quantity;
     item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = (gross / 100 / quantity / (inclusive || item.gst_applicable === false ? 1 : 1.1)).toFixed(2);
 }
+
+// Local date strings keep recurring sessions at the same wall-clock time, including across DST.
+window.SM.courseEditor = (format, sessions) => ({
+    workshopFormat: format,
+    courseSessions: sessions || [],
+    generateCount: 8,
+    generateMinutes: 60,
+    generateStart: '',
+    scheduleError: '',
+    courseTeachingHours() {
+        return this.workshopFormat === 'course'
+            ? this.courseSessions.reduce((sum, session) => sum + Math.max(0, (new Date(session.ends_at) - new Date(session.starts_at)) / 3600000 || 0), 0)
+            : (new Date(this.manualEndsAt) - new Date(this.manualStartsAt)) / 3600000;
+    },
+    sessionChanged() { this.$dispatch('workshop-pricing-changed'); },
+    addSession() {
+        this.courseSessions.push({ id: crypto.randomUUID(), label: '', starts_at: '', ends_at: '' });
+    },
+    generateSessions() {
+        const start = new Date(this.generateStart || this.manualStartsAt);
+        const count = Number(this.generateCount), minutes = Number(this.generateMinutes);
+        if (!Number.isFinite(start.getTime()) || !Number.isInteger(count) || count < 1 || count > 104 || minutes < 1) {
+            this.scheduleError = 'Choose a first session, 1–104 weeks and a positive duration.';
+            return;
+        }
+        if (this.courseSessions.length && !window.confirm('Replace the current session schedule? Sessions with attendance cannot be removed.')) return;
+        this.scheduleError = '';
+        const local = date => SM.toLocalISOString(date).slice(0, 16);
+        this.courseSessions = Array.from({ length: count }, (_, i) => {
+            const from = new Date(start); from.setDate(from.getDate() + i * 7);
+            const to = new Date(from); to.setMinutes(to.getMinutes() + minutes);
+            return { id: crypto.randomUUID(), label: `Session ${i + 1}`, starts_at: local(from), ends_at: local(to) };
+        });
+        this.manualStartsAt = this.courseSessions[0].starts_at;
+        this.manualEndsAt = this.courseSessions[count - 1].ends_at;
+        this.sessionChanged();
+    },
+});

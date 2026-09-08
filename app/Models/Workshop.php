@@ -36,6 +36,7 @@ class Workshop extends Model
     ];
 
     protected $fillable = [
+        'format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at',
         'title',
         'content',
         'summary',
@@ -80,6 +81,10 @@ class Workshop extends Model
     ];
 
     protected $casts = [
+        'course_sessions' => 'array',
+        'welcome_enabled' => 'boolean',
+        'welcome_send_at' => 'datetime',
+        'welcome_generation' => 'integer',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'publish_at' => 'datetime',
@@ -597,6 +602,10 @@ class Workshop extends Model
 
     public function getTicketTimeRangeLabel(): string
     {
+        if ($this->isCourse()) {
+            return $this->courseScheduleFirstStartLabel().' · '.$this->courseScheduleCadenceLabel();
+        }
+
         if ($this->usesClassroomRegistration()) {
             if ($this->effectiveScheduleEntries() === []) {
                 return 'Anytime';
@@ -644,21 +653,40 @@ class Workshop extends Model
     }
 
     /**
-     * @return array<int, array{starts_at: ?string, ends_at: ?string, label: string}>
+     * @return array<int, array{id: string, starts_at: string, ends_at: string, label: string}>
      */
     public function effectiveScheduleEntries(): array
     {
-        return [];
+        return $this->isCourse() ? ($this->course_sessions ?? []) : [];
+    }
+
+    public function isCourse(): bool
+    {
+        return $this->format === 'course';
+    }
+
+    public function teachingHours(): float
+    {
+        if ($this->isCourse()) {
+            return array_reduce($this->effectiveScheduleEntries(), fn (float $hours, array $session): float =>
+                $hours + max(0, Carbon::parse($session['starts_at'])->diffInMinutes(Carbon::parse($session['ends_at']))) / 60, 0.0);
+        }
+
+        return $this->starts_at && $this->ends_at ? max(0, $this->starts_at->diffInMinutes($this->ends_at)) / 60 : 0;
     }
 
     public function effectiveStartsAt(): ?CarbonInterface
     {
-        return $this->starts_at;
+        $sessions = $this->effectiveScheduleEntries();
+
+        return $sessions ? Carbon::parse($sessions[0]['starts_at']) : $this->starts_at;
     }
 
     public function effectiveEndsAt(): ?CarbonInterface
     {
-        return $this->ends_at;
+        $sessions = $this->effectiveScheduleEntries();
+
+        return $sessions ? Carbon::parse($sessions[array_key_last($sessions)]['ends_at']) : $this->ends_at;
     }
 
     public function courseScheduleFirstStartLabel(): string
@@ -677,7 +705,7 @@ class Workshop extends Model
 
     public function courseScheduleCadenceLabel(): ?string
     {
-        return null;
+        return $this->isCourse() ? count($this->effectiveScheduleEntries()).' sessions · '.$this->workshopDurationLabel().' total' : null;
     }
 
     public function workshopDurationLabel(): ?string
@@ -693,7 +721,7 @@ class Workshop extends Model
             return null;
         }
 
-        $minutes = max(0, (int) $start->diffInMinutes($end));
+        $minutes = (int) round($this->teachingHours() * 60);
         if ($minutes === 0) {
             return null;
         }
@@ -718,6 +746,11 @@ class Workshop extends Model
      */
     public function courseScheduleDisplayLines(): array
     {
+        if ($this->isCourse()) {
+            return array_map(fn (array $session): string => ($session['label'] ? $session['label'].' — ' : '')
+                .Carbon::parse($session['starts_at'])->format('D j M Y g:ia').' – '.Carbon::parse($session['ends_at'])->format(Carbon::parse($session['starts_at'])->isSameDay(Carbon::parse($session['ends_at'])) ? 'g:ia' : 'D j M Y g:ia'), $this->effectiveScheduleEntries());
+        }
+
         if (! $this->starts_at || ! $this->ends_at) {
             return ['Anytime'];
         }

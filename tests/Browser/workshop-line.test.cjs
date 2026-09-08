@@ -242,3 +242,19 @@ test('saved one-group delivery adopts seat hours without changing its total twic
     update(item);
     assert.equal(context.window.SM.lineAmounts(item).net, 500);
 });
+
+test('course ticket pricing and allocation use teaching hours rather than eight weeks elapsed', () => {
+    const plan = { pricing_participants: 10, rules: [{ category_id: 1, basis: 'hour', rate_cents: 6000 }] };
+    const start = '2026-10-01T10:00', end = '2026-11-19T11:00';
+    const breakdown = context.window.SM.ticketCostBreakdown(plan, start, end, 10, true, 8);
+    assert.equal(breakdown.total, 48000);
+    assert.equal(context.window.SM.workshopPrice(plan, 'tickets', '', start, end, 10, true, 8),
+        context.window.SM.workshopPrice(plan, 'tickets', '', '2026-10-01T10:00', '2026-10-01T18:00', 10, true));
+    const editor = { ...context.window.SM.courseEditor('course', [
+        { starts_at: '2026-10-01T10:00', ends_at: '2026-10-01T11:00' },
+        { starts_at: '2026-10-08T10:00', ends_at: '2026-10-08T11:30' },
+    ]) };
+    assert.equal(editor.courseTeachingHours(), 2.5);
+    editor.courseSessions.pop();
+    assert.equal(editor.courseTeachingHours(), 1);
+});

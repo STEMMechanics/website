@@ -255,7 +255,13 @@
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
+                @if($workshop->isCourse())
+                    <ul class="text-gray-600 text-sm pl-6 mb-6 space-y-2">
+                        @foreach($workshop->courseScheduleDisplayLines() as $session)<li>{{ $session }}</li>@endforeach
+                    </ul>
+                @else
                 <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
+                @endif
                 @php($hostedFor = $workshop->hostedFor?->name)
                 @if($workshop->isPrivate() && !empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">

@@ -119,6 +119,7 @@ if (isset($workshop)) {
     <x-container class="py-5 sm:py-8">
         @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <form x-data="{
+            ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
             type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),
             originalStatus: @js(isset($workshopModel) ? (string) $workshopModel->status : $workshopStatusForForm),
@@ -153,6 +154,8 @@ if (isset($workshop)) {
             ticketGroupRaw: @js(old('ticket_group_slug', $workshopModel?->ticket_group_slug ?? '')),
             manualStartsAt: @js($workshopStartValue),
             manualEndsAt: @js($workshopEndValue),
+            originalCourseSessions: @js($workshopModel?->course_sessions ?? []),
+            originalFormat: @js($workshopModel?->format ?? 'workshop'),
             originalStartsAt: @js(isset($workshopModel) ? $workshopStartValue : ''),
             originalEndsAt: @js(isset($workshopModel) ? $workshopEndValue : ''),
             originalLocationId: @js(isset($workshopModel) ? trim((string) ($workshopModel->location_id ?? '')) : ''),
@@ -422,6 +425,8 @@ if (isset($workshop)) {
 
             return this.currentStartsAt() !== this.originalStartsAt
             || this.currentEndsAt() !== this.originalEndsAt
+            || this.workshopFormat !== this.originalFormat
+            || (this.workshopFormat === 'course' && JSON.stringify(this.courseSessions) !== JSON.stringify(this.originalCourseSessions))
             || String(this.type || '') !== String(this.originalType || '')
             || this.normalizedCurrentLocationId() !== this.originalLocationId;
             },
@@ -642,6 +647,10 @@ if (isset($workshop)) {
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
+                        <x-ui.select label="Format" name="format" x-model="workshopFormat" x-on:change="sessionChanged()">
+                            <option value="workshop">Workshop</option>
+                            <option value="course">Course</option>
+                        </x-ui.select>
                         <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; if (typeof syncWorkshopClosesAt === 'function') { syncWorkshopClosesAt() }">
                             <option value="physical">Physical</option>
                             <option value="online">Online</option>
@@ -856,6 +865,8 @@ if (isset($workshop)) {
                     </div>
                 </div>
 
+            @include('admin.workshop.partials.course-settings')
+
             <div
                 x-cloak
                 x-show="cancelWorkshopOpen"
@@ -944,9 +955,9 @@ if (isset($workshop)) {
                             breakdown: { categories: {}, total: 0, participants: 0 },
                             maxBreakdown: { categories: {}, total: 0, participants: 0 },
                             reprice(force = false) {
-                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets);
-                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false);
-                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic);
+                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
+                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
+                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
                             }
@@ -1118,6 +1129,7 @@ if (isset($workshop)) {
                         </div>
                     </div>
                 </div>
+                @include('admin.workshop.partials.welcome-settings')
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select
@@ -1162,6 +1174,10 @@ if (isset($workshop)) {
                     <x-ui.button type="submit">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
                 </x-ui.editor-actions>
         </form>
+        @isset($workshop)
+            <form id="send-workshop-welcome" method="POST" action="{{ route('admin.workshop.welcome.send', $workshop) }}">@csrf</form>
+        @endisset
+
     </x-container>
 </x-layout>
 
