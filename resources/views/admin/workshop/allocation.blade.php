@@ -41,8 +41,9 @@
             @if($state['ready'])<x-ui.checkbox name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />@endif
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="workshop-allocation" :exact="false" totalLabel="Received excluding GST" :shortfall="true" :show-totals="false" />
             @if($state['ready'])
-                <x-ui.checkbox class="mt-5" name="outcomes_reviewed" value="1" label="Workshop complete; attendance, cancellations and payment outcomes reviewed" required />
-                <x-ui.button class="mt-4" type="submit">Finalise allocation</x-ui.button>
+                <div class="mt-5 flex justify-end">
+                    <x-ui.button type="submit">Finalise allocation</x-ui.button>
+                </div>
             @elseif($state['status'] !== 'No allocation required')
                 <p class="mt-4 text-sm text-slate-600">Finalise after the workshop ends and payment outcomes are resolved.</p>
             @endif

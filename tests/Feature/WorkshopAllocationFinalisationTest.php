@@ -46,7 +46,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
     private function finalise(array $fixture): void
     {
         $service = app(WorkshopAllocation::class);
-        $this->post(route('admin.workshop.allocation.store', $fixture['workshop']), ['source_hash' => $service->state($fixture['workshop'])['hash'], 'outcomes_reviewed' => 1, 'override' => 1, 'targets' => [1 => 100]])->assertSessionHasNoErrors()->assertRedirect();
+        $this->post(route('admin.workshop.allocation.store', $fixture['workshop']), ['source_hash' => $service->state($fixture['workshop'])['hash'], 'override' => 1, 'targets' => [1 => 100]])->assertSessionHasNoErrors()->assertRedirect();
     }
 
     public function test_hosted_workshop_defaults_to_nothing_supplied_and_preserves_explicit_choices(): void
@@ -64,7 +64,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->assertFalse($service->context($f['workshop'])['assumptions']['venue_supplied']);
         $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Venue hire supplied')->assertSee('Supplied items');
         $this->post(route('admin.workshop.allocation.store', $f['workshop']), [
-            'source_hash' => $service->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1,
+            'source_hash' => $service->state($f['workshop'])['hash'],
             'supplied_categories' => [1 => '0', 2 => '1'],
         ])->assertSessionHasNoErrors()->assertRedirect();
         $context = $service->context($f['workshop']);
@@ -75,7 +75,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->assertTrue($context['assumptions']['supplied_categories'][2]);
         $this->assertFalse((bool) $context['budget']->manual);
         $this->post(route('admin.workshop.allocation.store', $f['workshop']), [
-            'source_hash' => $service->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1,
+            'source_hash' => $service->state($f['workshop'])['hash'],
             'revision' => hash('sha256', json_encode((array) $context['budget'])),
             'supplied_categories' => [1 => '1', 2 => '0'],
         ])->assertSessionHasNoErrors()->assertRedirect();
@@ -88,7 +88,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
     public function test_supplied_items_reject_unknown_categories_and_invalid_values(): void
     {
         $f = $this->fixture();
-        $base = ['source_hash' => app(WorkshopAllocation::class)->state($f['workshop'])['hash'], 'outcomes_reviewed' => 1];
+        $base = ['source_hash' => app(WorkshopAllocation::class)->state($f['workshop'])['hash']];
         foreach ([[999999 => '1'], [1 => 'invalid']] as $supplied) {
             $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), $base + ['supplied_categories' => $supplied])->assertUnprocessable();
         }
@@ -113,7 +113,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $this->assertFalse($state['ready']);
         $this->assertEmpty($service->attention());
         $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('No allocation required')->assertDontSee('Finalise allocation');
-        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $state['hash'], 'outcomes_reviewed' => 1])->assertUnprocessable();
+        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $state['hash']])->assertUnprocessable();
     }
 
     public function test_cancelled_workshop_without_receipts_is_exempt_only_after_payment_outcomes_settle(): void
@@ -159,7 +159,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $f = $this->fixture();
         $service = app(WorkshopAllocation::class);
         $this->assertSame('Ready for review', $service->state($f['workshop'])['status']);
-        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Received excluding GST')->assertSee('Finalise allocation');
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Received excluding GST')->assertSee('Finalise allocation')->assertDontSee('name="outcomes_reviewed"', false);
         $this->get(route('admin.invoice.allocation.edit', $f['invoice']))->assertOk()->assertSee('Ticket allocation managed by workshop')->assertDontSee('Save allocation');
         $this->postJson(route('admin.invoice.allocation.store', $f['invoice']), ['targets' => [1 => 100]])->assertUnprocessable();
         $this->assertSame(0, app(FinanceAttention::class)->counts()['unallocated_invoices']);
@@ -198,11 +198,11 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $service = app(WorkshopAllocation::class);
         $hash = $service->state($f['workshop'])['hash'];
         $f['workshop']->update(['ends_at' => now()->addDay()]);
-        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash, 'outcomes_reviewed' => 1])->assertUnprocessable();
+        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash])->assertUnprocessable();
         $f['workshop']->update(['ends_at' => now()->subHour()]);
         $f['payment']->update(['payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER, 'cleared_at' => null]);
         $this->assertFalse($service->state($f['workshop'])['ready']);
-        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash, 'outcomes_reviewed' => 1])->assertUnprocessable();
+        $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash])->assertUnprocessable();
         $this->assertDatabaseCount('finance_budgets', 0);
     }
 
@@ -262,7 +262,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $f['ticket']->update(['attended_at' => now()]);
         $budget = DB::table('finance_budgets')->first();
         $service = app(WorkshopAllocation::class);
-        $this->post(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $service->state($f['workshop'])['hash'], 'revision' => hash('sha256', json_encode((array) $budget)), 'outcomes_reviewed' => 1, 'override' => 1, 'targets' => [1 => 50]])->assertSessionHasNoErrors();
+        $this->post(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $service->state($f['workshop'])['hash'], 'revision' => hash('sha256', json_encode((array) $budget)), 'override' => 1, 'targets' => [1 => 50]])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('finance_budget_revisions', 2);
         $this->assertTrue($service->isCurrent(DB::table('finance_budgets')->first()));
         $this->actingAs(User::factory()->create())->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertForbidden();
