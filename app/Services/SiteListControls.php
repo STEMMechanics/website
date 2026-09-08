@@ -95,7 +95,10 @@ class SiteListControls
             'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
             'admin.server.square-events', 'admin.server.square-webhooks' => ['event_type' => ['label' => 'Event type', 'type' => 'text']],
             'admin.workshop.files', 'admin.workshop.photos' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
-            'admin.expense.index', 'admin.supplier.show' => [
+            'admin.supplier.show' => [
+                'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
+            ],
+            'admin.expense.index' => [
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
                 'supplier_id' => ['label' => 'Supplier account', 'type' => 'select', 'options' => \App\Models\Supplier::orderBy('name')->pluck('name', 'id')->all()],
                 'supplier' => ['label' => 'Supplier', 'type' => 'text'],
