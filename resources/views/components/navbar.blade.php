@@ -114,7 +114,7 @@
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
                     @if($pageMenuAttentionCount > 0)
-                        <x-ui.badge color="warning" variant="solid" class="absolute -right-1 -top-2 min-w-4 px-1 py-0 text-[11px] leading-4">{{ $pageMenuAttentionCount }}</x-ui.badge>
+                        <x-ui.badge color="warning" variant="solid" class="absolute -right-1 -top-2 min-w-4 px-1 py-0 text-[11px] leading-4 text-white">{{ $pageMenuAttentionCount }}</x-ui.badge>
                     @endif
                 </button>
                 <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()">
