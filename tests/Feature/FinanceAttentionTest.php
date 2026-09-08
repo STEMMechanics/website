@@ -51,4 +51,28 @@ class FinanceAttentionTest extends TestCase
         app(FinanceAttention::class)->unallocatedExpenses($query);
         $this->assertSame(2, $query->count());
     }
+    public function test_supplier_expense_routes_filter_missing_and_complete_allocations(): void
+    {
+        $user = User::factory()->create();
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $this->actingAs($user);
+        $missing = Expense::factory()->create(['supplier' => 'Allocation filter supplier', 'total_amount' => 110, 'gst_amount' => 10]);
+        $complete = Expense::factory()->create(['supplier' => $missing->supplier, 'supplier_id' => $missing->supplier_id, 'total_amount' => 110, 'gst_amount' => 10]);
+        $partial = Expense::factory()->create(['supplier' => $missing->supplier, 'supplier_id' => $missing->supplier_id, 'total_amount' => 110, 'gst_amount' => 10]);
+        Expense::factory()->create(['supplier' => 'Another supplier', 'total_amount' => 110, 'gst_amount' => 10]);
+        foreach ([$complete->id => 10000, $partial->id => 9000] as $id => $cents) {
+            DB::table('finance_expense_splits')->insert(['expense_id' => $id, 'category_id' => 1, 'cents' => $cents, 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        foreach ([route('admin.expense.index', ['supplier_id' => $missing->supplier_id]), route('admin.supplier.show', $missing->supplier_id)] as $url) {
+            $this->get($url)->assertOk()->assertSee('Cost-centre allocation')->assertSee('Missing or incomplete')
+                ->assertViewHas('expenses', fn ($rows) => $rows->total() === 3);
+            $separator = str_contains($url, '?') ? '&' : '?';
+            foreach (['not_allocated' => [$missing->id, $partial->id], 'allocated' => [$complete->id]] as $state => $ids) {
+                $response = $this->get($url.$separator.'allocation_state='.$state)->assertOk();
+                $this->assertEqualsCanonicalizing($ids, $response->viewData('expenses')->pluck('id')->all());
+            }
+        }
+    }
+
 }
