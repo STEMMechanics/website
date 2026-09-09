@@ -70,7 +70,8 @@
                     </div>
                 @endif
 
-                <form id="ticket-details-form" method="POST" action="{{ route('workshop.ticket.flow.details.save', $workshop) }}">
+                <x-workshop-course-schedule :workshop="$workshop" />
+        <form id="ticket-details-form" method="POST" action="{{ route('workshop.ticket.flow.details.save', $workshop) }}">
                     @csrf
                     @foreach($tickets as $index => $ticket)
                     <div class="border border-gray-400 rounded-lg p-4 mb-3">

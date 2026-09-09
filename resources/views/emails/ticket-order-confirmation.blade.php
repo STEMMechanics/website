@@ -27,6 +27,9 @@ Your ticket order is confirmed.
 
 **Workshop:** {{ (string) ($workshop['title'] ?? '-') }}<br>
 **Time:** {{ (string) ($workshop['time'] ?? $workshop['starts_at'] ?? '-') }}<br>
+@foreach(($workshop['schedule'] ?? []) as $session)
+{{ $session }}<br>
+@endforeach
 **Location:** {{ (string) ($workshop['location'] ?? '-') }}<br>
 **Payment Method:** {{ $paymentMethodLabel }}<br>
 @if((float) $amount > 0)

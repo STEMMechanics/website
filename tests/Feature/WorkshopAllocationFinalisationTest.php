@@ -205,6 +205,11 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $service = app(WorkshopAllocation::class);
         $hash = $service->state($f['workshop'])['hash'];
         $f['workshop']->update(['ends_at' => now()->addDay()]);
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()
+            ->assertSee('Finalise allocation')->assertSee('Override defaults')
+            ->assertSee('Finalise after the workshop ends and payment outcomes are completed.')
+            ->assertSee('x-bind:disabled="true"', false)
+            ->assertDontSee('Supplied items can be changed after');
         $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash])->assertUnprocessable();
         $f['workshop']->update(['ends_at' => now()->subHour()]);
         $f['payment']->update(['payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER, 'cleared_at' => null]);

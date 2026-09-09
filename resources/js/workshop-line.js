@@ -107,16 +107,16 @@ window.SM.lineCostAllocations = (items, rules) => {
     return totals;
 };
 
-window.SM.workshopPrice = (plan, registration, current, start, end, seats, force = false) => {
+window.SM.workshopPrice = (plan, registration, current, start, end, seats, force = false, teachingHours = null) => {
     if (registration !== 'tickets' || (!force && String(current ?? '').trim() !== '')) return current;
-    const hours = (new Date(end) - new Date(start)) / 3600000;
+    const hours = teachingHours ?? (new Date(end) - new Date(start)) / 3600000;
     const count = Number(seats);
     if (!Number.isFinite(hours) || hours <= 0 || !Number.isInteger(count) || count <= 0) return current;
     return window.SM.suggestTicketPrice(plan, hours, Math.min(count, Number(plan.pricing_participants || 10))) ?? current;
 };
 
-window.SM.ticketCostBreakdown = (plan, start, end, maxTickets, capAtPricingAttendance = true) => {
-    const hours = (new Date(end) - new Date(start)) / 3600000;
+window.SM.ticketCostBreakdown = (plan, start, end, maxTickets, capAtPricingAttendance = true, teachingHours = null) => {
+    const hours = teachingHours ?? (new Date(end) - new Date(start)) / 3600000;
     const capacity = Number(maxTickets);
     const participants = Number.isInteger(capacity) && capacity > 0 ? (capAtPricingAttendance ? Math.min(capacity, Number(plan.pricing_participants || 10)) : capacity) : 0;
     if (!(hours > 0 && participants > 0)) return { categories: {}, total: 0, participants };

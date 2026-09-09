@@ -84,7 +84,7 @@ class FinancePlanner
                 $assumptions = [
                     'participants' => (int) ($input['participants'] ?? $tickets->whereIn('status', Ticket::activePurchasedStatuses())->count()),
                     'pricing_participants' => min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($this->decode($version->prices)['pricing_participants'] ?? 10)),
-                    'hours' => (float) ($input['hours'] ?? max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60),
+                    'hours' => (float) ($input['hours'] ?? $workshop->teachingHours()),
                     'travel_minutes' => (int) ($input['travel_minutes'] ?? 0),
                     'venue_supplied' => isset($input['venue_supplied']) ? (bool) $input['venue_supplied'] : (bool) $workshop->hosted_for_organisation_id,
                 ];

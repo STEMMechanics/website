@@ -5,6 +5,7 @@
         <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
+                <x-workshop-course-schedule :workshop="$workshop" />
 
                 @php
                 $creditAppliedAmount = round((float) ($session['credit_applied_amount'] ?? 0), 2);

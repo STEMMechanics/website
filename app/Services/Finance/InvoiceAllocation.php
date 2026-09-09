@@ -39,7 +39,7 @@ class InvoiceAllocation
             $date = $workshop->starts_at->toDateString();
         }
         $version = PricingVersion::forDate($date, $budget ? (int) $budget->pricing_version_id : ($versionId ?? $workshop?->pricing_version_id));
-        $assumptions = $budget ? $planner->decode($budget->assumptions) : ['participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60 : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
+        $assumptions = $budget ? $planner->decode($budget->assumptions) : ['participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? $workshop->teachingHours() : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
         if ($supplied !== null && $workshop) {
             $assumptions['supplied_categories'] = $supplied;
         }
@@ -48,7 +48,7 @@ class InvoiceAllocation
         $automaticWarning = null;
         if ($workshop) {
             $assumptions['pricing_participants'] ??= min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($planner->decode($version->prices)['pricing_participants'] ?? 10));
-            $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => max(0, $workshop->starts_at->diffInMinutes($workshop->ends_at)) / 60, 'venue_supplied' => (bool) ($assumptions['venue_supplied'] ?? false)]);
+            $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => $workshop->teachingHours(), 'venue_supplied' => (bool) ($assumptions['venue_supplied'] ?? false)]);
             $suggestedTargets = $planner->targets($rules, $assumptions);
         } else {
             $assumptions = ['source' => 'invoice_lines', 'lines' => []];

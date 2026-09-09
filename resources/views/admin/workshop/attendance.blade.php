@@ -57,6 +57,9 @@
         ->filter(fn (int $id): bool => $id > 0)
         ->values()
         ->all();
+    $courseSession = request()->attributes->get('course_session');
+    $sessionAttendance = $courseSession ? \Illuminate\Support\Facades\DB::table('workshop_session_attendance')
+        ->where('workshop_id', $workshop->id)->where('session_id', $courseSession['id'])->pluck('ticket_id')->all() : [];
     $oldAttendedTicketIds = collect(old('attended_ticket_ids', []))
         ->map(fn ($id): int => (int) $id)
         ->filter(fn (int $id): bool => $id > 0)
@@ -70,7 +73,7 @@
             || $key === 'mark_attended';
     });
     $ticketAttendanceState = collect($activeTickets ?? [])
-        ->mapWithKeys(fn ($ticket): array => [(string) $ticket->id => (bool) $ticket->attended_at])
+        ->mapWithKeys(fn ($ticket): array => [(string) $ticket->id => ($courseSession ? in_array($ticket->id, $sessionAttendance) : (bool) $ticket->attended_at)])
         ->all();
     $ticketInvoiceGroups = collect($attendanceTickets ?? [])
         ->groupBy(function ($ticket): string {
@@ -114,7 +117,7 @@
             </x-slot:left>
             <x-slot:right>
                 <div class="flex flex-wrap gap-2">
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.attendance.csv', $workshop) }}">Export CSV</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.attendance.csv', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}">Export CSV</x-ui.button>
                     @if($isTicketedWorkshop)
                         <x-ui.button color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                     @else
@@ -453,6 +456,7 @@
                         const attendedIds = this.ticketAttendanceIds();
                         const formData = new FormData();
                         formData.append('_token', this.csrfToken);
+                        @if($courseSession) formData.append('session_id', @js($courseSession['id'])); @endif
                         attendedIds.forEach((ticketId) => {
                             formData.append('attended_ticket_ids[]', String(ticketId));
                         });
@@ -719,6 +723,15 @@
                 "
             >
                 <h2 class="mt-5 mb-3 text-lg font-semibold">Ticketed Attendance</h2>
+                @if($courseSession)
+                    <form method="GET" class="max-w-xl">
+                        <x-ui.select label="Course session" name="session_id" onchange="this.form.submit()">
+                            @foreach($workshop->effectiveScheduleEntries() as $session)
+                                <option value="{{ $session['id'] }}" @selected($session['id'] === $courseSession['id'])>{{ \Illuminate\Support\Carbon::parse($session['starts_at'])->format('D j M Y g:ia') }}</option>
+                            @endforeach
+                        </x-ui.select>
+                    </form>
+                @endif
                 <x-ui.collection-controls class="my-5" label="Find ticket or person" />
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>
@@ -1029,6 +1042,7 @@
                                     <input type="hidden" name="attended_ticket_ids[]" x-bind:value="ticketId">
                                 </template>
                                 <input type="hidden" name="sync_attendance" value="1">
+                                @if($courseSession)<input type="hidden" name="session_id" value="{{ $courseSession['id'] }}">@endif
 
                                 <div class="grid gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-3">
                                     <div>

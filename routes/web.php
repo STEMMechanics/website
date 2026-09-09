@@ -398,6 +398,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/{workshop}/tickets', [WorkshopController::class, 'admin_tickets'])->name('admin.workshop.tickets');
     Route::post('/admin/workshops/{workshop}/tickets', [WorkshopController::class, 'admin_tickets_store'])->name('admin.workshop.tickets.store');
     Route::get('/admin/workshops/{workshop}/tickets/pdf', [WorkshopController::class, 'admin_tickets_pdf'])->name('admin.workshop.tickets.pdf');
+    Route::get('/admin/workshops/{workshop}/welcome/preview', [\App\Http\Controllers\WorkshopWelcomeController::class, 'preview'])->name('admin.workshop.welcome.preview');
+    Route::post('/admin/workshops/{workshop}/welcome', [\App\Http\Controllers\WorkshopWelcomeController::class, 'send'])->name('admin.workshop.welcome.send');
     Route::post('/admin/workshops/{workshop}/tickets/email', [WorkshopController::class, 'admin_tickets_email'])->name('admin.workshop.tickets.email');
     Route::post('/admin/workshops/{workshop}/tickets/sms', [WorkshopController::class, 'admin_tickets_sms'])->name('admin.workshop.tickets.sms');
     Route::get('/admin/workshops/{workshop}/attendance', [WorkshopController::class, 'admin_attendance'])->name('admin.workshop.attendance');
