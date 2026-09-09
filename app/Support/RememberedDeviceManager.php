@@ -2,20 +2,24 @@
 
 namespace App\Support;
 
+use App\Http\Middleware\RequirePrivilegedMfa;
 use App\Models\Token;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class RememberedDeviceManager
 {
     public const DEVICE_TOKEN_TYPE = 'remember-device';
+
     public const DEVICE_COOKIE = 'sm_remember_device';
+
     public const EMAIL_COOKIE = 'sm_last_login_email';
 
     // Long-lived browser cookie. Server-side token has no expiry for trusted devices.
     private const DEVICE_COOKIE_TTL_MINUTES = 60 * 24 * 3650;
+
     private const EMAIL_TTL_MINUTES = 60 * 24 * 365;
 
     public function getRememberedEmail(Request $request): ?string
@@ -31,6 +35,7 @@ class RememberedDeviceManager
 
         if ($value === '') {
             cookie()->queue(cookie()->forget(self::EMAIL_COOKIE, $this->cookiePath(), $this->cookieDomain()));
+
             return;
         }
 
@@ -55,6 +60,9 @@ class RememberedDeviceManager
         ]);
 
         $data = is_array($token->data) ? $token->data : [];
+        if (RequirePrivilegedMfa::hasSessionConfirmation($request, $user)) {
+            $data['privileged_mfa_fingerprint'] = RequirePrivilegedMfa::fingerprint($user);
+        }
         $data['user_agent'] = substr((string) ($request->userAgent() ?? ''), 0, 500);
         $data['ip_address'] = substr((string) ($request->ip() ?? ''), 0, 64);
         $data['last_used_at'] = now()->toIso8601String();
@@ -86,8 +94,23 @@ class RememberedDeviceManager
         return $this->rememberUserOnCurrentDevice($request, $user);
     }
 
+    public function hasPrivilegedVerification(Request $request, User $user): bool
+    {
+        if ($user->tfa_secret === null) {
+            return false;
+        }
+        $token = $this->currentTokenForUser($request, $user);
+        $data = $token && is_array($token->data) ? $token->data : [];
+
+        return hash_equals(RequirePrivilegedMfa::fingerprint($user), (string) ($data['privileged_mfa_fingerprint'] ?? ''));
+    }
+
     public function resolveRememberedUser(Request $request): ?User
     {
+        if ($request->session()->get('auth.require_fresh_login')) {
+            return null;
+        }
+
         $tokenId = $this->currentTokenId($request);
         if ($tokenId === null) {
             return null;
@@ -106,6 +129,7 @@ class RememberedDeviceManager
         $user = $token?->user;
         if (! $token || ! $user instanceof User || $user->isAnonymized()) {
             $this->forgetCurrentDevice($request, null);
+
             return null;
         }
 
@@ -277,6 +301,7 @@ class RememberedDeviceManager
     private function cookieDomain(): ?string
     {
         $domain = config('session.domain');
+
         return is_string($domain) && trim($domain) !== '' ? $domain : null;
     }
 
@@ -288,6 +313,7 @@ class RememberedDeviceManager
     private function cookieSameSite(): ?string
     {
         $sameSite = config('session.same_site');
+
         return is_string($sameSite) && trim($sameSite) !== '' ? $sameSite : null;
     }
 

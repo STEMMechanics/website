@@ -2,18 +2,28 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\AccountController;
+use App\Http\Middleware\CanonicalHost;
 use App\Http\Middleware\RequirePrivilegedMfa;
 use App\Http\Middleware\TrustedIngress;
 use App\Jobs\RecordAnalyticsEvent;
+use App\Jobs\SendEmail;
 use App\Models\AnalyticsEvent;
 use App\Models\CustomPage;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\DashboardSnapshot;
+use App\Services\WeeklyWorkplanService;
+use App\Support\RememberedDeviceManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class DeploymentControlsTest extends TestCase
@@ -40,6 +50,7 @@ class DeploymentControlsTest extends TestCase
         app(TrustedIngress::class)->handle($request, function ($request) {
             $this->assertSame('192.0.2.1', $request->ip());
             $this->assertFalse($request->isSecure());
+
             return response('ok');
         });
         $request->server->set('REMOTE_ADDR', '10.1.2.3');
@@ -47,6 +58,7 @@ class DeploymentControlsTest extends TestCase
             $this->assertSame('198.51.100.2', $request->ip());
             $this->assertSame('example.com', $request->getHost());
             $this->assertTrue($request->isSecure());
+
             return response('ok');
         });
     }
@@ -64,14 +76,65 @@ class DeploymentControlsTest extends TestCase
         config(['security.admin_mfa_required' => true]);
         $admin = User::factory()->create();
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
-        $this->actingAs($admin)->get(route('admin.dashboard'))->assertRedirect(route('account.show'));
+        $this->actingAs($admin)->get(route('admin.dashboard'))->assertRedirect(route('login'));
+        $this->assertGuest();
+        $token = $admin->tokens()->create(['type' => 'login', 'data' => []]);
+        $this->get(route('login', ['token' => $token->id]))->assertRedirect(route('admin.dashboard'));
+        $this->get(route('admin.dashboard'))->assertRedirect(route('account.show'));
         $this->get(route('account.show'))->assertOk();
-        $admin->forceFill(['tfa_secret' => 'JBSWY3DPEHPK3PXP'])->save();
+        $secret = $this->getJson(route('account.show.tfa'))->assertOk()->json('secret');
+        $this->postJson(route('account.post.tfa'), [
+            'secret' => $secret,
+            'code' => AccountController::getTFAInstance()->getCode($secret),
+        ])->assertOk()->assertJson(['success' => true]);
+        $admin->refresh();
         $this->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
         $this->post(route('security.mfa.verify'), ['code' => 'invalid'])->assertSessionHasErrors('code');
         $this->withSession(['privileged_mfa' => ['fingerprint' => RequirePrivilegedMfa::fingerprint($admin), 'expires' => now()->addHour()->timestamp]])
             ->get(route('admin.dashboard'))->assertOk();
         $this->delete(route('account.destroy.tfa'))->assertForbidden();
+    }
+
+    public function test_stale_admin_cannot_enrol_through_api_or_remembered_device(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        $this->actingAs($admin)->postJson(route('account.post.tfa'), [
+            'secret' => $secret,
+            'code' => AccountController::getTFAInstance()->getCode($secret),
+        ])->assertForbidden();
+        $this->assertNull($admin->fresh()->tfa_secret);
+        $this->assertGuest();
+        $device = $admin->tokens()->create(['type' => 'remember-device', 'expires_at' => null]);
+        $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $device->id)
+            ->get(route('login'))->assertOk()->assertViewIs('auth.login');
+        $this->assertGuest();
+    }
+
+    public function test_password_login_allows_only_a_short_account_bound_enrolment_window(): void
+    {
+        config(['security.admin_mfa_required' => true, 'security.altcha_enabled' => false]);
+        $admin = User::factory()->create(['password' => bcrypt('existing-password'), 'email_verified_at' => now()]);
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->post(route('login.store'), ['login' => $admin->email, 'password' => 'wrong'])
+            ->assertSessionMissing('mfa_enrolment_identity');
+        $this->post(route('login.store'), ['login' => $admin->email, 'password' => 'existing-password'])
+            ->assertRedirect(route('admin.dashboard'))->assertSessionHas('mfa_enrolment_identity');
+        $secret = $this->getJson(route('account.show.tfa'))->assertOk()->json('secret');
+        $otherSecret = 'JBSWY3DPEHPK3PXP';
+        $this->postJson(route('account.post.tfa'), [
+            'secret' => $otherSecret,
+            'code' => AccountController::getTFAInstance()->getCode($otherSecret),
+        ])->assertForbidden();
+        $this->assertNull($admin->fresh()->tfa_secret);
+        $this->travel(11)->minutes();
+        $this->postJson(route('account.post.tfa'), [
+            'secret' => $secret,
+            'code' => AccountController::getTFAInstance()->getCode($secret),
+        ])->assertForbidden();
+        $this->assertNull($admin->fresh()->tfa_secret);
     }
 
     public function test_email_link_responses_remain_generic(): void
@@ -117,22 +180,22 @@ class DeploymentControlsTest extends TestCase
     public function test_snapshot_cache_round_trip_keeps_dates_and_rows_renderable(): void
     {
         config(['analytics.dashboard_snapshot_seconds' => 300]);
-        $service = app(\App\Services\DashboardSnapshot::class);
+        $service = app(DashboardSnapshot::class);
         $fresh = $service->refresh('month');
         $cached = $service->get('month');
         $this->assertSame($fresh['cards'], $cached['cards']);
         $this->assertSame($fresh['periodStart']->timestamp, $cached['periodStart']->timestamp);
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $cached['trafficSourceRows']);
+        $this->assertInstanceOf(Collection::class, $cached['trafficSourceRows']);
         $this->assertSame($fresh['snapshotAt'], $cached['snapshotAt']);
-        view()->share('errors', new \Illuminate\Support\ViewErrorBag());
-        $this->assertStringContainsString('Dashboard', view('admin.dashboard.index', $cached + ['errors' => new \Illuminate\Support\ViewErrorBag(), 'workplan' => app(\App\Services\WeeklyWorkplanService::class)->build()])->render());
+        view()->share('errors', new ViewErrorBag);
+        $this->assertStringContainsString('Dashboard', view('admin.dashboard.index', $cached + ['errors' => new ViewErrorBag, 'workplan' => app(WeeklyWorkplanService::class)->build()])->render());
     }
 
     public function test_sitemap_paginates_without_omitting_or_duplicating_public_pages(): void
     {
         $rows = [];
         for ($i = 0; $i < 1005; $i++) {
-            $rows[] = ['id' => (string) \Illuminate\Support\Str::uuid(), 'title' => 'Page '.$i, 'path' => '/page-'.$i, 'content' => 'Content', 'is_published' => true, 'seo_noindex' => false];
+            $rows[] = ['id' => (string) Str::uuid(), 'title' => 'Page '.$i, 'path' => '/page-'.$i, 'content' => 'Content', 'is_published' => true, 'seo_noindex' => false];
         }
         CustomPage::query()->insert($rows);
         $this->get(route('sitemap.xml'))->assertOk()->assertSee('sitemapindex');
@@ -156,7 +219,7 @@ class DeploymentControlsTest extends TestCase
         $admin = User::factory()->create();
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
         $admin->forceFill(['tfa_secret' => 'JBSWY3DPEHPK3PXP'])->save();
-        $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
+        $code = AccountController::getTFAInstance()->getCode($admin->tfa_secret);
         $this->actingAs($admin)->post(route('security.mfa.verify'), ['code' => $code])
             ->assertRedirect(route('admin.dashboard'))->assertSessionHas('privileged_mfa');
         $this->withSession(['privileged_mfa' => []])->post(route('security.mfa.verify'), ['code' => $code])->assertSessionHasErrors('code');
@@ -183,7 +246,7 @@ class DeploymentControlsTest extends TestCase
             ->assertSee('image-background')->assertSee('id="logout-confirm-form"', false)
             ->assertSee('Are you sure you want to log out of your account?');
         $this->assertAuthenticatedAs($admin);
-        $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
+        $code = AccountController::getTFAInstance()->getCode($admin->tfa_secret);
         $this->post(route('security.mfa.verify'), ['code' => $code])
             ->assertRedirect(route('admin.dashboard'))->assertSessionHas('privileged_mfa');
         $this->get(route('admin.dashboard'))->assertOk()->assertSee('data-push-root', false);
@@ -210,7 +273,7 @@ class DeploymentControlsTest extends TestCase
     public function test_canonical_redirect_uses_configured_origin_and_preserves_signed_links(): void
     {
         config(['security.canonical_redirect' => true, 'app.url' => 'https://canonical.example']);
-        $middleware = app(\App\Http\Middleware\CanonicalHost::class);
+        $middleware = app(CanonicalHost::class);
         $response = $middleware->handle(Request::create('http://alias.example/workshops?search=robot'), fn () => response('ok'));
         $this->assertSame(308, $response->getStatusCode());
         $this->assertSame('https://canonical.example/workshops?search=robot', $response->headers->get('Location'));
@@ -218,15 +281,14 @@ class DeploymentControlsTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
-
     public function test_administrator_express_login_prefers_totp_even_when_a_password_exists(): void
     {
         config(['security.admin_mfa_required' => true, 'security.generic_login' => true, 'security.altcha_enabled' => false]);
         Queue::fake();
-        $admin = User::factory()->create(['password' => \Illuminate\Support\Facades\Hash::make('StrongPassword123!')]);
+        $admin = User::factory()->create(['password' => Hash::make('StrongPassword123!')]);
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
         $admin->forceFill(['tfa_secret' => 'JBSWY3DPEHPK3PXP'])->save();
-        $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
+        $code = AccountController::getTFAInstance()->getCode($admin->tfa_secret);
         $this->post(route('login.store'), ['login' => $admin->email])->assertViewIs('auth.login-2fa')->assertViewHas('allowPasswordMethod', true);
         $this->post(route('login.store'), ['login' => $admin->email, 'method' => 'password'])->assertViewIs('auth.login-password')->assertViewHas('allowAuthenticatorMethod', true);
         $this->post(route('login.store'), ['login' => $admin->email, 'totp' => $code])
@@ -242,7 +304,7 @@ class DeploymentControlsTest extends TestCase
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
         $admin->forceFill(['tfa_secret' => 'JBSWY3DPEHPK3PXP'])->save();
         $this->post(route('login.store'), ['login' => $admin->email])->assertViewIs('auth.login-2fa');
-        $code = \App\Http\Controllers\AccountController::getTFAInstance()->getCode($admin->tfa_secret);
+        $code = AccountController::getTFAInstance()->getCode($admin->tfa_secret);
         $this->post(route('login.store'), ['login' => $admin->email, 'totp' => $code])
             ->assertRedirect(route('admin.dashboard'))->assertSessionHas('privileged_mfa');
         $this->assertAuthenticatedAs($admin);
@@ -253,10 +315,10 @@ class DeploymentControlsTest extends TestCase
     {
         config(['security.generic_login' => true, 'security.altcha_enabled' => false]);
         Queue::fake();
-        $passwordUser = User::factory()->create(['password' => \Illuminate\Support\Facades\Hash::make('ExpressPassword123!')]);
+        $passwordUser = User::factory()->create(['password' => Hash::make('ExpressPassword123!')]);
         $emailUser = User::factory()->create(['password' => null]);
         $this->post(route('login.store'), ['login' => $passwordUser->email])->assertViewIs('auth.login-password');
         $this->post(route('login.store'), ['login' => $emailUser->email])->assertViewIs('auth.login-link');
-        Queue::assertPushed(\App\Jobs\SendEmail::class);
+        Queue::assertPushed(SendEmail::class);
     }
 }

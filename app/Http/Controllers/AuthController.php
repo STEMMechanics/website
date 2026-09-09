@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RequirePrivilegedMfa;
+use App\Jobs\RequestLoginLink;
 use App\Jobs\SendEmail;
 use App\Mail\UserEmailUpdateConfirm;
 use App\Mail\UserLogin;
@@ -18,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
@@ -99,7 +102,7 @@ class AuthController extends Controller
         }
 
         if (config('security.generic_login') && $request->input('method') === 'email') {
-            \App\Jobs\RequestLoginLink::dispatch($login, array_filter([
+            RequestLoginLink::dispatch($login, array_filter([
                 'url' => session()->pull('url.intended', null),
                 'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
                 'remember_email_value' => $rememberEmailProvided ? $login : null,
@@ -118,7 +121,7 @@ class AuthController extends Controller
             if ($user && trim((string) $user->tfa_secret) !== '') {
                 if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)
                     && (! config('security.admin_mfa_required') || ! $user->isAdmin()
-                        || \Illuminate\Support\Facades\Cache::add('mfa-used:'.hash('sha256', $user->id.'|'.$otpCode), true, 300))) {
+                        || Cache::add('mfa-used:'.hash('sha256', $user->id.'|'.$otpCode), true, 300))) {
                     $pendingPasswordData = $this->pullPendingPasswordLoginData($request, $user);
                     if ($pendingPasswordData !== null) {
                         return $this->loginByUser($user, $pendingPasswordData, mfaVerified: true);
@@ -164,6 +167,7 @@ class AuthController extends Controller
                         if ($user->canReceiveEmail()) {
                             dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
                         }
+
                         return $this->loginByUser($user, array_filter([
                             'url' => session()->pull('url.intended', null),
                             'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
@@ -196,6 +200,7 @@ class AuthController extends Controller
                 $forceEmailLogin = true;
             } elseif ($request->get('method') === 'password') {
                 $user = $this->findUserByLogin($login);
+
                 return $this->passwordPromptView($login, $user?->canUseEmailLogin() ?? false, $rememberEmailValue, trim((string) $user?->tfa_secret) !== '');
             } else {
                 abort(404);
@@ -237,7 +242,7 @@ class AuthController extends Controller
                 'url' => session()->pull('url.intended', null),
                 'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
                 'remember_email_value' => $rememberEmailProvided ? $login : null,
-            ], fn ($value) => $value !== null));
+            ], fn ($value) => $value !== null), identityVerified: true);
         }
 
         if ($user && $user->tfa_secret !== null && ! $forceEmailLogin) {
@@ -306,7 +311,7 @@ class AuthController extends Controller
             $user = $token->user;
             if ($user instanceof User && Token::query()->whereKey($token->getKey())->delete() === 1) {
 
-                return $this->loginByUser($user, $token->data);
+                return $this->loginByUser($user, $token->data, identityVerified: true);
             }
         }
 
@@ -331,7 +336,8 @@ class AuthController extends Controller
         ?string $title = null,
         string $type = 'success',
         bool $flashMessage = true,
-        bool $mfaVerified = false
+        bool $mfaVerified = false,
+        bool $identityVerified = false
     ) {
         $url = null;
         if (isset($data['url']) && $data['url']) {
@@ -349,11 +355,17 @@ class AuthController extends Controller
             }
         }
 
-        request()->session()->forget('privileged_mfa');
+        request()->session()->forget(['privileged_mfa', 'mfa_enrolment_identity', 'tfa.enrolment_secret']);
         Auth::login($user);
         request()->session()->regenerate();
+        if ($identityVerified || $mfaVerified) {
+            request()->session()->forget('auth.require_fresh_login');
+        }
+        if ($identityVerified && $user->tfa_secret === null) {
+            RequirePrivilegedMfa::confirmEnrolmentIdentity(request(), $user);
+        }
         if ($mfaVerified) {
-            \App\Http\Middleware\RequirePrivilegedMfa::confirm(request(), $user);
+            RequirePrivilegedMfa::confirm(request(), $user);
         }
         $this->rememberedDeviceManager->refreshCurrentDeviceForUser(request(), $user);
         if (array_key_exists('remember_email', $data)) {
