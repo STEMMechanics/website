@@ -71,7 +71,9 @@
                     <p class="my-4 text-sm">Your equipment quote has been requested. Equipment and delivery have not been charged; we’ll confirm the quote separately.</p>
                 @endif
                 @if(!empty($session['equipment_order_id']))
-                    @php($equipmentOrder = \App\Models\StoreOrder::find($session['equipment_order_id']))
+                    @php
+                        $equipmentOrder = \App\Models\StoreOrder::find($session['equipment_order_id']);
+                    @endphp
                     @if($equipmentOrder)
                         <p class="my-4 text-sm">Equipment order {{ $equipmentOrder->order_number }} · {{ money($equipmentOrder->total_amount) }}</p>
                         <x-ui.button color="outline" :href="route('shop.order.tracking', $equipmentOrder->access_token)">View equipment delivery and invoice</x-ui.button>

@@ -221,6 +221,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
                     'email' => 'equipment@example.com',
                     'phone' => '0400123456',
                 ]]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+                $this->get(route('workshop.ticket.flow.complete', $workshop))->assertOk()->assertSee($order->order_number);
             }
             // The fallback must not send a second confirmation after details are submitted.
             $scheduledJob->handle(app(\App\Services\WorkshopTicketOrderEmailService::class));
