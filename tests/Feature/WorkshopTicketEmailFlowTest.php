@@ -85,6 +85,31 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertViewHas('totalAmount', 30.0);
     }
 
+    public function test_equipment_shows_product_details_and_uses_store_shipment_grouping(): void
+    {
+        Queue::fake();
+        $product = \App\Models\Product::factory()->create([
+            'status' => 'active', 'product_type' => 'physical', 'price' => 32,
+            'inventory_quantity' => 0, 'allow_backorder' => true,
+            'short_description' => 'A small programmable board for the course.',
+        ]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example',
+            'email' => 'details@example.com', 'phone' => '0400123456',
+        ])->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()
+            ->assertSee($product->short_description)->assertSee($product->primaryImageUrl())
+            ->assertSee('Available to order')->assertSee('More coming soon');
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), [
+            'action' => 'select', 'quantities' => [$product->id => 1],
+        ])->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.delivery', $workshop))->assertOk()
+            ->assertSee('Shipping address')->assertDontSee('Billing address, also used')
+            ->assertSee('shipment.title_primary || shipment.title', false)
+            ->assertViewHas('summary', fn ($summary) => ! $summary['shipping_quote']['offers_consolidation']);
+    }
+
     public static function equipmentPaymentMethods(): array
     {
         return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];

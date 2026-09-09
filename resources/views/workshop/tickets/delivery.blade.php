@@ -15,7 +15,7 @@
                     <x-ui.select name="shipping_method_code" label="Delivery option" x-model="method">
                         <template x-for="option in quote.shipping_methods || []" :key="option.code"><option :value="option.code" x-text="(option.label || option.name || option.code) + ' — ' + (option.requires_manual_quote ? 'Quote required' : money(option.estimated_amount || 0))"></option></template>
                     </x-ui.select>
-                    <p class="mb-4 text-sm text-gray-600">Billing address, also used for delivery when shipping is selected.</p>
+                    <p class="mb-4 text-sm text-gray-600">Shipping address</p>
                     <x-ui.input name="billing_address" label="Address" :value="old('billing_address', $customer['billing_address'] ?? '')" />
                     <x-ui.input name="billing_address2" label="Address line 2" :value="old('billing_address2', $customer['billing_address2'] ?? '')" />
                     <div class="grid gap-x-6 sm:grid-cols-2">
@@ -27,12 +27,14 @@
                         <x-ui.input name="billing_postcode" label="Postcode" maxlength="4" :value="old('billing_postcode', $customer['billing_postcode'] ?? '')" />
                         <x-ui.input label="Country" value="Australia" disabled />
                     </div>
-                    @if($summary['has_delayed_items'] ?? false)
-                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" />
-                        @foreach($lines as $line)
-                            @if($line->delayed_quantity > 0)<p class="text-sm text-gray-600">{{ $line->title ?? $line->product->title }}: {{ $line->delayed_shipping_estimate ?? 'Delivery timing to be confirmed' }}</p>@endif
-                        @endforeach
-                    @endif
+                    <div x-show="quote.shipping_quote?.offers_consolidation && method !== 'pickup' && method !== 'request_quote'" x-cloak>
+                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" x-bind:disabled="!quote.shipping_quote?.offers_consolidation || method === 'pickup' || method === 'request_quote'" />
+                    </div>
+                    <div x-show="!quote.shipping_quote?.requires_manual_quote" class="my-4 space-y-3">
+                        <template x-for="shipment in quote.shipping_quote?.shipments || []" :key="shipment.key">
+                            @include('shop.partials.shipment-card', ['moneyFunction' => 'money'])
+                        </template>
+                    </div>
                     @if($summary['contains_preorder'] ?? false)
                         <x-ui.checkbox name="preorder_acknowledged" value="1" label="I understand that preordered equipment will be sent when available" :checked="$customer['preorder_acknowledged'] ?? false" />
                     @endif
