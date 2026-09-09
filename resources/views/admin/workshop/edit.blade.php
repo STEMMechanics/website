@@ -274,13 +274,17 @@ if (isset($workshop)) {
             this.serializeTickets();
             },
             initLocationSelection() {
-            if (this.type !== 'physical') {
+            if (this.type !== 'physical' && this.workshopFormat !== 'course') {
             this.selectedLocationId = '';
             return;
             }
             const current = (this.selectedLocationId ?? '').toString();
             if (current !== '' && this.locations.some((location) => String(location.id) === current)) {
                 this.selectedLocationId = current;
+                return;
+            }
+            if (this.workshopFormat === 'course') {
+                this.selectedLocationId = '';
                 return;
             }
             if (this.locations.length > 0) {
@@ -325,7 +329,7 @@ if (isset($workshop)) {
             return String(this.$refs.endsAt?.value || '').trim();
             },
             normalizedCurrentLocationId() {
-            if (this.type !== 'physical') {
+            if (this.type !== 'physical' && this.workshopFormat !== 'course') {
             return '';
             }
 
@@ -650,7 +654,7 @@ if (isset($workshop)) {
                         <input type="hidden" name="format" x-bind:value="workshopFormat">
                         <input type="hidden" name="type" x-bind:value="type">
                         <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
-                            x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
+                            x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
                             <option value="physical">Physical</option>
                             <option value="online">Online</option>
                             <option value="stemcraft">STEMCraft</option>
@@ -658,7 +662,7 @@ if (isset($workshop)) {
                         </x-ui.select>
                         <div x-show="workshopFormat === 'course'" x-cloak>
                             <x-ui.select label="Delivery" id="course-delivery" x-model="type"
-                                x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
+                                x-on:change="if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }">
                                 <option value="physical">Physical</option>
                                 <option value="online">Online</option>
                             </x-ui.select>
@@ -666,8 +670,8 @@ if (isset($workshop)) {
                     </div>
                     <div class="flex-1">
                         <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
-                        <span x-show="type==='physical'">
-                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
+                        <span x-show="type === 'physical' || workshopFormat === 'course'">
+                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical' && workshopFormat !== 'course'">
                                 <x-slot name="labelRight">
                                     <x-ui.button variant="plain" type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</x-ui.button>
                                 </x-slot>

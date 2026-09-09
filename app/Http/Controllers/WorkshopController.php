@@ -317,7 +317,7 @@ class WorkshopController extends Controller
             foreach ($workshops as $workshop) {
                 $itemChanges = $changes;
                 if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) { $itemChanges['price_is_automatic'] = false; }
-                if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL) {
+                if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL && ! $workshop->isCourse()) {
                     $itemChanges['location_id'] = null;
                 }
                 if (isset($itemChanges['registration']) && ! in_array($itemChanges['registration'], ['link', 'email', 'message'], true)) {
@@ -5000,7 +5000,7 @@ class WorkshopController extends Controller
 
         $workshopData['type'] = $type;
 
-        if ($type !== Workshop::TYPE_PHYSICAL) {
+        if ($type !== Workshop::TYPE_PHYSICAL && ($workshopData['format'] ?? 'workshop') !== 'course') {
             $workshopData['location_id'] = null;
 
             return;

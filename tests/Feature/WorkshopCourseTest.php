@@ -155,8 +155,10 @@ class WorkshopCourseTest extends TestCase
         $payload = $course->only(['title', 'content', 'type', 'format', 'course_sessions', 'starts_at', 'ends_at', 'publish_at', 'closes_at', 'status', 'registration', 'hero_media_name', 'max_tickets', 'welcome_subject', 'welcome_body', 'welcome_send_at']);
         $payload['welcome_enabled'] = 1;
         $payload['course_sessions'][0]['label'] = 'Introduction to micro:bit';
+        $payload['location_id'] = \App\Models\Location::factory()->create()->id;
         $this->put(route('admin.workshop.update', $course), $payload)->assertSessionHasNoErrors()->assertRedirect();
         $this->assertSame('Introduction to micro:bit', $course->fresh()->course_sessions[0]['label']);
+        $this->assertSame($payload['location_id'], $course->fresh()->location_id);
         $this->post(route('admin.workshop.welcome.send', $course), ['action' => 'send'])->assertRedirect();
         $count = DB::table('workshop_welcome_deliveries')->count();
         $this->assertGreaterThan(0, $count);
