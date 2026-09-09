@@ -647,15 +647,22 @@ if (isset($workshop)) {
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Format" name="format" x-model="workshopFormat" x-on:change="sessionChanged()">
-                            <option value="workshop">Workshop</option>
-                            <option value="course">Course</option>
-                        </x-ui.select>
-                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; if (typeof syncWorkshopClosesAt === 'function') { syncWorkshopClosesAt() }">
+                        <input type="hidden" name="format" x-bind:value="workshopFormat">
+                        <input type="hidden" name="type" x-bind:value="type">
+                        <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
+                            x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
                             <option value="physical">Physical</option>
                             <option value="online">Online</option>
                             <option value="stemcraft">STEMCraft</option>
+                            <option value="course">Course</option>
                         </x-ui.select>
+                        <div x-show="workshopFormat === 'course'" x-cloak>
+                            <x-ui.select label="Delivery" id="course-delivery" x-model="type"
+                                x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
+                                <option value="physical">Physical</option>
+                                <option value="online">Online</option>
+                            </x-ui.select>
+                        </div>
                     </div>
                     <div class="flex-1">
                         <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
