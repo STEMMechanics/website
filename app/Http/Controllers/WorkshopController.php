@@ -4998,6 +4998,10 @@ class WorkshopController extends Controller
             $type = Workshop::TYPE_ONLINE;
         }
 
+        if (($workshopData['format'] ?? 'workshop') === 'course') {
+            $location = Location::find($workshopData['location_id'] ?? null);
+            $type = ! $location || $location->isOnline() ? Workshop::TYPE_ONLINE : Workshop::TYPE_PHYSICAL;
+        }
         $workshopData['type'] = $type;
 
         if ($type !== Workshop::TYPE_PHYSICAL && ($workshopData['format'] ?? 'workshop') !== 'course') {

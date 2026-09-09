@@ -664,13 +664,6 @@ if (isset($workshop)) {
                             <option value="stemcraft">STEMCraft</option>
                             <option value="course">Course</option>
                         </x-ui.select>
-                        <div x-show="workshopFormat === 'course'" x-cloak>
-                            <x-ui.select label="Delivery" id="course-delivery" x-model="type"
-                                x-on:change="if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }">
-                                <option value="physical">Physical</option>
-                                <option value="online">Online</option>
-                            </x-ui.select>
-                        </div>
                     </div>
                     <div class="flex-1">
                         <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">

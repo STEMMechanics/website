@@ -282,6 +282,10 @@ class Workshop extends Model
 
     public function locationType(): string
     {
+        if ($this->isCourse()) {
+            return ! $this->location_id || $this->location?->isOnline() ? self::TYPE_ONLINE : self::TYPE_PHYSICAL;
+        }
+
         $type = trim((string) ($this->type ?? ''));
         if (in_array($type, self::TYPES, true)) {
             return $type;

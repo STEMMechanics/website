@@ -1,7 +1,6 @@
 <div x-show="workshopFormat === 'course'" x-cloak class="my-6">
     <x-ui.collapsible-section title="Course sessions" variant="product" :open="true">
         <x-slot:summary><span x-text="courseSessions.length + ' sessions · ' + courseTeachingHours().toFixed(2) + ' teaching hours'"></span></x-slot:summary>
-        <p class="mb-4 text-sm text-gray-600">One ticket covers every session. Times are in {{ config('app.timezone') }}.</p>
         <div class="grid items-end gap-3 sm:grid-cols-4">
             <x-ui.input type="datetime-local" label="First session" x-model="generateStart" />
             <x-ui.input type="number" label="Weeks" min="1" max="104" x-model="generateCount" />

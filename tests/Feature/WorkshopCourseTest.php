@@ -43,7 +43,7 @@ class WorkshopCourseTest extends TestCase
             $sessions[] = ['id' => (string) Str::uuid(), 'label' => 'Session '.($i + 1), 'starts_at' => $start->format('Y-m-d\TH:i'), 'ends_at' => $start->copy()->addHour()->format('Y-m-d\TH:i')];
         }
         $workshop->update([
-            'format' => 'course', 'course_sessions' => $sessions, 'type' => 'online', 'registration' => 'tickets',
+            'format' => 'course', 'course_sessions' => $sessions, 'type' => 'online', 'location_id' => null, 'registration' => 'tickets',
             'starts_at' => $sessions[0]['starts_at'], 'ends_at' => $sessions[7]['ends_at'], 'max_tickets' => 12,
             'welcome_enabled' => true, 'welcome_subject' => 'Welcome to the course', 'welcome_body' => 'Your Zoom link: https://example.test/join',
             'welcome_send_at' => now()->subDay(),
@@ -159,6 +159,8 @@ class WorkshopCourseTest extends TestCase
         $this->put(route('admin.workshop.update', $course), $payload)->assertSessionHasNoErrors()->assertRedirect();
         $this->assertSame('Introduction to micro:bit', $course->fresh()->course_sessions[0]['label']);
         $this->assertSame($payload['location_id'], $course->fresh()->location_id);
+        $this->assertSame('physical', $course->fresh()->type);
+        $this->assertTrue($course->fresh()->isPhysicalWorkshop());
         $this->post(route('admin.workshop.welcome.send', $course), ['action' => 'send'])->assertRedirect();
         $count = DB::table('workshop_welcome_deliveries')->count();
         $this->assertGreaterThan(0, $count);
@@ -243,5 +245,22 @@ class WorkshopCourseTest extends TestCase
         $this->assertStringContainsString('Attended', $csv);
         $other = $this->get(route('admin.workshop.attendance.csv', [$course, 'session_id' => $course->course_sessions[1]['id']]))->assertOk()->streamedContent();
         $this->assertStringContainsString('Not marked', $other);
+    }
+
+    public function test_course_delivery_is_determined_by_its_location(): void
+    {
+        $course = $this->course();
+        $online = \App\Models\Location::factory()->create(['name' => 'Online']);
+        $payload = $course->only(['title', 'content', 'format', 'course_sessions', 'starts_at', 'ends_at', 'publish_at', 'closes_at', 'status', 'registration', 'hero_media_name', 'max_tickets']);
+        $payload['type'] = 'physical';
+        $payload['location_id'] = $online->id;
+        $this->put(route('admin.workshop.update', $course), $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $course->refresh();
+        $this->assertSame('online', $course->type);
+        $this->assertSame($online->id, $course->location_id);
+        $this->assertTrue($course->isOnlineWorkshop());
+        $course->update(['location_id' => null]);
+        $this->assertTrue($course->fresh()->isOnlineWorkshop());
+        $this->get(route('admin.workshop.edit', $course))->assertOk()->assertDontSee('id="course-delivery"', false)->assertDontSee('One ticket covers every session.');
     }
 }
