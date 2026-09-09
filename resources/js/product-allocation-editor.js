@@ -42,6 +42,14 @@ window.SM.productAllocationEditor = (config) => ({
         const value = this.values(column)[id].amount;
         if (Number.isFinite(Number(value)) && Number(value) >= 0) this.values(column)[id].amount = Number(value).toFixed(2);
     },
+    allocateRemaining(column, id) {
+        const cell = this.values(column)[id];
+        const remaining = this.total(column).remaining;
+        if (!cell || !Number.isFinite(remaining) || remaining <= 0) return;
+        const current = Math.round(Number(cell.amount || 0) * 100);
+        if (!Number.isFinite(current) || current < 0) return;
+        cell.amount = ((current + remaining) / 100).toFixed(2);
+    },
     rules(cells) {
         return { fixed: Object.fromEntries(Object.entries(cells).map(([id, cell]) => [id, Math.round(Number(cell.amount) * 100)])), percent: {} };
     },

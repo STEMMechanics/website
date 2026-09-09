@@ -267,6 +267,11 @@ details.ui-collapsible-section {
     @apply mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm;
 }
 
+/* Open panels must let dropdowns extend beyond their content bounds. */
+details.ui-collapsible-section[open] {
+    overflow: visible;
+}
+
 details.ui-collapsible-section > summary {
     @apply flex list-none items-center justify-between gap-4 px-4 py-4 text-sm font-semibold text-gray-900;
     cursor: pointer;

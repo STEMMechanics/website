@@ -4,7 +4,6 @@
     <p class="mt-4 text-sm text-slate-600">Uses received payments and paid expenses. Pending bank transfers, unsuccessful gateway payments and non-cash entries are excluded. Purchase GST must represent eligible credits. This tracks the GST portion only; other BAS obligations need their own reserves.</p>
 </x-finance.panel>
 <x-finance.panel title="Record a GST settlement">
-    <p class="mb-4 text-sm text-slate-600">Enter the GST component paid to the ATO. Use a negative amount for a GST refund. Historical payments before the opening date are retained for reference and do not reduce current cash again.</p>
-    <form method="POST" action="{{ route('admin.finance.settlement') }}">@csrf<div class="grid gap-x-4 sm:grid-cols-2"><x-ui.input name="period" id="period" label="BAS month" type="month" :value="$month->format('Y-m')" required /><x-ui.input name="paid_on" id="paid_on" label="Payment / refund date" type="date" :value="now()->toDateString()" required /><x-ui.input name="amount" id="amount" label="GST settled (negative for refund)" type="number" step="0.01" required /><x-ui.input name="reference" id="reference" label="Receipt / note (optional)" info="For your records only, e.g. a myGov receipt number or Paid via myGov by credit card." /></div><x-finance.save>Record settlement</x-finance.save></form>
+    @include('admin.cost-centre.gst-settlement-form', ['settlement' => $history->first()['settlement'] ?? null])
 </x-finance.panel>
 @include('admin.cost-centre.gst-history')

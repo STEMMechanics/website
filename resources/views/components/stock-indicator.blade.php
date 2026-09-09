@@ -1,9 +1,11 @@
 @props([
     'tone' => 'neutral',
     'label' => '',
+    'stackDetails' => false,
 ])
 
 @php
+    $parts = $stackDetails && preg_match('/^(Available to order|Low stock)\. (.+)$/', $label, $matches) ? [$matches[1], $matches[2]] : [$label];
     $tone = (string) $tone;
     $classes = match ($tone) {
         'danger' => 'text-red-700',
@@ -22,5 +24,10 @@
     @if($icon)
         <i class="fa-solid {{ $icon }} text-[0.8em]"></i>
     @endif
-    <span>{{ $label }}</span>
+    <span>
+        {{ $parts[0] }}
+        @if(isset($parts[1]))
+            <span class="block">{{ $parts[1] }}</span>
+        @endif
+    </span>
 </span>

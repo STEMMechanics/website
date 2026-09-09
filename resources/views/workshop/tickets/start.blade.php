@@ -67,7 +67,7 @@
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                         <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}">Back</x-ui.button>
-                        <x-ui.button type="submit">{{ $ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets' }}</x-ui.button>
+                        <x-ui.button type="submit">{{ $equipmentProducts->isNotEmpty() ? 'Continue' : ($ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets') }}</x-ui.button>
                     </div>
                 </form>
             </div>

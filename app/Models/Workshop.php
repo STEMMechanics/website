@@ -607,7 +607,7 @@ class Workshop extends Model
     public function getTicketTimeRangeLabel(): string
     {
         if ($this->isCourse()) {
-            return $this->courseScheduleFirstStartLabel().' · '.$this->courseScheduleCadenceLabel();
+            return $this->courseWeeklySummary() ?? implode("; ", $this->courseScheduleDisplayLines());
         }
 
         if ($this->usesClassroomRegistration()) {
@@ -705,6 +705,22 @@ class Workshop extends Model
         }
 
         return $start->format('j/m/Y @ g:i a');
+    }
+
+    public function courseWeeklySummary(): ?string
+    {
+        $sessions = $this->effectiveScheduleEntries();
+        if (count($sessions) < 2) return null;
+        $first = Carbon::parse($sessions[0]['starts_at']);
+        $firstEnd = Carbon::parse($sessions[0]['ends_at']);
+        if (! $first->isSameDay($firstEnd)) return null;
+        foreach ($sessions as $index => $session) {
+            $start = Carbon::parse($session['starts_at']);
+            $end = Carbon::parse($session['ends_at']);
+            if (! $start->equalTo($first->copy()->addWeeks($index)) || ! $end->equalTo($firstEnd->copy()->addWeeks($index))) return null;
+        }
+        $last = Carbon::parse($sessions[array_key_last($sessions)]['starts_at']);
+        return $first->format('j M Y').' – '.$last->format('j M Y').' · '.count($sessions).' weekly sessions, every '.$first->format('l').' '.$first->format('g:i a').'–'.$firstEnd->format('g:i a');
     }
 
     public function courseScheduleCadenceLabel(): ?string

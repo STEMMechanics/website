@@ -41,6 +41,26 @@ class WorkshopTicketEmailFlowTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_equipment_selected_on_first_checkout_page_is_carried_to_delivery_review(): void
+    {
+        Queue::fake();
+        $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 32, 'inventory_quantity' => 10]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertSee('Continue')->assertDontSee('Continue to Payment')
+            ->assertDontSee('equipment_quantities['.$product->id.']', false);
+        $payload = ['quantity' => 2, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'equipment@example.com', 'phone' => '0400123456', 'equipment_quantities' => [$product->id => 1]];
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $payload)->assertSessionHasNoErrors()
+            ->assertRedirect(route('workshop.ticket.flow.equipment', $workshop));
+        $lines = app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->contents()['lines'];
+        $this->assertCount(1, $lines);
+        $this->assertSame(1, (int) array_values($lines)[0]['quantity']);
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Equipment total')->assertSee('(+'.money(32).')')->assertSee(route('shop.product.show', $product));
+        $other = \App\Models\Product::factory()->create(['status' => 'active']);
+        $payload['equipment_quantities'] = [$other->id => 1];
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $payload)->assertSessionHasErrors('equipment');
+        $this->assertSame(2, $workshop->tickets()->count());
+    }
+
     public static function equipmentPaymentMethods(): array
     {
         return [['bank_transfer'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];

@@ -1,11 +1,24 @@
 <x-layout :title="$workshop->title.' — Optional equipment'">
     <x-mast :title="$workshop->title" />
-    <div class="mx-auto max-w-4xl px-4 pb-8">
+    <x-container class="max-w-3xl mt-6 mx-auto">
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+        <div class="flex-1 min-w-0">
         <h2 class="mb-3 text-2xl font-bold">Optional equipment</h2>
-        <p class="mb-4 text-sm text-gray-600">Already have what you need? Continue without equipment. Otherwise choose products and delivery below.</p>
+        <p class="mb-4 text-sm text-gray-600">Choose any equipment you need, or continue without it.</p>
+        @include('workshop.tickets.partials.summary', ['workshop' => $workshop])
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach
-        <form method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
+        @php
+            $savedLines = collect($cart->contents()['lines'] ?? [])->keyBy('product_id');
+            $equipmentOptions = $products->mapWithKeys(function ($product) {
+                $options = ['base' => ['price' => $product->priceForVariant(), 'available' => $product->isSelectionPurchasable()]];
+                foreach ($product->purchasableVariants() as $variant) $options[(string) $variant->id] = ['price' => $product->priceForVariant($variant), 'available' => $product->isSelectionPurchasable($variant)];
+                return [$product->id => $options];
+            });
+            $config = ['options' => $equipmentOptions, 'selected' => (object) old('quantities', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['quantity'] ?? 0])->all()), 'variants' => (object) old('variants', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['variant_id'] ?? ''])->all()), 'quantity' => 0, 'ticketPrice' => 0, 'regularPrice' => 0, 'earlyBirdRemaining' => null];
+        @endphp
+        <form x-data="SM.workshopEquipmentCheckout(@js($config))" method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
             @csrf
+            <p class="mb-5 text-sm" aria-live="polite"><strong>Equipment total:</strong> <span x-text="money(total)"></span> <span class="text-gray-500">before delivery</span></p>
             @php
                 $selected = collect($cart->contents()['lines'] ?? [])->keyBy('product_id');
                 $customer = $session['equipment_customer'] ?? [];
@@ -13,12 +26,12 @@
             <div class="mb-5 space-y-4">
                 @foreach($products as $product)
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <h3 class="mb-3 font-semibold">{{ $product->title }}</h3>
+                        <h3 class="mb-3 font-semibold"><a href="{{ route('shop.product.show', $product) }}" target="_blank" rel="noopener noreferrer" class="text-black hover:underline">{{ $product->title }}</a> <span class="font-normal text-gray-500" x-text="'(+' + money(option({{ $product->id }}).price) + ')'">(+{{ money($product->priceForVariant()) }})</span></h3>
                         <div class="grid gap-x-6 sm:grid-cols-2">
-                            <x-ui.input type="number" min="0" max="99" label="Quantity" name="quantities[{{ $product->id }}]" :value="old('quantities.'.$product->id, $selected->get($product->id)['quantity'] ?? 0)" />
-                            <x-ui.select label="Option" name="variants[{{ $product->id }}]">
+                            <x-ui.input type="number" min="0" max="99" label="Quantity" x-model="selected[{{ $product->id }}]" name="quantities[{{ $product->id }}]" :value="old('quantities.'.$product->id, $selected->get($product->id)['quantity'] ?? 0)" />
+                            <x-ui.select label="Option" x-model="variants[{{ $product->id }}]" name="variants[{{ $product->id }}]">
                                 <option value="">{{ $product->baseOptionName() }}</option>
-                                @foreach($product->variants as $variant)
+                                @foreach($product->purchasableVariants() as $variant)
                                     <option value="{{ $variant->id }}" @selected((string) old('variants.'.$product->id, $selected->get($product->id)['variant_id'] ?? '') === (string) $variant->id)>{{ $variant->name }}</option>
                                 @endforeach
                             </x-ui.select>
@@ -71,5 +84,8 @@
                 @if($lines->isNotEmpty())<x-ui.button type="submit" name="action" value="continue">Continue to payment</x-ui.button>@endif
             </div>
         </form>
-    </div>
+        </div>
+        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+        </div>
+    </x-container>
 </x-layout>

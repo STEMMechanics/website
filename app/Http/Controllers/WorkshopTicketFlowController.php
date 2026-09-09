@@ -73,6 +73,7 @@ class WorkshopTicketFlowController extends Controller
             'availableTickets' => $ticketService->availableTickets($workshop),
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
             'prefill' => $this->defaultPurchaserData(),
+            'equipmentProducts' => app(\App\Services\WorkshopEquipmentService::class)->products($workshop),
             'requiresPrivateCode' => $workshop->requiresPrivateTicketCode(),
         ]);
     }
@@ -102,6 +103,10 @@ class WorkshopTicketFlowController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:60'],
             'private_code' => [$requiresPrivateCode ? 'required' : 'nullable', 'string', 'max:120'],
+            'equipment_quantities' => 'nullable|array|max:30',
+            'equipment_quantities.*' => 'integer|min:0|max:1',
+            'equipment_variants' => 'nullable|array|max:30',
+            'equipment_variants.*' => 'nullable|integer',
         ];
         if (AltchaTrust::shouldRequire($request)) {
             $rules['altcha'] = ['required', new ValidAltcha];
@@ -124,6 +129,8 @@ class WorkshopTicketFlowController extends Controller
                 'quantity' => 'Only '.$available.' tickets are available right now.',
             ]);
         }
+
+        app(\App\Services\WorkshopEquipmentService::class)->select($workshop, $validated['equipment_quantities'] ?? [], $validated['equipment_variants'] ?? []);
 
         $purchaser = [
             'firstname' => trim((string) ($validated['firstname'] ?? '')),
@@ -177,7 +184,6 @@ class WorkshopTicketFlowController extends Controller
         ];
         $this->putFlowSession($workshop, $sessionPayload);
 
-        app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->clear();
         if (! empty($workshop->optional_product_ids)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
 
         if ($ticketService->ticketPriceAmount($workshop) <= 0.0001) {

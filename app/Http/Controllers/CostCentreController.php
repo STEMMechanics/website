@@ -208,6 +208,10 @@ class CostCentreController extends Controller
         $data = $request->validate(['month' => 'nullable|date_format:Y-m', 'tab' => ['nullable', Rule::in(['summary', 'income', 'expenses'])]]);
         $tab = $data['tab'] ?? 'summary';
         $month = Carbon::parse(($data['month'] ?? now()->format('Y-m')).'-01');
+        if ($request->header('X-SM-Fragment') === 'record') {
+            $settlement = DB::table('finance_gst_settlements')->where('period', $month->toDateString())->first();
+            return view('admin.cost-centre.gst-settlement-form', compact('month', 'settlement'));
+        }
         $historyStart = $month->copy()->subMonths(11);
         $totals = $planner->gstMonths(($tab === 'summary' ? $historyStart : $month)->toDateString(), $month->copy()->endOfMonth()->toDateString());
         $gst = $totals[$month->format('Y-m')] ?? ['sales' => 0, 'credits' => 0, 'net' => 0];

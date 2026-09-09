@@ -57,3 +57,24 @@ test('legacy fixed plus percentage rules combine without hiding costs above sale
     assert.equal(JSON.parse(editor.payload).base.fixed[2], 500);
     assert.equal(editor.total(editor.columns[0]).excessive, true);
 });
+
+test('remaining buttons add to existing amounts for only the chosen product option', () => {
+    const editor = setup(), base = editor.columns[0], variant = editor.columns[1];
+    editor.setValue(base, 5, '0'); editor.setValue(base, 6, '0');
+    editor.setValue(variant, 5, '1.00'); editor.setValue(variant, 6, '0');
+    editor.allocateRemaining(base, 2);
+    assert.equal(editor.values(base)[2].amount, '2.68');
+    assert.equal(editor.total(base).remaining, 0);
+    assert.equal(editor.values(variant)[2].amount, '0.50');
+    editor.allocateRemaining(variant, 2);
+    assert.equal(editor.values(variant)[2].amount, '10.77');
+    assert.equal(editor.total(variant).remaining, 0);
+    editor.allocateRemaining(variant, 2);
+    assert.equal(editor.values(variant)[2].amount, '10.77');
+    editor.setValue(base, 2, '3.00');
+    editor.allocateRemaining(base, 2);
+    assert.equal(editor.values(base)[2].amount, '3.00');
+    editor.setValue(base, 2, '');
+    editor.allocateRemaining(base, 2);
+    assert.equal(editor.values(base)[2].amount, '2.68');
+});
