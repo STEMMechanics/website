@@ -55,7 +55,7 @@ async function initialisePush() {
                 testButton.disabled = busy || !device.enabled || !device.can_enable || !publicKey;
                 testButton.addEventListener('click', () => run(async () => {
                     await request('POST', { device_id: device.device_id }, '/test');
-                    window.SM.feedback(panel.querySelector('[data-push-feedback]'), 'Test sent!', 'Check the selected device for your test notification.', 'success');
+                    window.SM.alert('Test sent!', 'Check the selected device for your test notification.', 'success');
                 }));
                 button.disabled = busy;
                 button.addEventListener('click', () => {
@@ -74,7 +74,7 @@ async function initialisePush() {
         await request('PUT', { device_id: device?.device_id || deviceId, name: device?.name || `${/Firefox/.test(navigator.userAgent) ? 'Firefox' : /Edg/.test(navigator.userAgent) ? 'Edge' : /Chrome/.test(navigator.userAgent) ? 'Chrome' : 'Safari'} on ${ios ? 'iPhone / iPad' : /Android/.test(navigator.userAgent) ? 'Android' : /Mac/.test(navigator.platform) ? 'Mac' : 'computer'}`, enabled, subscription });
         if (!device || device.device_id === deviceId) prompt.hidden = true;
         await refresh();
-        status('Notification preferences saved.');
+        status(current()?.enabled ? 'Notifications are on for this device.' : 'Notifications are off for this device.');
     }
     async function removeDevice(device) {
         await request('DELETE', { device_id: device.device_id });
@@ -83,10 +83,8 @@ async function initialisePush() {
             prompt.hidden = true;
             sessionStorage.setItem(key, '1');
         }
-        for (const panel of panels.filter(panel => panel !== root)) {
-            window.SM.feedback(panel.querySelector('[data-push-feedback]'), 'Device removed', 'It will no longer receive notifications.', 'success');
-        }
-        status(device.device_id === deviceId ? 'Device removed. Notifications are off for this device.' : 'Notification device removed.');
+        window.SM.alert('Device removed', 'It will no longer receive notifications.', 'success');
+        status(current()?.enabled ? 'Notifications are on for this device.' : 'Notifications are off for this device.');
     }
     async function run(action) {
         if (busy) return;
@@ -127,9 +125,7 @@ async function initialisePush() {
                     subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(atob(padded), character => character.charCodeAt(0)) });
                 }
                 await save(true, subscription.toJSON());
-                for (const settings of panels.filter(item => item !== root)) {
-                    window.SM.feedback(settings.querySelector('[data-push-feedback]'), 'You’re connected!', 'Notifications are enabled on this device.', 'success');
-                }
+                window.SM.alert('You’re connected!', 'Notifications are enabled on this device.', 'success');
             })));
         }
     } catch (error) {

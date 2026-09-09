@@ -6,7 +6,7 @@
         </x-slot:header>
         <x-ui.input name="code" label="Verification code" autocomplete="one-time-code" autofocus :error="$errors->first('code')" />
         <x-slot:footer>
-            <a href="{{ route('logout.show') }}" class="link shrink-0">Log out</a>
+            <a href="{{ route('logout.show') }}" class="link shrink-0 text-sm">Log out</a>
             <x-ui.button type="submit" class="self-end sm:ml-auto">Verify</x-ui.button>
         </x-slot:footer>
     </x-dialog>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\RequirePrivilegedMfa;
 use App\Models\Token;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -158,7 +159,7 @@ class RememberedDeviceAuthTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_remembered_admin_still_requires_a_fresh_mfa_confirmation(): void
+    public function test_unverified_remembered_admin_still_requires_a_fresh_mfa_confirmation(): void
     {
         config(['security.admin_mfa_required' => true]);
         $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
@@ -167,6 +168,78 @@ class RememberedDeviceAuthTest extends TestCase
         $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
             ->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_verified_remembered_admin_survives_session_expiry_and_revocation_is_enforced(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $codes = $user->generateBackupCodes();
+        $this->actingAs($user)->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->post(route('security.mfa.verify'), ['code' => $codes[0]])->assertRedirect(route('admin.dashboard'));
+        $this->assertSame(RequirePrivilegedMfa::fingerprint($user), $token->fresh()->data['privileged_mfa_fingerprint']);
+
+        auth()->forgetGuards();
+        $this->flushSession();
+        $this->travel(2)->days();
+        $this->get(route('admin.dashboard'))->assertOk();
+        $this->assertAuthenticatedAs($user);
+        $this->assertFalse(session()->has('privileged_mfa'));
+        $token->delete();
+        $this->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
+    }
+
+    public function test_remembering_after_verification_carries_trust_to_the_new_device(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $codes = $user->generateBackupCodes();
+        $this->actingAs($user)->post(route('security.mfa.verify'), ['code' => $codes[0]])->assertRedirect();
+        $this->post(route('account.update'), ['email' => $user->email, 'keep_signed_in_device' => 'on'])->assertRedirect();
+        $token = $user->tokens()->where('type', RememberedDeviceManager::DEVICE_TOKEN_TYPE)->sole();
+        $this->assertSame(RequirePrivilegedMfa::fingerprint($user), $token->data['privileged_mfa_fingerprint']);
+    }
+
+    public function test_device_verification_is_bound_to_account_and_credentials(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $token = $user->tokens()->create([
+            'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null,
+            'data' => ['privileged_mfa_fingerprint' => RequirePrivilegedMfa::fingerprint($user)],
+        ]);
+        $this->actingAs($user)->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id);
+        foreach (['password' => bcrypt('changed-password'), 'email' => 'changed@example.com', 'tfa_secret' => 'JBSWY3DPEHPK3PXQ'] as $field => $value) {
+            $original = $user->$field;
+            $user->forceFill([$field => $value])->save();
+            $this->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
+            $user->forceFill([$field => $original])->save();
+        }
+        $other = User::factory()->create(['tfa_secret' => $user->tfa_secret]);
+        UserGroup::create(['user_id' => $other->id, 'slug' => 'admin']);
+        $this->actingAs($other)->get(route('admin.dashboard'))->assertRedirect(route('security.mfa.show'));
+    }
+
+    public function test_logout_removes_only_current_device_and_next_account_gets_its_own_entry(): void
+    {
+        $user = User::factory()->create();
+        $device = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $otherDevice = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $this->actingAs($user)->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $device->id)
+            ->post(route('logout'))->assertRedirect(route('index'))->assertCookieExpired(RememberedDeviceManager::DEVICE_COOKIE);
+        $this->assertGuest();
+        $this->assertDatabaseMissing('tokens', ['id' => $device->id]);
+        $this->assertDatabaseHas('tokens', ['id' => $otherDevice->id]);
+        $other = User::factory()->create();
+        $this->actingAs($other)->post(route('account.update'), ['email' => $other->email, 'keep_signed_in_device' => 'on'])->assertRedirect();
+        $newDevice = $other->tokens()->where('type', RememberedDeviceManager::DEVICE_TOKEN_TYPE)->sole();
+        $this->assertNotSame($device->id, $newDevice->id);
+        $this->assertArrayNotHasKey('privileged_mfa_fingerprint', $newDevice->data);
+        $this->assertSame(1, $user->tokens()->where('type', RememberedDeviceManager::DEVICE_TOKEN_TYPE)->count());
     }
 
     public function test_remembered_cookie_does_not_restore_background_json_requests(): void

@@ -258,7 +258,7 @@ class AccountController extends Controller
 
     public static function getTFAInstance(Algorithm $algorithm = Algorithm::Sha512)
     {
-        $tfa = new TwoFactorAuth(new QRCodeProvider(), 'STEMMechanics', 6, 30, $algorithm);
+        $tfa = new TwoFactorAuth(new QRCodeProvider, 'STEMMechanics', 6, 30, $algorithm);
         $tfa->ensureCorrectTime();
 
         return $tfa;
@@ -304,7 +304,7 @@ class AccountController extends Controller
         if ($user->tfa_secret === null && $request->session()->has('tfa.enrolment_secret')) {
             $tfa = self::getTFAInstance();
 
-            $qrCodeProvider = new QRCodeProvider();
+            $qrCodeProvider = new QRCodeProvider;
             $qrCode = $qrCodeProvider->getQRCodeImage(
                 $tfa->getQRText((string) $user->email, (string) $request->session()->get('tfa.enrolment_secret')),
                 200
@@ -323,7 +323,9 @@ class AccountController extends Controller
         $user = auth()->user();
 
         if ($user->tfa_secret === null && $request->has('secret') && $request->has('code')) {
-            $secret = $request->get('secret');
+            $secret = (string) $request->session()->get('tfa.enrolment_secret', '');
+            abort_unless($secret !== '' && is_string($request->input('secret'))
+                && hash_equals($secret, $request->input('secret')), 403);
             $code = (string) $request->get('code');
 
             if (self::verifyTfaCode((string) $secret, $code)) {

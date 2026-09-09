@@ -12,7 +12,6 @@
     <p class="mt-3 text-sm text-gray-600" data-push-status role="status">Loading notification settings…</p>
     <x-ui.button type="button" class="mt-3" data-push-enable disabled>Enable on this device</x-ui.button>
     <p data-push-empty class="mt-4 rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500" hidden>No devices are receiving notifications.</p>
-    <x-ui.feedback data-push-feedback />
     <ul data-push-devices class="mt-4 space-y-3"></ul>
     <template data-push-device-template>
         <li class="rounded-2xl border border-gray-200 bg-white p-4">

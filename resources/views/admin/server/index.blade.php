@@ -362,7 +362,12 @@
                         method: 'POST',
                     });
                     if (window.SM && typeof window.SM.notice === 'function') {
-                        window.SM.notice('Maintenance complete', maintenanceResultHtml(payload), 'success', { toast: true });
+                        window.SM.notice(
+                            'Maintenance complete',
+                            escapeHtml(payload?.message || 'Application caches were cleared and the queue restart was requested.'),
+                            'success',
+                            { toast: true }
+                        );
                     }
                 } catch (error) {
                     const payload = error?.payload || null;
