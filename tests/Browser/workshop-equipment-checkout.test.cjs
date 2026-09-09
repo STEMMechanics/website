@@ -18,3 +18,11 @@ test('ticket quantity, early bird limits and equipment options update the total 
     state.variants[1]='';state.selected[1]=0;
     assert.equal(state.total,35);
 });
+test('equipment step totals multiply selected quantities and variant prices',()=>{
+    const context={window:{}};
+    vm.runInNewContext(fs.readFileSync('resources/js/workshop-equipment-checkout.js','utf8'),context);
+    const state=context.window.SM.workshopEquipmentCheckout({quantity:0,ticketPrice:0,regularPrice:0,earlyBirdRemaining:null,selected:{1:2},options:{1:{base:{price:32,available:true},2:{price:40,available:true}}}});
+    assert.equal(state.total,64);
+    state.variants[1]='2';assert.equal(state.total,80);
+    state.selected[1]=0;assert.equal(state.total,0);
+});

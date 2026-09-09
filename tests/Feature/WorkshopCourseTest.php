@@ -33,6 +33,23 @@ class WorkshopCourseTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_course_summary_only_uses_weekly_pattern_for_matching_sessions(): void
+    {
+        $course = $this->course();
+        $first = \Illuminate\Support\Carbon::parse($course->course_sessions[0]['starts_at']);
+        $this->assertStringContainsString('8 weekly sessions, every '.$first->format('l'), $course->getTicketTimeRangeLabel());
+        $this->assertStringContainsString($first->format('j M Y'), $course->getTicketTimeRangeLabel());
+        $sessions = $course->course_sessions;
+        $sessions[3]['starts_at'] = \Illuminate\Support\Carbon::parse($sessions[3]['starts_at'])->addHour()->format('Y-m-d\TH:i');
+        $sessions[3]['ends_at'] = \Illuminate\Support\Carbon::parse($sessions[3]['ends_at'])->addHour()->format('Y-m-d\TH:i');
+        $course->course_sessions = $sessions;
+        $this->assertNull($course->courseWeeklySummary());
+        $this->assertStringNotContainsString('weekly', $course->getTicketTimeRangeLabel());
+        $html = view('workshop.tickets.partials.summary', ['workshop' => $course])->render();
+        $this->assertStringContainsString('<ul class="list-disc', $html);
+        $this->assertSame(8, substr_count($html, '<li>'));
+    }
+
     private function course(): Workshop
     {
         $ticket = Ticket::factory()->create(['email' => 'parent@example.test']);

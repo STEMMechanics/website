@@ -10,8 +10,16 @@
         <td>{{ $workshop->title }}</td>
     </tr>
     <tr>
-        <th class="text-left pr-4">Date</th>
-        <td>{{ $workshop->getTicketTimeRangeLabel() }}</td>
+        <th class="text-left pr-4 align-top">Date</th>
+        <td>
+            @if($workshop->isCourse() && $workshop->courseWeeklySummary() === null)
+                <ul class="list-disc pl-4 space-y-1">
+                    @foreach($workshop->courseScheduleDisplayLines() as $session)<li>{{ $session }}</li>@endforeach
+                </ul>
+            @else
+                {{ $workshop->getTicketTimeRangeLabel() }}
+            @endif
+        </td>
     </tr>
     @if($workshop->isPrivate() && !empty($workshop->hostedFor))
     <tr>

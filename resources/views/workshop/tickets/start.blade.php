@@ -10,17 +10,7 @@
                 ? max(0, (int) $ticketPricing['earlyBirdPlacesRemaining'])
                 : null;
         @endphp
-        @php
-            $equipmentOptions = $equipmentProducts->mapWithKeys(function ($product) {
-                $options = ['base' => ['price' => $product->priceForVariant(), 'available' => $product->isSelectionPurchasable()]];
-                foreach ($product->purchasableVariants() as $variant) {
-                    $options[(string) $variant->id] = ['price' => $product->priceForVariant($variant), 'available' => $product->isSelectionPurchasable($variant)];
-                }
-                return [$product->id => $options];
-            });
-            $equipmentConfig = ['options' => $equipmentOptions, 'selected' => (object) old('equipment_quantities', []), 'variants' => (object) old('equipment_variants', []), 'quantity' => old('quantity', 1), 'ticketPrice' => $ticketPriceAmount, 'regularPrice' => $ticketPricing['nonDiscountAmount'], 'earlyBirdRemaining' => $earlyBirdPlacesRemaining];
-        @endphp
-        <div x-data="SM.workshopEquipmentCheckout(@js($equipmentConfig))" class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Get Tickets</h2>
                 <p class="text-sm text-gray-600 mb-4">Complete this checkout to reserve your tickets.</p>
@@ -54,10 +44,6 @@
                     'rows' => $summaryRows,
                 ])
 
-                @if($equipmentProducts->isNotEmpty())
-                    <div class="mb-4 text-sm" aria-live="polite"><strong>Total</strong> <span class="ml-4" x-text="money(total)"></span><span class="ml-2 text-gray-500">before delivery</span></div>
-                @endif
-
                 @if(auth()->guest())
                     <div class="text-sm bg-blue-50 border border-blue-200 rounded p-3 mb-4">
                         Already have an account?
@@ -73,29 +59,7 @@
                     @if($requiresPrivateCode ?? false)
                         <x-ui.input name="private_code" label="Access Code" value="{{ old('private_code') }}" required />
                     @endif
-                    <x-ui.input type="number" name="quantity" x-model="quantity" label="Number of Tickets" min="1" max="{{ $availableTickets ?? 10 }}" value="{{ old('quantity', 1) }}" />
-                    @if($equipmentProducts->isNotEmpty())
-                        <fieldset class="mb-5 space-y-3">
-                            <legend class="mb-2 font-semibold">Optional equipment</legend>
-                            @error('equipment')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
-                            @foreach($equipmentProducts as $product)
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <x-ui.checkbox bare :id="'equipment-'.$product->id" :name="'equipment_quantities['.$product->id.']'" value="1" x-bind:checked="Boolean(selected[{{ $product->id }}])" x-on:change="selected[{{ $product->id }}] = $event.target.checked ? 1 : 0" x-bind:disabled="!option({{ $product->id }}).available" :aria-label="'Add '.$product->title" />
-                                        <span><a href="{{ route('shop.product.show', $product) }}" target="_blank" rel="noopener noreferrer" class="text-black hover:underline">{{ $product->title }}</a> <span class="text-gray-500" x-text="'(+' + money(option({{ $product->id }}).price) + ')'">(+{{ money($product->priceForVariant()) }})</span></span>
-                                    </div>
-                                    @if($product->hasOptionChoices())
-                                        <x-ui.select class="mt-2 mb-0" label="Option" :name="'equipment_variants['.$product->id.']'" x-model="variants[{{ $product->id }}]" x-on:change="if (!option({{ $product->id }}).available) selected[{{ $product->id }}] = 0">
-                                            <option value="">{{ $product->baseOptionName() }}</option>
-                                            @foreach($product->purchasableVariants() as $variant)<option value="{{ $variant->id }}">{{ $variant->name }}</option>@endforeach
-                                        </x-ui.select>
-                                    @endif
-                                    <p class="text-xs text-gray-500" x-show="!option({{ $product->id }}).available" x-cloak>Currently unavailable</p>
-                                </div>
-                            @endforeach
-                            <p class="text-xs text-gray-500">One of each selected item per booking. Adjust quantities and choose delivery on the next step.</p>
-                        </fieldset>
-                    @endif
+                    <x-ui.input type="number" name="quantity" label="Number of Tickets" min="1" max="{{ $availableTickets ?? 10 }}" value="{{ old('quantity', 1) }}" />
                     <x-ui.input name="firstname" label="Purchaser First Name" value="{{ old('firstname', $prefill['firstname']) }}" required />
                     <x-ui.input name="surname" label="Purchaser Surname" value="{{ old('surname', $prefill['surname']) }}" required />
                     <x-ui.input type="email" name="email" label="Purchaser Email" value="{{ old('email', $prefill['email']) }}" required />
@@ -103,7 +67,7 @@
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                         <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}">Back</x-ui.button>
-                        <x-ui.button type="submit">{{ $ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets' }}</x-ui.button>
+                        <x-ui.button type="submit">{{ $equipmentProducts->isNotEmpty() ? 'Continue' : ($ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets') }}</x-ui.button>
                     </div>
                 </form>
             </div>
