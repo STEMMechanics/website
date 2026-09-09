@@ -2,8 +2,6 @@
 
 namespace App\Mail;
 
-use App\Models\Workshop;
-use App\Services\WorkshopRecommendationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -99,27 +97,57 @@ class TicketOrderConfirmation extends Mailable
         $this->ticketCount = max(0, (int) ($ticketCount ?? count($tickets)));
     }
 
-    public function build(): static
+    private function confirmationContent(): array
     {
-        $sourceWorkshopId = trim((string) ($this->workshop['id'] ?? ''));
-        if ($sourceWorkshopId !== '') {
-            $sourceWorkshop = Workshop::query()->find($sourceWorkshopId);
-            if ($sourceWorkshop instanceof Workshop) {
-                $this->recommendedWorkshops = app(WorkshopRecommendationService::class)
-                    ->forWorkshop($sourceWorkshop)
-                    ->map(fn (Workshop $recommended): array => [
-                        'title' => (string) $recommended->title,
-                        'date' => (string) ($recommended->effectiveStartsAt()?->format('D j M Y, g:ia') ?? ''),
-                        'location' => (string) $recommended->getLocationName(),
-                        'url' => route('workshop.recommendation.click', [
-                            'source' => $sourceWorkshop,
-                            'workshop' => $recommended,
-                            'placement' => 'email',
-                        ]),
-                    ])->all();
+        $documents = [];
+        foreach ([
+            'ticket' => $this->ticketAttachmentCount,
+            'invoice' => $this->invoiceAttachmentCount,
+            'payment receipt' => $this->receiptAttachmentCount,
+            'credit receipt' => $this->creditReceiptAttachmentCount,
+            'workshop document' => $this->participantAttachmentCount,
+        ] as $label => $count) {
+            if ($count > 0) {
+                $documents[] = $label.($count > 1 ? 's' : '');
+            }
+        }
+        $attachmentCount = $this->ticketAttachmentCount + $this->invoiceAttachmentCount + $this->receiptAttachmentCount + $this->creditReceiptAttachmentCount + $this->participantAttachmentCount;
+        $documentList = count($documents) > 1
+            ? implode(', ', array_slice($documents, 0, -1)).' and '.end($documents)
+            : ($documents[0] ?? '');
+        $attachmentSentence = $documentList !== ''
+            ? 'Your '.$documentList.($attachmentCount === 1 ? ' is' : ' are').' attached to this email.'
+            : '';
+        $settled = ($this->invoice['status'] ?? '') === 'paid'
+            || ($this->amount > 0 && $this->paymentAmount + $this->creditAppliedAmount >= $this->amount - 0.0001);
+        $delivery = [];
+        foreach ($this->equipmentOrder['shipments'] ?? [] as $shipment) {
+            $primary = trim((string) ($shipment['title_primary'] ?? $shipment['title'] ?? ''));
+            $primary = preg_replace('/^(Shipment|Collection)(?:\s+\d+)?:\s*/i', '', $primary) ?: $primary;
+            $timing = trim((string) ($shipment['title_meta'] ?? ''));
+            $arrival = trim((string) ($shipment['delivery_estimate_label'] ?? ''));
+            $parts = array_filter([$primary, $timing]);
+            if ($arrival !== '' && ! ($this->equipmentOrder['pickup'] ?? false)) {
+                $parts[] = 'Estimated delivery: '.$arrival.($timing !== '' ? ' after dispatch' : '');
+            }
+            if ($parts !== []) {
+                $delivery[] = implode(' · ', array_unique($parts));
             }
         }
 
+        return [
+            'firstName' => trim((string) strtok($this->recipientName, ' ')) ?: $this->recipientName,
+            'attachments' => $attachmentSentence,
+            'ticketHeading' => $this->ticketCount === 1 ? 'Your ticket' : 'Your tickets',
+            'settled' => $settled,
+            'free' => $this->amount <= 0.0001,
+            'amountDue' => round(max(0, $this->amount - $this->paymentAmount - $this->creditAppliedAmount), 2),
+            'delivery' => $delivery,
+        ];
+    }
+
+    public function build(): static
+    {
         $hasTicketContent = count($this->tickets) > 0 || $this->ticketAttachmentCount > 0;
         $workshopTitle = (string) ($this->workshop['title'] ?? 'your STEMMechanics order');
         $receiptAttachmentCount = $this->receiptAttachmentCount + $this->creditReceiptAttachmentCount;
@@ -133,7 +161,9 @@ class TicketOrderConfirmation extends Mailable
 
         $mail = $this
             ->subject($subject)
-            ->markdown('emails.ticket-order-confirmation');
+            ->view('emails.ticket-order-confirmation')
+            ->text('emails.ticket-order-confirmation-text')
+            ->with('confirmation', $this->confirmationContent());
 
         if ($fromAddress !== '') {
             $mail->from($fromAddress, $fromName !== '' ? $fromName : null);

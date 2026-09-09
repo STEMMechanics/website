@@ -1,7 +1,8 @@
 <x-layout :title="$workshop->title.' — Delivery details'">
     <x-mast :title="$workshop->title" />
     <x-container class="max-w-3xl mt-6 mx-auto">
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+        <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
+        @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
         <div class="flex-1 min-w-0">
         <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.equipment', $workshop)" /><h2 class="text-2xl font-bold">Delivery details</h2></div>
         <p class="mb-4 text-sm text-gray-600">Choose how you would like to receive your equipment.</p>
@@ -15,6 +16,7 @@
                     <x-ui.select name="shipping_method_code" label="Delivery option" x-model="method">
                         <template x-for="option in quote.shipping_methods || []" :key="option.code"><option :value="option.code" x-text="(option.label || option.name || option.code) + ' — ' + (option.requires_manual_quote ? 'Quote required' : money(option.estimated_amount || 0))"></option></template>
                     </x-ui.select>
+                    <fieldset x-show="!isPickup" x-bind:disabled="isPickup" x-cloak>
                     <p class="mb-4 text-sm text-gray-600">Shipping address</p>
                     <x-ui.input name="billing_address" label="Address" :value="old('billing_address', $customer['billing_address'] ?? '')" />
                     <x-ui.input name="billing_address2" label="Address line 2" :value="old('billing_address2', $customer['billing_address2'] ?? '')" />
@@ -27,8 +29,10 @@
                         <x-ui.input name="billing_postcode" label="Postcode" maxlength="4" :value="old('billing_postcode', $customer['billing_postcode'] ?? '')" />
                         <x-ui.input label="Country" value="Australia" disabled />
                     </div>
-                    <div x-show="quote.shipping_quote?.offers_consolidation && method !== 'pickup' && method !== 'request_quote'" x-cloak>
-                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" x-bind:disabled="!quote.shipping_quote?.offers_consolidation || method === 'pickup' || method === 'request_quote'" />
+                    </fieldset>
+                    <div x-show="isPickup" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">We will contact you when your order is available to collect.</div>
+                    <div x-show="quote.shipping_quote?.offers_consolidation && !isPickup && method !== 'request_quote'" x-cloak>
+                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" x-bind:disabled="!quote.shipping_quote?.offers_consolidation || isPickup || method === 'request_quote'" />
                     </div>
                     <div x-show="!quote.shipping_quote?.requires_manual_quote" class="my-4 space-y-3">
                         <template x-for="shipment in quote.shipping_quote?.shipments || []" :key="shipment.key">

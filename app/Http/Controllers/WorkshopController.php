@@ -1179,7 +1179,7 @@ class WorkshopController extends Controller
             'interestCount' => $interestCount,
             'currentUserInterest' => $currentUserInterest,
             'ticketPriceAmount' => $ticketPriceAmount,
-            'ticketHoldMinutes' => $ticketService->holdWindowMinutes(),
+            'ticketHoldMinutes' => $ticketService->holdWindowMinutes($workshop),
             'adminCanViewTickets' => (bool) (auth()->user()?->isAdmin() ?? false) && in_array((string) $workshop->registration, ['tickets'], true),
             'requiresPrivateAccessCode' => $requiresPrivateAccessCode,
             'hasPrivateAccess' => $hasPrivateAccess,
@@ -5185,7 +5185,7 @@ class WorkshopController extends Controller
 
     private function countReservedEarlyBirdTickets(Workshop $workshop, WorkshopTicketService $ticketService): int
     {
-        $threshold = now()->subMinutes($ticketService->holdWindowMinutes());
+        $threshold = now()->subMinutes($ticketService->holdWindowMinutes($workshop));
 
         return Ticket::query()
             ->where('workshop_id', $workshop->id)

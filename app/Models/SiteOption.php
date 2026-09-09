@@ -180,7 +180,7 @@ class SiteOption extends Model
             ],
             'tickets.hold-minutes' => [
                 'value' => '10',
-                'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
+                'description' => 'Number of minutes ticket checkout holds remain reserved before expiring. Workshops with optional equipment use 20 minutes.',
                 'input_type' => 'number',
             ],
             'workshops.school-holidays' => [

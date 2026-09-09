@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
+/**
+ * @property list<int>|null $optional_product_ids
+ */
 class Workshop extends Model
 {
     use HasFactory, HasFiles, Slug;
@@ -425,14 +428,11 @@ class Workshop extends Model
             return null;
         }
 
-        $holdMinutes = 10;
+        $holdMinutes = ! empty($this->optional_product_ids) ? 20 : 10;
         try {
-            $configuredHoldMinutes = SiteOption::value('tickets.hold-minutes', '10');
-            if (is_numeric($configuredHoldMinutes)) {
-                $holdMinutes = (int) $configuredHoldMinutes;
-            }
+            $holdMinutes = app(\App\Services\WorkshopTicketService::class)->holdWindowMinutes($this);
         } catch (\Throwable) {
-            $holdMinutes = 10;
+            // Keep the default for this workshop when site settings are unavailable.
         }
         $holdMinutes = max(1, min(240, $holdMinutes));
         $threshold = now()->subMinutes($holdMinutes);

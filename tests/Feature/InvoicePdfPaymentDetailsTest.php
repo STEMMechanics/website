@@ -218,7 +218,7 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertStringNotContainsString('TRANSACTION ID', $html);
     }
 
-    public function test_payment_receipt_can_render_purchased_items(): void
+    public function test_payment_receipt_shows_reference_without_itemised_purchases(): void
     {
         $html = view('pdf.payment-receipt', [
             'receiptNumber' => '1140',
@@ -226,7 +226,7 @@ class InvoicePdfPaymentDetailsTest extends TestCase
             'paidOn' => now()->format('M j, Y g:i a'),
             'paymentMethod' => 'Credit Card',
             'invoiceNumber' => '8683',
-            'reference' => '',
+            'reference' => 'Ticket TAKG6X · Store Order 1003',
             'gatewayProvider' => '',
             'gatewayStatus' => '',
             'transactionId' => '',
@@ -240,8 +240,10 @@ class InvoicePdfPaymentDetailsTest extends TestCase
             ]],
         ])->render();
 
-        $this->assertStringContainsString('PURCHASED ITEMS', $html);
-        $this->assertStringContainsString('Cardboard Pinball Machine Kit', $html);
-        $this->assertStringContainsString('TOTAL (INC GST)', $html);
+        $this->assertStringContainsString('Ticket TAKG6X · Store Order 1003', $html);
+        $this->assertStringContainsString('8683', $html);
+        $this->assertStringNotContainsString('PURCHASED ITEMS', $html);
+        $this->assertStringNotContainsString('Cardboard Pinball Machine Kit', $html);
+        $this->assertStringNotContainsString('TOTAL (INC GST)', $html);
     }
 }

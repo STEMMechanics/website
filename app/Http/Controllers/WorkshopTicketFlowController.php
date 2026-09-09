@@ -59,7 +59,9 @@ class WorkshopTicketFlowController extends Controller
 
         $ticketService->cleanupExpiredHolds($workshop);
         $previousSession = $this->getFlowSession($workshop);
-        if ($previousSession['payment_complete'] ?? false) return redirect()->route('workshop.ticket.flow.details', $workshop);
+        if (($previousSession['payment_complete'] ?? false) && ! ($previousSession['details_complete'] ?? false)) {
+            return redirect()->route('workshop.ticket.flow.details', $workshop);
+        }
         $previousHoldIds = $this->editableHoldIds($workshop, $previousSession, $ticketService);
         if (! $ticketService->canStartTicketCheckout($workshop) && $previousHoldIds === []) {
             session()->flash('message', $workshop->usesClassroomRegistration()
@@ -77,6 +79,7 @@ class WorkshopTicketFlowController extends Controller
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
             'prefill' => $previousSession['purchaser'] ?? $this->defaultPurchaserData(),
             'ticketQuantity' => count($previousHoldIds) ?: 1,
+            'holdExpiresAt' => $previousHoldIds !== [] ? ($previousSession['expires_at'] ?? null) : null,
             'equipmentProducts' => app(\App\Services\WorkshopEquipmentService::class)->products($workshop),
             'requiresPrivateCode' => $workshop->requiresPrivateTicketCode(),
         ]);
@@ -91,7 +94,9 @@ class WorkshopTicketFlowController extends Controller
 
         $ticketService->cleanupExpiredHolds($workshop);
         $previousSession = $this->getFlowSession($workshop);
-        if ($previousSession['payment_complete'] ?? false) return redirect()->route('workshop.ticket.flow.details', $workshop);
+        if (($previousSession['payment_complete'] ?? false) && ! ($previousSession['details_complete'] ?? false)) {
+            return redirect()->route('workshop.ticket.flow.details', $workshop);
+        }
         $previousHoldIds = $this->editableHoldIds($workshop, $previousSession, $ticketService);
         if (! $ticketService->canStartTicketCheckout($workshop) && $previousHoldIds === []) {
             throw ValidationException::withMessages([
@@ -181,7 +186,7 @@ class WorkshopTicketFlowController extends Controller
 
         $sessionPayload = [
             'hold_ids' => $holdIds,
-            'expires_at' => now()->addMinutes($ticketService->holdWindowMinutes())->toIso8601String(),
+            'expires_at' => now()->addMinutes($ticketService->holdWindowMinutes($workshop))->toIso8601String(),
             'purchaser' => $purchaser,
             'purchaser_user_id' => $purchaserUserId,
             'voucher_code' => null,
@@ -266,7 +271,9 @@ class WorkshopTicketFlowController extends Controller
         if ($request->input('action') === 'continue') {
             $equipment->assertReady($review, $request->float('confirmed_total'));
             if ($review['lines']->isNotEmpty()) {
-                $request->validate(['billing_address' => 'required', 'billing_city' => 'required', 'billing_state' => 'required', 'billing_postcode' => 'required']);
+                if (! ($review['summary']['shipping_quote']['is_pickup'] ?? false)) {
+                    $request->validate(['billing_address' => 'required', 'billing_city' => 'required', 'billing_state' => 'required', 'billing_postcode' => 'required']);
+                }
                 $codes = collect($review['summary']['shipping_methods'] ?? [])->pluck('code')->all();
                 if ($codes && ! in_array($data['shipping_method_code'] ?? '', $codes, true)) { throw ValidationException::withMessages(['shipping_method_code' => 'Choose a delivery option.']); }
                 if ($review['summary']['contains_preorder'] ?? false) { $request->validate(['preorder_acknowledged' => 'accepted']); }
@@ -438,7 +445,7 @@ class WorkshopTicketFlowController extends Controller
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
                 ->where('status', Ticket::STATUS_HOLD)
-                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes()))
+                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
                 ->lockForUpdate()
                 ->get();
 
@@ -465,40 +472,35 @@ class WorkshopTicketFlowController extends Controller
                     $checkoutTotals['voucher_code'] !== '' ? $checkoutTotals['voucher_code'] : null,
                     (float) ($checkoutTotals['voucher_discount_amount'] ?? 0)
                 );
-                $creditApplied = $creditUser instanceof User && $applyAccountCredit && $accountCreditAvailable > 0.0001
-                    ? $this->accountCredit->applyCreditToInvoice($invoice, $creditUser, (float) $invoice->outstandingAmount())
-                    : 0.0;
-                if ($creditApplied > 0.0001) {
-                    $invoice->refresh();
-                }
             }
 
             $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
             $equipment = $equipmentService->summary($workshop, $session);
             $equipmentOrder = null;
             $equipmentQuote = null;
-            $equipmentInvoice = null;
             if ($equipment['lines']->isNotEmpty()) {
                 $equipmentService->assertReady($equipment, $session['equipment_confirmed_total'] ?? null, $session['equipment_lines'] ?? null);
                 $customer = ($session['equipment_customer'] ?? []) + ['notes' => 'Equipment for workshop: '.$workshop->title];
-                // Credit is applied explicitly across both invoices below.
+                // Apply credit after all checkout lines have been added to the invoice.
                 $customer['payment_method'] = 'bank_transfer';
                 if ($equipment['summary']['shipping_quote']['requires_manual_quote'] ?? false) {
                     $equipmentQuote = app(\App\Services\StoreOrderService::class)->createQuoteRequestFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null);
                 } else {
-                $equipmentOrder = app(\App\Services\StoreOrderService::class)->createFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null, sendNotifications: false);
-                $equipmentInvoice = $equipmentOrder->invoice;
-                if (abs((float) $equipmentOrder->total_amount - (float) $session['equipment_confirmed_total']) > 0.001) {
-                    throw ValidationException::withMessages(['equipment' => 'Equipment prices have changed. Please review your equipment total.']);
-                }
-                if ($equipmentInvoice && $invoice) { $equipmentInvoice->update(['due_date' => $invoice->due_date]); }
-                if ($equipmentInvoice && $creditUser instanceof User && $applyAccountCredit) {
-                    $creditApplied += $this->accountCredit->applyCreditToInvoice($equipmentInvoice, $creditUser, (float) $equipmentInvoice->outstandingAmount());
-                    $equipmentInvoice->refresh();
-                }
+                    $equipmentOrder = app(\App\Services\StoreOrderService::class)->createFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null, sendNotifications: false, checkoutInvoice: $invoice);
+                    $invoice = $equipmentOrder->invoice;
+                    if (abs((float) $equipmentOrder->total_amount - (float) $session['equipment_confirmed_total']) > 0.001) {
+                        throw ValidationException::withMessages(['equipment' => 'Equipment prices have changed. Please review your equipment total.']);
+                    }
                 }
             }
-            $invoices = collect([$invoice, $equipmentInvoice])->filter();
+            if ($invoice) {
+                $invoice->refresh();
+                $creditApplied = $creditUser instanceof User && $applyAccountCredit && $accountCreditAvailable > 0.0001
+                    ? $this->accountCredit->applyCreditToInvoice($invoice, $creditUser, (float) $invoice->outstandingAmount())
+                    : 0.0;
+                $invoice->refresh();
+            }
+            $invoices = collect([$invoice])->filter();
             $remainingAmount = round($invoices->sum(fn (Invoice $document) => (float) $document->outstandingAmount()), 2);
             if ($paymentMethod === 'credit' && $remainingAmount > 0.0001) {
                 throw ValidationException::withMessages([
@@ -539,6 +541,9 @@ class WorkshopTicketFlowController extends Controller
                     ->values()
                     ->all();
                 $customerPayment->reference = 'Workshop '.$workshop->title.' ticket'.(count($ticketReferences) > 1 ? 's' : '').' ['.implode(',', $ticketReferences).']';
+                if ($equipmentOrder) {
+                    $customerPayment->reference .= ' · Store Order '.$equipmentOrder->order_number;
+                }
                 $customerPayment->total_amount = $remainingAmount;
                 $customerPayment->gst_amount = 0;
                 $customerPayment->notes = 'Workshop "'.$workshop->title.'" '.($workshop->usesClassroomRegistration() ? 'ticket' : 'ticket').' purchase';
@@ -760,7 +765,7 @@ class WorkshopTicketFlowController extends Controller
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
                 ->where('status', Ticket::STATUS_HOLD)
-                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes()))
+                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
                 ->lockForUpdate()
                 ->get();
 
@@ -1042,7 +1047,7 @@ class WorkshopTicketFlowController extends Controller
             return null;
         }
 
-        $threshold = now()->subMinutes($ticketService->holdWindowMinutes());
+        $threshold = now()->subMinutes($ticketService->holdWindowMinutes($workshop));
         $reserved = Ticket::query()
             ->where('workshop_id', $workshop->id)
             ->where('is_early_bird', true)
@@ -1153,6 +1158,10 @@ class WorkshopTicketFlowController extends Controller
         $session = $this->getFlowSession($workshop);
         if (! $session || ! ($session['payment_complete'] ?? false)) {
             return $this->redirectToWorkshopWithCheckoutExpiredToast($workshop);
+        }
+
+        if ($session['details_complete'] ?? false) {
+            return redirect()->route('workshop.ticket.flow.complete', $workshop);
         }
 
         $tickets = Ticket::query()
@@ -1769,7 +1778,7 @@ class WorkshopTicketFlowController extends Controller
             ->where('workshop_id', $workshop->id)
             ->whereIn('id', $holdIds)
             ->where('status', Ticket::STATUS_HOLD)
-            ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes()))
+            ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
             ->count();
 
         return $count !== count($holdIds);

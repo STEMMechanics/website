@@ -10,7 +10,8 @@
                 ? max(0, (int) $ticketPricing['earlyBirdPlacesRemaining'])
                 : null;
         @endphp
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+        <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 {{ !empty($holdExpiresAt) ? 'pt-20 md:pt-5' : '' }} flex gap-6">
+        @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $holdExpiresAt ?? null])
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Get Tickets</h2>
                 <p class="text-sm text-gray-600 mb-4">Complete this checkout to reserve your tickets.</p>

@@ -1,7 +1,8 @@
 <x-layout :title="$workshop->title.' — Optional equipment'">
     <x-mast :title="$workshop->title" />
     <x-container class="max-w-3xl mt-6 mx-auto">
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
+        <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
+        @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
         <div class="flex-1 min-w-0">
         <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Optional equipment</h2></div>
         <p class="mb-4 text-sm text-gray-600">Choose any equipment you need, or continue without it.</p>

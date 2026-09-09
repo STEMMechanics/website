@@ -134,7 +134,7 @@ class WorkshopTicketOrderEmailService
             throw new RuntimeException('Equipment payment must complete before sending the combined ticket email.');
         }
         $equipmentInvoice = $equipmentOrder?->invoice;
-        $invoiceNumbers = collect([$invoice?->invoice_number, $equipmentInvoice?->invoice_number])->filter()->implode(', ');
+        $invoiceNumbers = collect([$invoice?->invoice_number, $equipmentInvoice?->invoice_number])->filter()->unique()->implode(', ');
 
         $paymentBreakdown = $this->resolvePaymentBreakdown(
             invoice: $invoice,
@@ -159,7 +159,7 @@ class WorkshopTicketOrderEmailService
             }
         }
 
-        if ($equipmentInvoice instanceof Invoice) {
+        if ($equipmentInvoice instanceof Invoice && $equipmentInvoice->id !== $invoice?->id) {
             $equipmentInvoicePdf = $this->buildInvoicePdfBinary($equipmentInvoice);
             if ($equipmentInvoicePdf !== null) {
                 $attachments[] = [
@@ -365,7 +365,7 @@ class WorkshopTicketOrderEmailService
         $creditAppliedAmount = 0.0;
         $creditReferenceSummary = '';
         if ($invoice instanceof Invoice) {
-            $creditAllocations = $invoice->allocations->concat($equipmentInvoice?->allocations ?? [])
+            $creditAllocations = $invoice->allocations->concat($equipmentInvoice->allocations ?? [])->unique('id')
                 ->filter(fn ($allocation): bool => (string) data_get($allocation, 'customerPayment.payment_method', '') === Payment::PAYMENT_METHOD_CREDIT);
             $creditAppliedAmount = round((float) $creditAllocations->sum('allocated_amount'), 2);
             $creditReferenceSummary = $creditAllocations->map(function ($allocation): string {

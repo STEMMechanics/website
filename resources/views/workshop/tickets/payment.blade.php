@@ -36,19 +36,19 @@
     if ($earlyBirdSummary && count($pricingItems) <= 1) {
         $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdSummary];
     }
+    if ($equipmentQuoteRequired ?? false) { $summaryRows[] = ['label' => 'Equipment', 'value' => 'Quote requested separately; not charged now']; }
+    if (($hasEquipment ?? false) && !($equipmentQuoteRequired ?? false)) {
+        $summaryRows[] = ['label' => 'Equipment', 'value' => money(($equipmentAmount ?? 0) - ($deliveryAmount ?? 0))];
+        $summaryRows[] = ['label' => 'Delivery', 'value' => money($deliveryAmount ?? 0)];
+    }
+    $summaryRows[] = ['type' => 'spacer'];
     if ($voucherDiscountAmount > 0.0001) {
         $summaryRows[] = ['type' => 'spacer'];
         $summaryRows[] = [
             'label' => 'Discount',
             'value' => '$-'.number_format($voucherDiscountAmount, 2).($voucherCode !== '' ? ' ('.$voucherCode.')' : ''),
         ];
-    } else {
         $summaryRows[] = ['type' => 'spacer'];
-    }
-    if ($equipmentQuoteRequired ?? false) { $summaryRows[] = ['label' => 'Equipment', 'value' => 'Quote requested separately; not charged now']; }
-    if (($hasEquipment ?? false) && !($equipmentQuoteRequired ?? false)) {
-        $summaryRows[] = ['label' => 'Equipment', 'value' => money(($equipmentAmount ?? 0) - ($deliveryAmount ?? 0))];
-        $summaryRows[] = ['label' => 'Delivery', 'value' => money($deliveryAmount ?? 0)];
     }
     $summaryRows[] = [
         'label' => 'Total Cost',
@@ -60,7 +60,7 @@
     <x-mast>Ticket Checkout</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
-        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6 relative"
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6 relative"
             x-data="ticketPaymentPage({
                         squareEnabled: @js($squareEnabled),
                         squareApplicationId: @js($squareApplicationId),
@@ -79,6 +79,7 @@
                     voucherDialogOpen: @js($errors->has('voucher_code')),
                 })"
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
+        @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
             <div class="flex-1">
                 <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
@@ -278,10 +279,6 @@
                 </template>
             </div>
             <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center text-right" style="background-image:url('{{ $workshop->hero?->url }}')">
-            </div>
-            <div class="absolute top-0 right-0 m-4 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm w-38 flex shadow-md" x-show="!expired" x-cloak>
-                <span>Remaining:</span>
-                <span class="font-bold text-center flex-1" x-text="timeRemainingText()"></span>
             </div>
 
             <form id="ticket-cancel-form" method="POST" action="{{ route('workshop.ticket.flow.cancel', $workshop) }}" class="hidden">

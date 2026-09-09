@@ -153,8 +153,8 @@ test('test button sends to the selected device and uses a themed success alert',
     assert.equal(app.list.rows[0].querySelector('[data-push-test]').disabled, false);
     await app.list.rows[0].querySelector('[data-push-test]').click();
     assert.equal(app.writes[0].device_id, 'other');
-    assert.equal(app.feedback[0][1], 'Test sent!');
-    assert.equal(app.feedback[0][3], 'success');
+    assert.deepEqual(app.alerts, [['Test sent!', 'Check the selected device for your test notification.', 'success']]);
+    assert.equal(app.feedback.length, 0);
 });
 
 test('test is disabled for an inactive device', async () => {

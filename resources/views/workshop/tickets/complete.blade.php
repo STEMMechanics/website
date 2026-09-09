@@ -34,6 +34,7 @@
                 $orderEarlyBirdSummary = 'Save $'.number_format($orderSavings, 2).' with earlybird pricing.';
                 }
                 }
+                $equipmentOrder = !empty($session['equipment_order_id']) ? \App\Models\StoreOrder::find($session['equipment_order_id']) : null;
                 $summaryRows = [
                 ['label' => 'Payment Method', 'value' => $paymentMethodLabel],
                 ];
@@ -61,7 +62,11 @@
                 'value' => $invoice->invoice_number.' ('.ucfirst($invoice->status).')',
                 ];
                 }
+                if ($equipmentOrder) {
+                $summaryRows[] = ['label' => 'Order', 'value' => $equipmentOrder->order_number];
+                }
                 @endphp
+
                 @include('workshop.tickets.partials.summary', [
                 'workshop' => $workshop,
                 'rows' => $summaryRows,
@@ -69,15 +74,6 @@
 
                 @if(!empty($session['equipment_quote_id']))
                     <p class="my-4 text-sm">Your equipment quote has been requested. Equipment and delivery have not been charged; we’ll confirm the quote separately.</p>
-                @endif
-                @if(!empty($session['equipment_order_id']))
-                    @php
-                        $equipmentOrder = \App\Models\StoreOrder::find($session['equipment_order_id']);
-                    @endphp
-                    @if($equipmentOrder)
-                        <p class="my-4 text-sm">Equipment order {{ $equipmentOrder->order_number }} · {{ money($equipmentOrder->total_amount) }}</p>
-                        <x-ui.button color="outline" :href="route('shop.order.tracking', $equipmentOrder->access_token)">View equipment delivery and invoice</x-ui.button>
-                    @endif
                 @endif
                 @php
                     $hasReceipt = isset($payment) && $payment instanceof \App\Models\Payment;
