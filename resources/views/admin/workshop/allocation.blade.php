@@ -25,7 +25,7 @@
                 'notSupplied' => $planner->targets($rules, array_replace($allocation['assumptions'], ['supplied_categories' => array_fill_keys(array_keys($selected), false)])),
             ];
         @endphp
-        <form method="POST" action="{{ route('admin.workshop.allocation.store', $workshop) }}" x-data="SM.allocationTally(@js(['values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $allocation['total'], 'exact' => false, 'enabled' => $state['ready'] && (bool) ($allocation['budget']->manual ?? false)]))">
+        <form method="POST" action="{{ route('admin.workshop.allocation.store', $workshop) }}" x-data="SM.allocationTally(@js(['values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $allocation['total'], 'exact' => false, 'enabled' => (bool) ($allocation['budget']->manual ?? false)]))">
             <dl class="mb-8 grid gap-3 sm:grid-cols-3" aria-live="polite">
                 <div class="flex items-center justify-between gap-3 rounded-xl bg-white p-4 sm:block"><dt class="text-sm text-slate-600">Received excluding GST</dt><dd class="text-xl font-semibold tabular-nums sm:mt-2" x-text="money(total)"></dd></div>
                 <div class="flex items-center justify-between gap-3 rounded-xl bg-white p-4 sm:block"><dt class="text-sm text-slate-600">Allocation targets</dt><dd class="text-xl font-semibold tabular-nums sm:mt-2" x-text="money(allocated)"></dd></div>
@@ -35,28 +35,22 @@
             <input type="hidden" name="source_hash" value="{{ $state['hash'] }}">
             <input type="hidden" name="revision" value="{{ $allocation['budget'] ? hash('sha256', json_encode((array) $allocation['budget'])) : '' }}">
             @if($suppliable->isNotEmpty())
-                <fieldset class="mb-8" @disabled(! $state['ready']) x-on:change="refreshWorkshopDefaults()">
+                <fieldset class="mb-8" x-on:change="refreshWorkshopDefaults()">
                     <legend class="mb-2 text-sm font-semibold">Supplied items</legend>
-                    @unless($state['ready'])
-                        <p class="mb-3 text-sm text-slate-600">Supplied items can be changed after the workshop ends and payment outcomes are resolved.</p>
-                    @endunless
                     <x-finance.supplied-options :rules="$rules" :categories="$allocation['categories']" :values="$selected" model="supplied" />
                 </fieldset>
             @endif
             <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <h3 class="text-sm font-semibold">Allocation amounts</h3>
-                @if($state['ready'])
-                    <x-ui.checkbox :no-wrapper="true" name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />
-                @endif
+                <x-ui.checkbox :no-wrapper="true" name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />
             </div>
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="workshop-allocation" :exact="false" totalLabel="Received excluding GST" :shortfall="true" :show-totals="false" />
-            @if($state['ready'])
-                <div class="mt-8 flex justify-end">
-                    <x-ui.button type="submit" :disabled="(bool) $state['current']" x-bind:disabled="{{ $state['current'] ? '!allocationChanged' : 'false' }}">{{ $state['current'] ? 'Update allocation' : 'Finalise allocation' }}</x-ui.button>
-                </div>
-            @elseif($state['status'] !== 'No allocation required')
-                <p class="mt-4 text-sm text-slate-600">Finalise after the workshop ends and payment outcomes are resolved.</p>
-            @endif
+            <div class="mt-8 flex flex-wrap items-center justify-end gap-4">
+                @unless($state['ready'])
+                    <p class="text-sm text-slate-600">Finalise after the workshop ends and payment outcomes are completed.</p>
+                @endunless
+                <x-ui.button type="submit" :disabled="! $state['ready'] || (bool) $state['current']" x-bind:disabled="{{ ! $state['ready'] ? 'true' : ($state['current'] ? '!allocationChanged' : 'false') }}">{{ $state['current'] ? 'Update allocation' : 'Finalise allocation' }}</x-ui.button>
+            </div>
         </form>
         @if($allocation['budget']?->finalised_at)
             <p class="mt-4 text-xs text-slate-500">Last finalised {{ $allocation['budget']->finalised_at }}. Previous revisions are retained.</p>
