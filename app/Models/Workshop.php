@@ -751,7 +751,7 @@ class Workshop extends Model
     public function courseScheduleDisplayLines(): array
     {
         if ($this->isCourse()) {
-            return array_map(fn (array $session): string => Carbon::parse($session['starts_at'])->format('D j M Y g:ia').' – '.Carbon::parse($session['ends_at'])->format(Carbon::parse($session['starts_at'])->isSameDay(Carbon::parse($session['ends_at'])) ? 'g:ia' : 'D j M Y g:ia'), $this->effectiveScheduleEntries());
+            return array_map(fn (array $session): string => Carbon::parse($session['starts_at'])->format('D j M Y').'<br />'.Carbon::parse($session['starts_at'])->format('g:ia').' – '.Carbon::parse($session['ends_at'])->format(Carbon::parse($session['starts_at'])->isSameDay(Carbon::parse($session['ends_at'])) ? 'g:ia' : 'D j M Y g:ia'), $this->effectiveScheduleEntries());
         }
 
         if (! $this->starts_at || ! $this->ends_at) {
