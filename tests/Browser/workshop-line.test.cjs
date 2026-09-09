@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const context = { window: {} };
 vm.runInNewContext(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'), context);
+vm.runInNewContext(fs.readFileSync('public/workshop-course.js', 'utf8'), context);
 const update = context.updateWorkshopLine;
 test('hours and seats calculate quantity without losing other metadata', () => {
     const item = { kind: 'workshop', workshop_hours: '2', workshop_seats: '15', venue_supplied: false, details_json: { reference: 'keep' } };

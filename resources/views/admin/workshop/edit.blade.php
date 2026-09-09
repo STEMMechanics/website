@@ -1,3 +1,7 @@
+@push('head')
+    <script src="/workshop-course.js?v={{ substr(hash_file('sha256', public_path('workshop-course.js')), 0, 12) }}"></script>
+@endpush
+
 @php
 $workshopModel = $workshop ?? null;
 $workshopContent = isset($workshop) ? $workshop->content : '';

@@ -58,3 +58,13 @@ test('initialisation retains saved closing dates for all older workshop types', 
         if (type === 'stemcraft') assert.equal(values.closes_at.value, values.ends_at.value);
     }
 });
+
+test('workshop form bootstrap is available independently of the compiled pricing bundle', () => {
+    const context = { window: { SM: {} } };
+    vm.runInNewContext(fs.readFileSync('public/workshop-course.js', 'utf8'), context);
+    const state = context.window.SM.courseEditor('workshop', null);
+    assert.equal(state.workshopFormat, 'workshop');
+    assert.equal(state.courseSessions.length, 0);
+    assert.equal(typeof state.courseTeachingHours, 'function');
+    assert.ok(blade.indexOf('/workshop-course.js?v=') < blade.indexOf('...SM.courseEditor('));
+});
