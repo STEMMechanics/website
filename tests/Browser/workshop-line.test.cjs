@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const context = { window: {} };
 vm.runInNewContext(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'), context);
+vm.runInNewContext(fs.readFileSync('public/workshop-course.js', 'utf8'), context);
 const update = context.updateWorkshopLine;
 test('hours and seats calculate quantity without losing other metadata', () => {
     const item = { kind: 'workshop', workshop_hours: '2', workshop_seats: '15', venue_supplied: false, details_json: { reference: 'keep' } };
@@ -241,4 +242,47 @@ test('saved one-group delivery adopts seat hours without changing its total twic
     assert.equal(context.window.SM.lineAmounts(item).net, 500);
     update(item);
     assert.equal(context.window.SM.lineAmounts(item).net, 500);
+});
+
+test('course ticket pricing and allocation use teaching hours rather than eight weeks elapsed', () => {
+    const plan = { pricing_participants: 10, rules: [{ category_id: 1, basis: 'hour', rate_cents: 6000 }] };
+    const start = '2026-10-01T10:00', end = '2026-11-19T11:00';
+    const breakdown = context.window.SM.ticketCostBreakdown(plan, start, end, 10, true, 8);
+    assert.equal(breakdown.total, 48000);
+    assert.equal(context.window.SM.workshopPrice(plan, 'tickets', '', start, end, 10, true, 8),
+        context.window.SM.workshopPrice(plan, 'tickets', '', '2026-10-01T10:00', '2026-10-01T18:00', 10, true));
+    const editor = { ...context.window.SM.courseEditor('course', [
+        { starts_at: '2026-10-01T10:00', ends_at: '2026-10-01T11:00' },
+        { starts_at: '2026-10-08T10:00', ends_at: '2026-10-08T11:30' },
+    ]) };
+    assert.equal(editor.courseTeachingHours(), 2.5);
+    editor.courseSessions.pop();
+    assert.equal(editor.courseTeachingHours(), 1);
+});
+
+test('regenerating course sessions uses the shared confirmation and preserves cancelled edits', async () => {
+    context.SM = context.window.SM;
+    context.crypto = require('node:crypto');
+    context.SM.toLocalISOString = date => date.toISOString();
+    const original = [{ id: 'saved-session', starts_at: '2026-10-01T10:00', ends_at: '2026-10-01T11:00' }];
+    const editor = { ...context.SM.courseEditor('course', original), manualStartsAt: '2026-10-01T10:00', $dispatch() {} };
+    context.SM.confirm = async () => ({ isConfirmed: false });
+    await editor.generateSessions();
+    assert.equal(editor.courseSessions, original);
+    context.SM.confirm = async () => ({ isConfirmed: true });
+    await editor.generateSessions();
+    assert.equal(editor.courseSessions.length, 8);
+    assert.equal(editor.courseTeachingHours(), 8);
+});
+
+test('first session defaults follow workshop start until explicitly changed', () => {
+    let watch;
+    const editor = { ...context.window.SM.courseEditor('course', []), manualStartsAt: '2026-10-01T10:00', $watch(name, callback) { assert.equal(name, 'manualStartsAt'); watch = callback; } };
+    editor.initCourseSchedule();
+    assert.equal(editor.generateStart, '2026-10-01T10:00');
+    watch('2026-10-02T10:00', '2026-10-01T10:00');
+    assert.equal(editor.generateStart, '2026-10-02T10:00');
+    editor.generateStart = '2026-10-03T12:00';
+    watch('2026-10-04T10:00', '2026-10-02T10:00');
+    assert.equal(editor.generateStart, '2026-10-03T12:00');
 });

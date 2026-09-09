@@ -36,6 +36,7 @@
 
     $sizeMap = [
         'round' => ['w-6', 'h-6', 'text-xs'],
+        'count' => ['min-w-4', 'px-1', 'py-0', 'text-[11px]', 'leading-4'],
         'xs' => ['px-2.5', 'py-1', 'text-xs'],
         'sm' => ['px-3', 'py-1.5', 'text-sm'],
     ];

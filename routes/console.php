@@ -229,3 +229,10 @@ Artisan::command('quotes:expire', function () {
     \App\Models\Quote::expireOpenQuotes();
     $this->info('Expired quotes updated.');
 })->purpose('Expire open quotes outside page rendering')->everyMinute()->withoutOverlapping();
+
+Artisan::command('workshops:send-welcomes', function () {
+    $count = app(\App\Services\WorkshopWelcomeService::class)->queueDue();
+    $this->info("Queued {$count} workshop welcome emails.");
+})->purpose('Queue due welcome emails and catch up late active bookings');
+
+Schedule::command('workshops:send-welcomes')->everyMinute()->withoutOverlapping();

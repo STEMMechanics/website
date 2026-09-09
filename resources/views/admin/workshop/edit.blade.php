@@ -1,3 +1,7 @@
+@push('head')
+    <script src="/workshop-course.js?v={{ substr(hash_file('sha256', public_path('workshop-course.js')), 0, 12) }}"></script>
+@endpush
+
 @php
 $workshopModel = $workshop ?? null;
 $workshopContent = isset($workshop) ? $workshop->content : '';
@@ -119,6 +123,7 @@ if (isset($workshop)) {
     <x-container class="py-5 sm:py-8">
         @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <form x-data="{
+            ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
             type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),
             originalStatus: @js(isset($workshopModel) ? (string) $workshopModel->status : $workshopStatusForForm),
@@ -153,6 +158,8 @@ if (isset($workshop)) {
             ticketGroupRaw: @js(old('ticket_group_slug', $workshopModel?->ticket_group_slug ?? '')),
             manualStartsAt: @js($workshopStartValue),
             manualEndsAt: @js($workshopEndValue),
+            originalCourseSessions: @js($workshopModel?->course_sessions ?? []),
+            originalFormat: @js($workshopModel?->format ?? 'workshop'),
             originalStartsAt: @js(isset($workshopModel) ? $workshopStartValue : ''),
             originalEndsAt: @js(isset($workshopModel) ? $workshopEndValue : ''),
             originalLocationId: @js(isset($workshopModel) ? trim((string) ($workshopModel->location_id ?? '')) : ''),
@@ -271,13 +278,17 @@ if (isset($workshop)) {
             this.serializeTickets();
             },
             initLocationSelection() {
-            if (this.type !== 'physical') {
+            if (this.type !== 'physical' && this.workshopFormat !== 'course') {
             this.selectedLocationId = '';
             return;
             }
             const current = (this.selectedLocationId ?? '').toString();
             if (current !== '' && this.locations.some((location) => String(location.id) === current)) {
                 this.selectedLocationId = current;
+                return;
+            }
+            if (@js(isset($workshop)) || this.workshopFormat === 'course') {
+                this.selectedLocationId = '';
                 return;
             }
             if (this.locations.length > 0) {
@@ -322,7 +333,7 @@ if (isset($workshop)) {
             return String(this.$refs.endsAt?.value || '').trim();
             },
             normalizedCurrentLocationId() {
-            if (this.type !== 'physical') {
+            if (this.type !== 'physical' && this.workshopFormat !== 'course') {
             return '';
             }
 
@@ -422,6 +433,8 @@ if (isset($workshop)) {
 
             return this.currentStartsAt() !== this.originalStartsAt
             || this.currentEndsAt() !== this.originalEndsAt
+            || this.workshopFormat !== this.originalFormat
+            || (this.workshopFormat === 'course' && JSON.stringify(this.courseSessions) !== JSON.stringify(this.originalCourseSessions))
             || String(this.type || '') !== String(this.originalType || '')
             || this.normalizedCurrentLocationId() !== this.originalLocationId;
             },
@@ -580,7 +593,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -642,16 +655,20 @@ if (isset($workshop)) {
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }; if (typeof syncWorkshopClosesAt === 'function') { syncWorkshopClosesAt() }">
+                        <input type="hidden" name="format" x-bind:value="workshopFormat">
+                        <input type="hidden" name="type" value="{{ $workshopTypeForForm }}" x-bind:value="type">
+                        <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
+                            x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
                             <option value="physical">Physical</option>
                             <option value="online">Online</option>
                             <option value="stemcraft">STEMCraft</option>
+                            <option value="course">Course</option>
                         </x-ui.select>
                     </div>
                     <div class="flex-1">
                         <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
-                        <span x-show="type==='physical'">
-                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical'">
+                        <span x-show="type === 'physical' || workshopFormat === 'course'">
+                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical' && workshopFormat !== 'course'">
                                 <x-slot name="labelRight">
                                     <x-ui.button variant="plain" type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</x-ui.button>
                                 </x-slot>
@@ -856,6 +873,8 @@ if (isset($workshop)) {
                     </div>
                 </div>
 
+            @include('admin.workshop.partials.course-settings')
+
             <div
                 x-cloak
                 x-show="cancelWorkshopOpen"
@@ -943,10 +962,15 @@ if (isset($workshop)) {
                             get plan() { return this.plans[this.planId]; },
                             breakdown: { categories: {}, total: 0, participants: 0 },
                             maxBreakdown: { categories: {}, total: 0, participants: 0 },
+                            previousPricingInputs: null,
                             reprice(force = false) {
-                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets);
-                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false);
-                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic);
+                                const inputs = JSON.stringify([this.planId, this.registration, this.manualStartsAt, this.manualEndsAt, this.maxTickets, this.courseTeachingHours()]);
+                                const changed = this.previousPricingInputs !== null && this.previousPricingInputs !== inputs;
+                                this.previousPricingInputs = inputs;
+                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
+                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
+                                if (!force && !changed && String(this.price ?? '').trim() !== '') return;
+                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
                             }
@@ -1118,6 +1142,7 @@ if (isset($workshop)) {
                         </div>
                     </div>
                 </div>
+                @include('admin.workshop.partials.welcome-settings')
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select
@@ -1162,6 +1187,10 @@ if (isset($workshop)) {
                     <x-ui.button type="submit">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
                 </x-ui.editor-actions>
         </form>
+        @isset($workshop)
+            <form id="send-workshop-welcome" method="POST" action="{{ route('admin.workshop.welcome.send', $workshop) }}">@csrf</form>
+        @endisset
+
     </x-container>
 </x-layout>
 
@@ -1171,7 +1200,7 @@ if (isset($workshop)) {
         return typeElement && typeElement.value === 'stemcraft';
     }
 
-    function syncWorkshopClosesAt() {
+    function syncWorkshopClosesAt(onlyIfEmpty = false) {
         const startsAtElement = document.getElementsByName('starts_at')[0];
         const endsAtElement = document.getElementsByName('ends_at')[0];
         const closesAtElement = document.getElementsByName('closes_at')[0];
@@ -1179,6 +1208,8 @@ if (isset($workshop)) {
         if (!startsAtElement || !endsAtElement || !closesAtElement) {
             return;
         }
+
+        if (onlyIfEmpty && closesAtElement.value !== '') return;
 
         if (isStemcraftWorkshopType()) {
             closesAtElement.value = endsAtElement.value || '';
@@ -1196,7 +1227,6 @@ if (isset($workshop)) {
 
     function updatedStartsAt() {
         const startsAt = document.getElementsByName('starts_at')[0].value;
-        console.log(startsAt);
 
         const elemEndsAt = document.getElementsByName('ends_at')[0];
         if (elemEndsAt.value === '') {
@@ -1245,5 +1275,5 @@ if (isset($workshop)) {
         document.getElementsByName('publish_at')[0].value = SM.toLocalISOString(publishAt);
     }
 
-    syncWorkshopClosesAt();
+    syncWorkshopClosesAt(true);
 </script>

@@ -62,7 +62,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
         Ticket::factory()->create([
             'workshop_id' => $workshop->id,
             'user_id' => $linkedUser->id,
-            'status' => Ticket::STATUS_CANCELLED,
+            'status' => Ticket::STATUS_PENDING_XFER,
             'email' => '',
         ]);
         Ticket::factory()->create([
@@ -99,12 +99,48 @@ class AdminWorkshopTicketEmailTest extends TestCase
         });
     }
 
+    public function test_bulk_email_and_displayed_count_include_only_active_ticket_contacts(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop();
+        $expected = [];
+        foreach ([Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT,
+            Ticket::STATUS_CANCELLED, Ticket::STATUS_RELEASED, Ticket::STATUS_REISSUED, Ticket::STATUS_HOLD] as $status) {
+            $user = User::factory()->create(['email' => 'account-'.$status.'@example.com']);
+            $email = 'holder-'.$status.'@example.com';
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => $status, 'email' => $email, 'user_id' => $user->id]);
+            if (in_array($status, Ticket::activePurchasedStatuses(), true)) {
+                $expected[] = $email;
+                $expected[] = $user->email;
+            }
+        }
+        Ticket::factory()->create(['workshop_id' => $this->createTicketWorkshop()->id, 'status' => Ticket::STATUS_PAID, 'email' => 'other-workshop@example.com']);
+        $this->actingAs($admin)->get(route('admin.workshop.tickets', $workshop))
+            ->assertOk()->assertViewHas('bulkEmailRecipientCount', count($expected));
+        $this->post(route('admin.workshop.tickets.email', $workshop), ['email_subject' => 'Joining instructions', 'email_message' => 'Course details'])
+            ->assertSessionHas('message', 'Email sent to '.count($expected).' recipients.');
+        Queue::assertPushed(SendEmail::class, 1);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($expected): bool {
+            $recipients = $this->extractPrivateArrayProperty($job->mailable, 'bccRecipients');
+            sort($recipients);
+            sort($expected);
+            $this->assertSame($expected, $recipients);
+
+            return true;
+        });
+    }
+
     public function test_bulk_ticket_email_warns_when_no_recipients_found(): void
     {
         Queue::fake();
 
         $admin = $this->createAdminUser();
         $workshop = $this->createTicketWorkshop();
+
+        foreach ([Ticket::STATUS_CANCELLED, Ticket::STATUS_RELEASED, Ticket::STATUS_REISSUED, Ticket::STATUS_HOLD] as $status) {
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => $status, 'email' => 'inactive-'.$status.'@example.com']);
+        }
 
         $response = $this->actingAs($admin)
             ->from(route('admin.workshop.tickets', $workshop))

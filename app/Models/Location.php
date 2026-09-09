@@ -20,6 +20,11 @@ class Location extends Model
         'longitude' => 'decimal:7',
     ];
 
+    public function isOnline(): bool
+    {
+        return strcasecmp(trim((string) $this->name), 'Online') === 0;
+    }
+
     public function workshops(): HasMany
     {
         return $this->hasMany(Workshop::class);

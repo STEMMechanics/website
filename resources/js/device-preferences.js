@@ -29,7 +29,7 @@ async function initialisePush() {
             panel.querySelectorAll('[data-push-enable]').forEach(button => {
                 button.disabled = busy || !supported || needsInstall || !publicKey || !!current()?.enabled;
                 button.hidden = panel !== root && !!current()?.enabled;
-                button.textContent = current()?.enabled ? 'Enabled on this device' : 'Enable on this device';
+                button.textContent = current()?.enabled ? 'Enabled on this device' : (panel === root ? 'Enable' : 'Enable on this device');
             });
             // The prompt also uses this action to save an explicit opt-out before enabling.
             panel.querySelectorAll('[data-push-disable]').forEach(button => button.disabled = busy || (panel !== root && !current()?.enabled));

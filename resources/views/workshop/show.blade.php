@@ -255,7 +255,19 @@
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
+                @if($workshop->isCourse())
+                    <ul class="text-gray-600 text-sm pl-6 mb-6 space-y-2 list-disc ml-3">
+                        @foreach($workshop->effectiveScheduleEntries() as $session)
+                            @php
+                                $sessionStart = \Illuminate\Support\Carbon::parse($session['starts_at']);
+                                $sessionEnd = \Illuminate\Support\Carbon::parse($session['ends_at']);
+                            @endphp
+                            <li>{{ $sessionStart->format('D j M Y') }}<br />{{ $sessionStart->format('g:ia') }} – {{ $sessionEnd->format($sessionStart->isSameDay($sessionEnd) ? 'g:ia' : 'D j M Y g:ia') }}</li>
+                        @endforeach
+                    </ul>
+                @else
                 <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
+                @endif
                 @php($hostedFor = $workshop->hostedFor?->name)
                 @if($workshop->isPrivate() && !empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
@@ -300,7 +312,7 @@
                 @if(\App\Helpers::isUnderAge($workshop->ages) && $workshop->getLocationName() !== 'Online')
                     <p class="text-gray-600 text-xs pl-3 ml-2 mb-6 border-l-4 border-l-yellow-400">Parental supervision may be required for children 8 years of age and under.</p>
                 @else
-                    <p class="mb-6">&nbsp;</p>
+                    <p class="mb-0 text-xs">&nbsp;</p>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold">
                     <i class="mr-1 fa-solid fa-dollar-sign w-5 text-center"></i>
