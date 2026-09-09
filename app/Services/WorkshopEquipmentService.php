@@ -12,7 +12,7 @@ class WorkshopEquipmentService
 {
     public function products(Workshop $workshop): Collection
     {
-        return Product::query()->active()->with('variants')->whereIn('id', $workshop->optional_product_ids ?? [])->orderBy('title')->get();
+        return Product::query()->active()->with(['variants', 'hero'])->whereIn('id', $workshop->optional_product_ids ?? [])->orderBy('title')->get();
     }
 
     public function cart(Workshop $workshop): StoreCartService

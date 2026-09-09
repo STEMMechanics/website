@@ -30,7 +30,23 @@
             <div class="mb-5 space-y-4">
                 @foreach($products as $product)
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <h3 class="mb-3 font-semibold"><a href="{{ route('shop.product.show', $product) }}" target="_blank" rel="noopener noreferrer" class="text-black hover:underline">{{ $product->title }}</a> <span class="font-normal text-gray-500" x-text="'(+' + money(option({{ $product->id }}).price) + ')'">(+{{ money($product->priceForVariant()) }})</span></h3>
+                        <div class="mb-4 flex items-start gap-3">
+                            <a href="{{ route('shop.product.show', $product) }}" target="_blank" rel="noopener noreferrer" class="shrink-0">
+                                <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" loading="lazy" width="64" height="64" class="h-16 w-16 rounded-lg bg-white object-contain" />
+                            </a>
+                            <div class="min-w-0">
+                                <h3 class="font-semibold"><a href="{{ route('shop.product.show', $product) }}" target="_blank" rel="noopener noreferrer" class="text-black hover:underline">{{ $product->title }}</a> <span class="font-normal text-gray-500" x-text="'(+' + money(option({{ $product->id }}).price) + ')'">(+{{ money($product->priceForVariant()) }})</span></h3>
+                                @if(trim((string) $product->short_description) !== '')
+                                    <p class="mt-1 text-sm text-gray-600">{{ $product->short_description }}</p>
+                                @endif
+                                <div class="mt-2">
+                                    <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" :stack-details="true" x-show="!variants[{{ $product->id }}]" />
+                                    @foreach($product->purchasableVariants() as $variant)
+                                        <x-stock-indicator :tone="$product->availabilityTone($variant)" :label="$product->availabilityLabel('F jS', $variant)" :stack-details="true" x-show="String(variants[{{ $product->id }}]) === '{{ $variant->id }}'" x-cloak />
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                         <div class="grid gap-x-6 sm:grid-cols-2">
                             <x-ui.input type="number" min="0" max="99" label="Quantity" x-model="selected[{{ $product->id }}]" name="quantities[{{ $product->id }}]" :value="old('quantities.'.$product->id, $selected->get($product->id)['quantity'] ?? 0)" />
                             @if($product->purchasableVariants()->isNotEmpty())
