@@ -36,13 +36,41 @@ class CostCentreController extends Controller
             return $centre;
         });
         $centres->push((object) ['id' => 'gst', 'name' => 'GST', 'kind' => 'gst', 'active' => true, 'priority' => 0, 'balance' => $cash['gst']]);
+        $contributionsOwing = (int) DB::table('finance_owner_contributions')->sum('cents')
+            - (int) DB::table('finance_drawings')->where('purpose', 'contribution')->where('status', 'paid')->sum('cents');
+        if ($contributionsOwing > 0) {
+            $centres->push((object) ['id' => 'contributions', 'name' => 'Owner contributions', 'kind' => 'contributions', 'active' => true, 'priority' => null, 'balance' => -$contributionsOwing]);
+        }
         $counts = ['all' => $centres->count(), 'active' => $centres->where('active', true)->count(), 'archived' => $centres->where('active', false)->count()];
         $state = $data['state'] ?? 'all';
         $centres = $centres->filter(fn ($centre) => ($state === 'all' || (bool) $centre->active === ($state === 'active')) && (! isset($data['search']) || str_contains(mb_strtolower($centre->name), mb_strtolower($data['search']))));
         $centres = $centres->sortBy($data['list_sort'] ?? 'priority', SORT_REGULAR, ($data['list_direction'] ?? 'asc') === 'desc')->values();
+        $centres = $centres->sortBy(fn ($centre) => match ($centre->kind) {
+            'contributions' => 0,
+            'gst' => 1,
+            default => 2,
+        })->values();
         $centres = $this->paginate($centres);
 
         return view('admin.cost-centre.index', compact('centres', 'counts', 'state', 'cash'));
+    }
+
+    public function contributions(): View
+    {
+        $contributions = DB::table('finance_owner_contributions')->get()->map(fn ($row) => (object) [
+            'date' => $row->date, 'user_id' => $row->user_id, 'type' => 'Contribution',
+            'reference' => $row->reference, 'status' => 'Recorded', 'cents' => -$row->cents,
+        ]);
+        $repayments = DB::table('finance_drawings')->where('purpose', 'contribution')->get()->map(fn ($row) => (object) [
+            'date' => $row->paid_on ?? substr($row->created_at, 0, 10), 'user_id' => $row->user_id, 'type' => 'Repayment',
+            'reference' => $row->reference, 'status' => ucfirst($row->status), 'cents' => $row->status === 'paid' ? $row->cents : 0,
+        ]);
+        $records = $contributions->concat($repayments);
+        $balance = $records->sum('cents');
+        $owners = \App\Models\User::whereIn('id', $records->pluck('user_id')->unique())->get()->keyBy('id');
+        $records = $this->paginate($records->sortByDesc('date')->values());
+
+        return view('admin.cost-centre.contributions', compact('records', 'balance', 'owners'));
     }
 
     public function allocations(Request $request, FinancePlanner $planner): View

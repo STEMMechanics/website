@@ -595,6 +595,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/cost-centres/transfer', [\App\Http\Controllers\CostCentreController::class, 'transferEditor'])->name('admin.cost-centre.transfer.edit');
     Route::post('/admin/cost-centres/transfer', [\App\Http\Controllers\CostCentreController::class, 'transfer'])->name('admin.cost-centre.transfer');
     Route::get('/admin/cost-centres/gst', [\App\Http\Controllers\CostCentreController::class, 'gst'])->name('admin.cost-centre.gst');
+    Route::get('/admin/cost-centres/contributions', [\App\Http\Controllers\CostCentreController::class, 'contributions'])->name('admin.cost-centre.contributions');
     Route::get('/admin/cost-centres/{centre}', [\App\Http\Controllers\CostCentreController::class, 'show'])->whereNumber('centre')->name('admin.cost-centre.show');
     Route::get('/admin/finance/workshop-costings', [\App\Http\Controllers\WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.index');
     Route::get('/admin/finance/workshop-costings/pdf', [\App\Http\Controllers\WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.pdf');
