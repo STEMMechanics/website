@@ -283,7 +283,7 @@ if (isset($workshop)) {
                 this.selectedLocationId = current;
                 return;
             }
-            if (this.workshopFormat === 'course') {
+            if (@js(isset($workshop)) || this.workshopFormat === 'course') {
                 this.selectedLocationId = '';
                 return;
             }
@@ -652,7 +652,7 @@ if (isset($workshop)) {
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <input type="hidden" name="format" x-bind:value="workshopFormat">
-                        <input type="hidden" name="type" x-bind:value="type">
+                        <input type="hidden" name="type" value="{{ $workshopTypeForForm }}" x-bind:value="type">
                         <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
                             x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
                             <option value="physical">Physical</option>
@@ -965,9 +965,14 @@ if (isset($workshop)) {
                             get plan() { return this.plans[this.planId]; },
                             breakdown: { categories: {}, total: 0, participants: 0 },
                             maxBreakdown: { categories: {}, total: 0, participants: 0 },
+                            previousPricingInputs: null,
                             reprice(force = false) {
+                                const inputs = JSON.stringify([this.planId, this.registration, this.manualStartsAt, this.manualEndsAt, this.maxTickets, this.courseTeachingHours()]);
+                                const changed = this.previousPricingInputs !== null && this.previousPricingInputs !== inputs;
+                                this.previousPricingInputs = inputs;
                                 this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
                                 this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
+                                if (!force && !changed && String(this.price ?? '').trim() !== '') return;
                                 const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
@@ -1198,7 +1203,7 @@ if (isset($workshop)) {
         return typeElement && typeElement.value === 'stemcraft';
     }
 
-    function syncWorkshopClosesAt() {
+    function syncWorkshopClosesAt(onlyIfEmpty = false) {
         const startsAtElement = document.getElementsByName('starts_at')[0];
         const endsAtElement = document.getElementsByName('ends_at')[0];
         const closesAtElement = document.getElementsByName('closes_at')[0];
@@ -1206,6 +1211,8 @@ if (isset($workshop)) {
         if (!startsAtElement || !endsAtElement || !closesAtElement) {
             return;
         }
+
+        if (onlyIfEmpty && closesAtElement.value !== '') return;
 
         if (isStemcraftWorkshopType()) {
             closesAtElement.value = endsAtElement.value || '';
@@ -1223,7 +1230,6 @@ if (isset($workshop)) {
 
     function updatedStartsAt() {
         const startsAt = document.getElementsByName('starts_at')[0].value;
-        console.log(startsAt);
 
         const elemEndsAt = document.getElementsByName('ends_at')[0];
         if (elemEndsAt.value === '') {
@@ -1272,5 +1278,5 @@ if (isset($workshop)) {
         document.getElementsByName('publish_at')[0].value = SM.toLocalISOString(publishAt);
     }
 
-    syncWorkshopClosesAt();
+    syncWorkshopClosesAt(true);
 </script>
