@@ -18,6 +18,7 @@ class WorkshopTicketEmail extends Model
         'ticket_ids',
         'invoice_id',
         'payment_id',
+        'equipment_order_id',
         'recipient_email',
         'recipient_name',
         'payment_method',

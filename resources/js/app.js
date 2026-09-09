@@ -25,6 +25,7 @@ import './product-allocation';
 import './product-allocation-editor';
 import './workshop-equipment-checkout';
 import './workshop-delivery';
+import './workshop-hold-countdown';
 import './workshop-line';
 
 import './reminder-list';

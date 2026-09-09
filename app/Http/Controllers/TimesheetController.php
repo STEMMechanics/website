@@ -26,7 +26,9 @@ class TimesheetController extends Controller
         if ($tab === 'drawings') {
             $user = $request->user()->id;
             $cash = $planner->cash();
-            $earned = $planner->earned($user);
+            $forgone = $planner->remunerationForgone($user);
+            $earned = $planner->earned($user) - $forgone;
+            $remunerationTransfers = DB::table('finance_fund_transfers')->join('finance_categories', 'finance_categories.id', '=', 'finance_fund_transfers.category_id')->where('remuneration_user_id', $user)->select('finance_fund_transfers.*', 'finance_categories.name as centre_name')->orderByDesc('finance_fund_transfers.id')->get();
             $query = DB::table('finance_drawings')->where('user_id', $user);
             $purpose = $request->validate(['purpose' => ['nullable', Rule::in(['time', 'contribution'])]])['purpose'] ?? 'time';
             if ($purpose === 'contribution') $earned = (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents');
@@ -34,14 +36,14 @@ class TimesheetController extends Controller
             $pending = (int) (clone $query)->where('purpose', $purpose)->where('status', 'pending')->sum('cents');
             $drawingTotals = [];
             foreach (['time', 'contribution'] as $type) {
-                $target = $type === 'time' ? $planner->earned($user) : (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents');
+                $target = $type === 'time' ? $planner->earned($user) - $forgone : (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents');
                 $typePaid = (int) (clone $query)->where('purpose', $type)->where('status', 'paid')->sum('cents');
                 $typePending = (int) (clone $query)->where('purpose', $type)->where('status', 'pending')->sum('cents');
                 $drawingTotals[$type] = ['outstanding' => max(0, $target - $typePaid), 'available' => max(0, min($target - $typePaid - $typePending, $cash['available']))];
             }
             $drawings = $query->where('purpose', $purpose)->orderByDesc('id')->paginate(ListPageSize::resolve(25))->withQueryString();
 
-            return view('admin.timesheet.index', compact('tab', 'cash', 'earned', 'paid', 'pending', 'drawings', 'purpose', 'drawingTotals'));
+            return view('admin.timesheet.index', compact('tab', 'cash', 'earned', 'paid', 'pending', 'drawings', 'purpose', 'drawingTotals', 'forgone', 'remunerationTransfers'));
         }
         $data = $request->validate(['fortnight' => 'nullable|date_format:Y-m-d', 'sort' => ['nullable', Rule::in(['date', 'minutes'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])]]);
         $anchor = Carbon::parse(\App\Models\SiteOption::value('finance.fortnight-start'))->startOfDay();
@@ -108,8 +110,8 @@ class TimesheetController extends Controller
                 DB::table('finance_time_entries')->insert($values + ['created_at' => now()]);
             }
             $committed = (int) DB::table('finance_drawings')->where('user_id', $request->user()->id)->where('purpose', 'time')->whereIn('status', ['pending', 'paid'])->sum('cents');
-            if ($planner->earned($request->user()->id) < $committed) {
-                throw ValidationException::withMessages(['rate' => 'This would reduce your time target below drawings already prepared or paid. Cancel pending drawings first.']);
+            if ($planner->earned($request->user()->id) < $committed + $planner->remunerationForgone($request->user()->id)) {
+                throw ValidationException::withMessages(['rate' => 'This would reduce your earned remuneration below pay already prepared, paid or forgone. Cancel pending drawings first.']);
             }
         });
 

@@ -8,6 +8,7 @@ use App\Mail\TicketOrderConfirmation;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
+use App\Models\StoreOrder;
 use App\Models\Ticket;
 use App\Models\Workshop;
 use App\Models\WorkshopTicketEmail;
@@ -126,11 +127,21 @@ class WorkshopTicketOrderEmailService
             $recipientName = $recipient;
         }
 
+        $equipmentOrder = $delivery->equipment_order_id
+            ? StoreOrder::with(['invoice.allocations.customerPayment', 'items.variant'])->findOrFail($delivery->equipment_order_id)
+            : null;
+        if ($equipmentOrder && ! $equipmentOrder->isPaid()) {
+            throw new RuntimeException('Equipment payment must complete before sending the combined ticket email.');
+        }
+        $equipmentInvoice = $equipmentOrder?->invoice;
+        $invoiceNumbers = collect([$invoice?->invoice_number, $equipmentInvoice?->invoice_number])->filter()->unique()->implode(', ');
+
         $paymentBreakdown = $this->resolvePaymentBreakdown(
             invoice: $invoice,
             payment: $payment,
             deliveryPaymentMethod: (string) ($delivery->payment_method ?? ''),
             deliveryAmount: is_numeric($delivery->amount ?? null) ? (float) $delivery->amount : null,
+            equipmentInvoice: $equipmentInvoice,
         );
 
         $attachments = [];
@@ -148,8 +159,20 @@ class WorkshopTicketOrderEmailService
             }
         }
 
+        if ($equipmentInvoice instanceof Invoice && $equipmentInvoice->id !== $invoice?->id) {
+            $equipmentInvoicePdf = $this->buildInvoicePdfBinary($equipmentInvoice);
+            if ($equipmentInvoicePdf !== null) {
+                $attachments[] = [
+                    'type' => 'invoice',
+                    'content' => $equipmentInvoicePdf,
+                    'filename' => $this->invoicePdfFilename($equipmentInvoice),
+                    'mime' => 'application/pdf',
+                ];
+            }
+        }
+
         if ($invoice instanceof Invoice && $payment instanceof Payment) {
-            $receiptPdf = $this->buildPaymentReceiptPdfBinary($invoice, $payment);
+            $receiptPdf = $this->buildPaymentReceiptPdfBinary($invoice, $payment, $invoiceNumbers);
             if ($receiptPdf !== null) {
                 $attachments[] = [
                     'type' => 'receipt',
@@ -161,7 +184,7 @@ class WorkshopTicketOrderEmailService
         }
 
         if ($invoice instanceof Invoice && $paymentBreakdown['credit_applied_amount'] > 0.0001) {
-            $creditReceiptPdf = $this->buildCreditReceiptPdfBinary($invoice, $payment, $paymentBreakdown);
+            $creditReceiptPdf = $this->buildCreditReceiptPdfBinary($invoice, $payment, $paymentBreakdown, $invoiceNumbers);
             if ($creditReceiptPdf !== null) {
                 $attachments[] = [
                     'type' => 'credit_receipt',
@@ -244,7 +267,25 @@ class WorkshopTicketOrderEmailService
             creditAppliedAmount: $paymentBreakdown['credit_applied_amount'],
             paymentAmount: $paymentBreakdown['payment_amount'],
             creditReferenceSummary: $paymentBreakdown['credit_reference_summary'],
+            equipmentOrder: $equipmentOrder ? [
+                'number' => $equipmentOrder->order_number,
+                'total' => (float) $equipmentOrder->total_amount,
+                'delivery' => $equipmentOrder->shipping_method,
+                'pickup' => $equipmentOrder->usesPickup(),
+                'invoice_number' => $equipmentInvoice?->invoice_number,
+                'url' => route('shop.order.tracking', $equipmentOrder->access_token),
+                'items' => $equipmentOrder->items->map(fn ($item) => [
+                    'title' => $item->displayTitle(),
+                    'quantity' => $item->quantity,
+                    'total' => (float) $item->line_total_amount,
+                ])->all(),
+                'shipments' => $equipmentOrder->shippingBreakdown()['shipments'] ?? [],
+            ] : null,
         )))->onQueue('mail');
+
+        if ($equipmentOrder) {
+            $equipmentOrder->update(['order_paid_emailed_at' => now()]);
+        }
 
         $this->dispatchHolderTicketEmails($delivery, $tickets, $recipient, $recipientName);
     }
@@ -315,7 +356,8 @@ class WorkshopTicketOrderEmailService
         ?Invoice $invoice,
         ?Payment $payment,
         string $deliveryPaymentMethod,
-        ?float $deliveryAmount
+        ?float $deliveryAmount,
+        ?Invoice $equipmentInvoice = null
     ): array {
         $orderAmount = round(max(0, (float) ($deliveryAmount ?? ($invoice instanceof Invoice ? (float) $invoice->total_amount : 0))), 2);
         $paymentAmount = $payment instanceof Payment ? round(max(0, (float) $payment->total_amount), 2) : 0.0;
@@ -323,7 +365,7 @@ class WorkshopTicketOrderEmailService
         $creditAppliedAmount = 0.0;
         $creditReferenceSummary = '';
         if ($invoice instanceof Invoice) {
-            $creditAllocations = $invoice->allocations
+            $creditAllocations = $invoice->allocations->concat($equipmentInvoice->allocations ?? [])->unique('id')
                 ->filter(fn ($allocation): bool => (string) data_get($allocation, 'customerPayment.payment_method', '') === Payment::PAYMENT_METHOD_CREDIT);
             $creditAppliedAmount = round((float) $creditAllocations->sum('allocated_amount'), 2);
             $creditReferenceSummary = $creditAllocations->map(function ($allocation): string {
@@ -443,7 +485,7 @@ class WorkshopTicketOrderEmailService
         ]);
     }
 
-    private function buildPaymentReceiptPdfBinary(Invoice $invoice, Payment $payment): ?string
+    private function buildPaymentReceiptPdfBinary(Invoice $invoice, Payment $payment, ?string $invoiceNumbers = null): ?string
     {
         if (! class_exists(DomPdf::class)) {
             return null;
@@ -468,7 +510,7 @@ class WorkshopTicketOrderEmailService
             'receiptTitle' => $payment->isRefund() ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $payment->isRefund() ? 'Amount Refunded' : 'Amount Paid',
             'receiptNumber' => (string) $payment->id,
-            'invoiceNumber' => (string) $invoice->invoice_number,
+            'invoiceNumber' => $invoiceNumbers ?? (string) $invoice->invoice_number,
             'customerName' => $invoice->user?->getName() ?: (string) ($invoice->billing_name ?? 'Customer'),
             'amountPaid' => (float) $payment->total_amount,
             'gstAmount' => abs((float) $payment->gst_amount),
@@ -492,7 +534,7 @@ class WorkshopTicketOrderEmailService
         ]);
     }
 
-    private function buildCreditReceiptPdfBinary(Invoice $invoice, ?Payment $payment, array $paymentBreakdown): ?string
+    private function buildCreditReceiptPdfBinary(Invoice $invoice, ?Payment $payment, array $paymentBreakdown, ?string $invoiceNumbers = null): ?string
     {
         if (! class_exists(DomPdf::class)) {
             return null;
@@ -536,7 +578,7 @@ class WorkshopTicketOrderEmailService
             'receiptNumberLabel' => 'CREDIT RECEIPT NO',
             'amountLabel' => 'Amount Applied',
             'receiptNumber' => $creditReceiptNumber,
-            'invoiceNumber' => (string) $invoice->invoice_number,
+            'invoiceNumber' => $invoiceNumbers ?? (string) $invoice->invoice_number,
             'customerName' => $invoice->user?->getName() ?: (string) ($invoice->billing_name ?? 'Customer'),
             'amountPaid' => $creditAppliedAmount,
             'gstAmount' => 0.0,

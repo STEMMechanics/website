@@ -9,6 +9,15 @@ function setup(fetch) {
     state.$el={action:{},getAttribute:name=>name==='action'?'/delivery':null};
     return state;
 }
+test('collection hides address requirements immediately and shipping restores them',()=>{
+    const state=setup(()=>{});
+    state.quote.shipping_methods=[{code:'pickup',is_pickup:true},{code:'collect_workshop',is_pickup:true},{code:'post',is_pickup:false}];
+    assert.equal(state.isPickup,true);
+    state.method='post';
+    assert.equal(state.isPickup,false);
+    state.method='collect_workshop';
+    assert.equal(state.isPickup,true);
+});
 test('delivery quotes update confirmed equipment costs while keeping ticket amount separate',async()=>{
     const state=setup(async(url)=>{assert.equal(url,'/delivery');return {ok:true,json:async()=>({summary:{total:42,shipping:10,shipping_method_code:'post'}})};} );
     state.revision=1;state.loading=true;

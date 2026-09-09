@@ -27,6 +27,54 @@ class CostCentreTest extends TestCase
         return $user;
     }
 
+    public function test_remuneration_can_cover_a_deficit_without_a_cash_payment_and_cannot_be_drawn_again(): void
+    {
+        $user = $this->admin();
+        $this->actingAs($user);
+        DB::table('finance_settings')->where('id', 1)->update(['opening_cash_cents' => 50000]);
+        DB::table('finance_categories')->where('id', 1)->update(['opening_cents' => -8000]);
+        DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 20000]);
+        $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 120, 'rate' => 100])->assertSessionHasNoErrors();
+        $this->post(route('admin.finance.drawing'), ['amount' => 100, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasNoErrors();
+        $planner = app(FinancePlanner::class);
+        $before = $planner->cash();
+        $data = ['from_category_id' => 'remuneration', 'category_id' => 1, 'amount' => 80, 'reason' => 'Forgo pay to cover venue deficit', 'token' => (string) \Illuminate\Support\Str::uuid()];
+        $this->get(route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']))->assertOk()->assertSee('My remuneration')->assertSee('100.00');
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
+        $this->assertDatabaseCount('finance_fund_transfers', 1);
+        $this->assertDatabaseHas('finance_fund_transfers', ['remuneration_user_id' => $user->id, 'created_by' => $user->id, 'cents' => 8000, 'category_id' => 1]);
+        $this->assertSame(8000, $planner->remunerationForgone($user->id));
+        $this->assertSame(2000, $planner->remunerationAvailable($user->id));
+        $this->assertSame(0, $planner->cash()['reserves'][1]);
+        $this->assertSame(12000, $planner->cash()['reserves'][6]);
+        $this->assertSame($before['cash'], $planner->cash()['cash']);
+        $this->assertSame($before['gst'], $planner->cash()['gst']);
+        $this->assertDatabaseCount('finance_drawings', 1);
+        $this->get(route('admin.cost-centre.show', 1))->assertOk()->assertSee('Remuneration forgone by')->assertSee($data['reason']);
+        $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertSee($data['reason'])->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 12000 && $totals['time']['available'] === 2000);
+        $this->post(route('admin.finance.drawing'), ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasErrors('amount');
+        $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
+        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasErrors('rate');
+        $this->assertSame(20000, $planner->earned($user->id));
+        $this->actingAs($this->admin())->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
+        $this->assertDatabaseCount('finance_fund_transfers', 1);
+    }
+
+    public function test_remuneration_transfers_require_funding_a_token_and_an_active_cost_centre(): void
+    {
+        $this->actingAs($this->admin());
+        $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasNoErrors();
+        $data = ['from_category_id' => 'remuneration', 'category_id' => 1, 'amount' => 1, 'reason' => 'Cover deficit', 'token' => (string) \Illuminate\Support\Str::uuid()];
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertUnprocessable();
+        DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 10000]);
+        $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['token' => null]))->assertUnprocessable();
+        $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['category_id' => 6]))->assertUnprocessable();
+        DB::table('finance_categories')->where('id', 1)->update(['active' => false]);
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertUnprocessable();
+        $this->assertDatabaseCount('finance_fund_transfers', 0);
+    }
+
     public function test_zero_opening_counts_recorded_cash_and_expenses_without_setup(): void
     {
         $this->actingAs($this->admin());

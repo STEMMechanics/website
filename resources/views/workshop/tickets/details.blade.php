@@ -91,7 +91,7 @@
                     </div>
                     @endforeach
 
-                    <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
+                    <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-end">
                         <x-ui.button type="submit">Save Ticket Details</x-ui.button>
                     </div>
                 </form>

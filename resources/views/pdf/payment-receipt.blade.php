@@ -54,7 +54,6 @@
         $receiptNumberLabel = $isRefundDocument ? 'REFUND NO' : ($isCreditReceipt ? 'CREDIT RECEIPT NO' : 'RECEIPT NO');
     }
     $paidOnDateLine = trim((string) ($paidOn ?? ''));
-    $purchasedItemRows = collect($purchasedItems ?? [])->filter(fn ($item) => is_array($item))->values();
     if ($paidOnDateLine !== '') {
     try {
     $paidOnParsed = \Illuminate\Support\Carbon::parse($paidOnDateLine);
@@ -108,28 +107,6 @@
                 </td>
             </tr>
         </table>
-
-        @if($purchasedItemRows->isNotEmpty())
-        <div class="quote-title" style="text-align:left; margin-top:18px;">PURCHASED ITEMS</div>
-        <table class="items">
-            <thead>
-                <tr>
-                    <th style="width:62%;">DESCRIPTION</th>
-                    <th class="center" style="width:14%;">QTY</th>
-                    <th class="right" style="width:24%;">TOTAL (INC GST)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($purchasedItemRows as $item)
-                <tr>
-                    <td>{{ (string) ($item['description'] ?? '') }}</td>
-                    <td class="center">{{ $item['quantity_label'] ?? rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
-                    <td class="right">$ {{ number_format((float) ($item['line_total_inc_tax'] ?? 0), 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-        @endif
 
         <table class="items items-last">
             <tbody>

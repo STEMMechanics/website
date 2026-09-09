@@ -203,6 +203,30 @@ class RememberedDeviceAuthTest extends TestCase
         $this->assertSame(RequirePrivilegedMfa::fingerprint($user), $token->data['privileged_mfa_fingerprint']);
     }
 
+    public function test_remembered_admin_keeps_trust_when_session_confirmation_expires_and_profile_is_saved(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $user = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $token = $user->tokens()->create(['type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE, 'expires_at' => null]);
+        $codes = $user->generateBackupCodes();
+        $this->actingAs($user)->withCookie(RememberedDeviceManager::DEVICE_COOKIE, $token->id)
+            ->post(route('security.mfa.verify'), ['code' => $codes[0]])->assertRedirect();
+
+        $this->travel(13)->hours();
+        $this->assertFalse(RequirePrivilegedMfa::hasSessionConfirmation(request(), $user));
+        $this->get(route('account.show'))->assertOk();
+        $this->post(route('account.update'), ['email' => $user->email, 'keep_signed_in_device' => 'on'])
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame(RequirePrivilegedMfa::fingerprint($user), $token->fresh()->data['privileged_mfa_fingerprint']);
+
+        auth()->forgetGuards();
+        $this->flushSession();
+        $this->travel(2)->days();
+        $this->get(route('admin.dashboard'))->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_device_verification_is_bound_to_account_and_credentials(): void
     {
         config(['security.admin_mfa_required' => true]);

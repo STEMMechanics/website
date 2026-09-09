@@ -9,6 +9,10 @@ window.SM.workshopDelivery = config => ({
     controller: null,
     revision: 0,
     fingerprint: null,
+    get isPickup() {
+        const selected = (this.quote.shipping_methods || []).find(option => option.code === this.method);
+        return selected ? Boolean(selected.is_pickup) : this.method === 'pickup';
+    },
     money(amount) { return Number(amount).toLocaleString('en-AU', {style:'currency',currency:'AUD'}); },
     scheduleQuote() {
         const fingerprint = JSON.stringify(Array.from(new FormData(this.$el)).filter(([key]) => !['_token', 'action', 'confirmed_total'].includes(key)));

@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Jobs\SendDeferredStoreOrderEmail;
 use App\Jobs\SendWorkshopTicketOrderEmail;
+use App\Mail\StoreOrderAdminNotification;
+use App\Mail\StoreOrderConfirmation;
+use App\Mail\StoreOrderPaid;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketOrderConfirmation;
 use App\Models\Coupon;
@@ -61,28 +65,101 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->assertSame(2, $workshop->tickets()->count());
     }
 
+    public function test_optional_equipment_holds_last_twenty_minutes_in_countdown_availability_and_cleanup(): void
+    {
+        Queue::fake();
+        $this->freezeTime();
+        $service = app(\App\Services\WorkshopTicketService::class);
+        $product = \App\Models\Product::factory()->create(['status' => 'active']);
+        $equipment = $this->createTicketedWorkshop([
+            'optional_product_ids' => [$product->id], 'max_tickets' => 1,
+            'early_bird_price' => '8.00', 'early_bird_ticket_limit' => 1, 'early_bird_ends_at' => now()->addWeek(),
+        ]);
+        $ticketsOnly = $this->createTicketedWorkshop(['optional_product_ids' => [], 'max_tickets' => 1]);
+        $buyer = ['quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'hold@example.com', 'phone' => '0400123456'];
+        $this->post(route('workshop.ticket.flow.begin', $equipment), $buyer)->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.equipment', $equipment))->assertOk()
+            ->assertViewHas('session', fn ($session) => $session['expires_at'] === now()->addMinutes(20)->toIso8601String());
+        $this->post(route('workshop.ticket.flow.begin', $ticketsOnly), $buyer)->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.payment', $ticketsOnly))->assertOk()
+            ->assertViewHas('session', fn ($session) => $session['expires_at'] === now()->addMinutes(10)->toIso8601String());
+
+        $this->travel(11)->minutes();
+        $this->assertSame(0, $service->availableTickets($equipment));
+        $this->assertSame(0, $equipment->earlyBirdTicketLimitRemaining());
+        $this->assertSame(1, $service->availableTickets($ticketsOnly));
+        $this->assertSame(0, $service->cleanupExpiredHolds($equipment));
+        $this->assertSame(1, $service->cleanupExpiredHolds());
+        $this->get(route('workshop.ticket.flow.equipment', $equipment))->assertOk();
+
+        $this->travel(10)->minutes();
+        $this->assertSame(1, $service->availableTickets($equipment));
+        $this->assertSame(1, $equipment->earlyBirdTicketLimitRemaining());
+        $this->assertSame(1, $service->cleanupExpiredHolds());
+        $this->get(route('workshop.ticket.flow.equipment', $equipment))->assertRedirect(route('workshop.ticket.flow.start', $equipment));
+    }
+
     public function test_equipment_and_delivery_steps_include_tickets_and_preserve_back_navigation(): void
     {
         Queue::fake();
         $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 32, 'inventory_quantity' => 10]);
         $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id], 'max_tickets' => 2]);
         $buyer = ['quantity' => 2, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'steps@example.com', 'phone' => '0400123456'];
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertDontSee('Remaining:');
         $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertSessionHasNoErrors();
-        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertSee('steps@example.com')->assertViewHas('ticketQuantity', 2);
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertSee('Remaining:')->assertSee('steps@example.com')->assertViewHas('ticketQuantity', 2);
         $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertSessionHasNoErrors();
         $this->assertSame(2, $workshop->tickets()->count());
-        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Tickets')->assertSee('Sub Total')
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Remaining:')->assertSee('Tickets')->assertSee('Sub Total')
             ->assertDontSee('Update total')->assertDontSee('Continue without equipment')->assertDontSee('name="variants['.$product->id.']"', false);
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), ['action' => 'select', 'quantities' => [$product->id => 2]])
             ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.delivery', $workshop));
-        $this->get(route('workshop.ticket.flow.delivery', $workshop))->assertOk()->assertSee('Delivery details')->assertSee('Tickets')->assertViewHas('ticketAmount', 30.0);
-        $delivery = ['shipping_method_code' => 'pickup', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
+        $this->get(route('workshop.ticket.flow.delivery', $workshop))->assertOk()->assertSee('Remaining:')->assertSee('Delivery details')->assertSee('Tickets')->assertViewHas('ticketAmount', 30.0);
+        $delivery = ['shipping_method_code' => 'pickup'];
         $this->postJson(route('workshop.ticket.flow.delivery.save', $workshop), $delivery + ['action' => 'quote'])->assertOk()->assertJsonPath('summary.total', 64);
         $this->post(route('workshop.ticket.flow.delivery.save', $workshop), $delivery + ['action' => 'continue', 'confirmed_total' => 64])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
-        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertViewHas('totalAmount', 94.0);
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Remaining:')->assertViewHas('totalAmount', 94.0);
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), ['action' => 'select', 'quantities' => [$product->id => 0]])
             ->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertViewHas('totalAmount', 30.0);
+    }
+
+    public function test_completed_checkout_can_start_another_purchase_without_reusing_the_old_tickets(): void
+    {
+        Queue::fake();
+        $workshop = $this->createTicketedWorkshop(['max_tickets' => 3]);
+        $buyer = ['quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'repeat@example.com', 'phone' => '0400123456'];
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $firstTicket = $workshop->tickets()->sole();
+        $firstInvoiceId = $firstTicket->invoice_id;
+
+        // A paid purchase must still finish participant details before starting again.
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $this->assertSame(1, $workshop->tickets()->count());
+        $this->post(route('workshop.ticket.flow.details.save', $workshop), ['tickets' => [
+            ['id' => $firstTicket->id] + $buyer,
+        ]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+        $this->get(route('workshop.ticket.flow.details', $workshop))->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+
+        $this->travel(1)->hours();
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertViewIs('workshop.tickets.start')
+            ->assertViewHas('ticketQuantity', 1)->assertViewHas('availableTickets', 2);
+        $this->get(route('workshop.ticket.flow.complete', $workshop))->assertOk();
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertSessionHasNoErrors()
+            ->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $secondTicket = $workshop->tickets()->whereKeyNot($firstTicket->id)->sole();
+        $this->assertSame(Ticket::STATUS_HOLD, (int) $secondTicket->status);
+        $this->assertSame($firstInvoiceId, $firstTicket->fresh()->invoice_id);
+        $this->assertSame(Ticket::STATUS_PENDING_XFER, (int) $firstTicket->fresh()->status);
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $this->assertNotSame($firstInvoiceId, $secondTicket->fresh()->invoice_id);
+        $this->assertDatabaseCount('invoices', 2);
+        $this->get(route('workshop.ticket.flow.details', $workshop))->assertOk()
+            ->assertViewHas('tickets', fn ($tickets) => $tickets->modelKeys() === [$secondTicket->id]);
     }
 
     public function test_equipment_shows_product_details_and_uses_store_shipment_grouping(): void
@@ -112,13 +189,24 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
     public static function equipmentPaymentMethods(): array
     {
-        return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];
+        return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['credit_card_fallback'], ['credit_card_credit'], ['credit'], ['declined'], ['price_changed'], ['stock_changed']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('equipmentPaymentMethods')]
-    public function test_optional_equipment_creates_a_separate_store_invoice_using_existing_pickup(string $method): void
+    public function test_optional_equipment_shares_one_checkout_invoice_using_existing_pickup(string $method): void
     {
         Queue::fake();
+        config(['mail.admin_bcc' => 'ops@example.com']);
+        $creditAmount = $method === 'credit_card_credit' ? 20.0 : ($method === 'credit' ? 40.0 : 0.0);
+        $useFallback = $method === 'credit_card_fallback';
+        if ($useFallback || $method === 'credit_card_credit') {
+            $method = 'credit_card';
+        }
+        if ($creditAmount > 0) {
+            $buyer = User::factory()->create(['email' => 'equipment@example.com']);
+            $this->actingAs($buyer);
+            Payment::factory()->create(['user_id' => $buyer->id, 'payment_method' => Payment::PAYMENT_METHOD_CREDIT, 'total_amount' => $creditAmount, 'gst_amount' => 0]);
+        }
         $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 25, 'inventory_quantity' => 10]);
         $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
         $regularCart = app(\App\Services\StoreCartService::class);
@@ -130,6 +218,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
         $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Sub Total');
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 25])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $this->travel(11)->minutes();
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Equipment')->assertSee('Delivery')->assertDontSee('Equipment &amp; delivery', false);
         if (in_array($method, ['price_changed', 'stock_changed'], true)) {
             $product->update($method === 'price_changed' ? ['price' => 30] : ['inventory_quantity' => 0]);
@@ -147,22 +236,30 @@ class WorkshopTicketEmailFlowTest extends TestCase
             $this->assertDatabaseCount('store_orders', 0);
             return;
         }
-        if ($method !== 'bank_transfer') {
+        if (in_array($method, ['credit_card', 'declined'], true)) {
             config(['services.square.location_id' => 'TEST']);
             $gateway = Mockery::mock(SquareApiService::class);
             $gateway->shouldReceive('isEnabled')->andReturn(true);
-            $charge = $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(fn ($payload) => $payload['amount_money']['amount'] === 4000));
+            $charge = $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(function ($payload) use ($creditAmount) {
+                Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderConfirmation
+                    || $job->mailable instanceof StoreOrderPaid
+                    || $job->mailable instanceof StoreOrderAdminNotification);
+
+                return $payload['amount_money']['amount'] === (int) ((40 - $creditAmount) * 100);
+            }));
             if ($method === 'declined') {
                 $charge->andThrow(new \RuntimeException('Declined'));
                 $gateway->shouldReceive('userFacingPaymentErrorMessage')->andReturn('Card declined');
             } else {
-                $charge->andReturn(['payment' => ['id' => 'equipment-payment', 'status' => 'COMPLETED', 'amount_money' => ['amount' => 4000]]]);
+                $charge->andReturn(['payment' => ['id' => 'equipment-payment', 'status' => 'COMPLETED', 'amount_money' => ['amount' => (int) ((40 - $creditAmount) * 100)]]]);
             }
             $this->app->instance(SquareApiService::class, $gateway);
         }
-        $response = $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => $method === 'declined' ? 'credit_card' : $method, 'source_id' => 'test-token']);
+        $response = $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => $method === 'declined' ? 'credit_card' : $method, 'source_id' => 'test-token', 'apply_account_credit' => $creditAmount > 0]);
         if ($method === 'declined') {
             $response->assertSessionHasErrors('payment_method');
+            Queue::assertNotPushed(SendEmail::class);
+            Queue::assertNotPushed(SendDeferredStoreOrderEmail::class);
             $this->assertDatabaseCount('store_orders', 0);
             $this->assertDatabaseCount('payments', 0);
             $this->assertDatabaseCount('invoices', 0);
@@ -172,21 +269,78 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $response->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $workshop));
         $order = \App\Models\StoreOrder::firstOrFail();
         $ticket = Ticket::where('workshop_id', $workshop->id)->firstOrFail();
-        $this->assertNotEquals($ticket->invoice_id, $order->invoice_id);
+        $this->assertEquals($ticket->invoice_id, $order->invoice_id);
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertSame(['ticket', 'product'], $ticket->invoice->lines()->orderBy('line_number')->pluck('kind')->all());
         $this->assertSame('25.00', $order->total_amount);
-        $this->assertSame('15.00', $ticket->invoice->total_amount);
+        $this->assertSame('40.00', $ticket->invoice->total_amount);
+        $this->assertSame('12 Test Street', $ticket->invoice->billing_address);
         $this->assertSame('pickup', $order->shipping_method_code);
+        if ($creditAmount > 0) {
+            $this->assertSame($creditAmount, (float) $order->invoice->allocations()->whereHas('customerPayment', fn ($query) => $query->where('payment_method', Payment::PAYMENT_METHOD_CREDIT))->sum('allocated_amount'));
+            $this->assertTrue($order->isPaid());
+        }
         if ($method === 'credit_card') {
-            $payment = Payment::firstOrFail();
-            $this->assertSame('40.00', $payment->total_amount);
-            $this->assertEqualsCanonicalizing([15, 25], $payment->allocations()->pluck('allocated_amount')->map(fn ($amount) => (float) $amount)->all());
+            $payment = Payment::where('payment_method', 'credit_card')->sole();
+            $this->assertSame(40 - $creditAmount, (float) $payment->total_amount);
+            $this->assertStringContainsString($order->order_number, $payment->reference);
+            $this->assertStringContainsString($ticket->reference_code, $payment->reference);
+            $this->assertEqualsCanonicalizing([40 - $creditAmount], $payment->allocations()->pluck('allocated_amount')->map(fn ($amount) => (float) $amount)->all());
             $this->assertSame(0.0, (float) $order->invoice->outstandingAmount());
             $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'credit_card', 'source_id' => 'test-token'])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
-            $this->assertDatabaseCount('payments', 1);
+            $this->assertDatabaseCount('payments', $creditAmount > 0 ? 2 : 1);
             $this->assertDatabaseCount('store_orders', 1);
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderConfirmation);
+            Queue::assertNotPushed(SendDeferredStoreOrderEmail::class);
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'equipment@example.com');
+            $delivery = WorkshopTicketEmail::sole();
+            $this->assertSame($order->id, $delivery->equipment_order_id);
+            $this->assertSame(40.0, (float) $delivery->amount);
+            $scheduledJob = Queue::pushed(SendWorkshopTicketOrderEmail::class)->first();
+            if ($useFallback) {
+                $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+                $this->flushSession();
+                $this->travel(30)->minutes();
+                $scheduledJob->handle(app(\App\Services\WorkshopTicketOrderEmailService::class));
+            } else {
+                $this->post(route('workshop.ticket.flow.details.save', $workshop), ['tickets' => [[
+                    'id' => $ticket->id,
+                    'firstname' => 'Jamie',
+                    'surname' => 'Example',
+                    'email' => 'equipment@example.com',
+                    'phone' => '0400123456',
+                ]]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+                $this->get(route('workshop.ticket.flow.complete', $workshop))->assertOk()->assertSee($order->order_number);
+            }
+            // The fallback must not send a second confirmation after details are submitted.
+            $scheduledJob->handle(app(\App\Services\WorkshopTicketOrderEmailService::class));
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderPaid);
+            $customerEmails = Queue::pushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'equipment@example.com');
+            $this->assertCount(1, $customerEmails);
+            $mail = $customerEmails->first()->mailable;
+            $this->assertInstanceOf(TicketOrderConfirmation::class, $mail);
+            $this->assertSame(1, $mail->ticketAttachmentCount);
+            $this->assertSame(1, $mail->receiptAttachmentCount);
+            $this->assertSame(1, $mail->invoiceAttachmentCount);
+            $this->assertSame(40.0, $mail->amount);
+            $this->assertSame(40 - $creditAmount, $mail->paymentAmount);
+            $this->assertSame($creditAmount, $mail->creditAppliedAmount);
+            $this->assertSame($order->order_number, $mail->equipmentOrder['number']);
+            $html = $mail->render();
+            $this->assertStringContainsString($order->order_number, $html);
+            $this->assertStringNotContainsString(e($product->title), $html);
+            $this->assertStringContainsString('View Store Order', $html);
+            $this->assertCount($creditAmount > 0 ? 4 : 3, $mail->rawAttachments);
+            $this->assertNotNull($order->fresh()->order_paid_emailed_at);
+            Queue::assertPushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'ops@example.com'
+                && $job->mailable instanceof StoreOrderAdminNotification
+                && $job->mailable->notificationType === 'paid'
+                && $job->mailable->order->isPaid());
         }
 
-        $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+        if (! $useFallback) {
+            $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+        }
     }
 
     public function test_equipment_manual_shipping_quote_does_not_charge_equipment_with_tickets(): void
@@ -197,6 +351,9 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->post(route('workshop.ticket.flow.begin', $workshop), ['quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'quote-equipment@example.com', 'phone' => '0400123456']);
         $data = ['quantities' => [$product->id => 1], 'shipping_method_code' => 'request_quote', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
+        $this->post(route('workshop.ticket.flow.delivery.save', $workshop), [
+            'shipping_method_code' => 'request_quote', 'action' => 'continue', 'confirmed_total' => 0,
+        ])->assertSessionHasErrors(['billing_address', 'billing_city', 'billing_state', 'billing_postcode']);
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 0])->assertSessionHasNoErrors();
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('not charged now');
         $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasErrors('payment_method');

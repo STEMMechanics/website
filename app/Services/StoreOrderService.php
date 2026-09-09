@@ -52,7 +52,7 @@ class StoreOrderService
         private readonly AccountCreditService $accountCredit,
     ) {}
 
-    public function createFromCart(Collection $lines, array $payload, ?User $authUser = null): StoreOrder
+    public function createFromCart(Collection $lines, array $payload, ?User $authUser = null, bool $sendNotifications = true, ?Invoice $checkoutInvoice = null): StoreOrder
     {
         if ($lines->isEmpty()) {
             throw ValidationException::withMessages([
@@ -65,10 +65,10 @@ class StoreOrderService
         $paymentMethod = (string) ($customer['payment_method'] ?? '');
 
         /** @var StoreOrder $order */
-        $order = DB::transaction(function () use ($lines, $customer, $user, $paymentMethod): StoreOrder {
+        $order = DB::transaction(function () use ($lines, $customer, $user, $paymentMethod, $checkoutInvoice): StoreOrder {
             $checkout = $this->prepareCheckout($lines, $customer, $user);
 
-            $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $checkout['totals'], true, null, true, $paymentMethod);
+            $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $checkout['totals'], true, null, true, $paymentMethod, $checkoutInvoice);
             $invoice = $order->invoice;
 
             if (
@@ -90,8 +90,10 @@ class StoreOrderService
         $this->syncOrderState($order);
         $this->updateUserProfileFromOrder($user, $customer, $authUser);
         $freshOrder = $order->fresh(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon']);
-        $this->queueOrderConfirmationEmail($freshOrder);
-        $this->queueAdminOrderNotification($freshOrder, 'created');
+        if ($sendNotifications) {
+            $this->queueOrderConfirmationEmail($freshOrder);
+            $this->queueAdminOrderNotification($freshOrder, 'created');
+        }
 
         return $order->fresh(['invoice', 'items.downloads.media', 'coupon']);
     }
@@ -516,6 +518,13 @@ class StoreOrderService
     public function sendOrderPaidEmailToCustomer(StoreOrder $order, ?User $actingUser = null): bool
     {
         return $this->queueOrderPaidEmail($order, $actingUser);
+    }
+
+    public function queuePaidOrderAdminNotification(StoreOrder $order): void
+    {
+        if ($order->isPaid()) {
+            $this->queueAdminOrderNotification($order, 'paid');
+        }
     }
 
     public function queueDeferredOrderEmailToCustomer(StoreOrder $order, int $delayMinutes = 10): bool
@@ -3023,9 +3032,10 @@ class StoreOrderService
         ?string $forcedStatus = null,
         bool $reserveInventory = true,
         ?string $paymentMethod = null,
+        ?Invoice $checkoutInvoice = null,
     ): StoreOrder {
-        $invoice = null;
-        if ($createInvoice) {
+        $invoice = $checkoutInvoice;
+        if ($createInvoice && ! $invoice) {
             $invoice = new Invoice;
             $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
             $invoice->user_id = $user?->id;
@@ -3053,6 +3063,20 @@ class StoreOrderService
             $invoice->gst_amount = $totals['gst'];
             $invoice->total_amount = $totals['total'];
             $invoice->notes = $customer['notes'];
+            $invoice->save();
+        }
+
+        if ($checkoutInvoice) {
+            // The workshop purchaser remains the invoice recipient; retain the
+            // billing address collected with the equipment checkout as well.
+            foreach (['billing_company', 'billing_address', 'billing_address2', 'billing_city', 'billing_state', 'billing_postcode', 'billing_country'] as $field) {
+                if (trim((string) ($customer[$field] ?? '')) !== '') {
+                    $invoice->{$field} = $customer[$field];
+                }
+            }
+            $invoice->subtotal_amount = round((float) $invoice->subtotal_amount + (float) $totals['invoice_subtotal'], 2);
+            $invoice->gst_amount = round((float) $invoice->gst_amount + (float) $totals['gst'], 2);
+            $invoice->total_amount = round((float) $invoice->total_amount + (float) $totals['total'], 2);
             $invoice->save();
         }
 
@@ -3104,7 +3128,7 @@ class StoreOrderService
         $order->fulfilled_at = $createInvoice && $totals['total'] <= 0.0001 && ! $totals['contains_physical'] ? now() : null;
         $order->save();
 
-        $lineNumber = 1;
+        $lineNumber = $invoice ? (int) $invoice->lines()->max('line_number') + 1 : 1;
         foreach ($preparedLines as $line) {
             $unitBreakdown = $this->inclusiveBreakdown((float) $line->unit_price, (float) $line->tax_rate);
             $lineBreakdown = $this->inclusiveBreakdown((float) $line->line_price, (float) $line->tax_rate);
@@ -3214,6 +3238,7 @@ class StoreOrderService
             ]);
         }
 
+        $invoice?->unsetRelation('lines');
         if ($invoice instanceof Invoice && $invoice->lines()->where('kind', 'product')->get()->contains(fn ($line) => ! empty($line->product_allocation_snapshot))) {
             app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, null);
         }

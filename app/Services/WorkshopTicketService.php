@@ -9,8 +9,12 @@ use Carbon\Carbon;
 
 class WorkshopTicketService
 {
-    public function holdWindowMinutes(): int
+    public function holdWindowMinutes(?Workshop $workshop = null): int
     {
+        if ($workshop && ! empty($workshop->optional_product_ids)) {
+            return 20;
+        }
+
         $configured = trim((string) SiteOption::value('tickets.hold-minutes', '10'));
         $minutes = is_numeric($configured) ? (int) $configured : 10;
 
@@ -19,12 +23,22 @@ class WorkshopTicketService
 
     public function cleanupExpiredHolds(?Workshop $workshop = null): int
     {
-        $query = Ticket::query()
-            ->where('status', Ticket::STATUS_HOLD)
-            ->where('created_at', '<', now()->subMinutes($this->holdWindowMinutes()));
+        $query = Ticket::query()->where('status', Ticket::STATUS_HOLD);
 
         if ($workshop) {
-            $query->where('workshop_id', $workshop->id);
+            $query->where('workshop_id', $workshop->id)
+                ->where('created_at', '<', now()->subMinutes($this->holdWindowMinutes($workshop)));
+        } else {
+            $hasEquipment = fn ($builder) => $builder->whereJsonLength('optional_product_ids', '>', 0);
+            $query->where(function ($builder) use ($hasEquipment) {
+                $builder->where(function ($equipment) use ($hasEquipment) {
+                    $equipment->whereHas('workshop', $hasEquipment)
+                        ->where('created_at', '<', now()->subMinutes(20));
+                })->orWhere(function ($ticketsOnly) use ($hasEquipment) {
+                    $ticketsOnly->whereDoesntHave('workshop', $hasEquipment)
+                        ->where('created_at', '<', now()->subMinutes($this->holdWindowMinutes()));
+                });
+            });
         }
 
         $deleted = $query->delete();
@@ -38,7 +52,7 @@ class WorkshopTicketService
 
     public function countReservedTickets(Workshop $workshop): int
     {
-        $threshold = now()->subMinutes($this->holdWindowMinutes());
+        $threshold = now()->subMinutes($this->holdWindowMinutes($workshop));
 
         return Ticket::query()
             ->where('workshop_id', $workshop->id)
