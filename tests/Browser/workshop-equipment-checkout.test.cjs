@@ -1,0 +1,20 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+test('ticket quantity, early bird limits and equipment options update the total without multiplying equipment',()=>{
+    const context={window:{}};
+    vm.runInNewContext(fs.readFileSync('resources/js/workshop-equipment-checkout.js','utf8'),context);
+    const state=context.window.SM.workshopEquipmentCheckout({quantity:1,ticketPrice:15,regularPrice:20,earlyBirdRemaining:1,options:{1:{base:{price:32,available:true},2:{price:40,available:true},3:{price:50,available:false}}}});
+    assert.equal(state.total,15);
+    state.selected[1]=1;
+    assert.equal(state.total,47);
+    state.quantity=2;
+    assert.equal(state.total,67);
+    state.variants[1]='2';
+    assert.equal(state.total,75);
+    state.variants[1]='3';
+    assert.equal(state.total,35);
+    state.variants[1]='';state.selected[1]=0;
+    assert.equal(state.total,35);
+});
