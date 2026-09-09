@@ -274,3 +274,15 @@ test('regenerating course sessions uses the shared confirmation and preserves ca
     assert.equal(editor.courseSessions.length, 8);
     assert.equal(editor.courseTeachingHours(), 8);
 });
+
+test('first session defaults follow workshop start until explicitly changed', () => {
+    let watch;
+    const editor = { ...context.window.SM.courseEditor('course', []), manualStartsAt: '2026-10-01T10:00', $watch(name, callback) { assert.equal(name, 'manualStartsAt'); watch = callback; } };
+    editor.initCourseSchedule();
+    assert.equal(editor.generateStart, '2026-10-01T10:00');
+    watch('2026-10-02T10:00', '2026-10-01T10:00');
+    assert.equal(editor.generateStart, '2026-10-02T10:00');
+    editor.generateStart = '2026-10-03T12:00';
+    watch('2026-10-04T10:00', '2026-10-02T10:00');
+    assert.equal(editor.generateStart, '2026-10-03T12:00');
+});

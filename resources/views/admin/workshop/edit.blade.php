@@ -593,7 +593,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
                 @isset($workshop)
                 @method('PUT')
                 @endisset

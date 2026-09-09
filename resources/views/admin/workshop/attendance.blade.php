@@ -727,7 +727,7 @@
                     <form method="GET" class="max-w-xl">
                         <x-ui.select label="Course session" name="session_id" onchange="this.form.submit()">
                             @foreach($workshop->effectiveScheduleEntries() as $session)
-                                <option value="{{ $session['id'] }}" @selected($session['id'] === $courseSession['id'])>{{ $session['label'] ?: 'Session' }} — {{ \Illuminate\Support\Carbon::parse($session['starts_at'])->format('D j M Y g:ia') }}</option>
+                                <option value="{{ $session['id'] }}" @selected($session['id'] === $courseSession['id'])>{{ \Illuminate\Support\Carbon::parse($session['starts_at'])->format('D j M Y g:ia') }}</option>
                             @endforeach
                         </x-ui.select>
                     </form>

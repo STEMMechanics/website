@@ -60,10 +60,10 @@ class WorkshopCourseTest extends TestCase
         $this->assertSame(8.0, $course->teachingHours());
         $this->assertCount(8, $course->courseScheduleDisplayLines());
         $this->assertSame('8 hours', $course->workshopDurationLabel());
-        $this->get(route('workshop.show', $course))->assertOk()->assertSee('Session 8');
+        $this->get(route('workshop.show', $course))->assertOk()->assertSee($course->courseScheduleDisplayLines()[7])->assertDontSee('Session 8');
         $this->get(route('admin.workshop.edit', $course))->assertOk()->assertSee('Course sessions')->assertSee('Welcome email');
         $this->get(route('admin.workshop.attendance', $course))->assertOk()->assertSee('Course session');
-        $this->assertStringContainsString('Session 8', (new WorkshopWelcome($course))->render());
+        $this->assertStringContainsString($course->courseScheduleDisplayLines()[7], (new WorkshopWelcome($course))->render());
     }
 
     public function test_schedule_validation_rejects_overlaps_outside_range_and_empty_courses(): void
@@ -157,7 +157,7 @@ class WorkshopCourseTest extends TestCase
         $payload['course_sessions'][0]['label'] = 'Introduction to micro:bit';
         $payload['location_id'] = \App\Models\Location::factory()->create()->id;
         $this->put(route('admin.workshop.update', $course), $payload)->assertSessionHasNoErrors()->assertRedirect();
-        $this->assertSame('Introduction to micro:bit', $course->fresh()->course_sessions[0]['label']);
+        $this->assertSame('', $course->fresh()->course_sessions[0]['label']);
         $this->assertSame($payload['location_id'], $course->fresh()->location_id);
         $this->assertSame('physical', $course->fresh()->type);
         $this->assertTrue($course->fresh()->isPhysicalWorkshop());
@@ -168,7 +168,7 @@ class WorkshopCourseTest extends TestCase
         $this->assertDatabaseCount('workshop_welcome_deliveries', $count);
         $this->post(route('admin.workshop.welcome.send', $course), ['action' => 'resend'])->assertRedirect();
         $this->assertDatabaseCount('workshop_welcome_deliveries', $count * 2);
-        $this->get(route('admin.workshop.welcome.preview', $course))->assertOk()->assertSee('Introduction to micro:bit');
+        $this->get(route('admin.workshop.welcome.preview', $course))->assertOk()->assertSee($course->fresh()->courseScheduleDisplayLines()[0])->assertDontSee('Introduction to micro:bit');
     }
 
     public function test_welcome_defaults_three_days_before_first_session_and_waits_until_due(): void
@@ -241,7 +241,7 @@ class WorkshopCourseTest extends TestCase
         $session = $course->course_sessions[0]['id'];
         $this->postJson(route('admin.workshop.attendance.tickets', $course), ['session_id' => $session, 'attended_ticket_ids' => [$ticket->id]])->assertOk();
         $csv = $this->get(route('admin.workshop.attendance.csv', [$course, 'session_id' => $session]))->assertOk()->streamedContent();
-        $this->assertStringContainsString('Session 1', $csv);
+        $this->assertStringContainsString(\Illuminate\Support\Carbon::parse($course->course_sessions[0]['starts_at'])->format('j M Y g:ia'), $csv);
         $this->assertStringContainsString('Attended', $csv);
         $other = $this->get(route('admin.workshop.attendance.csv', [$course, 'session_id' => $course->course_sessions[1]['id']]))->assertOk()->streamedContent();
         $this->assertStringContainsString('Not marked', $other);

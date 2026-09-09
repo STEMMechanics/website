@@ -37,6 +37,9 @@
             @if($suppliable->isNotEmpty())
                 <fieldset class="mb-8" @disabled(! $state['ready']) x-on:change="refreshWorkshopDefaults()">
                     <legend class="mb-2 text-sm font-semibold">Supplied items</legend>
+                    @unless($state['ready'])
+                        <p class="mb-3 text-sm text-slate-600">Supplied items can be changed after the workshop ends and payment outcomes are resolved.</p>
+                    @endunless
                     <x-finance.supplied-options :rules="$rules" :categories="$allocation['categories']" :values="$selected" model="supplied" />
                 </fieldset>
             @endif

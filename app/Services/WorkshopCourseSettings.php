@@ -22,7 +22,6 @@ class WorkshopCourseSettings
             'format' => 'required|in:workshop,course',
             'course_sessions' => 'exclude_unless:format,course|nullable|array|max:104',
             'course_sessions.*.id' => 'nullable|uuid|distinct',
-            'course_sessions.*.label' => 'nullable|string|max:120',
             'course_sessions.*.starts_at' => 'required|date',
             'course_sessions.*.ends_at' => 'required|date',
             'welcome_enabled' => 'nullable|boolean',
@@ -45,7 +44,7 @@ class WorkshopCourseSettings
             if ($to->lte($from) || $from->lt($start) || $to->gt($end)) {
                 throw ValidationException::withMessages(["course_sessions.$i.starts_at" => 'Each session must finish after it starts and fit within the workshop start/end dates.']);
             }
-            $normalised[] = ['id' => $session['id'] ?? (string) Str::uuid(), 'label' => $session['label'] ?? '',
+            $normalised[] = ['id' => $session['id'] ?? (string) Str::uuid(), 'label' => '',
                 'starts_at' => $from->format('Y-m-d\TH:i'), 'ends_at' => $to->format('Y-m-d\TH:i')];
         }
         usort($normalised, fn (array $a, array $b) => strcmp($a['starts_at'], $b['starts_at']));

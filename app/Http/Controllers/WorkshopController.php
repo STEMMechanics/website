@@ -4105,7 +4105,7 @@ class WorkshopController extends Controller
                     $ticket->attended_at = $attendance->get($ticket->id);
                 }
                 $rows[] = [
-                    'source' => $session ? 'ticket: '.($session['label'] ?: Carbon::parse($session['starts_at'])->format('j M Y g:ia')) : 'ticket',
+                    'source' => $session ? 'ticket: '.Carbon::parse($session['starts_at'])->format('j M Y g:ia') : 'ticket',
                     'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
                     'guardian_name' => '',
                     'email' => trim((string) ($ticket->email ?? '')),
