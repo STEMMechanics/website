@@ -192,9 +192,14 @@ class CostCentreController extends Controller
         $from = $data['from'] ?? null;
         $categories = DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->get();
 
-        $remunerationAvailable = $planner->remunerationTransferAvailable();
+        $cash = $planner->cash();
+        foreach ($categories as $category) {
+            $category->balance = $cash['reserves'][$category->id] ?? 0;
+        }
+        $availableBusinessCash = $cash['available'];
+        $remunerationAvailable = $planner->remunerationTransferAvailable($cash);
 
-        return view('admin.cost-centre.transfer', compact('categories', 'from', 'remunerationAvailable'));
+        return view('admin.cost-centre.transfer', compact('categories', 'from', 'remunerationAvailable', 'availableBusinessCash'));
     }
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
