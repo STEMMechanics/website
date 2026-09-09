@@ -39,7 +39,7 @@ class CostCentreTest extends TestCase
         $planner = app(FinancePlanner::class);
         $before = $planner->cash();
         $data = ['from_category_id' => 'remuneration', 'category_id' => 1, 'amount' => 80, 'reason' => 'Forgo pay to cover venue deficit', 'token' => (string) \Illuminate\Support\Str::uuid()];
-        $this->get(route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']))->assertOk()->assertSee('My remuneration')->assertSee('100.00');
+        $this->get(route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']))->assertOk()->assertSee('Owner remuneration')->assertSee('100.00');
         $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
         $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
         $this->assertDatabaseCount('finance_fund_transfers', 1);
@@ -73,6 +73,33 @@ class CostCentreTest extends TestCase
         DB::table('finance_categories')->where('id', 1)->update(['active' => false]);
         $this->postJson(route('admin.cost-centre.transfer'), $data)->assertUnprocessable();
         $this->assertDatabaseCount('finance_fund_transfers', 0);
+    }
+
+    public function test_allocated_remuneration_can_be_transferred_without_timesheets(): void
+    {
+        $user = $this->admin();
+        $this->actingAs($user);
+        DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 320550]);
+        DB::table('finance_categories')->where('id', 2)->update(['opening_cents' => -493743]);
+        $planner = app(FinancePlanner::class);
+        $before = $planner->cash();
+        $this->assertSame(0, $planner->earned($user->id));
+        $this->get(route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']))->assertOk()->assertSee('3,205.50 available to forgo');
+        $data = ['from_category_id' => 'remuneration', 'category_id' => 2, 'amount' => 3205.50, 'reason' => 'Cover consumables', 'token' => (string) \Illuminate\Support\Str::uuid()];
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
+        $this->postJson(route('admin.cost-centre.transfer'), $data)->assertOk();
+        $this->assertDatabaseCount('finance_fund_transfers', 1);
+        $this->assertSame(0, $planner->cash()['reserves'][6]);
+        $this->assertSame(-173193, $planner->cash()['reserves'][2]);
+        $this->assertSame($before['cash'], $planner->cash()['cash']);
+        $this->assertSame($before['gst'], $planner->cash()['gst']);
+        $this->assertSame(320550, $planner->remunerationForgone($user->id));
+        $this->assertSame(0, $planner->remunerationTransferAvailable());
+        $this->assertDatabaseCount('finance_drawings', 0);
+        // Forgoing allocated funds must not prevent recording subsequent time.
+        $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasNoErrors();
+        $this->assertSame(10000, $planner->earned($user->id));
+        $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 0);
     }
 
     public function test_zero_opening_counts_recorded_cash_and_expenses_without_setup(): void

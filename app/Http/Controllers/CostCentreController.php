@@ -192,8 +192,7 @@ class CostCentreController extends Controller
         $from = $data['from'] ?? null;
         $categories = DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->get();
 
-        $ownerId = DB::table('finance_categories')->where('kind', 'owner')->value('id');
-        $remunerationAvailable = max(0, min($planner->remunerationAvailable($request->user()->id), $planner->cash()['reserves'][$ownerId] ?? 0));
+        $remunerationAvailable = $planner->remunerationTransferAvailable();
 
         return view('admin.cost-centre.transfer', compact('categories', 'from', 'remunerationAvailable'));
     }
