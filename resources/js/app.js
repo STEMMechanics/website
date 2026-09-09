@@ -24,6 +24,7 @@ import './allocation-tally';
 import './product-allocation';
 import './product-allocation-editor';
 import './workshop-equipment-checkout';
+import './workshop-delivery';
 import './workshop-line';
 
 import './reminder-list';

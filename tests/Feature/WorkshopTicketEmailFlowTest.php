@@ -54,11 +54,35 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $lines = app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->contents()['lines'];
         $this->assertCount(1, $lines);
         $this->assertSame(1, (int) array_values($lines)[0]['quantity']);
-        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Equipment total')->assertSee('(+'.money(32).')')->assertSee(route('shop.product.show', $product));
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Sub Total')->assertSee('(+'.money(32).')')->assertSee(route('shop.product.show', $product));
         $other = \App\Models\Product::factory()->create(['status' => 'active']);
         $payload['equipment_quantities'] = [$other->id => 1];
         $this->post(route('workshop.ticket.flow.begin', $workshop), $payload)->assertSessionHasErrors('equipment');
         $this->assertSame(2, $workshop->tickets()->count());
+    }
+
+    public function test_equipment_and_delivery_steps_include_tickets_and_preserve_back_navigation(): void
+    {
+        Queue::fake();
+        $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 32, 'inventory_quantity' => 10]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id], 'max_tickets' => 2]);
+        $buyer = ['quantity' => 2, 'firstname' => 'Jamie', 'surname' => 'Example', 'email' => 'steps@example.com', 'phone' => '0400123456'];
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.start', $workshop))->assertOk()->assertSee('steps@example.com')->assertViewHas('ticketQuantity', 2);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertSessionHasNoErrors();
+        $this->assertSame(2, $workshop->tickets()->count());
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Tickets')->assertSee('Sub Total')
+            ->assertDontSee('Update total')->assertDontSee('Continue without equipment')->assertDontSee('name="variants['.$product->id.']"', false);
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), ['action' => 'select', 'quantities' => [$product->id => 2]])
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.delivery', $workshop));
+        $this->get(route('workshop.ticket.flow.delivery', $workshop))->assertOk()->assertSee('Delivery details')->assertSee('Tickets')->assertViewHas('ticketAmount', 30.0);
+        $delivery = ['shipping_method_code' => 'pickup', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
+        $this->postJson(route('workshop.ticket.flow.delivery.save', $workshop), $delivery + ['action' => 'quote'])->assertOk()->assertJsonPath('summary.total', 64);
+        $this->post(route('workshop.ticket.flow.delivery.save', $workshop), $delivery + ['action' => 'continue', 'confirmed_total' => 64])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertViewHas('totalAmount', 94.0);
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), ['action' => 'select', 'quantities' => [$product->id => 0]])
+            ->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertViewHas('totalAmount', 30.0);
     }
 
     public static function equipmentPaymentMethods(): array
@@ -79,7 +103,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk();
         $data = ['quantities' => [$product->id => 1], 'shipping_method_code' => 'pickup', 'billing_address' => '12 Test Street', 'billing_city' => 'Brisbane', 'billing_state' => 'QLD', 'billing_postcode' => '4000'];
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
-        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Equipment total');
+        $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Sub Total');
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 25])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Equipment &amp; delivery', false);
         if (in_array($method, ['price_changed', 'stock_changed'], true)) {
