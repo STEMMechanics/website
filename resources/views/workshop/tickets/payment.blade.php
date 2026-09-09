@@ -18,7 +18,7 @@
         foreach ($pricingItems as $item) {
             $count = (int) ($item['count'] ?? 0);
             $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
-            $label = trim((string) ($item['label'] ?? 'Tickets'));
+            $label = !empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets';
             $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per ticket' : 'Free');
 
             if (! empty($item['is_early_bird'])) {
@@ -46,7 +46,10 @@
         $summaryRows[] = ['type' => 'spacer'];
     }
     if ($equipmentQuoteRequired ?? false) { $summaryRows[] = ['label' => 'Equipment', 'value' => 'Quote requested separately; not charged now']; }
-    if (($equipmentAmount ?? 0) > 0) { $summaryRows[] = ['label' => 'Equipment & delivery', 'value' => money($equipmentAmount)]; }
+    if (($hasEquipment ?? false) && !($equipmentQuoteRequired ?? false)) {
+        $summaryRows[] = ['label' => 'Equipment', 'value' => money(($equipmentAmount ?? 0) - ($deliveryAmount ?? 0))];
+        $summaryRows[] = ['label' => 'Delivery', 'value' => money($deliveryAmount ?? 0)];
+    }
     $summaryRows[] = [
         'label' => 'Total Cost',
         'value' => $ticketTotal > 0 ? '$'.number_format($ticketTotal, 2) : 'Free',
@@ -157,11 +160,13 @@
                             @if($canUseAccountTerms)
                             <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
                             @endif
+                            @unless($hasEquipment ?? false)
                             <option value="pay_at_door">Pay at the door</option>
                             <option value="bank_transfer">Bank transfer</option>
+                            @endunless
                             <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay by credit card</option>
                             @else
-                            <option value="pay_at_door">No payment required</option>
+                            <option value="credit">No payment required</option>
                             @endif
                         </x-ui.select>
                         @if($canUseAccountTerms)
@@ -292,7 +297,7 @@
 <script>
     function ticketPaymentPage(config) {
         return {
-            paymentMethod: @js($totalAmount > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
+            paymentMethod: @js($totalAmount > 0 ? (($hasEquipment ?? false) && in_array(old('payment_method', ''), ['', 'pay_at_door', 'bank_transfer'], true) ? ($canUseAccountTerms ? 'account_terms' : 'credit_card') : old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door')) : 'credit'),
             squareEnabled: Boolean(config.squareEnabled),
             squareApplicationId: config.squareApplicationId || '',
             squareLocationId: config.squareLocationId || '',
