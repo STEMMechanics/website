@@ -75,6 +75,8 @@ Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::
 Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');
 Route::get('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'equipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment');
 Route::post('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'saveEquipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment.save');
+Route::get('workshops/{workshop}/tickets/delivery', [WorkshopTicketFlowController::class, 'equipment'])->middleware('full-account')->name('workshop.ticket.flow.delivery');
+Route::post('workshops/{workshop}/tickets/delivery', [WorkshopTicketFlowController::class, 'saveEquipment'])->middleware('full-account')->name('workshop.ticket.flow.delivery.save');
 Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'payment'])->name('workshop.ticket.flow.payment');
 Route::post('workshops/{workshop}/tickets/voucher', [WorkshopTicketFlowController::class, 'updateVoucher'])->name('workshop.ticket.flow.voucher');
 Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');

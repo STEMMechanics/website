@@ -77,7 +77,7 @@
                 })"
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">Payment</h2>
+                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
                 @if(!empty($workshop->optional_product_ids))
                     <x-ui.button color="outline" class="mb-4" :href="route('workshop.ticket.flow.equipment', $workshop)">Change equipment or delivery</x-ui.button>
