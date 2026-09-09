@@ -60,7 +60,12 @@ class WorkshopCourseTest extends TestCase
         $this->assertSame(8.0, $course->teachingHours());
         $this->assertCount(8, $course->courseScheduleDisplayLines());
         $this->assertSame('8 hours', $course->workshopDurationLabel());
-        $this->get(route('workshop.show', $course))->assertOk()->assertSee($course->courseScheduleDisplayLines()[7])->assertDontSee('Session 8');
+        $lastStart = \Illuminate\Support\Carbon::parse($course->course_sessions[7]['starts_at']);
+        $lastEnd = \Illuminate\Support\Carbon::parse($course->course_sessions[7]['ends_at']);
+        $this->get(route('workshop.show', $course))->assertOk()
+            ->assertSee($lastStart->format('D j M Y').'<br />'.$lastStart->format('g:ia').' – '.$lastEnd->format('g:ia'), false)
+            ->assertDontSee('Session 8');
+        $this->assertStringNotContainsString('<', implode(' ', $course->courseScheduleDisplayLines()));
         $this->get(route('admin.workshop.edit', $course))->assertOk()->assertSee('Course sessions')->assertSee('Welcome email');
         $this->get(route('admin.workshop.attendance', $course))->assertOk()->assertSee('Course session');
         $this->assertStringContainsString($course->courseScheduleDisplayLines()[7], (new WorkshopWelcome($course))->render());

@@ -257,7 +257,13 @@
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
                 @if($workshop->isCourse())
                     <ul class="text-gray-600 text-sm pl-6 mb-6 space-y-2 list-disc ml-3">
-                        @foreach($workshop->courseScheduleDisplayLines() as $session)<li>{!! $session !!}</li>@endforeach
+                        @foreach($workshop->effectiveScheduleEntries() as $session)
+                            @php
+                                $sessionStart = \Illuminate\Support\Carbon::parse($session['starts_at']);
+                                $sessionEnd = \Illuminate\Support\Carbon::parse($session['ends_at']);
+                            @endphp
+                            <li>{{ $sessionStart->format('D j M Y') }}<br />{{ $sessionStart->format('g:ia') }} – {{ $sessionEnd->format($sessionStart->isSameDay($sessionEnd) ? 'g:ia' : 'D j M Y g:ia') }}</li>
+                        @endforeach
                     </ul>
                 @else
                 <p class="text-gray-600 text-sm pl-6 mb-6">{!! implode('<br />', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</p>
