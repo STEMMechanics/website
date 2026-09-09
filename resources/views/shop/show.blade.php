@@ -626,11 +626,6 @@
                                         class="text-base text-gray-400 line-through"
                                         x-text="currentCompareAtPriceLabel()"
                                 >{{ $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : '' }}</div>
-                                <div class="flex flex-wrap items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
-                                    <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
-                                    <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
-                                    <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
-                                </div>
                             </div>
 
                             <div class="mt-8 mb-12">
@@ -721,6 +716,12 @@
                                     <div class="text-sm text-red-600">{{ $message }}</div>
                                 @enderror
                                 <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
+
+                                <div class="flex items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
+                                    <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
+                                    <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
+                                    <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
+                                </div>
 
                                 <form
                                         method="POST"
