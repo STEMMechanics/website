@@ -186,4 +186,22 @@ class CostCentreTest extends TestCase
         $this->get(route('admin.cost-centre.gst', ['month' => '2026-08']))->assertOk()->assertSee('Receipt / note (optional)')->assertSee('-$229.00');
         $this->travelBack();
     }
+    public function test_gst_history_popup_loads_the_month_and_updates_its_existing_settlement(): void
+    {
+        $this->actingAs($this->admin());
+        $this->travelTo(Carbon::parse('2026-09-08'));
+        $url = route('admin.cost-centre.gst', ['month' => '2026-08']);
+        $this->get($url)->assertOk()->assertSee('colspan="3"', false)->assertSee('Not recorded')->assertSee('Edit GST settlement');
+        $this->get($url, ['X-SM-Fragment' => 'record'])->assertOk()->assertSee('data-record-form', false)->assertSee('value="2026-08"', false)->assertDontSee('settlement_id');
+        $data = ['period' => '2026-08', 'paid_on' => '2026-09-08', 'amount' => 150, 'reference' => 'Receipt 123'];
+        $this->postJson(route('admin.finance.settlement'), $data)->assertOk();
+        $id = DB::table('finance_gst_settlements')->value('id');
+        $this->get($url, ['X-SM-Fragment' => 'record'])->assertOk()->assertSee('value="150.00"', false)->assertSee('Receipt 123')->assertSee('Save settlement');
+        $this->postJson(route('admin.finance.settlement'), array_replace($data, ['settlement_id' => $id, 'amount' => -20, 'reference' => 'Corrected']))->assertOk();
+        $this->assertDatabaseCount('finance_gst_settlements', 1);
+        $this->assertDatabaseHas('finance_gst_settlements', ['id' => $id, 'period' => '2026-08-01', 'cents' => -2000, 'reference' => 'Corrected']);
+        $this->postJson(route('admin.finance.settlement'), array_replace($data, ['settlement_id' => $id, 'period' => '2026-07']))->assertUnprocessable();
+        $this->travelBack();
+    }
+
 }

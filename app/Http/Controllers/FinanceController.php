@@ -130,13 +130,26 @@ class FinanceController extends Controller
         return $this->back('drawings', 'Drawing updated.');
     }
 
-    public function settlement(Request $request, FinancePlanner $planner): RedirectResponse
+    public function settlement(Request $request, FinancePlanner $planner): RedirectResponse|\Illuminate\Http\JsonResponse
     {
-        $data = $request->validate(['period' => 'required|date_format:Y-m|unique:finance_gst_settlements,period', 'paid_on' => 'required|date_format:Y-m-d|before_or_equal:today', 'amount' => 'required|numeric|between:-10000000,10000000', 'reference' => 'nullable|string|max:255']);
-        if (DB::table('finance_gst_settlements')->where('period', $data['period'].'-01')->exists()) {
-            throw ValidationException::withMessages(['period' => 'This month already has a settlement.']);
-        }
-        DB::table('finance_gst_settlements')->insert(['period' => $data['period'].'-01', 'paid_on' => $data['paid_on'], 'cents' => $planner->cents($data['amount']), 'reference' => $data['reference'] ?? '', 'created_by' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
+        $data = $request->validate(['settlement_id' => 'nullable|integer|exists:finance_gst_settlements,id', 'period' => 'required|date_format:Y-m', 'paid_on' => 'required|date_format:Y-m-d|before_or_equal:today', 'amount' => 'required|numeric|between:-10000000,10000000', 'reference' => 'nullable|string|max:255']);
+        DB::transaction(function () use ($data, $planner, $request) {
+            $existing = DB::table('finance_gst_settlements')->where('period', $data['period'].'-01')->lockForUpdate()->first();
+            if (!empty($data['settlement_id'])) {
+                if (!$existing || (int) $existing->id !== (int) $data['settlement_id']) {
+                    throw ValidationException::withMessages(['period' => 'The settlement month cannot be changed.']);
+                }
+            } elseif ($existing) {
+                throw ValidationException::withMessages(['period' => 'This month already has a settlement.']);
+            }
+            $values = ['paid_on' => $data['paid_on'], 'cents' => $planner->cents($data['amount']), 'reference' => $data['reference'] ?? '', 'updated_at' => now()];
+            if ($existing) {
+                DB::table('finance_gst_settlements')->where('id', $existing->id)->update($values);
+            } else {
+                DB::table('finance_gst_settlements')->insert($values + ['period' => $data['period'].'-01', 'created_by' => $request->user()->id, 'created_at' => now()]);
+            }
+        });
+        if ($request->expectsJson()) return response()->json(['message' => 'GST settlement saved.']);
 
         return redirect()->route('admin.cost-centre.gst', ['month' => $data['period']])->with('message', 'GST settlement recorded.')->with('message-type', 'success');
     }
