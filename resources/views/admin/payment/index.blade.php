@@ -42,7 +42,7 @@
     >
     <x-mast title="Payments"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.payment.create') }}">Record payment</x-ui.button></x-slot:actions></x-mast>
 
-    <x-container>
+    <x-container class="mt-4">
         <x-ui.dynamic-list name="admin-payment-index">
 
         <x-ui.collection-controls class="my-5" />

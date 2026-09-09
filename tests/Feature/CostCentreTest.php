@@ -27,6 +27,37 @@ class CostCentreTest extends TestCase
         return $user;
     }
 
+    public function test_owner_contributions_are_a_conditional_system_liability_with_business_wide_history(): void
+    {
+        $this->actingAs($owner = $this->admin());
+        $this->get(route('admin.cost-centre.index'))->assertOk()->assertViewHas('centres', fn ($rows) => ! $rows->contains('id', 'contributions'));
+        $otherOwner = User::factory()->create();
+        foreach ([$owner->id => 900000, $otherOwner->id => 50000] as $userId => $cents) {
+            DB::table('finance_owner_contributions')->insert([
+                'user_id' => $userId, 'token' => (string) \Illuminate\Support\Str::uuid(), 'date' => today()->toDateString(),
+                'cents' => $cents, 'reference' => 'Personal funding '.$userId, 'splits' => json_encode([5 => $cents]),
+            ]);
+        }
+        $repaymentId = DB::table('finance_drawings')->insertGetId([
+            'user_id' => $owner->id, 'token' => (string) \Illuminate\Support\Str::uuid(), 'purpose' => 'contribution',
+            'status' => 'pending', 'cents' => 200000, 'reference' => 'Capital repayment', 'created_at' => now(),
+        ]);
+        foreach ([[], ['state' => 'active'], ['list_sort' => 'balance', 'list_direction' => 'desc']] as $filters) {
+            $this->get(route('admin.cost-centre.index', $filters))->assertOk()
+                ->assertSee('Owner contributions')->assertSee('-$9,500.00')
+                ->assertSee(route('admin.cost-centre.contributions'), false)
+                ->assertViewHas('centres', fn ($rows) => $rows[0]->id === 'contributions' && $rows[0]->priority === null && $rows[1]->id === 'gst');
+        }
+        $this->get(route('admin.cost-centre.index', ['state' => 'archived']))->assertOk()->assertViewHas('centres', fn ($rows) => ! $rows->contains('id', 'contributions'));
+        $this->get(route('admin.cost-centre.contributions'))->assertOk()->assertSee($otherOwner->getName())->assertSee('Capital repayment')->assertViewHas('balance', -950000);
+        DB::table('finance_drawings')->where('id', $repaymentId)->update(['status' => 'paid', 'paid_on' => today()->toDateString()]);
+        $this->get(route('admin.cost-centre.index'))->assertOk()->assertSee('-$7,500.00');
+        $this->get(route('admin.cost-centre.contributions'))->assertOk()->assertViewHas('balance', -750000);
+        DB::table('finance_drawings')->where('id', $repaymentId)->update(['cents' => 950000]);
+        $this->get(route('admin.cost-centre.index'))->assertOk()->assertViewHas('centres', fn ($rows) => ! $rows->contains('id', 'contributions'));
+        $this->actingAs(User::factory()->create())->get(route('admin.cost-centre.contributions'))->assertForbidden();
+    }
+
     public function test_remuneration_can_cover_a_deficit_without_a_cash_payment_and_cannot_be_drawn_again(): void
     {
         $user = $this->admin();
