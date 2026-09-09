@@ -132,7 +132,7 @@ class WorkshopTypeNormalizationTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('<option value="stemcraft">STEMCraft</option>', false);
-        $response->assertSee("x-show=\"type==='physical'\"", false);
+        $response->assertSee("x-show=\"type === 'physical' || workshopFormat === 'course'\"", false);
         $response->assertSee('name="location_id"', false);
         $response->assertSee('normalizedCurrentLocationId()', false);
     }
