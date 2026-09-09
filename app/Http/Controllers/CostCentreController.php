@@ -186,18 +186,21 @@ class CostCentreController extends Controller
         return view('admin.cost-centre.show', compact('category', 'records'));
     }
 
-    public function transferEditor(Request $request): View
+    public function transferEditor(Request $request, FinancePlanner $planner): View
     {
-        $data = $request->validate(['from' => ['nullable', Rule::exists('finance_categories', 'id')->where('kind', 'cost')]]);
+        $data = $request->validate(['from' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())]]);
         $from = $data['from'] ?? null;
         $categories = DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->get();
 
-        return view('admin.cost-centre.transfer', compact('categories', 'from'));
+        $ownerId = DB::table('finance_categories')->where('kind', 'owner')->value('id');
+        $remunerationAvailable = max(0, min($planner->remunerationAvailable($request->user()->id), $planner->cash()['reserves'][$ownerId] ?? 0));
+
+        return view('admin.cost-centre.transfer', compact('categories', 'from', 'remunerationAvailable'));
     }
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where('kind', 'cost')], 'category_id' => ['required', Rule::exists('finance_categories', 'id')->where('kind', 'cost')->where('active', true)], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::exists('finance_categories', 'id')->where('kind', 'cost')->where('active', true)], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $request->expectsJson() ? response()->json(['message' => 'Funds transferred. Transaction history is unchanged.']) : redirect()->route('admin.cost-centre.index')->with('message', 'Funds transferred.')->with('message-type', 'success');

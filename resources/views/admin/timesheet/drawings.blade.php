@@ -8,6 +8,13 @@
     </dl>
     <form method="POST" action="{{ route('admin.finance.drawing') }}">@csrf<input type="hidden" name="purpose" value="{{ $purpose }}" x-bind:value="purpose"><input type="hidden" name="token" value="{{ \Illuminate\Support\Str::uuid() }}"><x-ui.input name="amount" label="Amount to transfer" type="number" min="0.01" step="0.01" required /><x-finance.save>Record drawing</x-finance.save></form>
 </x-finance.panel>
+<x-finance.panel title="Remuneration transferred">
+    <p class="mb-3">Pay forgone to fund cost centres: {{ money($forgone / 100) }}</p>
+    <x-ui.button color="outline" href="{{ route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']) }}">Transfer remuneration</x-ui.button>
+    @foreach($remunerationTransfers as $transfer)
+        <p class="mt-3 text-sm">{{ $transfer->created_at }} · {{ money($transfer->cents / 100) }} to <a href="{{ route('admin.cost-centre.show', $transfer->category_id) }}">{{ $transfer->centre_name }}</a><br>{{ $transfer->reason }}</p>
+    @endforeach
+</x-finance.panel>
 </div>
 <x-finance.panel title="Drawing history" x-bind:aria-busy="loading">
     <div x-show="loading" x-cloak class="flex min-h-40 items-center justify-center" role="status" aria-label="Loading drawing history"><x-ui.loading-indicator class="text-6xl" /></div>
