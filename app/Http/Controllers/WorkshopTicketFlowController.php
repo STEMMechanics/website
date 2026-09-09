@@ -314,6 +314,7 @@ class WorkshopTicketFlowController extends Controller
         $applyAccountCreditDefault = $checkoutTotals['apply_account_credit_default'];
         $creditDebug = $checkoutTotals['credit_debug'];
 
+        $equipmentSummary = app(\App\Services\WorkshopEquipmentService::class)->summary($workshop, $session);
         return view('workshop.tickets.payment', [
             'workshop' => $workshop,
             'session' => $session,
@@ -322,7 +323,9 @@ class WorkshopTicketFlowController extends Controller
             'ticketPriceAmount' => $checkoutTotals['ticket_price_amount'],
             'totalAmount' => $checkoutTotals['total_amount'],
             'equipmentAmount' => $checkoutTotals['equipment_amount'],
-            'equipmentQuoteRequired' => (bool) (app(\App\Services\WorkshopEquipmentService::class)->summary($workshop, $session)['summary']['shipping_quote']['requires_manual_quote'] ?? false),
+            'hasEquipment' => $equipmentSummary['lines']->isNotEmpty(),
+            'deliveryAmount' => (float) ($equipmentSummary['summary']['shipping'] ?? 0),
+            'equipmentQuoteRequired' => (bool) ($equipmentSummary['summary']['shipping_quote']['requires_manual_quote'] ?? false),
             'voucherCode' => $checkoutTotals['voucher_code'],
             'voucherDiscountAmount' => $checkoutTotals['voucher_discount_amount'],
             'voucherButtonLabel' => $checkoutTotals['voucher_code'] !== '' ? 'Change voucher' : 'Add voucher',
@@ -369,7 +372,9 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
-        $allowedPaymentMethods = ['pay_at_door', 'bank_transfer', 'credit_card', 'credit'];
+        $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
+        $equipment = $equipmentService->summary($workshop, $session);
+        $allowedPaymentMethods = $equipment['lines']->isNotEmpty() ? ['credit_card', 'credit'] : ['pay_at_door', 'bank_transfer', 'credit_card', 'credit'];
         $accountTermsDays = $this->checkoutAccountTermsDays();
         if ($accountTermsDays > 0) {
             $allowedPaymentMethods[] = 'account_terms';
@@ -388,8 +393,6 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
-        $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
-        $equipment = $equipmentService->summary($workshop, $session);
         if (($session['equipment_reviewed'] ?? false) || $equipment['lines']->isNotEmpty()) { $equipmentService->assertReady($equipment, $session['equipment_confirmed_total'] ?? null, $session['equipment_lines'] ?? null); }
 
         $holdIds = $checkoutTotals['hold_ids'];

@@ -2,12 +2,12 @@
 
 @php
     if ($error === null) {
-        $error = $errors->first($name);
+        $error = ($name !== null && $name !== '') ? $errors->first($name) : '';
     }
 
     $hasError = $error !== '';
     $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
-    $value = old($name, $value);
+    $value = ($name !== null && $name !== '') ? old($name, $value) : $value;
     if (is_array($value)) {
         $value = implode(
             $type === 'textarea' ? PHP_EOL : ', ',

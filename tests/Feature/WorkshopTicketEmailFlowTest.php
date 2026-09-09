@@ -87,7 +87,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
     public static function equipmentPaymentMethods(): array
     {
-        return [['bank_transfer'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];
+        return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('equipmentPaymentMethods')]
@@ -105,12 +105,21 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
         $this->get(route('workshop.ticket.flow.equipment', $workshop))->assertOk()->assertSee('Sub Total');
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 25])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
-        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Equipment &amp; delivery', false);
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('Equipment')->assertSee('Delivery')->assertDontSee('Equipment &amp; delivery', false);
         if (in_array($method, ['price_changed', 'stock_changed'], true)) {
             $product->update($method === 'price_changed' ? ['price' => 30] : ['inventory_quantity' => 0]);
-            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasErrors('equipment');
+            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'credit_card'])->assertSessionHasErrors('equipment');
             $this->assertDatabaseCount('store_orders', 0);
             $this->assertDatabaseCount('invoices', 0);
+            return;
+        }
+        if (in_array($method, ['bank_transfer', 'pay_at_door'], true)) {
+            $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()
+                ->assertDontSee('Equipment &amp; delivery', false)->assertSee('Delivery')
+                ->assertDontSee('<option value="bank_transfer">', false)->assertDontSee('<option value="pay_at_door">', false);
+            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => $method])->assertSessionHasErrors('payment_method');
+            $this->assertDatabaseCount('payments', 0);
+            $this->assertDatabaseCount('store_orders', 0);
             return;
         }
         if ($method !== 'bank_transfer') {
@@ -165,7 +174,13 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'review'])->assertSessionHasNoErrors();
         $this->post(route('workshop.ticket.flow.equipment.save', $workshop), $data + ['action' => 'continue', 'confirmed_total' => 0])->assertSessionHasNoErrors();
         $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()->assertSee('not charged now');
-        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasNoErrors();
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'bank_transfer'])->assertSessionHasErrors('payment_method');
+        config(['services.square.location_id' => 'TEST']);
+        $gateway = Mockery::mock(SquareApiService::class);
+        $gateway->shouldReceive('isEnabled')->andReturn(true);
+        $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(fn ($payload) => $payload['amount_money']['amount'] === 1500))->andReturn(['payment' => ['id' => 'quote-ticket-payment', 'status' => 'COMPLETED', 'amount_money' => ['amount' => 1500]]]);
+        $this->app->instance(SquareApiService::class, $gateway);
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'credit_card', 'source_id' => 'test-token'])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('quotes', 1);
         $this->assertDatabaseCount('store_orders', 0);
         $this->assertSame('15.00', Invoice::firstOrFail()->total_amount);
@@ -211,7 +226,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
             ->assertOk()
             ->assertSee('Early Bird', false)
             ->assertSee('2 @ $8.00 per ticket (Early bird)', false)
-            ->assertSee('Standard', false)
+            ->assertSee('Tickets', false)
             ->assertSee('1 @ $10.00 per ticket', false)
             ->assertSee('$26.00', false);
 

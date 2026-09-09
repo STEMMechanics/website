@@ -12,7 +12,7 @@
         @endphp
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
-                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.show', $workshop)" /><h2 class="text-2xl font-bold">Get Tickets</h2></div>
+                <h2 class="text-2xl font-bold mb-3">Get Tickets</h2>
                 <p class="text-sm text-gray-600 mb-4">Complete this checkout to reserve your tickets.</p>
                 @if($requiresPrivateCode ?? false)
                     <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-4">
@@ -65,8 +65,7 @@
                     <x-ui.input type="email" name="email" label="Purchaser Email" value="{{ old('email', $prefill['email']) }}" required />
                     <x-ui.input name="phone" label="Purchaser Phone" value="{{ old('phone', $prefill['phone']) }}" required />
 
-                    <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
-                        <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}">Back</x-ui.button>
+                    <div class="flex justify-end mt-6">
                         <x-ui.button type="submit">{{ $equipmentProducts->isNotEmpty() ? 'Continue' : ($ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets') }}</x-ui.button>
                     </div>
                 </form>
