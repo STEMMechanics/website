@@ -6,7 +6,7 @@ $receiptAttachmentCount = (int) ($receiptAttachmentCount ?? 0);
 $creditReceiptAttachmentCount = (int) ($creditReceiptAttachmentCount ?? 0);
 $attachmentLabels = [];
 if ($hasInvoiceAttachment ?? false) {
-    $attachmentLabels[] = 'invoice';
+    $attachmentLabels[] = ($invoiceAttachmentCount ?? 1) > 1 ? 'invoices' : 'invoice';
 }
 if ($receiptAttachmentCount > 0) {
     $attachmentLabels[] = $receiptAttachmentCount === 1 ? 'payment receipt' : 'payment receipts';
@@ -71,6 +71,33 @@ $paymentAmount = round((float) ($paymentAmount ?? 0), 2);
 @foreach($tickets as $ticket)
 - `{{ (string) ($ticket['reference'] ?? '-') }}` | {{ (string) ($ticket['name'] ?? '-') }} | {{ (string) ($ticket['email'] ?? '-') }}@if(!empty($ticket['earlyBird'] ?? false)) | Early bird @endif
 @endforeach
+@endif
+
+@if($equipmentOrder ?? null)
+### Equipment Order
+**Store Order #:** {{ $equipmentOrder['number'] }}<br>
+**Equipment Invoice #:** {{ $equipmentOrder['invoice_number'] }}<br>
+**Equipment and Delivery Total:** ${{ number_format($equipmentOrder['total'], 2) }}<br>
+**Delivery:** {{ $equipmentOrder['delivery'] }}
+
+@foreach($equipmentOrder['items'] as $item)
+- {{ $item['title'] }} × {{ $item['quantity'] }} — ${{ number_format($item['total'], 2) }}
+@endforeach
+
+@include('emails.partials.store-order-shipment-plan', [
+    'shipments' => collect($equipmentOrder['shipments']),
+    'isPickup' => $equipmentOrder['pickup'],
+])
+
+@if($equipmentOrder['pickup'])
+We will contact you when your equipment is available to collect.
+@endif
+
+Please quote store order **{{ $equipmentOrder['number'] }}** when contacting us about your equipment.
+
+@component('mail::button', ['url' => $equipmentOrder['url']])
+View Equipment Order
+@endcomponent
 @endif
 
 @if(count($attachmentLabels) === 1)

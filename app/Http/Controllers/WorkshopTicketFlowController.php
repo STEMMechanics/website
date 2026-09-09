@@ -486,7 +486,7 @@ class WorkshopTicketFlowController extends Controller
                 if ($equipment['summary']['shipping_quote']['requires_manual_quote'] ?? false) {
                     $equipmentQuote = app(\App\Services\StoreOrderService::class)->createQuoteRequestFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null);
                 } else {
-                $equipmentOrder = app(\App\Services\StoreOrderService::class)->createFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null);
+                $equipmentOrder = app(\App\Services\StoreOrderService::class)->createFromCart($equipment['lines'], $customer, $purchaserUserId ? User::find($purchaserUserId) : null, sendNotifications: false);
                 $equipmentInvoice = $equipmentOrder->invoice;
                 if (abs((float) $equipmentOrder->total_amount - (float) $session['equipment_confirmed_total']) > 0.001) {
                     throw ValidationException::withMessages(['equipment' => 'Equipment prices have changed. Please review your equipment total.']);
@@ -653,7 +653,7 @@ class WorkshopTicketFlowController extends Controller
         $session['equipment_quote_id'] = $result['equipment_quote_id'];
         if ($result['equipment_order_id']) {
             $order = \App\Models\StoreOrder::findOrFail($result['equipment_order_id']);
-            app(\App\Services\StoreOrderService::class)->queueDeferredOrderEmailToCustomer($order);
+            app(\App\Services\StoreOrderService::class)->queuePaidOrderAdminNotification($order);
         }
         app(\App\Services\WorkshopEquipmentService::class)->cart($workshop)->clear();
         $session['invoice_id'] = $result['invoice_id'];
@@ -669,7 +669,8 @@ class WorkshopTicketFlowController extends Controller
             recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
             recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
             paymentMethod: (string) $result['payment_method'],
-            amount: round($amount - (float) $checkoutTotals['equipment_amount'], 2)
+            amount: $amount,
+            equipmentOrderId: $result['equipment_order_id']
         );
         $session['email_delivery_id'] = $delivery->id;
         $this->putFlowSession($workshop, $session);
@@ -1321,7 +1322,8 @@ class WorkshopTicketFlowController extends Controller
                     recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
                     recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
                     paymentMethod: (string) ($session['payment_method'] ?? 'free'),
-                    amount: $orderAmount
+                    amount: $orderAmount,
+                    equipmentOrderId: $session['equipment_order_id'] ?? null
                 );
                 $session['email_delivery_id'] = $delivery->id;
                 $this->putFlowSession($workshop, $session);
@@ -1930,7 +1932,8 @@ class WorkshopTicketFlowController extends Controller
         string $recipientEmail,
         string $recipientName,
         string $paymentMethod,
-        float $amount
+        float $amount,
+        ?int $equipmentOrderId = null
     ): WorkshopTicketEmail {
         $normalizedTicketIds = collect($ticketIds)
             ->map(fn ($id) => (int) $id)
@@ -1948,6 +1951,7 @@ class WorkshopTicketFlowController extends Controller
         $delivery->ticket_ids = $normalizedTicketIds;
         $delivery->invoice_id = $invoiceId;
         $delivery->payment_id = $paymentId;
+        $delivery->equipment_order_id = $equipmentOrderId;
         $delivery->recipient_email = strtolower(trim($recipientEmail));
         $delivery->recipient_name = trim($recipientName);
         $delivery->payment_method = trim($paymentMethod);

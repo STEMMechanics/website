@@ -52,7 +52,7 @@ class StoreOrderService
         private readonly AccountCreditService $accountCredit,
     ) {}
 
-    public function createFromCart(Collection $lines, array $payload, ?User $authUser = null): StoreOrder
+    public function createFromCart(Collection $lines, array $payload, ?User $authUser = null, bool $sendNotifications = true): StoreOrder
     {
         if ($lines->isEmpty()) {
             throw ValidationException::withMessages([
@@ -90,8 +90,10 @@ class StoreOrderService
         $this->syncOrderState($order);
         $this->updateUserProfileFromOrder($user, $customer, $authUser);
         $freshOrder = $order->fresh(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon']);
-        $this->queueOrderConfirmationEmail($freshOrder);
-        $this->queueAdminOrderNotification($freshOrder, 'created');
+        if ($sendNotifications) {
+            $this->queueOrderConfirmationEmail($freshOrder);
+            $this->queueAdminOrderNotification($freshOrder, 'created');
+        }
 
         return $order->fresh(['invoice', 'items.downloads.media', 'coupon']);
     }
@@ -516,6 +518,13 @@ class StoreOrderService
     public function sendOrderPaidEmailToCustomer(StoreOrder $order, ?User $actingUser = null): bool
     {
         return $this->queueOrderPaidEmail($order, $actingUser);
+    }
+
+    public function queuePaidOrderAdminNotification(StoreOrder $order): void
+    {
+        if ($order->isPaid()) {
+            $this->queueAdminOrderNotification($order, 'paid');
+        }
     }
 
     public function queueDeferredOrderEmailToCustomer(StoreOrder $order, int $delayMinutes = 10): bool

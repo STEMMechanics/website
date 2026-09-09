@@ -24,6 +24,10 @@ class TicketOrderConfirmation extends Mailable
 
     public ?array $invoice;
 
+    public ?array $equipmentOrder;
+
+    public int $invoiceAttachmentCount;
+
     public bool $hasReceiptAttachment;
 
     public bool $hasCreditReceiptAttachment;
@@ -61,8 +65,11 @@ class TicketOrderConfirmation extends Mailable
         ?int $ticketCount = null,
         float $creditAppliedAmount = 0.0,
         float $paymentAmount = 0.0,
-        ?string $creditReferenceSummary = null
+        ?string $creditReferenceSummary = null,
+        ?array $equipmentOrder = null
     ) {
+        $this->equipmentOrder = $equipmentOrder;
+        $this->invoiceAttachmentCount = collect($attachments)->where('type', 'invoice')->count();
         $this->recipientName = $recipientName;
         $this->workshop = $workshop;
         $this->tickets = $tickets;

@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Jobs\SendDeferredStoreOrderEmail;
 use App\Jobs\SendWorkshopTicketOrderEmail;
+use App\Mail\StoreOrderAdminNotification;
+use App\Mail\StoreOrderConfirmation;
+use App\Mail\StoreOrderPaid;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketOrderConfirmation;
 use App\Models\Coupon;
@@ -112,13 +116,18 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
     public static function equipmentPaymentMethods(): array
     {
-        return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['declined'], ['price_changed'], ['stock_changed']];
+        return [['bank_transfer'], ['pay_at_door'], ['credit_card'], ['credit_card_fallback'], ['declined'], ['price_changed'], ['stock_changed']];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('equipmentPaymentMethods')]
     public function test_optional_equipment_creates_a_separate_store_invoice_using_existing_pickup(string $method): void
     {
         Queue::fake();
+        config(['mail.admin_bcc' => 'ops@example.com']);
+        $useFallback = $method === 'credit_card_fallback';
+        if ($useFallback) {
+            $method = 'credit_card';
+        }
         $product = \App\Models\Product::factory()->create(['status' => 'active', 'product_type' => 'physical', 'price' => 25, 'inventory_quantity' => 10]);
         $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
         $regularCart = app(\App\Services\StoreCartService::class);
@@ -151,7 +160,13 @@ class WorkshopTicketEmailFlowTest extends TestCase
             config(['services.square.location_id' => 'TEST']);
             $gateway = Mockery::mock(SquareApiService::class);
             $gateway->shouldReceive('isEnabled')->andReturn(true);
-            $charge = $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(fn ($payload) => $payload['amount_money']['amount'] === 4000));
+            $charge = $gateway->shouldReceive('createPayment')->once()->with(Mockery::on(function ($payload) {
+                Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderConfirmation
+                    || $job->mailable instanceof StoreOrderPaid
+                    || $job->mailable instanceof StoreOrderAdminNotification);
+
+                return $payload['amount_money']['amount'] === 4000;
+            }));
             if ($method === 'declined') {
                 $charge->andThrow(new \RuntimeException('Declined'));
                 $gateway->shouldReceive('userFacingPaymentErrorMessage')->andReturn('Card declined');
@@ -163,6 +178,8 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $response = $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => $method === 'declined' ? 'credit_card' : $method, 'source_id' => 'test-token']);
         if ($method === 'declined') {
             $response->assertSessionHasErrors('payment_method');
+            Queue::assertNotPushed(SendEmail::class);
+            Queue::assertNotPushed(SendDeferredStoreOrderEmail::class);
             $this->assertDatabaseCount('store_orders', 0);
             $this->assertDatabaseCount('payments', 0);
             $this->assertDatabaseCount('invoices', 0);
@@ -184,9 +201,55 @@ class WorkshopTicketEmailFlowTest extends TestCase
             $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'credit_card', 'source_id' => 'test-token'])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
             $this->assertDatabaseCount('payments', 1);
             $this->assertDatabaseCount('store_orders', 1);
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderConfirmation);
+            Queue::assertNotPushed(SendDeferredStoreOrderEmail::class);
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'equipment@example.com');
+            $delivery = WorkshopTicketEmail::sole();
+            $this->assertSame($order->id, $delivery->equipment_order_id);
+            $this->assertSame(40.0, (float) $delivery->amount);
+            $scheduledJob = Queue::pushed(SendWorkshopTicketOrderEmail::class)->first();
+            if ($useFallback) {
+                $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+                $this->flushSession();
+                $this->travel(30)->minutes();
+                $scheduledJob->handle(app(\App\Services\WorkshopTicketOrderEmailService::class));
+            } else {
+                $this->post(route('workshop.ticket.flow.details.save', $workshop), ['tickets' => [[
+                    'id' => $ticket->id,
+                    'firstname' => 'Jamie',
+                    'surname' => 'Example',
+                    'email' => 'equipment@example.com',
+                    'phone' => '0400123456',
+                ]]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+            }
+            // The fallback must not send a second confirmation after details are submitted.
+            $scheduledJob->handle(app(\App\Services\WorkshopTicketOrderEmailService::class));
+            Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job) => $job->mailable instanceof StoreOrderPaid);
+            $customerEmails = Queue::pushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'equipment@example.com');
+            $this->assertCount(1, $customerEmails);
+            $mail = $customerEmails->first()->mailable;
+            $this->assertInstanceOf(TicketOrderConfirmation::class, $mail);
+            $this->assertSame(1, $mail->ticketAttachmentCount);
+            $this->assertSame(1, $mail->receiptAttachmentCount);
+            $this->assertSame(2, $mail->invoiceAttachmentCount);
+            $this->assertSame(40.0, $mail->amount);
+            $this->assertSame(40.0, $mail->paymentAmount);
+            $this->assertSame($order->order_number, $mail->equipmentOrder['number']);
+            $html = $mail->render();
+            $this->assertStringContainsString($order->order_number, $html);
+            $this->assertStringContainsString(e($product->title), $html);
+            $this->assertStringContainsString('View Equipment Order', $html);
+            $this->assertCount(4, $mail->rawAttachments);
+            $this->assertNotNull($order->fresh()->order_paid_emailed_at);
+            Queue::assertPushed(SendEmail::class, fn (SendEmail $job) => $job->to === 'ops@example.com'
+                && $job->mailable instanceof StoreOrderAdminNotification
+                && $job->mailable->notificationType === 'paid'
+                && $job->mailable->order->isPaid());
         }
 
-        $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+        if (! $useFallback) {
+            $this->assertSame(3, app(\App\Services\StoreCartService::class)->lines()->sum('quantity'));
+        }
     }
 
     public function test_equipment_manual_shipping_quote_does_not_charge_equipment_with_tickets(): void
