@@ -1222,7 +1222,7 @@ class WorkshopController extends Controller
             'earlyBirdTicketCount' => $earlyBirdTicketCount,
             'maxTicketsRemaining' => $maxTicketsRemaining,
             'earlyBirdTicketLimitRemaining' => $earlyBirdTicketLimitRemaining,
-            'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop, false)),
+            'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop)),
         ]);
     }
 
@@ -5002,18 +5002,13 @@ class WorkshopController extends Controller
     /**
      * @return array<int, string>
      */
-    private function resolveWorkshopTicketEmailRecipients(Workshop $workshop, bool $includeInactive = true): array
+    private function resolveWorkshopTicketEmailRecipients(Workshop $workshop): array
     {
-        $ticketsQuery = Ticket::query()
+        $tickets = Ticket::query()
             ->with('user')
             ->where('workshop_id', $workshop->id)
-            ->where('status', '!=', Ticket::STATUS_HOLD);
-
-        if (! $includeInactive) {
-            $ticketsQuery->whereIn('status', Ticket::activePurchasedStatuses());
-        }
-
-        $tickets = $ticketsQuery->get();
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->get();
 
         $normalized = [];
         foreach ($tickets as $ticket) {
@@ -5263,7 +5258,7 @@ class WorkshopController extends Controller
      */
     private function notifyWorkshopTicketHoldersOfChange(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): int
     {
-        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop, false);
+        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop);
         if ($recipients === []) {
             return 0;
         }
