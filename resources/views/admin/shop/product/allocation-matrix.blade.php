@@ -34,11 +34,14 @@
                             <th scope="row" class="sticky left-0 z-10 bg-white py-3 pr-3 text-left font-medium">{{ $category->name }}</th>
                             <template x-for="column in columns" :key="column.key">
                                 <td class="px-3 py-3 align-top" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'">
-                                    <div class="w-32 space-y-2">
-                                        <div class="relative">
+                                    <div class="flex items-center gap-1">
+                                        <div class="relative w-32 shrink-0">
                                             <span class="pointer-events-none absolute left-3 top-2 text-slate-500">$</span>
                                             <x-ui.input-control type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" class="h-9 pl-7 pr-2 text-right tabular-nums" x-bind:aria-label="column.name + ' — ' + $el.closest('tr').dataset.categoryName + ' amount'" x-bind:value="values(column)[{{ $category->id }}].amount" x-on:input="setValue(column, {{ $category->id }}, $event.target.value)" x-on:blur="format(column, {{ $category->id }})" />
                                         </div>
+                                        <button type="button" class="inline-flex size-9 shrink-0 items-center justify-center rounded border border-slate-300 text-primary-color hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" x-on:click="allocateRemaining(column, {{ $category->id }})" x-bind:disabled="!Number.isFinite(total(column).remaining) || total(column).remaining <= 0" x-bind:aria-label="'Allocate remaining amount to ' + $el.closest('tr').dataset.categoryName + ' for ' + column.name" title="Allocate remaining amount to {{ $category->name }}">
+                                            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </template>
