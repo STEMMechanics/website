@@ -149,7 +149,7 @@ class FinancePlanningTest extends TestCase
         $this->assertSame(0, array_sum($cash['reserves']));
     }
 
-    public function test_drawings_require_reconciliation_and_respect_cash_gst_and_time(): void
+    public function test_drawings_respect_cash_gst_buffer_and_remuneration_reserve(): void
     {
         $this->travelTo(now()->setDate(2026, 9, 6));
         $user = $this->admin();
@@ -157,6 +157,8 @@ class FinancePlanningTest extends TestCase
         $this->post(route('admin.finance.drawing'), ['amount' => 10, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'opening_cash_cents' => 10000, 'opening_gst_cents' => 2000, 'buffer_cents' => 1000]);
         \App\Models\SiteOption::updateOrCreate(['name' => 'finance.cash-buffer'], ['value' => '10.00']);
+        $this->post(route('admin.finance.drawing'), ['amount' => 80, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
+        DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 7000]);
         $this->post(route('admin.finance.drawing'), ['amount' => 80, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         $token = (string) Str::uuid();
         $this->post(route('admin.finance.drawing'), ['amount' => 70, 'token' => $token])->assertSessionHasNoErrors()->assertRedirect(route('admin.timesheet.index', ['tab' => 'drawings']));
@@ -166,7 +168,7 @@ class FinancePlanningTest extends TestCase
         $id = DB::table('finance_drawings')->value('id');
         $this->post(route('admin.finance.drawingStatus', $id), ['status' => 'paid', 'paid_on' => '2026-09-06', 'reference' => 'Bank 123'])->assertSessionHasNoErrors();
         $this->assertSame(3000, app(FinancePlanner::class)->cash()['cash']);
-        $this->assertSame(-7000, app(FinancePlanner::class)->cash()['reserves'][6]);
+        $this->assertSame(0, app(FinancePlanner::class)->cash()['reserves'][6]);
         $this->assertSame(12000, app(FinancePlanner::class)->earned($user->id));
         $other = $this->admin();
         $this->actingAs($other)->post(route('admin.finance.drawingStatus', $id), ['status' => 'cancelled'])->assertNotFound();

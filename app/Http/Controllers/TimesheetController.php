@@ -34,13 +34,7 @@ class TimesheetController extends Controller
             if ($purpose === 'contribution') $earned = (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents');
             $paid = (int) (clone $query)->where('purpose', $purpose)->where('status', 'paid')->sum('cents');
             $pending = (int) (clone $query)->where('purpose', $purpose)->where('status', 'pending')->sum('cents');
-            $drawingTotals = [];
-            foreach (['time', 'contribution'] as $type) {
-                $target = $type === 'time' ? $planner->earned($user) - $forgone : (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents');
-                $typePaid = (int) (clone $query)->where('purpose', $type)->where('status', 'paid')->sum('cents');
-                $typePending = (int) (clone $query)->where('purpose', $type)->where('status', 'pending')->sum('cents');
-                $drawingTotals[$type] = ['outstanding' => max(0, $target - $typePaid), 'available' => max(0, min($target - $typePaid - $typePending, $cash['available']))];
-            }
+            $drawingTotals = $planner->drawingTotals($user, $cash);
             $drawings = $query->where('purpose', $purpose)->orderByDesc('id')->paginate(ListPageSize::resolve(25))->withQueryString();
 
             return view('admin.timesheet.index', compact('tab', 'cash', 'earned', 'paid', 'pending', 'drawings', 'purpose', 'drawingTotals', 'forgone', 'remunerationTransfers'));
@@ -109,9 +103,8 @@ class TimesheetController extends Controller
             } else {
                 DB::table('finance_time_entries')->insert($values + ['created_at' => now()]);
             }
-            $committed = (int) DB::table('finance_drawings')->where('user_id', $request->user()->id)->where('purpose', 'time')->whereIn('status', ['pending', 'paid'])->sum('cents');
-            if ($planner->earned($request->user()->id) < $committed + $planner->remunerationForgone($request->user()->id)) {
-                throw ValidationException::withMessages(['rate' => 'This would reduce your earned remuneration below pay already prepared, paid or forgone. Cancel pending drawings first.']);
+            if ($planner->earned($request->user()->id) < $planner->remunerationForgone($request->user()->id)) {
+                throw ValidationException::withMessages(['rate' => 'This would reduce your earned remuneration below remuneration already forgone.']);
             }
         });
 

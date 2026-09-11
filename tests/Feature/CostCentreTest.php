@@ -55,7 +55,7 @@ class CostCentreTest extends TestCase
         $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertSee($data['reason'])->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 12000 && $totals['time']['available'] === 2000);
         $this->post(route('admin.finance.drawing'), ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasErrors('amount');
         $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
-        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasErrors('rate');
+        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 30, 'rate' => 100])->assertSessionHasErrors('rate');
         $this->assertSame(20000, $planner->earned($user->id));
         $this->actingAs($this->admin())->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
         $this->assertDatabaseCount('finance_fund_transfers', 1);

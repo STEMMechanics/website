@@ -36,6 +36,8 @@ class CostCentreController extends Controller
             return $centre;
         });
         $centres->push((object) ['id' => 'gst', 'name' => 'GST', 'kind' => 'gst', 'active' => true, 'priority' => 0, 'balance' => $cash['gst']]);
+        $ownerPriority = $centres->firstWhere('kind', 'owner')?->priority ?? 60;
+        $centres->push((object) ['id' => 'cash', 'name' => 'Available business cash', 'kind' => 'cash', 'active' => true, 'priority' => $ownerPriority - 0.5, 'balance' => $cash['available']]);
         $counts = ['all' => $centres->count(), 'active' => $centres->where('active', true)->count(), 'archived' => $centres->where('active', false)->count()];
         $state = $data['state'] ?? 'all';
         $centres = $centres->filter(fn ($centre) => ($state === 'all' || (bool) $centre->active === ($state === 'active')) && (! isset($data['search']) || str_contains(mb_strtolower($centre->name), mb_strtolower($data['search']))));
@@ -192,15 +194,14 @@ class CostCentreController extends Controller
         $from = $data['from'] ?? null;
         $categories = DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->get();
 
-        $ownerId = DB::table('finance_categories')->where('kind', 'owner')->value('id');
-        $remunerationAvailable = max(0, min($planner->remunerationAvailable($request->user()->id), $planner->cash()['reserves'][$ownerId] ?? 0));
+        $remunerationAvailable = max(0, min($planner->remunerationAvailable($request->user()->id), $planner->cash()['remuneration_reserve_available']));
 
         return view('admin.cost-centre.transfer', compact('categories', 'from', 'remunerationAvailable'));
     }
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::exists('finance_categories', 'id')->where('kind', 'cost')->where('active', true)], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $request->expectsJson() ? response()->json(['message' => 'Funds transferred. Transaction history is unchanged.']) : redirect()->route('admin.cost-centre.index')->with('message', 'Funds transferred.')->with('message-type', 'success');

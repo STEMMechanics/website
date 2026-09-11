@@ -381,7 +381,7 @@ class FinancePlanner
         }
         $names = DB::table('finance_categories')->pluck('name', 'id');
         foreach (DB::table('finance_fund_transfers')->where(fn ($q) => $q->where('category_id', $category->id)->orWhere('from_category_id', $category->id))->get() as $transfer) {
-            $add('transfer-'.$transfer->id, $transfer->created_at, 'transfer', ($transfer->remuneration_user_id ? 'Remuneration forgone by '.(\App\Models\User::find($transfer->remuneration_user_id)?->getName() ?? $transfer->remuneration_user_id) : ($names[$transfer->from_category_id] ?? 'Business cash')).' → '.($names[$transfer->category_id] ?? '').' · '.$transfer->reason, $transfer->category_id == $category->id ? $transfer->cents : -$transfer->cents);
+            $add('transfer-'.$transfer->id, $transfer->created_at, 'transfer', ($transfer->remuneration_user_id ? 'Remuneration forgone by '.(\App\Models\User::find($transfer->remuneration_user_id)?->getName() ?? $transfer->remuneration_user_id) : ($names[$transfer->from_category_id] ?? 'Available business cash')).' → '.($names[$transfer->category_id] ?? 'Available business cash').' · '.$transfer->reason, $transfer->category_id == $category->id ? $transfer->cents : -$transfer->cents);
         }
         if ($category->kind === 'owner') {
             foreach (DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'paid')->whereBetween('paid_on', [$from, today()->toDateString()])->get() as $drawing) {
@@ -409,7 +409,7 @@ class FinancePlanner
             $rounding['received_lines'] = app(ProductAllocation::class)->balances(app(InvoiceAllocationParts::class)->events($invoiceIds, $budget->workshop_id));
         }
 
-        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget) ? 0 : $income['net'], $rounding), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
+        return ['budget' => $budget, 'targets' => $targets, 'income' => $income, 'funding' => $this->funding($targets, $budget->workshop_id && ! app(WorkshopAllocation::class)->isCurrent($budget) ? 0 : $income['net'], $rounding), 'spent' => DB::table('finance_expense_splits')->join('expenses', 'expenses.id', '=', 'finance_expense_splits.expense_id')->where('budget_id', $budget->id)->whereDate('paid_on', '<=', today())->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all(), 'support' => DB::table('finance_fund_transfers')->where('budget_id', $budget->id)->whereNotNull('category_id')->selectRaw('category_id, sum(cents) as total')->groupBy('category_id')->pluck('total', 'category_id')->all()];
     }
 
     /** An explicit split wins; supplier rules are fallback defaults, never applied twice. */
@@ -483,7 +483,7 @@ class FinancePlanner
         return $months;
     }
 
-    public function cash(): array
+    public function cash(?int $excludingDrawing = null): array
     {
         $settings = DB::table('finance_settings')->where('id', 1)->first();
         $cash = (int) $settings->opening_cash_cents;
@@ -541,7 +541,9 @@ class FinancePlanner
             $reserves[$ownerCategory->id] -= (int) DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'paid')->whereBetween('paid_on', [$from, $today])->sum('cents');
         }
         foreach (DB::table('finance_fund_transfers')->get() as $transfer) {
-            $reserves[$transfer->category_id] = ($reserves[$transfer->category_id] ?? 0) + $transfer->cents;
+            if ($transfer->category_id !== null) {
+                $reserves[$transfer->category_id] = ($reserves[$transfer->category_id] ?? 0) + $transfer->cents;
+            }
             if ($transfer->from_category_id) {
                 $reserves[$transfer->from_category_id] = ($reserves[$transfer->from_category_id] ?? 0) - $transfer->cents;
             }
@@ -550,7 +552,10 @@ class FinancePlanner
             $cash += $contribution->cents;
             foreach ($this->decode($contribution->splits) as $id => $amount) $reserves[$id] = ($reserves[$id] ?? 0) + $amount;
         }
-        $pending = (int) DB::table('finance_drawings')->where('status', 'pending')->sum('cents');
+        $pendingDrawings = DB::table('finance_drawings')->where('status', 'pending')->when($excludingDrawing, fn ($q) => $q->where('id', '!=', $excludingDrawing))->get();
+        $pending = (int) $pendingDrawings->sum('cents');
+        $ownerReserve = (int) ($reserves[$ownerCategory->id ?? null] ?? 0);
+        $remunerationReserveAvailable = max(0, $ownerReserve - (int) $pendingDrawings->where('purpose', 'time')->sum('cents'));
         $protected = 0;
         foreach ($categories as $category) {
             if ($category->kind !== 'owner') {
@@ -561,17 +566,29 @@ class FinancePlanner
         $unallocatedIncome = max(0, $receivedNet - $allocatedNet);
         $protected += $unallocatedIncome;
 
-        return ['unallocated_income' => $unallocatedIncome, 'settings' => $settings, 'cash' => $cash, 'gst' => $gst, 'reserves' => $reserves, 'uncategorised' => $uncategorised, 'protected' => $protected, 'pending' => $pending, 'available' => max(0, $cash - max(0, $gst) - $protected - $this->cents(\App\Models\SiteOption::value('finance.cash-buffer', '0')) - $pending)];
+        // Pending remuneration commits both cash and its reserve; subtract it only once.
+        $drawingCash = max(0, $cash - max(0, $gst) - $protected - $this->cents(\App\Models\SiteOption::value('finance.cash-buffer', '0')) - $pending);
+
+        return ['unallocated_income' => $unallocatedIncome, 'settings' => $settings, 'cash' => $cash, 'gst' => $gst, 'reserves' => $reserves, 'uncategorised' => $uncategorised, 'protected' => $protected, 'pending' => $pending,
+            'owner_reserve' => $ownerReserve, 'remuneration_reserve_available' => $remunerationReserveAvailable,
+            'drawing_cash' => $drawingCash, 'available' => max(0, $drawingCash - $remunerationReserveAvailable)];
     }
 
     public function transfer(array $data, string $user): void
     {
         DB::transaction(function () use ($data, $user): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
-            if (! DB::table('finance_categories')->where('id', $data['category_id'])->where('kind', 'cost')->where('active', true)->exists()) {
+            $destination = ($data['category_id'] ?? null) === 'cash' ? null : ($data['category_id'] ?? null);
+            if (($data['category_id'] ?? null) !== 'cash' && ! DB::table('finance_categories')->where('id', $destination)->where('kind', 'cost')->where('active', true)->exists()) {
                 throw ValidationException::withMessages(['category_id' => 'Choose an active cost centre.']);
             }
             $remuneration = ($data['from_category_id'] ?? null) === 'remuneration';
+            if ($remuneration && $destination === null) {
+                throw ValidationException::withMessages(['category_id' => 'Forgone remuneration must fund a cost centre.']);
+            }
+            if ($destination === null && ! empty($data['budget_id'])) {
+                throw ValidationException::withMessages(['budget_id' => 'A transfer to business cash cannot fund a workshop budget.']);
+            }
             if ($remuneration && DB::table('finance_fund_transfers')->where('token', $data['token'] ?? null)->where('remuneration_user_id', $user)->exists()) {
                 return;
             }
@@ -586,14 +603,14 @@ class FinancePlanner
             $from = $remuneration ? DB::table('finance_categories')->where('kind', 'owner')->value('id') : ($data['from_category_id'] ?? null);
             $available = $from ? ($cash['reserves'][$from] ?? 0) : $cash['available'];
             if ($remuneration) {
-                $available = $from ? min($available, $this->remunerationAvailable($user)) : 0;
+                $available = $from ? min($cash['remuneration_reserve_available'], $this->remunerationAvailable($user)) : 0;
             }
-            if ($amount <= 0 || $amount > $available || $from == $data['category_id']) {
+            if ($amount <= 0 || $amount > $available || $from == $destination) {
                 throw ValidationException::withMessages(['amount' => $remuneration
                     ? 'This exceeds your unpaid remuneration or the remuneration fund balance. Pay already prepared, paid or forgone is excluded.'
                     : 'Choose different funds and an amount covered by the source’s balance.']);
             }
-            DB::table('finance_fund_transfers')->insert(['remuneration_user_id' => $remuneration ? $user : null, 'token' => $remuneration ? $data['token'] : null, 'from_category_id' => $from, 'category_id' => $data['category_id'], 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'], 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('finance_fund_transfers')->insert(['remuneration_user_id' => $remuneration ? $user : null, 'token' => $remuneration ? $data['token'] : null, 'from_category_id' => $from, 'category_id' => $destination, 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'], 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
         });
     }
 
@@ -602,6 +619,7 @@ class FinancePlanner
         return (int) DB::table('finance_fund_transfers')->where('remuneration_user_id', $user)->sum('cents');
     }
 
+    /** Unpaid earnings eligible to forgo; drawing availability comes from drawingTotals(). */
     public function remunerationAvailable(string $user): int
     {
         return max(0, $this->earned($user) - $this->remunerationForgone($user)
@@ -613,6 +631,31 @@ class FinancePlanner
         return (int) DB::table('finance_time_entries')->where('user_id', $user)->get()->sum(fn ($row) => (int) round($row->minutes * $row->rate_cents / 60));
     }
 
+    /** Reserve and liability balances share the same cash limits in forms and writes. */
+    public function drawingTotals(string $user, ?array $cash = null, ?int $excludingDrawing = null): array
+    {
+        $cash ??= $this->cash($excludingDrawing);
+        $contributed = (int) DB::table('finance_owner_contributions')->where('user_id', $user)->whereDate('date', '<=', today())->sum('cents');
+        $drawings = DB::table('finance_drawings')->where('user_id', $user)->where('purpose', 'contribution')->when($excludingDrawing, fn ($q) => $q->where('id', '!=', $excludingDrawing))->get();
+        $outstanding = max(0, $contributed - (int) $drawings->where('status', 'paid')->sum('cents'));
+        $repayable = max(0, $outstanding - (int) $drawings->where('status', 'pending')->sum('cents'));
+
+        return [
+            'time' => ['outstanding' => max(0, $cash['owner_reserve']), 'available' => min($cash['remuneration_reserve_available'], $cash['drawing_cash'])],
+            'contribution' => ['outstanding' => $outstanding, 'available' => min($repayable, $cash['available'], $cash['drawing_cash'])],
+        ];
+    }
+
+    public function validateDrawing(string $user, int $cents, string $purpose, ?int $excludingDrawing = null): void
+    {
+        if (! in_array($purpose, ['time', 'contribution'], true)) {
+            throw ValidationException::withMessages(['purpose' => 'Choose remuneration or return of contributions.']);
+        }
+        if ($cents <= 0 || $cents > $this->drawingTotals($user, excludingDrawing: $excludingDrawing)[$purpose]['available']) {
+            throw ValidationException::withMessages(['amount' => 'This exceeds the reserve, outstanding contributions or available cash.']);
+        }
+    }
+
     public function prepareDrawing(string $user, int $cents, string $token, string $purpose = 'time'): void
     {
         DB::transaction(function () use ($user, $cents, $token, $purpose): void {
@@ -620,10 +663,7 @@ class FinancePlanner
             if (DB::table('finance_drawings')->where('token', $token)->exists()) {
                 return;
             }
-            $outstanding = ($purpose === 'contribution' ? (int) DB::table('finance_owner_contributions')->where('user_id', $user)->sum('cents') : $this->earned($user) - $this->remunerationForgone($user)) - (int) DB::table('finance_drawings')->where('user_id', $user)->where('purpose', $purpose)->whereIn('status', ['pending', 'paid'])->sum('cents');
-            if ($cents <= 0 || $cents > min($outstanding, $this->cash()['available'])) {
-                throw ValidationException::withMessages(['amount' => 'This exceeds the outstanding amount or available cash.']);
-            }
+            $this->validateDrawing($user, $cents, $purpose);
             DB::table('finance_drawings')->insert(['user_id' => $user, 'token' => $token, 'purpose' => $purpose, 'cents' => $cents, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
         });
     }

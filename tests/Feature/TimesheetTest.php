@@ -82,7 +82,7 @@ class TimesheetTest extends TestCase
         $this->get(route('admin.timesheet.edit', ['date' => '2026-09-01']))->assertOk()->assertSee('multiple existing entries')->assertViewHas('dayEntries', fn ($entries) => $entries->count() === 2);
     }
 
-    public function test_daily_limit_and_committed_drawings_protect_corrections(): void
+    public function test_daily_limit_is_enforced_and_reserve_drawings_do_not_prevent_time_corrections(): void
     {
         $user = $this->admin();
         $data = ['date' => '2026-09-01', 'hours' => 24];
@@ -90,8 +90,8 @@ class TimesheetTest extends TestCase
         $this->postJson(route('admin.timesheet.store'), array_merge($data, ['hours' => 0.5]))->assertUnprocessable();
         $id = DB::table('finance_time_entries')->value('id');
         DB::table('finance_drawings')->insert(['user_id' => $user->id, 'token' => (string) Str::uuid(), 'cents' => 10000, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
-        $this->postJson(route('admin.timesheet.store'), array_merge($data, ['id' => $id, 'hours' => 1]))->assertUnprocessable();
-        $this->assertDatabaseHas('finance_time_entries', ['id' => $id, 'minutes' => 1440]);
+        $this->postJson(route('admin.timesheet.store'), array_merge($data, ['id' => $id, 'hours' => 1]))->assertOk();
+        $this->assertDatabaseHas('finance_time_entries', ['id' => $id, 'minutes' => 60]);
         $this->get(route('admin.finance.index', ['tab' => 'time']))->assertRedirect(route('admin.timesheet.index'));
         $this->actingAs(User::factory()->create())->get(route('admin.timesheet.index'))->assertForbidden();
         $this->postJson(route('admin.timesheet.store'), $data)->assertForbidden();
