@@ -12,7 +12,7 @@
     <p class="mb-3">Pay forgone to fund cost centres: {{ money($forgone / 100) }}</p>
     <x-ui.button color="outline" href="{{ route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']) }}">Transfer remuneration</x-ui.button>
     @foreach($remunerationTransfers as $transfer)
-        <p class="mt-3 text-sm">{{ $transfer->created_at }} · {{ money($transfer->cents / 100) }} to <a href="{{ route('admin.cost-centre.show', $transfer->category_id) }}">{{ $transfer->centre_name }}</a><br>{{ $transfer->reason }}</p>
+        <p class="mt-3 text-sm">{{ $transfer->created_at }} · {{ money($transfer->cents / 100) }} to <a href="{{ route('admin.cost-centre.show', $transfer->category_id) }}">{{ $transfer->centre_name }}</a>@if($transfer->reason)<br>{{ $transfer->reason }}@endif</p>
     @endforeach
 </x-finance.panel>
 </div>
@@ -20,7 +20,24 @@
     <div x-show="loading" x-cloak class="flex min-h-40 items-center justify-center" role="status" aria-label="Loading drawing history"><x-ui.loading-indicator class="text-6xl" /></div>
     <div x-ref="history" data-drawing-history x-show="!loading">
     @forelse($drawings as $drawing)<div class="mb-4 rounded-xl border border-slate-200 p-4"><div class="flex flex-wrap items-center justify-between gap-3"><p><span class="text-sm text-slate-500">{{ $drawing->purpose === 'contribution' ? 'Return of contributions' : 'Owner remuneration' }}</span><br>{{ money($drawing->cents / 100) }} · {{ $drawing->created_at }} @if($drawing->reference) · {{ $drawing->reference }}@endif</p><x-ui.badge :color="$drawing->status === 'paid' ? 'success' : 'slate'">{{ ucfirst($drawing->status) }}</x-ui.badge></div>
-        @if($drawing->status === 'pending')<form method="POST" action="{{ route('admin.finance.drawingStatus', $drawing->id) }}" class="mt-4">@csrf<input type="hidden" name="status" value="paid"><div class="grid gap-x-4 sm:grid-cols-2"><x-ui.input name="paid_on" label="Transfer date" type="date" :value="now()->toDateString()" required /><x-ui.input name="reference" label="Bank reference" required /></div><x-finance.save>Mark transferred</x-finance.save></form><form method="POST" action="{{ route('admin.finance.drawingStatus', $drawing->id) }}">@csrf<input type="hidden" name="status" value="cancelled"><x-ui.button type="submit" color="danger">Cancel drawing</x-ui.button></form>@endif
+        @if($drawing->status === 'pending')
+            <form id="drawing-payment-{{ $drawing->id }}" method="POST" action="{{ route('admin.finance.drawingStatus', $drawing->id) }}" class="mt-4">
+                @csrf
+                <input type="hidden" name="status" value="paid">
+                <div class="grid gap-x-4 sm:grid-cols-2">
+                    <x-ui.input name="paid_on" label="Transfer date" type="date" :value="now()->toDateString()" required />
+                    <x-ui.input name="reference" label="Bank reference (optional)" maxlength="255" />
+                </div>
+            </form>
+            <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <form method="POST" action="{{ route('admin.finance.drawingStatus', $drawing->id) }}">
+                    @csrf
+                    <input type="hidden" name="status" value="cancelled">
+                    <x-ui.button type="submit" color="danger">Cancel drawing</x-ui.button>
+                </form>
+                <x-ui.button type="submit" form="drawing-payment-{{ $drawing->id }}">Mark transferred</x-ui.button>
+            </div>
+        @endif
     </div>@empty<p>No drawings recorded.</p>@endforelse
     <x-ui.list-pagination :paginator="$drawings" label="drawings" />
     </div>

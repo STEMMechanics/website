@@ -61,12 +61,12 @@
                     @endif
                     <div class="mt-4 flex flex-wrap items-center gap-2">
                         @if($passwordConfigured)
-                            <form method="POST" action="{{ route('account.password.update') }}" class="m-0">
+                            <form method="POST" action="{{ route('account.password.update') }}" class="m-0 w-full sm:w-auto">
                                 @csrf
-                                <x-ui.button type="submit" color="danger-outline" class="px-5!" name="clear_password" value="1">Clear</x-ui.button>
+                                <x-ui.button type="submit" color="danger-outline" class="w-full sm:w-auto px-5!" name="clear_password" value="1">Clear</x-ui.button>
                             </form>
                         @endif
-                        <x-ui.button type="button" class="px-5!" color="primary-outline" x-on:click="passwordDialogOpen = true">{{ $passwordConfigured ? 'Change' : 'Setup' }}</x-ui.button>
+                        <x-ui.button type="button" class="w-full sm:w-auto px-5!" color="primary-outline" x-on:click="passwordDialogOpen = true">{{ $passwordConfigured ? 'Change' : 'Setup' }}</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -128,11 +128,11 @@
                     <div class="mt-4 flex flex-wrap items-center gap-2">
                         <a href="#" x-show="$store.tfa.enabled" x-data x-on:click.prevent="resetBackupCodes($event)" class="text-sm font-medium text-primary-color hover:text-primary-color-dark">Reset backup codes</a>
                         @if(! config('security.admin_mfa_required') || ! $user?->isAdmin())
-                            <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
+                            <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="w-full sm:w-auto px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
                         @else
                             <p class="text-sm text-gray-600">Required for administrator access.</p>
                         @endif
-                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
+                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="w-full sm:w-auto px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -150,7 +150,7 @@
                 <p class="mt-2 text-sm text-gray-600">Scan the QR code or enter the key <span class="font-semibold text-gray-900" id="tfa_key"></span>, then confirm with a code from your app.</p>
                 <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                     <x-ui.input name="code" id="code" class="mb-0 sm:flex-1" label="Verification code" />
-                    <x-ui.button class="sm:mb-4" type="button" color="primary-outline" x-on:click.prevent="linkTFA()">Link</x-ui.button>
+                    <x-ui.button class="w-full sm:w-auto sm:mb-4" type="button" color="primary-outline" x-on:click.prevent="linkTFA()">Link</x-ui.button>
                 </div>
             </div>
         </div>

@@ -234,7 +234,7 @@ class CostCentreController extends Controller
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'nullable|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $request->expectsJson() ? response()->json(['message' => 'Funds transferred. Transaction history is unchanged.']) : redirect()->route('admin.cost-centre.index')->with('message', 'Funds transferred.')->with('message-type', 'success');

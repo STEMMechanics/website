@@ -150,7 +150,6 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                         <x-ui.badge color="gray" uppercase data-remembered-devices-count>{{ $rememberedDevices->count() }} saved</x-ui.badge>
                     </div>
 
-                    <x-ui.feedback id="remembered-device-feedback" />
                     <div class="rounded-2xl mt-4 bg-gray-50 p-4">
                         <h3 class="text-sm font-semibold text-gray-900">This device</h3>
                         <p class="mt-1 text-sm text-gray-600">Control whether this browser stays signed in between visits.</p>
@@ -205,7 +204,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                     <x-ui.button
                                         type="button"
                                         color="danger-outline"
-                                        class="px-4! py-1.5!"
+                                        class="w-full sm:w-auto px-4! py-1.5!"
                                         data-device-remove
                                         data-device-id="{{ $device['id'] }}"
                                     >
@@ -227,13 +226,13 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                     <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmAccountDelete($el)">
                         @csrf
                         @method('DELETE')
-                        <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
+                        <x-ui.button type="submit" color="danger-outline" class="w-full sm:w-auto">Delete account</x-ui.button>
                     </form>
                 @else
                     <div></div>
                 @endif
                 <div class="flex justify-end">
-                    <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
+                    <x-ui.button type="submit" form="account-settings-form" class="w-full sm:w-auto">Save changes</x-ui.button>
                 </div>
             </div>
         </div>
@@ -489,7 +488,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                     }
 
                     updateEmptyState();
-                    SM.feedback(document.getElementById('remembered-device-feedback'), 'Device removed', 'It will need to sign in again next time.', 'success');
+                    SM.alert('Device removed', 'It will need to sign in again next time.', 'success');
                 } catch {
                     SM.alert('Remove failed', 'Could not remove the device right now.', 'danger');
                 } finally {

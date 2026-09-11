@@ -381,7 +381,7 @@ class FinancePlanner
         }
         $names = DB::table('finance_categories')->pluck('name', 'id');
         foreach (DB::table('finance_fund_transfers')->where(fn ($q) => $q->where('category_id', $category->id)->orWhere('from_category_id', $category->id))->get() as $transfer) {
-            $add('transfer-'.$transfer->id, $transfer->created_at, 'transfer', ($transfer->remuneration_user_id ? 'Remuneration forgone by '.(\App\Models\User::find($transfer->remuneration_user_id)?->getName() ?? $transfer->remuneration_user_id) : ($names[$transfer->from_category_id] ?? 'Available business cash')).' → '.($names[$transfer->category_id] ?? 'Available business cash').' · '.$transfer->reason, $transfer->category_id == $category->id ? $transfer->cents : -$transfer->cents);
+            $add('transfer-'.$transfer->id, $transfer->created_at, 'transfer', ($transfer->remuneration_user_id ? 'Remuneration forgone by '.(\App\Models\User::find($transfer->remuneration_user_id)?->getName() ?? $transfer->remuneration_user_id) : ($names[$transfer->from_category_id] ?? 'Available business cash')).' → '.($names[$transfer->category_id] ?? 'Available business cash').($transfer->reason ? ' · '.$transfer->reason : ''), $transfer->category_id == $category->id ? $transfer->cents : -$transfer->cents);
         }
         if ($category->kind === 'owner') {
             foreach (DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'paid')->whereBetween('paid_on', [$from, today()->toDateString()])->get() as $drawing) {
@@ -610,7 +610,7 @@ class FinancePlanner
                     ? 'This exceeds the owner remuneration fund balance available to transfer. Pending remuneration drawings are reserved.'
                     : 'Choose different funds and an amount covered by the source’s balance.']);
             }
-            DB::table('finance_fund_transfers')->insert(['remuneration_user_id' => $remuneration ? $user : null, 'token' => $remuneration ? $data['token'] : null, 'from_category_id' => $from, 'category_id' => $destination, 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'], 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('finance_fund_transfers')->insert(['remuneration_user_id' => $remuneration ? $user : null, 'token' => $remuneration ? $data['token'] : null, 'from_category_id' => $from, 'category_id' => $destination, 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'] ?? '', 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
         });
     }
 
