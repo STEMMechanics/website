@@ -4,7 +4,7 @@
         <x-ui.select name="from_category_id" label="From" x-model="source"><option value="">Available business cash — {{ money($availableBusinessCash / 100) }}</option><option value="remuneration">Owner remuneration — {{ money($remunerationAvailable / 100) }} available to forgo</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected((string) old('from_category_id', $from) === (string) $category->id)>{{ $category->name }}{{ !$category->active ? ' (archived)' : '' }} — {{ money($category->balance / 100) }}</option>@endforeach</x-ui.select>
         <x-ui.select name="category_id" label="To"><option value="">Choose a destination</option><option value="cash" x-bind:disabled="source === '' || source === 'remuneration'" @selected(old('category_id') === 'cash')>Available business cash — {{ money($availableBusinessCash / 100) }}</option>@foreach($categories->where('active', true) as $category)<option value="{{ $category->id }}" x-bind:disabled="source === '{{ $category->id }}'" @selected((string) old('category_id') === (string) $category->id)>{{ $category->name }} — {{ money($category->balance / 100) }}</option>@endforeach</x-ui.select>
         <x-ui.input name="amount" label="Amount" type="number" step="0.01" min="0.01" required />
-        <x-ui.input name="reason" label="Reason" maxlength="255" required />
+        <x-ui.input name="reason" label="Reason (optional)" maxlength="255" />
         <p class="text-sm text-slate-600">Moves allocated funds and records a transfer. Original invoices, expenses and allocations retain their history.</p>
         <x-finance.save>Transfer funds</x-finance.save>
     </form>

@@ -10,7 +10,7 @@
         <x-ui.badge color="gray" uppercase data-push-count hidden></x-ui.badge>
     </div>
     <p class="mt-3 text-sm text-gray-600" data-push-status role="status">Loading notification settings…</p>
-    <x-ui.button type="button" class="mt-3" data-push-enable disabled>Enable on this device</x-ui.button>
+    <x-ui.button type="button" class="mt-3 w-full sm:w-auto" data-push-enable disabled>Enable on this device</x-ui.button>
     <p data-push-empty class="mt-4 rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500" hidden>No devices are receiving notifications.</p>
     <ul data-push-devices class="mt-4 space-y-3"></ul>
     <template data-push-device-template>
@@ -23,7 +23,7 @@
                     </div>
                     <p data-push-device-status class="mt-1 text-xs text-gray-600"></p>
                 </div>
-                <div class="grid w-full grid-cols-2 gap-2">
+                <div class="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
                     <x-ui.button type="button" color="primary-outline" class="w-full justify-center px-4! py-1.5!" data-push-test>Test</x-ui.button>
                     <x-ui.button type="button" color="danger-outline" class="w-full justify-center px-4! py-1.5!" data-push-remove>Remove</x-ui.button>
                 </div>

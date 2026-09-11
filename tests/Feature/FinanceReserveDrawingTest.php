@@ -39,7 +39,7 @@ class FinanceReserveDrawingTest extends TestCase
 
     private function pay(int $id): void
     {
-        $this->post(route('admin.finance.drawingStatus', $id), ['status' => 'paid', 'paid_on' => today()->toDateString(), 'reference' => 'Owner bank payment'])->assertSessionHasNoErrors();
+        $this->post(route('admin.finance.drawingStatus', $id), ['status' => 'paid', 'paid_on' => today()->toDateString()])->assertSessionHasNoErrors();
     }
 
     private function contribute(): void
@@ -86,7 +86,7 @@ class FinanceReserveDrawingTest extends TestCase
     {
         DB::table('finance_settings')->where('id', 1)->update(['opening_cash_cents' => 10000]);
         foreach (['admin.cost-centre.transfer', 'admin.finance.transfer'] as $route) {
-            $data = ['amount' => 20, 'reason' => 'Reserve movement'];
+            $data = ['amount' => 20] + ($route === 'admin.finance.transfer' ? ['reason' => ''] : []);
             $this->post(route($route), $data + ['category_id' => 1])->assertSessionHasNoErrors();
             $this->assertSame(8000, $this->cash()['available']);
             $this->post(route($route), $data + ['from_category_id' => 1, 'category_id' => 2])->assertSessionHasNoErrors();
