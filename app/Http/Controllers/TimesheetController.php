@@ -80,6 +80,7 @@ class TimesheetController extends Controller
         $data = $request->validate(['id' => 'nullable|integer', 'date' => 'required|date_format:Y-m-d|before_or_equal:today', 'activity' => ['required', Rule::in(['Business time', 'Delivery', 'Preparation', 'Pack down', 'Travel', 'Administration', 'Development'])], 'minutes' => $daily ? 'required|integer|min:0|max:1440' : 'required|integer|min:1|max:1440', 'rate' => 'required|numeric|min:0|max:10000', 'workshop_id' => 'nullable|string|exists:workshops,id', 'notes' => 'nullable|string|max:1000']);
         DB::transaction(function () use ($request, $data, $planner, $daily): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $previousEarned = $planner->earned($request->user()->id);
             $query = DB::table('finance_time_entries')->where('user_id', $request->user()->id);
             if (! empty($data['id'])) {
                 abort_unless((clone $query)->where('id', $data['id'])->exists(), 404);
@@ -103,7 +104,8 @@ class TimesheetController extends Controller
             } else {
                 DB::table('finance_time_entries')->insert($values + ['created_at' => now()]);
             }
-            if ($planner->earned($request->user()->id) < $planner->remunerationForgone($request->user()->id)) {
+            $earned = $planner->earned($request->user()->id);
+            if ($earned < $previousEarned && $earned < $planner->remunerationForgone($request->user()->id)) {
                 throw ValidationException::withMessages(['rate' => 'This would reduce your earned remuneration below remuneration already forgone.']);
             }
         });

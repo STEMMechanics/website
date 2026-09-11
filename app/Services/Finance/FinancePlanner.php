@@ -603,15 +603,24 @@ class FinancePlanner
             $from = $remuneration ? DB::table('finance_categories')->where('kind', 'owner')->value('id') : ($data['from_category_id'] ?? null);
             $available = $from ? ($cash['reserves'][$from] ?? 0) : $cash['available'];
             if ($remuneration) {
-                $available = $from ? min($cash['remuneration_reserve_available'], $this->remunerationAvailable($user)) : 0;
+                $available = $this->remunerationTransferAvailable($cash);
             }
             if ($amount <= 0 || $amount > $available || $from == $destination) {
                 throw ValidationException::withMessages(['amount' => $remuneration
-                    ? 'This exceeds your unpaid remuneration or the remuneration fund balance. Pay already prepared, paid or forgone is excluded.'
+                    ? 'This exceeds the owner remuneration fund balance available to transfer. Pending remuneration drawings are reserved.'
                     : 'Choose different funds and an amount covered by the source’s balance.']);
             }
             DB::table('finance_fund_transfers')->insert(['remuneration_user_id' => $remuneration ? $user : null, 'token' => $remuneration ? $data['token'] : null, 'from_category_id' => $from, 'category_id' => $destination, 'budget_id' => $data['budget_id'] ?? null, 'cents' => $amount, 'reason' => $data['reason'], 'created_by' => $user, 'created_at' => now(), 'updated_at' => now()]);
         });
+    }
+
+    public function remunerationTransferAvailable(?array $cash = null): int
+    {
+        $ownerId = DB::table('finance_categories')->where('kind', 'owner')->value('id');
+        $cash ??= $this->cash();
+        $pending = (int) DB::table('finance_drawings')->where('purpose', 'time')->where('status', 'pending')->sum('cents');
+
+        return max(0, ($cash['reserves'][$ownerId] ?? 0) - $pending);
     }
 
     public function remunerationForgone(string $user): int
@@ -619,7 +628,7 @@ class FinancePlanner
         return (int) DB::table('finance_fund_transfers')->where('remuneration_user_id', $user)->sum('cents');
     }
 
-    /** Unpaid earnings eligible to forgo; drawing availability comes from drawingTotals(). */
+    /** Historical unpaid earnings; reserve availability controls drawings and transfers. */
     public function remunerationAvailable(string $user): int
     {
         return max(0, $this->earned($user) - $this->remunerationForgone($user)

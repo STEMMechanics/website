@@ -10,6 +10,30 @@ use Tests\TestCase;
 class OwnerContributionTest extends TestCase
 {
     use RefreshDatabase;
+    public function test_dashboard_distinguishes_monthly_income_from_overview_and_excludes_repayable_contributions(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-09 12:00:00'));
+        $user = User::factory()->create();
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $this->actingAs($user);
+        \App\Models\Payment::factory()->create(['received_on' => '2026-09-07 11:16:00', 'total_amount' => 610.50]);
+        \App\Models\Payment::factory()->create(['received_on' => '2026-08-20 09:17:00', 'total_amount' => 8748.95]);
+        $dashboard = app(\App\Services\AdminDashboardService::class);
+        $before = $dashboard->build('month');
+
+        $this->postJson(route('admin.timesheet.contribution.store'), [
+            'token' => (string) Str::uuid(), 'date' => today()->toDateString(),
+            'amount' => 9500, 'reference' => 'Repayable personal funding', 'splits' => [5 => 9500],
+        ])->assertOk();
+
+        $month = collect($dashboard->build('month')['cards'])->firstWhere('title', 'Finance');
+        $overview = collect($dashboard->build()['cards'])->firstWhere('title', 'Finance');
+        $this->assertSame(collect($before['cards'])->firstWhere('title', 'Finance'), $month);
+        $this->assertSame('$610.50', collect($month['metrics'])->firstWhere('label', 'Income')['current']);
+        $this->assertSame('$9,359.45', collect($overview['metrics'])->firstWhere('label', 'Income')['current']);
+        $this->travelBack();
+    }
+
     public function test_contributions_fund_cost_centres_without_income_or_double_counting(): void
     {
         $user = User::factory()->create();
