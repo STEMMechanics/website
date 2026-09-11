@@ -92,7 +92,7 @@ class FinanceController extends Controller
 
     public function transfer(Request $request, FinancePlanner $planner): RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where('kind', 'cost')], 'category_id' => ['required', Rule::exists('finance_categories', 'id')->where('kind', 'cost')], 'budget_id' => 'nullable|integer|exists:finance_budgets,id', 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where('kind', 'cost')], 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'budget_id' => 'nullable|integer|exists:finance_budgets,id', 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $this->back('overview', 'Funds transferred. Workshop revenue and its shortfall remain unchanged.');
@@ -114,7 +114,7 @@ class FinanceController extends Controller
     public function drawingStatus(Request $request, FinancePlanner $planner, int $drawing): RedirectResponse
     {
         $data = $request->validate(['status' => ['required', Rule::in(['paid', 'cancelled'])], 'paid_on' => 'required_if:status,paid|nullable|date_format:Y-m-d|before_or_equal:today', 'reference' => 'required_if:status,paid|nullable|string|max:255']);
-        DB::transaction(function () use ($request, $data, $drawing): void {
+        DB::transaction(function () use ($request, $data, $drawing, $planner): void {
             $settings = DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $row = DB::table('finance_drawings')->where('id', $drawing)->where('user_id', $request->user()->id)->lockForUpdate()->first();
             abort_unless($row !== null, 404);
@@ -123,6 +123,9 @@ class FinanceController extends Controller
             }
             if ($data['status'] === 'paid' && ($data['paid_on'] < $settings->opening_date || $data['paid_on'] < substr($row->created_at, 0, 10))) {
                 throw ValidationException::withMessages(['paid_on' => 'The transfer date must be on or after the drawing was prepared and the opening balance.']);
+            }
+            if ($data['status'] === 'paid') {
+                $planner->validateDrawing($row->user_id, (int) $row->cents, $row->purpose, (int) $row->id);
             }
             DB::table('finance_drawings')->where('id', $drawing)->update(['status' => $data['status'], 'paid_on' => $data['status'] === 'paid' ? $data['paid_on'] : null, 'reference' => $data['reference'] ?? null, 'updated_at' => now()]);
         });

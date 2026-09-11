@@ -36,6 +36,7 @@ class CostCentreController extends Controller
             return $centre;
         });
         $centres->push((object) ['id' => 'gst', 'name' => 'GST', 'kind' => 'gst', 'active' => true, 'priority' => 0, 'balance' => $cash['gst']]);
+        $centres->push((object) ['id' => 'cash', 'name' => 'Available business cash', 'kind' => 'cash', 'active' => true, 'priority' => null, 'balance' => $cash['available']]);
         $contributionsOwing = (int) DB::table('finance_owner_contributions')->sum('cents')
             - (int) DB::table('finance_drawings')->where('purpose', 'contribution')->where('status', 'paid')->sum('cents');
         if ($contributionsOwing > 0) {
@@ -46,6 +47,7 @@ class CostCentreController extends Controller
         $centres = $centres->filter(fn ($centre) => ($state === 'all' || (bool) $centre->active === ($state === 'active')) && (! isset($data['search']) || str_contains(mb_strtolower($centre->name), mb_strtolower($data['search']))));
         $centres = $centres->sortBy($data['list_sort'] ?? 'priority', SORT_REGULAR, ($data['list_direction'] ?? 'asc') === 'desc')->values();
         $centres = $centres->sortBy(fn ($centre) => match ($centre->kind) {
+            'cash' => -1,
             'contributions' => 0,
             'gst' => 1,
             default => 2,
@@ -232,7 +234,7 @@ class CostCentreController extends Controller
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::exists('finance_categories', 'id')->where('kind', 'cost')->where('active', true)], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'required|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $request->expectsJson() ? response()->json(['message' => 'Funds transferred. Transaction history is unchanged.']) : redirect()->route('admin.cost-centre.index')->with('message', 'Funds transferred.')->with('message-type', 'success');

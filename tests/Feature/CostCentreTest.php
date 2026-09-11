@@ -46,7 +46,7 @@ class CostCentreTest extends TestCase
             $this->get(route('admin.cost-centre.index', $filters))->assertOk()
                 ->assertSee('Owner contributions')->assertSee('-$9,500.00')
                 ->assertSee(route('admin.cost-centre.contributions'), false)
-                ->assertViewHas('centres', fn ($rows) => $rows[0]->id === 'contributions' && $rows[0]->priority === null && $rows[1]->id === 'gst');
+                ->assertViewHas('centres', fn ($rows) => $rows[0]->id === 'cash' && $rows[0]->balance === app(FinancePlanner::class)->cash()['available'] && $rows[1]->id === 'contributions' && $rows[1]->priority === null && $rows[2]->id === 'gst');
         }
         $this->get(route('admin.cost-centre.index', ['state' => 'archived']))->assertOk()->assertViewHas('centres', fn ($rows) => ! $rows->contains('id', 'contributions'));
         $this->get(route('admin.cost-centre.contributions'))->assertOk()->assertSee($otherOwner->getName())->assertSee('Capital repayment')->assertViewHas('balance', -950000);
@@ -86,7 +86,7 @@ class CostCentreTest extends TestCase
         $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertSee($data['reason'])->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 12000 && $totals['time']['available'] === 2000);
         $this->post(route('admin.finance.drawing'), ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasErrors('amount');
         $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
-        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasErrors('rate');
+        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 30, 'rate' => 100])->assertSessionHasErrors('rate');
         $this->assertSame(20000, $planner->earned($user->id));
         $this->actingAs($this->admin())->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
         $this->assertDatabaseCount('finance_fund_transfers', 1);
