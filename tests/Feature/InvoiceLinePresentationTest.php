@@ -31,11 +31,13 @@ class InvoiceLinePresentationTest extends TestCase
 
     public function test_multi_workshop_notes_are_generated_from_validated_metadata(): void
     {
-        $line = WorkshopLine::normalize(['kind' => 'multi_workshop', 'notes' => 'stale', 'workshops' => [
+        $line = WorkshopLine::normalize(['kind' => 'multi_workshop', 'workshops' => [
             ['description' => 'Library', 'workshop_date' => '2026-09-01', 'workshop_hours' => 2, 'workshop_seats' => 15, 'venue_supplied' => true],
         ]]);
         $this->assertSame(30.0, $line['quantity']);
-        $this->assertSame('- 01/09/2026 - Library - (2 hr / 15 seats)', $line['notes']);
+        $this->assertSame('- 01/09/2026 - Library - (2 hrs × 15 seats)', $line['notes']);
+        $custom = array_replace($line, ['notes' => 'Custom delivery instructions']);
+        $this->assertSame('Custom delivery instructions', WorkshopLine::normalize($custom)['notes']);
         unset($line['workshops']);
         $this->assertSame($line, WorkshopLine::normalize($line));
         $this->assertCount(2, InvoicePdfLines::prepare([$line, $line]));

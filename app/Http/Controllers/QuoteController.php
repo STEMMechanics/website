@@ -125,7 +125,7 @@ class QuoteController extends Controller
     public function update(Request $request, Quote $quote)
     {
         $quote->refreshLifecycleStatus();
-        $lineItems = $this->extractLineItems($request);
+        $lineItems = $this->extractLineItems($request, $quote->line_items ?? []);
         $this->validateLineItems($lineItems);
         $validated = $this->normalizeValidatedQuoteData($request, $this->validateRequest($request, $quote), $quote, $lineItems);
 
@@ -135,15 +135,18 @@ class QuoteController extends Controller
             ]);
         }
 
+        $samePricing = \App\Services\Finance\LinePricing::sameTotals($lineItems, $quote->line_items ?? []);
         $quote->fill($validated);
         $quote->line_items = $lineItems;
         $quote->setAcceptanceSettings(
             $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems),
             $request->boolean('acceptance_emails_invoice')
         );
-        $quote->subtotal_amount = $this->calculateSubtotal($quote->line_items);
-        $quote->gst_amount = $this->calculateGst($quote->line_items);
-        $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
+        if (! $samePricing) {
+            $quote->subtotal_amount = $this->calculateSubtotal($quote->line_items);
+            $quote->gst_amount = $this->calculateGst($quote->line_items);
+            $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
+        }
 
         $quote->save();
         $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -454,9 +457,7 @@ class QuoteController extends Controller
             $duplicate->status = Quote::STATUS_DRAFT;
             $duplicate->context_payload = $sourceContextPayload;
             $duplicate->line_items = $sourceLineItems;
-            $duplicate->subtotal_amount = $this->calculateSubtotal($sourceLineItems);
-            $duplicate->gst_amount = $this->calculateGst($sourceLineItems);
-            $duplicate->total_amount = round((float) $duplicate->subtotal_amount + (float) $duplicate->gst_amount, 2);
+            // Replication retains the agreed totals, including historical rounding.
             $duplicate->save();
 
             if ($privateFinanceFileIds !== []) {
@@ -810,7 +811,7 @@ class QuoteController extends Controller
         return $products->sortBy('title')->values()->all();
     }
 
-    private function extractLineItems(Request $request): array
+    private function extractLineItems(Request $request, array $savedItems = []): array
     {
         $lineItemsJson = $request->input('line_items_json', '[]');
 
@@ -824,7 +825,7 @@ class QuoteController extends Controller
         }
 
         $lineItems = [];
-        foreach ($decoded as $item) {
+        foreach ($decoded as $index => $item) {
             if (! is_array($item)) {
                 continue;
             }
@@ -840,7 +841,19 @@ class QuoteController extends Controller
                 continue;
             }
 
-            $amounts = \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
+            unset($item['saved_pricing']);
+            if (isset($item['unit_price_inc_tax'])) {
+                validator($item, ['unit_price_inc_tax' => 'numeric'])->validate();
+                $item['details_json']['inclusive_unit_price'] = (float) $item['unit_price_inc_tax'];
+                $unitPrice = (float) $item['unit_price_inc_tax'] / ($gstApplicable ? 1.1 : 1);
+            }
+            $saved = $savedItems[$item['saved_line_index'] ?? $index] ?? null;
+            $unchanged = $saved && \App\Services\Finance\LinePricing::unchanged($item, $saved);
+            $amounts = $unchanged
+                ? \App\Services\Finance\LinePricing::savedAmounts($saved)
+                : \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
+            if ($unchanged && (float) $saved['quantity'] === $quantity) $unitPrice = (float) $saved['unit_price'];
+            unset($item['saved_line_index']);
             $lineTotal = $amounts['net'];
 
             $lineItems[] = array_merge($item, [
@@ -890,7 +903,7 @@ class QuoteController extends Controller
 
         foreach ($lineItems as $lineItem) {
             if (($lineItem['gst_applicable'] ?? true) === true) {
-                $gst += isset($lineItem['details_json']['inclusive_unit_price']) ? \App\Services\Finance\WorkshopLine::amounts($lineItem, (float) $lineItem['quantity'], (float) $lineItem['unit_price'], 0.1)['tax'] : ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
+                $gst += \App\Services\Finance\LinePricing::savedAmounts($lineItem)['tax'];
             }
         }
 

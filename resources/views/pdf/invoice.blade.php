@@ -227,16 +227,14 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="center" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
-                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
+                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($pageItems as $item)
                     @php
                     $qty = (float) ($item['quantity'] ?? 0);
-                    $unitEx = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
-                    $lineEx = (float) ($item['line_total_ex_tax'] ?? $item['line_total'] ?? 0);
                     $taxRate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($item['notes'] ?? ''));
@@ -251,7 +249,7 @@
                         <td>
 
                             <div class="line-desc"><strong>{{ $typeLabel !== '' ? $typeLabel : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</strong></div>
-                            @if($typeLabel !== '' && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), $typeLabel) !== 0)
+                            @if($typeLabel !== '' && trim($lineDescription) !== '' && (in_array($lineKind, ['workshop', 'multi_workshop'], true) || strcasecmp(trim($lineDescription), $typeLabel) !== 0))
                                 <div class="line-note">{{ $lineDescription }}</div>
                             @endif
                             @if($lineNotes !== '')
@@ -262,8 +260,8 @@
                             @endif
                         </td>
                         <td class="center">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">$ {{ number_format($unitEx, 2) }}</td>
-                        <td class="right">$ {{ number_format($lineEx, 2) }}</td>
+                        <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
+                        <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -433,16 +431,14 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="right" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
-                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
+                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($adjustmentLines as $line)
                     @php
                     $qty = (float) ($line->quantity ?? 0);
-                    $unitEx = (float) ($line->unit_price_ex_tax ?? 0);
-                    $lineEx = (float) ($line->line_total_ex_tax ?? 0);
                     $taxRate = (float) ($line->tax_rate ?? 0.1);
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($line->notes ?? ''));
@@ -455,8 +451,8 @@
                             @endif
                         </td>
                         <td class="right">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">-$ {{ number_format($unitEx, 2) }}</td>
-                        <td class="right">-$ {{ number_format($lineEx, 2) }}</td>
+                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
+                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line->toArray())['gross'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>

@@ -165,9 +165,9 @@ class QuoteWorkflowService
         $invoice->issue_date = Carbon::now()->startOfDay();
         $invoice->issued_at = $issueInvoice ? now() : null;
         $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
-        $invoice->subtotal_amount = $this->calculateSubtotal($sourceLineItems);
-        $invoice->gst_amount = $this->calculateGst($sourceLineItems);
-        $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
+        $invoice->subtotal_amount = $quote->subtotal_amount;
+        $invoice->gst_amount = $quote->gst_amount;
+        $invoice->total_amount = $quote->total_amount;
 
         $notes = trim((string) ($quote->notes ?? ''));
         $privateNotes = trim((string) ($quote->private_notes ?? ''));
@@ -213,7 +213,8 @@ class QuoteWorkflowService
             $unitPrice = (float) ($lineItem['unit_price'] ?? 0);
             $lineTotal = round($quantity * $unitPrice, 2);
             $taxRate = (($lineItem['gst_applicable'] ?? true) === true) ? 0.10 : 0.00;
-            $amounts = \App\Services\Finance\WorkshopLine::amounts($lineItem, $quantity, $unitPrice, $taxRate);
+            $amounts = \App\Services\Finance\LinePricing::savedAmounts($lineItem);
+            $lineItem['details_json']['inclusive_unit_price'] = \App\Services\Finance\LinePricing::inclusiveUnit($lineItem);
             $lineTotal = $amounts['net'];
 
             $invoice->lines()->create([
@@ -377,27 +378,4 @@ class QuoteWorkflowService
         }
     }
 
-    private function calculateSubtotal(array $lineItems): float
-    {
-        $subtotal = 0;
-
-        foreach ($lineItems as $lineItem) {
-            $subtotal += (float) ($lineItem['line_total'] ?? 0);
-        }
-
-        return round($subtotal, 2);
-    }
-
-    private function calculateGst(array $lineItems): float
-    {
-        $gst = 0;
-
-        foreach ($lineItems as $lineItem) {
-            if (($lineItem['gst_applicable'] ?? true) === true) {
-                $gst += isset($lineItem['details_json']['inclusive_unit_price']) ? \App\Services\Finance\WorkshopLine::amounts($lineItem, (float) $lineItem['quantity'], (float) $lineItem['unit_price'], 0.1)['tax'] : ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
-            }
-        }
-
-        return round($gst, 2);
-    }
 }

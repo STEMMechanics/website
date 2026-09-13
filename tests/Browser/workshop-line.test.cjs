@@ -216,7 +216,7 @@ test('multi delivery generates notes and prices each workshop independently', ()
     ] };
     update(item, plan);
     assert.equal(item.quantity, 40);
-    assert.match(item.notes, /01\/09\/2026 - Term 1 library - \(1 hr \/ 10 seats\)/);
+    assert.match(item.notes, /01\/09\/2026 - Term 1 library - \(1 hr × 10 seats\)/);
     const separate = item.workshops.map(row => { const value = { ...row, kind: 'workshop', auto_pricing: true }; update(value, plan); return context.window.SM.lineAmounts(value); });
     const expected = separate.reduce((sum, value) => sum + value.net + value.tax, 0);
     assert.equal(Math.round(item.details_json.inclusive_unit_price * item.quantity * 100) / 100, Math.round(expected * 100) / 100);
@@ -229,7 +229,15 @@ test('multi delivery generates notes and prices each workshop independently', ()
     item.workshops[0].workshop_hours = 2;
     update(item, plan);
     assert.equal(item.unit_price, '999.00');
-    assert.match(item.notes, /2 hr \/ 10 seats/);
+    assert.match(item.notes, /2 hrs × 10 seats/);
+    context.window.SM.refreshWorkshopNotes(item);
+    assert.match(item.notes, /2 hrs × 10 seats/);
+    item.notes = 'Custom delivery instructions';
+    update(item, plan);
+    assert.equal(item.notes, 'Custom delivery instructions');
+    item.notes = '';
+    update(item, plan);
+    assert.equal(item.notes, '');
 });
 
 test('saved one-group delivery adopts seat hours without changing its total twice', () => {
@@ -285,4 +293,105 @@ test('first session defaults follow workshop start until explicitly changed', ()
     editor.generateStart = '2026-10-03T12:00';
     watch('2026-10-04T10:00', '2026-10-02T10:00');
     assert.equal(editor.generateStart, '2026-10-03T12:00');
+});
+
+test('inclusive manual prices keep the quote and invoice at 405 with line-level GST', () => {
+    const item = { quantity: 30, unit_price: 12.27, unit_price_inc_tax: '13.50', gst_applicable: true, details_json: {} };
+    const amounts = context.window.SM.lineAmounts(item);
+    assert.equal(amounts.net, 368.18);
+    assert.equal(amounts.tax, 36.82);
+    assert.equal(amounts.net + amounts.tax, 405);
+    item.gst_applicable = false;
+    assert.equal(context.window.SM.lineAmounts(item).net, 405);
+    assert.equal(context.window.SM.lineAmounts(item).tax, 0);
+});
+
+test('saved invoice values stay authoritative until quantity price or GST is changed', () => {
+    const item = { quantity: 30, unit_price_inc_tax: 13.497, gst_applicable: true,
+        saved_pricing: { quantity: 30, price: 13.497, rate: 0.1, net: 368.1, tax: 36.81, gross: 404.91 } };
+    assert.equal(context.window.SM.lineAmounts(item).saved, true);
+    item.description = 'Changed notes only';
+    assert.equal(context.window.SM.lineAmounts(item).saved, true);
+    item.quantity = 20;
+    assert.equal(context.window.SM.lineAmounts(item).saved, undefined);
+    item.quantity = 30;
+    item.unit_price_inc_tax = 13.5;
+    assert.equal(context.window.SM.lineAmounts(item).net, 368.18);
+});
+
+test('document-level historic rounding is retained and negative ties match server rounding', () => {
+    const items = [1, 2].map(() => ({ quantity: 1, unit_price_inc_tax: 0.06, gst_applicable: true,
+        saved_pricing: { quantity: 1, price: 0.06, rate: 0.1, net: 0.05, tax: 0.01 } }));
+    assert.equal(context.window.SM.documentAmounts(items, { count: 2, net: 0.10, tax: 0.01, gross: 0.11 }).gross, 0.11);
+    const amount = context.window.SM.lineAmounts({ quantity: 0.5, unit_price_inc_tax: -0.11, gst_applicable: true });
+    assert.equal(Math.round((amount.net + amount.tax) * 100), -6);
+});
+
+test('legacy group conversion keeps a fractional inclusive rate and original saved amounts', () => {
+    const item = { kind: 'multi_workshop', quantity: 1, unit_price_inc_tax: 1000, unit_price: 909.09,
+        gst_applicable: true, auto_pricing: false,
+        saved_pricing: { quantity: 1, price: 1000, rate: 0.1, net: 909.09, tax: 90.91 },
+        details_json: { multi_workshop: { rows: [{ description: 'Term', workshop_hours: 2, workshop_seats: 15 }] } } };
+    update(item, null, true);
+    assert.equal(item.quantity, 30);
+    assert.equal(Number(item.unit_price_inc_tax), 33.33333333);
+    assert.equal(context.window.SM.lineAmounts(item).saved, true);
+    assert.equal(context.window.SM.lineAmounts(item).net, 909.09);
+});
+
+test('unit prices keep two decimal places without repricing historical rates', () => {
+    const format = context.window.SM.formatUnitPrice;
+    for (const [value, expected] of [[13.5, '13.50'], [120, '120.00'], [0, '0.00'], [-5, '-5.00'], ['13.497', '13.497'], [1000 / 30, '33.33333333']]) {
+        assert.equal(format(value), expected);
+    }
+    const item = { quantity: 30, unit_price_inc_tax: format(13.497), tax_rate: 0.1,
+        saved_pricing: { quantity: 30, price: 13.497, rate: 0.1, net: 368.10, tax: 36.81, gross: 404.91 } };
+    assert.equal(context.window.SM.lineAmounts(item).gross, 404.91);
+    assert.equal(context.window.SM.lineAmounts(item).saved, true);
+});
+
+ test('generated notes follow edits across reloads while manual notes stay protected', () => {
+    const sm = context.window.SM;
+    let item = { kind: 'multi_workshop', notes: '- 22/09/2026 - Workshop - (1 hr / 20 seats)', workshops: [{ description: 'Workshop', workshop_date: '2026-09-22', workshop_hours: 1, workshop_seats: 20 }] };
+    sm.initializeWorkshopNotes(item);
+    item.workshops[0].workshop_hours = 2;
+    update(item);
+    assert.match(item.notes, /2 hrs × 20 seats/);
+    item = JSON.parse(JSON.stringify(item));
+    item.workshops[0].description = 'Robotics';
+    update(item);
+    assert.match(item.notes, /Robotics/);
+    item.notes = '';
+    sm.markWorkshopNotesEdited(item);
+    item = JSON.parse(JSON.stringify(item));
+    item.workshops[0].workshop_seats = 30;
+    update(item);
+    assert.equal(item.notes, '');
+    sm.refreshWorkshopNotes(item);
+    item.workshops.push({ description: 'Coding', workshop_hours: 1, workshop_seats: 10 });
+    update(item);
+    assert.match(item.notes, /Coding/);
+    item.workshops.splice(0, 1);
+    update(item);
+    assert.doesNotMatch(item.notes, /Robotics/);
+    const single = { kind: 'workshop', workshop_hours: 1, workshop_seats: 20, notes: '' };
+    update(single);
+    single.workshop_hours = 2;
+    update(single);
+    assert.equal(single.notes, '2 hrs × 20 seats');
+    const custom = { ...single, details_json: {}, notes: 'Keep my instructions' };
+    update(custom);
+    assert.equal(custom.notes, 'Keep my instructions');
+});
+
+test('workshop defaults explain charging and expanded generated notes upgrade safely', () => {
+    const sm = context.window.SM;
+    const item = { kind: 'multi_workshop', description: 'Workshop Delivery', notes: '- Workshop - (1 hr × 20 seats = 20 seat-hours)', workshops: [{ description: 'Workshop', workshop_hours: 1, workshop_seats: 20 }] };
+    sm.defaultWorkshopDescription(item);
+    assert.equal(item.description, 'Charged per hour, per seat');
+    update(item);
+    assert.equal(item.notes, '- Workshop - (1 hr × 20 seats)');
+    item.description = 'Holiday program';
+    sm.defaultWorkshopDescription(item);
+    assert.equal(item.description, 'Holiday program');
 });

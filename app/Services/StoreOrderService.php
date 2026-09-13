@@ -315,11 +315,11 @@ class StoreOrderService
                     'unit_length_mm' => $product->lengthMmForVariant($variant) ?? ($storeContext['unit_length_mm'] ?? null),
                     'unit_width_mm' => $product->widthMmForVariant($variant) ?? ($storeContext['unit_width_mm'] ?? null),
                     'unit_height_mm' => $product->heightMmForVariant($variant) ?? ($storeContext['unit_height_mm'] ?? null),
-                    'unit_price_inc_tax' => round($unitPriceExTax * (1 + $taxRate), 2),
+                    'unit_price_inc_tax' => \App\Services\Finance\LinePricing::inclusiveUnit($lineItem),
                     'unit_price_ex_tax' => $unitPriceExTax,
-                    'line_total_inc_tax' => round($lineTotalExTax * (1 + $taxRate), 2),
+                    'line_total_inc_tax' => \App\Services\Finance\LinePricing::savedAmounts($lineItem)['gross'],
                     'line_total_ex_tax' => $lineTotalExTax,
-                    'line_gst_amount' => round($lineTotalExTax * $taxRate, 2),
+                    'line_gst_amount' => \App\Services\Finance\LinePricing::savedAmounts($lineItem)['tax'],
                     'tax_rate' => $taxRate,
                 ];
             }

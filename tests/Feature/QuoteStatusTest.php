@@ -325,7 +325,7 @@ class QuoteStatusTest extends TestCase
             ->assertOk()
             ->assertSeeText('This quote has been accepted and an invoice')
             ->assertSeeText('There is currently $110.00 outstanding.')
-            ->assertSeeText('Unit (ex GST)')
+            ->assertSeeText('Unit (inc GST)')
             ->assertSeeText('Subtotal (ex GST)')
             ->assertSeeText('Total (inc GST)')
             ->assertSeeText('View Invoice')

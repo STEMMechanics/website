@@ -1,5 +1,14 @@
+// Keep currency padding without discarding precision needed by saved line totals.
+function formatUnitPrice(value) {
+    const price = Number(Number(value ?? 0).toFixed(8));
+    if (!Number.isFinite(price)) return '0.00';
+    return Math.abs(price - Number(price.toFixed(2))) < 0.00000001
+        ? price.toFixed(2)
+        : price.toFixed(8).replace(/0+$/, '');
+}
 const pricingPlans = new WeakMap();
 export function updateWorkshopLine(item, plan = null, inclusive = null) {
+    window.SM.initializeWorkshopNotes(item);
     const cached = pricingPlans.get(item);
     plan = plan ?? cached?.plan;
     inclusive = inclusive ?? cached?.inclusive ?? false;
@@ -22,6 +31,7 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
     if (hours > 0 && seats > 0) {
         item.quantity = Math.round(hours * seats * 100) / 100;
         item.details_json = { ...(item.details_json || {}), workshop: { hours, seats, date: item.workshop_date || item.details_json?.workshop?.date || null, venue_supplied: !!item.venue_supplied, supplied_categories: { ...(item.supplied_categories || {}) } } };
+        syncWorkshopNotes(item);
         applyPlanPrice(item, plan, inclusive);
     }
 }
@@ -52,7 +62,7 @@ function applyPlanPrice(item, plan, inclusive) {
     const step = Number((item.kind === 'workshop' ? plan.rounding_step : plan.travel_rounding_step) || 0);
     if (step > 0) grossCents = Math.ceil((grossCents - 0.000001) / step) * step;
     const gross = Number((grossCents / 100).toFixed(2));
-    if (step > 0) item.details_json = { ...(item.details_json || {}), inclusive_unit_price: gross };
+    if (step > 0 || inclusive) item.details_json = { ...(item.details_json || {}), inclusive_unit_price: gross };
     else if (item.details_json) delete item.details_json.inclusive_unit_price;
     const value = (inclusive ? gross : step > 0 ? gross / (taxed ? 1.1 : 1) : ex / 100).toFixed(2);
     item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = value;
@@ -72,12 +82,16 @@ window.SM.refreshLinePrice = item => {
     updateWorkshopLine(item);
 };
 
+const moneyRound = value => Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * 100) / 100;
 window.SM.lineAmounts = item => {
-    const qty = Number(item.quantity || 0), rate = item.gst_applicable !== false ? 0.1 : 0;
-    const inclusive = item.details_json?.inclusive_unit_price;
-    const gross = inclusive != null ? Math.round(qty * Number(inclusive) * 100) / 100 : null;
-    const net = gross != null ? Math.round(gross / (1 + rate) * 100) / 100 : Math.round(qty * Number(item.unit_price || 0) * 100) / 100;
-    return { net, tax: gross != null ? Math.round((gross - net) * 100) / 100 : Math.round(net * rate * 100) / 100 };
+    const qty = Number(item.quantity || 0), rate = item.gst_applicable !== false ? Number(item.tax_rate || 0.1) : 0;
+    const inclusive = item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price;
+    const saved = item.saved_pricing;
+    if (saved && qty === Number(saved.quantity) && Math.abs(Number(inclusive) - Number(saved.price)) < 0.0000001 && rate === Number(saved.rate)) return { net: saved.net, tax: saved.tax, gross: saved.gross ?? moneyRound(saved.net + saved.tax), saved: true };
+    const gross = inclusive != null ? moneyRound(qty * Number(inclusive)) : null;
+    const net = gross != null ? moneyRound(gross / (1 + rate)) : moneyRound(qty * Number(item.unit_price || 0));
+    const tax = gross != null ? moneyRound(gross - net) : moneyRound(net * rate);
+    return { net, tax, gross: gross ?? moneyRound(net + tax) };
 };
 window.SM.suggestTicketPrice = (plan, hours, seats, venueSupplied = false) => {
     if (!(hours > 0 && seats > 0)) return null;
@@ -133,8 +147,9 @@ window.SM.hydrateTravelLine = item => {
         item.travel_hours = Number(saved.billable_units) / 4;
         item.quantity = item.travel_hours;
         item.unit_price = (Number(item.unit_price || 0) * 4).toFixed(2);
-        if (item.unit_price_inc_tax != null) item.unit_price_inc_tax = (Number(item.unit_price_inc_tax) * 4).toFixed(2);
+        if (item.unit_price_inc_tax != null) item.unit_price_inc_tax = formatUnitPrice(Number(item.unit_price_inc_tax) * 4);
         if (item.details_json?.inclusive_unit_price != null) item.details_json.inclusive_unit_price *= 4;
+        if (item.saved_pricing) { item.saved_pricing.price *= 4; item.saved_pricing.quantity /= 4; }
         item.details_json.travel.quantity_basis = 'hours';
     } else item.travel_hours = Number(item.quantity || 0);
     return item;
@@ -159,6 +174,56 @@ window.SM.addWorkshopRow = item => {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
     item.workshops.push({ description: '', workshop_date: '', workshop_hours: 1, workshop_seats: 10, venue_supplied: true, supplied_categories: {} });
 };
+function generatedWorkshopNotes(item) {
+    const calculation = row => {
+        const hours = Number(row.workshop_hours ?? row.hours ?? 0);
+        const seats = Number(row.workshop_seats ?? row.seats ?? 0);
+        return `${hours} ${hours === 1 ? 'hr' : 'hrs'} × ${seats} seats`;
+    };
+    if (item.kind === 'multi_workshop') {
+        return (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).map(row => {
+            const date = row.workshop_date ? row.workshop_date.split('-').reverse().join('/') + ' - ' : '';
+            return '- ' + date + (row.description || '').trim() + ' - (' + calculation(row) + ')';
+        }).join('\n');
+    } else if (item.kind === 'workshop') {
+        return calculation({ ...item.details_json?.workshop, ...item });
+    }
+    return '';
+}
+window.SM.defaultWorkshopDescription = item => {
+    if (!['workshop', 'multi_workshop'].includes(item.kind)) return;
+    if (!item.description?.trim() || ['workshop delivery', 'multi workshop delivery'].includes(item.description.trim().toLowerCase())) item.description = 'Charged per hour, per seat';
+};
+window.SM.initializeWorkshopNotes = item => {
+    if (!['workshop', 'multi_workshop'].includes(item.kind)) return;
+    if (item.kind === 'workshop' && !(Number(item.workshop_hours ?? item.details_json?.workshop?.hours) > 0 && Number(item.workshop_seats ?? item.details_json?.workshop?.seats) > 0)) return;
+    item.details_json ??= {};
+    if (item.details_json.workshop_notes_mode != null) return;
+    const generated = generatedWorkshopNotes(item);
+    const legacy = generated.replace(/(\d+(?:\.\d+)?) hrs? × (\d+) seats/g, '$1 hr / $2 seats');
+    const expanded = generated.replace(/(\d+(?:\.\d+)?) (hrs?) × (\d+) seats/g, (_, hours, unit, seats) => `${hours} ${unit} × ${seats} seats = ${Math.round(Number(hours) * Number(seats) * 100) / 100} seat-hours`);
+    const notes = (item.notes ?? '').trim();
+    item.details_json.workshop_notes_mode = !notes || notes === generated || notes === legacy || notes === expanded ? 'auto' : 'manual';
+    item.details_json.generated_workshop_notes = item.notes ?? '';
+};
+window.SM.markWorkshopNotesEdited = item => {
+    item.details_json ??= {};
+    item.details_json.workshop_notes_mode = 'manual';
+};
+window.SM.refreshWorkshopNotes = item => {
+    item.notes = generatedWorkshopNotes(item);
+    item.details_json ??= {};
+    item.details_json.workshop_notes_mode = 'auto';
+    item.details_json.generated_workshop_notes = item.notes;
+};
+function syncWorkshopNotes(item) {
+    if (item.details_json.workshop_notes_mode !== 'auto') return;
+    if ((item.notes ?? '') !== item.details_json.generated_workshop_notes) {
+        window.SM.markWorkshopNotesEdited(item);
+        return;
+    }
+    window.SM.refreshWorkshopNotes(item);
+}
 function updateMultipleWorkshops(item, plan, inclusive) {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
     const quantity = Math.round(item.workshops.reduce((sum, row) => sum + Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0), 0) * 100) / 100;
@@ -168,16 +233,14 @@ function updateMultipleWorkshops(item, plan, inclusive) {
             item.details_json.inclusive_unit_price = Math.round((amount.net + amount.tax) * 100) / 100;
         }
         for (const field of ['unit_price', 'unit_price_inc_tax']) {
-            if (item[field] != null) item[field] = (Number(item[field]) / quantity).toFixed(2);
+            if (item[field] != null) item[field] = field === 'unit_price_inc_tax' ? formatUnitPrice(Number(item[field]) / quantity) : (Number(item[field]) / quantity).toFixed(2);
         }
         if (item.details_json.inclusive_unit_price != null) item.details_json.inclusive_unit_price /= quantity;
+        if (item.saved_pricing) { item.saved_pricing.price /= quantity; item.saved_pricing.quantity = quantity; }
     }
     item.quantity = quantity;
     item.details_json = { ...(item.details_json || {}), multi_workshop: { rows: item.workshops, quantity_basis: 'seat_hours' } };
-    item.notes = item.workshops.map(row => {
-        const date = row.workshop_date ? row.workshop_date.split('-').reverse().join('/') + ' - ' : '';
-        return '- ' + date + (row.description || '').trim() + ' - (' + Number(row.workshop_hours || 0) + ' hr / ' + Number(row.workshop_seats || 0) + ' seats)';
-    }).join('\n');
+    syncWorkshopNotes(item);
     if (!plan || !item.auto_pricing || !(quantity > 0)) return;
     let gross = 0;
     for (const row of item.workshops) {
@@ -187,5 +250,16 @@ function updateMultipleWorkshops(item, plan, inclusive) {
         gross += Math.round((amounts.net + amounts.tax) * 100);
     }
     item.details_json.inclusive_unit_price = gross / 100 / quantity;
-    item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = (gross / 100 / quantity / (inclusive || item.gst_applicable === false ? 1 : 1.1)).toFixed(2);
+    item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive ? formatUnitPrice(gross / 100 / quantity) : (gross / 100 / quantity / (item.gst_applicable === false ? 1 : 1.1)).toFixed(2);
 }
+
+// Historical document totals may use document-level instead of line-level rounding.
+window.SM.documentAmounts = (items, original = null) => {
+    const lines = items.map(item => window.SM.lineAmounts(item));
+    if (original && original.count === lines.length && lines.every(line => line.saved)) return original;
+    const net = lines.reduce((sum, line) => sum + line.net, 0);
+    const tax = lines.reduce((sum, line) => sum + line.tax, 0);
+    return { net, tax, gross: net + tax };
+};
+
+window.SM.formatUnitPrice = formatUnitPrice;

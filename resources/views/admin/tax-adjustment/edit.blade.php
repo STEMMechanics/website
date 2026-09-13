@@ -22,7 +22,7 @@
                             <tr class="border-b border-gray-200">
                                 <th class="text-left py-2 pr-3">Description</th>
                                 <th class="text-right py-2 pr-3">Qty</th>
-                                <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
+                                <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(inc GST)</span></th>
                                 <th class="py-2 text-center!">Total <span class="whitespace-nowrap">(incl GST)</span></th>
                             </tr>
                         </thead>
@@ -31,7 +31,7 @@
                                 <tr class="border-b border-gray-100">
                                     <td class="py-2 pr-3">{{ $line->description }}</td>
                                     <td class="py-2 pr-3 text-right">{{ number_format((float) $line->quantity, 2) }}</td>
-                                    <td class="py-2 pr-3 text-right">-${{ number_format(abs((float) $line->unit_price_ex_tax), 2) }}</td>
+                                    <td class="py-2 pr-3 text-right">-${{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
                                     <td class="py-2 text-center!">-${{ number_format(abs((float) $line->line_total_inc_tax), 2) }}</td>
                                 </tr>
                             @empty

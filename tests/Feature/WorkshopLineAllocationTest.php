@@ -241,13 +241,40 @@ class WorkshopLineAllocationTest extends TestCase
         $invoice = app(QuoteWorkflowService::class)->createInvoiceFromQuote($quote);
         $this->assertCount(2, $invoice->lines);
         $this->assertSame('1100.00', $invoice->total_amount);
-        $this->assertSame($quote->line_items[0]['details_json'], $invoice->lines[0]->details_json);
+        $this->assertSame($quote->line_items[0]['details_json']['multi_workshop'], $invoice->lines[0]->details_json['multi_workshop']);
+        $this->assertEquals(13.75, $invoice->lines[0]->details_json['inclusive_unit_price']);
         $this->assertSame($quote->line_items[0]['notes'], $invoice->lines[0]->notes);
         $this->assertSame('Term 2', $invoice->lines[1]->description);
         $data = ['invoice' => $invoice, 'itemPages' => [$invoice->lines->toArray()], 'adjustments' => collect()];
-        $this->assertStringContainsString('Term 2', view('pdf.invoice', $data)->render());
+        foreach ([view('pdf.invoice', $data)->render(), view('pdf.quote', ['quote' => $quote])->render()] as $html) {
+            $this->assertStringContainsString('Term 2', $html);
+            $this->assertStringContainsString('1 hr × 10 seats', $html);
+            $this->assertStringContainsString('2 hrs × 15 seats', $html);
+            $this->assertStringNotContainsString('Total: 40 seat-hours', $html);
+            $this->assertStringContainsString('line-note-list', $html);
+        }
         if (getenv('MULTI_PDF_PREVIEW')) {
             \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', $data)->save('/tmp/multi-workshop-preview.pdf');
+        }
+    }
+
+    public function test_custom_and_empty_delivery_notes_survive_save_conversion_and_pdf(): void
+    {
+        $this->admin();
+        foreach (["Custom delivery notes\n- Bring your own laptop", ''] as $notes) {
+            $quote = Quote::factory()->create(['status' => Quote::STATUS_OPEN]);
+            $group = ['kind' => 'multi_workshop', 'description' => 'Term 1', 'workshops' => [$this->line(2, 30)], 'notes' => $notes, 'unit_price' => 10, 'gst_applicable' => true];
+            $this->put(route('admin.quote.update', $quote), ['quote_number' => $quote->quote_number, 'user_id' => $quote->user_id, 'status' => Quote::STATUS_OPEN, 'quote_date' => '2026-09-07', 'title' => 'Custom notes', 'line_items_json' => json_encode([$group])])->assertSessionHasNoErrors();
+            $quote->refresh();
+            $this->assertSame($notes, $quote->line_items[0]['notes']);
+            $invoice = app(QuoteWorkflowService::class)->createInvoiceFromQuote($quote);
+            $this->assertSame($notes, (string) $invoice->lines[0]->notes);
+            foreach ([view('pdf.quote', ['quote' => $quote])->render(), view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [$invoice->lines->toArray()], 'adjustments' => collect()])->render()] as $html) {
+                $this->assertStringNotContainsString('seat-hours', $html);
+                if ($notes !== '') {
+                    $this->assertStringContainsString('Bring your own laptop', $html);
+                }
+            }
         }
     }
 
@@ -255,7 +282,7 @@ class WorkshopLineAllocationTest extends TestCase
     {
         $this->admin();
         $quote = Quote::factory()->create(['status' => Quote::STATUS_OPEN]);
-        $this->put(route('admin.quote.update', $quote), ['quote_number' => $quote->quote_number, 'user_id' => $quote->user_id, 'status' => Quote::STATUS_OPEN, 'quote_date' => '2026-09-07', 'title' => 'Workshop test', 'line_items_json' => json_encode([$this->line(2, 15)])])->assertSessionHasNoErrors();
+        $this->put(route('admin.quote.update', $quote), ['quote_number' => $quote->quote_number, 'user_id' => $quote->user_id, 'status' => Quote::STATUS_OPEN, 'quote_date' => '2026-09-07', 'title' => 'Workshop test', 'line_items_json' => json_encode([array_merge($this->line(2, 15), ['notes' => '2 hrs × 15 seats'])])])->assertSessionHasNoErrors();
         $quote->refresh();
         $invoice = app(QuoteWorkflowService::class)->createInvoiceFromQuote($quote);
         $this->assertSame('30.00', $invoice->lines->first()->quantity);
@@ -264,7 +291,11 @@ class WorkshopLineAllocationTest extends TestCase
         $quoteData = ['quote' => $quote, 'itemPages' => [$quote->line_items]];
         $this->assertStringContainsString('HRS / QTY', view('pdf.invoice', $invoiceData)->render());
         $this->assertStringContainsString('>30</td>', view('pdf.invoice', $invoiceData)->render());
-        $this->assertStringContainsString('2 × 15', view('pdf.quote', $quoteData)->render());
+        foreach ([view('pdf.quote', $quoteData)->render(), view('pdf.invoice', $invoiceData)->render()] as $html) {
+            $this->assertStringContainsString('HRS / QTY', $html);
+            $this->assertStringContainsString('>30</td>', $html);
+            $this->assertStringContainsString('2 hrs × 15 seats', $html);
+        }
         if (getenv('WORKSHOP_PDF_PREVIEW')) {
             \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', $invoiceData)->save('/tmp/workshop-invoice-preview.pdf');
             \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', $quoteData)->save('/tmp/workshop-quote-preview.pdf');

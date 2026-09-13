@@ -105,8 +105,8 @@
                         <tr class="text-left text-gray-600">
                             <th class="px-6 py-3 font-medium">Item</th>
                             <th class="px-6 py-3 font-medium text-right">Qty</th>
-                            <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
-                            <th class="px-6 py-3 font-medium text-center!">Subtotal <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
+                            <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
+                            <th class="px-6 py-3 font-medium text-center!">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
@@ -122,8 +122,8 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-right align-top text-gray-700">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
-                                <td class="px-6 py-4 text-right align-top text-gray-700">${{ number_format((float) ($item['unit_price'] ?? 0), 2) }}</td>
-                                <td class="px-6 py-4 align-top font-medium text-gray-950 text-center!">${{ number_format((float) ($item['line_total'] ?? 0), 2) }}</td>
+                                <td class="px-6 py-4 text-right align-top text-gray-700">${{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
+                                <td class="px-6 py-4 align-top font-medium text-gray-950 text-center!">${{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

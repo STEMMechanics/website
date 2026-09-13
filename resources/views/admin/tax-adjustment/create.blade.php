@@ -11,7 +11,8 @@
 
         return [
             'id' => $lineId,
-            'unit_ex' => round(abs((float) ($line->unit_price_ex_tax ?? 0)), 2),
+            'remaining_net' => $row['remaining_net'],
+            'remaining_gross' => $row['remaining_gross'],
             'tax_rate' => round(max(0, (float) ($line->tax_rate ?? 0)), 4),
             'remaining_qty' => $remainingQty,
             'initial_qty' => max(0, min($remainingQty, $initialQty)),
@@ -60,13 +61,13 @@
                     this.refundQty[lineId] = this.parseQty(this.refundQty[lineId], row.remaining_qty).toFixed(2);
                 },
                 lineRefundEx(row) {
-                    return this.parseQty(this.refundQty[row.id], row.remaining_qty) * Number(row.unit_ex || 0);
+                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_net * 100) / 100 : 0;
                 },
                 lineRefundGst(row) {
-                    return this.lineRefundEx(row) * Number(row.tax_rate || 0);
+                    return Math.round((this.lineRefundInc(row) - this.lineRefundEx(row)) * 100) / 100;
                 },
                 lineRefundInc(row) {
-                    return this.lineRefundEx(row) + this.lineRefundGst(row);
+                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_gross * 100) / 100 : 0;
                 },
                 totalsEx() {
                     return this.lineMeta.reduce((sum, row) => sum + this.lineRefundEx(row), 0);
@@ -90,7 +91,7 @@
                         <th class="text-right py-2 pr-3">Original Qty</th>
                         <th class="text-right py-2 pr-3">Already Refunded</th>
                         <th class="text-right py-2 pr-3">Remaining</th>
-                        <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(Ex GST)</span></th>
+                        <th class="text-right py-2 pr-3">Unit <span class="whitespace-nowrap">(inc GST)</span></th>
                         <th class="text-right py-2 pr-3">Refund Qty Now</th>
                         <th class="py-2 pr-3 text-center!">Refund Ex GST</th>
                         <th class="py-2 pr-3 text-center!">Refund GST</th>
@@ -102,11 +103,11 @@
                         @php
                             $line = $row['line'];
                             $remainingQty = (float) $row['remaining_qty'];
-                            $lineUnitEx = round(abs((float) ($line->unit_price_ex_tax ?? 0)), 2);
                             $lineTaxRate = round(max(0, (float) ($line->tax_rate ?? 0)), 4);
                             $lineMeta = [
                                 'id' => (int) $line->id,
-                                'unit_ex' => $lineUnitEx,
+                                'remaining_net' => $row['remaining_net'],
+                                'remaining_gross' => $row['remaining_gross'],
                                 'tax_rate' => $lineTaxRate,
                                 'remaining_qty' => round($remainingQty, 2),
                             ];
@@ -121,7 +122,7 @@
                             <td class="py-2 pr-3 text-right">{{ number_format((float) $row['original_qty'], 2) }}</td>
                             <td class="py-2 pr-3 text-right">{{ number_format((float) $row['refunded_qty'], 2) }}</td>
                             <td class="py-2 pr-3 text-right">{{ number_format($remainingQty, 2) }}</td>
-                            <td class="py-2 pr-3 text-right">${{ number_format($lineUnitEx, 2) }}</td>
+                            <td class="py-2 pr-3 text-right">${{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
                             <td class="py-2 pr-3 text-right">
                                 <x-ui.input-control
                                     type="number"

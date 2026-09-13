@@ -145,16 +145,14 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="right" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
-                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
+                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($adjustment->lines as $line)
                     @php
                     $qty = (float) ($line->quantity ?? 0);
-                    $unitEx = (float) ($line->unit_price_ex_tax ?? $line->unit_price ?? 0);
-                    $lineEx = (float) ($line->line_total_ex_tax ?? $line->line_total ?? 0);
                     $taxRate = (float) ($line->tax_rate ?? (($line->gst_applicable ?? true) ? 0.1 : 0));
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($line->notes ?? ''));
@@ -167,8 +165,8 @@
                             @endif
                         </td>
                         <td class="right">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">-$ {{ number_format($unitEx, 2) }}</td>
-                        <td class="right">-$ {{ number_format($lineEx, 2) }}</td>
+                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
+                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line->toArray())['gross'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>

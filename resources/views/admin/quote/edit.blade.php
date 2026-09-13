@@ -15,7 +15,7 @@
         : "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for your request. You can review it online and choose to accept it using the link below.\n\nIf you accept the quote, we'll proceed with processing your request.\n\n{{action}}";
 
     if ($savedLineItems === null) {
-        $savedLineItems = $editing ? json_encode($quote->line_items ?? []) : '[]';
+        $savedLineItems = $editing ? json_encode(collect($quote->line_items ?? [])->map(fn ($item, $index) => \App\Services\Finance\LinePricing::forEditor($item) + ['saved_line_index' => $index])->all()) : '[]';
     }
 
     $privateFinanceFiles = $editing ? $quote->privateFinanceFiles : collect();
@@ -105,6 +105,7 @@
             x-data="{
                 quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
                 catalogProducts: @js($catalogProducts ?? []),
+                savedTotals: @js($editing ? ['count' => count($quote->line_items ?? []), 'net' => (float) $quote->subtotal_amount, 'tax' => (float) $quote->gst_amount, 'gross' => (float) $quote->total_amount] : null),
                 lineItems: (() => {
                     try {
                         const parsed = JSON.parse(@js($savedLineItems));
@@ -136,6 +137,7 @@
 
                             return {
                                 ...item,
+                                auto_pricing: item.saved_pricing ? false : (item.auto_pricing ?? false),
                             travel_hours: item.travel_hours ?? '',
                             travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
                             legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
@@ -154,7 +156,7 @@
                                 quantity,
                                 unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
                                 unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
-                                unit_price_inc_tax: Number.isFinite(unitPriceInc) ? unitPriceInc.toFixed(2) : '0.00',
+                                unit_price_inc_tax: SM.formatUnitPrice(unitPriceInc),
                                 line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
                                 line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
                                 line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
@@ -176,7 +178,7 @@
                 defaultDescriptionForKind(kind) {
                     return {
                         shipping: 'Shipping',
-                        workshop: 'Workshop Delivery', multi_workshop: 'Multi Workshop Delivery',
+                        workshop: 'Charged per hour, per seat', multi_workshop: 'Charged per hour, per seat',
                         travel: 'Travel Fee',
                     }[kind] ?? '';
                 },
@@ -304,10 +306,12 @@
                     const unitPriceEx = item.gst_applicable !== false
                         ? unitPriceInc / 1.1
                         : unitPriceInc;
-                    const lineTotalEx = quantity * unitPriceEx;
-                    const lineTotalInc = quantity * unitPriceInc;
+                    const amounts = SM.lineAmounts(item);
+                    const lineTotalEx = amounts.net;
+                    const lineTotalInc = amounts.gross;
                     const cleaned = {
                         ...item,
+                        details_json: { ...(item.details_json || {}), inclusive_unit_price: unitPriceInc },
                         kind: (item.kind || 'custom').toString().trim() || 'custom',
                         description: (item.description || '').trim(),
                         notes: (item.notes || '').trim(),
@@ -373,15 +377,8 @@
                     return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
                 },
                 lineItemAmount(item, basis = 'ex') {
-                    const quantity = parseFloat(item.quantity || 0);
-                    const unitPrice = basis === 'inc'
-                        ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
-                        : this.lineItemExPrice(item);
-                    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) {
-                        return 0;
-                    }
-
-                    return quantity * unitPrice;
+                    const amounts = SM.lineAmounts(item);
+                    return basis === 'inc' ? amounts.gross : amounts.net;
                 },
                 lineItemExPrice(item) {
                     const unitPriceInc = parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0);
@@ -406,24 +403,14 @@
                     return this.normalizeMoney(this.lineItemAmount(item, 'inc'));
                 },
                 calculateSubtotal() {
-                    let subtotal = 0;
-                    this.lineItems.forEach((item) => {
-                        subtotal += this.lineItemAmount(item, 'ex');
-                    });
-                    return subtotal;
+                    return SM.documentAmounts(this.lineItems, this.savedTotals).net;
                 },
                 calculateGst() {
-                    let gst = 0;
-                    this.lineItems.forEach((item) => {
-                        if (item.gst_applicable !== false) {
-                            gst += this.lineItemAmount(item, 'inc') - this.lineItemAmount(item, 'ex');
-                        }
-                    });
-                    return gst;
+                    return SM.documentAmounts(this.lineItems, this.savedTotals).tax;
                 },
                 subtotalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal()); },
                 gstAmountFormatted() { return this.normalizeMoney(this.calculateGst()); },
-                totalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal() + this.calculateGst()); },
+                totalAmountFormatted() { return this.normalizeMoney(SM.documentAmounts(this.lineItems, this.savedTotals).gross); },
                 hasStoreProductLines() {
                     return this.lineItems.some((item) => item.kind === 'product' && this.findProduct(item.source_id));
                 },
@@ -433,6 +420,11 @@
                         : 'Store order creation is only available when the quote includes at least one store product line item.';
                 },
                 normalizeLineItem(index, field) {
+                    if (field === 'unit_price_inc_tax' && SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = SM.formatUnitPrice(this.lineItems[index][field]);
+                        this.serializeLineItems();
+                        return;
+                    }
                     const value = parseFloat(this.lineItems[index]?.[field] || 0);
                     if (!Number.isFinite(value)) {
                         this.lineItems[index][field] = field === 'quantity' ? 0 : '0.00';
@@ -563,7 +555,7 @@
                 </div>
             </div>
 
-            <div class="border border-gray-400 rounded-lg p-4 mb-4" x-init="serializeLineItems()">
+            <div class="border border-gray-400 rounded-lg p-4 mb-4" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
                 <div class="flex flex-col gap-3 mb-3 md:flex-row md:items-center md:justify-between">
                     <h3 class="font-bold text-lg">Line Items</h3>
                     <x-ui.button variant="plain" type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem('custom')">
@@ -680,8 +672,11 @@
                         </div>
 
                         <div class="mt-3">
-                            <label class="block text-sm pl-1">Line Item Notes</label>
-                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-bind:readonly="item.kind === 'multi_workshop'" x-model="item.notes" x-on:input="serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
+                            <div class="flex items-center justify-between ">
+                                    <label class="block text-sm">Line item notes</label>
+                                    <button type="button" class="text-sm text-sky-600 hover:text-sky-800" x-show="['workshop', 'multi_workshop'].includes(item.kind)" x-on:click="SM.refreshWorkshopNotes(item); serializeLineItems()" title="Regenerate notes from workshop data">↻ Refresh</button>
+                                </div>
+                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="SM.markWorkshopNotesEdited(item); serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
                         </div>
                     </div>
                 </template>

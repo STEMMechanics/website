@@ -554,7 +554,7 @@
                 <div class="grid md:gap-4 md:grid-cols-2">
                     <div class="flex flex-col gap-2">
                         <x-ui.input name="price" label="Base Price" labelInfo="(inc GST)" moneyFormat="true" :value="isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00'" x-model="basePrice" />
-                        <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(Optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" />
+                        <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(inc GST, optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" />
                     </div>
                     <div class="flex flex-col gap-2">
                         <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
@@ -710,11 +710,11 @@
                                     <x-ui.input-control type="number" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][sort_order]`" x-model="variant.sort_order" />
                                 </div>
                                 <div>
-                                    <label class="mb-1 block pl-1 text-sm">Price</label>
+                                    <label class="mb-1 block pl-1 text-sm">Price (inc GST)</label>
                                     <x-ui.input-control type="number" step="0.01" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][price]`" x-model="variant.price" placeholder="Inherit base price" />
                                 </div>
                                 <div>
-                                    <label class="mb-1 block pl-1 text-sm">Recommended Price</label>
+                                    <label class="mb-1 block pl-1 text-sm">Recommended Price (inc GST)</label>
                                     <x-ui.input-control type="number" step="0.01" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="No recommended price" />
                                 </div>
                             </div>
