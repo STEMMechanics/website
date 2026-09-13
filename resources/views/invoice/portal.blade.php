@@ -112,7 +112,7 @@
             <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 px-6 py-4">
                     <div class="text-lg font-semibold text-gray-950">Line Items</div>
-                    <div class="mt-1 text-sm text-gray-500">Amounts are shown ex GST in the line table and inc GST in the totals.</div>
+                    <div class="mt-1 text-sm text-gray-500">Unit prices and line totals include GST where applicable.</div>
                 </div>
                 @php
                     $combinedLineItems = collect();
@@ -157,7 +157,7 @@
                                 <tr class="text-left text-gray-600">
                                     <th class="px-6 py-3 font-medium">Description</th>
                                     <th class="px-6 py-3 font-medium text-right">Qty</th>
-                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(ex GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
                                     <th class="px-6 py-3 font-medium text-center!">GST</th>
                                     <th class="px-6 py-3 font-medium text-center!">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
                                 </tr>
@@ -182,7 +182,7 @@
                                             }
                                         @endphp
                                         <td class="px-6 py-4 text-right">{{ $line['quantity_label'] ?? $displayQuantity }}</td>
-                                        <td class="px-6 py-4 text-right">${{ number_format((float) $line['unit_price_ex_tax'], 2) }}</td>
+                                        <td class="px-6 py-4 text-right">${{ \App\Services\Finance\LinePricing::formatUnit($line) }}</td>
                                         <td class="px-6 py-4 text-center!">${{ number_format((float) $line['tax_amount'], 2) }}</td>
                                         <td class="px-6 py-4 font-medium text-gray-950 text-center!">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>
                                     </tr>

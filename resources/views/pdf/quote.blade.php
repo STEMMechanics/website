@@ -158,17 +158,15 @@
             <thead>
                 <tr>
                     <th style="width:58%;">DESCRIPTION</th>
-                    <th class="center" style="width:14%;">QTY<br><span class="excl">Hours × seats<br>for workshops</span></th>
-                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
-                    <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
+                    <th class="center" style="width:14%;">HRS / QTY</th>
+                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
+                    <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($pageItems as $item)
                 @php
                 $qty = (float) ($item['quantity'] ?? 0);
-                $unitEx = (float) ($item['unit_price'] ?? 0);
-                $lineEx = (float) ($item['line_total'] ?? 0);
                 $gstApplicable = ($item['gst_applicable'] ?? true) === true;
                 $lineNotes = trim((string) ($item['notes'] ?? ''));
                 @endphp
@@ -179,9 +177,9 @@
                         {!! $renderLineNotes($lineNotes) !!}
                         @endif
                     </td>
-                    <td class="center">{{ \App\Services\Finance\WorkshopLine::quantityLabel($item) }}</td>
-                    <td class="right">$ {{ number_format($unitEx, 2) }}</td>
-                    <td class="right">$ {{ number_format($lineEx, 2) }}</td>
+                    <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
+                    <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
+                    <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
                 </tr>
                 @empty
                 <tr>

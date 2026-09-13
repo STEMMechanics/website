@@ -81,7 +81,7 @@ class WorkshopLine
                 'supplied_categories' => $workshop['supplied_categories'],
             ];
             $date = $workshop['date'] ? \Illuminate\Support\Carbon::parse($workshop['date'])->format('d/m/Y').' - ' : '';
-            $notes[] = '- '.$date.trim($row['description']).' - ('.$workshop['hours'].' hr / '.$workshop['seats'].' seats)';
+            $notes[] = '- '.$date.trim($row['description']).' - ('.$workshop['hours'].((float) $workshop['hours'] === 1.0 ? ' hr' : ' hrs').' × '.$workshop['seats'].' seats)';
         }
         $quantity = round(array_sum(array_map(fn ($row) => $row['workshop_hours'] * $row['workshop_seats'], $normalized)), 2);
         // Preserve the amount of previously saved one-group lines when adopting seat-hours.
@@ -99,7 +99,9 @@ class WorkshopLine
         $details['multi_workshop'] = ['rows' => $normalized, 'quantity_basis' => 'seat_hours'];
         $item['details_json'] = $details;
         $item['quantity'] = $quantity;
-        $item['notes'] = implode("\n", $notes);
+        if (! array_key_exists('notes', $item)) {
+            $item['notes'] = implode("\n", $notes);
+        }
         return $item;
     }
 
@@ -125,7 +127,7 @@ class WorkshopLine
         $tax = round($net * $taxRate, 2);
         $inclusive = $item['details_json']['inclusive_unit_price'] ?? null;
         if ($inclusive !== null) {
-            Validator::make(['price' => $inclusive], ['price' => 'numeric|min:0|max:100000'])->validate();
+            Validator::make(['price' => $inclusive], ['price' => 'numeric|between:-100000,100000'])->validate();
             $gross = round($quantity * (float) $inclusive, 2);
             $net = round($gross / (1 + $taxRate), 2);
             $tax = round($gross - $net, 2);

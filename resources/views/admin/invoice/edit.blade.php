@@ -389,6 +389,7 @@
                 dueDate: @js(old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '')),
                 selectedUserId: @js($selectedUserId),
                 selectedUserTermsDays: @js(is_array($selectedUser) ? (int) ($selectedUser['account_terms_days'] ?? 0) : 28),
+                savedTotals: @js(isset($invoice) ? ['count' => $invoice->lines->count(), 'net' => (float) $invoice->subtotal_amount, 'tax' => (float) $invoice->gst_amount, 'gross' => (float) $invoice->total_amount] : null),
                 lineItems: (() => {
                     try {
                         const parsed = JSON.parse(@js($savedLineItems));
@@ -397,6 +398,9 @@
                         }
 
                         return parsed.map((item) => SM.hydrateTravelLine({
+                            unit_price_inc_tax: SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (item.gst_applicable === false ? 1 : 1.1)),
+                            saved_pricing: item.saved_pricing ?? null,
+                            tax_rate: item.tax_rate ?? 0.1,
                             id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
                             travel_hours: item.travel_hours ?? '',
@@ -437,8 +441,11 @@
                             description: (item.description || '').trim(),
                             notes: (item.notes || '').trim(),
                             quantity: parseFloat(item.quantity || 0),
-                            unit_price: parseFloat(item.unit_price || 0),
+                            unit_price: Number(item.unit_price_inc_tax || 0) / (item.gst_applicable === false ? 1 : 1.1),
+                            unit_price_inc_tax: Number(item.unit_price_inc_tax || 0),
+                            saved_pricing: item.saved_pricing ?? null,
                             gst_applicable: item.gst_applicable !== false,
+                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate || 0.1),
                         }))
                         .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
@@ -449,7 +456,7 @@
                     if (this.isLocked) {
                         return;
                     }
-                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, gst_applicable: true });
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true });
                 },
                 removeLineItem(index) {
                     if (this.isLocked) {
@@ -487,10 +494,10 @@
                     return Number.isFinite(value) ? value.toFixed(2) : '0.00';
                 },
                 calculateSubtotal() {
-                    return this.lineItems.reduce((total, item) => total + SM.lineAmounts(item).net, 0);
+                    return SM.documentAmounts(this.lineItems, this.savedTotals).net;
                 },
                 calculateGst() {
-                    return this.lineItems.reduce((total, item) => total + SM.lineAmounts(item).tax, 0);
+                    return SM.documentAmounts(this.lineItems, this.savedTotals).tax;
                 },
                 lineTotalExFormatted(item) {
                     return this.normalizeMoney(SM.lineAmounts(item).net);
@@ -502,9 +509,14 @@
                     return this.normalizeMoney(this.calculateGst());
                 },
                 totalAmountFormatted() {
-                    return this.normalizeMoney(this.calculateSubtotal() + this.calculateGst());
+                    return this.normalizeMoney(SM.documentAmounts(this.lineItems, this.savedTotals).gross);
                 },
                 normalizeLineItem(index, field) {
+                    if (field === 'unit_price_inc_tax' && SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = SM.formatUnitPrice(this.lineItems[index][field]);
+                        this.serializeLineItems();
+                        return;
+                    }
                     const value = parseFloat(this.lineItems[index]?.[field] || 0);
                     if (!Number.isFinite(value)) {
                         this.lineItems[index][field] = 0;
@@ -920,7 +932,7 @@
                 </div>
             </div>
 
-            <div class="mt-4 mb-4 border-y border-slate-200 py-5" x-init="serializeLineItems()">
+            <div class="mt-4 mb-4 border-y border-slate-200 py-5" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
                 <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h3 class="font-bold text-lg">Line Items</h3>
                 </div>
@@ -930,7 +942,7 @@
                 </template>
 
                 <x-ui.table variant="listing" table-class="min-w-[44rem] w-full">
-                    <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (ex GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
+                    <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
                     <template x-for="(item, index) in lineItems" :key="index">
                         <tbody x-data="{ expanded: false }" class="[&>tr>td]:bg-white!">
                             <tr>
@@ -939,24 +951,27 @@
                                         <x-ui.button href="#" role="button" variant="plain" class="flex h-11 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-sky-50 hover:text-primary-color" x-on:click.prevent="expanded = !expanded" x-on:keydown.space.prevent="expanded = !expanded" x-bind:aria-expanded="expanded" x-bind:aria-label="expanded ? 'Collapse details and notes' : 'Expand details and notes'">
                                             <i class="fa-solid text-sm" x-bind:class="expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
                                         </x-ui.button>
-                                    <x-ui.select label="Type" :noLabel="true" class="mb-0 min-w-0 flex-1" x-model="item.kind" x-on:change="if (item.kind === 'multi_workshop') { item.auto_pricing = true; expanded = true; if (!item.workshops?.length) SM.addWorkshopRow(item); } if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.updateWorkshopLine(item); serializeLineItems()">
+                                    <x-ui.select label="Type" :noLabel="true" class="mb-0 min-w-0 flex-1" x-model="item.kind" x-on:change="SM.defaultWorkshopDescription(item); if (item.kind === 'multi_workshop') { item.auto_pricing = true; expanded = true; if (!item.workshops?.length) SM.addWorkshopRow(item); } if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.updateWorkshopLine(item); serializeLineItems()">
                                         <option value="workshop">Workshop Delivery</option><option value="multi_workshop">Multi Workshop Delivery</option><option value="travel">Travel Fee</option><option value="product">Store Product</option><option value="shipping">Shipping</option><option value="custom">Custom</option><option value="ticket">Ticket</option>
                                     </x-ui.select>
                                     </div>
                                 </td>
                                 <td><div class="relative"><x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats" x-on:input="if (item.kind === 'travel') { item.travel_hours = item.quantity; SM.updateWorkshopLine(item); } serializeLineItems()" /><x-finance.line-refresh /></div></td>
-                                <td><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price excluding GST" type="number" step="0.01" class="h-11 pl-6! pr-11!" x-model="item.unit_price" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" /><x-finance.line-refresh :price="true" /></div></td>
+                                <td><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price including GST" type="number" step="any" class="h-11 pl-6! pr-11!" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div></td>
                                 <td class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
-                                <td class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).net + SM.lineAmounts(item).tax)"></span></td>
+                                <td class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></td>
                                 <td class="text-center">@if(! $isLocked)<x-ui.row-action label="Remove line item" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />@endif</td>
                             </tr>
                             <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
                                 <div class="ml-10">
                                 <div class="mb-3"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
-                                <x-finance.workshop-line-fields />
+                                <x-finance.workshop-line-fields :inclusive="true" />
                                 <div x-show="item.kind === 'workshop'" class="mt-3 max-w-xs"><x-ui.input label="Workshop date" type="date" x-model="item.workshop_date" x-on:change="serializeLineItems()" /></div>
-                                <label class="mt-4 block text-sm">Line item notes</label>
-                                <x-ui.textarea-control aria-label="Line item notes" x-bind:readonly="item.kind === 'multi_workshop'" rows="4" class="mt-2 w-full resize-y" x-model="item.notes" x-on:input="serializeLineItems()" />
+                                <div class="flex items-center justify-between mt-4">
+                                    <label class="block text-sm">Line item notes</label>
+                                    <button type="button" class="text-sm text-sky-600 hover:text-sky-800" x-show="['workshop', 'multi_workshop'].includes(item.kind)" x-on:click="SM.refreshWorkshopNotes(item); serializeLineItems()" title="Regenerate notes from workshop data">↻ Refresh</button>
+                                </div>
+                                <x-ui.textarea-control aria-label="Line item notes" rows="4" class="mt-2 w-full resize-y" x-model="item.notes" x-on:input="SM.markWorkshopNotesEdited(item); serializeLineItems()" />
                                 </div>
                             </td></tr>
                         </tbody>

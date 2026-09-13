@@ -34,9 +34,10 @@ class TaxAdjustmentController extends Controller
 
         $invoice->loadMissing('lines', 'taxAdjustments.lines');
         $refundedQtyByLine = $this->lineRefundedQuantities($invoice);
+        $refundableAmounts = $this->refundableAmounts($invoice);
         $refundableLines = $invoice->lines
             ->filter(fn ($line) => abs((float) $line->quantity) > 0.0001)
-            ->map(function ($line) use ($refundedQtyByLine) {
+            ->map(function ($line) use ($refundedQtyByLine, $refundableAmounts) {
                 $originalQty = round(abs((float) $line->quantity), 2);
                 $refundedQty = round((float) ($refundedQtyByLine[$line->id] ?? 0), 2);
                 $remainingQty = max(0, round($originalQty - $refundedQty, 2));
@@ -46,6 +47,8 @@ class TaxAdjustmentController extends Controller
                     'original_qty' => $originalQty,
                     'refunded_qty' => $refundedQty,
                     'remaining_qty' => $remainingQty,
+                    'remaining_net' => $refundableAmounts[$line->id]['net'],
+                    'remaining_gross' => $refundableAmounts[$line->id]['gross'],
                 ];
             })
             ->values();
@@ -75,6 +78,7 @@ class TaxAdjustmentController extends Controller
 
         $invoice->loadMissing('lines', 'taxAdjustments.lines');
         $lineRefundedQty = $this->lineRefundedQuantities($invoice);
+        $refundableAmounts = $this->refundableAmounts($invoice);
         $refundQtyInput = is_array($validated['refund_qty'] ?? null) ? $validated['refund_qty'] : [];
         $selectedLines = [];
         $subtotalExact = 0.0;
@@ -102,9 +106,11 @@ class TaxAdjustmentController extends Controller
 
             $unitEx = abs((float) $line->unit_price_ex_tax);
             $taxRate = max(0, (float) $line->tax_rate);
-            $lineExExact = $requestedQty * $unitEx;
-            $taxAmountExact = $lineExExact * $taxRate;
-            $lineIncExact = $lineExExact + $taxAmountExact;
+            $remainingNet = $refundableAmounts[$line->id]['net'];
+            $remainingGross = $refundableAmounts[$line->id]['gross'];
+            $lineExExact = round($remainingNet * $requestedQty / $remainingQty, 2);
+            $lineIncExact = round($remainingGross * $requestedQty / $remainingQty, 2);
+            $taxAmountExact = round($lineIncExact - $lineExExact, 2);
             $subtotalExact += $lineExExact;
             $gstExact += $taxAmountExact;
             $totalExact += $lineIncExact;
@@ -417,6 +423,27 @@ class TaxAdjustmentController extends Controller
             ->sum(DB::raw('ABS(total_amount)'));
 
         return max(0, round(abs((float) $invoice->total_amount) - $otherCredits, 2));
+    }
+
+    /** Allocate historical document rounding without changing the original invoice. */
+    private function refundableAmounts(Invoice $invoice): array
+    {
+        $totals = ['net' => abs((float) $invoice->subtotal_amount), 'gross' => abs((float) $invoice->total_amount)];
+        $fields = ['net' => 'line_total_ex_tax', 'gross' => 'line_total_inc_tax'];
+        $result = [];
+        foreach ($fields as $key => $field) {
+            $sum = $invoice->lines->sum(fn ($line) => abs((float) $line->$field));
+            $cumulative = $allocated = 0;
+            foreach ($invoice->lines as $line) {
+                $cumulative += abs((float) $line->$field);
+                $next = $sum > 0 ? round($totals[$key] * $cumulative / $sum, 2) : 0;
+                $credited = (float) DB::table('tax_adjustment_lines')->where('invoice_line_id', $line->id)->sum($field);
+                $result[$line->id][$key] = max(0, round($next - $allocated - $credited, 2));
+                $allocated = $next;
+            }
+        }
+
+        return $result;
     }
 
     private function lineRefundedQuantities(Invoice $invoice): array

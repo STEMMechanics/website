@@ -246,7 +246,7 @@ class InvoiceController extends Controller
             return redirect()->back();
         }
 
-        $lineItems = $this->extractLineItems($request);
+        $lineItems = $this->extractLineItems($request, $invoice);
 
         $invoice->fill($validated);
         $invoice->scheduled_email = $request->boolean('scheduled_email');
@@ -258,9 +258,11 @@ class InvoiceController extends Controller
             $invoice->scheduled_email_failure = null;
         }
         $invoice->status = $nextStatus;
-        $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
-        $invoice->gst_amount = $this->calculateGst($lineItems);
-        $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
+        if (! \App\Services\Finance\LinePricing::sameTotals($lineItems, $invoice->lines->map->toArray()->all())) {
+            $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
+            $invoice->gst_amount = $this->calculateGst($lineItems);
+            $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
+        }
         if (! $invoice->due_date) {
             $invoice->due_date = InvoiceDueDate::fromIssueDate(
                 $invoice->issue_date,
@@ -2103,7 +2105,7 @@ class InvoiceController extends Controller
         }
     }
 
-    private function extractLineItems(Request $request): array
+    private function extractLineItems(Request $request, ?Invoice $invoice = null): array
     {
         $lineItemsJson = $request->input('line_items_json', '[]');
 
@@ -2117,12 +2119,13 @@ class InvoiceController extends Controller
         }
 
         $lineItems = [];
-        foreach ($decoded as $item) {
+        foreach ($decoded as $index => $item) {
             if (! is_array($item)) {
                 continue;
             }
 
-            $normalized = $this->normalizeLineItem($item);
+            $saved = $invoice ? (isset($item['id']) ? $invoice->lines->firstWhere('id', $item['id']) : $invoice->lines->firstWhere('line_number', $index + 1)) : null;
+            $normalized = $this->normalizeLineItem($item, $saved?->toArray());
             if ($normalized === null) {
                 continue;
             }
@@ -2393,7 +2396,7 @@ class InvoiceController extends Controller
         }
     }
 
-    private function normalizeLineItem(array $item): ?array
+    private function normalizeLineItem(array $item, ?array $saved = null): ?array
     {
         $item = \App\Services\Finance\WorkshopLine::normalize($item);
         $description = trim((string) ($item['description'] ?? ''));
@@ -2408,17 +2411,21 @@ class InvoiceController extends Controller
             return null;
         }
 
-        $lineTotalExTax = round($quantity * $unitPriceExTax, 2);
-        $taxAmount = round($lineTotalExTax * $taxRate, 2);
-        $inclusive = $item['details_json']['inclusive_unit_price'] ?? null;
-        if ($inclusive !== null) {
-            validator(['inclusive' => $inclusive], ['inclusive' => 'numeric|min:0|max:100000'])->validate();
-            $gross = round($quantity * (float) $inclusive, 2);
-            $lineTotalExTax = round($gross / (1 + $taxRate), 2);
-            $taxAmount = round($gross - $lineTotalExTax, 2);
-            $unitPriceExTax = (float) $inclusive / (1 + $taxRate);
+        if (isset($item['unit_price_inc_tax'])) {
+            validator($item, ['unit_price_inc_tax' => 'numeric'])->validate();
+            $item['details_json']['inclusive_unit_price'] = (float) $item['unit_price_inc_tax'];
         }
-
+        $unchanged = $saved && \App\Services\Finance\LinePricing::unchanged($item, $saved);
+        $amounts = $unchanged
+            ? \App\Services\Finance\LinePricing::savedAmounts($saved)
+            : \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPriceExTax, $taxRate);
+        $lineTotalExTax = $amounts['net'];
+        $taxAmount = $amounts['tax'];
+        if ($unchanged && (float) $saved['quantity'] === $quantity) {
+            $unitPriceExTax = (float) $saved['unit_price_ex_tax'];
+        } elseif (isset($item['details_json']['inclusive_unit_price'])) {
+            $unitPriceExTax = (float) $item['details_json']['inclusive_unit_price'] / (1 + $taxRate);
+        }
 
         return [
             'id' => isset($item['id']) ? (int) $item['id'] : null,
@@ -2431,7 +2438,7 @@ class InvoiceController extends Controller
             'tax_rate' => round($taxRate, 4),
             'line_total_ex_tax' => $lineTotalExTax,
             'tax_amount' => $taxAmount,
-            'line_total_inc_tax' => round($lineTotalExTax + $taxAmount, 2),
+            'line_total_inc_tax' => $amounts['gross'],
             'source_type' => isset($item['source_type']) ? (string) $item['source_type'] : null,
             'source_id' => isset($item['source_id']) ? (int) $item['source_id'] : null,
             'original_invoice_line_id' => isset($item['original_invoice_line_id']) ? (int) $item['original_invoice_line_id'] : null,
@@ -2443,7 +2450,7 @@ class InvoiceController extends Controller
         $invoice->loadMissing('lines');
 
         return $invoice->lines->map(function (InvoiceLine $line): array {
-            return [
+            return \App\Services\Finance\LinePricing::forEditor([
                 'id' => $line->id,
                 'kind' => (string) $line->kind,
                 'description' => (string) $line->description,
@@ -2461,7 +2468,7 @@ class InvoiceController extends Controller
                 'gst_applicable' => ((float) $line->tax_rate) > 0.0001,
                 'unit_price' => (float) $line->unit_price_ex_tax,
                 'line_total' => (float) $line->line_total_ex_tax,
-            ];
+            ]);
         })->all();
     }
 
