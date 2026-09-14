@@ -4,12 +4,16 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        Vite::useCspNonce();
+        $nonce = Vite::cspNonce();
+
         /** @var Response $response */
         $response = $next($request);
 
@@ -21,7 +25,7 @@ class SecurityHeaders
         }
 
         if (config('security.csp_report_only', true)) {
-            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-{$nonce}'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
         }
 
         // Hide PHP runtime/version details from response headers.

@@ -767,7 +767,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     const regenerateVariantsAction = @json(isset($medium) ? route('admin.media.regenerate-variants', $medium) : null);
     const deleteVariantAction = @json(isset($medium) ? route('admin.media.delete-variant', $medium) : null);
     const deleteVariantsAction = @json(isset($medium) ? route('admin.media.delete-variants', $medium) : null);

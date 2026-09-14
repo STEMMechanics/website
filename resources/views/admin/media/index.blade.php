@@ -120,7 +120,7 @@
         </x-ui.list-dialog>
     </x-container>
 </x-layout>
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     const regenerateMissingVariantsState = {
         startUrl: @json(route('admin.media.regenerate-missing-variants')),
         statusUrl: @json(route('admin.media.regenerate-missing-variants.status')),

@@ -338,7 +338,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.fileBackupArchive = (initialRun, startUrl, statusTemplate) => ({
         run: initialRun,
         init() { if (this.run && !this.run.finished) this.poll(); },

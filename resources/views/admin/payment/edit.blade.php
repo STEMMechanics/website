@@ -751,7 +751,7 @@
                                     </x-ui.table>
                                 </div>
                                 @if($highlightRefundId > 0)
-                                    <script>
+                                    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
                                         window.addEventListener('DOMContentLoaded', function () {
                                             var target = document.getElementById('refund-{{ $highlightRefundId }}');
                                             if (target) {

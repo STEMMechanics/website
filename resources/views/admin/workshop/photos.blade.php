@@ -1110,7 +1110,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             document.addEventListener('DOMContentLoaded', () => {
                 const payload = sessionStorage.getItem('workshop-media-upload-toast');
                 if (!payload || !window.SM || typeof window.SM.notice !== 'function') {

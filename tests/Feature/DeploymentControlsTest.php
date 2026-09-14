@@ -67,7 +67,7 @@ class DeploymentControlsTest extends TestCase
     {
         config(['security.indexable' => false]);
         $this->get('/')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow')
-            ->assertHeader('Content-Security-Policy-Report-Only', "script-src 'self'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+            ->assertHeader('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-".\Illuminate\Support\Facades\Vite::cspNonce()."'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
         $this->postJson('/security/csp-reports', ['csp-report' => ['blocked-uri' => 'https://secret.example?token=private', 'effective-directive' => 'script-src-elem']])->assertNoContent();
     }
 

@@ -1111,7 +1111,7 @@
         </x-container>
     </div>
     <x-ui.record-dialog />
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         window.SM = window.SM || {};
         window.SM.submitInvoiceWriteOff = function (action, csrfToken) {
             if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {

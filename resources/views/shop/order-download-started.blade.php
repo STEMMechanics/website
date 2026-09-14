@@ -73,7 +73,7 @@
         </section>
     </x-container>
 
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         document.addEventListener('DOMContentLoaded', function () {
             var frame = document.createElement('iframe');
             frame.setAttribute('src', @json($downloadUrl));

@@ -1,5 +1,5 @@
 @push('head')
-    <script src="/workshop-course.js?v={{ substr(hash_file('sha256', public_path('workshop-course.js')), 0, 12) }}"></script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" src="/workshop-course.js?v={{ substr(hash_file('sha256', public_path('workshop-course.js')), 0, 12) }}"></script>
 @endpush
 
 @php
@@ -1194,7 +1194,7 @@ if (isset($workshop)) {
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function isStemcraftWorkshopType() {
         const typeElement = document.getElementsByName('type')[0];
         return typeElement && typeElement.value === 'stemcraft';

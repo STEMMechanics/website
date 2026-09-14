@@ -538,7 +538,7 @@
 @endif
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (() => {
         const registerEditorStore = () => {
             if (!window.Alpine?.store) {

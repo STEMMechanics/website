@@ -211,7 +211,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.serverBackupRunner = (config) => ({
         runs: Array.isArray(config.initialRuns) ? config.initialRuns : [],
         timers: {},

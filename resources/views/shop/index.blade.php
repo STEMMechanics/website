@@ -654,7 +654,7 @@
 
     </x-container>
 
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         document.addEventListener('DOMContentLoaded', function () {
             var root = document.querySelector('[data-shop-catalog]');
             if (!root) {

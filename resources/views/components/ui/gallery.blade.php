@@ -96,7 +96,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function galleryStore() {
         if (!Array.isArray(Alpine.store('gallery'))) {
             Alpine.store('gallery', []);

@@ -33,7 +33,7 @@
 </x-layout>
 
 @push('scripts')
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         (function () {
             const form = document.getElementById('media-password-form');
             const panel = document.getElementById('password-panel');

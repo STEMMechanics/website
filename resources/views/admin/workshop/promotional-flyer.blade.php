@@ -232,7 +232,7 @@
         </form>
     </x-container>
 
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         function workshopFlyerBuilder(workshops, initialSelected, initialCustomizations, initialFooter) {
             const customizations = {};
 

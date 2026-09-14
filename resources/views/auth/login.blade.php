@@ -47,7 +47,7 @@
     </x-dialog>
 
     @pushOnce('scripts')
-        <script>
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             document.addEventListener('DOMContentLoaded', () => {
                 const loginForm = document.getElementById('login-identifier-form');
                 const emailInput = document.getElementById('login_identifier');

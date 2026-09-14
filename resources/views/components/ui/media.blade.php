@@ -61,7 +61,7 @@
     <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $selectedValue }}">
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function revokeLocalMediaPreview(name) {
         const input = document.getElementById(name);
         const localPreviewUrl = input?.dataset?.localPreviewUrl || '';

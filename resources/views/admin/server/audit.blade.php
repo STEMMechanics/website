@@ -147,7 +147,7 @@
 
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         SM.onDynamicList('admin-server-audit', (signal) => {
             const modal = document.getElementById('audit-log-modal');
             const modalTitle = document.getElementById('audit-log-modal-title');

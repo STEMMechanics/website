@@ -15,8 +15,8 @@
 @endif
 
 @pushOnce('scripts')
-<script type="module" src="{{ asset('vendor/altcha/altcha.min.js') }}"></script>
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" type="module" src="{{ asset('vendor/altcha/altcha.min.js') }}"></script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     const initAltchaForms = () => {
         const setFormProcessing = (form, isProcessing) => {
             if (window.SM && typeof window.SM.setFormProcessing === 'function') {

@@ -54,7 +54,7 @@
     @endif
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (function () {
         const uploadInput = document.getElementById(@js($resolvedUploadId));
         const hiddenInput = document.getElementById(@js($resolvedFieldId));

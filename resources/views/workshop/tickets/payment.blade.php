@@ -289,9 +289,9 @@
 </x-layout>
 
 @if($squareEnabled)
-<script src="{{ $squareEnvironment === 'production' ? 'https://web.squarecdn.com/v1/square.js' : 'https://sandbox.web.squarecdn.com/v1/square.js' }}" async></script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" src="{{ $squareEnvironment === 'production' ? 'https://web.squarecdn.com/v1/square.js' : 'https://sandbox.web.squarecdn.com/v1/square.js' }}" async></script>
 @endif
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function ticketPaymentPage(config) {
         return {
             paymentMethod: @js($totalAmount > 0 ? (($hasEquipment ?? false) && in_array(old('payment_method', ''), ['', 'pay_at_door', 'bank_transfer'], true) ? ($canUseAccountTerms ? 'account_terms' : 'credit_card') : old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door')) : 'credit'),
