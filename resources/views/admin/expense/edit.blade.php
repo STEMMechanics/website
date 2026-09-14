@@ -333,12 +333,14 @@
             const total = parseFloat(totalInput.value);
             if (!Number.isFinite(total) || total < 0) {
                 gstInput.value = '';
+                gstInput.dispatchEvent(new Event('input', { bubbles: true }));
                 return;
             }
 
             totalInput.value = total.toFixed(2);
             const gst = Math.round((total / 11) * 100) / 100;
             gstInput.value = gst.toFixed(2);
+            gstInput.dispatchEvent(new Event('input', { bubbles: true }));
         };
 
         const resetPreviewVisibility = () => {

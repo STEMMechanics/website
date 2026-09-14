@@ -39,6 +39,44 @@ test('supplier defaults follow the net amount while overrides retain entered val
     assert.equal(tally.remaining, 0);
 });
 
+function expenseGstUpdater(inputs, tally) {
+    const source = fs.readFileSync('resources/views/admin/expense/edit.blade.php', 'utf8');
+    const updater = source.slice(source.indexOf('const updateGstFromTotal ='), source.indexOf('const resetPreviewVisibility ='));
+    inputs.gst.dispatchEvent = event => {
+        assert.equal(event.type, 'input');
+        assert.equal(event.bubbles, true);
+        tally.refreshTotal({ target: { id: 'gst' } });
+    };
+    return vm.runInNewContext(`${updater}\nupdateGstFromTotal;`, { totalInput: inputs.total, gstInput: inputs.gst, Event });
+}
+
+test('automatically calculated GST refreshes the net expense and supplier allocation', () => {
+    const inputs = { total: { value: '12.15' }, gst: { value: '' }, supplier: { value: 'Vendor' } };
+    const { tally } = setup({ values: { 5: '0' }, enabled: false, exact: true, totalInput: 'total', gstInput: 'gst', supplierInput: 'supplier', defaults: { vendor: { 5: 100 } } }, inputs);
+    const updateGst = expenseGstUpdater(inputs, tally);
+    updateGst();
+    assert.equal(inputs.gst.value, '1.10');
+    assert.equal(tally.total, 1105);
+    assert.equal(tally.values[5], '11.05');
+    assert.equal(tally.remaining, 0);
+
+    inputs.total.value = '';
+    updateGst();
+    assert.equal(inputs.gst.value, '');
+    assert.equal(tally.total, 0);
+    assert.equal(tally.values[5], '0.00');
+});
+
+test('automatic GST refresh preserves manual allocations and flags the excess', () => {
+    const inputs = { total: { value: '12.15' }, gst: { value: '' } };
+    const { tally } = setup({ values: { 5: '12.15' }, enabled: true, exact: true, totalInput: 'total', gstInput: 'gst' }, inputs);
+    expenseGstUpdater(inputs, tally)();
+    assert.equal(tally.total, 1105);
+    assert.equal(tally.values[5], '12.15');
+    assert.equal(tally.remaining, -110);
+    assert.equal(tally.valid, false);
+});
+
 test('invoice repricing refreshes remaining immediately without overwriting manual allocations', () => {
     const { tally } = setup({ values: { 1: '34.00' }, total: 3091, enabled: false, exact: false });
     tally.previewInvoice({ items: [], total: 3091 }, []);
