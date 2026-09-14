@@ -403,7 +403,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     SM.onDynamicList('admin-workshop-index', () => {
         const storageKey = 'admin-workshop-bulk-selection';
         const form = document.getElementById('admin-workshop-bulk-form');

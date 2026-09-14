@@ -140,7 +140,7 @@
 </div>
 
 @once
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         document.addEventListener('click', async (event) => {
             const button = event.target.closest('.stemcraft-copy-address');
 

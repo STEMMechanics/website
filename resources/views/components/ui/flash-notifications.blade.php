@@ -29,7 +29,7 @@
 @endphp
 @foreach($notifications as $notification)
     @if(is_string($notification['message']) && $notification['message'] !== '')
-        <script>
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             SM.alert(@js($notification['title']), @js($notification['message']), @js($notification['type']));
         </script>
     @endif

@@ -429,7 +429,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.shopNavbarConfig = {
         publicShopAvailable: {{ $publicShopAvailable ? 'true' : 'false' }},
         cartOpen: {{ (session('store-cart-open') || session('shop-cart-open')) && $publicShopAvailable ? 'true' : 'false' }},

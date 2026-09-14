@@ -76,7 +76,7 @@
     </x-container>
 
     @pushOnce('scripts')
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         (() => {
             const form = document.getElementById('ticket-start-form');
             if (!(form instanceof HTMLFormElement) || !window.SM || typeof window.SM.setFormProcessing !== 'function') {

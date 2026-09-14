@@ -11,7 +11,7 @@
     </x-dialog>
 
     @pushOnce('scripts')
-        <script>
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             document.addEventListener('DOMContentLoaded', () => {
                 const logoutForm = document.getElementById('logout-confirm-form');
                 if (!(logoutForm instanceof HTMLFormElement) || !window.SM) {

@@ -18,7 +18,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.backupPreparation = (initialRun, statusUrl, returnUrl) => ({
         run: initialRun,
         start() { this.poll(); },

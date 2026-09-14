@@ -91,7 +91,7 @@
         @endif
     </div>
 
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         window.SMFileUploadPaste = window.SMFileUploadPaste || {
             listenerAttached: false,
         };

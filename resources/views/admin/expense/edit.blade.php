@@ -140,7 +140,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (function () {
         const totalInput = document.getElementById('expense-total-amount');
         const gstInput = document.getElementById('expense-gst-amount');

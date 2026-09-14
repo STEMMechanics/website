@@ -69,7 +69,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function updateStatus(event) {
         const statusElement = document.getElementById('status');
 

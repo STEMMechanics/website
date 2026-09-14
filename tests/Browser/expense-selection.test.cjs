@@ -23,7 +23,7 @@ function setup(selected = []) {
             createElement: () => ({}),
         },
     };
-    const source = fs.readFileSync('resources/views/admin/expense/index.blade.php', 'utf8').split('<script>')[1].split('</script>')[0];
+    const source = fs.readFileSync('resources/views/admin/expense/index.blade.php', 'utf8').split(/<script[^>]*>/)[1].split('</script>')[0];
     vm.runInNewContext(source, context);
     return { allocate, bulkInputs, items, headers, button, inputs, controls, stored: () => JSON.parse(stored) };
 }

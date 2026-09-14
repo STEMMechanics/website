@@ -412,7 +412,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function confirmAnalyticsPrune() {
         const form = document.getElementById('analytics-prune-form');
         if (!form || !window.SM || typeof window.SM.confirm !== 'function') {

@@ -81,7 +81,7 @@
     </div>
 
     @pushOnce('scripts')
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         const bindLoginPasswordFormProcessing = () => {
             if (!window.SM || typeof window.SM.setFormProcessing !== 'function') {
                 return;

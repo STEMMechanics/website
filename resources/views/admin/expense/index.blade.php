@@ -158,7 +158,7 @@
 <x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit expenses" loader-id="finance-bulk-loader" list="admin-expense-index" selection-key="admin-expense-export-selection" selection-field="ids[]" />
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     SM.onDynamicList('admin-expense-index', () => {
         const storageKey = 'admin-expense-export-selection';
         const itemCheckboxes = Array.from(document.querySelectorAll('.admin-expense-select-item'));

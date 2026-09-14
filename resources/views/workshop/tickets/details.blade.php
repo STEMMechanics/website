@@ -101,7 +101,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (() => {
         const keepAliveUrl = @js(route('workshop.ticket.flow.details.keepalive', $workshop));
         const workshopUrl = @js(route('workshop.show', $workshop));

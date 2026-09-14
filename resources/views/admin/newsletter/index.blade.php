@@ -171,7 +171,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.SMNewsletterCustomState = null;
 
     window.SMNewsletterOpenCustom = function (form, sectionIndex, select) {

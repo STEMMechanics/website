@@ -1832,3 +1832,13 @@ document.addEventListener('DOMContentLoaded', () => {
     SM.updateShippingAddress();
     SM.updateAllThumbnails();
 });
+
+// Format money fields without native inline event handlers.
+document.addEventListener('blur', (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.hasAttribute('data-money-format')) return;
+    const raw = String(input.value || '').trim();
+    if (raw === '') return;
+    const amount = parseFloat(raw);
+    input.value = Number.isFinite(amount) && amount >= 0 ? amount.toFixed(2) : '';
+}, true);

@@ -237,7 +237,7 @@
 </div>
 
 @pushonce('scripts')
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function decodeFileListString(value) {
         if (typeof value !== 'string') {
             return '';
@@ -542,7 +542,7 @@
 </script>
 @endpushonce
 @push('scripts')
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
 (function initializeFileList_{{ \Illuminate\Support\Str::slug($name, '_') }}() {
     const initialValue = @js($value ?? []);
     let initialized = false;

@@ -280,7 +280,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.shopCartPageConfig = {
         cartState: @js($cartPayload),
         shippingCountry: @js($shippingCountry),

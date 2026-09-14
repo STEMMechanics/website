@@ -192,7 +192,7 @@
     </x-container>
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     const initServerLogControls = () => {
         const serverInfoRoot = document.getElementById('server-info-app');
         const serverMaintenanceRefreshUrl = serverInfoRoot?.dataset.maintenanceRefreshUrl || '';

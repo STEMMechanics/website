@@ -160,7 +160,7 @@
     }
 </style>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     SM.onDynamicList('admin-site-option-index', (signal) => {
         const root = document.getElementById('site-options-app');
         if (!root) {

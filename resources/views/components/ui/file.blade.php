@@ -72,7 +72,7 @@
     <input class="hidden" type="text" id="{{ $name }}_original_filename" name="{{ $name }}_original_filename" value="" />
 </div>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function updateDetails(media) {
         document.getElementById('{{ $name }}').value = (typeof media.upload_token === 'string' && media.upload_token !== '') ? media.upload_token : media.name;
         const originalNameInput = document.getElementById('{{ $name }}_original_filename');

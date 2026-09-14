@@ -93,7 +93,7 @@
             'itemActionsLocked' => $itemActionsLocked,
         ]);
     @endphp
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         window.shopAdminOrderEditor = function (config) {
             const normalizedInitialActions = Array.isArray(config?.initialActions) ? config.initialActions : [];
 

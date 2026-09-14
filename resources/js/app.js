@@ -1,4 +1,6 @@
 import './bootstrap';
+// Emit a local, versioned classic script for layouts that need dialogs before modules run.
+import.meta.glob(['../../node_modules/sweetalert2/dist/sweetalert2.all.min.js'], { eager: true, query: '?url', import: 'default' });
 import './media-picker-loader.js';
 import './tooltip.js';
 

@@ -415,7 +415,7 @@
 <x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit invoices" loader-id="finance-bulk-loader" list="admin-invoice-index" selection-key="admin-invoice-allocation-selection" selection-field="ids[]" />
 </x-layout>
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         window.SM = window.SM || {};
         window.SM.submitInvoiceWriteOff = function (action, csrfToken) {
             if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {

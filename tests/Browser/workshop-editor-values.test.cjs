@@ -50,7 +50,7 @@ test('initialisation retains saved closing dates for all older workshop types', 
             document: { getElementsByName: name => values[name] ? [values[name]] : [], addEventListener() {} },
             SM: { toLocalISOString: date => date.toISOString().slice(0, 16) },
         };
-        vm.runInNewContext(blade.slice(blade.lastIndexOf('<script>') + 8, blade.lastIndexOf('</script>')), context);
+        vm.runInNewContext(blade.slice(blade.indexOf('>', blade.lastIndexOf('<script')) + 1, blade.lastIndexOf('</script>')), context);
         assert.equal(values.closes_at.value, '2024-05-31T17:00', type);
         values.closes_at.value = '';
         context.syncWorkshopClosesAt(true);
