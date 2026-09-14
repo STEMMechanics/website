@@ -17,6 +17,29 @@ class SecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
+        // Rocket Loader recreates script elements by copying attributes, which loses
+        // browser-hidden CSP nonces. Opt out trusted scripts, including Vite/Livewire
+        // output, before Cloudflare sees the HTML. Never grant a nonce to new scripts.
+        if (str_contains((string) $response->headers->get('Content-Type'), 'text/html') && is_string($response->getContent())) {
+            $html = $response->getContent();
+            $updated = preg_replace_callback('/<script\b[^>]*>/i', static function (array $match) use ($nonce): string {
+                if (! preg_match('/\snonce=([\'"])'.preg_quote($nonce, '/').'\1/', $match[0]) || preg_match('/\sdata-cfasync\s*=/i', $match[0])) {
+                    return $match[0];
+                }
+
+                // Cloudflare requires this attribute to precede src.
+                return preg_replace('/^<script\b/i', '<script data-cfasync="false"', $match[0]);
+            }, $html);
+            if ($updated !== $html) {
+                $original = $response instanceof \Illuminate\Http\Response ? $response->getOriginalContent() : null;
+                $response->setContent($updated);
+                if ($response instanceof \Illuminate\Http\Response) {
+                    $response->original = $original;
+                }
+                $response->headers->remove('Content-Length');
+            }
+        }
+
         if (! config('security.indexable', false) || $request->routeIs('admin.*', 'account.*', 'shop.cart*', 'shop.checkout*', 'shop.order*', 'shop.payment*', 'workshop.ticket.flow.*') || $request->is('admin', 'admin/*', 'account', 'account/*', 'login', 'register', 'tickets', 'tickets/*', 'invoices/*', 'quotes/*', 'cart', 'checkout', 'checkout/*') || $request->hasAny(['token', 'signature'])) {
             $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
         }
