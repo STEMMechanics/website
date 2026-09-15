@@ -366,7 +366,7 @@
             const content = warning || message;
             const confirmed = await new Promise(resolve => {
                 if (window.SM && typeof window.SM.confirm === 'function') window.SM.confirm(title, content, buttonLabel, resolve);
-                else resolve(window.confirm(content));
+                else resolve(false);
             });
             return { confirmed, acknowledged: count !== 0 && confirmed };
         };
