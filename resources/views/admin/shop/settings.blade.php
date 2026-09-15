@@ -5,6 +5,10 @@
             $isPickup = filter_var($method['is_pickup'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false;
 
             return [
+                'is_pickup' => $isPickup,
+                'calculated_packaging_cost' => (string) ($method['calculated_packaging_cost'] ?? '0.00'),
+                'cubic_divisor' => (string) ($method['cubic_divisor'] ?? ''),
+                'weight_tiers' => array_values($method['weight_tiers'] ?? []),
                 'id' => ($method['id'] ?? '') !== '' ? (int) $method['id'] : null,
                 'code' => (string) ($method['code'] ?? ''),
                 'name' => (string) ($method['name'] ?? ''),
@@ -48,7 +52,7 @@
         ->values()
         ->all();
     $validationErrors = $errors->getMessages();
-    $settingsCardClasses = 'rounded-3xl border border-gray-200 bg-white p-6 shadow-sm';
+    $settingsCardClasses = 'rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm';
     $inlineInputClasses = 'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0';
     $inlineTextareaClasses = 'block min-h-22 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0';
     $toggleCardClasses = 'flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700';
@@ -57,7 +61,7 @@
 <x-layout>
     <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">Store Settings</x-mast>
 
-    <x-container class="mt-4">
+    <x-container class="mt-4" inner-class="max-w-screen-2xl">
         @if($errors->any())
             <div role="alert" class="mb-6 rounded-2xl border border-red-300 bg-red-50 px-5 py-4 text-red-800">
                 <div class="font-semibold">Store settings were not saved</div>
@@ -123,11 +127,15 @@
                         : 1;
                 },
                 channelUsesFreeCollection(method) {
-                    return !method || !Array.isArray(method.packages) || method.packages.length === 0;
+                    return !!method?.is_pickup;
                 },
                 addShippingMethod() {
                     this.shippingMethods.push({
                         id: null,
+                        is_pickup: false,
+                        cubic_divisor: '',
+                        calculated_packaging_cost: '0.00',
+                        weight_tiers: [],
                         code: '',
                         name: '',
                         description: '',
@@ -371,7 +379,7 @@
                 </div>
 
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                    Channels with no package options are treated as free collection or pickup. Checkout uses the first active channel in sort order, unless a manual quote is required.
+                    Each shipping channel can have fixed-price boxes, calculated weight tiers, or both. Select free collection explicitly for pickup channels. Checkout uses the first active channel in sort order, unless a manual quote is required.
                 </div>
 
                 @if($shippingMethodErrors !== [])
@@ -388,7 +396,7 @@
 
                 <div class="space-y-4">
                     <template x-for="(method, index) in shippingMethods" :key="method.id ?? `new-${index}`">
-                        <section class="rounded-3xl border border-gray-200 bg-gray-50/80 p-5">
+                        <section class="rounded-3xl border border-gray-200 bg-gray-50/80 p-3 sm:p-5">
                             <input type="hidden" :name="`shipping_methods[${index}][id]`" :value="method.id ?? ''">
                             <input type="hidden" :name="`shipping_methods[${index}][is_active]`" :value="method.is_active ? 1 : 0">
 
@@ -399,7 +407,7 @@
                                         <x-ui.badge color="gray" variant="outline" class="font-medium" x-text="channelUsesFreeCollection(method) ? 'Collection' : 'Shipping'"></x-ui.badge>
                                         <x-ui.badge color="gray" variant="outline" class="font-medium" x-show="!method.is_active" x-cloak>Inactive</x-ui.badge>
                                     </div>
-                                    <p class="mt-2 text-sm text-gray-500" x-text="channelUsesFreeCollection(method) ? 'No package pricing set. This will behave as a free collection or pickup option.' : 'Customers can choose this channel when its package options fit their order.'"></p>
+                                    <p class="mt-2 text-sm text-gray-500" x-text="channelUsesFreeCollection(method) ? 'Customers can collect their order for free.' : 'Checkout compares fixed-price and calculated boxes, including combinations, to find the cheapest shipment for this channel.'"></p>
                                 </div>
                                 <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removeShippingMethod(index)">Remove</x-ui.button>
                             </div>
@@ -471,23 +479,80 @@
                                 </div>
                             </div>
 
-                            <div class="mt-5 border-t border-gray-200 pt-5">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <div class="font-semibold text-gray-900">Package Options</div>
+                            <div class="mt-5">
+                                <input type="hidden" :name="`shipping_methods[${index}][is_pickup]`" :value="method.is_pickup ? 1 : 0">
+                                <label class="{{ $toggleCardClasses }}">
+                                    <x-ui.checkbox bare small class="mt-0.5" x-model="method.is_pickup" />
+                                    <span class="block">
+                                        <span class="block font-medium text-gray-900">Free collection / pickup</span>
+                                        <span class="mt-1 block text-gray-500">Use free collection instead of shipping. Turn off to use fixed-price boxes and calculated pricing.</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <fieldset class="min-w-0" x-show="!method.is_pickup" x-bind:disabled="method.is_pickup" x-cloak>
+                            <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(`shipping_methods.${index}.weight_tiers`) || key === `shipping_methods.${index}.cubic_divisor` || key === `shipping_methods.${index}.calculated_packaging_cost`)">
+                                <x-slot:summary><span x-text="method.weight_tiers.length ? `${method.weight_tiers.length} weight tier${method.weight_tiers.length === 1 ? '' : 's'} · $${Number(method.calculated_packaging_cost || 0).toFixed(2)} packaging per box` : 'Not configured'"></span></x-slot:summary>
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="mt-1 text-sm text-gray-600">Optional. Chargeable weight is the higher of actual weight and cubic weight for each packed box. Whole items are split into more boxes when needed, and fixed-price boxes can be mixed in to reduce the total.</p>
+                                    </div>
+                                    <x-ui.button type="button" color="outline" class="w-full shrink-0 sm:w-auto" x-on:click="method.weight_tiers.push({ max_weight_grams: '', price: '' })">Add Weight Tier</x-ui.button>
+                                </div>
+                                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                    <div class="min-w-0">
+                                        <label class="mb-1 block text-sm font-medium text-gray-700">Cubic weight divisor (mm³ per gram)</label>
+                                        <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][cubic_divisor]`" x-model="method.cubic_divisor" x-bind:class="hasFieldError(`shipping_methods.${index}.cubic_divisor`) && 'border-red-400'" />
+                                        <p class="mt-1 text-sm text-gray-500">Length × width × height in mm ÷ divisor = cubic weight in grams. For example, 200 × 200 × 200 ÷ 4000 = 2000 g. Uses estimated packed box dimensions, including empty space. Clear the divisor and remove all tiers to disable calculated pricing.</p>
+                                        <template x-for="message in fieldErrors(`shipping_methods.${index}.cubic_divisor`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <label class="mb-1 block text-sm font-medium text-gray-700">Packaging cost per box (inc. GST)</label>
+                                        <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][calculated_packaging_cost]`" x-model="method.calculated_packaging_cost" x-bind:class="hasFieldError(`shipping_methods.${index}.calculated_packaging_cost`) && 'border-red-400'" />
+                                        <p class="mt-1 text-sm text-gray-500">Added to the postage tier for every calculated box, including additional boxes in a shipment. Enter 0 if packaging is already included. Fixed-price boxes already include packaging.</p>
+                                        <template x-for="message in fieldErrors(`shipping_methods.${index}.calculated_packaging_cost`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                    </div>
+                                </div>
+                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                <div class="mt-4 grid gap-3 xl:grid-cols-2">
+                                    <template x-for="(tier, tierIndex) in method.weight_tiers" :key="tierIndex">
+                                        <div class="grid items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                            <div>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700">Chargeable weight up to (g)</label>
+                                                <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][weight_tiers][${tierIndex}][max_weight_grams]`" x-model="tier.max_weight_grams" x-bind:class="hasFieldError(`shipping_methods.${index}.weight_tiers.${tierIndex}.max_weight_grams`) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers.${tierIndex}.max_weight_grams`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700">Postage price (inc. GST)</label>
+                                                <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][weight_tiers][${tierIndex}][price]`" x-model="tier.price" x-bind:class="hasFieldError(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                            </div>
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-11 w-11 items-center justify-center justify-self-end rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 sm:mt-6" x-on:click="method.weight_tiers.splice(tierIndex, 1)" title="Remove tier" aria-label="Remove tier">
+                                                <i class="fa-solid fa-trash text-sm" aria-hidden="true"></i>
+                                            </x-ui.button>
+                                        </div>
+                                    </template>
+                                </div>
+                                <p class="mt-3 text-sm text-gray-500">Limits are inclusive and sorted by weight when saved. A single item above the highest limit needs another eligible shipping option or a manual quote.</p>
+                            </x-ui.collapsible-section>
+
+                            <x-ui.collapsible-section title="Fixed-price Box Options" variant="product" class="mt-4 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(`shipping_methods.${index}.packages`))">
+                                <x-slot:summary><span x-text="method.packages.length ? `${method.packages.filter(item => item.is_active).length} active / ${method.packages.length} box option${method.packages.length === 1 ? '' : 's'}` : 'No fixed-price boxes'"></span></x-slot:summary>
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0 flex-1">
                                         <div class="mt-1 text-sm text-gray-600">Dimensions are the usable internal measurements of each box. Price is the GST-inclusive customer charge and includes the box and postage.</div>
                                     </div>
-                                    <div class="flex gap-2">
+                                    <div class="flex flex-wrap gap-2 sm:shrink-0">
                                         <x-ui.button type="button" color="outline" x-on:click="loadStandardBoxes(index)">Load Standard Boxes</x-ui.button>
                                         <x-ui.button type="button" color="outline" x-on:click="addPackage(index)">Add Box</x-ui.button>
                                     </div>
                                 </div>
 
-                                <div x-show="channelUsesFreeCollection(method)" x-cloak class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                                    No package options are configured. This channel will save as a free collection or pickup option.
+                                <div x-show="!method.is_pickup && !method.packages.some(item => item.is_active) && method.weight_tiers.length === 0" x-cloak class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    No active shipping prices are configured. This channel requires a manual quote until you add a fixed-price box or calculated tiers.
                                 </div>
 
-                                <div class="mt-4 space-y-3" x-show="!channelUsesFreeCollection(method) || method.packages.length > 0" x-cloak>
+                                <div class="mt-4 grid items-start gap-4 xl:grid-cols-2" x-show="!channelUsesFreeCollection(method) || method.packages.length > 0" x-cloak>
                                     <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id ?? `package-${packageIndex}`">
                                         <section
                                             class="rounded-2xl border bg-white p-4 shadow-sm"
@@ -507,13 +572,13 @@
                                                 <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removePackage(index, packageIndex)">Remove</x-ui.button>
                                             </div>
 
-                                            <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                            <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Code</label>
                                                     <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.code`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][code]`" x-model="packageOption.code" />
                                                     <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.code`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
-                                                <div class="xl:col-span-2">
+                                                <div class="sm:col-span-2">
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Label</label>
                                                     <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.label`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][label]`" x-model="packageOption.label" />
                                                     <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.label`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
@@ -532,7 +597,7 @@
                                             </div>
 
                                             <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][capacity]`" value="1.00">
-                                            <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                            <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal length (mm)</label>
                                                     <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_length_mm`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][internal_length_mm]`" x-model="packageOption.internal_length_mm" />
@@ -562,7 +627,8 @@
                                         </section>
                                     </template>
                                 </div>
-                            </div>
+                            </x-ui.collapsible-section>
+                            </fieldset>
                         </section>
                     </template>
 

@@ -257,7 +257,7 @@ class StoreShippingService
                 ->values();
         }
 
-        return $method->usesPackageCalculation()
+        return (string) $method->calculator === StoreShippingMethod::CALCULATOR_SATCHEL
             ? $this->legacyPackageOptionsForMethod($method)
             : collect();
     }
@@ -441,12 +441,22 @@ class StoreShippingService
         }
 
         $packageOptions = $this->packageOptionsForMethod($method);
+        if ($method instanceof StoreShippingMethod && (float) $method->cubic_divisor > 0 && ! empty($method->weight_tiers)) {
+            return $this->decorateShipmentQuote($this->dimensionPackageQuote($lines, $packageOptions, $method), $method);
+        }
         if ($packageOptions->isNotEmpty()) {
             return $this->decorateShipmentQuote($this->configuredPackageQuote($lines, $packageOptions), $method);
         }
 
         if ($method?->usesFlatRateCalculation()) {
             return $this->decorateShipmentQuote($this->flatRateQuote($method), $method);
+        }
+
+        if ($method instanceof StoreShippingMethod && (string) $method->calculator === StoreShippingMethod::CALCULATOR_PACKAGES) {
+            return $this->decorateShipmentQuote($this->boxedShippingQuote(
+                'This delivery channel has no active pricing options.',
+                $this->manualQuoteLineKeysForAllPhysicalLines($lines),
+            ), $method);
         }
 
         $quote = $this->satchelQuote($lines);
@@ -561,7 +571,7 @@ class StoreShippingService
         ];
     }
 
-    private function dimensionPackageQuote(Collection $physicalLines, Collection $packages): array
+    private function dimensionPackageQuote(Collection $physicalLines, Collection $packages, ?StoreShippingMethod $method = null): array
     {
         $missingDimensions = $physicalLines->filter(fn ($line): bool => (int) ($line->unit_length_mm ?? 0) <= 0
             || (int) ($line->unit_width_mm ?? 0) <= 0
@@ -585,51 +595,56 @@ class StoreShippingService
                     (int) $line->unit_height_mm,
                 ],
                 'weight_grams' => (int) $line->unit_weight_grams,
+                'shipping_units' => (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0),
+                'min_satchel_rank' => max(1, (int) ($line->unit_min_satchel_rank ?? $line->min_satchel_rank ?? 1)),
             ])->all();
         })->sortByDesc(fn (array $unit): int => array_product($unit['dimensions']))->values();
 
-        $packages = $packages->sortBy(fn (array $package): array => [$package['price'], array_product([$package['length_mm'], $package['width_mm'], $package['height_mm']])])->values();
-        $parcels = [];
-
-        foreach ($units as $unit) {
-            $candidates = collect();
-            foreach ($parcels as $parcelIndex => $parcel) {
-                foreach ($packages as $package) {
-                    if ((float) $package['price'] + 0.0001 < (float) $parcel['package']['price']) {
-                        continue;
-                    }
-                    $items = [...$parcel['items'], $unit];
-                    $placements = $this->packRectangularItems($items, $package);
-                    if ($placements !== null) {
-                        $candidates->push([
-                            'kind' => 'existing', 'parcel_index' => $parcelIndex, 'package' => $package,
-                            'items' => $items, 'placements' => $placements,
-                            'extra_cost' => (float) $package['price'] - (float) $parcel['package']['price'],
-                        ]);
-                    }
-                }
-            }
+        $optimizer = new StoreParcelOptimizer;
+        $tiers = collect($method->weight_tiers ?? [])->sortBy('max_weight_grams')->values();
+        $parcels = $optimizer->pack($units->all(), function (array $items) use ($packages, $method, $tiers, $optimizer): ?array {
+            $best = null;
             foreach ($packages as $package) {
-                $placements = $this->packRectangularItems([$unit], $package);
-                if ($placements !== null) {
-                    $candidates->push([
-                        'kind' => 'new', 'package' => $package, 'items' => [$unit], 'placements' => $placements,
-                        'extra_cost' => (float) $package['price'],
-                    ]);
+                // Legacy capacity options can coexist with calculated boxes.
+                $hasDimensions = ($package['length_mm'] ?? 0) > 0 && ($package['width_mm'] ?? 0) > 0 && ($package['height_mm'] ?? 0) > 0;
+                $fits = $hasDimensions
+                    ? $this->packRectangularItems($items, $package) !== null
+                    : collect($items)->every(fn (array $item): bool => $item['shipping_units'] > 0 && $item['min_satchel_rank'] <= $package['rank'])
+                        && array_sum(array_column($items, 'shipping_units')) <= $package['capacity']
+                        && $this->isWithinWeightLimit(array_sum(array_column($items, 'weight_grams')));
+                if ($fits && ($best === null || $package['price'] < $best['package']['price'])) {
+                    $best = ['package' => $package, 'items' => $items];
+                }
+            }
+            if ($tiers->isNotEmpty() && (float) $method?->cubic_divisor > 0) {
+                $weight = array_sum(array_column($items, 'weight_grams'));
+                $maxWeight = (int) $tiers->last()['max_weight_grams'];
+                // Product and box dimensions are mm; the divisor is mm³ per gram.
+                $minimumCubicWeight = array_sum(array_map(fn (array $item): float => (float) array_product($item['dimensions']), $items)) / (float) $method->cubic_divisor;
+                if (max($weight, $minimumCubicWeight) <= $maxWeight) {
+                    $dimensions = $optimizer->calculatedDimensions($items);
+                    $chargeableWeight = (int) ceil(max($weight, array_product($dimensions) / (float) $method->cubic_divisor));
+                    $tier = $tiers->first(fn (array $tier): bool => (int) $tier['max_weight_grams'] >= $chargeableWeight);
+                    $packagingCost = round((float) ($method->calculated_packaging_cost ?? 0), 2);
+                    $calculatedPrice = $tier !== null ? round((float) $tier['price'] + $packagingCost, 2) : null;
+                    if ($calculatedPrice !== null && ($best === null || $calculatedPrice < $best['package']['price'])) {
+                        $best = ['items' => $items, 'package' => [
+                            'code' => 'calculated:'.$tier['max_weight_grams'],
+                            'label' => 'Calculated box up to '.$tier['max_weight_grams'].' g',
+                            'rank' => 0, 'price' => $calculatedPrice,
+                            'packaging_cost' => $packagingCost,
+                            'length_mm' => $dimensions[0], 'width_mm' => $dimensions[1], 'height_mm' => $dimensions[2],
+                            'max_weight_grams' => (int) $tier['max_weight_grams'],
+                            'chargeable_weight_grams' => $chargeableWeight,
+                        ]];
+                    }
                 }
             }
 
-            $choice = $candidates->sortBy(fn (array $candidate): array => [$candidate['extra_cost'], $candidate['package']['price']])->first();
-            if (! is_array($choice)) {
-                return $this->boxedShippingQuote('This order cannot be packed into the configured box sizes.', $this->manualQuoteLineKeysForAllPhysicalLines($physicalLines));
-            }
-
-            $parcel = ['package' => $choice['package'], 'items' => $choice['items'], 'placements' => $choice['placements']];
-            if ($choice['kind'] === 'existing') {
-                $parcels[$choice['parcel_index']] = $parcel;
-            } else {
-                $parcels[] = $parcel;
-            }
+            return $best;
+        });
+        if ($parcels === null) {
+            return $this->boxedShippingQuote('This order cannot be packed within this channel’s box sizes or chargeable weight limits.', $this->manualQuoteLineKeysForAllPhysicalLines($physicalLines));
         }
 
         $parcelCollection = collect($parcels)->map(function (array $parcel): array {
@@ -640,6 +655,8 @@ class StoreShippingService
                 'price' => round((float) $package['price'], 2),
                 'internal_dimensions_mm' => [$package['length_mm'], $package['width_mm'], $package['height_mm']],
                 'max_weight_grams' => $package['max_weight_grams'],
+                'chargeable_weight_grams' => $package['chargeable_weight_grams'] ?? null,
+                'packaging_cost' => $package['packaging_cost'] ?? 0.0,
                 'total_weight_grams' => array_sum(array_column($parcel['items'], 'weight_grams')),
                 'items' => collect($parcel['items'])->map(fn (array $item): array => ['title' => $item['title'], 'dimensions_mm' => $item['dimensions'], 'weight_grams' => $item['weight_grams']])->all(),
             ];

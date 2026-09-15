@@ -33,6 +33,9 @@ class StoreShippingMethod extends Model
         'delayed_status_label',
         'calculator',
         'flat_rate_amount',
+        'cubic_divisor',
+        'calculated_packaging_cost',
+        'weight_tiers',
         'delivery_estimate_min_days',
         'delivery_estimate_max_days',
         'rate_multiplier',
@@ -45,6 +48,9 @@ class StoreShippingMethod extends Model
 
     protected $casts = [
         'flat_rate_amount' => 'decimal:2',
+        'cubic_divisor' => 'integer',
+        'calculated_packaging_cost' => 'decimal:2',
+        'weight_tiers' => 'array',
         'delivery_estimate_min_days' => 'integer',
         'delivery_estimate_max_days' => 'integer',
         'rate_multiplier' => 'decimal:2',

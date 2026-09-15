@@ -67,6 +67,13 @@ class ShopSettingsController extends Controller
                 'shipping_methods.*.delayed_status_label' => ['nullable', 'string', 'max:80'],
                 'shipping_methods.*.delivery_estimate_min_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.delivery_estimate_max_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+                'shipping_methods.*.is_pickup' => ['nullable', 'boolean'],
+                'shipping_methods.*.calculated_packaging_cost' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+                'shipping_methods.*.cubic_divisor' => ['nullable', 'integer', 'min:1', 'max:99999999'],
+                'shipping_methods.*.weight_tiers' => ['nullable', 'array', 'max:100'],
+                'shipping_methods.*.weight_tiers.*' => ['required', 'array'],
+                'shipping_methods.*.weight_tiers.*.max_weight_grams' => ['required', 'integer', 'min:1', 'max:1000000'],
+                'shipping_methods.*.weight_tiers.*.price' => ['required', 'numeric', 'min:0', 'max:9999.99'],
                 'shipping_methods.*.is_active' => ['nullable', 'boolean'],
                 'shipping_methods.*.suppresses_request_quote' => ['nullable', 'boolean'],
                 'shipping_methods.*.sort_order' => ['required', 'integer', 'min:0', 'max:999'],
@@ -89,6 +96,14 @@ class ShopSettingsController extends Controller
                 ]);
             }
         }
+
+        // Pickup ignores pricing fields, including incomplete drafts hidden by the editor.
+        foreach ($rules as $field => &$fieldRules) {
+            if (preg_match('/^shipping_methods\.\*\.(packages|weight_tiers|cubic_divisor|calculated_packaging_cost)(\.|$)/', $field)) {
+                array_unshift($fieldRules, 'exclude_if:shipping_methods.*.is_pickup,1');
+            }
+        }
+        unset($fieldRules);
 
         $validated = $request->validate($rules, [
             'shipping_methods.*.code.regex' => 'Shipping channel codes may only contain lowercase letters, numbers, hyphens, and underscores.',
@@ -208,7 +223,7 @@ class ShopSettingsController extends Controller
                     ->values()
                     ->all();
 
-                if ($packages === [] && ! $method->isPickup()) {
+                if ($packages === [] && (string) $method->calculator === StoreShippingMethod::CALCULATOR_SATCHEL) {
                     $packages = $this->fallbackPackageOptionsForMethod($method);
                 }
 
@@ -222,7 +237,10 @@ class ShopSettingsController extends Controller
                     'delayed_status_label' => (string) $method->delayedStatusLabel(),
                     'delivery_estimate_min_days' => $method->delivery_estimate_min_days !== null ? (string) $method->delivery_estimate_min_days : '',
                     'delivery_estimate_max_days' => $method->delivery_estimate_max_days !== null ? (string) $method->delivery_estimate_max_days : '',
-                    'is_pickup' => $method->isPickup() || $packages === [],
+                    'is_pickup' => $method->isPickup(),
+                    'cubic_divisor' => $method->cubic_divisor,
+                    'calculated_packaging_cost' => $method->calculated_packaging_cost ?? '0.00',
+                    'weight_tiers' => $method->weight_tiers ?? [],
                     'is_active' => (bool) $method->is_active,
                     'suppresses_request_quote' => $method->suppressesRequestQuote(),
                     'sort_order' => (int) $method->sort_order,
@@ -278,6 +296,9 @@ class ShopSettingsController extends Controller
      *     suppresses_request_quote:bool,
      *     is_active:bool,
      *     sort_order:int,
+     *     calculated_packaging_cost:float,
+     *     cubic_divisor:int|null,
+     *     weight_tiers:list<array{max_weight_grams:int,price:float}>,
      *     packages:list<array{
      *         id:int|null,
      *         code:string,
@@ -324,7 +345,14 @@ class ShopSettingsController extends Controller
                     })
                     ->values()
                     ->all();
-                $isPickup = $packages === [];
+                $tiers = collect($method['weight_tiers'] ?? [])->map(fn (array $tier): array => [
+                    'max_weight_grams' => (int) $tier['max_weight_grams'],
+                    'price' => round((float) $tier['price'], 2),
+                ])->values()->all();
+                $divisor = ($method['cubic_divisor'] ?? '') !== '' ? (int) $method['cubic_divisor'] : null;
+                $isPickup = array_key_exists('is_pickup', $method)
+                    ? (bool) $method['is_pickup']
+                    : $packages === [] && $tiers === [] && $divisor === null;
                 $terminology = $this->defaultShippingTerminology($isPickup);
 
                 return [
@@ -342,6 +370,9 @@ class ShopSettingsController extends Controller
                     'rate_multiplier' => 1.00,
                     'rate_adjustment_amount' => 0.00,
                     'is_pickup' => $isPickup,
+                    'cubic_divisor' => $divisor,
+                    'calculated_packaging_cost' => round((float) ($method['calculated_packaging_cost'] ?? 0), 2),
+                    'weight_tiers' => $tiers,
                     'suppresses_request_quote' => filter_var($method['suppresses_request_quote'] ?? ! $isPickup, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'is_active' => (bool) ($method['is_active'] ?? false),
                     'sort_order' => (int) ($method['sort_order'] ?? $methodIndex),
@@ -379,13 +410,18 @@ class ShopSettingsController extends Controller
                 $errors['shipping_methods.'.$index.'.delivery_estimate_max_days'][] = 'The maximum delivery ETA must be the same as or greater than the minimum ETA.';
             }
 
-            if ($method['packages'] === []) {
-                continue;
+            if ($method['weight_tiers'] !== [] && $method['cubic_divisor'] === null) {
+                $errors['shipping_methods.'.$index.'.cubic_divisor'][] = 'Enter the cubic weight divisor for calculated pricing.';
+            }
+            if ($method['cubic_divisor'] !== null && $method['weight_tiers'] === []) {
+                $errors['shipping_methods.'.$index.'.weight_tiers'][] = 'Add at least one chargeable weight tier, or clear the divisor.';
+            }
+            if (collect($method['weight_tiers'])->duplicates('max_weight_grams')->isNotEmpty()) {
+                $errors['shipping_methods.'.$index.'.weight_tiers'][] = 'Chargeable weight limits must be unique within a channel.';
             }
 
-            $activePackages = collect($method['packages'])->filter(fn (array $package): bool => $package['is_active']);
-            if ($activePackages->isEmpty()) {
-                $errors['shipping_methods.'.$index.'.packages'][] = 'Each delivery channel needs at least one active package option.';
+            if ($method['packages'] === []) {
+                continue;
             }
 
             $duplicatePackageCodes = collect($method['packages'])->duplicates('code')->filter()->values();
@@ -439,6 +475,9 @@ class ShopSettingsController extends Controller
      *     suppresses_request_quote:bool,
      *     is_active:bool,
      *     sort_order:int,
+     *     calculated_packaging_cost:float,
+     *     cubic_divisor:int|null,
+     *     weight_tiers:list<array{max_weight_grams:int,price:float}>,
      *     packages:list<array{
      *         id:int|null,
      *         code:string,
@@ -489,9 +528,18 @@ class ShopSettingsController extends Controller
                 'is_active' => $methodData['is_active'],
                 'sort_order' => $methodData['sort_order'],
             ]);
+            if (! $methodData['is_pickup']) {
+                $method->fill([
+                    'cubic_divisor' => $methodData['cubic_divisor'],
+                    'calculated_packaging_cost' => $methodData['calculated_packaging_cost'],
+                    'weight_tiers' => collect($methodData['weight_tiers'])->sortBy('max_weight_grams')->values()->all(),
+                ]);
+            }
             $method->save();
 
-            $this->syncShippingMethodPackages($method, $methodData['packages']);
+            if (! $methodData['is_pickup']) {
+                $this->syncShippingMethodPackages($method, $methodData['packages']);
+            }
 
             $submittedIds[] = (int) $method->id;
         }

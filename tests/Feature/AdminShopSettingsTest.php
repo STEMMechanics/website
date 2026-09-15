@@ -19,6 +19,87 @@ class AdminShopSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_calculated_only_channels_save_reload_and_remove_pricing_without_becoming_pickup(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $payload = [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual shipping quote required.',
+            'shipping_methods' => [[
+                'code' => 'custom', 'name' => 'Custom courier', 'is_active' => '1', 'is_pickup' => '0', 'sort_order' => 0,
+                'packages' => [], 'cubic_divisor' => 4000, 'calculated_packaging_cost' => '2.50',
+                'weight_tiers' => [['max_weight_grams' => 2000, 'price' => 8], ['max_weight_grams' => 1000, 'price' => 5]],
+            ]],
+        ];
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $method = StoreShippingMethod::query()->where('code', 'custom')->firstOrFail();
+        $this->assertFalse($method->isPickup());
+        $this->assertSame('2.50', $method->calculated_packaging_cost);
+        $this->assertSame([1000, 2000], array_column($method->weight_tiers, 'max_weight_grams'));
+        $this->assertSame(0, $method->packageOptions()->count());
+        $this->get(route('admin.shop.settings.edit'))->assertOk()->assertSeeText('Calculated Box Pricing')->assertSeeText('Cubic weight divisor (mm³ per gram)')->assertSeeText('Packaging cost per box (inc. GST)')
+            ->assertViewHas('shippingMethods', fn (array $rows): bool => $rows[0]['packages'] === [] && count($rows[0]['weight_tiers']) === 2 && $rows[0]['calculated_packaging_cost'] === '2.50');
+        $payload['shipping_methods'][0]['weight_tiers'] = [];
+        $payload['shipping_methods'][0]['cubic_divisor'] = '';
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors();
+        $this->assertFalse($method->fresh()->isPickup());
+        $this->assertSame([], $method->fresh()->weight_tiers);
+        $this->assertNull($method->fresh()->cubic_divisor);
+    }
+
+    public function test_pickup_ignores_submitted_pricing_and_preserves_saved_shipping_options(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $method = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $tiers = [['max_weight_grams' => 1000, 'price' => 5]];
+        $method->update(['cubic_divisor' => 4000, 'calculated_packaging_cost' => 2, 'weight_tiers' => $tiers]);
+        $packageIds = $method->packageOptions()->pluck('id')->all();
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual quote required.',
+            'shipping_methods' => [[
+                'id' => $method->id, 'code' => 'regular', 'name' => 'Collection', 'is_active' => '1',
+                'is_pickup' => '1', 'sort_order' => 0,
+                'cubic_divisor' => -1, 'calculated_packaging_cost' => -1,
+                'weight_tiers' => [['max_weight_grams' => '', 'price' => '']],
+                'packages' => [['code' => 'invalid code', 'price' => -1]],
+            ]],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $method->refresh();
+        $this->assertTrue($method->isPickup());
+        $this->assertSame(4000, $method->cubic_divisor);
+        $this->assertSame('2.00', $method->calculated_packaging_cost);
+        $this->assertSame($tiers, $method->weight_tiers);
+        $this->assertSame($packageIds, $method->packageOptions()->pluck('id')->all());
+    }
+
+    public function test_calculated_pricing_rejects_missing_divisors_duplicate_limits_and_invalid_tiers(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $payload = [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual shipping quote required.',
+            'shipping_methods' => [[
+                'code' => 'custom', 'name' => 'Custom courier', 'is_active' => '1', 'is_pickup' => '0', 'sort_order' => 0,
+                'weight_tiers' => [['max_weight_grams' => 1000, 'price' => 5], ['max_weight_grams' => 1000, 'price' => 8]],
+            ]],
+        ];
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors([
+            'shipping_methods.0.cubic_divisor', 'shipping_methods.0.weight_tiers',
+        ]);
+        $payload['shipping_methods'][0]['cubic_divisor'] = '4000.5';
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors('shipping_methods.0.cubic_divisor');
+        $payload['shipping_methods'][0]['cubic_divisor'] = 0;
+        $payload['shipping_methods'][0]['calculated_packaging_cost'] = -1;
+        $payload['shipping_methods'][0]['weight_tiers'] = [['max_weight_grams' => 0, 'price' => -1]];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors([
+            'shipping_methods.0.calculated_packaging_cost', 'shipping_methods.0.cubic_divisor', 'shipping_methods.0.weight_tiers.0.max_weight_grams', 'shipping_methods.0.weight_tiers.0.price',
+        ]);
+    }
+
     public function test_request_quote_order_and_shipping_alternative_controls_are_editable(): void
     {
         $admin = User::factory()->create();
@@ -473,6 +554,8 @@ class AdminShopSettingsTest extends TestCase
 
         $regular = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
         $express = StoreShippingMethod::query()->where('code', 'express')->firstOrFail();
+        $regular->update(['calculator' => StoreShippingMethod::CALCULATOR_SATCHEL]);
+        $express->update(['calculator' => StoreShippingMethod::CALCULATOR_SATCHEL]);
 
         StoreShippingMethodPackage::query()
             ->whereIn('store_shipping_method_id', [$regular->id, $express->id])
@@ -482,6 +565,6 @@ class AdminShopSettingsTest extends TestCase
             ->get(route('admin.shop.settings.edit'))
             ->assertOk()
             ->assertSee('Legacy Small')
-            ->assertSee('Package Options');
+            ->assertSee('Fixed-price Box Options');
     }
 }
