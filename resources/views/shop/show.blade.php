@@ -6,7 +6,7 @@
     $oldVariantId = trim((string) old('product_variant_id', ''));
     $defaultOptionInput = $hasOldVariantInput
         ? $oldVariantId
-        : ($hasOptionChoices ? '' : null);
+        : (isset($linkedVariantId) ? (string) $linkedVariantId : ($hasOptionChoices ? '' : null));
     $defaultAddQuantity = max(1, (int) old('quantity', 1));
     $chooserHeading = $product->isDigital() ? 'Choose a licence' : 'Choose a variant';
     $chooserErrorMessage = $product->isDigital()
@@ -33,6 +33,7 @@
             'key' => 'base',
             'input_value' => '',
             'variant_id' => null,
+            'url' => route('shop.product.show', $product),
             'name' => $product->baseOptionName(),
             'sku' => $baseOptionSku !== '' ? $baseOptionSku : null,
             'description' => $product->baseOptionDescription(),
@@ -53,6 +54,7 @@
             'key' => 'variant:'.$variant->id,
             'input_value' => (string) $variant->id,
             'variant_id' => $variant->id,
+            'url' => $variant->url_slug ? route('shop.product.show', ['product' => $variant->url_slug]) : route('shop.product.show', [$product, 'variant' => $variant->id]),
             'name' => $product->variantDisplayName($variant),
             'sku' => trim((string) ($variant->sku ?? '')) ?: null,
             'description' => trim((string) ($variant->description ?? '')) ?: null,
@@ -95,6 +97,7 @@
                 x-data="{
                 options: @js($optionPayload),
                 selectedVariantId: @js($defaultOptionInput),
+                baseProductUrl: @js(route('shop.product.show', $product)),
                 variantMenuOpen: false,
                 addQuantity: {{ $defaultAddQuantity }},
                 optionDraftQuantities: @js($hasOptionChoices
@@ -265,6 +268,19 @@
                     this.formError = '';
                     this.variantMenuOpen = false;
                     this.syncAddQuantity();
+                    this.syncVariantUrl();
+                },
+                syncVariantUrl() {
+                    const url = new URL(window.location.href);
+                    const selectionUrl = new URL(this.selectedOption?.url || this.baseProductUrl, window.location.origin);
+                    url.pathname = selectionUrl.pathname;
+                    url.searchParams.delete('variant');
+                    if (selectionUrl.searchParams.has('variant')) {
+                        url.searchParams.set('variant', selectionUrl.searchParams.get('variant'));
+                    }
+                    if (url.href !== window.location.href) {
+                        window.history.replaceState(window.history.state, '', url.href);
+                    }
                 },
                 maxQuantity() {
                     if (this.selectedOption && this.selectedOption.inventory_quantity !== null) {
@@ -574,6 +590,7 @@
                     }
                 },
                 init() {
+                    this.syncVariantUrl();
                     this.syncAddQuantity();
                     this.syncOptionDraftQuantities();
 
