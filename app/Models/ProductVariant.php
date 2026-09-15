@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\ShopProductUrls;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class ProductVariant extends Model
 {
@@ -66,6 +68,9 @@ class ProductVariant extends Model
     protected static function booted(): void
     {
         static::saving(function (self $variant): void {
+            if ((! $variant->exists || ! $variant->url_slug) && Schema::hasColumn('product_variants', 'url_slug')) {
+                $variant->url_slug = ShopProductUrls::variantSlug((string) $variant->sku, $variant->exists ? (int) $variant->id : null);
+            }
             if ($variant->exists
                 && $variant->isDirty('inventory_quantity')
                 && $variant->getRawOriginal('inventory_quantity') !== null

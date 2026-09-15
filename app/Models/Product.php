@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ShopProductUrls;
 use App\Support\ShopShippingSettings;
 use App\Traits\HasFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -858,7 +859,9 @@ class Product extends Model
         while (static::query()
             ->when($ignoreId !== null, fn ($query) => $query->where('id', '!=', $ignoreId))
             ->where('slug', $slug)
-            ->exists()) {
+            ->exists()
+            || in_array($slug, ShopProductUrls::RESERVED_SLUGS, true)
+            || (Schema::hasColumn('product_variants', 'url_slug') && ProductVariant::query()->where('url_slug', $slug)->exists())) {
             $slug = $base.'-'.$suffix;
             $suffix++;
         }

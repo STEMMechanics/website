@@ -126,17 +126,31 @@ class ShopController extends Controller
         ]);
     }
 
-    public function show(Request $request, Product $product, StoreCartService $cart): View
+    public function show(Request $request, string $product, StoreCartService $cart): View
     {
-        abort_unless($product->isActive(), 404);
+        $productSlug = $product;
+        $product = Product::query()->where('slug', $productSlug)->first();
+        $pathVariant = null;
+        if ($product === null) {
+            $pathVariant = ProductVariant::query()->active()->where('url_slug', $productSlug)->first();
+            $product = $pathVariant?->product;
+        }
+        abort_unless($product instanceof Product && $product->isActive(), 404);
+
+        $product->load([
+            'hero',
+            'galleryMedia',
+            'categories',
+            'variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name'),
+        ]);
+        $requestedVariant = $request->query('variant');
+        $linkedVariant = $pathVariant ?? (is_string($requestedVariant)
+            ? $product->purchasableVariants()->first(fn (ProductVariant $variant): bool => (string) $variant->id === $requestedVariant || $variant->url_slug === $requestedVariant)
+            : null);
 
         return view('shop.show', [
-            'product' => $product->load([
-                'hero',
-                'galleryMedia',
-                'categories',
-                'variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name'),
-            ]),
+            'product' => $product,
+            'linkedVariantId' => $linkedVariant?->id,
             'cartPayload' => $cart->payload([
                 'shipping_country' => 'Australia',
                 'user' => $request->user(),
