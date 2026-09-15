@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\AccountCreditService;
+use App\Services\ProductRecommendationService;
 use App\Services\StoreCartService;
 use App\Services\StoreOrderService;
 use Illuminate\Http\JsonResponse;
@@ -126,7 +127,7 @@ class ShopController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $product, StoreCartService $cart): View
+    public function show(Request $request, string $product, StoreCartService $cart, ProductRecommendationService $recommendations): View
     {
         $productSlug = $product;
         $product = Product::query()->where('slug', $productSlug)->first();
@@ -151,6 +152,7 @@ class ShopController extends Controller
         return view('shop.show', [
             'product' => $product,
             'linkedVariantId' => $linkedVariant?->id,
+            'recommendedProducts' => $recommendations->forProduct($product),
             'cartPayload' => $cart->payload([
                 'shipping_country' => 'Australia',
                 'user' => $request->user(),

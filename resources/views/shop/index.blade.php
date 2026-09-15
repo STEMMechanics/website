@@ -529,7 +529,6 @@
                                 @php
                                     $variants = $product->purchasableVariants();
                                     $variantCount = $product->optionChoiceCount();
-                                    $hasVariants = $product->hasOptionChoices();
                                     $defaultVariant = $variantCount === 1 ? $variants->first() : null;
                                     $inStock = $product->isPurchasable();
                                     $lineKey = $product->id.':'.($defaultVariant?->id ?? 0);
@@ -540,11 +539,6 @@
                                     $fallbackMaxQuantity = $fallbackMaxQuantity !== null ? max(1, (int) $fallbackMaxQuantity) : 99;
                                     $removeMessage = $product->title.' has been removed from your cart.';
                                     $shortDescription = trim((string) $product->short_description);
-                                    $priceRangeLabel = $product->priceRangeLabel();
-                                    $priceIsFromRange = \Illuminate\Support\Str::startsWith($priceRangeLabel, 'From ');
-                                    $priceRangeAmountLabel = $priceIsFromRange
-                                        ? \Illuminate\Support\Str::after($priceRangeLabel, 'From ')
-                                        : $priceRangeLabel;
                                 @endphp
                                 <article class="shop-product-card flex flex-col group relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
                                     <a href="{{ route('shop.product.show', $product) }}" class="absolute inset-0 z-10" aria-label="View {{ $product->title }}"></a>
@@ -606,28 +600,7 @@
                                                 <p class="shop-product-card-description text-sm text-gray-600 flex-1 min-h-18">{{ $shortDescription }}</p>
                                             @endif
 
-                                            <div class="shop-product-card-stock-price-line">
-                                                <div class="shop-product-card-stock">
-                                                    @if(!$inStock)
-                                                        <x-stock-indicator tone="danger" :label="'Out of stock'" />
-                                                    @elseif($product->isDigital())
-                                                        <x-stock-indicator tone="success" :label="'Instant download after checkout'" />
-                                                    @elseif($hasVariants)
-                                                        <span class="text-xs font-medium text-gray-500">{{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available</span>
-                                                    @else
-                                                        <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" :stack-details="true" />
-                                                    @endif
-                                                </div>
-
-                                                <div class="text-right">
-                                                    <div class="flex items-baseline gap-1 text-xl font-bold text-gray-900 sm:justify-end">
-                                                        @if($priceIsFromRange)
-                                                            <span class="text-xs font-medium text-gray-500 mr-1">From</span>
-                                                        @endif
-                                                        <span>{{ $priceRangeAmountLabel }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <x-product-card-summary :product="$product" />
                                         </div>
 
                                         <div class="shop-product-card-actions pointer-events-auto relative z-20">

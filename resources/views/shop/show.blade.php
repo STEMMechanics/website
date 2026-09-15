@@ -839,5 +839,6 @@
                 </aside>
             </div>
         </div>
+        @include('shop.partials.recommendations', ['products' => $recommendedProducts])
     </x-container>
 </x-layout>
