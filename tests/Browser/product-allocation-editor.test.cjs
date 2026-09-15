@@ -73,8 +73,50 @@ test('remaining buttons add to existing amounts for only the chosen product opti
     assert.equal(editor.values(variant)[2].amount, '10.77');
     editor.setValue(base, 2, '3.00');
     editor.allocateRemaining(base, 2);
-    assert.equal(editor.values(base)[2].amount, '3.00');
+    assert.equal(editor.values(base)[2].amount, '2.68');
     editor.setValue(base, 2, '');
     editor.allocateRemaining(base, 2);
     assert.equal(editor.values(base)[2].amount, '2.68');
+});
+
+ test('balancing clamps to zero when other costs alone exceed the price', () => {
+    const editor = setup(), base = editor.columns[0];
+    editor.setValue(base, 2, '1.00');
+    editor.setValue(base, 5, '3.00');
+    editor.setValue(base, 6, '0');
+    editor.allocateRemaining(base, 2);
+    assert.equal(editor.values(base)[2].amount, '0.00');
+    assert.equal(editor.values(base)[5].amount, '3.00');
+    assert.equal(editor.total(base).excessive, true);
+    editor.allocateRemaining(base, 5);
+    assert.equal(editor.values(base)[5].amount, '2.68');
+    assert.equal(editor.total(base).missing, false);
+});
+
+test('invalid typing and pastes keep the previous amount and finite totals', () => {
+    const editor = setup(), base = editor.columns[0];
+    for (const invalid of ['abc', '1a2', '-1', '1e2', '1.234', '1.2.3', 'Infinity', '9'.repeat(400)]) {
+        assert.equal(editor.setValue(base, 2, invalid), '0.50');
+        assert.equal(editor.values(base)[2].amount, '0.50');
+        assert.equal(editor.total(base).allocated, 268);
+        assert.equal(JSON.parse(editor.payload).base.fixed[2], 50);
+    }
+});
+
+test('empty and partial decimal input stays editable without NaN and formats on blur', () => {
+    const editor = setup(), base = editor.columns[0];
+    for (const partial of ['', '.']) {
+        assert.equal(editor.setValue(base, 2, partial), partial);
+        assert.equal(editor.total(base).allocated, 218);
+        assert.equal(JSON.parse(editor.payload).base.fixed[2], 0);
+        editor.format(base, 2);
+        assert.equal(editor.values(base)[2].amount, '0.00');
+    }
+    editor.setValue(base, 2, '.5');
+    editor.format(base, 2);
+    assert.equal(editor.values(base)[2].amount, '0.50');
+    editor.setValue(base, 2, '1.');
+    assert.equal(editor.total(base).allocated, 318);
+    editor.format(base, 2);
+    assert.equal(editor.values(base)[2].amount, '1.00');
 });

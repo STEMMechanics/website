@@ -37,25 +37,38 @@ window.SM.productAllocationEditor = (config) => ({
         column.variant.allocation ??= { cells: this.cells({}, column.price) };
         return column.variant.allocation.cells;
     },
-    setValue(column, id, value) { this.values(column)[id].amount = value; },
+    setValue(column, id, value) {
+        const cell = this.values(column)[id];
+        const input = String(value);
+        // Allow an unfinished decimal while typing, but reject invalid edits/pastes.
+        if (/^\d*(?:\.\d{0,2})?$/.test(input)
+            && (input === '.' || Number.isSafeInteger(Math.round(Number(input) * 100)))) {
+            cell.amount = input;
+        }
+        return cell.amount;
+    },
+    cents(value) {
+        const amount = Math.round(Number(value || 0) * 100);
+        return Number.isSafeInteger(amount) && amount >= 0 ? amount : 0;
+    },
     format(column, id) {
-        const value = this.values(column)[id].amount;
-        if (Number.isFinite(Number(value)) && Number(value) >= 0) this.values(column)[id].amount = Number(value).toFixed(2);
+        this.values(column)[id].amount = (this.cents(this.values(column)[id].amount) / 100).toFixed(2);
     },
     allocateRemaining(column, id) {
         const cell = this.values(column)[id];
-        const remaining = this.total(column).remaining;
-        if (!cell || !Number.isFinite(remaining) || remaining <= 0) return;
-        const current = Math.round(Number(cell.amount || 0) * 100);
+        const total = this.total(column);
+        const remaining = total.net - total.allocated;
+        if (!cell || !Number.isFinite(remaining)) return;
+        const current = this.cents(cell.amount);
         if (!Number.isFinite(current) || current < 0) return;
-        cell.amount = ((current + remaining) / 100).toFixed(2);
+        cell.amount = (Math.max(0, current + remaining) / 100).toFixed(2);
     },
     rules(cells) {
-        return { fixed: Object.fromEntries(Object.entries(cells).map(([id, cell]) => [id, Math.round(Number(cell.amount) * 100)])), percent: {} };
+        return { fixed: Object.fromEntries(Object.entries(cells).map(([id, cell]) => [id, this.cents(cell.amount)])), percent: {} };
     },
     total(column) {
         const rules = this.rules(this.values(column));
-        const net = Math.round(Number(column.price || 0) * 100 / (1 + config.taxRate));
+        const net = Math.round(this.cents(column.price) / (1 + config.taxRate));
         const allocated = Object.values(rules.fixed).reduce((sum, value) => sum + value, 0);
         return { net, allocated, remaining: Math.max(0, net - allocated), excessive: allocated > net,
             missing: net > 0 && (allocated !== net) };
