@@ -1,7 +1,9 @@
 <x-layout>
-    <x-mast>Analytics</x-mast>
+    <x-mast title="Analytics">
+        <x-slot:actions><x-online-visitors /></x-slot:actions>
+    </x-mast>
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-analytics-index">
 
         <x-ui.period-presets name="days" :value="$days" :options="[30 => 'Last 30 days', 7 => 'Last 7 days', 90 => 'Last 90 days', 365 => 'Last 365 days']" label="Date range" />

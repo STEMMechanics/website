@@ -1,5 +1,7 @@
 <x-layout>
-    <x-mast>Dashboard</x-mast>
+    <x-mast title="Dashboard">
+        <x-slot:actions><x-online-visitors /></x-slot:actions>
+    </x-mast>
 
     <x-container>
         <x-ui.dynamic-list name="admin-dashboard-index">

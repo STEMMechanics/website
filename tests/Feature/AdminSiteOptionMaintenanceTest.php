@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\OnlineVisitors;
 use App\Services\ServerMaintenanceService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +19,34 @@ class AdminSiteOptionMaintenanceTest extends TestCase
         parent::setUp();
 
         $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
+
+    public function test_online_visitors_require_confirmation_before_maintenance_or_deployment(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        app(OnlineVisitors::class)->touch('active-guest', null);
+        $this->mock(ServerMaintenanceService::class)->shouldNotReceive('refreshCachesAndRestartQueue');
+        foreach (['admin.site_option.maintenance-refresh', 'admin.server.deploy'] as $route) {
+            $this->postJson(route($route))->assertUnprocessable()->assertJsonValidationErrors('online_visitors_confirmed');
+        }
+    }
+
+    public function test_confirmed_maintenance_can_proceed_with_visitors_online(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        app(OnlineVisitors::class)->touch('active-guest', null);
+        $this->mock(ServerMaintenanceService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('refreshCachesAndRestartQueue')->once()->andReturn(['success' => true, 'message' => 'Done', 'commands' => []]);
+        });
+        $this->postJson(route('admin.site_option.maintenance-refresh'), ['online_visitors_confirmed' => true])->assertOk();
+    }
+
+    public function test_unavailable_visitor_count_requires_explicit_confirmation(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        config(['analytics.enabled' => false]);
+        $this->mock(ServerMaintenanceService::class)->shouldNotReceive('refreshCachesAndRestartQueue');
+        $this->postJson(route('admin.site_option.maintenance-refresh'))->assertUnprocessable()->assertJsonValidationErrors('online_visitors_confirmed');
     }
 
     public function test_admin_can_run_site_maintenance_refresh(): void

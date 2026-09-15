@@ -167,6 +167,7 @@ class SiteOptionController extends Controller
     {
         abort_unless((bool) ($request->user()?->isAdmin() ?? false), 403);
 
+        app(\App\Services\OnlineVisitors::class)->ensureDisruptionConfirmed($request->boolean('online_visitors_confirmed'));
         $result = $serverMaintenanceService->refreshCachesAndRestartQueue();
 
         if ($request->expectsJson()) {

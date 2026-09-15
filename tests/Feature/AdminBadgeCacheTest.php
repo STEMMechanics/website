@@ -4,8 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Supplier;
+use App\Models\Ticket;
 use App\Services\Finance\FinanceAttention;
+use App\Services\Finance\ProductAllocation;
+use App\Services\ProductAttention;
 use App\Support\AdminBadgeCache;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -86,14 +91,42 @@ class AdminBadgeCacheTest extends TestCase
         DB::table('inbound_sms')->where('id', 0)->update(['acknowledged_at' => now()]);
         $this->assertSame(2, app(AdminBadgeCache::class)->remember('operations', $resolve));
     }
+
     public function test_blank_badge_store_uses_the_default_cache_for_workshop_changes(): void
     {
         config(['cache.admin_badges_store' => '', 'cache.default' => 'array']);
-        $cache = app(\App\Support\AdminBadgeCache::class);
+        $cache = app(AdminBadgeCache::class);
         $this->assertSame(1, $cache->remember('finance', fn () => 1));
-        $workshop = \App\Models\Ticket::factory()->create()->workshop;
+        $workshop = Ticket::factory()->create()->workshop;
         $workshop->update(['ends_at' => now()]);
         $this->assertSame(2, $cache->remember('finance', fn () => 2));
     }
 
+    public function test_product_attention_deduplicates_issues_and_refreshes_after_stock_and_allocation_changes(): void
+    {
+        $product = Product::factory()->create(['price' => 11, 'inventory_quantity' => 1, 'low_stock_threshold' => 5]);
+        Product::factory()->create(['status' => 'archived', 'price' => 11, 'inventory_quantity' => 0]);
+        $counts = function () {
+            $this->app->forgetInstance(AdminBadgeCache::class);
+
+            return app(ProductAttention::class)->counts();
+        };
+        $this->assertSame(['inventory' => 1, 'allocation' => 1, 'total' => 1], $counts());
+        $product->update(['inventory_quantity' => 20]);
+        $this->assertSame(['inventory' => 0, 'allocation' => 1, 'total' => 1], $counts());
+        $category = DB::table('finance_categories')->where('active', true)->whereIn('kind', ['cost', 'owner'])->value('id');
+        DB::table('finance_product_allocations')->insert([
+            'scope' => app(ProductAllocation::class)->scope($product->id),
+            'product_id' => $product->id, 'rules' => json_encode(['fixed' => [$category => 1000], 'percent' => []]),
+        ]);
+        $this->assertSame(['inventory' => 0, 'allocation' => 0, 'total' => 0], $counts());
+        $variant = ProductVariant::factory()->create(['product_id' => $product->id, 'price' => 22]);
+        $this->assertSame(1, $counts()['total']);
+        $variant->update(['is_active' => false]);
+        $this->assertSame(0, $counts()['total']);
+        DB::table('finance_categories')->where('id', $category)->update(['active' => false]);
+        $this->assertSame(1, $counts()['allocation']);
+        $product->update(['status' => 'archived']);
+        $this->assertSame(0, $counts()['total']);
+    }
 }

@@ -1,5 +1,7 @@
 <x-layout>
-    <x-mast>Server Info</x-mast>
+    <x-mast title="Server Info">
+        <x-slot:actions><x-online-visitors /></x-slot:actions>
+    </x-mast>
 
     <x-container>
         <div id="server-info-app" data-csrf="{{ csrf_token() }}" data-maintenance-refresh-url="{{ route('admin.site_option.maintenance-refresh') }}">
@@ -108,7 +110,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
-                <form method="POST" action="{{ route('admin.server.deploy') }}" data-sm-confirm="Run website updater with selected options? You may need to refresh the page afterward the update completes." data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
+                <form method="POST" action="{{ route('admin.server.deploy') }}" data-check-visitors data-sm-confirm="Update the site with the selected options?" data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
                     @csrf
                     <x-ui.checkbox
  name="current"
@@ -350,16 +352,44 @@
             return '<div class="space-y-2"><p>' + escapeHtml(String(payload?.message || 'Maintenance commands finished.')) + '</p><ul class="list-disc space-y-1 pl-5 text-left">' + rows + '</ul></div>';
         };
 
+        const confirmWithVisitors = async (title, message, buttonLabel) => {
+            let count = null;
+            try {
+                const payload = await fetchJson(@js(route('admin.analytics.online')), { signal: AbortSignal.timeout(10000) });
+                if (Number.isInteger(payload.count) && payload.count >= 0) count = payload.count;
+            } catch { /* Make uncertainty explicit in the confirmation. */ }
+            const warning = count === null
+                ? 'Visitor count unavailable. Continue anyway?'
+                : count > 0
+                    ? `${count} ${count === 1 ? 'visitor is' : 'visitors are'} online. Continue anyway?`
+                    : '';
+            const content = warning || message;
+            const confirmed = await new Promise(resolve => {
+                if (window.SM && typeof window.SM.confirm === 'function') window.SM.confirm(title, content, buttonLabel, resolve);
+                else resolve(window.confirm(content));
+            });
+            return { confirmed, acknowledged: count !== 0 && confirmed };
+        };
+
         const runMaintenance = async (button) => {
             if (!serverMaintenanceRefreshUrl) {
                 return;
             }
 
+            if (button.disabled) return;
+            button.disabled = true;
+            const confirmation = await confirmWithVisitors(
+                'Clear caches and restart queues?',
+                'Clear site caches and restart the queue?',
+                'Run Maintenance'
+            );
+            if (!confirmation.confirmed) { button.disabled = false; return; }
             const execute = async () => {
                 try {
                     button.disabled = true;
                     const payload = await fetchJson(serverMaintenanceRefreshUrl, {
                         method: 'POST',
+                        body: JSON.stringify({ online_visitors_confirmed: confirmation.acknowledged }),
                     });
                     if (window.SM && typeof window.SM.notice === 'function') {
                         window.SM.notice(
@@ -382,21 +412,6 @@
                     button.disabled = false;
                 }
             };
-
-            if (window.SM && typeof window.SM.confirm === 'function') {
-                window.SM.confirm(
-                    'Clear caches and restart queues?',
-                    'This will run optimize:clear, config:clear, cache:clear, view:clear, and queue:restart on the server.',
-                    'Run Maintenance',
-                    (isConfirmed) => {
-                        if (!isConfirmed) {
-                            return;
-                        }
-                        void execute();
-                    }
-                );
-                return;
-            }
 
             void execute();
         };
@@ -432,7 +447,7 @@
             }
         });
 
-        document.addEventListener('submit', (event) => {
+        document.addEventListener('submit', async (event) => {
             const form = event.target;
             if (!(form instanceof HTMLFormElement)) {
                 return;
@@ -448,6 +463,24 @@
             }
 
             event.preventDefault();
+            if (form.hasAttribute('data-check-visitors')) {
+                if (form.dataset.checkingVisitors === '1') return;
+                form.dataset.checkingVisitors = '1';
+                const confirmation = await confirmWithVisitors('Run website update?', message, form.dataset.smConfirmButton || 'Run Update');
+                delete form.dataset.checkingVisitors;
+                if (!confirmation.confirmed) return;
+                let input = form.querySelector('[name="online_visitors_confirmed"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'online_visitors_confirmed';
+                    form.append(input);
+                }
+                input.value = confirmation.acknowledged ? '1' : '0';
+                form.dataset.confirmedSubmit = '1';
+                form.requestSubmit();
+                return;
+            }
             if (window.SM && typeof window.SM.confirm === 'function') {
                 window.SM.confirm(
                     'Confirm action',

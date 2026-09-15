@@ -6,7 +6,11 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrderItem;
+use App\Services\Finance\ProductAllocationEditor;
+use App\Services\ProductAttention;
+use App\Services\SiteListControls;
 use App\Services\StoreInventoryAllocatorService;
+use App\Support\ListPageSize;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -28,24 +32,30 @@ class ShopProductController extends Controller
         $inventory = $request->query('inventory', $legacyFilter === 'actionable' ? 'actionable' : '');
         $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
         $request->query->set('status_scope', $scope);
-        if ($inventory) $request->query->set('inventory', $inventory);
+        if ($inventory) {
+            $request->query->set('inventory', $inventory);
+        }
         $request->query->remove('filter');
-        $allocationAttentionIds = app(\App\Services\Finance\ProductAllocationEditor::class)->attentionIds();
+        $allocationAttentionIds = app(ProductAllocationEditor::class)->attentionIds();
         $allocationAttentionCount = Product::where('status', '!=', Product::STATUS_ARCHIVED)->whereIn('id', $allocationAttentionIds)->count();
-        if ($request->query('allocation_state') === 'needs_review') $query->whereIn('id', $allocationAttentionIds);
-        elseif ($request->query('allocation_state') === 'allocated') $query->whereNotIn('id', $allocationAttentionIds);
-        $actionableCount = 0;
-        Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->with('variants')->chunkById(200, function ($products) use (&$actionableCount) {
-            $actionableCount += collect($this->inventoryIndexSummaries($products))->where('actionable', true)->count();
-        });
+        if ($request->query('allocation_state') === 'needs_review') {
+            $query->whereIn('id', $allocationAttentionIds);
+        } elseif ($request->query('allocation_state') === 'allocated') {
+            $query->whereNotIn('id', $allocationAttentionIds);
+        }
+        $productAttention = app(ProductAttention::class)->counts();
+        $actionableCount = $productAttention['inventory'];
         $request->attributes->set('collection_preset_counts', [
             'Current products' => Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->count(),
             'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
             'Actionable' => $actionableCount,
         ]);
         $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
-        if ($scope === 'archived') $query->where('status', Product::STATUS_ARCHIVED);
-        elseif ($scope === 'current') $query->where('status', '!=', Product::STATUS_ARCHIVED);
+        if ($scope === 'archived') {
+            $query->where('status', Product::STATUS_ARCHIVED);
+        } elseif ($scope === 'current') {
+            $query->where('status', '!=', Product::STATUS_ARCHIVED);
+        }
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
@@ -65,8 +75,8 @@ class ShopProductController extends Controller
         $query->orderByDesc('is_featured')->orderBy('sort_order')->orderBy('title');
 
         if ($selectedFilter === 'actionable') {
-            $matchingProducts = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
-            $inventorySummaries = $this->inventoryIndexSummaries($matchingProducts);
+            $matchingProducts = $query->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
+            $inventorySummaries = app(ProductAttention::class)->inventorySummaries($matchingProducts);
             $products = $this->paginateProducts(
                 $matchingProducts
                     ->filter(fn (Product $product): bool => (bool) ($inventorySummaries[(int) $product->id]['actionable'] ?? false))
@@ -74,8 +84,8 @@ class ShopProductController extends Controller
                 $request
             );
         } else {
-            $products = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
-            $inventorySummaries = $this->inventoryIndexSummaries($products->getCollection());
+            $products = $query->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
+            $inventorySummaries = app(ProductAttention::class)->inventorySummaries($products->getCollection());
         }
 
         return view('admin.shop.product.index', [
@@ -83,6 +93,7 @@ class ShopProductController extends Controller
             'inventorySummaries' => $inventorySummaries,
             'allocationAttentionIds' => $allocationAttentionIds,
             'allocationAttentionCount' => $allocationAttentionCount,
+            'inventoryAttentionCount' => $actionableCount,
             'selectedFilter' => $selectedFilter,
         ]);
     }
@@ -221,7 +232,7 @@ class ShopProductController extends Controller
 
     private function saveProduct(Request $request, Product $product, StoreInventoryAllocatorService $allocator): void
     {
-        $productAllocations = app(\App\Services\Finance\ProductAllocationEditor::class)->validate($request);
+        $productAllocations = app(ProductAllocationEditor::class)->validate($request);
         $previousProductInventory = $product->exists ? $product->inventory_quantity : null;
         $previousVariantInventory = $product->exists
             ? $product->variants()->pluck('inventory_quantity', 'id')->map(fn ($quantity) => $quantity !== null ? (int) $quantity : null)->all()
@@ -427,7 +438,7 @@ class ShopProductController extends Controller
         $product->updateFiles($isDigital ? $request->input('download_files') : null, 'downloads');
 
         $savedVariants = $this->syncVariants($product, $normalizedVariants, $isDigital);
-        app(\App\Services\Finance\ProductAllocationEditor::class)->save($product, $savedVariants, $productAllocations, $request->user()->id);
+        app(ProductAllocationEditor::class)->save($product, $savedVariants, $productAllocations, $request->user()->id);
         $freshProduct = $product->fresh('variants');
         $this->allocateRestockedInventory($freshProduct, $previousProductInventory, $previousVariantInventory, $allocator);
 
@@ -898,99 +909,6 @@ class ShopProductController extends Controller
         return $contexts;
     }
 
-    /**
-     * @param  Collection<int, Product>  $products
-     * @return array<int, array{available:int|null,awaiting:int,reserved:int,backorder:int,preorder:int,low_stock_threshold:int|null,low_stock:bool,actionable:bool}>
-     */
-    private function inventoryIndexSummaries(Collection $products): array
-    {
-        $summaries = $products
-            ->mapWithKeys(function (Product $product): array {
-                return [
-                    (int) $product->id => [
-                        'available' => $product->trackedInventoryTotal(),
-                        'awaiting' => 0,
-                        'reserved' => 0,
-                        'backorder' => 0,
-                        'preorder' => 0,
-                        'low_stock_threshold' => $product->effectiveLowStockThreshold(),
-                        'low_stock' => false,
-                        'actionable' => false,
-                    ],
-                ];
-            })
-            ->all();
-
-        if ($summaries === []) {
-            return [];
-        }
-
-        $items = StoreOrderItem::query()
-            ->whereIn('product_id', array_keys($summaries))
-            ->with([
-                'order:id,shipping_method_code',
-                'trackingEntries' => fn ($query) => $query->select([
-                    'id',
-                    'store_order_item_id',
-                    'shipment_type',
-                    'quantity',
-                ]),
-                'collectionEntries:id,store_order_item_id,collection_type,pickup_state,quantity',
-            ])
-            ->get([
-                'id',
-                'store_order_id',
-                'product_id',
-                'quantity',
-                'available_now_quantity',
-                'delayed_quantity',
-                'delayed_fulfilment_type',
-                'is_preorder',
-                'inventory_reserved_quantity',
-                'cancelled_available_quantity',
-                'cancelled_delayed_quantity',
-            ]);
-
-        foreach ($items as $item) {
-            $productId = (int) $item->product_id;
-
-            if (! isset($summaries[$productId])) {
-                continue;
-            }
-
-            $summaries[$productId]['awaiting'] += $item->remainingOrderFulfillableQuantity();
-            $summaries[$productId]['reserved'] += $item->reservedInventory();
-
-            $remainingDelayedQuantity = $item->remainingOrderDelayedQuantity();
-            if ($remainingDelayedQuantity <= 0) {
-                continue;
-            }
-
-            if ((bool) $item->is_preorder || (string) $item->delayed_fulfilment_type === 'preorder') {
-                $summaries[$productId]['preorder'] += $remainingDelayedQuantity;
-
-                continue;
-            }
-
-            $summaries[$productId]['backorder'] += $remainingDelayedQuantity;
-        }
-
-        foreach ($summaries as $productId => $summary) {
-            $available = $summary['available'];
-            $threshold = $summary['low_stock_threshold'];
-            $summaries[$productId]['low_stock'] = $available !== null
-                && $threshold !== null
-                && $available <= $threshold;
-            $summaries[$productId]['actionable'] = $summaries[$productId]['awaiting'] > 0
-                || $summaries[$productId]['reserved'] > 0
-                || $summaries[$productId]['backorder'] > 0
-                || $summaries[$productId]['preorder'] > 0
-                || $summaries[$productId]['low_stock'];
-        }
-
-        return $summaries;
-    }
-
     private function normalizeIndexFilter(mixed $filter): string
     {
         $normalized = trim((string) $filter);
@@ -1003,7 +921,7 @@ class ShopProductController extends Controller
      */
     private function paginateProducts(Collection $products, Request $request): LengthAwarePaginator
     {
-        $perPage = \App\Support\ListPageSize::resolve(20);
+        $perPage = ListPageSize::resolve(20);
         $page = max(1, (int) ($request->query('page') ?? Paginator::resolveCurrentPage('page')));
         $items = $products->forPage($page, $perPage)->values();
 

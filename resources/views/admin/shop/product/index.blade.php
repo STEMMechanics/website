@@ -9,7 +9,10 @@
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <div class="mt-4"><x-finance.attention-notice kind="products" :total="$allocationAttentionCount" /></div>
+        <div class="mt-4 grid gap-x-4 {{ $allocationAttentionCount > 0 && $inventoryAttentionCount > 0 ? 'xl:grid-cols-2' : '' }}">
+            <x-finance.attention-notice kind="products" :total="$allocationAttentionCount" />
+            <x-finance.attention-notice kind="product-stock" :total="$inventoryAttentionCount" />
+        </div>
         <x-ui.collection-controls class="mb-5" />
 
         @if($products->isEmpty())
@@ -92,7 +95,7 @@
                                         <div>{{ $inventorySummary['preorder'] }} preordered</div>
                                     @endif
                                     @if($inventorySummary['low_stock'] ?? false)
-                                        <div class="font-semibold text-red-600">Low stock alert at {{ $inventorySummary['low_stock_threshold'] }}</div>
+                                        <x-ui.badge class="mt-1" tone="warning" icon="fa-solid fa-circle-exclamation" :href="route('admin.shop.product.edit', $product)" :title="'Low stock alert at '.$inventorySummary['low_stock_threshold']">Low stock needs review</x-ui.badge>
                                     @endif
                                 </div>
                             </td>

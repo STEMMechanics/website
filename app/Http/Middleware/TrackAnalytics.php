@@ -2,10 +2,13 @@
 
 namespace App\Http\Middleware;
 
+use App\Jobs\RecordAnalyticsEvent;
 use App\Models\AnalyticsEvent;
 use App\Models\User;
+use App\Services\OnlineVisitors;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,6 +17,10 @@ class TrackAnalytics
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
+
+        if ($request->user()?->isAdmin() && $request->hasSession()) {
+            app(OnlineVisitors::class)->forget((string) $request->session()->get('analytics_session_token', ''));
+        }
 
         if (! $this->shouldTrack($request, $response)) {
             return $response;
@@ -26,6 +33,8 @@ class TrackAnalytics
             $sessionToken = Str::lower(Str::random(40));
             $session->put('analytics_session_token', $sessionToken);
         }
+
+        app(OnlineVisitors::class)->touch($sessionToken, $request->user()?->getAuthIdentifier());
 
         $acquisition = $session->get('analytics_acquisition');
         if (! is_array($acquisition)) {
@@ -65,11 +74,11 @@ class TrackAnalytics
             'created_at' => now()->toDateTimeString(),
         ];
         try {
-            \App\Jobs\RecordAnalyticsEvent::dispatch($event)
+            RecordAnalyticsEvent::dispatch($event)
                 ->onConnection(config('analytics.queue_connection') ?: config('queue.default'));
         } catch (\Throwable) {
             // Best-effort telemetry must not prevent visitors using the site.
-            \Illuminate\Support\Facades\Log::warning('Analytics event could not be queued.');
+            Log::warning('Analytics event could not be queued.');
         }
 
         return $response;

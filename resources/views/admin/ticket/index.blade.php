@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast>Tickets</x-mast>
 
-    <x-container
+    <x-container class="py-5 sm:py-8"
         x-data="{}"
         data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
         x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">

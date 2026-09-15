@@ -41,3 +41,5 @@ import './invoice-allocation-calculator';
 import './invoice-allocation-editor';
 
 import './drawing-type-picker';
+
+import './online-visitors';
