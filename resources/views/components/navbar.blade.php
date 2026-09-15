@@ -1,4 +1,4 @@
-<div x-data="shopNavbarController(window.shopNavbarConfig || {})">
+<div x-data="shopNavbarController(window.shopNavbarConfig || {})" x-on:open-site-search.window="openSearchOverlay($event.detail?.scope)">
 @php
     $isTestSite = request()->getHost() === 'test.stemmechanics.com.au';
     $navClass = $isTestSite
@@ -117,8 +117,8 @@
                         <x-ui.badge color="warning" variant="solid" size="count" class="absolute -right-1 -top-2">{{ $pageMenuAttentionCount }}</x-ui.badge>
                     @endif
                 </button>
-                <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()">
-                    <i class="fa fa-search"></i>
+                <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()" aria-label="Search">
+                    <i class="fa fa-search" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="flex min-w-0 flex-1 items-center justify-center sm:justify-start ml-2">
@@ -412,7 +412,7 @@
         if(value) {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    const el = document.getElementsByName('q')[0];
+                    const el = $refs.siteSearchInput;
                     if (!el) return;
                     el.focus({ preventScroll: true });
                     if (typeof el.select === 'function') el.select();
@@ -424,7 +424,14 @@
         })">
         <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
-            <x-ui.search type="text" name="q" label="Search..." :action="route('search.index')" />
+            <form method="GET" action="{{ route('search.index') }}" class="p-3 sm:p-4" x-on:submit="searchScopeError = !searchProducts && !searchWorkshops; if (searchScopeError) $event.preventDefault();">
+                <label for="site-search-query" class="mb-2 block text-lg font-semibold text-gray-900">Search</label>
+                <div class="flex">
+                    <x-ui.input-control id="site-search-query" x-ref="siteSearchInput" type="search" name="q" placeholder="Search the site" class="min-w-0 flex-1 rounded-r-none" />
+                    <x-ui.button type="submit" class="rounded-l-none shrink-0 px-4" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></x-ui.button>
+                </div>
+                <x-ui.search-scopes />
+            </form>
         </div>
     </div>
 </div>
@@ -445,6 +452,9 @@
     function shopNavbarController(config) {
         return {
             showSearch: false,
+            searchProducts: true,
+            searchWorkshops: true,
+            searchScopeError: false,
             pageMenuOpen: false,
             userMenuOpen: false,
             publicShopAvailable: Boolean(config.publicShopAvailable),
@@ -740,7 +750,10 @@
                 return `A later shipment currently adds ${this.formatMoney(this.cartState?.summary?.shipping_quote?.second_shipment_charge_amount || 0)} in extra shipping.`;
             },
 
-            openSearchOverlay() {
+            openSearchOverlay(scope = 'all') {
+                this.searchProducts = true;
+                this.searchWorkshops = scope !== 'store';
+                this.searchScopeError = false;
                 this.pageMenuOpen = false;
                 this.userMenuOpen = false;
                 this.cartOpen = false;
