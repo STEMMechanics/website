@@ -311,6 +311,167 @@ class StoreShippingServiceTest extends TestCase
         $this->assertSame('Collection 2: Available later', $quote['shipments'][1]['title']);
     }
 
+    public function test_calculated_shipping_uses_grams_and_the_higher_of_actual_and_cubic_weight(): void
+    {
+        $this->configureCalculatedShipping([
+            ['max_weight_grams' => 1000, 'price' => 5],
+            ['max_weight_grams' => 2000, 'price' => 8],
+        ]);
+        $cubic = $this->service()->quote(collect([
+            $this->line('Bulky', ['length_mm' => 200, 'width_mm' => 200, 'height_mm' => 200, 'weight_grams' => 100]),
+        ]));
+        $actual = $this->service()->quote(collect([
+            $this->line('Dense', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 1000]),
+        ]));
+        $this->assertSame(8.0, $cubic['amount']);
+        $this->assertSame(2000, $cubic['parcels'][0]['chargeable_weight_grams']);
+        $this->assertSame(5.0, $actual['amount']);
+        $this->assertSame(1000, $actual['parcels'][0]['chargeable_weight_grams']);
+    }
+
+    public function test_calculated_shipping_splits_whole_items_at_the_highest_tier(): void
+    {
+        $this->configureCalculatedShipping([['max_weight_grams' => 2000, 'price' => 8]]);
+        $quote = $this->service()->quote(collect([
+            $this->line('Bulky', ['length_mm' => 200, 'width_mm' => 200, 'height_mm' => 200, 'weight_grams' => 100], 3),
+        ]));
+        $this->assertSame(24.0, $quote['amount']);
+        $this->assertSame(3, $quote['parcel_count']);
+        $this->assertSame(1, $quote['shipment_count']);
+        $tooHeavy = $this->service()->quote(collect([
+            $this->line('Heavy', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 2001]),
+        ]));
+        $this->assertTrue($tooHeavy['requires_manual_quote']);
+        $this->assertSame(0, $tooHeavy['parcel_count']);
+    }
+
+    public function test_calculated_and_fixed_boxes_can_be_mixed_for_the_lowest_total(): void
+    {
+        $method = $this->configureCalculatedShipping([
+            ['max_weight_grams' => 1000, 'price' => 5],
+            ['max_weight_grams' => 5000, 'price' => 20],
+        ]);
+        $method->packageOptions()->create([
+            'code' => 'dense', 'label' => 'Dense box', 'sort_order' => 1, 'capacity' => 1,
+            'internal_length_mm' => 20, 'internal_width_mm' => 20, 'internal_height_mm' => 20,
+            'max_weight_grams' => 5000, 'price' => 7, 'is_active' => true,
+        ]);
+        $quote = $this->service()->quote(collect([
+            $this->line('Dense', ['length_mm' => 20, 'width_mm' => 20, 'height_mm' => 20, 'weight_grams' => 4000]),
+            $this->line('Light', ['length_mm' => 100, 'width_mm' => 100, 'height_mm' => 100, 'weight_grams' => 100]),
+        ]));
+        $this->assertSame(12.0, $quote['amount']);
+        $this->assertSame(2, $quote['parcel_count']);
+        $this->assertEqualsCanonicalizing(['dense', 'calculated:1000'], array_column($quote['parcels'], 'code'));
+    }
+
+    public function test_partition_search_avoids_a_greedy_tier_price_trap(): void
+    {
+        $this->configureCalculatedShipping([
+            ['max_weight_grams' => 1000, 'price' => 6],
+            ['max_weight_grams' => 3000, 'price' => 10],
+        ]);
+        $quote = $this->service()->quote(collect([
+            $this->line('Kit', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 1000], 3),
+        ]));
+        $this->assertSame(10.0, $quote['amount']);
+        $this->assertSame(1, $quote['parcel_count']);
+
+        // Splitting below the maximum is also allowed when that is cheaper.
+        StoreShippingMethod::query()->where('code', 'regular')->update(['weight_tiers' => [
+            ['max_weight_grams' => 1000, 'price' => 2],
+            ['max_weight_grams' => 3000, 'price' => 10],
+        ]]);
+        $split = $this->service()->quote(collect([
+            $this->line('Kit', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 1000], 3),
+        ]));
+        $this->assertSame(6.0, $split['amount']);
+        $this->assertSame(3, $split['parcel_count']);
+    }
+
+    public function test_calculated_shipping_requires_dimensions_and_accounts_for_empty_box_space(): void
+    {
+        $this->configureCalculatedShipping([['max_weight_grams' => 1000, 'price' => 5]]);
+        $missing = $this->service()->quote(collect([$this->line('Unknown size', ['weight_grams' => 100])]));
+        $this->assertTrue($missing['requires_manual_quote']);
+        $quote = $this->service()->quote(collect([
+            $this->line('Cube', ['length_mm' => 100, 'width_mm' => 100, 'height_mm' => 100, 'weight_grams' => 100]),
+            $this->line('Long', ['length_mm' => 200, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 100]),
+        ]));
+        $this->assertGreaterThan(255, $quote['parcels'][0]['chargeable_weight_grams']);
+    }
+
+    public function test_empty_shipping_channel_does_not_inherit_global_prices_or_become_pickup(): void
+    {
+        $method = $this->configureCalculatedShipping([]);
+        $method->update(['cubic_divisor' => null]);
+        $quote = $this->service()->quote(collect([
+            $this->line('Kit', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 100]),
+        ]));
+        $this->assertFalse($quote['is_pickup']);
+        $this->assertTrue($quote['requires_manual_quote']);
+    }
+
+    public function test_larger_carts_still_search_for_merged_tier_savings(): void
+    {
+        $this->configureCalculatedShipping([
+            ['max_weight_grams' => 1000, 'price' => 6],
+            ['max_weight_grams' => 3000, 'price' => 10],
+        ]);
+        $quote = $this->service()->quote(collect([
+            $this->line('Kit', ['length_mm' => 10, 'width_mm' => 10, 'height_mm' => 10, 'weight_grams' => 1000], 12),
+        ]));
+        $this->assertSame(40.0, $quote['amount']);
+        $this->assertSame(4, $quote['parcel_count']);
+        $this->assertSame(12, array_sum(array_map(fn (array $parcel): int => count($parcel['items']), $quote['parcels'])));
+    }
+
+    public function test_packaging_cost_is_added_to_every_calculated_box_and_changes_the_cheapest_option(): void
+    {
+        $method = $this->configureCalculatedShipping([['max_weight_grams' => 1000, 'price' => 5]]);
+        $method->update(['calculated_packaging_cost' => 2.50]);
+        $lines = collect([$this->line('Kit', ['length_mm' => 100, 'width_mm' => 100, 'height_mm' => 100, 'weight_grams' => 1000], 2)]);
+        $quote = $this->service()->quote($lines);
+        $this->assertSame(15.0, $quote['amount']);
+        $this->assertSame(2, $quote['parcel_count']);
+        $this->assertSame([2.5, 2.5], array_column($quote['parcels'], 'packaging_cost'));
+        $this->assertSame(7.5, $quote['package_breakdown'][0]['unit_price']);
+
+        $method->packageOptions()->create([
+            'code' => 'fixed', 'label' => 'Fixed box', 'sort_order' => 1, 'capacity' => 1,
+            'internal_length_mm' => 100, 'internal_width_mm' => 100, 'internal_height_mm' => 100,
+            'max_weight_grams' => 1000, 'price' => 6, 'is_active' => true,
+        ]);
+        $fixed = $this->service()->quote($lines);
+        $this->assertSame(12.0, $fixed['amount']);
+        $this->assertSame(['fixed', 'fixed'], array_column($fixed['parcels'], 'code'));
+        $this->assertSame([0.0, 0.0], array_column($fixed['parcels'], 'packaging_cost'));
+    }
+
+    public function test_pickup_overrides_pricing_and_switching_it_off_restores_shipping(): void
+    {
+        $method = $this->configureCalculatedShipping([['max_weight_grams' => 1000, 'price' => 5]]);
+        $method->update(['is_pickup' => true, 'calculated_packaging_cost' => 2]);
+        $lines = collect([$this->line('Kit', ['length_mm' => 100, 'width_mm' => 100, 'height_mm' => 100, 'weight_grams' => 1000])]);
+        $pickup = $this->service()->quote($lines);
+        $this->assertTrue($pickup['is_pickup']);
+        $this->assertSame(0.0, $pickup['amount']);
+        $this->assertSame(0, $pickup['parcel_count']);
+        $method->update(['is_pickup' => false]);
+        $shipping = $this->service()->quote($lines);
+        $this->assertFalse($shipping['is_pickup']);
+        $this->assertSame(7.0, $shipping['amount']);
+    }
+
+    private function configureCalculatedShipping(array $tiers): StoreShippingMethod
+    {
+        $method = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $method->packageOptions()->delete();
+        $method->update(['calculator' => StoreShippingMethod::CALCULATOR_PACKAGES, 'is_pickup' => false, 'cubic_divisor' => 4000, 'weight_tiers' => $tiers]);
+
+        return $method;
+    }
+
     private function service(): StoreShippingService
     {
         return app(StoreShippingService::class);
