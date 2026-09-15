@@ -407,6 +407,11 @@
                                         <span>{{ $category->name }}</span>
                                     </a>
                                 @endforeach
+                                <div class="pt-4">
+                                    <a href="{{ route('search.index', ['include_products' => 1, 'include_workshops' => 0]) }}" x-data x-on:click.prevent="$dispatch('open-site-search', { scope: 'store' })" class="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-sky-50 hover:text-primary-color">
+                                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Search</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </aside>
@@ -450,6 +455,11 @@
                                                 <span>{{ $category->name }}</span>
                                             </a>
                                         @endforeach
+                                <div class="pt-4">
+                                    <a href="{{ route('search.index', ['include_products' => 1, 'include_workshops' => 0]) }}" x-data x-on:click.prevent="$dispatch('open-site-search', { scope: 'store' })" class="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-sky-50 hover:text-primary-color">
+                                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><span>Search</span>
+                                    </a>
+                                </div>
                                     </div>
                                 </div>
                             </details>
