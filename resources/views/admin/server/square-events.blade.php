@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast>Square Events</x-mast>
 
-    <x-container x-data="{
+    <x-container class="py-5 sm:py-8" x-data="{
         ignoreOpen: false,
         ignoreAction: '',
         ignoreSquarePaymentId: '',
@@ -47,7 +47,7 @@
                     <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Sync Stored Events</x-ui.button>
                 </form>
             </div>
-            <x-ui.table variant="listing">
+            <x-ui.table variant="listing" x-data="{ expandedEvents: {} }">
                 <x-slot:header>
                     <x-ui.list-heading label="ID" />
                     <x-ui.list-heading label="Details" />
@@ -73,12 +73,16 @@
                             <td class="whitespace-nowrap">
                                 #{{ $event->id }}
                                 @if($groupCount > 1)
-                                    <div class="text-xs text-gray-600 mt-1">{{ $groupCount }} related events</div>
+                                    <x-ui.button variant="plain" class="mt-1 flex min-h-9 items-center gap-2 text-xs text-primary-color" x-on:click="expandedEvents[{{ $event->id }}] = !expandedEvents[{{ $event->id }}]" x-bind:aria-expanded="!!expandedEvents[{{ $event->id }}]" aria-expanded="false" aria-controls="{{ $childEvents->map(fn ($child) => 'square-event-'.$child->id)->implode(' ') }}">
+                                        <i class="fa-solid fa-chevron-right text-[10px] transition-transform" x-bind:class="expandedEvents[{{ $event->id }}] ? 'rotate-90' : ''" aria-hidden="true"></i>
+                                        {{ $childEvents->count() }} related {{ $childEvents->count() === 1 ? 'event' : 'events' }}
+                                    </x-ui.button>
                                 @endif
                             </td>
                             <td>
                                 <div><x-ui.date-time>{{ $event->processed_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
-                                <div class="md:hidden text-xs text-gray-600 mt-1">{{ $event->event_type ?: '-' }}</div>
+                                <x-square-payment-outcome :event="$event" />
+                                <div class="md:hidden text-xs text-gray-600 mt-1"><x-square-event-type :type="$event->event_type" /></div>
                                 @if($squarePaymentId !== '')
                                     <div class="lg:hidden text-xs font-mono text-gray-600">{{ $squarePaymentId }}</div>
                                 @endif
@@ -107,7 +111,7 @@
                                 @endif
                             </td>
                             <td class="hidden md:table-cell text-center!">
-                                {{ $event->event_type ?: '-' }}
+                                <x-square-event-type :type="$event->event_type" />
                             </td>
                             <td class="hidden lg:table-cell text-xs font-mono">{{ $squarePaymentId !== '' ? $squarePaymentId : '-' }}</td>
                             <td class="hidden md:table-cell">
@@ -145,13 +149,14 @@
                                 $childAmountCents = is_numeric($childEvent->amount_cents ?? null) ? (int) $childEvent->amount_cents : null;
                                 $childAmountCurrency = trim((string) ($childEvent->amount_currency ?? ''));
                             @endphp
-                            <tr class="bg-gray-50">
+                            <tr id="square-event-{{ $childEvent->id }}" class="bg-gray-50" x-show="!!expandedEvents[{{ $event->id }}]" x-cloak>
                                 <td class="whitespace-nowrap">
                                     <span class="text-gray-600 pl-5 inline-block">↳ #{{ $childEvent->id }}</span>
                                 </td>
                                 <td>
                                     <div><x-ui.date-time>{{ $childEvent->processed_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
-                                    <div class="text-xs text-gray-600 mt-1">{{ $childEvent->event_type ?: '-' }}</div>
+                                    <x-square-payment-outcome :event="$childEvent" />
+                                    <div class="md:hidden text-xs text-gray-600 mt-1"><x-square-event-type :type="$childEvent->event_type" /></div>
                                     <div class="text-xs font-mono text-gray-600">{{ $childEvent->event_id ?: '-' }}</div>
                                     @if($childAmountCents !== null)
                                         <div class="md:hidden text-xs text-gray-600 mt-1">
@@ -166,7 +171,7 @@
                                         -
                                     @endif
                                 </td>
-                                <td class="hidden md:table-cell text-center!">{{ $childEvent->event_type ?: '-' }}</td>
+                                <td class="hidden md:table-cell text-center!"><x-square-event-type :type="$childEvent->event_type" /></td>
                                 <td class="hidden lg:table-cell text-xs font-mono">{{ $squarePaymentId !== '' ? $squarePaymentId : '-' }}</td>
                                 <td class="hidden md:table-cell">
                                     @if((bool) ($childEvent->is_ignored ?? false))

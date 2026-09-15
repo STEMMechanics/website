@@ -46,12 +46,18 @@ class AdminBadgeCache
             'store_orders', 'square_refund_operations', 'inbound_sms' => 'operations',
             default => null,
         };
-        if ($group === null) {
+        $groups = $group === null ? [] : [$group];
+        if (in_array($table, ['products', 'product_variants', 'finance_product_allocations', 'finance_product_profiles', 'finance_categories', 'store_orders', 'store_order_items', 'store_order_item_trackings', 'store_order_item_collections'], true)) {
+            $groups[] = 'products';
+        }
+        if ($groups === []) {
             return;
         }
         $this->values = [];
         app(RequestMemo::class)->clear();
-        $this->dirty[$event->connectionName][$group] = true;
+        foreach ($groups as $dirtyGroup) {
+            $this->dirty[$event->connectionName][$dirtyGroup] = true;
+        }
         if ($event->connection->transactionLevel() === 0) {
             $this->committed($event->connectionName);
         }

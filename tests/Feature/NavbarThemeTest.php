@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,17 @@ class NavbarThemeTest extends TestCase
             '/href="'.preg_quote(route('admin.workshop-category.index'), '/').'".*?>\s*<i[^>]*><\/i>\s*<span[^>]*>Categories<\/span>/s',
             $html,
         );
+    }
+
+    public function test_product_attention_badge_and_stock_notice_use_the_combined_attention_count(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        Product::factory()->create(['price' => 11, 'inventory_quantity' => 1]);
+        $this->get(route('admin.shop.product.index'))->assertOk()
+            ->assertSee('1 product needs stock, order or allocation attention')
+            ->assertSee('Low stock needs review')
+            ->assertSee('Allocation needs review')
+            ->assertSee('1 with low stock or orders awaiting fulfilment');
     }
 
     private function renderNavbarForHost(string $host): string

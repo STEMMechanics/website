@@ -399,6 +399,7 @@ class ServerController extends Controller
 
     public function admin_deploy(Request $request): RedirectResponse
     {
+        app(\App\Services\OnlineVisitors::class)->ensureDisruptionConfirmed($request->boolean('online_visitors_confirmed'));
         $args = [];
         $label = [];
         if ($request->boolean('current')) {
