@@ -13,6 +13,9 @@
     <h2 class="mb-4 text-lg font-semibold">Cost centre allocation</h2>
     <input type="hidden" name="allocation_editor" value="1">
     <x-ui.checkbox name="allocation_override" value="1" label="Set an allocation for this expense" x-model="enabled" :checked="$enabled" />
+    @if(!$expense)
+        <p class="mt-2 text-sm text-gray-500">For a new supplier, this allocation is also saved as its default percentages for future expenses.</p>
+    @endif
     @error('splits')<p role="alert" class="my-3 text-sm text-red-700">{{ $message }}</p>@enderror
     <div class="mt-4">
         <x-finance.allocation-fields :categories="$allocationCategories" />

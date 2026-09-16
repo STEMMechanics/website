@@ -29,6 +29,7 @@ return [
         'lighthouse',
         'curl/',
         'uptimerobot',
+        'uptime-kuma',
         'monitor',
     ],
 ];
