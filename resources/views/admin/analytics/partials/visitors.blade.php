@@ -7,6 +7,10 @@
         <x-slot:header>
             <th>Visitor</th>
             <th>Last page visited</th>
+            <th>Page views</th>
+            <th>Session started</th>
+            <th>IP address / location</th>
+            <th>Browser</th>
             <th>Last active</th>
         </x-slot:header>
         <x-slot:body>
@@ -23,6 +27,19 @@
                             {{ $visitor['path'] ?? 'Not recorded yet' }}
                         @endif
                     </td>
+                    <td data-label="Page views">{{ $visitor['page_views'] ?? 'Not recorded yet' }}</td>
+                    <td data-label="Session started">
+                        @if($visitor['started_at'])
+                            <time datetime="{{ \Carbon\Carbon::createFromTimestamp($visitor['started_at'])->toIso8601String() }}">{{ \Carbon\Carbon::createFromTimestamp($visitor['started_at'])->timezone(config('app.timezone'))->format('j M Y, g:i:s a T') }}</time>
+                        @else
+                            Not recorded yet
+                        @endif
+                    </td>
+                    <td data-label="IP address / location">
+                        <span class="break-all">{{ $visitor['ip'] ?? 'Not recorded yet' }}</span>
+                        <span class="block text-xs text-gray-500">{{ $visitor['location'] ?? 'Location unavailable' }}</span>
+                    </td>
+                    <td data-label="Browser" title="{{ $visitor['user_agent'] ?? '' }}">{{ $visitor['browser'] ?? 'Not recorded yet' }}</td>
                     <td data-label="Last active">
                         <time datetime="{{ \Carbon\Carbon::createFromTimestamp($visitor['seen_at'])->toIso8601String() }}" title="{{ \Carbon\Carbon::createFromTimestamp($visitor['seen_at'])->timezone(config('app.timezone'))->format('j M Y, g:i:s a') }}">{{ \Carbon\Carbon::createFromTimestamp($visitor['seen_at'])->diffForHumans() }}</time>
                     </td>

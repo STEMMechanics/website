@@ -23,6 +23,24 @@ class SupplierDirectoryTest extends TestCase
         return $user;
     }
 
+    public function test_new_supplier_learns_custom_allocation_without_replacing_existing_defaults(): void
+    {
+        $this->actingAs($this->admin());
+        $data = ['description' => 'Supplies', 'invoice_id' => 'NEW-001', 'supplier' => 'New split supplier', 'total_amount' => 110, 'gst_amount' => 10, 'allocation_editor' => 1, 'allocation_override' => 1, 'splits' => [1 => 25, 2 => 75]];
+        $this->post(route('admin.expense.store'), $data)->assertSessionHasNoErrors();
+        $supplier = Supplier::where('name', 'New split supplier')->firstOrFail();
+        $this->assertEquals([1 => 25, 2 => 75], $supplier->splits);
+        $future = Expense::factory()->create(['supplier' => ' NEW SPLIT SUPPLIER ', 'total_amount' => 220, 'gst_amount' => 20]);
+        $this->assertSame([1 => 5000, 2 => 15000], app(FinancePlanner::class)->expenseSplits($future));
+        $data['splits'] = [1 => 100];
+        $this->post(route('admin.expense.store'), $data)->assertSessionHasNoErrors();
+        $this->assertEquals([1 => 25, 2 => 75], $supplier->fresh()->splits);
+        $data['supplier'] = 'Invalid allocation supplier';
+        $data['splits'] = [1 => 99];
+        $this->post(route('admin.expense.store'), $data)->assertSessionHasErrors('splits');
+        $this->assertDatabaseMissing('finance_supplier_rules', ['name' => 'Invalid allocation supplier']);
+    }
+
     public function test_supplier_has_a_single_default_and_its_own_expense_table(): void
     {
         $this->actingAs($this->admin());

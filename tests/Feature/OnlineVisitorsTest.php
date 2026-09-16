@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\OnlineVisitors;
+use App\Support\VisitorDetails;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -13,6 +15,48 @@ use Tests\TestCase;
 class OnlineVisitorsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_repeated_pages_keep_the_same_session_and_count_across_presence_expiry(): void
+    {
+        Queue::fake();
+        $service = app(OnlineVisitors::class);
+        $this->withHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0.0.0 Safari/537.36')
+            ->get('/about')->assertOk();
+        $token = session('analytics_session_token');
+        $first = $service->visitors()->first();
+        for ($i = 0; $i < 3; $i++) {
+            $this->travel(1)->minutes();
+            $this->get('/about')->assertOk();
+            $this->assertSame($token, session('analytics_session_token'));
+            $this->assertSame(1, $service->count());
+        }
+        $this->travel(6)->minutes();
+        $this->assertSame(0, $service->count());
+        $this->get('/about')->assertOk();
+        $visitor = $service->visitors()->first();
+        $this->assertSame($first['started_at'], $visitor['started_at']);
+        $this->assertSame(5, $visitor['page_views']);
+        $this->assertSame('Chrome 140.0.0.0 on Windows', $visitor['browser']);
+        $this->assertSame('127.0.0.1', $visitor['ip']);
+        $this->assertNull($visitor['location']);
+    }
+
+    public function test_geo_headers_only_apply_from_trusted_ingress(): void
+    {
+        $request = Request::create('/');
+        $request->headers->set('CF-IPCity', 'Brisbane');
+        $request->headers->set('CF-Region', 'Queensland');
+        $request->headers->set('CF-IPCountry', 'AU');
+        $details = app(VisitorDetails::class);
+        $request->setTrustedProxies([], 0);
+        $this->assertNull($details->location($request));
+        try {
+            $request->setTrustedProxies(['127.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
+            $this->assertSame('Brisbane, Queensland, AU', $details->location($request));
+        } finally {
+            $request->setTrustedProxies([], 0);
+        }
+    }
 
     public function test_visitors_are_deduplicated_exclude_admins_and_expire(): void
     {
@@ -43,6 +87,15 @@ class OnlineVisitorsTest extends TestCase
         UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin)->withSession(['analytics_session_token' => 'browser'])->get('/about');
         $this->assertSame(0, $service->count());
+    }
+
+    public function test_uptime_kuma_checks_do_not_create_visitors_or_analytics_events(): void
+    {
+        Queue::fake();
+        $this->withHeader('User-Agent', 'Uptime-Kuma/2.5.4')->get('/')->assertOk();
+        $this->assertSame(0, app(OnlineVisitors::class)->count());
+        $this->assertNull(session('analytics_session_token'));
+        Queue::assertNotPushed(\App\Jobs\RecordAnalyticsEvent::class);
     }
 
     public function test_live_endpoint_requires_admin_and_returns_only_a_count(): void

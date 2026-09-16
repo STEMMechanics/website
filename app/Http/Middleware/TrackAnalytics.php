@@ -6,6 +6,7 @@ use App\Jobs\RecordAnalyticsEvent;
 use App\Models\AnalyticsEvent;
 use App\Models\User;
 use App\Services\OnlineVisitors;
+use App\Support\VisitorDetails;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +35,21 @@ class TrackAnalytics
             $session->put('analytics_session_token', $sessionToken);
         }
 
-        app(OnlineVisitors::class)->touch($sessionToken, $request->user()?->getAuthIdentifier(), $request->getPathInfo());
+        $startedAt = $session->get('analytics_started_at', now()->timestamp);
+        $pageViews = (int) $session->get('analytics_page_views', 0);
+        if ($response->getStatusCode() < 300) {
+            $pageViews++;
+        }
+        $session->put('analytics_started_at', $startedAt);
+        $session->put('analytics_page_views', $pageViews);
+        app(OnlineVisitors::class)->touch($sessionToken, $request->user()?->getAuthIdentifier(), $request->getPathInfo(), [
+            'started_at' => $startedAt,
+            'page_views' => $pageViews,
+            'ip' => $request->ip(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 1000),
+            'browser' => app(VisitorDetails::class)->browser((string) $request->userAgent()),
+            'location' => app(VisitorDetails::class)->location($request),
+        ]);
 
         $acquisition = $session->get('analytics_acquisition');
         if (! is_array($acquisition)) {
