@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\StoreShippingMethod;
 use App\Support\ShopShippingSettings;
 use Illuminate\Support\Carbon;
@@ -23,6 +24,40 @@ class StoreShippingService
     public function availableMethods(Collection $lines): Collection
     {
         return $this->shippingMethods->activeForLines($lines);
+    }
+
+    /** Preview one packed item using the same channel pricing and packing rules as checkout. */
+    public function previewPackedItem(array $measurements): array
+    {
+        $line = (object) [
+            'product' => new Product(['product_type' => 'physical', 'title' => 'Packed item']),
+            'quantity' => 1, 'key' => 'preview', 'display_title' => 'Packed item',
+            'unit_length_mm' => $measurements['length_mm'],
+            'unit_width_mm' => $measurements['width_mm'],
+            'unit_height_mm' => $measurements['height_mm'],
+            'unit_weight_grams' => $measurements['weight_grams'],
+            'unit_shipping_units' => 0, 'unit_min_satchel_rank' => 1,
+            'box_only' => $measurements['box_only'] ?? false,
+        ];
+        $lines = collect([$line]);
+
+        return $this->availableMethods($lines)->reject(fn ($method) => $method->isPickup())
+            ->map(function ($method) use ($lines): array {
+                $quote = $this->singleShipmentQuote($lines, $method);
+                $parcel = $quote['parcels'][0] ?? null;
+
+                return [
+                    'code' => $method->code, 'channel' => $method->name,
+                    'fits' => (bool) $quote['can_checkout'] && $parcel !== null,
+                    'package' => $parcel['label'] ?? null,
+                    'dimensions_mm' => $parcel['internal_dimensions_mm'] ?? null,
+                    'max_weight_grams' => $parcel['max_weight_grams'] ?? null,
+                    'chargeable_weight_grams' => $parcel['chargeable_weight_grams'] ?? null,
+                    'packaging_cost' => $parcel['packaging_cost'] ?? 0,
+                    'amount' => $quote['amount'],
+                    'reason' => $quote['reason'] ?? ($parcel === null ? 'No box size is configured for this channel.' : null),
+                ];
+            })->sortBy(fn ($option) => [$option['fits'] ? 0 : 1, $option['amount']])->values()->all();
     }
 
     public function selectedMethod(Collection $lines, ?string $methodCode = null): ?StoreShippingMethod
