@@ -139,6 +139,10 @@
                 allowBackorder: @js($productAllowsBackorder),
                 isFeatured: @js((bool) old('is_featured', $product->is_featured ?? false)),
                 boxOnly: @js((bool) old('box_only', $product->box_only ?? false)),
+                basePackedLength: @js(old('length_mm', $product->length_mm ?? '')),
+                basePackedWidth: @js(old('width_mm', $product->width_mm ?? '')),
+                basePackedHeight: @js(old('height_mm', $product->height_mm ?? '')),
+                basePackedWeight: @js(old('weight_grams', $product->weight_grams ?? '')),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
                 baseCompareAtPrice: @js(old('compare_at_price', isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : '')),
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
@@ -618,11 +622,12 @@
                 <input type="hidden" name="shipping_units" value="0" step="0.001">
                 <input type="hidden" name="min_satchel_rank" value="1">
                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <x-ui.input name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" step="1" min="1" :value="old('length_mm', $product->length_mm ?? '')" info="Measure the product as it will be placed in the shipping box." />
-                    <x-ui.input name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" step="1" min="1" :value="old('width_mm', $product->width_mm ?? '')" />
-                    <x-ui.input name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" step="1" min="1" :value="old('height_mm', $product->height_mm ?? '')" />
+                    <x-ui.input x-model="basePackedLength" name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" step="1" min="1" :value="old('length_mm', $product->length_mm ?? '')" info="Measure the product as it will be placed in the shipping box." />
+                    <x-ui.input x-model="basePackedWidth" name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" step="1" min="1" :value="old('width_mm', $product->width_mm ?? '')" />
+                    <x-ui.input x-model="basePackedHeight" name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" step="1" min="1" :value="old('height_mm', $product->height_mm ?? '')" />
                     <x-ui.input
                         name="weight_grams"
+                        x-model="basePackedWeight"
                         label="Packed Weight"
                         labelInfo="(grams, optional)"
                         type="number"
@@ -639,6 +644,7 @@
  />
                     </div>
                 </div>
+                <x-product-postage-preview />
             </x-ui.collapsible-section>
 
 
@@ -805,6 +811,7 @@
                                         <x-ui.input-control type="number" min="0" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Inherit base weight" />
                                     </div>
                                 </div>
+                                <x-product-postage-preview :variant="true" />
                             </div>
 
                             <div class="grid gap-4 md:grid-cols-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>

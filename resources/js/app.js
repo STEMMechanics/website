@@ -43,3 +43,5 @@ import './invoice-allocation-editor';
 import './drawing-type-picker';
 
 import './online-visitors';
+
+import './product-postage-preview';
