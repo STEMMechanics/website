@@ -176,6 +176,8 @@ class WorkshopAttendanceKioskTest extends TestCase
         $content = $response->streamedContent();
         $this->assertStringContainsString('Taylor Example', $content);
         $this->assertStringContainsString('Jordan Example', $content);
+        $csvRows = array_map(fn (string $line): array => str_getcsv($line, escape: ''), explode("\n", trim($content)));
+        $this->assertSame('0400 999 888', $csvRows[1][4]);
     }
 
     public function test_ticketed_attendance_page_renders_payment_controls(): void

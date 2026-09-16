@@ -1,6 +1,6 @@
 <?php
 
-$trustedProxies = env('TRUSTED_PROXIES', '*');
+$trustedProxies = env('TRUSTED_PROXIES', '');
 
 if (is_string($trustedProxies)) {
     $trustedProxies = trim($trustedProxies);
