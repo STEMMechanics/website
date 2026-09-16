@@ -616,7 +616,7 @@ class WorkshopController extends Controller
      */
     private function groupWorkshopsAcrossDateRange(Collection $workshops, Carbon $rangeStart, Carbon $rangeEnd): Collection
     {
-        /** @var array<string, Collection<int, Workshop>> $workshopsByDate */
+        /** @var array<string, array<int, Workshop>> $workshopsByDate */
         $workshopsByDate = [];
 
         foreach ($workshops as $workshop) {
@@ -630,9 +630,8 @@ class WorkshopController extends Controller
                     $to = Carbon::parse($session['ends_at'])->subSecond()->startOfDay()->min($rangeEnd);
                     for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
                         $key = $date->toDateString();
-                        $workshopsByDate[$key] ??= collect();
-                        if (! $workshopsByDate[$key]->contains('id', $workshop->id)) {
-                            $workshopsByDate[$key]->push($workshop);
+                        if (! collect($workshopsByDate[$key] ?? [])->contains('id', $workshop->id)) {
+                            $workshopsByDate[$key][] = $workshop;
                         }
                     }
                 }
@@ -656,12 +655,11 @@ class WorkshopController extends Controller
 
             for ($date = $firstDay->copy(); $date->lessThanOrEqualTo($lastDay); $date->addDay()) {
                 $dateKey = $date->toDateString();
-                $workshopsByDate[$dateKey] ??= collect();
-                $workshopsByDate[$dateKey]->push($workshop);
+                $workshopsByDate[$dateKey][] = $workshop;
             }
         }
 
-        return collect($workshopsByDate);
+        return collect($workshopsByDate)->map(fn (array $dayWorkshops) => collect($dayWorkshops));
     }
 
     /**

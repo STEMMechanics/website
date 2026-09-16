@@ -161,8 +161,8 @@ class ShopProductController extends Controller
                 ->map(fn ($sortOrder): array => ['sort_order' => (int) $sortOrder])
                 ->all();
             $copy->categories()->sync($categoryAssignments);
-            $copy->updateFiles($product->galleryMedia()->get()->pluck('name')->all(), 'gallery');
-            $copy->updateFiles($product->downloadMedia()->get()->pluck('name')->all(), 'downloads');
+            $copy->updateFiles($product->galleryMedia()->pluck('media.name')->all(), 'gallery');
+            $copy->updateFiles($product->downloadMedia()->pluck('media.name')->all(), 'downloads');
 
             foreach ($product->variants as $variant) {
                 $variantCopy = $variant->replicate();
