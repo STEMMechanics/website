@@ -22,6 +22,19 @@ class AnalyticsController extends Controller
         return response()->json(['count' => $visitors->count()]);
     }
 
+    public function visitors(Request $request, OnlineVisitors $visitors): View|JsonResponse
+    {
+        $activeVisitors = $visitors->visitors();
+        if ($request->expectsJson()) {
+            return response()->json([
+                'count' => $activeVisitors?->count(),
+                'html' => view('admin.analytics.partials.visitors', compact('activeVisitors'))->render(),
+            ]);
+        }
+
+        return view('admin.analytics.visitors', compact('activeVisitors'));
+    }
+
     public function index(Request $request): View
     {
         $days = (int) $request->query('days', 30);
@@ -32,14 +45,16 @@ class AnalyticsController extends Controller
         $from = now()->subDays($days)->startOfDay();
         $baseQuery = AnalyticsEvent::query()->where('analytics_events.created_at', '>=', $from);
 
+        $pageQuery = (clone $baseQuery)->pageVisits();
+
         $totals = [
-            'views' => (clone $baseQuery)->count(),
-            'sessions' => (clone $baseQuery)->distinct('session_token')->count('session_token'),
-            'visitors' => (clone $baseQuery)->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
+            'views' => (clone $pageQuery)->count(),
+            'sessions' => (clone $pageQuery)->distinct('session_token')->count('session_token'),
+            'visitors' => (clone $pageQuery)->whereNotNull('visitor_hash')->distinct('visitor_hash')->count('visitor_hash'),
         ];
 
         $dailyFrom = now()->subDays(7)->startOfDay();
-        $daily = AnalyticsEvent::query()
+        $daily = AnalyticsEvent::query()->pageVisits()
             ->where('analytics_events.created_at', '>=', $dailyFrom)
             ->selectRaw('DATE(analytics_events.created_at) as day, COUNT(*) as views, COUNT(DISTINCT analytics_events.session_token) as sessions')
             ->groupBy(DB::raw('DATE(analytics_events.created_at)'))
@@ -49,7 +64,7 @@ class AnalyticsController extends Controller
             ->onEachSide(1);
 
         $hoursFrom = now()->subHours(12);
-        $activeHours = AnalyticsEvent::query()
+        $activeHours = AnalyticsEvent::query()->pageVisits()
             ->where('analytics_events.created_at', '>=', $hoursFrom)
             ->selectRaw("
                 DATE_FORMAT(analytics_events.created_at, '%Y-%m-%d %H:00:00') as hour_bucket,
@@ -63,7 +78,7 @@ class AnalyticsController extends Controller
             ->paginate(ListPageSize::resolve(12, 'hour_page'), ['*'], 'hour_page')
             ->onEachSide(1);
 
-        $topPages = (clone $baseQuery)
+        $topPages = (clone $pageQuery)
             ->selectRaw('analytics_events.path as path, COUNT(*) as views, COUNT(DISTINCT analytics_events.session_token) as sessions')
             ->groupBy('analytics_events.path')
             ->orderByDesc('views')
@@ -72,6 +87,7 @@ class AnalyticsController extends Controller
             ->onEachSide(1);
 
         $sessionEntries = DB::table('analytics_events as session_events')
+            ->whereIn('session_events.event_type', [AnalyticsEvent::TYPE_PAGE_VIEW, AnalyticsEvent::TYPE_SEARCH])
             ->selectRaw('MIN(session_events.id) as entry_id')
             ->groupBy('session_events.session_token');
         $attributionSql = $this->attributionSqlExpressions();
@@ -121,7 +137,7 @@ class AnalyticsController extends Controller
             ->paginate(ListPageSize::resolve(10, 'landing_pages_page'), ['*'], 'landing_pages_page')
             ->onEachSide(1);
 
-        $topWorkshops = (clone $baseQuery)
+        $topWorkshops = (clone $pageQuery)
             ->whereNotNull('analytics_events.workshop_id')
             ->leftJoin('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
             ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
@@ -146,7 +162,7 @@ class AnalyticsController extends Controller
             ->paginate(ListPageSize::resolve(10, 'top_workshops_page'), ['*'], 'top_workshops_page')
             ->onEachSide(1);
 
-        $topSearches = (clone $baseQuery)
+        $topSearches = (clone $pageQuery)
             ->whereNotNull('analytics_events.search_term')
             ->where('analytics_events.search_term', '!=', '')
             ->selectRaw('analytics_events.search_term as search_term, COUNT(*) as uses, COUNT(DISTINCT analytics_events.session_token) as sessions')
@@ -156,7 +172,7 @@ class AnalyticsController extends Controller
             ->paginate(ListPageSize::resolve(10, 'top_searches_page'), ['*'], 'top_searches_page')
             ->onEachSide(1);
 
-        $recentSessions = (clone $baseQuery)
+        $recentSessions = (clone $pageQuery)
             ->selectRaw('analytics_events.session_token as session_token, MAX(analytics_events.visitor_hash) as visitor_hash, MIN(analytics_events.created_at) as started_at, MAX(analytics_events.created_at) as ended_at, COUNT(*) as event_count')
             ->groupBy('analytics_events.session_token')
             ->orderByDesc(DB::raw('MAX(analytics_events.created_at)'))
@@ -167,7 +183,7 @@ class AnalyticsController extends Controller
         $sessionTokens = $recentSessions->getCollection()->pluck('session_token')->all();
         $sessionEvents = collect();
         if ($sessionTokens !== []) {
-            $sessionEvents = AnalyticsEvent::query()
+            $sessionEvents = AnalyticsEvent::query()->pageVisits()
                 ->whereIn('session_token', $sessionTokens)
                 ->orderBy('created_at')
                 ->get(['session_token', 'event_type', 'path', 'search_term', 'created_at'])
@@ -212,7 +228,7 @@ class AnalyticsController extends Controller
             ]
         );
 
-        $returningVisitors = (clone $baseQuery)
+        $returningVisitors = (clone $pageQuery)
             ->whereNotNull('analytics_events.visitor_hash')
             ->selectRaw('analytics_events.visitor_hash as visitor_hash, COUNT(*) as views, COUNT(DISTINCT analytics_events.session_token) as sessions, MAX(analytics_events.created_at) as last_seen')
             ->groupBy('analytics_events.visitor_hash')

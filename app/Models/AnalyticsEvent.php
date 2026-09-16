@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +51,11 @@ class AnalyticsEvent extends Model
         'is_session_entry' => 'boolean',
         'created_at' => 'datetime',
     ];
+
+    public function scopePageVisits(Builder $query): Builder
+    {
+        return $query->whereIn('analytics_events.event_type', [self::TYPE_PAGE_VIEW, self::TYPE_SEARCH]);
+    }
 
     public function workshop(): BelongsTo
     {

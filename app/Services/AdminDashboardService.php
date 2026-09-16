@@ -414,7 +414,7 @@ class AdminDashboardService
     {
         $bucketSql = $this->bucketCaseSql('created_at', $buckets);
         $rows = AnalyticsEvent::query()
-            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->pageVisits()
             ->where('created_at', '>=', $buckets[0]['start'])
             ->where('created_at', '<', $buckets[array_key_last($buckets)]['end'])
             ->selectRaw($bucketSql['sql'].' as bucket_index', $bucketSql['bindings'])
@@ -716,7 +716,7 @@ class AdminDashboardService
     private function countAnalyticsEventsBetween(Carbon $start, Carbon $end): int
     {
         return AnalyticsEvent::query()
-            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->pageVisits()
             ->where('created_at', '>=', $start)
             ->where('created_at', '<', $end)
             ->count();
@@ -725,7 +725,7 @@ class AdminDashboardService
     private function countAnalyticsVisitorsBetween(Carbon $start, Carbon $end): int
     {
         return AnalyticsEvent::query()
-            ->where('event_type', '!=', AnalyticsEvent::TYPE_REGISTRATION_CLICK)
+            ->pageVisits()
             ->where('created_at', '>=', $start)
             ->where('created_at', '<', $end)
             ->whereNotNull('visitor_hash')

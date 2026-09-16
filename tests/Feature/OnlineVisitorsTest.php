@@ -36,6 +36,7 @@ class OnlineVisitorsTest extends TestCase
         $service = app(OnlineVisitors::class);
         $this->withSession(['analytics_session_token' => 'browser'])->get('/about')->assertOk();
         $this->assertSame(1, $service->count());
+        $this->assertSame('/about', $service->visitors()->first()['path']);
         $this->withSession(['analytics_session_token' => 'bot'])->withHeader('User-Agent', 'Googlebot')->get('/about');
         $this->assertSame(1, $service->count());
         $admin = User::factory()->create();
@@ -51,6 +52,42 @@ class OnlineVisitorsTest extends TestCase
         $admin = User::factory()->create();
         UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin)->getJson(route('admin.analytics.online'))->assertOk()->assertExactJson(['count' => 0]);
+    }
+
+    public function test_details_show_latest_page_and_identity_without_exposing_session_tokens(): void
+    {
+        $service = app(OnlineVisitors::class);
+        $customer = User::factory()->create(['firstname' => 'Sample', 'surname' => 'Customer']);
+        $service->touch('secret-guest-token', null, '/about');
+        $service->touch('secret-customer-one', $customer->id, '/store');
+        $this->travel(1)->seconds();
+        $service->touch('secret-customer-two', $customer->id, '/store/example');
+
+        $this->assertSame('/store/example', $service->visitors()->first()['path']);
+        $admin = User::factory()->create();
+        UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $service->touch('admin-secret-token', $admin->id, '/admin');
+
+        $page = $this->actingAs($admin)->get(route('admin.analytics.visitors'))
+            ->assertOk()->assertSee('Sample Customer')->assertSee('/store/example')
+            ->assertSee('Anonymous visitor')->assertSee('/about')
+            ->assertDontSee('secret-guest-token')->assertDontSee('secret-customer')
+            ->assertDontSee('admin-secret-token');
+        $this->assertMatchesRegularExpression('/<nav aria-label="Breadcrumb"[^>]*>.*?>Analytics<\/a>.*?<\/nav>/s', $page->getContent());
+        $page->assertDontSee('Visitors active in the last 5 minutes');
+        $response = $this->getJson(route('admin.analytics.visitors'))->assertOk()->assertJsonPath('count', 2);
+        $this->assertStringContainsString('Sample Customer', $response->json('html'));
+        $this->assertStringNotContainsString('secret-', $response->getContent());
+
+        $this->travel(6)->minutes();
+        $this->getJson(route('admin.analytics.visitors'))->assertJsonPath('count', 0);
+    }
+
+    public function test_visitor_details_require_admin(): void
+    {
+        $this->get(route('admin.analytics.visitors'))->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->create())->get(route('admin.analytics.visitors'))->assertForbidden();
+        $this->getJson(route('admin.analytics.visitors'))->assertForbidden();
     }
 
     public function test_disabled_analytics_and_cache_failure_show_unavailable(): void

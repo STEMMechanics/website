@@ -125,7 +125,7 @@ class SiteListControls
             'account.ticket.index' => ['ticket_scope' => ['label' => 'Tickets', 'type' => 'select', 'options' => ['current' => 'Current tickets', 'cancelled' => 'Cancelled / reissued', 'all' => 'All tickets'], 'clear' => 'all']],
             'admin.user.index' => ['account_state' => ['label' => 'Accounts', 'type' => 'select', 'options' => ['all' => 'All users', 'verified' => 'Verified users', 'ghost' => 'Unverified users'], 'clear' => 'all']],
             'admin.shop.product.index' => [
-                'status_scope' => ['label' => 'Products', 'type' => 'select', 'options' => ['all' => 'All statuses', 'current' => 'Current products', 'archived' => 'Archived'], 'clear' => 'all'],
+                'status_scope' => ['label' => 'Products', 'type' => 'select', 'options' => ['all' => 'All statuses', 'current' => 'Current products', 'draft' => 'Drafts', 'archived' => 'Archived'], 'clear' => 'all'],
                 'inventory' => ['label' => 'Inventory', 'type' => 'select', 'options' => ['actionable' => 'Needs attention']],
                 'allocation_state' => ['label' => 'Cost centre allocation', 'type' => 'select', 'options' => ['needs_review' => 'Needs review', 'allocated' => 'Allocated']],
             ],
@@ -188,7 +188,7 @@ class SiteListControls
             'admin.ticket.index' => ['Current tickets' => ['ticket_status' => ['active'], 'workshop_from' => today()->toDateString()], 'Cancelled / reissued' => ['ticket_status' => ['cancelled', 'reissued']], 'All tickets' => []],
             'account.ticket.index' => ['Current tickets' => ['ticket_scope' => 'current'], 'Cancelled / reissued' => ['ticket_scope' => 'cancelled'], 'All tickets' => ['ticket_scope' => 'all']],
             'admin.user.index' => ['Verified users' => ['account_state' => 'verified'], 'Unverified users' => ['account_state' => 'ghost'], 'All users' => ['account_state' => 'all']],
-            'admin.shop.product.index' => ['Current products' => ['status_scope' => 'current'], 'Actionable' => ['status_scope' => 'current', 'inventory' => 'actionable'], 'Archived' => ['status_scope' => 'archived']],
+            'admin.shop.product.index' => ['Current products' => ['status_scope' => 'current'], 'Drafts' => ['status_scope' => 'draft'], 'Actionable' => ['status_scope' => 'current', 'inventory' => 'actionable'], 'Archived' => ['status_scope' => 'archived']],
             'admin.reminder.index' => ['Upcoming' => ['view' => 'upcoming'], 'Sent' => ['view' => 'sent'], 'Failed' => ['view' => 'failed'], 'All reminders' => ['view' => 'all']],
             default => [],
         };

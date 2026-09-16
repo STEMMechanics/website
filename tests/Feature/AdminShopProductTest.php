@@ -19,19 +19,27 @@ class AdminShopProductTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_current_and_archived_product_filters_are_separate(): void
+    public function test_current_draft_and_archived_product_filters_are_separate(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
         $current = Product::factory()->create(['title' => 'Current Kit', 'status' => Product::STATUS_ACTIVE]);
         $archived = Product::factory()->create(['title' => 'Archived Kit', 'status' => Product::STATUS_ARCHIVED]);
+        $draft = Product::factory()->create(['title' => 'Draft Kit', 'status' => Product::STATUS_DRAFT]);
 
         $this->actingAs($admin)
             ->get(route('admin.shop.product.index'))
             ->assertOk()
             ->assertSeeText($current->title)
+            ->assertDontSeeText($draft->title)
             ->assertDontSeeText($archived->title)
             ->assertSeeText('Archived');
+
+        $this->get(route('admin.shop.product.index', ['status_scope' => 'draft']))
+            ->assertOk()->assertSeeText($draft->title)
+            ->assertDontSeeText($current->title)->assertDontSeeText($archived->title)
+            ->assertDontSeeText('Allocation needs review')
+            ->assertViewHas('allocationAttentionCount', 1);
 
         $response = $this->actingAs($admin)
             ->get(route('admin.shop.product.index', ['filter' => 'archived']))
@@ -40,6 +48,17 @@ class AdminShopProductTest extends TestCase
             ->assertDontSeeText($current->title);
 
         $this->assertMatchesRegularExpression('/aria-label="Archived"\s+aria-current="page"/', $response->getContent());
+    }
+
+    public function test_empty_inventory_shows_a_red_no_stock_badge(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        Product::factory()->create(['inventory_quantity' => 0]);
+        $response = $this->actingAs($admin)->get(route('admin.shop.product.index'))
+            ->assertOk()->assertSeeText('No stock')
+            ->assertDontSeeText('Low stock needs review');
+        $this->assertMatchesRegularExpression('/<a[^>]*class="[^"]*bg-rose-50[^"]*"[^>]*>\s*<i[^>]*><\/i>\s*No stock\s*<\/a>/s', $response->getContent());
     }
 
     public function test_admin_can_archive_and_restore_a_product(): void

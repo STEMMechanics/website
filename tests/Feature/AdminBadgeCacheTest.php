@@ -106,6 +106,7 @@ class AdminBadgeCacheTest extends TestCase
     {
         $product = Product::factory()->create(['price' => 11, 'inventory_quantity' => 1, 'low_stock_threshold' => 5]);
         Product::factory()->create(['status' => 'archived', 'price' => 11, 'inventory_quantity' => 0]);
+        Product::factory()->create(['status' => 'draft', 'price' => 11, 'inventory_quantity' => 0]);
         $counts = function () {
             $this->app->forgetInstance(AdminBadgeCache::class);
 

@@ -104,7 +104,7 @@ class ProductAllocationEditor
     {
         $ids = [];
         $allowed = $this->categories()->pluck('id')->all();
-        Product::query()->with('variants')->chunkById(200, function ($products) use (&$ids, $allowed): void {
+        Product::query()->active()->with('variants')->chunkById(200, function ($products) use (&$ids, $allowed): void {
             $configs = $this->configs($products->modelKeys());
             $allocations = app(ProductAllocation::class);
             foreach ($products as $product) {
