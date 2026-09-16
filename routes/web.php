@@ -371,6 +371,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/sent-sms', [ServerController::class, 'admin_sent_sms_store'])->name('admin.server.sent-sms.store');
     Route::patch('/admin/server/sent-sms/replies/{inboundSms}/acknowledge', [ServerController::class, 'admin_sent_sms_reply_acknowledge'])->name('admin.server.sent-sms.replies.acknowledge');
     Route::get('/admin/server/sent-emails', [ServerController::class, 'admin_sent_emails'])->name('admin.server.sent-emails');
+    Route::get('/admin/analytics/visitors', [AnalyticsController::class, 'visitors'])->name('admin.analytics.visitors');
     Route::get('/admin/analytics/online', [AnalyticsController::class, 'online'])->name('admin.analytics.online');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics.index');
     Route::post('/admin/analytics/prune', [AnalyticsController::class, 'prune'])->name('admin.analytics.prune');

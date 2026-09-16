@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -10,9 +12,9 @@ class OnlineVisitors
 {
     private const KEY = 'analytics:online-visitors:v1';
 
-    public function touch(string $token, ?string $userId): void
+    public function touch(string $token, ?string $userId, ?string $path = null): void
     {
-        $this->update($token, ['seen_at' => now()->timestamp, 'user_id' => $userId]);
+        $this->update($token, ['seen_at' => now()->timestamp, 'user_id' => $userId, 'path' => $path]);
     }
 
     public function forget(string $token): void
@@ -62,16 +64,29 @@ class OnlineVisitors
 
     public function count(): ?int
     {
+        return $this->visitors()?->count();
+    }
+
+    public function visitors(): ?Collection
+    {
         if (! config('analytics.enabled', true)) {
             return null;
         }
         try {
             $admins = DB::table('user_groups')->where('slug', 'admin')->pluck('user_id')->all();
 
-            return collect($this->recent())
+            $visitors = collect($this->recent())
                 ->reject(fn ($visitor) => $visitor['user_id'] !== null && in_array($visitor['user_id'], $admins, true))
-                ->map(fn ($visitor, $token) => $visitor['user_id'] ? 'user:'.$visitor['user_id'] : 'session:'.$token)
-                ->unique()->count();
+                ->sortByDesc('seen_at')
+                ->unique(fn ($visitor, $token) => $visitor['user_id'] ? 'user:'.$visitor['user_id'] : 'session:'.$token);
+            $users = User::query()->whereIn('id', $visitors->pluck('user_id')->filter())->get()->keyBy('id');
+
+            return $visitors->map(fn ($visitor, $token) => [
+                'name' => $users->get($visitor['user_id'])?->getName() ?? 'Guest '.strtoupper(substr(hash_hmac('sha256', $token, (string) config('app.key')), 0, 8)),
+                'signed_in' => $users->has($visitor['user_id']),
+                'path' => $visitor['path'] ?? null,
+                'seen_at' => $visitor['seen_at'],
+            ])->values();
         } catch (\Throwable) {
             return null;
         }

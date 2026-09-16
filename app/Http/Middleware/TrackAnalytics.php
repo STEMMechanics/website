@@ -34,7 +34,7 @@ class TrackAnalytics
             $session->put('analytics_session_token', $sessionToken);
         }
 
-        app(OnlineVisitors::class)->touch($sessionToken, $request->user()?->getAuthIdentifier());
+        app(OnlineVisitors::class)->touch($sessionToken, $request->user()?->getAuthIdentifier(), $request->getPathInfo());
 
         $acquisition = $session->get('analytics_acquisition');
         if (! is_array($acquisition)) {

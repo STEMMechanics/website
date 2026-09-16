@@ -16,7 +16,7 @@ class ProductAttention
             $allocationIds = app(ProductAllocationEditor::class)->attentionIds();
             $inventoryIds = [];
             $currentIds = [];
-            Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->with('variants')
+            Product::query()->active()->with('variants')
                 ->chunkById(200, function ($products) use (&$inventoryIds, &$currentIds): void {
                     $currentIds = array_merge($currentIds, $products->modelKeys());
                     foreach ($this->inventorySummaries($products) as $id => $summary) {
@@ -116,8 +116,7 @@ class ProductAttention
             $available = $summary['available'];
             $threshold = $summary['low_stock_threshold'];
             $summaries[$productId]['low_stock'] = $available !== null
-                && $threshold !== null
-                && $available <= $threshold;
+                && ($available <= 0 || ($threshold !== null && $available <= $threshold));
             $summaries[$productId]['actionable'] = $summaries[$productId]['awaiting'] > 0
                 || $summaries[$productId]['reserved'] > 0
                 || $summaries[$productId]['backorder'] > 0

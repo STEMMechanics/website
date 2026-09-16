@@ -95,7 +95,7 @@
                                         <div>{{ $inventorySummary['preorder'] }} preordered</div>
                                     @endif
                                     @if($inventorySummary['low_stock'] ?? false)
-                                        <x-ui.badge class="mt-1" tone="warning" icon="fa-solid fa-circle-exclamation" :href="route('admin.shop.product.edit', $product)" :title="'Low stock alert at '.$inventorySummary['low_stock_threshold']">Low stock needs review</x-ui.badge>
+                                        <x-ui.badge class="mt-1" :tone="$inventorySummary['available'] <= 0 ? 'danger' : 'warning'" icon="fa-solid fa-circle-exclamation" :href="route('admin.shop.product.edit', $product)" :title="$inventorySummary['available'] <= 0 ? 'No stock available' : 'Low stock alert at '.$inventorySummary['low_stock_threshold']">{{ $inventorySummary['available'] <= 0 ? 'No stock' : 'Low stock' }}</x-ui.badge>
                                     @endif
                                 </div>
                             </td>

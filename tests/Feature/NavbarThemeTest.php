@@ -49,7 +49,7 @@ class NavbarThemeTest extends TestCase
         Product::factory()->create(['price' => 11, 'inventory_quantity' => 1]);
         $this->get(route('admin.shop.product.index'))->assertOk()
             ->assertSee('1 product needs stock, order or allocation attention')
-            ->assertSee('Low stock needs review')
+            ->assertSee('Low stock')
             ->assertSee('Allocation needs review')
             ->assertSee('1 with low stock or orders awaiting fulfilment');
     }

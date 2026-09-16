@@ -30,14 +30,14 @@ class ShopProductController extends Controller
         $legacyFilter = $this->normalizeIndexFilter($request->query('filter'));
         $scope = $request->query('status_scope', $legacyFilter === 'archived' ? 'archived' : 'current') ?: 'all';
         $inventory = $request->query('inventory', $legacyFilter === 'actionable' ? 'actionable' : '');
-        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
+        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'draft', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
         $request->query->set('status_scope', $scope);
         if ($inventory) {
             $request->query->set('inventory', $inventory);
         }
         $request->query->remove('filter');
         $allocationAttentionIds = app(ProductAllocationEditor::class)->attentionIds();
-        $allocationAttentionCount = Product::where('status', '!=', Product::STATUS_ARCHIVED)->whereIn('id', $allocationAttentionIds)->count();
+        $allocationAttentionCount = Product::where('status', Product::STATUS_ACTIVE)->whereIn('id', $allocationAttentionIds)->count();
         if ($request->query('allocation_state') === 'needs_review') {
             $query->whereIn('id', $allocationAttentionIds);
         } elseif ($request->query('allocation_state') === 'allocated') {
@@ -46,15 +46,18 @@ class ShopProductController extends Controller
         $productAttention = app(ProductAttention::class)->counts();
         $actionableCount = $productAttention['inventory'];
         $request->attributes->set('collection_preset_counts', [
-            'Current products' => Product::query()->where('status', '!=', Product::STATUS_ARCHIVED)->count(),
+            'Current products' => Product::query()->where('status', Product::STATUS_ACTIVE)->count(),
+            'Drafts' => Product::query()->where('status', Product::STATUS_DRAFT)->count(),
             'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
             'Actionable' => $actionableCount,
         ]);
         $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
         if ($scope === 'archived') {
             $query->where('status', Product::STATUS_ARCHIVED);
+        } elseif ($scope === 'draft') {
+            $query->where('status', Product::STATUS_DRAFT);
         } elseif ($scope === 'current') {
-            $query->where('status', '!=', Product::STATUS_ARCHIVED);
+            $query->where('status', Product::STATUS_ACTIVE);
         }
 
         if ($request->filled('search')) {
