@@ -144,8 +144,20 @@ class ExpenseController extends Controller
         $expense->created_by = Auth::id();
         DB::transaction(function () use ($request, $expense): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
+            $supplier = Supplier::forName($expense->supplier);
             $expense->save();
             app(ExpenseAllocation::class)->save($request, $expense);
+            if ($supplier->wasRecentlyCreated && $request->boolean('allocation_editor') && $request->boolean('allocation_override')) {
+                $amounts = DB::table('finance_expense_splits')->where('expense_id', $expense->id)->pluck('cents', 'category_id');
+                $total = (int) $amounts->sum();
+                if ($total > 0) {
+                    $supplier->update([
+                        'mode' => 'split',
+                        'category_id' => $amounts->count() === 1 ? $amounts->keys()->first() : null,
+                        'splits' => $amounts->map(fn ($cents) => $cents / $total * 100)->all(),
+                    ]);
+                }
+            }
         });
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));

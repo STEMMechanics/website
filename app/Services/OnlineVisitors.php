@@ -12,9 +12,9 @@ class OnlineVisitors
 {
     private const KEY = 'analytics:online-visitors:v1';
 
-    public function touch(string $token, ?string $userId, ?string $path = null): void
+    public function touch(string $token, ?string $userId, ?string $path = null, array $details = []): void
     {
-        $this->update($token, ['seen_at' => now()->timestamp, 'user_id' => $userId, 'path' => $path]);
+        $this->update($token, ['seen_at' => now()->timestamp, 'user_id' => $userId, 'path' => $path] + $details);
     }
 
     public function forget(string $token): void
@@ -86,6 +86,12 @@ class OnlineVisitors
                 'signed_in' => $users->has($visitor['user_id']),
                 'path' => $visitor['path'] ?? null,
                 'seen_at' => $visitor['seen_at'],
+                'started_at' => $visitor['started_at'] ?? null,
+                'page_views' => $visitor['page_views'] ?? null,
+                'ip' => $visitor['ip'] ?? null,
+                'browser' => $visitor['browser'] ?? null,
+                'user_agent' => $visitor['user_agent'] ?? null,
+                'location' => $visitor['location'] ?? null,
             ])->values();
         } catch (\Throwable) {
             return null;
