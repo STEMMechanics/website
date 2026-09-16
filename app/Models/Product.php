@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -256,12 +257,14 @@ class Product extends Model
         return (bool) ($this->allow_backorder || $this->is_preorder);
     }
 
-    public function galleryMedia()
+    /** @return MorphToMany<Media, $this> */
+    public function galleryMedia(): MorphToMany
     {
         return $this->files('gallery');
     }
 
-    public function downloadMedia()
+    /** @return MorphToMany<Media, $this> */
+    public function downloadMedia(): MorphToMany
     {
         return $this->files('downloads');
     }
