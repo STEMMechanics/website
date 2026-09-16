@@ -1853,3 +1853,22 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     [data-dialog-drag-handle] { cursor: move; touch-action: none; user-select: none; }
     [data-dialog-drag-handle] button { cursor: pointer; }
 }
+
+/* Keep visitor details grouped until there is room for separate columns. */
+.online-visitors-table .visitor-connection-summary,
+.online-visitors-table .visitor-browser-summary,
+.online-visitors-table .visitor-session-summary { display: none; }
+@media (min-width: 640px) {
+    .online-visitors-table .visitor-page-column { width: 30%; }
+}
+@media (min-width: 640px) and (max-width: 1535px) {
+    .online-visitors-table .visitor-session-column,
+    .online-visitors-table .visitor-browser-column { display: none; }
+    .online-visitors-table .visitor-session-summary,
+    .online-visitors-table .visitor-browser-summary { display: block; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+    .online-visitors-table .visitor-connection-column { display: none; }
+    .online-visitors-table .visitor-connection-summary { display: block; }
+}
+.online-visitors-table td[data-label="Page views"] { text-align: center !important; }
