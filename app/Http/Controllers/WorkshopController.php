@@ -34,6 +34,7 @@ use App\Services\SquareApiService;
 use App\Services\WorkshopPickListService;
 use App\Services\WorkshopRecommendationService;
 use App\Services\WorkshopTicketService;
+use App\Support\CsvPhoneNumber;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Barryvdh\DomPDF\PDF;
 use Carbon\Carbon;
@@ -3202,7 +3203,7 @@ class WorkshopController extends Controller
                     $row['child_name'],
                     $row['guardian_name'],
                     $row['email'],
-                    $row['phone'],
+                    CsvPhoneNumber::format($row['phone']),
                     $row['media_consent'],
                     $row['ticket_reference'],
                     $row['status'],
