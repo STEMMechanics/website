@@ -41,6 +41,25 @@ class OnlineVisitorsTest extends TestCase
         $this->assertNull($visitor['location']);
     }
 
+    public function test_online_visitors_use_forwarded_ips_only_from_trusted_proxies(): void
+    {
+        Queue::fake();
+        config(['security.trusted_proxies' => ['172.16.11.1']]);
+
+        try {
+            $this->withServerVariables(['REMOTE_ADDR' => '172.16.11.1'])
+                ->withHeader('X-Forwarded-For', '198.51.100.42')
+                ->get('/about')->assertOk();
+            $this->assertSame('198.51.100.42', app(OnlineVisitors::class)->visitors()->first()['ip']);
+
+            $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.20'])
+                ->get('/about')->assertOk();
+            $this->assertSame('203.0.113.20', app(OnlineVisitors::class)->visitors()->first()['ip']);
+        } finally {
+            Request::setTrustedProxies([], 0);
+        }
+    }
+
     public function test_geo_headers_only_apply_from_trusted_ingress(): void
     {
         $request = Request::create('/');
