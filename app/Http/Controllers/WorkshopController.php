@@ -49,6 +49,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -3173,7 +3174,9 @@ class WorkshopController extends Controller
     {
         $rows = $this->buildAttendanceExportRows($workshop);
 
-        $filename = 'workshop-'.$workshop->id.'-attendance.csv';
+        $workshopName = trim(preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii($workshop->title)), '-') ?: 'Workshop';
+        $datePrefix = $workshop->starts_at?->format('ymd');
+        $filename = ($datePrefix ? $datePrefix.'-' : '').$workshopName.'-Attendance.csv';
 
         return response()->streamDownload(function () use ($rows): void {
             $out = fopen('php://output', 'w');
