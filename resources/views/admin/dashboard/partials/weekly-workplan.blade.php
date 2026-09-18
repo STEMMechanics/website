@@ -98,7 +98,7 @@
                             </span>
                         </div>
                     @endforeach
-                    <a href="{{ route('admin.subscription.index') }}" class="flex items-center gap-3 p-3 text-sm hover:bg-gray-50">
+                    <a href="{{ route('admin.newsletter.index') }}" class="flex items-center gap-3 p-3 text-sm hover:bg-gray-50">
                         <i class="fa-solid fa-pen-to-square w-4 text-indigo-600"></i>
                         <span class="min-w-0 flex-1 font-semibold text-primary-color">Review newsletter</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-400" aria-hidden="true"></i>

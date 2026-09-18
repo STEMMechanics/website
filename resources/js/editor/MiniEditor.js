@@ -5,7 +5,7 @@ import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
 
 document.addEventListener('alpine:init', () => {
-    Alpine.data('miniEditor', () => {
+    Alpine.data('miniEditor', (options = {}) => {
         let editor = null;
         let updatingFromEditor = false;
 
@@ -78,6 +78,23 @@ document.addEventListener('alpine:init', () => {
             },
             toggleLink() {
                 if (!editor) return;
+
+                if (options.customLinks) {
+                    this.$dispatch('mini-editor-link', {
+                        href: String(editor.getAttributes('link').href || ''),
+                        label: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' '),
+                        apply: (href, label) => {
+                            if (!href) {
+                                editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                            } else if (editor.state.selection.empty && !editor.isActive('link')) {
+                                editor.chain().focus().insertContent({type: 'text', text: label || href, marks: [{type: 'link', attrs: {href}}]}).run();
+                            } else {
+                                editor.chain().focus().extendMarkRange('link').setLink({href}).run();
+                            }
+                        },
+                    });
+                    return;
+                }
 
                 const currentUrl = String(editor.getAttributes('link').href || '');
                 const url = window.prompt('Link URL', currentUrl);

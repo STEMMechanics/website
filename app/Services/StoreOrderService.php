@@ -430,6 +430,8 @@ class StoreOrderService
                 $orderItem->delayed_quantity = (int) $payload['delayed_quantity'];
                 $orderItem->delayed_fulfilment_type = $payload['delayed_fulfilment_type'];
                 $orderItem->delayed_shipping_estimate = $payload['delayed_shipping_estimate'];
+                $orderItem->shared_inventory = (bool) $product->shared_inventory;
+                $orderItem->inventory_units = $product->inventoryUnits($variant);
                 $orderItem->inventory_reserved_quantity = (int) $payload['reserved_quantity'];
                 $orderItem->unit_shipping_units = round((float) $payload['unit_shipping_units'], 3);
                 $orderItem->unit_min_satchel_rank = $payload['unit_min_satchel_rank'];
@@ -2085,6 +2087,10 @@ class StoreOrderService
 
     private function inventorySourceForOrderItem(StoreOrderItem $item): ?string
     {
+        if ($item->shared_inventory && $item->product_id) {
+            return 'product:'.$item->product_id;
+        }
+
         if ($item->product_variant_id) {
             return 'variant:'.$item->product_variant_id;
         }
@@ -3175,6 +3181,8 @@ class StoreOrderService
             $orderItem->delayed_quantity = (int) ($line->delayed_quantity ?? 0);
             $orderItem->delayed_fulfilment_type = $line->delayed_fulfilment_type;
             $orderItem->delayed_shipping_estimate = $line->delayed_shipping_estimate;
+            $orderItem->shared_inventory = (bool) $line->product->shared_inventory;
+            $orderItem->inventory_units = $line->product->inventoryUnits($line->variant);
             $orderItem->inventory_reserved_quantity = $reservedQuantity;
             $orderItem->unit_shipping_units = round((float) $line->unit_shipping_units, 3);
             $orderItem->unit_min_satchel_rank = $line->unit_min_satchel_rank;
@@ -3341,9 +3349,11 @@ class StoreOrderService
 
     private function lockAndPrepareLines(Collection $lines): Collection
     {
+        $sharedRemaining = [];
+
         return $lines
             ->sortBy(fn ($line) => sprintf('%08d-%08d', (int) $line->product->id, (int) data_get($line, 'variant.id', 0)))
-            ->map(function ($line) {
+            ->map(function ($line) use (&$sharedRemaining) {
                 /** @var Product $product */
                 $product = Product::query()
                     ->whereKey($line->product->id)
@@ -3379,7 +3389,14 @@ class StoreOrderService
 
                 $quantity = max(1, (int) $line->quantity);
                 $actualInventory = $product->availableInventory($variant);
+                if ($product->shared_inventory && $product->inventory_quantity !== null) {
+                    $sharedRemaining[$product->id] ??= max(0, (int) $product->inventory_quantity);
+                    $actualInventory = intdiv($sharedRemaining[$product->id], $product->inventoryUnits($variant));
+                }
                 $fulfilment = $this->resolveFulfilment($product, $quantity, $actualInventory, $variant);
+                if (isset($sharedRemaining[$product->id])) {
+                    $sharedRemaining[$product->id] -= $fulfilment['available_now_quantity'] * $product->inventoryUnits($variant);
+                }
 
                 if (! $product->isPreorder($variant) && ! $product->allowsBackorder($variant) && $actualInventory !== null && $quantity > $actualInventory) {
                     $message = 'Only '.$actualInventory.' left for '.$product->displayTitle($variant).'.';
@@ -3427,6 +3444,22 @@ class StoreOrderService
             return 0;
         }
 
+        if ($line->product->shared_inventory) {
+            $product = Product::query()->whereKey($line->product->id)->lockForUpdate()->firstOrFail();
+            if ($product->inventory_quantity === null) {
+                return 0;
+            }
+            $units = $quantityToReserve * $product->inventoryUnits($line->variant);
+            if ($product->inventory_quantity < $units) {
+                throw ValidationException::withMessages(['cart' => 'Not enough shared stock remains for '.$line->display_title.'.']);
+            }
+            $product->inventory_quantity -= $units;
+            $product->save();
+            $line->product->inventory_quantity = $product->inventory_quantity;
+
+            return $quantityToReserve;
+        }
+
         if ($line->variant instanceof ProductVariant && $line->variant->tracksInventory()) {
             $available = max(0, (int) $line->variant->inventory_quantity);
             if ($available < $quantityToReserve) {
@@ -3467,6 +3500,22 @@ class StoreOrderService
 
             $quantity = $this->reservationQuantityForOrderItem($item);
             if ($quantity <= 0) {
+                continue;
+            }
+
+            if ($item->shared_inventory) {
+                $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->firstOrFail();
+                $units = $quantity * max(1, (int) $item->inventory_units);
+                if ($product->inventory_quantity !== null) {
+                    if ($product->inventory_quantity < $units) {
+                        throw ValidationException::withMessages(['status' => 'Not enough shared stock remains to restore this order.']);
+                    }
+                    $product->inventory_quantity -= $units;
+                    $product->save();
+                    $item->inventory_reserved_quantity = $quantity;
+                    $item->save();
+                }
+
                 continue;
             }
 
@@ -3515,29 +3564,15 @@ class StoreOrderService
     private function releaseInventoryReservations(StoreOrder $order): array
     {
         $sources = [];
-
         foreach ($order->items()->lockForUpdate()->get() as $item) {
             $reserved = max(0, (int) $item->inventory_reserved_quantity);
             if ($reserved <= 0) {
                 continue;
             }
-
-            if ($item->product_variant_id) {
-                $variant = ProductVariant::query()->whereKey($item->product_variant_id)->lockForUpdate()->first();
-                if ($variant instanceof ProductVariant && $variant->inventory_quantity !== null) {
-                    $variant->inventory_quantity = (int) $variant->inventory_quantity + $reserved;
-                    $variant->save();
-                    $sources[] = 'variant:'.$variant->id;
-                }
-            } elseif ($item->product_id) {
-                $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
-                if ($product instanceof Product && $product->inventory_quantity !== null) {
-                    $product->inventory_quantity = (int) $product->inventory_quantity + $reserved;
-                    $product->save();
-                    $sources[] = 'product:'.$product->id;
-                }
+            $this->restoreInventoryQuantity($item, $reserved);
+            if ($source = $this->inventorySourceForOrderItem($item)) {
+                $sources[] = $source;
             }
-
             $item->inventory_reserved_quantity = 0;
             $item->save();
         }
@@ -3566,6 +3601,16 @@ class StoreOrderService
     private function restoreInventoryQuantity(StoreOrderItem $item, int $quantity): void
     {
         if ($quantity <= 0) {
+            return;
+        }
+
+        if ($item->shared_inventory) {
+            $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
+            if ($product && $product->inventory_quantity !== null) {
+                $product->inventory_quantity += $quantity * max(1, (int) $item->inventory_units);
+                $product->save();
+            }
+
             return;
         }
 

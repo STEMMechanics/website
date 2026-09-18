@@ -104,7 +104,7 @@
             action="{{ route('admin.quote.' . (isset($quote) ? 'update' : 'store'), $quote ?? []) }}"
             x-data="{
                 quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
-                catalogProducts: @js($catalogProducts ?? []),
+                ...SM.productLineEditor(@js($catalogProducts ?? [])),
                 savedTotals: @js($editing ? ['count' => count($quote->line_items ?? []), 'net' => (float) $quote->subtotal_amount, 'tax' => (float) $quote->gst_amount, 'gross' => (float) $quote->total_amount] : null),
                 lineItems: (() => {
                     try {
@@ -167,21 +167,6 @@
                         return [];
                     }
                 })(),
-                itemTypeOptions: [
-                    { value: 'product', label: 'Store Product', icon: 'fa-box' },
-                    { value: 'shipping', label: 'Shipping', icon: 'fa-truck' },
-                    { value: 'multi_workshop', label: 'Multi Workshop Delivery', icon: 'fa-layer-group' },
-                    { value: 'workshop', label: 'Workshop Delivery', icon: 'fa-chalkboard-user' },
-                    { value: 'travel', label: 'Travel Fee', icon: 'fa-route' },
-                    { value: 'custom', label: 'Custom', icon: 'fa-pen-to-square' },
-                ],
-                defaultDescriptionForKind(kind) {
-                    return {
-                        shipping: 'Shipping',
-                        workshop: 'Charged per hour, per seat', multi_workshop: 'Charged per hour, per seat',
-                        travel: 'Travel Fee',
-                    }[kind] ?? '';
-                },
                 defaultLineItem(kind = 'custom') {
                     return {
                         kind,
@@ -202,100 +187,6 @@
                 },
                 addLineItem(kind = 'custom') {
                     this.lineItems.push(this.defaultLineItem(kind));
-                    this.serializeLineItems();
-                },
-                findProduct(productId) {
-                    return this.catalogProducts.find((product) => parseInt(product.id || 0) === parseInt(productId || 0)) || null;
-                },
-                normalizeSelectionValue(value, fallback = '') {
-                    const numeric = parseInt(value || 0, 10);
-                    if (Number.isNaN(numeric) || numeric < 0) {
-                        return fallback;
-                    }
-
-                    return String(numeric);
-                },
-                itemTypeFor(kind) {
-                    return this.itemTypeOptions.find((option) => option.value === kind) || this.itemTypeOptions[this.itemTypeOptions.length - 1];
-                },
-                itemTypeLabel(kind) {
-                    return this.itemTypeFor(kind)?.label || 'Custom';
-                },
-                itemTypeIcon(kind) {
-                    return this.itemTypeFor(kind)?.icon || 'fa-pen-to-square';
-                },
-                variantOptions(item) {
-                    const product = this.findProduct(item.source_id);
-                    if (!product || !product.has_option_choices) {
-                        return [];
-                    }
-
-                    return [
-                        {
-                            id: 0,
-                            name: product.base_option_name || product.title,
-                            sku: product.sku || '',
-                            summary: product.summary || '',
-                        },
-                        ...(Array.isArray(product.variants) ? product.variants : []),
-                    ];
-                },
-                displayProductTitle(product, variant = null) {
-                    if (!product) {
-                        return '';
-                    }
-
-                    if (variant && variant.name) {
-                        return `${product.title} - ${variant.name}`;
-                    }
-
-                    return product.title || '';
-                },
-                applyKind(index) {
-                    const item = this.lineItems[index];
-                    if (!item) {
-                        return;
-                    }
-
-                    item.source_id = '';
-                    item.source_variant_id = 0;
-                    item.description = this.defaultDescriptionForKind(item.kind);
-                    item.notes = item.kind === 'custom' ? item.notes : '';
-                    if (item.kind === 'product') {
-                        item.description = '';
-                        item.notes = '';
-                    }
-
-                    this.serializeLineItems();
-                },
-                selectItemType(index, kind) {
-                    const item = this.lineItems[index];
-                    if (!item) {
-                        return;
-                    }
-
-                    item.kind = kind;
-                    if (kind === 'multi_workshop' &amp;&amp; !item.workshops?.length) SM.addWorkshopRow(item);
-                    SM.updateWorkshopLine(item);
-                    this.applyKind(index);
-                    SM.updateWorkshopLine(item);
-                    this.serializeLineItems();
-                },
-                applyProductSelection(index) {
-                    const item = this.lineItems[index];
-                    const product = this.findProduct(item?.source_id);
-                    if (!item || !product) {
-                        return;
-                    }
-
-                    const variant = this.variantOptions(item).find((entry) => parseInt(entry.id || 0) === parseInt(item.source_variant_id || 0)) || null;
-                    item.description = this.displayProductTitle(product, variant);
-                    item.gst_applicable = parseFloat(product.tax_rate || 0) > 0;
-                    item.unit_price_inc_tax = this.formatUnitPriceValue(product.price || 0);
-                    if ((item.notes || '').trim() === '') {
-                        item.notes = (variant?.summary || product.summary || '').trim();
-                    }
-
                     this.serializeLineItems();
                 },
                 preparedItem(item) {
@@ -555,132 +446,7 @@
                 </div>
             </div>
 
-            <div class="border border-gray-400 rounded-lg p-4 mb-4" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
-                <div class="flex flex-col gap-3 mb-3 md:flex-row md:items-center md:justify-between">
-                    <h3 class="font-bold text-lg">Line Items</h3>
-                    <x-ui.button variant="plain" type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem('custom')">
-                        <i class="fa-solid fa-plus mr-2"></i>Add Item
-                    </x-ui.button>
-                </div>
-                @if($errors->has('line_items_json'))
-                    <div class="text-xs text-red-600 ml-2 mb-3">{{ $errors->first('line_items_json') }}</div>
-                @endif
-
-                <template x-if="lineItems.length === 0">
-                    <div class="text-sm text-gray-500">No line items yet.</div>
-                </template>
-
-                <template x-for="(item, index) in lineItems" :key="index">
-                    <div class="mb-4 rounded-xl border border-gray-300 bg-gray-50/60 p-4">
-                        <div class="flex flex-col gap-3 md:flex-row md:items-start">
-                            <div class="relative w-full md:w-56 shrink-0" x-data="{ open: false }" @click.outside="open = false">
-                                <label class="block text-sm pl-1">Item Type</label>
-                                <x-ui.button variant="plain"
-                                    type="button"
-                                    class="mt-1 flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm text-gray-900 shadow-sm transition hover:bg-gray-50"
-                                    x-on:click.stop.prevent="open = !open"
-                                >
-                                    <span class="flex items-center gap-2">
-                                        <i class="fa-solid text-gray-600" x-bind:class="itemTypeIcon(item.kind)"></i>
-                                        <span x-text="itemTypeLabel(item.kind)"></span>
-                                    </span>
-                                    <i class="fa-solid fa-chevron-down text-gray-400"></i>
-                                </x-ui.button>
-                                <div x-show="open" x-cloak class="absolute z-20 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-                                    <template x-for="option in itemTypeOptions" :key="option.value">
-                                        <x-ui.button variant="plain"
-                                            type="button"
-                                            class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-gray-50"
-                                            x-on:click.stop.prevent="open = false; selectItemType(index, option.value)"
-                                        >
-                                            <i class="fa-solid w-4 text-gray-500" x-bind:class="option.icon"></i>
-                                            <span x-text="option.label"></span>
-                                        </x-ui.button>
-                                    </template>
-                                </div>
-                            </div>
-
-                            <div class="flex-1">
-                                <template x-if="item.kind === 'product'">
-                                    <div class="grid grid-cols-12 gap-3">
-                                        <div class="col-span-12 md:col-span-7">
-                                            <label class="block text-sm pl-1">Store Product</label>
-                                            <x-ui.select-control class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_id" x-on:change="item.source_variant_id = 0; applyProductSelection(index)">
-                                                <option value="">Select a product</option>
-                                                <template x-for="product in catalogProducts" :key="product.id">
-                                                    <option :value="String(product.id)" :selected="String(item.source_id || '') === String(product.id || '')" x-text="product.title"></option>
-                                                </template>
-                                            </x-ui.select-control>
-                                        </div>
-                                        <div class="col-span-12 md:col-span-5" x-show="variantOptions(item).length > 0">
-                                            <label class="block text-sm pl-1">Variant</label>
-                                            <x-ui.select-control class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.source_variant_id" x-on:change="applyProductSelection(index)">
-                                                <template x-for="variant in variantOptions(item)" :key="variant.id">
-                                                    <option :value="String(variant.id)" :selected="String(item.source_variant_id || '0') === String(variant.id || '')" x-text="variant.name"></option>
-                                                </template>
-                                            </x-ui.select-control>
-                                        </div>
-                                    </div>
-                                </template>
-
-                                <template x-if="item.kind !== 'product'">
-                                    <div>
-                                        <label class="block text-sm pl-1">Description</label>
-                                        <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" placeholder="Workshop Delivery, Travel Fee, Shipping or custom text" />
-                                    </div>
-                                </template>
-                            </div>
-
-                            <div class="self-start md:pt-6"><x-ui.row-action label="Remove line item" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" /></div>
-                        </div>
-
-                        <div class="mt-3 grid grid-cols-12 gap-3 items-end">
-                            <div class="col-span-12 md:col-span-5" x-show="item.kind === 'product'" x-cloak>
-                                <label class="block text-sm pl-1">Description</label>
-                                <x-ui.input-control type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
-                            </div>
-                            <div class="col-span-12"><x-finance.workshop-line-fields :inclusive="true" /></div>
-                            <div class="col-span-6 md:col-span-2">
-                                <label class="block text-sm pl-1" x-text="item.kind === 'workshop' ? 'Billable quantity' : 'Qty / Hrs'">Qty / Hrs</label>
-                                <div class="relative"><x-ui.input-control type="number" step="any" min="0" class="pr-11! disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || (item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats) || (item.kind === 'travel' &amp;&amp; item.travel_units !== '' &amp;&amp; item.travel_units != null)" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" /><x-finance.line-refresh /></div>
-                            </div>
-                            <div class="col-span-6 md:col-span-3">
-                                <label class="block text-sm pl-1">Unit Price (Inc GST)</label>
-                                <div class="relative"><x-ui.input-control type="text" inputmode="decimal" class="pr-11! disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div>
-                            </div>
-                            <div class="col-span-6 md:col-span-2">
-                                <label class="block text-sm pl-1">Unit Price (Ex GST, Auto)</label>
-                                <x-ui.input-control type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="unitPriceExGst(item)" />
-                            </div>
-                            <div class="col-span-6 md:col-span-2">
-                                <label class="block text-sm pl-1">Sub Total (Inc GST)</label>
-                                <x-ui.input-control type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="subtotalIncGst(item)" />
-                            </div>
-                            <div class="col-span-12 md:col-span-2">
-                                <label class="block text-sm pl-1">GST</label>
-                                <x-ui.checkbox
-                                    :labelHidden="true"
-                                    :noWrapper="true"
-                                    class="h-12 w-12 flex"
-                                    inputClass="mt-0"
-                                    x-model="item.gst_applicable"
-                                    x-bind:name="'quote_line_item_gst_' + index"
-                                    x-bind:id="'quote_line_item_gst_' + index"
-                                    x-on:change="SM.updateWorkshopLine(item); serializeLineItems()"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            <div class="flex items-center justify-between ">
-                                    <label class="block text-sm">Line item notes</label>
-                                    <button type="button" class="text-sm text-sky-600 hover:text-sky-800" x-show="['workshop', 'multi_workshop'].includes(item.kind)" x-on:click="SM.refreshWorkshopNotes(item); serializeLineItems()" title="Regenerate notes from workshop data">↻ Refresh</button>
-                                </div>
-                            <x-ui.textarea-control rows="4" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.notes" x-on:input="SM.markWorkshopNotesEdited(item); serializeLineItems()" placeholder="Optional multiline notes for this line item"></x-ui.textarea-control>
-                        </div>
-                    </div>
-                </template>
-            </div>
+            <x-finance.line-items-editor />
 
             <div class="flex gap-8">
                 <div class="flex-1">

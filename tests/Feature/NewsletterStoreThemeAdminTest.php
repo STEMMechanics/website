@@ -25,8 +25,8 @@ class NewsletterStoreThemeAdminTest extends TestCase
         $admin = User::factory()->create();
         UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin)->get(route('admin.subscription.index'))->assertOk()
-            ->assertSee('Email Subscriptions')->assertDontSee('Next newsletter store picks')->assertDontSee('Send All Now');
-        $this->get(route('admin.newsletter.index'))->assertOk()->assertSee('Next newsletter store picks')
+            ->assertSee('Email Subscriptions')->assertDontSee('data-newsletter-canvas', false)->assertDontSee('Send All Now');
+        $this->get(route('admin.newsletter.index'))->assertOk()->assertSee('data-newsletter-canvas', false)
             ->assertSee('Themes')->assertSee(route('admin.subscription.theme.index'), false)->assertSee('Send All Now')->assertDontSee('Subscription Store Themes');
         $this->get(route('admin.subscription.theme.index'))->assertOk()->assertSee('Newsletter themes')
             ->assertSee(route('admin.newsletter.index'), false)->assertDontSee('Subscription Store Themes');

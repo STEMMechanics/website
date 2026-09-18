@@ -15,6 +15,7 @@ class ProductVariant extends Model
     use HasFactory;
 
     protected $fillable = [
+        'inventory_units',
         'product_id',
         'name',
         'description',
@@ -43,6 +44,7 @@ class ProductVariant extends Model
     ];
 
     protected $casts = [
+        'inventory_units' => 'integer',
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
@@ -180,12 +182,12 @@ class ProductVariant extends Model
 
     public function tracksInventory(): bool
     {
-        return $this->inventory_quantity !== null;
+        return $this->product?->shared_inventory ? $this->product->tracksInventory($this) : $this->inventory_quantity !== null;
     }
 
     public function availableInventory(): ?int
     {
-        return $this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null;
+        return $this->product?->shared_inventory ? $this->product->availableInventory($this) : ($this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null);
     }
 
     public function effectiveLowStockThreshold(): ?int

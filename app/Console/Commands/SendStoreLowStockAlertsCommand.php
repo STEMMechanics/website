@@ -70,7 +70,7 @@ class SendStoreLowStockAlertsCommand extends Command
                 $alertProductIds[] = (int) $product->id;
             }
 
-            foreach ($product->variants as $variant) {
+            foreach ($product->shared_inventory ? [] : $product->variants as $variant) {
                 $variantIsLow = $variant->is_active && $variant->isLowStock();
 
                 if (! $variantIsLow && $variant->low_stock_alert_sent_at !== null) {

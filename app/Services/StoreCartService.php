@@ -130,6 +130,7 @@ class StoreCartService
 
         $contents = $this->contents();
         $rawLines = (array) ($contents['lines'] ?? []);
+        $sharedRemaining = [];
 
         if ($rawLines === []) {
             $this->resolvedLines = collect();
@@ -209,7 +210,12 @@ class StoreCartService
                 continue;
             }
 
-            $availableInventory = $product->availableInventoryForPurchase($variant);
+            $actualInventory = $product->availableInventory($variant);
+            if ($product->shared_inventory && $product->inventory_quantity !== null) {
+                $sharedRemaining[$product->id] ??= max(0, (int) $product->inventory_quantity);
+                $actualInventory = intdiv($sharedRemaining[$product->id], $product->inventoryUnits($variant));
+            }
+            $availableInventory = $product->availableInventoryForPurchase($variant) === null ? null : $actualInventory;
             if ($availableInventory !== null && $requestedQuantity > max(0, $availableInventory)) {
                 $quantity = min($quantity, max(0, $availableInventory));
                 if ($quantity <= 0) {
@@ -233,7 +239,10 @@ class StoreCartService
                 );
             }
 
-            $fulfilment = $this->resolveFulfilmentDetails($product, $variant, $quantity);
+            $fulfilment = $this->resolveFulfilmentDetails($product, $variant, $quantity, $actualInventory);
+            if (isset($sharedRemaining[$product->id])) {
+                $sharedRemaining[$product->id] -= $fulfilment['available_now_quantity'] * $product->inventoryUnits($variant);
+            }
             $unitPrice = $product->priceForVariant($variant);
             $linePrice = round($unitPrice * $quantity, 2);
             $normalizedKey = $this->lineKey($product->id, $variant?->id);
@@ -667,9 +676,9 @@ class StoreCartService
         ];
     }
 
-    private function resolveFulfilmentDetails(Product $product, ?ProductVariant $variant, int $quantity): array
+    private function resolveFulfilmentDetails(Product $product, ?ProductVariant $variant, int $quantity, ?int $inventory = null): array
     {
-        $actualInventory = $product->availableInventory($variant);
+        $actualInventory = $inventory ?? $product->availableInventory($variant);
 
         if ($product->isPreorder($variant)) {
             return [

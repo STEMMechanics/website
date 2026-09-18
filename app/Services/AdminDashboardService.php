@@ -899,26 +899,35 @@ class AdminDashboardService
             ->selectRaw('SUBSTR(analytics_events.path, 8) as product_slug, COUNT(*) as views')
             ->groupBy(DB::raw('SUBSTR(analytics_events.path, 8)'));
 
-        return DB::table('store_order_items')
+        $productSales = DB::table('store_order_items')
             ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
-            ->leftJoinSub($productViews, 'product_views', function ($join): void {
-                $join->on('product_views.product_slug', '=', 'store_order_items.product_slug');
-            })
             ->whereNotNull('store_orders.paid_at')
             ->where('store_orders.paid_at', '>=', $start)
             ->where('store_orders.paid_at', '<', $end)
             ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED)
+            ->selectRaw('store_order_items.product_id, SUM('.$quantitySql.') as items_sold')
+            ->groupBy('store_order_items.product_id');
+
+        return DB::table('products')
+            ->leftJoinSub($productViews, 'product_views', function ($join): void {
+                $join->on('product_views.product_slug', '=', 'products.slug');
+            })
+            ->leftJoinSub($productSales, 'product_sales', function ($join): void {
+                $join->on('product_sales.product_id', '=', 'products.id');
+            })
+            ->where(function ($query): void {
+                $query->where('product_views.views', '>', 0)
+                    ->orWhere('product_sales.items_sold', '>', 0);
+            })
             ->selectRaw('
-                store_order_items.product_id as product_id,
-                COALESCE(store_order_items.product_title, \'\') as product_title,
+                products.id as product_id,
+                products.title as product_title,
                 COALESCE(product_views.views, 0) as views,
-                SUM('.$quantitySql.') as items_sold
+                COALESCE(product_sales.items_sold, 0) as items_sold
             ')
-            ->groupBy('store_order_items.product_id', 'store_order_items.product_title', 'product_views.views')
-            ->havingRaw('SUM('.$quantitySql.') > 0')
             ->orderByDesc('items_sold')
             ->orderByDesc('views')
-            ->orderBy('store_order_items.product_title')
+            ->orderBy('products.title')
             ->limit(10)
             ->get()
             ->map(

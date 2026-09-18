@@ -73,6 +73,7 @@
                     'price' => $variant->price !== null ? number_format((float) $variant->price, 2, '.', '') : '',
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
+                    'inventory_units' => $variant->inventory_units ?? 1,
                     'weight_grams' => $variant->weight_grams,
                     'length_mm' => $variant->length_mm,
                     'width_mm' => $variant->width_mm,
@@ -129,6 +130,7 @@
             method="POST"
             action="{{ route('admin.shop.product.'.(isset($product) ? 'update' : 'store'), $product ?? []) }}"
             x-data="{
+                sharedInventory: @js((bool) old('shared_inventory', $product->shared_inventory ?? false)),
                 productType: @js(old('product_type', $product->product_type ?? \App\Models\Product::PRODUCT_TYPE_PHYSICAL)),
                 status: @js(old('status', $product->status ?? \App\Models\Product::STATUS_DRAFT)),
                 title: @js(old('title', $product->title ?? '')),
@@ -310,6 +312,7 @@
                         price: '',
                         compare_at_price: '',
                         inventory_quantity: '',
+                        inventory_units: 1,
                         weight_grams: '',
                         length_mm: '',
                         width_mm: '',
@@ -555,16 +558,17 @@
             <x-ui.collapsible-section title="Item Price and Inventory" variant="product" :open="!isset($product) || $errors->any()">
                 <x-slot:summary><span x-text="'$' + Number(basePrice || 0).toFixed(2) + ' · ' + (allowBackorder ? 'Back orders allowed' : 'No back orders')"></span></x-slot:summary>
 
-                <div class="grid md:gap-4 md:grid-cols-2">
-                    <div class="flex flex-col gap-2">
-                        <x-ui.input name="price" label="Base Price" labelInfo="(inc GST)" moneyFormat="true" :value="isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00'" x-model="basePrice" />
-                        <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(inc GST, optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
-                            <x-ui.input name="inventory_quantity" label="Base Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" info="Leave blank for unlimited." class="mb-0!" />
+                <div class="grid gap-4 md:grid-cols-2" data-product-price-inventory>
+                    <x-ui.input name="price" label="Base Price" labelInfo="(inc GST)" moneyFormat="true" :value="isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00'" x-model="basePrice" class="mb-0" />
+                    <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(inc GST, optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" class="mb-0" />
+                    <div class="md:col-span-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
+                        <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" />
+                        <p class="mb-3 text-xs text-gray-500" x-show="sharedInventory" x-cloak>Enter the total number of individual units below. Set the units in each pack in the Variants panel below.</p>
+                        <div class="grid items-start gap-4 md:grid-cols-2">
+                            <x-ui.input name="inventory_quantity" label="Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" info="Leave blank for unlimited." class="mb-0" />
                         </div>
-                        <div class="my-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
+                    </div>
+                        <div class="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
                             <x-ui.checkbox
  name="allow_backorder"
  label="Allow back ordering"
@@ -607,12 +611,11 @@
                             </div>
                         </div>
                         @if(isset($product) && (string) ($product->product_type ?? '') === \App\Models\Product::PRODUCT_TYPE_PHYSICAL)
-                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950">
+                            <div class="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950">
                                 <div><span class="font-semibold">Awaiting fulfilment:</span> {{ $baseInventoryContext['awaiting'] }}</div>
                                 <div class="mt-1"><span class="font-semibold">Reserved now:</span> {{ $baseInventoryContext['reserved'] }}</div>
                             </div>
                         @endif
-                    </div>
                 </div>
             </x-ui.collapsible-section>
 
@@ -658,7 +661,7 @@
                     <x-ui.button type="button" color="outline" x-on:click="addVariant()" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add Custom Tier' : 'Add Variant'">Add Variant</x-ui.button>
                 </div>
 
-                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4" x-show="variants.length > 0" x-cloak>
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4" x-show="variants.length > 0 || (sharedInventory && productType === 'physical')" x-cloak>
                     <div class="flex items-center justify-between gap-4">
                         <div>
                             <div class="text-lg font-semibold text-gray-900" x-text="baseOptionDisplayName()"></div>
@@ -675,7 +678,15 @@
                                 <div class="mt-1 pl-1 text-xs text-red-600">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="md:col-span-2 xl:col-span-3">
+                        <div x-show="sharedInventory && productType === 'physical'" x-cloak data-base-pack-units>
+                            <label class="mb-1 block pl-1 text-sm" for="inventory_units">Units in the base pack</label>
+                            <x-ui.input-control id="inventory_units" name="inventory_units" type="number" min="1" x-bind:class="variantInputClasses" :value="old('inventory_units', $product->inventory_units ?? 1)" />
+                            <div class="mt-1 pl-1 text-xs text-gray-500">Deducted from the shared stock for each base pack sold.</div>
+                            @error('inventory_units')
+                                <div class="mt-1 pl-1 text-xs text-red-600">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-4">
                             <label class="mb-1 block pl-1 text-sm" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Base Licence Details' : 'Base Option Details'"></label>
                             <x-ui.textarea-control x-bind:class="variantTextareaClasses" name="base_variant_description" rows="3">{{ old('base_variant_description', $product->base_variant_description ?? '') }}</x-ui.textarea-control>
                             @error('base_variant_description')
@@ -767,24 +778,15 @@
                                 <p class="px-3 py-3 text-sm text-gray-500" x-show="(variant.product_details || []).length === 0">No detail overrides.</p>
                             </div>
 
-                            <div class="grid gap-4 md:grid-cols-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
-                                <div>
-                                    <label class="mb-1 block pl-1 text-sm">Inventory Quantity</label>
-                                    <x-ui.input
-                                        type="number"
-                                        min="0"
-                                        noLabel="true"
-                                        class="mb-0"
-                                        fieldClasses="mt-0"
-                                        x-bind:name="`variants[${index}][inventory_quantity]`"
-                                        x-model="variant.inventory_quantity"
-                                        info="Leave blank for unlimited stock. Enter 0 when this variant is sold out."
-                                    />
+                            <div class="grid items-start gap-4 md:grid-cols-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak data-variant-inventory>
+                                <div x-show="sharedInventory" x-cloak data-variant-pack-units>
+                                    <x-ui.input label="Units in this pack" type="number" min="1" x-bind:name="`variants[${index}][inventory_units]`" x-model="variant.inventory_units" info="Deducted from the shared stock for each pack sold." class="mb-0" />
                                 </div>
-                                <div>
-                                    <label class="mb-1 block pl-1 text-sm">Low-stock alert threshold</label>
-                                    <x-ui.input-control type="number" min="1" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold" />
-                                    <div class="mt-1 pl-1 text-xs text-gray-500">Leave blank to use the base product threshold.</div>
+                                <div x-show="!sharedInventory" x-cloak>
+                                    <x-ui.input label="Inventory Quantity" type="number" min="0" class="mb-0" x-bind:name="`variants[${index}][inventory_quantity]`" x-model="variant.inventory_quantity" info="Leave blank for unlimited stock. Enter 0 when this variant is sold out." />
+                                </div>
+                                <div x-show="!sharedInventory" x-cloak>
+                                    <x-ui.input label="Low-stock alert threshold" type="number" min="1" class="mb-0" x-bind:name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold" info="Leave blank to use the base product threshold." />
                                 </div>
                             </div>
 

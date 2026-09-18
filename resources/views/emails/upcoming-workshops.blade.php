@@ -16,6 +16,7 @@
     $featuredImageUrl = $contentOrder === 'store' && $featuredProduct
         ? url($featuredProduct->primaryImageUrl())
         : ($featuredWorkshop?->hero?->url ? url((string) $featuredWorkshop->hero->url) : null);
+    $featuredImageUrl = $storePromotion['hero_image_url'] ?? $featuredImageUrl;
     $featuredImageAlt = $contentOrder === 'store' && $featuredProduct ? $featuredProduct->title : $featuredWorkshop?->title;
 @endphp
 
@@ -33,7 +34,7 @@
 </td>
 @if($featuredImageUrl)
 <td width="372" class="newsletter-hero__cell newsletter-hero__media-cell" style="padding:22px 22px 22px 12px; background:#111827; vertical-align:middle;">
-<img src="{{ $featuredImageUrl }}{{ $contentOrder === 'store' ? '' : '?md' }}" alt="{{ $featuredImageAlt }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:16px;">
+<img src="{{ $featuredImageUrl }}{{ $contentOrder === 'store' || filled($storePromotion['hero_image_url'] ?? null) ? '' : '?md' }}" alt="{{ $featuredImageAlt }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:16px;">
 </td>
 @endif
 </tr>
@@ -53,6 +54,8 @@
 </td>
 </tr>
 </table>
+
+@include('emails.partials.newsletter-personal-note', ['personalNote' => $storePromotion['personal_note'] ?? []])
 
 @if($contentOrder === 'store')
 @include('emails.partials.newsletter-store-section', ['hideFirstStoreHeading' => true])

@@ -19,11 +19,38 @@ class NewsletterProductSelectionService
         return [
             'source' => 'draft',
             'draft_id' => $promotion->id,
+            'excluded_workshop_ids' => $promotion->excluded_workshop_ids ?? [],
             'sections' => $this->hydrateSections($promotion->sections ?? []),
             'subject' => $promotion->subject,
             'hero_header' => $promotion->hero_header,
             'hero_cta' => $promotion->hero_cta,
+            'hero_image_name' => $promotion->hero_image_name,
+            'hero_image_url' => $this->publicImageUrl($promotion->hero_image_name),
             'content_order' => $promotion->content_order,
+            'personal_note' => $this->personalNote($promotion),
+        ];
+    }
+
+    private function publicImageUrl(?string $name): ?string
+    {
+        $image = filled($name) ? \App\Models\Media::query()->whereKey($name)->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first() : null;
+
+        return $image ? url($image->url) : null;
+    }
+
+    private function personalNote(NewsletterProductPromotion $promotion): array
+    {
+        $note = $promotion->personal_note ?? [];
+        $image = filled($note['image_name'] ?? null)
+            ? \App\Models\Media::query()->whereKey($note['image_name'])->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first()
+            : null;
+
+        return [
+            'enabled' => (bool) ($note['enabled'] ?? false),
+            'body' => (string) ($note['body'] ?? ''),
+            'format' => $note['format'] ?? 'text',
+            'image_name' => $image?->name,
+            'image_url' => $image ? url($image->url) : null,
         ];
     }
 
@@ -54,7 +81,9 @@ class NewsletterProductSelectionService
             'subject' => null,
             'hero_header' => null,
             'hero_cta' => null,
+            'hero_image_name' => null,
             'content_order' => null,
+            'personal_note' => null,
         ]);
 
         return $promotion->fresh();
@@ -179,16 +208,45 @@ class NewsletterProductSelectionService
         $sections = $this->normalizeSections($promotion->sections ?? []);
         $section = $sections[$sectionIndex] ?? null;
         $currentId = $section['product_ids'][$slot] ?? null;
-        if (! is_array($section) || $currentId === null || in_array($currentId, $section['locked_product_ids'], true)) {
+        if (! is_array($section) || $section['theme'] === 'disabled' || $slot < 0 || $slot >= self::PRODUCTS_PER_SECTION
+            || ($currentId !== null && in_array($currentId, $section['locked_product_ids'], true))) {
             return $promotion;
         }
 
         $excludedIds = collect($sections)->flatMap(fn (array $item) => $item['product_ids'])->unique();
         $replacement = $this->candidates($section['category_slugs'], $this->resolveTheme($section))->first(fn (Product $product): bool => ! $excludedIds->contains($product->id));
         if ($replacement instanceof Product) {
-            $sections[$sectionIndex]['product_ids'][$slot] = $replacement->id;
+            $sections[$sectionIndex]['product_ids'][min($slot, count($section['product_ids']))] = $replacement->id;
             $promotion->update(['sections' => $sections]);
         }
+
+        return $promotion->fresh();
+    }
+
+    /** @return Collection<int, Product> */
+    public function availableProducts(array $categorySlugs): Collection
+    {
+        return $this->candidates($categorySlugs)->sortBy('title')->values();
+    }
+
+    public function matchingProductCount(array $section): int
+    {
+        return $this->candidates($section['category_slugs'], $this->resolveTheme($section))->count();
+    }
+
+    public function fillEmptySlots(NewsletterProductPromotion $promotion, int $sectionIndex): NewsletterProductPromotion
+    {
+        $sections = $this->normalizeSections($promotion->sections ?? []);
+        $section = $sections[$sectionIndex] ?? null;
+        if (! is_array($section) || $section['theme'] === 'disabled') {
+            return $promotion;
+        }
+
+        $needed = self::PRODUCTS_PER_SECTION - count($section['product_ids']);
+        $excludedIds = collect($sections)->flatMap(fn (array $item) => $item['product_ids']);
+        $additional = $this->candidates($section['category_slugs'])->whereNotIn('id', $excludedIds)->take($needed)->pluck('id');
+        $sections[$sectionIndex]['product_ids'] = collect($section['product_ids'])->concat($additional)->values()->all();
+        $promotion->update(['sections' => $sections]);
 
         return $promotion->fresh();
     }
@@ -245,7 +303,7 @@ class NewsletterProductSelectionService
             ->when($categorySlugs !== [], fn ($query) => $query->whereHas('categories', fn ($categories) => $categories->whereIn('slug', $categorySlugs)));
 
         if ($theme === null) {
-            return $query->latest('created_at')->limit(60)->get()->filter(fn (Product $product): bool => $this->isAvailable($product))->values();
+            return $query->latest('created_at')->get()->filter(fn (Product $product): bool => $this->isAvailable($product))->values();
         }
 
         $days = max(1, (int) ($theme->match_days ?? 7));
@@ -259,7 +317,6 @@ class NewsletterProductSelectionService
         };
 
         return $query
-            ->limit(60)
             ->get()
             ->filter(fn (Product $product): bool => $this->isAvailable($product))
             ->values();

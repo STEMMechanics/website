@@ -953,7 +953,7 @@ class AdminShopProductTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.product.edit', $product))
             ->assertOk()
-            ->assertSee('Base Inventory Quantity')
+            ->assertSee('Inventory Quantity')
             ->assertSee('Awaiting fulfilment:')
             ->assertSee('Reserved now:')
             ->assertSee('6')

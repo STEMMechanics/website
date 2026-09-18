@@ -49,7 +49,7 @@ class WorkshopLineAllocationTest extends TestCase
         $this->assertSame(9000, $context['targets'][1]);
         $this->assertSame(12500, $context['targets'][2]);
         $this->assertSame(18000, $context['targets'][6]);
-        $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('Multi Workshop Delivery');
+        $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('x-text="itemTypeLabel(item.kind)"', false)->assertSee('multi_workshop');
     }
 
     public function test_invoice_travel_hours_preserve_quarter_hour_cost_allocations(): void
@@ -237,7 +237,7 @@ class WorkshopLineAllocationTest extends TestCase
         $second = array_replace($group, ['description' => 'Term 2']);
         $this->put(route('admin.quote.update', $quote), ['quote_number' => $quote->quote_number, 'user_id' => $quote->user_id, 'status' => Quote::STATUS_OPEN, 'quote_date' => '2026-09-07', 'title' => 'Terms', 'line_items_json' => json_encode([$group, $second])])->assertSessionHasNoErrors();
         $quote->refresh();
-        $this->get(route('admin.quote.edit', $quote))->assertOk()->assertSee('Multi Workshop Delivery');
+        $this->get(route('admin.quote.edit', $quote))->assertOk()->assertSee('x-text="itemTypeLabel(item.kind)"', false)->assertSee('multi_workshop');
         $invoice = app(QuoteWorkflowService::class)->createInvoiceFromQuote($quote);
         $this->assertCount(2, $invoice->lines);
         $this->assertSame('1100.00', $invoice->total_amount);

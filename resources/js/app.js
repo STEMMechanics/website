@@ -29,6 +29,7 @@ import './workshop-equipment-checkout';
 import './workshop-delivery';
 import './workshop-hold-countdown';
 import './workshop-line';
+import './document-product-editor';
 
 import './reminder-list';
 import './invoice-allocation-list';
