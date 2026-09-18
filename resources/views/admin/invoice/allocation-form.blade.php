@@ -68,7 +68,7 @@
             <x-ui.checkbox name="use_defaults" value="1" x-on:change="enabled = !$event.target.checked" :label="$productSnapshots ? 'Use saved allocation defaults' : 'Use pricing defaults'" x-bind:checked="!enabled" />
             <p class="mb-4 mt-2 text-xs text-slate-600">Untick to enter a manual override.</p>
             @endif
-            <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="invoice-allocation" :exact="false" :totalLabel="$linkedWorkshops->isNotEmpty() ? 'Non-ticket items excluding GST' : null" :shortfall="true" :columns="$inline ? 1 : 2" />
+            <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="invoice-allocation" :exact="false" :totalLabel="$linkedWorkshops->isNotEmpty() ? 'Non-ticket items excluding GST' : null" :shortfall="true" :columns="2" />
             @if($inline)<p x-show="previewDirty" x-cloak class="mt-3 text-sm text-slate-600">Preview of unsaved invoice changes. Save the invoice before applying automatic allocations.</p>@endif
             <x-finance.save x-bind:disabled="previewDirty && !enabled">Save allocation</x-finance.save>
         @endif
