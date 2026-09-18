@@ -224,10 +224,9 @@
         <x-admin.invoice-email-modal :deferred="!isset($invoice)" form-id="invoice-edit-form" />
 
         <x-container class="py-5 sm:py-8">
-        <div class="grid items-start gap-6 {{ isset($invoice) ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : '' }}">
-        @isset($invoice)
+        <div class="grid items-start gap-6 {{ isset($invoice) && (string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT ? 'xl:grid-cols-[minmax(0,1fr)_23rem]' : '' }}">
+        @if(isset($invoice) && (string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
             <aside class="min-w-0 space-y-5 order-2">
-            @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
             <x-finance.panel title="Payments">
                 <dl class="space-y-3 text-sm">
                     <div class="flex items-baseline justify-between gap-4"><dt class="min-w-0 text-slate-600">Total:</dt> <dd class="shrink-0 whitespace-nowrap font-semibold tabular-nums">${{ number_format((float) $invoice->total_amount, 2) }}</dd></div>
@@ -344,17 +343,13 @@
                     @endif
                 </div>
             </x-finance.panel>
-            @endif
             </aside>
-        @endisset
+        @endif
 
 
         <div class="min-w-0 order-1">
-        <form
-            id="invoice-edit-form"
+        <div
             class="min-w-0"
-            method="POST"
-            action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-data="{
                 isLocked: @js($isLocked),
                 invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
@@ -687,6 +682,9 @@
                 selectedUserTermsDays = selectedUserId === '' ? 28 : Number($event.detail?.accountTermsDays || 0);
                 setDueDateDefault(true);
             "
+        >
+        <form id="invoice-edit-form" method="POST"
+            action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-on:submit="
                 serializeLineItems();
                 if (!$el.dataset.scheduledSendConfirmed) {
@@ -989,6 +987,12 @@
             />
 
             </section>
+        </form>
+        @isset($invoice)
+            <section class="mt-5 min-w-0">
+                @include('admin.invoice.allocation-panel')
+            </section>
+        @endisset
             @if(isset($invoice))
                 <x-ui.editor-actions>
                     @php
@@ -1039,7 +1043,7 @@
                     </div>
                     <div class="ml-auto flex flex-wrap justify-end gap-3">
                         <x-ui.button
-                            type="submit"
+                            type="submit" form="invoice-edit-form"
                             color="primary-outline"
                             name="save_and_email"
                             value="1"
@@ -1047,21 +1051,16 @@
                         >
                             Save and Email
                         </x-ui.button>
-                        <x-ui.button type="submit">Save</x-ui.button>
+                        <x-ui.button type="submit" form="invoice-edit-form">Save</x-ui.button>
                     </div>
                 </x-ui.editor-actions>
             @else
                 <x-ui.editor-actions>
-                    <x-ui.button type="submit">Save</x-ui.button>
+                    <x-ui.button type="submit" form="invoice-edit-form">Save</x-ui.button>
                 </x-ui.editor-actions>
             @endif
 
-        </form>
-        @isset($invoice)
-            <section class="mt-5 min-w-0">
-                @include('admin.invoice.allocation-panel')
-            </section>
-        @endisset
+        </div>
         </div>
         </div>
         </x-container>
