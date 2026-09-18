@@ -12,9 +12,12 @@ class NewsletterProductPromotion extends Model
         'intro',
         'product_ids',
         'sections',
+        'excluded_workshop_ids',
+        'personal_note',
         'subject',
         'hero_header',
         'hero_cta',
+        'hero_image_name',
         'content_order',
         'is_active',
     ];
@@ -22,6 +25,8 @@ class NewsletterProductPromotion extends Model
     protected $casts = [
         'product_ids' => 'array',
         'sections' => 'array',
+        'excluded_workshop_ids' => 'array',
+        'personal_note' => 'array',
         'is_active' => 'boolean',
     ];
 

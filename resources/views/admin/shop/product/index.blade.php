@@ -9,7 +9,7 @@
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <div class="mt-4 grid gap-x-4 {{ $allocationAttentionCount > 0 && $inventoryAttentionCount > 0 ? 'xl:grid-cols-2' : '' }}">
+        <div class="mt-4 grid gap-x-4 {{ $allocationAttentionCount > 0 && $inventoryAttentionCount > 0 ? 'lg:grid-cols-2' : '' }}">
             <x-finance.attention-notice kind="products" :total="$allocationAttentionCount" />
             <x-finance.attention-notice kind="product-stock" :total="$inventoryAttentionCount" />
         </div>

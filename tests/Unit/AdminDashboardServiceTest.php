@@ -26,6 +26,29 @@ class AdminDashboardServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_store_activity_includes_viewed_items_without_sales_in_the_selected_period(): void
+    {
+        Carbon::setTestNow('2026-06-06 12:00:00');
+        $viewed = Product::factory()->create();
+        $older = Product::factory()->create();
+        Product::factory()->create();
+        foreach ([$viewed, $older] as $product) {
+            AnalyticsEvent::factory()->create([
+                'event_type' => AnalyticsEvent::TYPE_PAGE_VIEW,
+                'route_name' => 'shop.product.show',
+                'path' => route('shop.product.show', $product, false),
+                'created_at' => $product->is($viewed) ? now()->subMinute() : now()->subMonth(),
+            ]);
+        }
+
+        $rows = app(AdminDashboardService::class)->build('week')['storeSalesRows'];
+
+        $this->assertCount(1, $rows);
+        $this->assertSame((string) $viewed->id, $rows[0]['product_id']);
+        $this->assertSame(1, $rows[0]['views']);
+        $this->assertSame(0, $rows[0]['items_sold']);
+    }
+
     public function test_dashboard_service_builds_summary_for_selected_period(): void
     {
         Carbon::setTestNow('2026-05-28 12:00:00');

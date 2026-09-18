@@ -27,6 +27,14 @@ width: 100% !important;
 }
 
 @media only screen and (max-width: 703px) {
+.newsletter-note-photo,
+.newsletter-note-text {
+display: block !important;
+width: 100% !important;
+}
+.newsletter-note-photo {
+padding: 0 0 20px !important;
+}
 .mobile-hide {
 display: none !important;
 max-height: 0 !important;

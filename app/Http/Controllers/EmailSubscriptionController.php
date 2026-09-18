@@ -9,6 +9,7 @@ use App\Models\NewsletterStoreTheme;
 use App\Models\Product;
 use App\Models\SentEmail;
 use App\Services\NewsletterProductSelectionService;
+use App\Services\NewsletterWorkshopSelectionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -57,12 +58,39 @@ class EmailSubscriptionController extends Controller
         $currentStoreSelection = $selector->selection();
         new UpcomingWorkshops('', storeSelection: $currentStoreSelection);
         $currentStoreSelection = $selector->selection();
+        $draft = $selector->draft();
+        $workshopSelector = app(NewsletterWorkshopSelectionService::class);
 
         return view('admin.newsletter.index', [
-            'storePromotion' => $selector->draft(),
-            'storeProducts' => Product::query()->active()->orderBy('title')->get(['id', 'title', 'sku']),
+            'newsletterLinkOptions' => Product::query()->active()->orderBy('title')->get()->map(fn ($product) => ['title' => $product->title, 'type' => 'Store item', 'url' => route('shop.product.show', $product)])
+                ->concat(\App\Models\Workshop::query()->publiclyVisible()->where(fn ($query) => $query->whereNull('is_private')->orWhere('is_private', false))->whereIn('status', ['open', 'scheduled'])->where('starts_at', '>=', now())->orderBy('starts_at')->get()->map(fn ($workshop) => ['title' => $workshop->title.' · '.$workshop->starts_at->format('j M Y'), 'type' => 'Workshop', 'url' => route('workshop.show', $workshop)]))->values(),
+            'storePromotion' => $draft,
+            'storeProductsBySection' => collect($draft->sections)->map(fn (array $section) => $selector->availableProducts($section['category_slugs'])),
+            'matchingProductCounts' => collect($draft->sections)->map(fn (array $section) => $selector->matchingProductCount($section)),
+            'newsletterWorkshops' => $workshopSelector->selection($draft->excluded_workshop_ids ?? []),
+            'hiddenNewsletterWorkshops' => $workshopSelector->candidates()->whereIn('workshops.id', $draft->excluded_workshop_ids ?? [])->get(),
             'currentStoreSelection' => $currentStoreSelection,
             'storeThemes' => NewsletterStoreTheme::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function updateWorkshops(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'workshop_id' => ['required', 'string', 'exists:workshops,id'],
+            'action' => ['required', Rule::in(['hide', 'restore'])],
+        ]);
+        $draft = app(NewsletterProductSelectionService::class)->draft();
+        $excluded = collect($draft->excluded_workshop_ids ?? []);
+        $excluded = $validated['action'] === 'hide'
+            ? $excluded->push($validated['workshop_id'])->unique()
+            : $excluded->reject(fn ($id) => $id === $validated['workshop_id']);
+        $draft->update(['excluded_workshop_ids' => $excluded->values()->all()]);
+
+        return redirect()->route('admin.newsletter.index')->with([
+            'message' => $validated['action'] === 'hide' ? 'Workshop hidden. The next eligible workshop takes its place.' : 'Workshop restored to the newsletter selection.',
+            'message-title' => 'Newsletter workshops updated',
+            'message-type' => 'success',
         ]);
     }
 
@@ -73,6 +101,12 @@ class EmailSubscriptionController extends Controller
             'hero_header' => ['sometimes', 'required', 'string', 'max:255'],
             'hero_cta' => ['sometimes', 'required', 'string', 'max:500'],
             'content_order' => ['sometimes', 'required', Rule::in(['store', 'workshops'])],
+            'personal_note' => ['sometimes', 'array:enabled,body,image_name,format'],
+            'personal_note.enabled' => ['sometimes', 'boolean'],
+            'personal_note.body' => ['nullable', 'required_if:personal_note.enabled,1', 'string', 'max:12000'],
+            'personal_note.format' => ['sometimes', Rule::in(['text', 'html'])],
+            'personal_note.image_name' => ['nullable', 'string', Rule::exists('media', 'name')->where(fn ($query) => $query->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%'))],
+            'hero_image_name' => ['sometimes', 'nullable', 'string', Rule::exists('media', 'name')->where(fn ($query) => $query->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%'))],
             'sections' => ['required', 'array', 'size:2'],
             'sections.*.key' => ['required', 'string', 'in:kits,extras'],
             'sections.*.title' => ['required', 'string', 'max:120'],
@@ -88,6 +122,7 @@ class EmailSubscriptionController extends Controller
             'sections.*.locked_product_ids' => ['nullable', 'array', 'max:3'],
             'sections.*.locked_product_ids.*' => ['integer', 'distinct', 'exists:products,id'],
             'refresh_section' => ['nullable', 'integer', 'min:0', 'max:1'],
+            'fill_empty_slots' => ['nullable', 'integer', 'min:0', 'max:1'],
             'refresh_copy' => ['nullable', 'integer', 'min:0', 'max:1'],
             'apply_theme' => ['nullable', 'integer', 'min:0', 'max:1'],
             'refresh_product' => ['nullable', 'regex:/^[01]:[0-2]$/'],
@@ -107,6 +142,24 @@ class EmailSubscriptionController extends Controller
         }
         unset($section);
         $draft = $selector->draft();
+        if (array_key_exists('personal_note', $validated)) {
+            if (($validated['personal_note']['format'] ?? 'text') === 'html') {
+                $validated['personal_note']['body'] = \App\Services\NewsletterNoteContent::html($validated['personal_note']);
+            }
+            $text = trim(html_entity_decode(strip_tags($validated['personal_note']['body'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if (mb_strlen($text) > 4000 || (($validated['personal_note']['enabled'] ?? false) && $text === '')) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['personal_note.body' => 'Enter a message of up to 4,000 characters.']);
+            }
+            $draft->update(['personal_note' => [
+                'enabled' => (bool) ($validated['personal_note']['enabled'] ?? false),
+                'body' => trim((string) ($validated['personal_note']['body'] ?? '')),
+                'format' => $validated['personal_note']['format'] ?? 'text',
+                'image_name' => $validated['personal_note']['image_name'] ?? null,
+            ]]);
+        }
+        if (array_key_exists('hero_image_name', $validated)) {
+            $draft->update(['hero_image_name' => $validated['hero_image_name']]);
+        }
         if (isset($validated['subject'], $validated['hero_header'], $validated['hero_cta'], $validated['content_order'])) {
             $selector->savePresentation($draft, [
                 'subject' => $validated['subject'],
@@ -126,6 +179,10 @@ class EmailSubscriptionController extends Controller
 
         $promotion = $selector->saveSections($draft, $validated['sections']);
         $refreshSection = isset($validated['refresh_section']) ? (int) $validated['refresh_section'] : null;
+        $fillEmptySlots = isset($validated['fill_empty_slots']) ? (int) $validated['fill_empty_slots'] : null;
+        if ($fillEmptySlots !== null) {
+            $promotion = $selector->fillEmptySlots($promotion, $fillEmptySlots);
+        }
         if ($refreshSection !== null) {
             $selector->refreshSection($promotion, $refreshSection);
         }
@@ -145,6 +202,7 @@ class EmailSubscriptionController extends Controller
 
         session()->flash('message', match (true) {
             $themeMatchFailed => 'No available products match the selected theme. The existing section has been kept unchanged.',
+            $fillEmptySlots !== null => 'Empty slots filled where other products are available in this section’s categories. Review the heading and introduction for your final picks.',
             $refreshSection !== null => 'Newsletter product suggestions refreshed.',
             $refreshCopy !== null => 'Newsletter heading and introduction refreshed.',
             $applyTheme !== null => 'Newsletter section rebuilt from the selected theme.',

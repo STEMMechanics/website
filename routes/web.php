@@ -290,6 +290,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
 
     Route::get('/admin/newsletter', [EmailSubscriptionController::class, 'newsletter'])->name('admin.newsletter.index');
+    Route::put('/admin/newsletter/workshops', [EmailSubscriptionController::class, 'updateWorkshops'])->name('admin.newsletter.workshops.update');
     Route::redirect('/admin/subscriptions/store-themes', '/admin/newsletter/themes');
     Route::redirect('/admin/subscriptions/store-themes/create', '/admin/newsletter/themes/create');
     Route::get('/admin/subscriptions/store-themes/{theme}', fn ($theme) => redirect()->route('admin.subscription.theme.edit', $theme));

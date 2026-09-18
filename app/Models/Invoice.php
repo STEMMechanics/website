@@ -79,6 +79,7 @@ class Invoice extends Model
     ];
 
     protected $casts = [
+        'inventory_reservations' => 'array',
         'issue_date' => 'date',
         'issued_at' => 'datetime',
         'written_off_at' => 'datetime',

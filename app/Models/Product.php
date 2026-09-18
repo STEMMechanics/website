@@ -46,6 +46,8 @@ class Product extends Model
     ];
 
     protected $fillable = [
+        'shared_inventory',
+        'inventory_units',
         'slug',
         'title',
         'subtitle',
@@ -88,6 +90,8 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'shared_inventory' => 'boolean',
+        'inventory_units' => 'integer',
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
@@ -427,8 +431,16 @@ class Product extends Model
         return $variant instanceof ProductVariant ? $variant->effectiveHeightMm() : ($this->height_mm !== null ? (int) $this->height_mm : null);
     }
 
+    public function inventoryUnits(?ProductVariant $variant = null): int
+    {
+        return $this->shared_inventory ? max(1, (int) ($variant->inventory_units ?? $this->inventory_units)) : 1;
+    }
+
     public function tracksInventory(?ProductVariant $variant = null): bool
     {
+        if ($this->shared_inventory) {
+            return $this->inventory_quantity !== null;
+        }
         if ($variant instanceof ProductVariant) {
             return $variant->tracksInventory();
         }
@@ -438,6 +450,9 @@ class Product extends Model
 
     public function availableInventory(?ProductVariant $variant = null): ?int
     {
+        if ($this->shared_inventory) {
+            return $this->inventory_quantity === null ? null : intdiv(max(0, (int) $this->inventory_quantity), $this->inventoryUnits($variant));
+        }
         if ($variant instanceof ProductVariant) {
             return $variant->availableInventory();
         }
@@ -722,6 +737,9 @@ class Product extends Model
 
     public function trackedInventoryTotal(): ?int
     {
+        if ($this->shared_inventory) {
+            return $this->inventory_quantity === null ? null : max(0, (int) $this->inventory_quantity);
+        }
         $trackedInventories = [];
 
         if ($this->inventory_quantity !== null) {

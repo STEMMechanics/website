@@ -975,7 +975,7 @@ const SMMediaPicker = {
         ];
         store.active_tab = availableTabs.includes(options.initial_tab) ? options.initial_tab : (availableTabs[0] || 'browser');
 
-        Swal.fire({
+        return Swal.fire({
             title: options.title || (options.allow_uploads ? 'Select or Upload Media' : 'Select Media'),
             html: SMMediaPicker.buildHtml(),
             confirmButtonText: options.confirm_button_text || 'Select',

@@ -121,13 +121,20 @@ class StoreInventoryAllocatorService
                 ->lockForUpdate()
                 ->first();
 
+            $hasSharedBackorders = $variant && StoreOrderItem::query()
+                ->where('product_id', $variant->product_id)
+                ->where('shared_inventory', true)
+                ->where('delayed_fulfilment_type', 'backorder')
+                ->exists();
+            $sharedAllocated = $hasSharedBackorders ? $this->allocateForProductId((int) $variant->product_id) : 0;
+
             if (! $variant instanceof ProductVariant || $variant->inventory_quantity === null) {
-                return 0;
+                return $sharedAllocated;
             }
 
             $availableInventory = max(0, (int) $variant->inventory_quantity);
             if ($availableInventory <= 0) {
-                return 0;
+                return $sharedAllocated;
             }
 
             $allocated = $this->allocateAgainstCandidates(
@@ -136,13 +143,13 @@ class StoreInventoryAllocatorService
             );
 
             if ($allocated <= 0) {
-                return 0;
+                return $sharedAllocated;
             }
 
             $variant->inventory_quantity = max(0, (int) $variant->inventory_quantity - $allocated);
             $variant->save();
 
-            return $allocated;
+            return $allocated + $sharedAllocated;
         });
     }
 
@@ -163,7 +170,8 @@ class StoreInventoryAllocatorService
                 continue;
             }
 
-            $quantity = min($availableInventory, $remainingDelayed);
+            $units = max(1, (int) $candidate->inventory_units);
+            $quantity = min(intdiv($availableInventory, $units), $remainingDelayed);
             if ($quantity <= 0) {
                 continue;
             }
@@ -179,8 +187,8 @@ class StoreInventoryAllocatorService
 
             $candidate->save();
 
-            $availableInventory -= $quantity;
-            $allocated += $quantity;
+            $availableInventory -= $quantity * $units;
+            $allocated += $quantity * $units;
 
             if ($candidate->order instanceof StoreOrder) {
                 $this->updates->recordBackorderAllocation(
@@ -202,7 +210,12 @@ class StoreInventoryAllocatorService
             ->select('store_order_items.*')
             ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
             ->where('store_order_items.product_id', $productId)
-            ->whereNull('store_order_items.product_variant_id')
+            ->where(function ($query) {
+                $query->where(function ($base) {
+                    $base->whereNull('store_order_items.product_variant_id')->where('store_order_items.shared_inventory', false);
+                });
+                $query->orWhere('store_order_items.shared_inventory', true);
+            })
             ->where('store_order_items.delayed_fulfilment_type', 'backorder')
             ->where('store_order_items.delayed_quantity', '>', 0)
             ->whereNotNull('store_orders.paid_at')
@@ -221,6 +234,7 @@ class StoreInventoryAllocatorService
             ->select('store_order_items.*')
             ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
             ->where('store_order_items.product_variant_id', $variantId)
+            ->where('store_order_items.shared_inventory', false)
             ->where('store_order_items.delayed_fulfilment_type', 'backorder')
             ->where('store_order_items.delayed_quantity', '>', 0)
             ->whereNotNull('store_orders.paid_at')

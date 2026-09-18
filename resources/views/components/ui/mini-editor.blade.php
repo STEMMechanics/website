@@ -1,7 +1,7 @@
-@props(['contentClass' => 'min-h-80'])
+@props(['contentClass' => 'min-h-80', 'customLinks' => false])
 
 <div
-    x-data="miniEditor"
+    x-data="miniEditor({ customLinks: @js((bool) $customLinks) })"
     x-modelable="content"
     {{ $attributes->merge(['class' => 'overflow-hidden rounded-lg border border-gray-300 bg-white']) }}
 >

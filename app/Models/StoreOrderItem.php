@@ -14,6 +14,8 @@ class StoreOrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
+        'shared_inventory',
+        'inventory_units',
         'store_order_id',
         'product_id',
         'product_variant_id',
@@ -51,6 +53,8 @@ class StoreOrderItem extends Model
     ];
 
     protected $casts = [
+        'shared_inventory' => 'boolean',
+        'inventory_units' => 'integer',
         'box_only' => 'boolean',
         'is_preorder' => 'boolean',
         'preorder_shipping_estimate' => 'date',

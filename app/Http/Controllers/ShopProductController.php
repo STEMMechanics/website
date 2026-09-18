@@ -282,6 +282,8 @@ class ShopProductController extends Controller
             'hero_media_name' => ['nullable', 'exists:media,name'],
             'price' => ['required', 'numeric', 'min:0'],
             'compare_at_price' => ['nullable', 'numeric', 'min:0'],
+            'shared_inventory' => ['sometimes', 'boolean'],
+            'inventory_units' => ['nullable', 'integer', 'min:1'],
             'inventory_quantity' => ['nullable', 'integer', 'min:0'],
             'shipping_units' => ['nullable', 'numeric', 'min:0'],
             'min_satchel_rank' => ['nullable', 'integer', Rule::in($satchelRanks)],
@@ -305,6 +307,7 @@ class ShopProductController extends Controller
             'variants.*.sku' => ['nullable', 'string', 'max:120'],
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
+            'variants.*.inventory_units' => ['nullable', 'integer', 'min:1'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
             'variants.*.length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
@@ -416,6 +419,8 @@ class ShopProductController extends Controller
             'compare_at_price' => ($validated['compare_at_price'] ?? null) !== null ? round((float) $validated['compare_at_price'], 2) : null,
             'shipping_rate' => 0,
             'tax_rate' => 0.10,
+            'shared_inventory' => ! $isDigital && $request->boolean('shared_inventory'),
+            'inventory_units' => (int) ($validated['inventory_units'] ?? 1),
             'inventory_quantity' => $isDigital ? null : ($validated['inventory_quantity'] ?? null),
             'shipping_units' => $isDigital ? 0 : round((float) ($validated['shipping_units'] ?? 0), 3),
             'min_satchel_rank' => $isDigital ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
@@ -647,6 +652,7 @@ class ShopProductController extends Controller
                     'sku' => trim((string) ($variant['sku'] ?? '')),
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
+                    'inventory_units' => max(1, (int) ($variant['inventory_units'] ?? 1)),
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
                     'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
                     'length_mm' => ($variant['length_mm'] ?? '') !== '' ? (int) $variant['length_mm'] : null,
@@ -766,6 +772,7 @@ class ShopProductController extends Controller
             $variant->compare_at_price = $variantData['compare_at_price'];
             $variant->shipping_rate = null;
             $variant->shipping_units = null;
+            $variant->inventory_units = $variantData['inventory_units'];
             $variant->inventory_quantity = $isDigital ? null : $variantData['inventory_quantity'];
             $variant->weight_grams = $isDigital ? null : $variantData['weight_grams'];
             $variant->is_preorder = false;

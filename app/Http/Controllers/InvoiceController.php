@@ -123,6 +123,7 @@ class InvoiceController extends Controller
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
+            'catalogProducts' => app(\App\Services\Finance\DocumentProductCatalog::class)->products(),
         ]);
     }
 
@@ -162,9 +163,16 @@ class InvoiceController extends Controller
             $invoice->issued_at = now();
         }
 
-        $invoice->save();
-        $this->replaceInvoiceLines($invoice, $lineItems);
-        app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+        DB::transaction(function () use ($invoice, $lineItems, $request): void {
+            if ($invoice->exists) {
+                $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                $invoice->inventory_reservations = $locked->inventory_reservations;
+            }
+            $invoice->save();
+            $this->replaceInvoiceLines($invoice, $lineItems);
+            app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
+            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+        });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
@@ -198,6 +206,7 @@ class InvoiceController extends Controller
             'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
+            'catalogProducts' => app(\App\Services\Finance\DocumentProductCatalog::class)->products($this->invoiceLineItemsForPayload($invoice)),
             'invoiceEmailDefaultPayload' => $this->invoiceEmailPayload($invoice),
         ]);
     }
@@ -273,9 +282,16 @@ class InvoiceController extends Controller
             $invoice->issued_at = now();
         }
 
-        $invoice->save();
-        $this->replaceInvoiceLines($invoice, $lineItems);
-        app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+        DB::transaction(function () use ($invoice, $lineItems, $request): void {
+            if ($invoice->exists) {
+                $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                $invoice->inventory_reservations = $locked->inventory_reservations;
+            }
+            $invoice->save();
+            $this->replaceInvoiceLines($invoice, $lineItems);
+            app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
+            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+        });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
@@ -307,7 +323,11 @@ class InvoiceController extends Controller
                 return redirect()->route('admin.invoice.edit', $invoice);
             }
 
-            $invoice->delete();
+            DB::transaction(function () use ($invoice): void {
+                $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                app(\App\Services\Finance\InvoiceInventory::class)->sync($locked, release: true);
+                $locked->delete();
+            });
 
             session()->flash('message', 'Draft invoice deleted.');
             session()->flash('message-title', 'Invoice deleted');
@@ -356,6 +376,7 @@ class InvoiceController extends Controller
                 }
 
                 $lockedInvoice->status = Invoice::STATUS_CANCELLED;
+                app(\App\Services\Finance\InvoiceInventory::class)->sync($lockedInvoice, release: true);
                 if (! $lockedInvoice->issued_at) {
                     $lockedInvoice->issued_at = now();
                 }

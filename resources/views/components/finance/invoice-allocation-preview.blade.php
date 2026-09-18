@@ -4,6 +4,8 @@
 @endphp
 <x-finance.panel title="Estimated cost centre allocation">
     <div x-data="{ allocationRules: @js(json_decode($plan->rules, true)) }">
+        <p class="text-sm text-slate-500" x-show="lineItems.length === 0">Add line items, then save the invoice to calculate cost centre allocations. Workshop and travel estimates appear here before saving.</p>
+        <p class="text-sm text-slate-500" x-show="lineItems.length > 0 && !Object.values(SM.lineCostAllocations(lineItems, allocationRules)).some(amount => amount > 0)" x-cloak>Save the invoice to calculate product and other cost centre allocations. Workshop and travel estimates appear here when their details are complete.</p>
         <dl class="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
             @foreach($categories as $category)
                 <div class="flex justify-between gap-3" x-show="(SM.lineCostAllocations(lineItems, allocationRules)['{{ $category->id }}'] || 0) > 0">
