@@ -293,7 +293,7 @@
             modalNumber.type = inputType === 'date' ? 'date' : 'number';
             modalNumber.removeAttribute('min');
             modalNumber.removeAttribute('max');
-            modalNumber.step = row.dataset.optionName === 'finance.cash-buffer' ? '0.01' : '1';
+            modalNumber.step = ['finance.cash-buffer', 'finance.owner-hourly-rate'].includes(row.dataset.optionName) ? '0.01' : '1';
             modalNumber.value = decodedValue;
             modalBoolean.value = decodedValue === '0' ? '0' : '1';
             modalValue.classList.toggle('hidden', inputType !== 'textarea');

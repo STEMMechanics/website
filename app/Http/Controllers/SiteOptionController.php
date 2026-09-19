@@ -67,7 +67,7 @@ class SiteOptionController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $this->validateRequest($request);
-        if (in_array($validated['name'], ['finance.fortnight-start', 'finance.cash-buffer'], true)) {
+        if (in_array($validated['name'], ['finance.fortnight-start', 'finance.cash-buffer', 'finance.owner-hourly-rate'], true)) {
             $validated['value'] = $this->validateValueRequest($request, $validated['name'])['value'];
         }
         if (SiteOption::isSecret((string) $validated['name']) && trim((string) ($validated['value'] ?? '')) !== '') {
@@ -208,6 +208,10 @@ class SiteOptionController extends Controller
         }
         if ($optionName === 'finance.cash-buffer') {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000000'];
+        }
+
+        if ($optionName === 'finance.owner-hourly-rate') {
+            $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
         }
 
         if ($optionName === 'tickets.hold-minutes') {

@@ -631,7 +631,7 @@ class FinancePlanner
     /** Historical unpaid earnings; reserve availability controls drawings and transfers. */
     public function remunerationAvailable(string $user): int
     {
-        return max(0, $this->earned($user) - $this->remunerationForgone($user)
+        return max(0, $this->earned($user)
             - (int) DB::table('finance_drawings')->where('user_id', $user)->where('purpose', 'time')->whereIn('status', ['pending', 'paid'])->sum('cents'));
     }
 
@@ -649,8 +649,13 @@ class FinancePlanner
         $outstanding = max(0, $contributed - (int) $drawings->where('status', 'paid')->sum('cents'));
         $repayable = max(0, $outstanding - (int) $drawings->where('status', 'pending')->sum('cents'));
 
+        $remunerationDrawings = DB::table('finance_drawings')->where('user_id', $user)->where('purpose', 'time')
+            ->when($excludingDrawing, fn ($query) => $query->where('id', '!=', $excludingDrawing))->get();
+        $remunerationOutstanding = max(0, $this->earned($user) - (int) $remunerationDrawings->where('status', 'paid')->sum('cents'));
+        $remunerationPayable = max(0, $remunerationOutstanding - (int) $remunerationDrawings->where('status', 'pending')->sum('cents'));
+
         return [
-            'time' => ['outstanding' => max(0, $cash['owner_reserve']), 'available' => min($cash['remuneration_reserve_available'], $cash['drawing_cash'])],
+            'time' => ['outstanding' => $remunerationOutstanding, 'available' => min($remunerationPayable, $cash['remuneration_reserve_available'], $cash['drawing_cash'])],
             'contribution' => ['outstanding' => $outstanding, 'available' => min($repayable, $cash['available'], $cash['drawing_cash'])],
         ];
     }
@@ -661,7 +666,7 @@ class FinancePlanner
             throw ValidationException::withMessages(['purpose' => 'Choose remuneration or return of contributions.']);
         }
         if ($cents <= 0 || $cents > $this->drawingTotals($user, excludingDrawing: $excludingDrawing)[$purpose]['available']) {
-            throw ValidationException::withMessages(['amount' => 'This exceeds the reserve, outstanding contributions or available cash.']);
+            throw ValidationException::withMessages(['amount' => 'This exceeds the outstanding amount, available reserve or available cash.']);
         }
     }
 

@@ -724,55 +724,15 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
     const pages = await fetchLinkOptions(linkOptionsUrl);
     const hasMatchingPage = pages.some((page) => page.path === previousUrl);
     const selectedMode = hasMatchingPage || previousUrl === '' ? 'internal' : 'manual';
-    const selectOptions = pages.map((page) => {
-        const selected = page.path === previousUrl ? ' selected' : '';
-
-        return `<option value="${escapeHtml(page.path)}"${selected}>${escapeHtml(page.title)} (${escapeHtml(page.path)})</option>`;
-    }).join('');
-
     const result = await Swal.fire({
         title: 'Insert Link',
         focusConfirm: false,
-        showCancelButton: true,
-        reverseButtons: true,
-        confirmButtonText: 'Apply',
-        cancelButtonText: 'Cancel',
+        showConfirmButton: false,
+        showCancelButton: false,
         customClass: {
             popup: 'sm-editor-dialog',
         },
-        html: `
-            <div class="space-y-4 text-left">
-                <label class="flex items-start gap-3">
-                    <input type="radio" name="link-mode" value="internal" ${selectedMode === 'internal' ? 'checked' : ''}>
-                    <span>
-                        <span class="block font-semibold">Select an existing page</span>
-                        <span class="block text-sm text-gray-500">Recommended for links within this site.</span>
-                    </span>
-                </label>
-                <div id="link-internal-container">
-                    <select id="link-internal-select" class="sm-editor-field">
-                        <option value="">Choose a page</option>
-                        ${selectOptions}
-                    </select>
-                </div>
-                <label class="flex items-start gap-3">
-                    <input type="radio" name="link-mode" value="manual" ${selectedMode === 'manual' ? 'checked' : ''}>
-                    <span>
-                        <span class="block font-semibold">Enter a URL manually</span>
-                        <span class="block text-sm text-gray-500">Use this for external sites or custom URLs.</span>
-                    </span>
-                </label>
-                <input id="link-manual-url" class="sm-editor-field" placeholder="https://example.com" value="${escapeHtml(hasMatchingPage ? '' : previousUrl)}">
-                <label class="flex items-start gap-3">
-                    <input id="link-new-window" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color" ${previousOpenInNewWindow === true || (previousOpenInNewWindow === null && (previousTarget === '_blank' || (previousTarget === '' && isExternalUrl(previousUrl)))) ? 'checked' : ''}>
-                    <span>
-                        <span class="block font-semibold">Open in a new window</span>
-                        <span class="block text-sm text-gray-500">Enabled by default for external links.</span>
-                    </span>
-                </label>
-                <button id="link-clear-button" type="button" class="text-sm text-red-600 hover:text-red-700">Remove link</button>
-            </div>
-        `,
+        html: document.getElementById('sm-editor-link-dialog-template').innerHTML,
         didOpen: () => {
             const popup = Swal.getPopup();
             if (!popup) {
@@ -782,6 +742,26 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
             const internalSelect = popup.querySelector('#link-internal-select');
             const manualInput = popup.querySelector('#link-manual-url');
             const newWindowInput = popup.querySelector('#link-new-window');
+            const modeSelect = popup.querySelector('#link-mode');
+            modeSelect.value = selectedMode;
+            for (const page of pages) {
+                const option = document.createElement('option');
+                option.value = page.path;
+                option.textContent = `${page.title} (${page.path})`;
+                internalSelect.appendChild(option);
+            }
+            internalSelect.value = hasMatchingPage ? previousUrl : '';
+            manualInput.value = hasMatchingPage ? '' : previousUrl;
+            const updateMode = () => {
+                const internal = modeSelect.value === 'internal';
+                popup.querySelector('[data-link-internal]').hidden = !internal;
+                popup.querySelector('[data-link-manual]').hidden = internal;
+                internalSelect.disabled = !internal;
+                manualInput.disabled = internal;
+            };
+            popup.querySelector('#link-clear-button').disabled = previousUrl === '';
+            popup.querySelector('#link-cancel-button').addEventListener('click', () => Swal.clickCancel());
+            popup.querySelector('#link-apply-button').addEventListener('click', () => Swal.clickConfirm());
             const updateNewWindowDefault = () => {
                 if (!newWindowInput) {
                     return;
@@ -797,7 +777,7 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
                     return;
                 }
 
-                const mode = popup.querySelector('input[name="link-mode"]:checked')?.value || 'internal';
+                const mode = popup.querySelector('#link-mode')?.value || 'internal';
                 const candidateUrl = mode === 'internal'
                     ? String(internalSelect?.value || '').trim()
                     : String(manualInput?.value || '').trim();
@@ -805,8 +785,9 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
                 newWindowInput.checked = isExternalUrl(candidateUrl);
             };
 
-            popup.querySelectorAll('input[name="link-mode"]').forEach((radio) => {
-                radio.addEventListener('change', updateNewWindowDefault);
+            modeSelect.addEventListener('change', () => {
+                updateMode();
+                updateNewWindowDefault();
             });
             internalSelect?.addEventListener('change', updateNewWindowDefault);
             manualInput?.addEventListener('input', updateNewWindowDefault);
@@ -814,6 +795,7 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
                 popup.dataset.clearLink = '1';
                 Swal.clickConfirm();
             });
+            updateMode();
             updateNewWindowDefault();
         },
         preConfirm: () => {
@@ -822,7 +804,7 @@ const editorToggleLink = async (editor, linkOptionsUrl = '/link-options') => {
                 return { clear: true };
             }
 
-            const mode = popup?.querySelector('input[name="link-mode"]:checked')?.value || 'internal';
+            const mode = popup?.querySelector('#link-mode')?.value || 'internal';
             const internalUrl = String(popup?.querySelector('#link-internal-select')?.value || '').trim();
             const manualUrl = String(popup?.querySelector('#link-manual-url')?.value || '').trim();
             const url = mode === 'internal' ? internalUrl : manualUrl;

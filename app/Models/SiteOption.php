@@ -25,6 +25,11 @@ class SiteOption extends Model
                 'description' => 'First day of a pay fortnight. Timesheet periods run for 14 days from this date.',
                 'input_type' => 'date',
             ],
+            'finance.owner-hourly-rate' => [
+                'value' => '40.00',
+                'description' => 'Owner remuneration per hour for new timesheet entries, in dollars. Existing entries retain their saved rate. Does not change allocation planner rates.',
+                'input_type' => 'number',
+            ],
             'finance.cash-buffer' => [
                 'value' => '0.00',
                 'description' => 'Minimum business cash buffer in dollars. Retained when calculating available drawings, after GST, protected cost-centre funds and pending drawings. Set 0 for no extra buffer.',

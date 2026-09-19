@@ -2,29 +2,40 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-function setup(ok) {
-    const handlers = {}, notices = [], button = { disabled: false }, panel = { innerHTML: 'original' };
-    const form = { dataset: {}, action: '/allocation', parentElement: panel, matches: () => true, querySelector: () => button, setAttribute() {}, removeAttribute() {} };
+function setup() {
+    const handlers = {}, inputs = [], window = {SM: {}};
+    let submissions = 0;
+    const allocation = {dataset: {allocationChanged: '1'}, entries: [['budget_id', '4'], ['targets[2]', '35.00'], ['_token', 'token']], matches: () => true};
+    const invoice = {
+        requestSubmit() { submissions++; },
+        querySelectorAll: () => [...inputs],
+        appendChild(input) { inputs.push(input); },
+    };
     vm.runInNewContext(fs.readFileSync('resources/js/invoice-allocation-editor.js', 'utf8'), {
-        document: { addEventListener: (name, handler) => handlers[name] = handler },
-        FormData: class {}, SM: { banner: (...args) => notices.push(args) },
-        fetch: async () => ({ ok, headers: { get: () => 'application/json' }, json: async () => ok ? { html: '<form>updated allocation</form>', message: 'Saved' } : { errors: { targets: ['Check amounts'] } } }),
+        window,
+        document: {
+            addEventListener: (name, handler) => handlers[name] = handler,
+            getElementById: () => invoice,
+            querySelector: () => allocation,
+            createElement: () => { const input = {dataset: {}, remove() { inputs.splice(inputs.indexOf(input), 1); }}; return input; },
+        },
+        FormData: class { constructor(form) { return form.entries; } },
     });
-    return { handlers, form, panel, button, notices };
+    return {handlers, allocation, invoice, inputs, attach: window.SM.attachInvoiceAllocation, submissions: () => submissions};
 }
-test('inline save updates only allocation panel and restores submit state', async () => {
-    const state = setup(true);
-    let prevented = false;
-    await state.handlers.submit({ target: state.form, preventDefault() { prevented = true; } });
+test('enter in allocation editor submits the main invoice form', async () => {
+    const state = setup(); let prevented = false;
+    await state.handlers.submit({target: state.allocation, preventDefault() { prevented = true; }});
     assert.equal(prevented, true);
-    assert.equal(state.panel.innerHTML, '<form>updated allocation</form>');
-    assert.equal(state.button.disabled, false);
-    assert.equal(state.notices[0][2], 'success');
+    assert.equal(state.submissions(), 1);
 });
-test('failed allocation save keeps entered values and shows themed error', async () => {
-    const state = setup(false);
-    await state.handlers.submit({ target: state.form, preventDefault() {} });
-    assert.equal(state.panel.innerHTML, 'original');
-    assert.equal(state.button.disabled, false);
-    assert.equal(state.notices[0][1], 'Check amounts');
+test('main save includes changed allocation fields once, with nested names', () => {
+    const state = setup();
+    state.attach(state.invoice); state.attach(state.invoice);
+    assert.deepEqual(state.inputs.map(input => [input.name, input.value]), [['allocation[budget_id]', '4'], ['allocation[targets][2]', '35.00']]);
+});
+test('untouched allocation is left to automatic invoice allocation sync', () => {
+    const state = setup(); state.allocation.dataset.allocationChanged = '0';
+    state.attach(state.invoice);
+    assert.equal(state.inputs.length, 0);
 });

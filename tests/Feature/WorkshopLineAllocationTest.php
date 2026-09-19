@@ -32,6 +32,54 @@ class WorkshopLineAllocationTest extends TestCase
         return ['kind' => 'workshop', 'description' => 'Workshop delivery', 'workshop_hours' => $hours, 'workshop_seats' => $seats, 'venue_supplied' => false, 'quantity' => 999, 'unit_price' => 10, 'gst_applicable' => true];
     }
 
+    public function test_invoice_save_persists_manual_allocation_and_can_restore_defaults(): void
+    {
+        $this->admin();
+        $payload = ['invoice_number' => 'SAVE-ALL', 'issue_date' => today()->toDateString(), 'line_items_json' => json_encode([$this->line(1, 10)])];
+        $this->post(route('admin.invoice.store'), $payload)->assertSessionHasNoErrors();
+        $invoice = Invoice::where('invoice_number', 'SAVE-ALL')->firstOrFail();
+        $allocations = app(InvoiceAllocation::class);
+        $context = $allocations->context($invoice);
+        $payload['notes'] = 'Saved with allocation';
+        $payload['allocation'] = ['budget_id' => $context['budget']->id, 'version_id' => $context['version']->id, 'targets' => [1 => '35.00']];
+        $this->put(route('admin.invoice.update', $invoice), $payload)->assertSessionHasNoErrors();
+        $this->assertSame('Saved with allocation', $invoice->fresh()->notes);
+        $this->assertSame([1 => 3500], $allocations->context($invoice->fresh())['targets']);
+        $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertDontSee('Save allocation');
+
+        $payload['line_items_json'] = json_encode([$this->line(2, 10)]);
+        $payload['allocation']['use_defaults'] = 1;
+        unset($payload['allocation']['targets']);
+        $this->put(route('admin.invoice.update', $invoice), $payload)->assertSessionHasNoErrors();
+        $context = $allocations->context($invoice->fresh());
+        $this->assertFalse((bool) $context['budget']->manual);
+        $this->assertSame($context['suggestedTargets'], $context['targets']);
+        $this->assertSame('20.00', $invoice->fresh()->lines->first()->quantity);
+    }
+
+    public function test_invalid_allocation_rolls_back_invoice_changes_and_issued_invoices_save_both(): void
+    {
+        $this->admin();
+        $payload = ['invoice_number' => 'ATOMIC-ALLOCATION', 'issue_date' => today()->toDateString(), 'line_items_json' => json_encode([$this->line(1, 10)])];
+        $this->post(route('admin.invoice.store'), $payload)->assertSessionHasNoErrors();
+        $invoice = Invoice::where('invoice_number', 'ATOMIC-ALLOCATION')->firstOrFail();
+        $context = app(InvoiceAllocation::class)->context($invoice);
+        $payload['notes'] = 'Must not be saved';
+        $payload['line_items_json'] = json_encode([$this->line(2, 10)]);
+        $payload['allocation'] = ['budget_id' => $context['budget']->id, 'targets' => [1 => -1]];
+        $this->put(route('admin.invoice.update', $invoice), $payload)->assertSessionHasErrors('allocation.targets.1');
+        $this->assertNull($invoice->fresh()->notes);
+        $this->assertSame('10.00', $invoice->fresh()->lines->first()->quantity);
+
+        $invoice->update(['status' => Invoice::STATUS_ISSUED]);
+        $payload['notes'] = 'Issued invoice note';
+        $payload['allocation']['targets'] = [1 => 25];
+        $this->put(route('admin.invoice.update', $invoice), $payload)->assertSessionHasNoErrors();
+        $this->assertSame('Issued invoice note', $invoice->fresh()->notes);
+        $this->assertSame([1 => 2500], app(InvoiceAllocation::class)->context($invoice->fresh())['targets']);
+        $this->assertSame('10.00', $invoice->fresh()->lines->first()->quantity);
+    }
+
     public function test_multi_workshop_invoice_keeps_one_line_and_allocates_each_delivery(): void
     {
         $this->admin();

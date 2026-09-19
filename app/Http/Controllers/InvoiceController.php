@@ -216,6 +216,24 @@ class InvoiceController extends Controller
         return redirect()->to(route('admin.invoice.edit', $invoice).'#tax-adjustments');
     }
 
+    private function saveInvoiceAllocation(Request $request, Invoice $invoice): void
+    {
+        if ($request->has('allocation')) {
+            $request->validate(['allocation' => 'array']);
+            try {
+                app(\App\Services\Finance\InvoiceAllocationEditor::class)->save($invoice->fresh(), $request->input('allocation'), $request->user()->id);
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $errors = [];
+                foreach ($exception->errors() as $key => $messages) {
+                    $errors['allocation.'.$key] = $messages;
+                }
+                throw \Illuminate\Validation\ValidationException::withMessages($errors);
+            }
+        } else {
+            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+        }
+    }
+
     public function update(Request $request, Invoice $invoice)
     {
         $validated = $this->validateRequest($request, $invoice);
@@ -235,10 +253,13 @@ class InvoiceController extends Controller
         }
 
         if (! $invoice->canEditContents()) {
-            $invoice->purchase_order_number = $validated['purchase_order_number'] ?? null;
-            $invoice->notes = $validated['notes'] ?? null;
-            $invoice->quote_id = $validated['quote_id'] ?? null;
-            $invoice->save();
+            DB::transaction(function () use ($invoice, $validated, $request): void {
+                $invoice->purchase_order_number = $validated['purchase_order_number'] ?? null;
+                $invoice->notes = $validated['notes'] ?? null;
+                $invoice->quote_id = $validated['quote_id'] ?? null;
+                $invoice->save();
+                $this->saveInvoiceAllocation($request, $invoice);
+            });
             $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
             if ($request->has('private_files')) {
                 $invoice->updateFiles($request->input('private_files'), 'private');
@@ -290,7 +311,7 @@ class InvoiceController extends Controller
             $invoice->save();
             $this->replaceInvoiceLines($invoice, $lineItems);
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
-            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+            $this->saveInvoiceAllocation($request, $invoice);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));

@@ -65,6 +65,7 @@ class CostCentreTest extends TestCase
         DB::table('finance_settings')->where('id', 1)->update(['opening_cash_cents' => 50000]);
         DB::table('finance_categories')->where('id', 1)->update(['opening_cents' => -8000]);
         DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 20000]);
+        \App\Models\SiteOption::updateOrCreate(['name' => 'finance.owner-hourly-rate'], ['value' => '100.00']);
         $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 120, 'rate' => 100])->assertSessionHasNoErrors();
         $this->post(route('admin.finance.drawing'), ['amount' => 100, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasNoErrors();
         $planner = app(FinancePlanner::class);
@@ -76,18 +77,18 @@ class CostCentreTest extends TestCase
         $this->assertDatabaseCount('finance_fund_transfers', 1);
         $this->assertDatabaseHas('finance_fund_transfers', ['remuneration_user_id' => $user->id, 'created_by' => $user->id, 'cents' => 8000, 'category_id' => 1]);
         $this->assertSame(8000, $planner->remunerationForgone($user->id));
-        $this->assertSame(2000, $planner->remunerationAvailable($user->id));
+        $this->assertSame(10000, $planner->remunerationAvailable($user->id));
         $this->assertSame(0, $planner->cash()['reserves'][1]);
         $this->assertSame(12000, $planner->cash()['reserves'][6]);
         $this->assertSame($before['cash'], $planner->cash()['cash']);
         $this->assertSame($before['gst'], $planner->cash()['gst']);
         $this->assertDatabaseCount('finance_drawings', 1);
         $this->get(route('admin.cost-centre.show', 1))->assertOk()->assertSee('Remuneration forgone by')->assertSee($data['reason']);
-        $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertSee($data['reason'])->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 12000 && $totals['time']['available'] === 2000);
+        $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertSee($data['reason'])->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 20000 && $totals['time']['available'] === 2000);
         $this->post(route('admin.finance.drawing'), ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()])->assertSessionHasErrors('amount');
         $this->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['amount' => 21, 'token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
-        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 30, 'rate' => 100])->assertSessionHasErrors('rate');
-        $this->assertSame(20000, $planner->earned($user->id));
+        $this->post(route('admin.finance.time'), ['id' => DB::table('finance_time_entries')->value('id'), 'date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 30, 'rate' => 100])->assertSessionHasNoErrors();
+        $this->assertSame(5000, $planner->earned($user->id));
         $this->actingAs($this->admin())->postJson(route('admin.cost-centre.transfer'), array_merge($data, ['token' => (string) \Illuminate\Support\Str::uuid()]))->assertUnprocessable();
         $this->assertDatabaseCount('finance_fund_transfers', 1);
     }
@@ -95,6 +96,7 @@ class CostCentreTest extends TestCase
     public function test_remuneration_transfers_require_funding_a_token_and_an_active_cost_centre(): void
     {
         $this->actingAs($this->admin());
+        \App\Models\SiteOption::updateOrCreate(['name' => 'finance.owner-hourly-rate'], ['value' => '100.00']);
         $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasNoErrors();
         $data = ['from_category_id' => 'remuneration', 'category_id' => 1, 'amount' => 1, 'reason' => 'Cover deficit', 'token' => (string) \Illuminate\Support\Str::uuid()];
         $this->postJson(route('admin.cost-centre.transfer'), $data)->assertUnprocessable();
@@ -128,8 +130,17 @@ class CostCentreTest extends TestCase
         $this->assertSame(0, $planner->remunerationTransferAvailable());
         $this->assertDatabaseCount('finance_drawings', 0);
         // Forgoing allocated funds must not prevent recording subsequent time.
+        \App\Models\SiteOption::updateOrCreate(['name' => 'finance.owner-hourly-rate'], ['value' => '100.00']);
         $this->post(route('admin.finance.time'), ['date' => today()->toDateString(), 'activity' => 'Preparation', 'minutes' => 60, 'rate' => 100])->assertSessionHasNoErrors();
         $this->assertSame(10000, $planner->earned($user->id));
+        $entryId = DB::table('finance_time_entries')->where('user_id', $user->id)->value('id');
+        $balancesBeforeCorrection = $planner->cash();
+        $this->postJson(route('admin.timesheet.store'), ['id' => $entryId, 'date' => today()->toDateString(), 'hours' => 0])->assertOk();
+        $this->assertSame(0, $planner->earned($user->id));
+        $this->assertSame(320550, $planner->remunerationForgone($user->id));
+        $this->assertSame($balancesBeforeCorrection['reserves'], $planner->cash()['reserves']);
+        $this->assertSame($balancesBeforeCorrection['cash'], $planner->cash()['cash']);
+        $this->assertDatabaseCount('finance_fund_transfers', 1);
         $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertViewHas('drawingTotals', fn ($totals) => $totals['time']['outstanding'] === 0);
     }
 

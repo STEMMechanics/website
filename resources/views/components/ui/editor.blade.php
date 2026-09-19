@@ -5,6 +5,8 @@
     $value = old($name, $value);
 @endphp
 
+<x-ui.editor-link-dialog />
+
 <div class="editor-container" data-editor-name="{{ $name }}">
     @if(isset($label))
     <div class="text-sm pl-1">{{ $label }}</div>

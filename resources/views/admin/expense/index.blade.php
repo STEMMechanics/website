@@ -13,6 +13,14 @@
     @endif
 
     <x-container class="py-5 sm:py-8">
+        <div data-expense-drop data-create-url="{{ route('admin.expense.create', isset($selectedSupplier) ? ['supplier' => $selectedSupplier->name] : []) }}">
+            <div data-expense-drop-overlay hidden class="pointer-events-none fixed inset-0 z-[400] bg-sky-950/30 backdrop-blur-sm">
+                <div class="absolute inset-4 grid place-items-center rounded-2xl border-4 border-dashed border-sky-500 bg-white/90">
+                    <p class="px-6 text-center text-xl font-semibold text-sky-900">Drop a receipt to start a new expense</p>
+                </div>
+            </div>
+            <p data-expense-drop-error role="alert" class="text-sm text-red-600" hidden></p>
+        </div>
         <x-ui.dynamic-list name="admin-expense-index">
         <x-finance.attention-notice kind="expenses" />
         @if(isset($selectedSupplier))

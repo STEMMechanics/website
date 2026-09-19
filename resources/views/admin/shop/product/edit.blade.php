@@ -122,6 +122,11 @@
 @endphp
 <x-layout>
     <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">{{ isset($product) ? 'Edit' : 'Create' }} Product
+        @isset($product)
+            <x-slot:actions>
+                <x-ui.button href="{{ route('shop.product.show', $product) }}" color="mast"><i class="fa-solid fa-arrow-up-right-from-square mr-2" aria-hidden="true"></i>View Product</x-ui.button>
+            </x-slot:actions>
+        @endisset
     </x-mast>
 
     <x-container class="mt-4">
@@ -908,29 +913,22 @@
             </x-ui.collapsible-section>
 
             <x-ui.editor-actions>
-                <div class="ml-auto flex flex-wrap justify-end gap-3">
-                    @isset($product)
-                        <x-ui.button href="{{ route('shop.product.show', $product) }}" color="outline">View Product</x-ui.button>
-                    @endisset
-                    <x-ui.button type="submit">Save Product</x-ui.button>
-                </div>
                 @isset($product)
-                    <div data-editor-delete class="flex flex-wrap gap-3">
-                        @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
-                            <x-ui.button type="submit" color="outline" form="restore-product-form">Restore as Draft</x-ui.button>
-                        @else
-                            <x-ui.button type="submit" color="outline" form="archive-product-form">Archive Product</x-ui.button>
-                        @endif
+                    <div data-editor-delete class="flex shrink-0 gap-3">
                         @if(! $product->store_order_items_exists)
-                            <x-ui.button variant="plain"
-                                type="button"
-                                class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
+                            <x-ui.button type="button" color="danger" class="size-11 shrink-0 p-0!" aria-label="Delete Product" title="Delete Product"
                                 x-data
                                 x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
-                            >Delete Product</x-ui.button>
+                            ><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                        @endif
+                        @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                            <x-ui.button type="submit" color="outline" form="restore-product-form" class="size-11 shrink-0 p-0!" aria-label="Restore as Draft" title="Restore as Draft"><i class="fa-solid fa-box-open" aria-hidden="true"></i></x-ui.button>
+                        @else
+                            <x-ui.button type="submit" color="outline" form="archive-product-form" class="size-11 shrink-0 p-0!" aria-label="Archive Product" title="Archive Product"><i class="fa-solid fa-box-archive" aria-hidden="true"></i></x-ui.button>
                         @endif
                     </div>
                 @endisset
+                <x-ui.button type="submit" class="ml-auto min-h-11 px-4">Save Product</x-ui.button>
             </x-ui.editor-actions>
         </form>
         @isset($product)

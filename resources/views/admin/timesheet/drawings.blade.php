@@ -6,10 +6,11 @@
         <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Outstanding to pay</dt><dd class="font-semibold tabular-nums" x-text="money(totals[purpose].outstanding)">{{ money($drawingTotals[$purpose]['outstanding'] / 100) }}</dd></div>
         <div class="flex items-center justify-between gap-3"><dt class="text-slate-500">Available to pay</dt><dd class="font-semibold tabular-nums" x-text="money(totals[purpose].available)">{{ money($drawingTotals[$purpose]['available'] / 100) }}</dd></div>
     </dl>
+    <p class="mb-4 text-xs text-slate-500" x-show="purpose === 'time'">Outstanding is recorded timesheet earnings less paid drawings. Available is limited by the remuneration fund and business cash, after pending drawings.</p>
     <form method="POST" action="{{ route('admin.finance.drawing') }}">@csrf<input type="hidden" name="purpose" value="{{ $purpose }}" x-bind:value="purpose"><input type="hidden" name="token" value="{{ \Illuminate\Support\Str::uuid() }}"><x-ui.input name="amount" label="Amount to transfer" type="number" min="0.01" step="0.01" required /><x-finance.save>Record drawing</x-finance.save></form>
 </x-finance.panel>
 <x-finance.panel title="Remuneration transferred">
-    <p class="mb-3">Pay forgone to fund cost centres: {{ money($forgone / 100) }}</p>
+    <p class="mb-3">Remuneration funds moved to cost centres: {{ money($forgone / 100) }}</p>
     <x-ui.button color="outline" href="{{ route('admin.cost-centre.transfer.edit', ['from' => 'remuneration']) }}">Transfer remuneration</x-ui.button>
     @foreach($remunerationTransfers as $transfer)
         <p class="mt-3 text-sm">{{ $transfer->created_at }} · {{ money($transfer->cents / 100) }} to <a href="{{ route('admin.cost-centre.show', $transfer->category_id) }}">{{ $transfer->centre_name }}</a>@if($transfer->reason)<br>{{ $transfer->reason }}@endif</p>
