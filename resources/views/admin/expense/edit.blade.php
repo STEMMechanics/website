@@ -160,7 +160,10 @@
         const defaultPreviewEmptyText = 'No receipt selected yet.';
         const missingPreviewNote = 'Receipt preview unavailable: the attachment file was not found.';
         const validationErrorsPresent = @json($errors->any());
-        const receiptDraftKey = `expense-receipt-draft:${window.location.pathname}:${receiptInput ? receiptInput.id : 'receipt'}`;
+        const droppedReceipt = @json(!isset($expense)) ? new URLSearchParams(window.location.search).get('receipt_draft') : null;
+        const receiptDraftKey = droppedReceipt && /^[a-f0-9-]{36}$/i.test(droppedReceipt)
+            ? `expense-drop:${droppedReceipt}`
+            : `expense-receipt-draft:${window.location.pathname}:${receiptInput ? receiptInput.id : 'receipt'}`;
         const receiptDraftDbName = 'sm-file-drafts';
         const receiptDraftStoreName = 'drafts';
         let existingPreviewUrl = null;
@@ -269,7 +272,7 @@
         };
 
         const restoreReceiptDraft = async () => {
-            if (!validationErrorsPresent || !receiptInput || receiptInput.disabled || receiptInput.readOnly) {
+            if ((!validationErrorsPresent && !droppedReceipt) || !receiptInput || receiptInput.disabled || receiptInput.readOnly) {
                 return false;
             }
 
@@ -300,7 +303,7 @@
         };
 
         const initialiseReceiptPreview = async () => {
-            if (!validationErrorsPresent) {
+            if (!validationErrorsPresent && !droppedReceipt) {
                 await clearReceiptDraft();
             }
 
@@ -322,6 +325,9 @@
                     previewNote.textContent = '';
                     previewNote.classList.add('hidden');
                 }
+            }
+            if (droppedReceipt) {
+                setPreviewNote('The dropped receipt could not be restored. Please attach it again before saving.');
             }
         };
 

@@ -27,7 +27,7 @@ class TimesheetController extends Controller
             $user = $request->user()->id;
             $cash = $planner->cash();
             $forgone = $planner->remunerationForgone($user);
-            $earned = $planner->earned($user) - $forgone;
+            $earned = $planner->earned($user);
             $remunerationTransfers = DB::table('finance_fund_transfers')->join('finance_categories', 'finance_categories.id', '=', 'finance_fund_transfers.category_id')->where('remuneration_user_id', $user)->select('finance_fund_transfers.*', 'finance_categories.name as centre_name')->orderByDesc('finance_fund_transfers.id')->get();
             $query = DB::table('finance_drawings')->where('user_id', $user);
             $purpose = $request->validate(['purpose' => ['nullable', Rule::in(['time', 'contribution'])]])['purpose'] ?? 'time';
@@ -75,9 +75,10 @@ class TimesheetController extends Controller
         $daily = $request->routeIs('admin.timesheet.store');
         if ($daily) {
             $hours = $request->validate(['hours' => 'required|numeric|min:0|max:24'])['hours'];
-            $request->merge(['minutes' => (int) round((float) $hours * 60), 'activity' => 'Business time', 'rate' => 60, 'workshop_id' => null]);
+            $request->merge(['minutes' => (int) round((float) $hours * 60), 'activity' => 'Business time', 'workshop_id' => null]);
         }
-        $data = $request->validate(['id' => 'nullable|integer', 'date' => 'required|date_format:Y-m-d|before_or_equal:today', 'activity' => ['required', Rule::in(['Business time', 'Delivery', 'Preparation', 'Pack down', 'Travel', 'Administration', 'Development'])], 'minutes' => $daily ? 'required|integer|min:0|max:1440' : 'required|integer|min:1|max:1440', 'rate' => 'required|numeric|min:0|max:10000', 'workshop_id' => 'nullable|string|exists:workshops,id', 'notes' => 'nullable|string|max:1000']);
+        $request->merge(['rate' => \App\Models\SiteOption::value('finance.owner-hourly-rate', '40.00')]);
+        $data = $request->validate(['reset_rate' => 'sometimes|boolean', 'id' => 'nullable|integer', 'date' => 'required|date_format:Y-m-d|before_or_equal:today', 'activity' => ['required', Rule::in(['Business time', 'Delivery', 'Preparation', 'Pack down', 'Travel', 'Administration', 'Development'])], 'minutes' => $daily ? 'required|integer|min:0|max:1440' : 'required|integer|min:1|max:1440', 'rate' => 'required|numeric|min:0|max:10000', 'workshop_id' => 'nullable|string|exists:workshops,id', 'notes' => 'nullable|string|max:1000']);
         DB::transaction(function () use ($request, $data, $planner, $daily): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $previousEarned = $planner->earned($request->user()->id);
@@ -92,7 +93,9 @@ class TimesheetController extends Controller
             if ($daily) {
                 $data['activity'] = $existing->activity ?? 'Business time';
                 $data['workshop_id'] = $existing->workshop_id ?? null;
-                $data['rate'] = ($existing->rate_cents ?? (clone $query)->orderByDesc('date')->orderByDesc('id')->value('rate_cents') ?? 6000) / 100;
+            }
+            if ($existing && ! ($data['reset_rate'] ?? false)) {
+                $data['rate'] = $existing->rate_cents / 100;
             }
             $minutes = (int) (clone $query)->where('date', $data['date'])->when($data['id'] ?? null, fn ($q, $id) => $q->where('id', '!=', $id))->sum('minutes');
             if ($minutes + $data['minutes'] > 1440) {
@@ -105,8 +108,9 @@ class TimesheetController extends Controller
                 DB::table('finance_time_entries')->insert($values + ['created_at' => now()]);
             }
             $earned = $planner->earned($request->user()->id);
-            if ($earned < $previousEarned && $earned < $planner->remunerationForgone($request->user()->id)) {
-                throw ValidationException::withMessages(['rate' => 'This would reduce your earned remuneration below remuneration already forgone.']);
+            $paid = (int) DB::table('finance_drawings')->where('user_id', $request->user()->id)->where('purpose', 'time')->where('status', 'paid')->sum('cents');
+            if ($earned < $previousEarned && $earned < $paid) {
+                throw ValidationException::withMessages(['hours' => 'This would reduce earned remuneration below the $'.number_format($paid / 100, 2).' already withdrawn. Correct the recorded withdrawal before reducing these earnings.']);
             }
         });
 

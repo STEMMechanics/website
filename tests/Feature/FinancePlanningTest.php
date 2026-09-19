@@ -153,6 +153,7 @@ class FinancePlanningTest extends TestCase
     {
         $this->travelTo(now()->setDate(2026, 9, 6));
         $user = $this->admin();
+        \App\Models\SiteOption::updateOrCreate(['name' => 'finance.owner-hourly-rate'], ['value' => '60.00']);
         $this->actingAs($user)->post(route('admin.finance.time'), ['date' => '2026-09-05', 'activity' => 'Preparation', 'minutes' => 120, 'rate' => 60])->assertSessionHasNoErrors();
         $this->post(route('admin.finance.drawing'), ['amount' => 10, 'token' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'opening_cash_cents' => 10000, 'opening_gst_cents' => 2000, 'buffer_cents' => 1000]);

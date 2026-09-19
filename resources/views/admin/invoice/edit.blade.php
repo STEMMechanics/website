@@ -686,6 +686,7 @@
         <form id="invoice-edit-form" method="POST"
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-on:submit="
+                SM.attachInvoiceAllocation($el);
                 serializeLineItems();
                 if (!$el.dataset.scheduledSendConfirmed) {
                     $refs.sendScheduledNow.value = '0';

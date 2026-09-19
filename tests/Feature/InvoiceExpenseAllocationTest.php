@@ -42,7 +42,7 @@ class InvoiceExpenseAllocationTest extends TestCase
     {
         $invoice = Invoice::factory()->create(['total_amount' => 110, 'gst_amount' => 10]);
         $this->actingAs($this->admin())->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('data-allocation-inline', false);
-        $this->get(route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]))->assertOk()->assertDontSee('data-allocation-load', false)->assertSee('Save allocation');
+        $this->get(route('admin.invoice.allocation.edit', [$invoice, 'inline' => 1]))->assertOk()->assertDontSee('data-allocation-load', false)->assertDontSee('Save allocation');
         $response = $this->postJson(route('admin.invoice.allocation.store', $invoice), ['inline' => 1, 'targets' => [1 => '100.00']])->assertOk();
         $this->assertStringContainsString('data-allocation-inline', $response->json('html'));
         $this->assertSame('110.00', $invoice->fresh()->total_amount);

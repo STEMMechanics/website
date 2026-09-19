@@ -12,6 +12,10 @@
         </div>
     @endif
 <p class="mb-4 text-sm text-slate-600">Enter decimal hours, for example 1.5 for 90 minutes. Time is stored to the nearest minute.</p>
+        <p class="mb-4 text-sm text-slate-600">Hourly rate: ${{ number_format($entry ? $entry->rate_cents / 100 : (float) \App\Models\SiteOption::value('finance.owner-hourly-rate', '40.00'), 2) }}. {{ $entry ? 'This entry keeps its saved rate.' : 'New entries use the current owner hourly rate in Site Options.' }}</p>
+        @if($entry && (int) $entry->rate_cents !== (int) round((float) \App\Models\SiteOption::value('finance.owner-hourly-rate', '40.00') * 100))
+            <x-ui.checkbox name="reset_rate" value="1" :checked="old('reset_rate', false)" :label="'Use current site rate ($'.number_format((float) \App\Models\SiteOption::value('finance.owner-hourly-rate', '40.00'), 2).'/hour) for this entry'" info="Only changes this entry when you save. Other saved entries keep their rates." />
+        @endif
         @if($entry)<input type="hidden" name="id" value="{{ $entry->id }}">@endif
         <div class="grid gap-x-5 sm:grid-cols-2">
             <x-ui.input name="date" label="Date" type="date" :value="$date" required />

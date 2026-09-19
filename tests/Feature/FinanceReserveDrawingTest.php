@@ -22,6 +22,7 @@ class FinanceReserveDrawingTest extends TestCase
         $this->owner = User::factory()->create();
         UserGroup::create(['user_id' => $this->owner->id, 'slug' => 'admin']);
         $this->actingAs($this->owner);
+        DB::table('finance_time_entries')->insert(['user_id' => $this->owner->id, 'date' => today()->toDateString(), 'minutes' => 120, 'rate_cents' => 6000, 'activity' => 'Business time', 'created_at' => now(), 'updated_at' => now()]);
     }
 
     private function cash(): array
@@ -79,7 +80,18 @@ class FinanceReserveDrawingTest extends TestCase
         $this->get(route('admin.timesheet.index', ['tab' => 'drawings']))->assertOk()->assertViewHas('paid', 12000);
         $ledger = app(FinancePlanner::class)->costCentreLedger(DB::table('finance_categories')->where('id', 6)->first());
         $this->assertSame(-12000, $ledger->firstWhere('type', 'drawing')['amount']);
-        $this->postJson(route('admin.timesheet.store'), ['date' => today()->toDateString(), 'hours' => 0])->assertOk();
+        $this->postJson(route('admin.timesheet.store'), ['id' => DB::table('finance_time_entries')->where('user_id', $this->owner->id)->value('id'), 'date' => today()->toDateString(), 'hours' => 0])->assertUnprocessable()->assertJsonValidationErrors('hours');
+    }
+
+    public function test_pending_payment_rechecks_earnings_after_a_timesheet_correction(): void
+    {
+        DB::table('finance_settings')->where('id', 1)->update(['opening_cash_cents' => 12000]);
+        DB::table('finance_categories')->where('kind', 'owner')->update(['opening_cents' => 12000]);
+        $id = $this->prepare('time', 120);
+        $this->postJson(route('admin.timesheet.store'), ['id' => DB::table('finance_time_entries')->where('user_id', $this->owner->id)->value('id'), 'date' => today()->toDateString(), 'hours' => 0])->assertOk();
+        $this->assertSame(['outstanding' => 0, 'available' => 0], app(FinancePlanner::class)->drawingTotals($this->owner->id)['time']);
+        $this->post(route('admin.finance.drawingStatus', $id), ['status' => 'paid', 'paid_on' => today()->toDateString()])->assertSessionHasErrors('amount');
+        $this->assertDatabaseHas('finance_drawings', ['id' => $id, 'status' => 'pending']);
     }
 
     public function test_both_transfer_endpoints_support_business_cash_and_reject_invalid_destinations(): void

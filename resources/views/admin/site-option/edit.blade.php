@@ -33,7 +33,7 @@
             @elseif($inputType === 'number')
                 <x-ui.input
                     type="number"
-                    :step="($siteOption->name ?? '') === 'finance.cash-buffer' ? '0.01' : 'any'"
+                    :step="in_array($siteOption->name ?? '', ['finance.cash-buffer', 'finance.owner-hourly-rate'], true) ? '0.01' : 'any'"
                     label="Value"
                     name="value"
                     value="{{ $siteOption->value ?? '' }}"

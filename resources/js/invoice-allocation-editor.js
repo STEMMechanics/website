@@ -2,25 +2,8 @@ document.addEventListener('submit', async event => {
     const form = event.target;
     if (!form.matches('[data-allocation-inline]')) return;
     event.preventDefault();
-    if (form.dataset.saving) return;
-    form.dataset.saving = 'true';
-    const button = form.querySelector('[type="submit"]');
-    button.disabled = true;
-    form.setAttribute('aria-busy', 'true');
-    try {
-        const response = await fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin', headers: { Accept: 'application/json' } });
-        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Your session may have expired. Refresh the page and try again.');
-        const data = await response.json();
-        if (!response.ok) throw new Error(Object.values(data.errors || {}).flat().join('\n') || data.message || 'Please try again.');
-        if (typeof data.html === 'string') form.parentElement.innerHTML = data.html;
-        SM.banner('Saved', data.message, 'success');
-    } catch (error) {
-        SM.banner('Could not save allocation', error.message, 'danger');
-    } finally {
-        button.disabled = false;
-        delete form.dataset.saving;
-        form.removeAttribute('aria-busy');
-    }
+    const invoiceForm = document.getElementById('invoice-edit-form');
+    if (invoiceForm) invoiceForm.requestSubmit();
 });
 document.addEventListener('click', async event => {
     const link = event.target.closest('[data-allocation-load]');
@@ -36,8 +19,25 @@ document.addEventListener('click', async event => {
         const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
         const replacement = doc.querySelector('[data-allocation-inline]');
         if (!replacement) throw new Error('The allocation editor could not be loaded.');
+        replacement.dataset.allocationChanged = '1';
         form.replaceWith(replacement);
     } catch (error) {
         SM.banner('Could not load plan', error.message, 'danger');
     } finally { delete form.dataset.saving; form.removeAttribute('aria-busy'); }
 });
+
+window.SM.attachInvoiceAllocation = function (invoiceForm) {
+    invoiceForm.querySelectorAll('[data-invoice-allocation-input]').forEach(input => input.remove());
+    const allocation = document.querySelector('[data-allocation-inline]');
+    if (!allocation || allocation.dataset.allocationChanged !== '1') return;
+    for (const [name, value] of new FormData(allocation)) {
+        if (!['budget_id', 'version_id', 'use_defaults', 'targets', 'supplied_categories'].includes(name.split('[')[0])) continue;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.dataset.invoiceAllocationInput = '1';
+        const bracket = name.indexOf('[');
+        input.name = bracket < 0 ? `allocation[${name}]` : `allocation[${name.slice(0, bracket)}]${name.slice(bracket)}`;
+        input.value = value;
+        invoiceForm.appendChild(input);
+    }
+};

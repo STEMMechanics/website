@@ -46,3 +46,6 @@ import './drawing-type-picker';
 import './online-visitors';
 
 import './product-postage-preview';
+
+import './sidebar-search';
+import './expense-drop';

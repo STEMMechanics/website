@@ -179,9 +179,16 @@
                         <i class="fa fa-times"></i>
                     </button>
                 </div>
+                @if($isAdmin)
+                    <form method="GET" action="{{ route('search.index') }}" class="mb-2" data-sidebar-search>
+                        <x-ui.input type="search" class="mb-0" name="q" error="" placeholder="Search menu or site…" :noWrapper="true" autocomplete="off" maxlength="255" />
+                    </form>
+                    <p data-sidebar-empty hidden class="px-4 py-2 text-sm text-gray-500">No matching menu items. Press Enter to search the site.</p>
+                @else
                 <div class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" @click.prevent="openSearchOverlay()">
                     <i class="fa fa-search w-4 mr-2"></i>Search
                 </div>
+                @endif
                 {{-- <a href="{{ route('post.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>--}}
                 <a href="{{ route('about') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-circle-info w-4 mr-2"></i>About</a>
                 @if($publicShopAvailable)
@@ -192,7 +199,7 @@
                 @if($isAdmin)
                     <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
                     @foreach($adminNavSections as $section)
-                        <div class="border-t border-gray-200 mt-4 pt-4 px-2">
+                        <div data-sidebar-heading="{{ $section['title'] }}" class="border-t border-gray-200 mt-4 pt-4 px-2">
                             <div class="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{{ $section['title'] }}</div>
                             @isset($section['description'])
                                 <div class="mt-1 text-xs text-gray-500">{{ $section['description'] }}</div>

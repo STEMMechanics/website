@@ -13,12 +13,18 @@
         $inline = $inline ?? false;
         $values = $allocation['categories']->mapWithKeys(fn ($category) => [$category->id => number_format(($allocation['editorTargets'][$category->id] ?? $allocation['targets'][$category->id] ?? 0) / 100, 2, '.', '')])->all();
     @endphp
+    @php($values = $inline ? old('allocation.targets', $values) : $values)
     @php($previewRules = json_decode($allocation['version']->rules, true))
-    <form x-on:allocation-calculated.stop="applyCalculatorValues($event.detail)" x-on:invoice-lines-updated.window="@if($inline && $linkedWorkshops->isEmpty()) previewInvoice($event.detail, @js($previewRules), @js(json_decode($allocation['version']->prices, true))); @endif" method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline @else data-record-form @endif x-data="SM.allocationTally(@js(['values' => $values, 'products' => $productSnapshots, 'total' => $allocation['total'], 'exact' => false, 'enabled' => ! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false)]))">
+    <form x-on:allocation-calculated.stop="applyCalculatorValues($event.detail); $el.dataset.allocationChanged = '1'" x-on:invoice-lines-updated.window="@if($inline && $linkedWorkshops->isEmpty()) previewInvoice($event.detail, @js($previewRules), @js(json_decode($allocation['version']->prices, true))); @endif" method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline data-allocation-changed="{{ old('allocation') ? '1' : '0' }}" x-effect="if (allocationChanged) $el.dataset.allocationChanged = '1'" @else data-record-form @endif x-data="SM.allocationTally(@js(['values' => $values, 'products' => $productSnapshots, 'total' => $allocation['total'], 'exact' => false, 'enabled' => $inline && old('allocation') ? ! (bool) old('allocation.use_defaults', false) : (! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false))]))">
         @unless($inline)
             <div class="mb-4 flex justify-end"><x-finance.allocation-calculator-button :invoice="$invoice" :inline="false" /></div>
         @endunless
         <x-finance.invoice-allocation-calculator :invoice="$invoice" :allocation="$allocation" :inline="$inline" :total-label="$linkedWorkshops->isNotEmpty() ? 'Non-ticket items excluding GST' : 'Invoice total excluding GST'" />
+        @if($inline)
+            @foreach($errors->get('allocation.*') as $messages)
+                @foreach($messages as $message)<p class="mb-3 text-sm text-red-600">{{ $message }}</p>@endforeach
+            @endforeach
+        @endif
         @csrf
         @if($inline)<input type="hidden" name="inline" value="1">@endif
         <input type="hidden" name="budget_id" value="{{ $allocation['budget']->id ?? '' }}">
@@ -69,8 +75,8 @@
             <p class="mb-4 mt-2 text-xs text-slate-600">Untick to enter a manual override.</p>
             @endif
             <x-finance.allocation-fields :categories="$allocation['categories']" prefix="targets" idPrefix="invoice-allocation" :exact="false" :totalLabel="$linkedWorkshops->isNotEmpty() ? 'Non-ticket items excluding GST' : null" :shortfall="true" :columns="2" />
-            @if($inline)<p x-show="previewDirty" x-cloak class="mt-3 text-sm text-slate-600">Preview of unsaved invoice changes. Save the invoice before applying automatic allocations.</p>@endif
-            <x-finance.save x-bind:disabled="previewDirty && !enabled">Save allocation</x-finance.save>
+            @if($inline)<p x-show="previewDirty" x-cloak class="mt-3 text-sm text-slate-600">Preview of unsaved invoice changes. Save the invoice to apply these allocations.</p>@endif
+            @unless($inline)<x-finance.save x-bind:disabled="previewDirty && !enabled">Save allocation</x-finance.save>@endunless
         @endif
     </form>
 
