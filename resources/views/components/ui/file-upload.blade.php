@@ -258,8 +258,13 @@
                 clearFile(true);
             });
 
+            // AJAX forms own the request lifecycle; keep the selected file on failure.
+            input.addEventListener('sm:file-upload-state', (event) => {
+                stateElement.classList.toggle('hidden', !event.detail?.uploading);
+            });
+
             const parentForm = input.closest('form');
-            if (!parentForm) {
+            if (!parentForm || parentForm.hasAttribute('data-sm-file-upload-managed')) {
                 return;
             }
 
