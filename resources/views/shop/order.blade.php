@@ -574,6 +574,7 @@
                             @csrf
 
                             <div x-init="initSquareCard()">
+                                <x-square-apple-pay :amount="(string) (float) ($order->invoice?->outstandingAmount() ?? 0)" />
                                 <div class="mb-2 flex items-center justify-between">
                                     <label class="block text-sm">Card Details</label>
                                     <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">

@@ -78,6 +78,8 @@ class AdminDashboardService
         $chartBuckets = $this->chartBuckets($periodKey, $currentStart, $currentEnd);
 
         return [
+            'checkoutValues' => app(StoreCheckoutReport::class)->values($currentStart, $currentEnd),
+            'checkoutActivity' => app(StoreCheckoutReport::class)->summary($currentStart, $currentEnd),
             'period' => $periodKey,
             'periodLabel' => $periodConfig['label'],
             'periodStart' => $currentStart,

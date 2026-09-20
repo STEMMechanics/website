@@ -52,6 +52,7 @@
                 squareEnvironment: @js($squareEnvironment),
                 initialCouponDraft: @js((string) old('coupon_code', '')),
                 routes: {
+                    activity: @js(route('shop.checkout.activity')),
                     show: @js(route('shop.cart.show')),
                     update: @js(route('shop.cart.update')),
                     remove: @js(route('shop.cart.remove')),
@@ -76,7 +77,7 @@
                 ])
             </div>
 
-            <form id="shop-checkout-form" method="POST" action="{{ route('shop.checkout.place-order') }}" class="min-w-0 space-y-6" x-ref="checkoutForm" x-on:submit.prevent="submitOrder($event)">
+            <form id="shop-checkout-form" method="POST" action="{{ route('shop.checkout.place-order') }}" class="min-w-0 space-y-6" x-ref="checkoutForm" x-on:submit.prevent="submitOrder($event)" x-on:checkout-payment-event="trackCheckout($event.detail.stage)">
                 @csrf
                 <input type="hidden" name="source_id" x-model="sourceId" x-ref="sourceIdInput">
 
@@ -461,6 +462,7 @@
                             </div>
                         @else
                             <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
+                                @if($canUseAccountTerms && $squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '')
                                 <x-ui.select
                                     label="Payment Method"
                                     name="payment_method"
@@ -472,8 +474,11 @@
                                     @if($canUseAccountTerms)
                                         <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
                                     @endif
-                                    <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay by credit card</option>
+                                    <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay online</option>
                                 </x-ui.select>
+                                @else
+                                    <input type="hidden" name="payment_method" x-model="paymentMethod">
+                                @endif
 
                                 @if($canUseAccountTerms)
                                     <div
@@ -485,6 +490,7 @@
                                 @endif
 
                                 <div class="mt-5" x-show="requiresPayment && paymentMethod === 'credit_card'" x-cloak x-init="initSquareCard()">
+                                    <x-square-apple-pay amount="remainingDueAfterCredit()" eligible="checkoutStep === 'payment' && paymentMethod === 'credit_card' && canCheckout() && !requiresManualQuote() && !deliveryUpdateBusy && !quoteDirty && deliveryUpdateTimer === null && !couponBusy && !busyLineKey" />
                                     <div class="flex items-center justify-between gap-4">
                                         <label class="block text-sm font-semibold text-gray-900">Card Details</label>
                                         <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
@@ -1193,6 +1199,14 @@
                     && this.squareLocationId !== '';
             },
 
+            trackCheckout(stage) {
+                fetch(this.routes.activity, {
+                    method: 'POST', credentials: 'same-origin', keepalive: true,
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+                    body: JSON.stringify({ stage }),
+                }).catch(() => {});
+            },
+
             async goToPayment() {
                 const form = this.$refs.checkoutForm;
                 if (!(form instanceof HTMLFormElement)) {
@@ -1216,6 +1230,7 @@
                 }
 
                 this.checkoutStep = 'payment';
+                this.trackCheckout('payment');
                 this.$nextTick(async () => {
                     await this.initSquareCard();
                     this.$refs.paymentSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1479,6 +1494,7 @@
                             this.$refs.sourceIdInput.value = this.sourceId;
                         }
                     } catch (error) {
+                        this.trackCheckout('payment_failed');
                         this.errorMessage = error?.message || 'Unable to process card details.';
                         this.isSubmitting = false;
                         if (window.SM && typeof window.SM.setFormProcessing === 'function') {

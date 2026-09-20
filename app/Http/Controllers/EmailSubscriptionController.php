@@ -55,8 +55,9 @@ class EmailSubscriptionController extends Controller
     public function newsletter()
     {
         $selector = app(NewsletterProductSelectionService::class);
+        $releaseAt = app(NewsletterWorkshopSelectionService::class)->nextRelease();
         $currentStoreSelection = $selector->selection();
-        new UpcomingWorkshops('', storeSelection: $currentStoreSelection);
+        new UpcomingWorkshops('', storeSelection: $currentStoreSelection, releaseAt: $releaseAt);
         $currentStoreSelection = $selector->selection();
         $draft = $selector->draft();
         $workshopSelector = app(NewsletterWorkshopSelectionService::class);
@@ -67,8 +68,9 @@ class EmailSubscriptionController extends Controller
             'storePromotion' => $draft,
             'storeProductsBySection' => collect($draft->sections)->map(fn (array $section) => $selector->availableProducts($section['category_slugs'])),
             'matchingProductCounts' => collect($draft->sections)->map(fn (array $section) => $selector->matchingProductCount($section)),
-            'newsletterWorkshops' => $workshopSelector->selection($draft->excluded_workshop_ids ?? []),
-            'hiddenNewsletterWorkshops' => $workshopSelector->candidates()->whereIn('workshops.id', $draft->excluded_workshop_ids ?? [])->get(),
+            'newsletterReleaseAt' => $releaseAt,
+            'newsletterWorkshops' => $workshopSelector->selection($draft->excluded_workshop_ids ?? [], $releaseAt),
+            'hiddenNewsletterWorkshops' => $workshopSelector->candidates($releaseAt)->whereIn('workshops.id', $draft->excluded_workshop_ids ?? [])->get(),
             'currentStoreSelection' => $currentStoreSelection,
             'storeThemes' => NewsletterStoreTheme::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
         ]);
@@ -332,7 +334,7 @@ class EmailSubscriptionController extends Controller
         $email = strtolower(trim((string) $validated['test_email']));
 
         try {
-            $this->queueNewsletter($email);
+            $this->queueNewsletter($email, releaseAt: app(NewsletterWorkshopSelectionService::class)->nextRelease());
         } catch (Throwable $exception) {
             session()->flash('message', 'Unable to queue newsletter: '.$exception->getMessage());
             session()->flash('message-title', 'Newsletter failed');
@@ -395,8 +397,8 @@ class EmailSubscriptionController extends Controller
     }
 
     /** @param array<string, mixed>|null $storeSelection */
-    private function queueNewsletter(string $email, ?array $storeSelection = null): void
+    private function queueNewsletter(string $email, ?array $storeSelection = null, ?\Carbon\CarbonInterface $releaseAt = null): void
     {
-        dispatch(new SendEmail($email, new UpcomingWorkshops($email, storeSelection: $storeSelection)))->onQueue('mail');
+        dispatch(new SendEmail($email, new UpcomingWorkshops($email, storeSelection: $storeSelection, releaseAt: $releaseAt)))->onQueue('mail');
     }
 }

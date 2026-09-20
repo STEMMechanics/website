@@ -24,6 +24,26 @@ class ShopCheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_payment_method_selector_only_appears_with_multiple_available_methods(): void
+    {
+        config()->set('services.square.enabled', true);
+        config()->set('services.square.location_id', 'L123');
+        config()->set('services.square.application_id', 'A123');
+        $user = User::factory()->create(['account_terms_days' => 0]);
+        $product = Product::factory()->create(['status' => Product::STATUS_ACTIVE, 'product_type' => Product::PRODUCT_TYPE_DIGITAL, 'price' => 25]);
+        $this->actingAs($user)->post(route('shop.cart.add', $product), ['quantity' => 1]);
+        foreach ([[0, true, 0], [14, true, 1], [14, false, 0]] as [$terms, $square, $expected]) {
+            $user->update(['account_terms_days' => $terms]);
+            config()->set('services.square.enabled', $square);
+            $response = $this->get(route('shop.checkout'))->assertOk();
+            $document = new \DOMDocument;
+            @$document->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($document);
+            $this->assertSame($expected, $xpath->query('//select[@name="payment_method"]')->length);
+            $this->assertSame(1 - $expected, $xpath->query('//input[@name="payment_method" and @type="hidden"]')->length);
+        }
+    }
+
     public function test_guest_checkout_saves_billing_address_to_user_and_invoice_snapshot(): void
     {
         Queue::fake();
@@ -50,6 +70,7 @@ class ShopCheckoutTest extends TestCase
         $order = StoreOrder::query()->where('user_id', $user->id)->firstOrFail();
         $invoice = $order->invoice()->firstOrFail();
 
+        $this->assertDatabaseHas('store_checkout_sessions', ['order_id' => $order->id, 'outcome' => 'completed']);
         $this->assertSame('12 Invoice Street', $user->billing_address);
         $this->assertSame('12 Invoice Street', $invoice->billing_address);
         $this->assertSame('Example Labs', $invoice->billing_company);
@@ -155,6 +176,7 @@ class ShopCheckoutTest extends TestCase
 
         $response->assertRedirect(route('shop.checkout'));
         $response->assertSessionHasErrors('source_id');
+        $this->assertDatabaseHas('store_checkout_sessions', ['payment_failed' => false, 'outcome' => null]);
         $this->assertSame(0, StoreOrder::query()->count());
 
         $this->get(route('shop.checkout'))
@@ -164,7 +186,11 @@ class ShopCheckoutTest extends TestCase
             ->assertSee('Payment Details')
             ->assertSee('Add voucher')
             ->assertSee('GST Included')
-            ->assertSee('Place Order');
+            ->assertSee('Place Order')
+            ->assertSee('Pay with Apple Pay')
+            ->assertSee('remainingDueAfterCredit()')
+            ->assertDontSee('label="Payment Method"', false)
+            ->assertDontSee('<select name="payment_method"', false);
 
         $this->get(route('shop.checkout.payment'))
             ->assertRedirect(route('shop.checkout'));
@@ -213,6 +239,7 @@ class ShopCheckoutTest extends TestCase
         $errors = session('errors');
         $this->assertNotNull($errors);
         $this->assertStringContainsString('Reference:', (string) $errors->getBag('default')->first('source_id'));
+        $this->assertDatabaseHas('store_checkout_sessions', ['payment_failed' => true, 'outcome' => null]);
         $this->assertSame(0, StoreOrder::query()->count());
 
         $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
@@ -631,6 +658,7 @@ class ShopCheckoutTest extends TestCase
         $response->assertRedirect(route('shop.index'));
         $quote = Quote::query()->firstOrFail();
 
+        $this->assertDatabaseHas('store_checkout_sessions', ['outcome' => 'quote_requested', 'manual_quote' => true]);
         $this->assertSame(Quote::CONTEXT_STORE_MANUAL_SHIPPING, (string) $quote->context_type);
         $this->assertSame(Quote::STATUS_DRAFT, (string) $quote->status);
         $this->assertTrue((bool) $quote->acceptance_creates_order);

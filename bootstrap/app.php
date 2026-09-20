@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->trimStrings(except: ['verification_text']);
         $middleware->replace(\Illuminate\Http\Middleware\TrustProxies::class, \App\Http\Middleware\TrustedIngress::class);
         $middleware->trustHosts(at: fn () => array_map(
             fn (string $host): string => '^'.preg_quote($host, '/').'$',
@@ -47,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RequirePrivilegedMfa::class,
             \App\Http\Middleware\CanonicalHost::class,
             TrackAnalytics::class,
+            \App\Http\Middleware\TrackStoreCheckout::class,
             \App\Http\Middleware\ProfileRequests::class,
             \App\Http\Middleware\RenderFragment::class,
         ]);

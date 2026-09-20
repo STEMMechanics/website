@@ -49,3 +49,7 @@ import './product-postage-preview';
 
 import './sidebar-search';
 import './expense-drop';
+
+import './square-apple-pay';
+
+import './workplan-layout';

@@ -36,13 +36,13 @@ class UpcomingWorkshops extends Mailable
     public $contentOrder;
 
     /** @param array<string, mixed>|null $storeSelection */
-    public function __construct($email, $subject = 'Upcoming Workshops 🌟', ?array $storeSelection = null)
+    public function __construct($email, $subject = 'Upcoming Workshops 🌟', ?array $storeSelection = null, ?\Carbon\CarbonInterface $releaseAt = null)
     {
         $this->subject = $subject;
         $this->email = $email;
         $this->heroButtonLabel = trim((string) config('newsletter.upcoming_workshops.button_label', 'View All Workshops')) ?: 'View All Workshops';
         $this->storePromotion = $storeSelection ?? app(NewsletterProductSelectionService::class)->selection();
-        $upcomingWorkshops = app(NewsletterWorkshopSelectionService::class)->selection($this->storePromotion['excluded_workshop_ids'] ?? []);
+        $upcomingWorkshops = app(NewsletterWorkshopSelectionService::class)->selection($this->storePromotion['excluded_workshop_ids'] ?? [], $releaseAt);
         $this->workshops = $upcomingWorkshops->whereNotNull('location_id')->values();
         $this->onlineWorkshops = $upcomingWorkshops->whereNull('location_id')->values();
         $this->contentOrder = in_array($this->storePromotion['content_order'] ?? null, ['store', 'workshops'], true)

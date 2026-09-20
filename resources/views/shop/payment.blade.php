@@ -178,6 +178,7 @@
                         </div>
                     @else
                         <div x-init="initSquareCard()">
+                            <x-square-apple-pay :amount="(string) (float) ($summary['total'] ?? 0)" />
                             <div class="flex items-center justify-between mb-2">
                                 <label class="block text-sm">Card Details</label>
                                 <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
