@@ -2941,30 +2941,19 @@ class WorkshopController extends Controller
             abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
         }
 
-        $tickets = Ticket::query()
+        $currentTickets = Ticket::query()
             ->where('workshop_id', $workshop->id)
-            ->where('status', '!=', Ticket::STATUS_HOLD)
-            ->orderBy('reference_code')
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->orderBy('firstname')
+            ->orderBy('surname')
             ->orderBy('id')
             ->get();
-
-        $currentTickets = $tickets
-            ->filter(fn (Ticket $ticket) => in_array((int) $ticket->status, Ticket::activePurchasedStatuses(), true))
-            ->values();
-        $reissuedTickets = $tickets
-            ->where('status', Ticket::STATUS_REISSUED)
-            ->values();
-        $cancelledTickets = $tickets
-            ->where('status', Ticket::STATUS_CANCELLED)
-            ->values();
 
         return DomPdf::loadView('pdf.workshop-ticket-roll', [
             'workshop' => $workshop->loadMissing('location'),
             'currentTickets' => $currentTickets,
-            'reissuedTickets' => $reissuedTickets,
-            'cancelledTickets' => $cancelledTickets,
-            'generatedAt' => now(),
-        ])->setOption([
+            'session' => app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
+        ])->setPaper('a4', 'landscape')->setOption([
             'enable_font_subsetting' => true,
         ])->stream('workshop-'.$workshop->id.'-ticket-roll.pdf');
     }

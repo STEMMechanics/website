@@ -85,31 +85,24 @@
             </div>
         </div>
 
-        <div class="my-4 flex flex-col gap-3 md:flex-row md:items-center">
-            <x-ui.row-actions class="flex-1">
-                <x-ui.button type="button" x-on:click.prevent="createTicketOpen = true">Create Ticket</x-ui.button>
-                <a
-                    href="{{ route('admin.workshop.tickets.pdf', $workshop) }}"
-                    target="_blank"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
-                    title="Ticket Roll PDF"
-                    aria-label="Ticket Roll PDF"
-                >
-                    <i class="fa-regular fa-file-pdf"></i>
-                </a>
-                <x-ui.row-action label="Email Ticket Contacts" icon="fa-regular fa-envelope" tone="neutral"
-                    type="button"
-                    x-on:click.prevent="bulkEmailOpen = true"
-                    aria-label="Email Ticket Contacts"
-                 />
-                <x-ui.row-action label="{{ $smsButtonTitle }}" icon="fa-solid fa-comment-sms" tone="neutral"
-                    type="button"
-                    x-on:click.prevent="smsOpen = true"
-                    aria-label="{{ $smsButtonTitle }}"
-                    :disabled="! $smsButtonEnabled"
-                 />
-            </x-ui.row-actions>
-            <div class="w-full md:w-auto md:min-w-[18rem]">
+        <div class="my-4 flex flex-wrap items-center justify-between gap-3" data-ticket-toolbar>
+            <div class="flex flex-wrap items-center gap-2">
+                <x-ui.button type="button" class="gap-2" x-on:click.prevent="createTicketOpen = true">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
+                </x-ui.button>
+                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">
+                    <i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet
+                </x-ui.button>
+                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.attendance', $workshop) }}">
+                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Check in
+                </x-ui.button>
+                <x-ui.action-menu id="workshop-ticket-tools" title="Ticket tools">
+                    <x-ui.row-action label="Attendance export (PDF)" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
+                    <x-ui.row-action label="Email ticket contacts" icon="fa-regular fa-envelope" type="button" x-on:click.prevent="bulkEmailOpen = true" />
+                    <x-ui.row-action label="Text ticket contacts" icon="fa-solid fa-comment-sms" type="button" x-on:click.prevent="smsOpen = true" :title="$smsButtonTitle" :disabled="! $smsButtonEnabled" />
+                </x-ui.action-menu>
+            </div>
+            <div class="w-full sm:w-auto sm:min-w-[18rem]">
                 <x-ui.search name="search" label="Search Tickets" class="w-full" />
             </div>
         </div>

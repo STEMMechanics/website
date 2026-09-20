@@ -119,6 +119,7 @@
                 <div class="flex flex-wrap gap-2">
                     <x-ui.button color="outline" href="{{ route('admin.workshop.attendance.csv', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}">Export CSV</x-ui.button>
                     @if($isTicketedWorkshop)
+                        <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.tickets.pdf', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}" target="_blank"><i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet</x-ui.button>
                         <x-ui.button color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                     @else
                         <x-ui.button href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
