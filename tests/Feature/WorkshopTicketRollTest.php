@@ -82,7 +82,7 @@ class WorkshopTicketRollTest extends TestCase
         $workshop->starts_at = '2026-09-22 10:30:00';
         $workshop->location->name = 'Community Learning Centre';
 
-        foreach ([0 => 1, 10 => 1, 26 => 3] as $count => $pageCount) {
+        foreach ([0 => 2, 7 => 2, 10 => 2, 26 => 4] as $count => $pageCount) {
             $tickets = collect(range(1, max($count, 1)))->take($count)->map(fn ($i) => new Ticket([
                 'firstname' => 'Attendee '.$i,
                 'surname' => $count > 10 ? 'Long-Surname Example' : 'Example',
@@ -93,7 +93,24 @@ class WorkshopTicketRollTest extends TestCase
             $data = ['workshop' => $workshop, 'currentTickets' => $tickets];
             $html = view('pdf.workshop-ticket-roll', $data)->render();
             $this->assertStringContainsString('Media consent (Yes)', $html);
-            $this->assertStringContainsString('Child<br>dropped off', $html);
+            $this->assertStringContainsString('your signature confirms your contact details are correct and your child has been dropped off', $html);
+            $document = HTMLDocument::createFromString($html, LIBXML_NOERROR);
+            $sheets = $document->querySelectorAll('.sheet');
+            $this->assertCount($pageCount, $sheets);
+            foreach ($sheets as $sheet) {
+                $this->assertCount(4, $sheet->querySelectorAll('.roll th'));
+                $this->assertCount(10, $sheet->querySelectorAll('.roll tbody tr'));
+            }
+            $dropInSheet = $sheets->item($pageCount - 1);
+            $this->assertSame('Workshop sign-in', trim($dropInSheet->querySelector('.document-title')->textContent));
+            foreach ($dropInSheet->querySelectorAll('.roll tbody tr') as $row) {
+                $cells = $row->querySelectorAll('td');
+                $this->assertSame('', trim($cells->item(0)->textContent));
+                $this->assertSame('', trim($cells->item(1)->textContent));
+                $this->assertSame('', trim($cells->item(3)->textContent));
+            }
+            $populatedRows = $document->querySelectorAll('.reference')->length;
+            $this->assertSame($count, $populatedRows);
             $this->assertStringNotContainsString('Cancelled Tickets', $html);
             $pdf = Pdf::loadView('pdf.workshop-ticket-roll', $data)->setPaper('a4', 'landscape');
             $pdf->render();
