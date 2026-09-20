@@ -331,6 +331,7 @@ class WorkshopTicketFlowController extends Controller
             'totalAmount' => $checkoutTotals['total_amount'],
             'equipmentAmount' => $checkoutTotals['equipment_amount'],
             'hasEquipment' => $equipmentSummary['lines']->isNotEmpty(),
+            'canPayAtDoor' => $workshop->allowsPayAtDoor() && $equipmentSummary['lines']->isEmpty(),
             'deliveryAmount' => (float) ($equipmentSummary['summary']['shipping'] ?? 0),
             'equipmentQuoteRequired' => (bool) ($equipmentSummary['summary']['shipping_quote']['requires_manual_quote'] ?? false),
             'voucherCode' => $checkoutTotals['voucher_code'],
@@ -381,7 +382,10 @@ class WorkshopTicketFlowController extends Controller
 
         $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
         $equipment = $equipmentService->summary($workshop, $session);
-        $allowedPaymentMethods = $equipment['lines']->isNotEmpty() ? ['credit_card', 'credit'] : ['pay_at_door', 'bank_transfer', 'credit_card', 'credit'];
+        $allowedPaymentMethods = $equipment['lines']->isNotEmpty() ? ['credit_card', 'credit'] : ['bank_transfer', 'credit_card', 'credit'];
+        if ($equipment['lines']->isEmpty() && $workshop->allowsPayAtDoor()) {
+            $allowedPaymentMethods[] = 'pay_at_door';
+        }
         $accountTermsDays = $this->checkoutAccountTermsDays();
         if ($accountTermsDays > 0) {
             $allowedPaymentMethods[] = 'account_terms';

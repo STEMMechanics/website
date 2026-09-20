@@ -445,6 +445,7 @@ class ShopCheckoutTest extends TestCase
 
     public function test_product_page_shows_variant_specific_backorder_dates(): void
     {
+        $this->travelTo(now()->setDate(2026, 5, 1)->startOfDay());
         /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,

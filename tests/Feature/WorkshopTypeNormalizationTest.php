@@ -599,6 +599,27 @@ class WorkshopTypeNormalizationTest extends TestCase
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
+    public function test_admin_can_configure_door_payments_and_new_workshops_default_to_disabled(): void
+    {
+        $admin = $this->createAdminUser();
+        $ticket = Ticket::factory()->create();
+        $workshop = $ticket->workshop;
+        $payload = $this->workshopUpdatePayload($workshop, $workshop->location, $workshop->hero_media_name, [
+            'registration' => 'tickets', 'price' => '15.00', 'max_tickets' => 20,
+        ]);
+        $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop))
+            ->assertOk()->assertSee('Allow payment at the door');
+        foreach ([true, false] as $enabled) {
+            $this->put(route('admin.workshop.update', $workshop), $payload + ['allow_pay_at_door' => (int) $enabled])
+                ->assertSessionHasNoErrors()->assertRedirect();
+            $this->assertSame($enabled, $workshop->fresh()->allow_pay_at_door);
+            $this->assertSame($enabled, $workshop->fresh()->allowsPayAtDoor());
+        }
+        $payload['title'] = 'New door payment workshop';
+        $this->post(route('admin.workshop.store'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertFalse(Workshop::where('title', $payload['title'])->sole()->allow_pay_at_door);
+    }
+
     private function workshopUpdatePayload(Workshop $workshop, Location $location, string $heroName, array $overrides = []): array
     {
         return array_merge([

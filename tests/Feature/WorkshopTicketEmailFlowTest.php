@@ -937,6 +937,61 @@ class WorkshopTicketEmailFlowTest extends TestCase
     /**
      * @param  array<string, mixed>  $overrides
      */
+    public function test_door_payment_is_hidden_and_rejected_without_an_enabled_physical_venue(): void
+    {
+        Queue::fake();
+        $onlineLocation = Location::factory()->create(['name' => 'Online']);
+        foreach ([
+            ['type' => 'online'],
+            ['type' => 'physical', 'location_id' => null],
+            ['format' => 'course', 'location_id' => null],
+            ['format' => 'course', 'location_id' => $onlineLocation->id],
+            ['allow_pay_at_door' => false],
+        ] as $overrides) {
+            $workshop = $this->createTicketedWorkshop($overrides);
+            $this->post(route('workshop.ticket.flow.begin', $workshop), [
+                'quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example',
+                'email' => 'buyer@example.com', 'phone' => '0400123456',
+            ])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+            $this->withSession(['_old_input' => ['payment_method' => 'pay_at_door']])
+                ->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()
+                ->assertDontSee('<option value="pay_at_door">', false)
+                ->assertSee("paymentMethod: 'bank_transfer'", false);
+            $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'pay_at_door'])
+                ->assertSessionHasErrors('payment_method');
+            $this->assertDatabaseCount('invoices', 0);
+            $this->assertSame(Ticket::STATUS_HOLD, $workshop->tickets()->sole()->status);
+            session()->forget(['_old_input', 'errors']);
+        }
+    }
+
+    public function test_disabling_door_payment_after_checkout_opens_rejects_the_stale_selection(): void
+    {
+        Queue::fake();
+        $workshop = $this->createTicketedWorkshop(['allow_pay_at_door' => true]);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example',
+            'email' => 'buyer@example.com', 'phone' => '0400123456',
+        ])->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()
+            ->assertSee('<option value="pay_at_door">', false);
+        $workshop->update(['allow_pay_at_door' => false]);
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'pay_at_door'])
+            ->assertSessionHasErrors('payment_method');
+        $this->assertDatabaseCount('invoices', 0);
+    }
+
+    public function test_free_online_tickets_do_not_require_a_door_payment_method(): void
+    {
+        Queue::fake();
+        $workshop = $this->createTicketedWorkshop(['type' => 'online', 'price' => 'Free', 'allow_pay_at_door' => false]);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example',
+            'email' => 'buyer@example.com', 'phone' => '0400123456',
+        ])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $this->assertSame(Ticket::STATUS_PAID, $workshop->tickets()->sole()->status);
+    }
+
     private function createTicketedWorkshop(array $overrides = []): Workshop
     {
         $author = User::factory()->create();

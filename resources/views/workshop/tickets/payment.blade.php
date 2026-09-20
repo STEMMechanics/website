@@ -12,6 +12,14 @@
     $ticketSubtotal = round((float) ($ticketPricing['subtotal_amount'] ?? ((float) $ticketPriceAmount * (int) ($holdCount ?? 0))), 2);
     $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount) + (float) ($equipmentAmount ?? 0), 2);
     $hasAmountDue = $ticketTotal > 0.0001;
+    $canPayAtDoor = (bool) ($canPayAtDoor ?? false);
+    $availablePaymentMethods = ($hasEquipment ?? false) ? ['credit_card'] : ['bank_transfer', 'credit_card'];
+    if ($canPayAtDoor) array_unshift($availablePaymentMethods, 'pay_at_door');
+    if ($canUseAccountTerms) array_unshift($availablePaymentMethods, 'account_terms');
+    $previousPaymentMethod = old('payment_method');
+    $defaultPaymentMethod = $hasAmountDue
+        ? (in_array($previousPaymentMethod, $availablePaymentMethods, true) ? $previousPaymentMethod : $availablePaymentMethods[0])
+        : 'credit';
     $earlyBirdSummary = $workshop->earlyBirdSummaryLabel();
     $summaryRows = [];
     if ($pricingItems !== []) {
@@ -72,7 +80,7 @@
                     canUseAccountTerms: @js($canUseAccountTerms),
                     totalAmount: @js($ticketTotal),
                     useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
-                    paymentMethod: @js($ticketTotal > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
+                    paymentMethod: @js($defaultPaymentMethod),
                     voucherCode: @js($voucherCode),
                     voucherDraft: @js(old('voucher_code', $voucherCode)),
                     voucherError: @js($errors->first('voucher_code') ?: ''),
@@ -162,7 +170,9 @@
                             <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
                             @endif
                             @unless($hasEquipment ?? false)
+                            @if($canPayAtDoor)
                             <option value="pay_at_door">Pay at the door</option>
+                            @endif
                             <option value="bank_transfer">Bank transfer</option>
                             @endunless
                             <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay online (card or Apple Pay)</option>
@@ -207,7 +217,7 @@
                             {!! nl2br(e($bankTransferNotice)) !!}
                         </div>
                     @endif
-                    @if($payAtDoorNotice)
+                    @if($canPayAtDoor && $payAtDoorNotice)
                         <div
                             x-show="!expired && paymentMethod === 'pay_at_door'"
                             x-cloak
@@ -295,7 +305,7 @@
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     function ticketPaymentPage(config) {
         return {
-            paymentMethod: @js($totalAmount > 0 ? (($hasEquipment ?? false) && in_array(old('payment_method', ''), ['', 'pay_at_door', 'bank_transfer'], true) ? ($canUseAccountTerms ? 'account_terms' : 'credit_card') : old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door')) : 'credit'),
+            paymentMethod: config.paymentMethod,
             squareEnabled: Boolean(config.squareEnabled),
             squareApplicationId: config.squareApplicationId || '',
             squareLocationId: config.squareLocationId || '',

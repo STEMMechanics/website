@@ -1016,6 +1016,7 @@ class WorkshopController extends Controller
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
             'price_is_automatic' => 'nullable|boolean',
+            'allow_pay_at_door' => 'nullable|boolean',
             'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
             'optional_product_ids' => 'nullable|array|max:30',
             'optional_product_ids.*' => 'integer|distinct|exists:products,id',
@@ -1047,6 +1048,7 @@ class WorkshopController extends Controller
         $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
+        $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door');
         if ($request->input('registration') === 'tickets') {
             \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
             $workshopData['pricing_version_id'] = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
@@ -2128,6 +2130,7 @@ class WorkshopController extends Controller
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
             'price_is_automatic' => 'nullable|boolean',
+            'allow_pay_at_door' => 'nullable|boolean',
             'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
             'optional_product_ids' => 'nullable|array|max:30',
             'optional_product_ids.*' => 'integer|distinct|exists:products,id',
@@ -2169,6 +2172,7 @@ class WorkshopController extends Controller
         $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request, $workshop));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
+        $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door', (bool) $workshop->allow_pay_at_door);
         if ($request->input('registration') === 'tickets') {
             $savedPlan = \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
             \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
