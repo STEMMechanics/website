@@ -47,7 +47,7 @@
                         <h1 class="workshop-title">{{ $workshop->title }}</h1>
                         <div class="details"><strong>{{ $startsAt?->format('l j F Y, g:i a') ?? 'Date to be confirmed' }}</strong><br>{{ $workshop->getLocationName() }}</div>
                     </td>
-                    <td style="width: 26%" class="document-title">{{ $loop->last ? 'Drop-in sign-in' : 'Workshop sign-in' }}</td>
+                    <td style="width: 26%" class="document-title">Workshop sign-in</td>
                 </tr>
             </table>
             <div class="instructions">Parent / guardian: your signature confirms your contact details are correct and your child has been dropped off. Write any corrections and choose Yes or No for media consent.</div>

@@ -102,7 +102,7 @@ class WorkshopTicketRollTest extends TestCase
                 $this->assertCount(10, $sheet->querySelectorAll('.roll tbody tr'));
             }
             $dropInSheet = $sheets->item($pageCount - 1);
-            $this->assertSame('Drop-in sign-in', trim($dropInSheet->querySelector('.document-title')->textContent));
+            $this->assertSame('Workshop sign-in', trim($dropInSheet->querySelector('.document-title')->textContent));
             foreach ($dropInSheet->querySelectorAll('.roll tbody tr') as $row) {
                 $cells = $row->querySelectorAll('td');
                 $this->assertSame('', trim($cells->item(0)->textContent));
