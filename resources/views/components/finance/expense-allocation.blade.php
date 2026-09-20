@@ -9,14 +9,14 @@
     $values = is_array($oldValues) ? collect($values)->map(fn ($value, $id) => is_scalar($oldValues[$id] ?? null) ? (string) $oldValues[$id] : $value)->all() : $values;
     $enabled = (bool) old('allocation_override', $manual->isNotEmpty());
 @endphp
-<section class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
+<section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
     <h2 class="mb-4 text-lg font-semibold">Cost centre allocation</h2>
     <input type="hidden" name="allocation_editor" value="1">
     <x-ui.checkbox name="allocation_override" value="1" label="Set an allocation for this expense" x-model="enabled" :checked="$enabled" />
     @if(!$expense)
         <p class="mt-2 text-sm text-gray-500">For a new supplier, this allocation is also saved as its default percentages for future expenses.</p>
     @endif
-    @error('splits')<p role="alert" class="my-3 text-sm text-red-700">{{ $message }}</p>@enderror
+    <p data-validation-error id="expense-splits-error" role="alert" class="my-3 text-sm text-red-700" @if(!$errors->has('splits')) hidden @endif>{{ $errors->first('splits') }}</p>
     <div class="mt-4">
         <x-finance.allocation-fields :categories="$allocationCategories" />
     </div>

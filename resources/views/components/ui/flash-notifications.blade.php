@@ -23,7 +23,7 @@
     if (request()->routeIs('admin.user.index') && is_string(session('status')) && session('status') !== '') {
         $notifications[] = ['title' => '', 'message' => session('status'), 'type' => 'success'];
     }
-    if (request()->routeIs('admin.cost-centre.allocations', 'admin.timesheet.index') && $errors->any()) {
+    if (request()->routeIs('admin.cost-centre.allocations', 'admin.timesheet.index', 'admin.expense.*') && $errors->any()) {
         $notifications[] = ['title' => 'Could not save changes', 'message' => implode("\n", $errors->all()), 'type' => 'error'];
     }
 @endphp
