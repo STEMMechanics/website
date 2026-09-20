@@ -718,18 +718,26 @@ let SM = {
                     return;
                 }
 
+                const showDeleteError = (error) => {
+                    const status = Number(error?.response?.status || 0);
+                    const data = error?.response?.data;
+                    const message = status >= 400 && status < 500
+                        ? Object.values(data?.errors || {}).flat()[0] || data?.message
+                        : null;
+                    SM.alert('Unable to delete', message || 'The request could not be completed. Please try again. If it keeps failing, contact support.', 'danger');
+                };
+                const completeDelete = (data) => {
+                    if (data?.success) {
+                        SM.redirectIfSafe(data.redirect);
+                    } else {
+                        showDeleteError();
+                    }
+                };
                 const axiosClient = window.axios;
-
                 if (axiosClient && typeof axiosClient.delete === 'function') {
                     axiosClient.delete(deleteUrl)
-                    .then((response) => {
-                        if(response.data.success){
-                            SM.redirectIfSafe(response.data.redirect);
-                        }
-                    })
-                    .catch(() => {
-                        window.location.reload();
-                    });
+                        .then(response => completeDelete(response.data))
+                        .catch(showDeleteError);
                     return;
                 }
 
@@ -742,18 +750,12 @@ let SM = {
                     },
                     credentials: 'same-origin',
                 })
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data && data.success) {
-                        SM.redirectIfSafe(data.redirect);
-                        return;
-                    }
-
-                    window.location.reload();
+                .then(async response => {
+                    const data = await response.json().catch(() => null);
+                    if (!response.ok) throw {response: {status: response.status, data}};
+                    completeDelete(data);
                 })
-                .catch(() => {
-                    window.location.reload();
-                });
+                .catch(showDeleteError);
             }
         });
     },

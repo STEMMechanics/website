@@ -23,6 +23,45 @@ class InvoiceExpenseAllocationTest extends TestCase
         return $user;
     }
 
+    public function test_draft_with_saved_cost_centre_allocation_can_be_deleted(): void
+    {
+        $invoice = Invoice::factory()->create(['status' => Invoice::STATUS_DRAFT, 'total_amount' => 110, 'gst_amount' => 10]);
+        $this->actingAs($this->admin());
+        $this->postJson(route('admin.invoice.allocation.store', $invoice), ['targets' => [1 => '60.00', 2 => '40.00']])->assertOk();
+        $this->assertDatabaseHas('finance_budget_invoices', ['invoice_id' => $invoice->id]);
+        $this->deleteJson(route('admin.invoice.destroy', $invoice))->assertOk()->assertJsonPath('success', true)
+            ->assertJsonPath('redirect', route('admin.invoice.index'));
+        $this->assertDatabaseMissing('invoices', ['id' => $invoice->id]);
+        $this->assertDatabaseMissing('finance_budget_invoices', ['invoice_id' => $invoice->id]);
+        $this->assertDatabaseCount('finance_budgets', 0);
+    }
+
+    public function test_deleting_a_draft_retains_shared_budgets_and_financial_history(): void
+    {
+        $admin = $this->admin();
+        $this->actingAs($admin);
+        foreach (['shared', 'history'] as $scenario) {
+            $invoice = Invoice::factory()->create(['status' => Invoice::STATUS_DRAFT, 'total_amount' => 110, 'gst_amount' => 10]);
+            $this->postJson(route('admin.invoice.allocation.store', $invoice), ['targets' => [1 => '60.00', 2 => '40.00']])->assertOk();
+            $budgetId = DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->value('budget_id');
+            if ($scenario === 'shared') {
+                $other = Invoice::factory()->create();
+                DB::table('finance_budget_invoices')->insert(['budget_id' => $budgetId, 'invoice_id' => $other->id]);
+            } else {
+                DB::table('finance_fund_transfers')->insert(['budget_id' => $budgetId, 'category_id' => 1, 'cents' => 100, 'reason' => 'Keep history', 'created_by' => $admin->id]);
+            }
+            $this->deleteJson(route('admin.invoice.destroy', $invoice))->assertOk()->assertJsonPath('success', true);
+            $this->assertDatabaseMissing('invoices', ['id' => $invoice->id]);
+            $this->assertDatabaseMissing('finance_budget_invoices', ['invoice_id' => $invoice->id]);
+            $this->assertDatabaseHas('finance_budgets', ['id' => $budgetId]);
+            if ($scenario === 'shared') {
+                $this->assertDatabaseHas('finance_budget_invoices', ['budget_id' => $budgetId, 'invoice_id' => $other->id]);
+            } else {
+                $this->assertDatabaseHas('finance_fund_transfers', ['budget_id' => $budgetId, 'cents' => 100]);
+            }
+        }
+    }
+
     public function test_invoice_allocation_can_be_created_and_overridden_without_changing_invoice(): void
     {
         $invoice = Invoice::factory()->create(['total_amount' => 110, 'gst_amount' => 10]);

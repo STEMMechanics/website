@@ -345,7 +345,12 @@ class InvoiceController extends Controller
             }
 
             DB::transaction(function () use ($invoice): void {
+                DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
                 $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                if ($locked->status !== Invoice::STATUS_DRAFT) {
+                    throw ValidationException::withMessages(['invoice' => 'This invoice is no longer a draft. Refresh the page before making changes.']);
+                }
+                app(\App\Services\Finance\InvoiceAllocation::class)->removeDraft($locked);
                 app(\App\Services\Finance\InvoiceInventory::class)->sync($locked, release: true);
                 $locked->delete();
             });

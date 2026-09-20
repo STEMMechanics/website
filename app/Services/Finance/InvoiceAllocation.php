@@ -10,6 +10,24 @@ use Illuminate\Support\Str;
 
 class InvoiceAllocation
 {
+    /** Remove draft planning links inside the caller's locked deletion transaction. */
+    public function removeDraft(Invoice $invoice): void
+    {
+        $ids = DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->pluck('budget_id');
+        DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->delete();
+        foreach ($ids as $id) {
+            $budget = DB::table('finance_budgets')->where('id', $id)->lockForUpdate()->first();
+            if (! $budget || $budget->workshop_id !== null
+                || DB::table('finance_budget_invoices')->where('budget_id', $id)->exists()
+                || DB::table('finance_expense_splits')->where('budget_id', $id)->exists()
+                || DB::table('finance_fund_transfers')->where('budget_id', $id)->exists()) {
+                continue;
+            }
+            // Delete only unused standalone plans; retain shared plans and financial history.
+            DB::table('finance_budgets')->where('id', $id)->delete();
+        }
+    }
+
     /** Save inside the caller's finance-settings transaction lock. */
     public function saveManual(Invoice $invoice, array $context, array $targets, string $userId): void
     {
