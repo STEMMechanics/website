@@ -43,6 +43,7 @@
 
     <div
         class="{{ twMerge(['relative mt-1'], $fieldClasses, ($noWrapper ? $attributes->get('class') : '')) }}"
+        data-validation-field="{{ $name }}"
         data-sm-file-upload
     >
         <input
@@ -86,9 +87,7 @@
             <div class="mt-1 text-xs text-gray-500">{{ $info }}</div>
         @endif
 
-        @if($hasError)
-            <div class="mt-1 text-xs text-red-600">{{ $error }}</div>
-        @endif
+        <div data-validation-error id="{{ $inputId }}-error" class="mt-1 text-xs text-red-600" @if(!$hasError) hidden @endif>{{ $error }}</div>
     </div>
 
     <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

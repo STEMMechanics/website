@@ -37,7 +37,7 @@
     $autocompleteValue = (string) $value;
 @endphp
 
-<div class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}">
+<div data-validation-field="{{ $name }}" class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}">
     @if($isFileInput)
         <x-ui.file-upload
             :name="$name"
@@ -627,7 +627,7 @@
     @if(isset($info) && $info !== '')
         <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
     @endif
-    @if ($hasError)
-        <div class="text-xs text-red-600 ml-2 mt-2">{{ $error }}</div>
+    @if(!$isFileInput)
+        <div data-validation-error @if($inputId !== '') id="{{ $inputId }}-error" @endif class="text-xs text-red-600 ml-2 mt-2" @if(!$hasError) hidden @endif>{{ $error }}</div>
     @endif
 </div>

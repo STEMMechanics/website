@@ -7,11 +7,14 @@ use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\PdfTextExtractor;
+use Dom\HTMLDocument;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Mockery;
 use Tests\TestCase;
 
@@ -23,6 +26,33 @@ class ExpenseDocumentNamingTest extends TestCase
     {
         parent::setUp();
         $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
+
+    public function test_expense_editor_renders_field_errors_and_the_standard_notification(): void
+    {
+        $errors = new ViewErrorBag;
+        $errors->put('default', new MessageBag([
+            'supplier' => ['The supplier field is required.'],
+            'receipt_document_file' => ['The receipt could not be read.'],
+            'splits' => ['Allocated amounts must equal the expense total excluding GST.'],
+        ]));
+
+        $response = $this->actingAs($this->createAdminUser())
+            ->withSession(['errors' => $errors])
+            ->get(route('admin.expense.create'));
+
+        $response->assertOk();
+        $response->assertSee('SM.alert(', false);
+        $response->assertSee('Could not save changes');
+        $response->assertDontSee('id="expense-save-errors"', false);
+
+        $document = HTMLDocument::createFromString($response->getContent(), LIBXML_NOERROR);
+        foreach (['supplier', 'receipt_document_file', 'splits'] as $name) {
+            $field = $document->querySelector('[data-validation-field="'.$name.'"]');
+            $error = $field->querySelector('[data-validation-error]');
+            $this->assertSame($errors->first($name), trim($error->textContent));
+            $this->assertFalse($error->hasAttribute('hidden'));
+        }
     }
 
     public function test_expense_update_suffixes_attachment_name_when_target_filename_exists(): void
@@ -278,7 +308,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'No Attachment Supplier'));
-        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'With Attachment Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => ! $expenses->getCollection()->contains('supplier', 'With Attachment Supplier'));
     }
 
     public function test_expense_index_can_search_by_total_amount(): void
@@ -311,7 +341,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'Amount Match Supplier'));
-        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Amount Miss Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => ! $expenses->getCollection()->contains('supplier', 'Amount Miss Supplier'));
     }
 
     public function test_expense_index_can_search_by_gst_amount(): void
@@ -344,7 +374,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'GST Match Supplier'));
-        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'GST Miss Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => ! $expenses->getCollection()->contains('supplier', 'GST Miss Supplier'));
     }
 
     public function test_expense_index_can_search_extracted_attachment_text(): void
@@ -371,7 +401,7 @@ class ExpenseDocumentNamingTest extends TestCase
             'search' => 'arlec',
         ]))
             ->assertOk()
-            ->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Attachment Match Supplier'));
+            ->assertViewHas('expenses', fn ($expenses) => ! $expenses->getCollection()->contains('supplier', 'Attachment Match Supplier'));
 
         $response = $this->actingAs($admin)->get(route('admin.expense.index', [
             'attachment' => 'arlec',
@@ -379,7 +409,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('expenses', fn ($expenses) => $expenses->getCollection()->contains('supplier', 'Attachment Match Supplier'));
-        $response->assertViewHas('expenses', fn ($expenses) => !$expenses->getCollection()->contains('supplier', 'Attachment Miss Supplier'));
+        $response->assertViewHas('expenses', fn ($expenses) => ! $expenses->getCollection()->contains('supplier', 'Attachment Miss Supplier'));
     }
 
     public function test_empty_advanced_search_uses_an_advanced_filter_message(): void

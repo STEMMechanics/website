@@ -16,15 +16,6 @@
         <form id="expense-form" data-sm-file-upload-managed method="POST" enctype="multipart/form-data" action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}">
             @csrf
 
-            <div id="expense-save-errors" role="alert" tabindex="-1" class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800" @if(!$errors->any()) hidden @endif>
-                <p class="font-semibold">The expense could not be saved.</p>
-                <ul id="expense-save-error-list" class="mt-2 list-disc pl-5">
-                    @foreach($errors->all() as $message)
-                        <li>{{ $message }}</li>
-                    @endforeach
-                </ul>
-            </div>
-
             <x-ui.input
                 label="Supplier"
                 name="supplier"
@@ -155,8 +146,6 @@
         const gstInput = document.getElementById('expense-gst-amount');
         const receiptInput = document.getElementById('expense-receipt-file');
         const expenseForm = document.getElementById('expense-form');
-        const saveErrors = document.getElementById('expense-save-errors');
-        const saveErrorList = document.getElementById('expense-save-error-list');
         const saveButton = document.getElementById('expense-save-button');
         const saveLabel = document.getElementById('expense-save-label');
         const saveLoading = document.getElementById('expense-save-loading');
@@ -652,15 +641,46 @@
             };
 
             let saving = false;
-            const showSaveErrors = (messages) => {
-                saveErrorList.replaceChildren(...messages.map((message) => {
-                    const item = document.createElement('li');
-                    item.textContent = message;
-                    return item;
-                }));
-                saveErrors.hidden = false;
-                saveErrors.focus();
-                saveErrors.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const invalidControls = new Map();
+            const clearSaveErrors = () => {
+                expenseForm.querySelectorAll('[data-validation-error]').forEach((error) => {
+                    error.textContent = '';
+                    error.hidden = true;
+                });
+                invalidControls.forEach((original, control) => {
+                    original.visual.classList.remove('border-red-600', 'ring-red-600', 'ring-1');
+                    for (const [attribute, value] of Object.entries(original.attributes)) {
+                        if (value === null) control.removeAttribute(attribute);
+                        else control.setAttribute(attribute, value);
+                    }
+                });
+                invalidControls.clear();
+            };
+            const showSaveErrors = (messages, errors = {}) => {
+                for (const [name, value] of Object.entries(errors)) {
+                    const fieldName = name.replace(/\.([^.[\]]+)/g, '[$1]');
+                    const controls = Array.from(expenseForm.elements).filter((control) => control.name === fieldName);
+                    const wrapper = controls[0]?.closest('[data-validation-field]')
+                        || Array.from(expenseForm.querySelectorAll('[data-validation-field]')).find((field) => field.dataset.validationField === name);
+                    const error = wrapper?.querySelector('[data-validation-error]');
+                    if (!error) continue;
+                    error.textContent = (Array.isArray(value) ? value : [value]).filter((message) => typeof message === 'string').join(' ');
+                    error.hidden = false;
+                    for (const control of controls) {
+                        const visual = control.type === 'file' ? wrapper.querySelector('label[for]') || control : control;
+                        invalidControls.set(control, {
+                            visual,
+                            attributes: {
+                                'aria-invalid': control.getAttribute('aria-invalid'),
+                                'aria-describedby': control.getAttribute('aria-describedby'),
+                            },
+                        });
+                        control.setAttribute('aria-invalid', 'true');
+                        control.setAttribute('aria-describedby', [control.getAttribute('aria-describedby'), error.id].filter(Boolean).join(' '));
+                        visual.classList.add('border-red-600', 'ring-red-600', 'ring-1');
+                    }
+                }
+                SM.alert('The expense could not be saved', messages.join('\n'), 'error');
             };
 
             expenseForm.addEventListener('submit', async (event) => {
@@ -668,7 +688,7 @@
                     event.preventDefault();
                     return;
                 }
-                saveErrors.hidden = true;
+                clearSaveErrors();
 
                 const hasNewUpload = !!(receiptInput && receiptInput.files && receiptInput.files.length > 0);
                 const upload = hasNewUpload ? receiptInput.files[0] : null;
@@ -679,7 +699,7 @@
                     event.preventDefault();
                     receiptInput.setCustomValidity(`File is too large. Maximum upload size is ${window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(maxUploadBytes) : `${Math.floor(maxUploadBytes / 1024 / 1024)} MB`}.`);
                     receiptInput.reportValidity();
-                    showSaveErrors([receiptInput.validationMessage]);
+                    showSaveErrors([receiptInput.validationMessage], { receipt_document_file: [receiptInput.validationMessage] });
                     return;
                 }
 
@@ -703,17 +723,25 @@
 
                 try {
                     const formData = new FormData(expenseForm);
-                    const isMailCidUpload = /^cid:/i.test(upload.name || '');
-
-                    if (isMailCidUpload) {
-                        const uploadBytes = await upload.arrayBuffer();
-                        const materializedName = upload.name.replace(/^cid:/i, '').replace(/[<>]/g, '') || 'attachment.pdf';
-                        const materializedUpload = new File([uploadBytes], materializedName, {
-                            type: upload.type || 'application/octet-stream',
-                            lastModified: upload.lastModified || Date.now(),
+                    // Safari can preview an IndexedDB-restored File but fail to encode
+                    // it in multipart FormData. Materialize bytes before every upload.
+                    let uploadBytes;
+                    try {
+                        uploadBytes = await upload.arrayBuffer();
+                    } catch (error) {
+                        showSaveErrors(['The receipt could not be read. Please attach it again.'], {
+                            receipt_document_file: ['The receipt could not be read. Please attach it again.'],
                         });
-                        formData.set(receiptInput.name, materializedUpload, materializedName);
+                        return;
                     }
+                    const materializedName = /^cid:/i.test(upload.name || '')
+                        ? upload.name.replace(/^cid:/i, '').replace(/[<>]/g, '') || 'attachment.pdf'
+                        : upload.name;
+                    const materializedUpload = new File([uploadBytes], materializedName, {
+                        type: upload.type || 'application/octet-stream',
+                        lastModified: upload.lastModified || Date.now(),
+                    });
+                    formData.set(receiptInput.name, materializedUpload, materializedName);
 
                     const response = await fetch(expenseForm.action, {
                         method: 'POST',
@@ -731,7 +759,7 @@
                         const messages = payload.errors && typeof payload.errors === 'object'
                             ? Object.values(payload.errors).flat().filter((message) => typeof message === 'string' && message.trim())
                             : [];
-                        showSaveErrors(messages.length ? messages : [payload.message || 'Unable to save the expense. Please try again.']);
+                        showSaveErrors(messages.length ? messages : [payload.message || 'Unable to save the expense. Please try again.'], payload.errors || {});
                         return;
                     }
 
