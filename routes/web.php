@@ -96,6 +96,7 @@ Route::middleware('shop.public')->group(function () {
     Route::post('/store/cart/remove', [ShopController::class, 'removeFromCart'])->name('shop.cart.remove');
     Route::post('/store/cart/coupon', [ShopController::class, 'applyCoupon'])->name('shop.cart.coupon.apply');
     Route::post('/store/cart/coupon/remove', [ShopController::class, 'removeCoupon'])->name('shop.cart.coupon.remove');
+    Route::post('/store/checkout-activity', [\App\Http\Controllers\StoreCheckoutAnalyticsController::class, 'record'])->middleware('throttle:60,1')->name('shop.checkout.activity');
     Route::post('/store/cart/{product}', [ShopController::class, 'addToCart'])->name('shop.cart.add');
     Route::middleware('full-account')->group(function () {
         Route::get('/store/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
@@ -226,6 +227,13 @@ Route::get('/media/download/{media}', [MediaController::class, 'download'])->nam
 Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
+    Route::get('/admin/well-known', [\App\Http\Controllers\WellKnownController::class, 'index'])->name('admin.well-known.index');
+    Route::get('/admin/well-known/create', [\App\Http\Controllers\WellKnownController::class, 'create'])->name('admin.well-known.create');
+    Route::post('/admin/well-known', [\App\Http\Controllers\WellKnownController::class, 'store'])->name('admin.well-known.store');
+    Route::get('/admin/well-known/{filename}/edit', [\App\Http\Controllers\WellKnownController::class, 'edit'])->name('admin.well-known.edit');
+    Route::put('/admin/well-known/{filename}', [\App\Http\Controllers\WellKnownController::class, 'update'])->name('admin.well-known.update');
+    Route::delete('/admin/well-known/{filename}', [\App\Http\Controllers\WellKnownController::class, 'destroy'])->name('admin.well-known.destroy');
+
     Route::get('/admin/push-devices', [PushDeviceController::class, 'index'])->name('admin.push-devices.index');
     Route::put('/admin/push-devices', [PushDeviceController::class, 'update'])->middleware('throttle:30,1,push-devices:')->name('admin.push-devices.update');
     Route::delete('/admin/push-devices', [PushDeviceController::class, 'destroy'])->middleware('throttle:30,1,push-devices:')->name('admin.push-devices.destroy');
@@ -374,6 +382,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/sent-emails', [ServerController::class, 'admin_sent_emails'])->name('admin.server.sent-emails');
     Route::get('/admin/analytics/visitors', [AnalyticsController::class, 'visitors'])->name('admin.analytics.visitors');
     Route::get('/admin/analytics/online', [AnalyticsController::class, 'online'])->name('admin.analytics.online');
+    Route::get('/admin/analytics/store-checkout', [\App\Http\Controllers\StoreCheckoutAnalyticsController::class, 'index'])->name('admin.analytics.checkout');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics.index');
     Route::post('/admin/analytics/prune', [AnalyticsController::class, 'prune'])->name('admin.analytics.prune');
 

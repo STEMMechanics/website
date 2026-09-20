@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast title="Analytics">
-        <x-slot:actions><x-online-visitors /></x-slot:actions>
+        <x-slot:actions><x-ui.button type="link" :href="route('admin.analytics.checkout')" color="secondary">Store checkout activity</x-ui.button><x-online-visitors /></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

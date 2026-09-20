@@ -165,7 +165,7 @@
                             <option value="pay_at_door">Pay at the door</option>
                             <option value="bank_transfer">Bank transfer</option>
                             @endunless
-                            <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay by credit card</option>
+                            <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay online (card or Apple Pay)</option>
                             @else
                             <option value="credit">No payment required</option>
                             @endif
@@ -178,6 +178,7 @@
                     </div>
 
                     <div x-show="!expired && !isFullyCoveredByCredit() && paymentMethod === 'credit_card' && remainingAfterCredit() > 0.0001" x-cloak x-init="initSquareCard()">
+                        <x-square-apple-pay amount="remainingAfterCredit()" eligible="!expired && paymentMethod === 'credit_card'" />
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm">Card Details</label>
                             <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank"  rel="noopener noreferrer">

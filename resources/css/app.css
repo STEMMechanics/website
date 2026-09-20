@@ -1872,3 +1872,12 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     .online-visitors-table .visitor-connection-summary { display: block; }
 }
 .online-visitors-table td[data-label="Page views"] { text-align: center !important; }
+
+.square-apple-pay-button {
+    -webkit-appearance: -apple-pay-button;
+    -apple-pay-button-type: pay;
+    -apple-pay-button-style: black;
+    height: 44px;
+    min-width: 140px;
+    border-radius: 6px;
+}

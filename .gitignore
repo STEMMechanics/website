@@ -273,3 +273,6 @@ phpcbf.phar
 /WEB_PUSH.md
 /tmp/
 /*.pdf
+
+# Runtime verification files managed through the admin interface
+/public/.well-known/

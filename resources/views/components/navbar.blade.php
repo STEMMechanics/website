@@ -96,6 +96,7 @@
                     ['label' => 'Sent Emails', 'route' => route('admin.server.sent-emails'), 'icon' => 'fa-solid fa-envelope-circle-check', 'active' => ['admin.server.sent-emails*']],
                     ['label' => 'Sent SMS', 'route' => route('admin.server.sent-sms'), 'icon' => 'fa-solid fa-comment-sms', 'active' => ['admin.server.sent-sms*'], 'badge' => $unacknowledgedSmsReplyCount],
                     ['label' => 'Orphaned Files', 'route' => route('admin.server.orphans'), 'icon' => 'fa-solid fa-link-slash', 'active' => ['admin.server.orphans*']],
+                    ['label' => 'Verification files', 'route' => route('admin.well-known.index'), 'icon' => 'fa-solid fa-file-shield', 'active' => ['admin.well-known.*']],
                     ['label' => 'Site Options', 'route' => route('admin.site_option.index'), 'icon' => 'fa-solid fa-sliders', 'active' => ['admin.site_option.*']],
                     ['label' => 'Backups & Downloads', 'route' => route('admin.server.backups'), 'icon' => 'fa-solid fa-box-archive', 'active' => ['admin.server.backups']],
                     ['label' => 'Server Info', 'route' => route('admin.server.index'), 'icon' => 'fa-solid fa-server', 'active' => ['admin.server.index']],

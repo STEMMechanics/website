@@ -30,6 +30,14 @@ return [
 
     'disks' => [
 
+        'well_known' => [
+            'driver' => 'local',
+            'root' => public_path('.well-known'),
+            'visibility' => 'public',
+            'directory_visibility' => 'public',
+            'throw' => true,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app'),

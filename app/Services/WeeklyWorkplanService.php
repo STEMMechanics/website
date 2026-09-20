@@ -107,12 +107,8 @@ class WeeklyWorkplanService
     /** @return array<string, mixed> */
     private function newsletterPreview(): array
     {
-        $sendAt = now()->copy()->setTime(16, 0);
-        if ($sendAt->dayOfWeek !== Carbon::WEDNESDAY || $sendAt->isPast()) {
-            $sendAt->next(Carbon::WEDNESDAY)->setTime(16, 0);
-        }
-
-        $newsletter = new UpcomingWorkshops('', 'Upcoming Workshops 🌟');
+        $sendAt = app(NewsletterWorkshopSelectionService::class)->nextRelease();
+        $newsletter = new UpcomingWorkshops('', 'Upcoming Workshops 🌟', releaseAt: $sendAt);
         $workshops = $newsletter->workshops->concat($newsletter->onlineWorkshops)->sortBy('starts_at')->values();
         $storeSections = collect($newsletter->storePromotion['sections'] ?? []);
         $workshopSection = collect([[

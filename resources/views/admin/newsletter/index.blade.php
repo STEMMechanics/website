@@ -30,6 +30,7 @@
                 <x-ui.button type="submit" form="newsletter-content-form">Save newsletter</x-ui.button>
             </div>
         </div>
+        <p class="mb-2 text-sm text-slate-500">Next release: {{ $newsletterReleaseAt->format('l j F, g:ia') }}. Workshops are selected from six hours after release.</p>
         <p class="mb-4 text-sm text-slate-500">Edit the newsletter where it appears. Use the pencil to edit text, arrows to refresh a product, or the eye to hide a workshop.</p>
         <x-admin.newsletter-editor-dialog id="newsletter-header-editor" title="Edit newsletter header">
             <div data-newsletter-presentation>

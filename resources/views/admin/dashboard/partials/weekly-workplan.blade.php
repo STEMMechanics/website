@@ -25,8 +25,8 @@
     </summary>
 
     <div class="border-t border-gray-100 p-5">
-        <div class="grid gap-5 md:grid-cols-2">
-            <section class="grid self-start grid-cols-2 gap-3 md:col-span-2 md:grid-cols-5">
+        <div class="space-y-5">
+            <section class="grid grid-cols-2 gap-3 md:grid-cols-5">
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-pink-100 bg-pink-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-pink-700">Invoices due</div><div class="text-3xl font-bold text-pink-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
@@ -34,8 +34,8 @@
                 <div class="flex justify-between items-center rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="text-3xl font-bold text-amber-700">{{ $followUpCount }}</div></div>
             </section>
 
-            <div class="space-y-5">
-            <section>
+            <div class="columns-1 gap-5 md:columns-2" x-data="SM.workplanLayout()">
+            <section class="mb-5 min-w-0 break-inside-avoid self-start">
                 <h3 class="font-semibold text-gray-900">Coming up this fortnight</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
                     @foreach($workplan['scheduledInvoices'] as $invoice)
@@ -68,7 +68,40 @@
                 </div>
             </section>
 
-            <section>
+            <section class="mb-5 min-w-0 break-inside-avoid self-start md:break-before-column">
+                <h3 class="font-semibold text-gray-900">Suggested follow-ups</h3>
+                <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
+                    @foreach($workplan['quotes'] as $quote)
+                        <div class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50">
+                            <a href="{{ route('admin.quote.edit', $quote) }}" class="flex min-w-0 flex-1 items-start gap-2"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">{{ $quote->statusLabel() }} · follow-up due {{ $quote->follow_up_at?->format('j M Y') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                            <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}" class="shrink-0">
+                                @csrf
+                                <x-ui.button variant="plain" type="submit" class="flex size-5 items-center justify-center text-xs text-gray-400 transition hover:text-primary-color" title="Snooze follow-up for 7 days" aria-label="Snooze follow-up for 7 days"><i class="fa-solid fa-clock" aria-hidden="true"></i></x-ui.button>
+                            </form>
+                        </div>
+                    @endforeach
+                    @foreach($workplan['orders'] as $order)
+                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ str($order->status)->replace('_', ' ')->title() }} · {{ money((float) $order->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @foreach($workplan['overdue'] as $invoice)
+                        <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Overdue invoice {{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="block text-xs text-red-600">{{ money((float) $invoice->displayOutstandingAmount()) }} outstanding · due {{ $invoice->due_date?->format('j M') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @foreach($workplan['pendingTransfers'] as $payment)
+                        <a href="{{ route('admin.payment.edit', $payment) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Pending transfer · {{ $payment->user?->getName() ?: 'Unknown customer' }}</span><span class="block text-xs text-gray-500">{{ money((float) $payment->total_amount) }} · received {{ $payment->received_on?->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @foreach($workplan['interests'] as $interest)
+                        <a href="mailto:{{ $interest->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Workshop interest · {{ $interest->name }}</span><span class="block text-xs text-gray-500">{{ $interest->workshop?->title }} · {{ $interest->email }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @foreach($workplan['enquiries'] as $enquiry)
+                        <a href="mailto:{{ $enquiry->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Website enquiry · {{ $enquiry->name }}</span><span class="block text-xs text-gray-500">{{ $enquiry->subject }} · {{ $enquiry->created_at->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @if($followUpCount === 0)
+                        <p class="p-4 text-sm text-gray-500">No follow-ups are currently suggested.</p>
+                    @endif
+                </div>
+            </section>
+
+            <section class="mb-5 min-w-0 break-inside-avoid self-start">
                 <h3 class="font-semibold text-gray-900">Next newsletter</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
                     <div class="flex items-start gap-3 p-3 text-sm">
@@ -105,43 +138,8 @@
                     </a>
                 </div>
             </section>
-            </div>
 
-            <div class="space-y-5">
-            <section>
-                <h3 class="font-semibold text-gray-900">Suggested follow-ups</h3>
-                <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
-                    @foreach($workplan['quotes'] as $quote)
-                        <div class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50">
-                            <a href="{{ route('admin.quote.edit', $quote) }}" class="flex min-w-0 flex-1 items-start gap-2"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Quote {{ $quote->quote_number }} · {{ $quote->user?->getName() }}</span><span class="block text-xs text-gray-500">{{ $quote->statusLabel() }} · follow-up due {{ $quote->follow_up_at?->format('j M Y') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                            <form method="POST" action="{{ route('admin.quote.snooze-follow-up', $quote) }}" class="shrink-0">
-                                @csrf
-                                <x-ui.button variant="plain" type="submit" class="flex size-5 items-center justify-center text-xs text-gray-400 transition hover:text-primary-color" title="Snooze follow-up for 7 days" aria-label="Snooze follow-up for 7 days"><i class="fa-solid fa-clock" aria-hidden="true"></i></x-ui.button>
-                            </form>
-                        </div>
-                    @endforeach
-                    @foreach($workplan['orders'] as $order)
-                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ str($order->status)->replace('_', ' ')->title() }} · {{ money((float) $order->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @foreach($workplan['overdue'] as $invoice)
-                        <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Overdue invoice {{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="block text-xs text-red-600">{{ money((float) $invoice->displayOutstandingAmount()) }} outstanding · due {{ $invoice->due_date?->format('j M') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @foreach($workplan['pendingTransfers'] as $payment)
-                        <a href="{{ route('admin.payment.edit', $payment) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Pending transfer · {{ $payment->user?->getName() ?: 'Unknown customer' }}</span><span class="block text-xs text-gray-500">{{ money((float) $payment->total_amount) }} · received {{ $payment->received_on?->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @foreach($workplan['interests'] as $interest)
-                        <a href="mailto:{{ $interest->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Workshop interest · {{ $interest->name }}</span><span class="block text-xs text-gray-500">{{ $interest->workshop?->title }} · {{ $interest->email }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @foreach($workplan['enquiries'] as $enquiry)
-                        <a href="mailto:{{ $enquiry->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Website enquiry · {{ $enquiry->name }}</span><span class="block text-xs text-gray-500">{{ $enquiry->subject }} · {{ $enquiry->created_at->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @if($followUpCount === 0)
-                        <p class="p-4 text-sm text-gray-500">No follow-ups are currently suggested.</p>
-                    @endif
-                </div>
-            </section>
-
-            <section>
+            <section class="mb-5 min-w-0 break-inside-avoid self-start">
                 <h3 class="font-semibold text-gray-900">Website last fortnight</h3>
                 <div class="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 p-3">
                     @foreach([

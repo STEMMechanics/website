@@ -197,7 +197,7 @@
         @if((float) $outstandingAmount >= 0.0001)
             <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 px-6 py-4">
-                    <div class="text-lg font-semibold text-gray-950">Pay by Credit Card</div>
+                    <div class="text-lg font-semibold text-gray-950">Make a Payment</div>
                 </div>
 
                 <div class="px-6 py-5">
@@ -216,6 +216,7 @@
                         @endif
 
                         <div x-init="initSquareCard()">
+                            <x-square-apple-pay :amount="(string) (float) $outstandingAmount" />
                             <div class="mb-2 flex items-center justify-between">
                                 <label class="block text-sm">Card Details</label>
                                 <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">

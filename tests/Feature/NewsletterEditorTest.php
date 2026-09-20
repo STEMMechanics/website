@@ -32,6 +32,7 @@ class NewsletterEditorTest extends TestCase
 
     public function test_hiding_a_workshop_advances_the_selection_in_editor_dashboard_and_email_and_can_be_restored(): void
     {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-23 12:00:00'));
         Queue::fake();
         $admin = $this->admin();
         $location = Location::factory()->create(['name' => 'Julia Creek Library']);
@@ -63,6 +64,36 @@ class NewsletterEditorTest extends TestCase
 
         $this->put(route('admin.newsletter.workshops.update'), ['workshop_id' => $workshops[0]->id, 'action' => 'restore'])->assertRedirect();
         $this->assertSame($workshops->take(6)->pluck('id')->all(), (new UpcomingWorkshops('test@example.com'))->workshops->modelKeys());
+    }
+
+    public function test_previews_use_the_scheduled_release_but_sending_now_uses_today(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-20 10:00:00'));
+        Queue::fake();
+        $admin = $this->admin();
+        Location::factory()->create();
+        Media::query()->create(['name' => 'stemmechanics-logo.png', 'title' => 'Newsletter', 'hash' => str_repeat('r', 64), 'mime_type' => 'image/png', 'size' => 100, 'user_id' => $admin->id]);
+        $early = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-09-21 12:00:00']);
+        $beforeRelease = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-09-23 15:00:00']);
+        $tooSoon = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-09-23 20:00:00']);
+        $eligible = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-09-24 12:00:00']);
+        $late = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-11-04 15:00:00']);
+        $outside = Workshop::factory()->create(['user_id' => $admin->id, 'starts_at' => '2026-11-04 17:00:00']);
+        $expected = [$eligible->id, $late->id];
+        $this->get(route('admin.newsletter.index'))->assertOk()
+            ->assertViewHas('newsletterReleaseAt', fn ($date) => $date->format('Y-m-d H:i') === '2026-09-23 16:00')
+            ->assertViewHas('newsletterWorkshops', fn ($items) => $items->modelKeys() === $expected);
+        $workplan = app(WeeklyWorkplanService::class)->build();
+        $this->assertSame($expected, $workplan['newsletter']['workshops']->modelKeys());
+        $this->post(route('admin.subscription.send-test-now'), ['test_email' => 'preview@example.com'])->assertRedirect();
+        Queue::assertPushed(SendEmail::class, fn ($job) => $job->mailable instanceof UpcomingWorkshops
+            && $job->mailable->workshops->concat($job->mailable->onlineWorkshops)->pluck('id')->sort()->values()->all() === collect($expected)->sort()->values()->all());
+        $immediate = new UpcomingWorkshops('now@example.com');
+        $ids = $immediate->workshops->concat($immediate->onlineWorkshops)->pluck('id');
+        $this->assertTrue($ids->contains($early->id));
+        $this->assertTrue($ids->contains($beforeRelease->id));
+        $this->assertFalse($ids->contains($late->id));
+        $this->assertFalse($ids->contains($outside->id));
     }
 
     public function test_workshop_controls_require_an_admin_and_validate_the_workshop(): void

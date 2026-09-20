@@ -165,44 +165,72 @@
             </div>
         </div>
 
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Store Item Views and Sales</h2>
-                    <p class="mt-1 text-sm text-gray-500">Store item views and item sales in the selected period.</p>
+        <div class="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Top 10 Store Item Views and Sales</h2>
+                        <p class="mt-1 text-sm text-gray-500">Store item views and item sales in the selected period.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                    <x-ui.table variant="listing">
+                        <x-slot:header>
+                            <x-ui.list-heading label="Item" />
+                            <x-ui.list-heading label="Views" />
+                            <x-ui.list-heading label="Items Sold" />
+                        </x-slot:header>
+                        <x-slot:body>
+                            @forelse($storeSalesRows as $row)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('admin.shop.product.edit', ['product' => $row['product_id']]) }}" class="font-semibold text-gray-900 hover:text-primary-color">
+                                            {{ $row['product_title'] }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="font-semibold text-gray-900">{{ number_format((int) $row['views']) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="font-semibold text-gray-900">{{ number_format((int) $row['items_sold']) }}</div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="text-center text-gray-500">No item views or sales in this period.</td>
+                                </tr>
+                            @endforelse
+                        </x-slot:body>
+                    </x-ui.table>
                 </div>
             </div>
 
-            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <x-ui.table variant="listing">
-                    <x-slot:header>
-                        <x-ui.list-heading label="Item" />
-                        <x-ui.list-heading label="Views" />
-                        <x-ui.list-heading label="Items Sold" />
-                    </x-slot:header>
-                    <x-slot:body>
-                        @forelse($storeSalesRows as $row)
-                            <tr>
-                                <td>
-                                    <a href="{{ route('admin.shop.product.edit', ['product' => $row['product_id']]) }}" class="font-semibold text-gray-900 hover:text-primary-color">
-                                        {{ $row['product_title'] }}
-                                    </a>
-                                </td>
-                                <td>
-                                    <div class="font-semibold text-gray-900">{{ number_format((int) $row['views']) }}</div>
-                                </td>
-                                <td>
-                                    <div class="font-semibold text-gray-900">{{ number_format((int) $row['items_sold']) }}</div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="text-center text-gray-500">No item views or sales in this period.</td>
-                            </tr>
-                        @endforelse
-                    </x-slot:body>
-                </x-ui.table>
-            </div>
+            @isset($checkoutActivity)
+                <section class="min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="text-lg font-semibold text-gray-900">Store checkouts</h2>
+                        <a href="{{ route('admin.analytics.checkout', ['from' => $periodStart->toDateString(), 'to' => $periodEnd->toDateString()]) }}" class="text-sm font-semibold text-primary-color hover:underline">View report</a>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        @foreach(['completed' => ['Successful checkouts', 'Orders completed'], 'inactive' => ['Abandoned carts', 'Inactive carts']] as $key => [$label, $countKey])
+                            <div class="min-w-0 rounded-xl bg-gray-50 p-3">
+                                <p class="text-xs text-gray-600">{{ $label }}</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format($checkoutActivity[$countKey]) }}</p>
+                                <dl class="mt-3 space-y-1 border-t border-gray-200 pt-2 text-xs">
+                                    @foreach(['lowest' => 'Lowest', 'highest' => 'Highest', 'median' => 'Median'] as $stat => $statLabel)
+                                        <div class="flex flex-wrap justify-between gap-x-2">
+                                            <dt class="text-gray-500">{{ $statLabel }}</dt>
+                                            <dd class="font-medium text-gray-900">{{ $checkoutValues[$key][$stat] === null ? '—' : '$'.number_format($checkoutValues[$key][$stat], 2) }}</dd>
+                                        </div>
+                                    @endforeach
+                                </dl>
+                            </div>
+                        @endforeach
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500">Carts started in the selected period. Abandoned means no activity for 24 hours without completing an order. Values are item subtotals before discounts and delivery.</p>
+                </section>
+            @endisset
         </div>
 
         </x-ui.dynamic-list>

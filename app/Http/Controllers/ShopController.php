@@ -725,6 +725,7 @@ class ShopController extends Controller
 
         if ((bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false)) {
             $orders->createQuoteRequestFromCart($lines, $validated, $request->user());
+            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'checkout', 'quote_requested', null, $summary);
             $cart->clear();
             $this->clearCheckoutSession();
 
@@ -745,6 +746,7 @@ class ShopController extends Controller
 
         if ((float) ($summary['total'] ?? 0) <= 0.0001) {
             $order = $orders->createFromCart($lines, $validated, $request->user());
+            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
             $cart->clear();
             $this->clearCheckoutSession();
             $this->rememberGuestOrderDocumentAccess($order, $request);
@@ -780,6 +782,7 @@ class ShopController extends Controller
         } catch (ValidationException $e) {
             $errors = $e->errors();
             if (array_key_exists('source_id', $errors)) {
+                app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
                 $reference = $this->checkoutPaymentFailureReference();
                 $errors = $this->appendCheckoutPaymentReference($errors, $reference);
                 logger()->warning('Store checkout payment validation failed.', [
@@ -798,6 +801,7 @@ class ShopController extends Controller
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         } catch (\Throwable $e) {
+            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
             $reference = $this->checkoutPaymentFailureReference();
 
             report($e);
@@ -819,6 +823,7 @@ class ShopController extends Controller
                 ->with('shop_checkout_step', 'payment');
         }
 
+        app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
         $cart->clear();
         $this->clearCheckoutSession();
         $this->rememberGuestOrderDocumentAccess($order, $request);
