@@ -549,7 +549,10 @@ class Product extends Model
 
         if ($this->allowsBackorder($variant)) {
             $backorderEstimate = $this->backorderShippingEstimateLabel($format, $variant);
-            $delayedLabel = $backorderEstimate ? 'More expected '.$backorderEstimate : 'More coming soon';
+            $estimateDate = $this->backorderShippingEstimate($variant);
+            $delayedLabel = $estimateDate && $estimateDate->lt(Carbon::today())
+                ? 'More expected soon'
+                : ($backorderEstimate ? 'More expected '.$backorderEstimate : 'More coming soon');
 
             if ($availableInventory === null || $availableInventory <= 0) {
                 return 'Available to order. '.$delayedLabel;

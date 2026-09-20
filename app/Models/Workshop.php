@@ -51,6 +51,7 @@ class Workshop extends Model
         'status',
         'price',
         'price_is_automatic',
+        'allow_pay_at_door',
         'pricing_version_id',
         'optional_product_ids',
         'early_bird_price',
@@ -95,6 +96,7 @@ class Workshop extends Model
         'early_bird_ends_at' => 'datetime',
         'early_bird_price' => 'decimal:2',
         'price_is_automatic' => 'boolean',
+        'allow_pay_at_door' => 'boolean',
         'pricing_version_id' => 'integer',
         'optional_product_ids' => 'array',
         'is_private' => 'boolean',
@@ -302,6 +304,15 @@ class Workshop extends Model
     public function isPhysicalWorkshop(): bool
     {
         return $this->locationType() === self::TYPE_PHYSICAL;
+    }
+
+    public function allowsPayAtDoor(): bool
+    {
+        return (bool) $this->allow_pay_at_door
+            && $this->registration === 'tickets'
+            && $this->isPhysicalWorkshop()
+            && $this->location !== null
+            && ! $this->location->isOnline();
     }
 
     public function isOnlineWorkshop(): bool

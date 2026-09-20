@@ -1002,6 +1002,11 @@ if (isset($workshop)) {
                             </div>
                             @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             <p class="mb-4 mt-1 text-xs text-gray-500">Leave blank to hide from public. Also supports Free, TBD or TBC.</p>
+                            <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
+                                <input type="hidden" name="allow_pay_at_door" value="0">
+                                <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />
+                                <p class="mb-4 mt-1 text-xs text-gray-500">Enable only when payment can be collected at this venue. Online workshops require another payment method.</p>
+                            </div>
                     </div>
                     <div class="flex-1">
                         <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
