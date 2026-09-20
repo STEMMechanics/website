@@ -13,8 +13,17 @@
     @endphp
 
     <x-container class="mt-4">
-        <form id="expense-form" method="POST" enctype="multipart/form-data" action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}">
+        <form id="expense-form" data-sm-file-upload-managed method="POST" enctype="multipart/form-data" action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}">
             @csrf
+
+            <div id="expense-save-errors" role="alert" tabindex="-1" class="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800" @if(!$errors->any()) hidden @endif>
+                <p class="font-semibold">The expense could not be saved.</p>
+                <ul id="expense-save-error-list" class="mt-2 list-disc pl-5">
+                    @foreach($errors->all() as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            </div>
 
             <x-ui.input
                 label="Supplier"
@@ -146,6 +155,8 @@
         const gstInput = document.getElementById('expense-gst-amount');
         const receiptInput = document.getElementById('expense-receipt-file');
         const expenseForm = document.getElementById('expense-form');
+        const saveErrors = document.getElementById('expense-save-errors');
+        const saveErrorList = document.getElementById('expense-save-error-list');
         const saveButton = document.getElementById('expense-save-button');
         const saveLabel = document.getElementById('expense-save-label');
         const saveLoading = document.getElementById('expense-save-loading');
@@ -640,7 +651,25 @@
                 saveLoading.classList.remove('inline-flex');
             };
 
+            let saving = false;
+            const showSaveErrors = (messages) => {
+                saveErrorList.replaceChildren(...messages.map((message) => {
+                    const item = document.createElement('li');
+                    item.textContent = message;
+                    return item;
+                }));
+                saveErrors.hidden = false;
+                saveErrors.focus();
+                saveErrors.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            };
+
             expenseForm.addEventListener('submit', async (event) => {
+                if (saving) {
+                    event.preventDefault();
+                    return;
+                }
+                saveErrors.hidden = true;
+
                 const hasNewUpload = !!(receiptInput && receiptInput.files && receiptInput.files.length > 0);
                 const upload = hasNewUpload ? receiptInput.files[0] : null;
 
@@ -650,6 +679,7 @@
                     event.preventDefault();
                     receiptInput.setCustomValidity(`File is too large. Maximum upload size is ${window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(maxUploadBytes) : `${Math.floor(maxUploadBytes / 1024 / 1024)} MB`}.`);
                     receiptInput.reportValidity();
+                    showSaveErrors([receiptInput.validationMessage]);
                     return;
                 }
 
@@ -667,6 +697,8 @@
                     return;
                 }
 
+                saving = true;
+                receiptInput.dispatchEvent(new CustomEvent('sm:file-upload-state', { detail: { uploading: true } }));
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
                 try {
@@ -696,17 +728,21 @@
                     const payload = await response.json().catch(() => ({}));
 
                     if (!response.ok) {
-                        const firstError = payload.errors
-                            ? Object.values(payload.errors).flat().find((message) => typeof message === 'string')
-                            : null;
-                        throw new Error(firstError || payload.message || 'Unable to save the expense. Please try again.');
+                        const messages = payload.errors && typeof payload.errors === 'object'
+                            ? Object.values(payload.errors).flat().filter((message) => typeof message === 'string' && message.trim())
+                            : [];
+                        showSaveErrors(messages.length ? messages : [payload.message || 'Unable to save the expense. Please try again.']);
+                        return;
                     }
 
                     await clearReceiptDraft();
                     window.location.assign(payload.redirect || expenseForm.action);
                 } catch (error) {
+                    showSaveErrors([error instanceof Error ? error.message : 'Unable to save the expense. Please try again.']);
+                } finally {
+                    saving = false;
                     resetSaveButton();
-                    setPreviewNote(error instanceof Error ? error.message : 'Unable to save the expense. Please try again.');
+                    receiptInput.dispatchEvent(new CustomEvent('sm:file-upload-state', { detail: { uploading: false } }));
                 }
             });
         }
