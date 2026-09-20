@@ -35,6 +35,7 @@
         // Fill unused space with writing rows; an empty workshop gets a blank sheet.
         $blankRows = $signInRows->isEmpty() ? 10 : (10 - ($signInRows->count() % 10)) % 10;
         $pages = $signInRows->concat(array_fill(0, $blankRows, null))->chunk(10);
+        $pages->push(collect(array_fill(0, 10, null)));
         $startsAt = isset($session['starts_at']) ? \Illuminate\Support\Carbon::parse($session['starts_at']) : $workshop->starts_at;
     @endphp
     @foreach($pages as $page)
@@ -46,19 +47,17 @@
                         <h1 class="workshop-title">{{ $workshop->title }}</h1>
                         <div class="details"><strong>{{ $startsAt?->format('l j F Y, g:i a') ?? 'Date to be confirmed' }}</strong><br>{{ $workshop->getLocationName() }}</div>
                     </td>
-                    <td style="width: 26%" class="document-title">Workshop sign-in</td>
+                    <td style="width: 26%" class="document-title">{{ $loop->last ? 'Drop-in sign-in' : 'Workshop sign-in' }}</td>
                 </tr>
             </table>
-            <div class="instructions">Parent / guardian: check your contact details (write any corrections), tick drop-off, choose Yes or No for media consent, and sign your row.</div>
+            <div class="instructions">Parent / guardian: your signature confirms your contact details are correct and your child has been dropped off. Write any corrections and choose Yes or No for media consent.</div>
             <table class="roll">
                 <thead>
                     <tr>
-                        <th style="width: 21%">Attendee name</th>
-                        <th style="width: 27%">Contact email / phone</th>
-                        <th style="width: 10%" class="center">Contact details<br>correct</th>
-                        <th style="width: 10%" class="center">Child<br>dropped off</th>
-                        <th style="width: 14%" class="center">Media consent<br>(see below)</th>
-                        <th style="width: 18%">Parent / guardian<br>signature</th>
+                        <th style="width: 27%">Attendee name</th>
+                        <th style="width: 33%">Contact email / phone</th>
+                        <th style="width: 16%" class="center">Media consent<br>(see below)</th>
+                        <th style="width: 24%">Parent / guardian<br>signature</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,8 +71,6 @@
                                 <div>{{ $ticket?->email ?? '' }}</div>
                                 <div>{{ $ticket?->phone ?? '' }}</div>
                             </td>
-                            <td class="center"><span class="tick-box"></span></td>
-                            <td class="center"><span class="tick-box"></span></td>
                             <td class="center">
                                 <span class="consent-choice"><span class="tick-box"></span> Yes</span>
                                 <span class="consent-choice"><span class="tick-box"></span> No</span>
