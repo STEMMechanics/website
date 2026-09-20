@@ -56,8 +56,8 @@
                     <tr>
                         <th style="width: 27%">Attendee name</th>
                         <th style="width: 33%">Contact email / phone</th>
-                        <th style="width: 16%" class="center">Media consent<br>(see below)</th>
-                        <th style="width: 24%">Parent / guardian<br>signature</th>
+                        <th style="width: 16%" class="center">Media consent</th>
+                        <th style="width: 24%">Parent / guardian signature</th>
                     </tr>
                 </thead>
                 <tbody>
