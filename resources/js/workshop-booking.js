@@ -119,6 +119,15 @@ window.SM.workshopBookingReview = config => ({
         if (this.participants.length < 10) this.participants.push({firstname:'', surname:config.surname, workshops:[]});
     },
     quantity(id) { return this.participants.filter(person => person.workshops.includes(id)).length; },
+    selectionFull(person, id) {
+        const capacity = this.prices[id]?.capacity;
+        return capacity != null && !person.workshops.includes(id) && this.quantity(id) >= capacity;
+    },
+    overCapacity(id) {
+        const capacity = this.prices[id]?.capacity;
+        return capacity != null && this.quantity(id) > capacity;
+    },
+    get hasOverCapacitySelection() { return Object.keys(this.prices).some(id => this.overCapacity(id)); },
     amount(id) {
         const count = this.quantity(id), price = this.prices[id];
         const early = price.early_price === null ? 0 : Math.min(count, price.early_places);

@@ -427,8 +427,10 @@ class WorkshopTicketFlowController extends Controller
         $workshops = $this->checkoutWorkshops($workshop);
         $pricing = $workshops->mapWithKeys(function (Workshop $item) use ($tickets, $ticketService) {
             $remaining = $this->earlyBirdSlotsRemainingForCheckout($item, $ticketService);
+            $available = $ticketService->availableTickets($item);
 
             return [$item->id => [
+                'capacity' => $available === null ? null : $available + $tickets->where('workshop_id', $item->id)->count(),
                 'price' => $item->baseTicketPriceAmount(), 'early_price' => $item->earlyBirdPriceAmount(),
                 'early_places' => $remaining === null ? 10 : $remaining + $tickets->where('workshop_id', $item->id)->where('is_early_bird', true)->count(),
             ]];

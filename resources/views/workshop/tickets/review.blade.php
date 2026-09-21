@@ -27,9 +27,13 @@
                             <p class="mt-1 text-sm text-gray-600">Ages: {{ $item->ages }}</p>
                             <p class="text-sm text-gray-600">{{ $item->getTicketTimeRangeLabel() }}</p>
                             <p class="mb-3 text-sm text-gray-600">{{ $item->getLocationDisplay(true) }}</p>
+                            @if($pricing[$item->id]['capacity'] !== null)
+                                <p class="mb-3 text-sm font-medium text-amber-800">{{ $pricing[$item->id]['capacity'] }} {{ $pricing[$item->id]['capacity'] === 1 ? 'spot' : 'spots' }} available for your booking, including your reserved tickets. Untick someone first to change who attends.</p>
+                                <p class="mb-3 text-sm text-red-600" role="alert" x-show="overCapacity(@js($item->id))" x-cloak>Please reduce the selected participants to match the available places.</p>
+                            @endif
                             <template x-for="(person, index) in participants" :key="index">
                                 <label class="mb-2 flex cursor-pointer items-center gap-3">
-                                    <x-ui.checkbox bare :value="$item->id" x-bind:name="`participants[${index}][workshops][]`" x-model="person.workshops" :aria-label="'Attend '.$item->title" />
+                                    <x-ui.checkbox bare :value="$item->id" x-bind:name="`participants[${index}][workshops][]`" x-model="person.workshops" x-bind:disabled="selectionFull(person, $el.value)" :aria-label="'Attend '.$item->title" />
                                     <span x-text="person.firstname.trim() ? [person.firstname, person.surname].filter(Boolean).join(' ') : 'Participant ' + (index + 1)"></span>
                                 </label>
                             </template>
@@ -39,7 +43,7 @@
                     @endforeach
                     <div class="my-5 flex justify-between border-t border-gray-200 pt-4 font-bold"><span>Subtotal</span><span x-text="total > 0 ? money(total) : 'Free'"></span></div>
                     <p class="mb-4 text-sm text-gray-600">Booking contact: {{ $session['purchaser']['firstname'] }} {{ $session['purchaser']['surname'] }}<br>{{ $session['purchaser']['email'] }} · {{ $session['purchaser']['phone'] }}</p>
-                    <div class="flex justify-end"><x-ui.button type="submit" x-text="total > 0 ? 'Continue to payment' : 'Confirm booking'">Continue</x-ui.button></div>
+                    <div class="flex justify-end"><x-ui.button type="submit" x-bind:disabled="hasOverCapacitySelection" x-text="total > 0 ? 'Continue to payment' : 'Confirm booking'">Continue</x-ui.button></div>
                 </form>
             </div>
             <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>

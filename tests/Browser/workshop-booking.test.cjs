@@ -131,3 +131,19 @@ test('confirming a booking waits for any draft save and prevents later autosaves
     assert.equal(submitted, true);
     assert.equal(requests, 1);
 });
+
+test('capacity includes reserved spots and allows swapping participants without selecting too many', () => {
+    const {SM} = load();
+    const review = SM.workshopBookingReview({participants:[{workshops:['limited']},{workshops:['limited']},{workshops:[]}], prices:{limited:{capacity:2}, unlimited:{capacity:null}}});
+    assert.equal(review.selectionFull(review.participants[2], 'limited'), true);
+    assert.equal(review.selectionFull(review.participants[0], 'limited'), false);
+    review.participants[0].workshops = [];
+    assert.equal(review.selectionFull(review.participants[2], 'limited'), false);
+    review.participants[2].workshops = ['limited'];
+    assert.equal(review.selectionFull(review.participants[0], 'limited'), true);
+    assert.equal(review.selectionFull(review.participants[0], 'unlimited'), false);
+    review.participants[0].workshops = ['limited'];
+    assert.equal(review.hasOverCapacitySelection, true);
+    review.participants.splice(0, 1);
+    assert.equal(review.hasOverCapacitySelection, false);
+});

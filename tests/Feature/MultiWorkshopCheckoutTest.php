@@ -221,6 +221,19 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame(5, app(WorkshopCheckoutCart::class)->bookings()[0]['count']);
     }
 
+    public function test_review_displays_capacity_including_own_holds_and_disables_extra_selections(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '15', 'max_tickets' => 3]);
+        $other = $this->createTicketedWorkshop(['price' => '20', 'max_tickets' => 2]);
+        $this->begin($anchor, 3);
+        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $response = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()
+            ->assertSee('2 spots available for your booking')->assertSee('3 spots available for your booking')
+            ->assertSee('selectionFull(person, $el.value)', false)->assertDontSee('@js(', false);
+        $this->assertSame(3, $response->viewData('pricing')[$anchor->id]['capacity']);
+        $this->assertSame(2, $response->viewData('pricing')[$other->id]['capacity']);
+    }
+
     public function test_four_sessions_across_venues_and_online_share_payment_and_participant_details(): void
     {
         $workshops = collect([
