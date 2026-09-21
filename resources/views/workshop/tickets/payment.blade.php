@@ -294,8 +294,7 @@
                     </div>
                 </template>
             </div>
-            <div class="hidden lg:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center text-right" style="background-image:url('{{ $workshop->hero?->url }}')">
-            </div>
+            @include('workshop.tickets.partials.pattern-sidebar', ['wide' => true])
 
             <form id="ticket-cancel-form" method="POST" action="{{ route('workshop.ticket.flow.cancel', $workshop) }}" class="hidden">
                 @csrf

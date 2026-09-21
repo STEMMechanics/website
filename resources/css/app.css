@@ -1707,6 +1707,8 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-action-items .sm-row-action { display: flex; align-items: center; justify-content: flex-start; gap: .85rem; width: 100%; height: auto; min-height: 2.8rem; padding: .65rem .85rem !important; border-radius: .5rem; background: transparent; color: #334155; white-space: normal; font-weight: 400; text-align: left; }
 .sm-action-items .sm-row-action:hover { background: #f1f5f9; }
 .sm-action-items .sm-row-action[data-action-tone="danger"] { color: #dc2626; }
+.sm-action-items .sm-row-action > i { flex: 0 0 1.25rem; width: 1.25rem; text-align: center; }
+.sm-action-items .sm-row-action:disabled { color: #94a3b8; }
 .sm-action-items .sm-row-action-label { display: inline; }
 
 .sm-list-bulkbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; min-height: 2.75rem; margin-bottom: .75rem; color: #475569; font-size: .875rem; }

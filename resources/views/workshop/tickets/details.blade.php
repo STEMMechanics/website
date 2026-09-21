@@ -104,7 +104,7 @@
                     </div>
                 </form>
             </div>
-            <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>

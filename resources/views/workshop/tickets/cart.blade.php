@@ -37,7 +37,7 @@
                 <form method="POST" action="{{ route('workshop.ticket.flow.cart.update', $workshop) }}">@csrf<input type="hidden" name="action" value="continue"><x-ui.button type="submit" x-bind:disabled="busy">Review booking</x-ui.button></form>
             </div>
             </div>
-            <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>

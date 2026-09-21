@@ -48,7 +48,7 @@
                     <div class="flex justify-end"><x-ui.button type="submit" x-bind:disabled="hasOverCapacitySelection" x-text="total > 0 ? 'Continue to payment' : 'Confirm booking'">Continue</x-ui.button></div>
                 </form>
             </div>
-            <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>
