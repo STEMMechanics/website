@@ -97,7 +97,7 @@
                 <x-ui.action-menu id="workshop-ticket-tools" title="Ticket tools">
                     <x-ui.row-action label="Print sign-in sheet" icon="fa-solid fa-print" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank" />
                     <x-ui.row-action label="Check in" icon="fa-solid fa-clipboard-check" href="{{ route('admin.workshop.attendance', $workshop) }}" />
-                    <x-ui.row-action label="Attendance export (PDF)" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
+                    <x-ui.row-action label="Attendance report" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
                     <x-ui.row-action label="Email ticket contacts" icon="fa-regular fa-envelope" type="button" x-on:click.prevent="bulkEmailOpen = true" />
                     <x-ui.row-action label="Text ticket contacts" icon="fa-solid fa-comment-sms" type="button" x-on:click.prevent="smsOpen = true" :title="$smsButtonTitle" :disabled="! $smsButtonEnabled" />
                 </x-ui.action-menu>

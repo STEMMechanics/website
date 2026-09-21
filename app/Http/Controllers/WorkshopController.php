@@ -3230,7 +3230,7 @@ class WorkshopController extends Controller
             'workshop' => $workshop->loadMissing('location'),
             'rows' => collect($rows),
             'generatedAt' => now(),
-        ])->stream($this->workshopExportFilename($workshop, 'Attendance', 'pdf'));
+        ])->setPaper('a4', 'landscape')->stream($this->workshopExportFilename($workshop, 'Attendance', 'pdf'));
     }
 
     public function admin_attendance_tickets(Request $request, Workshop $workshop): RedirectResponse|JsonResponse

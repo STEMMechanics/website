@@ -36,10 +36,10 @@ class WorkshopTicketRollTest extends TestCase
         $toolbar = $document->querySelector('[data-ticket-toolbar]');
         $print = $toolbar->querySelector('a[href="'.route('admin.workshop.tickets.pdf', $workshop).'"]');
         $this->assertStringContainsString('Print sign-in sheet', $print->textContent);
-        $this->assertNull($print->closest('dialog'));
+        $this->assertNotNull($print->closest('dialog'));
         $menu = $toolbar->querySelector('#workshop-ticket-tools');
         $this->assertStringContainsString('Ticket tools', $menu->textContent);
-        foreach (['Attendance export (PDF)', 'Email ticket contacts', 'Text ticket contacts'] as $label) {
+        foreach (['Print sign-in sheet', 'Check in', 'Attendance report', 'Email ticket contacts', 'Text ticket contacts'] as $label) {
             $this->assertStringContainsString($label, $menu->textContent);
         }
         $this->assertStringNotContainsString('Create ticket', $menu->textContent);
@@ -72,6 +72,40 @@ class WorkshopTicketRollTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.workshop.tickets.pdf', $workshop))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_attendance_report_is_branded_landscape_with_repeated_headers(): void
+    {
+        $ticket = Ticket::factory()->create();
+        $workshop = $ticket->workshop;
+        $workshop->title = 'Straw Towers';
+        $workshop->starts_at = '2026-09-22 10:30:00';
+        $workshop->location->name = 'Community Learning Centre';
+        foreach ([0 => 1, 8 => 1, 21 => 3] as $count => $pageCount) {
+            $rows = collect(range(1, $count))->take($count)->map(fn ($i) => [
+                'source' => $i % 2 ? 'ticket' : 'dropin',
+                'child_name' => 'Attendee '.$i.' Long-Surname',
+                'age' => $i === 1 ? '8' : '',
+                'guardian_name' => 'Guardian Example',
+                'email' => 'parent.with.a.long.email.address@example.com',
+                'phone' => '0400 123 456',
+                'media_consent' => $i % 2 ? '' : 'Yes',
+                'ticket_reference' => $i % 2 ? 'REF'.$i : '',
+                'status' => $i % 2 ? 'Not marked' : 'Recorded',
+                'recorded_at' => $i % 2 ? '' : '2026-09-22 10:35:00',
+            ]);
+            $data = ['workshop' => $workshop, 'rows' => $rows, 'generatedAt' => now()];
+            $html = view('pdf.workshop-attendance-sheet', $data)->render();
+            $this->assertSame($pageCount, substr_count($html, 'class="document-title">Attendance report'));
+            $this->assertStringContainsString('invoice-logo.png', $html);
+            if ($count === 0) $this->assertStringContainsString('No attendance records found.', $html);
+            $pdf = Pdf::loadView('pdf.workshop-attendance-sheet', $data)->setPaper('a4', 'landscape');
+            $pdf->render();
+            $canvas = $pdf->getDomPDF()->getCanvas();
+            $this->assertGreaterThan($canvas->get_height(), $canvas->get_width());
+            $this->assertSame($pageCount, $canvas->get_page_count());
+            if ($directory = getenv('PDF_QA_DIR')) file_put_contents($directory.'/attendance-report-'.$count.'.pdf', $pdf->output());
+        }
     }
 
     public function test_sign_in_pdf_renders_landscape_with_blank_rows_and_repeated_consent(): void
