@@ -195,7 +195,7 @@
                     @csrf
                     <x-ui.input name="firstname" label="First Name" x-model="editFirstname" required />
                     <x-ui.input name="surname" label="Surname" x-model="editSurname" required />
-                    <x-ui.input type="number" min="0" max="120" step="1" inputmode="numeric" name="age" label="Age (optional)" x-model="editAge" />
+                    <x-ui.participant-age name="age" x-model="editAge" />
                     <x-ui.input name="email" type="email" label="Email" x-model="editEmail" required />
                     <x-ui.input name="phone" label="Phone" x-model="editPhone" required />
                     <div class="pt-2 flex justify-end gap-3">

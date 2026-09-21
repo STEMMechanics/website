@@ -16,8 +16,7 @@
                             <div class="flex items-start justify-between gap-2 h-11"><h4 class="font-semibold" x-text="'Participant ' + (index + 1)"></h4><x-ui.row-action icon="fa-trash" label="Remove participant" x-show="participants.length > 1" x-on:click="participants.splice(index, 1)" /></div>
                             <label class="mb-3 block text-sm font-medium">First name<x-ui.input-control x-bind:name="`participants[${index}][firstname]`" x-model="person.firstname" autocomplete="off" required /></label>
                             <label class="mb-3 block text-sm font-medium">Surname<x-ui.input-control x-bind:name="`participants[${index}][surname]`" x-model="person.surname" autocomplete="off" required /></label>
-                            <label class="block text-sm font-medium">Age (optional)<x-ui.input-control type="number" min="0" max="120" step="1" inputmode="numeric" x-bind:name="`participants[${index}][age]`" x-model="person.age" class="max-w-28" /></label>
-                            <p class="mt-1 text-xs text-gray-500">Age in years helps us tailor the workshop activities.</p>
+                            <x-ui.participant-age x-bind:name="`participants[${index}][age]`" x-model="person.age" />
                         </div>
                     </template>
                     <x-ui.button type="button" color="secondary" x-on:click="addParticipant()" x-bind:disabled="participants.length >= 10">Add another participant</x-ui.button>
