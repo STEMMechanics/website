@@ -89,6 +89,7 @@ class WorkshopTicketRollTest extends TestCase
                 'surname' => $count > 10 ? 'Long-Surname Example' : 'Example',
                 'email' => $count > 10 ? 'parent.with.a.long.email.address@example.com' : 'parent'.$i.'@example.com',
                 'phone' => '0400 123 456',
+                'age' => $i === 1 ? 8 : null,
                 'reference_code' => 'REF'.$i,
             ])->setRelation('user', new User(['firstname' => 'Guardian', 'surname' => 'Example']))->setRelation('invoice', null));
             $data = ['workshop' => $workshop, 'currentTickets' => $tickets];
@@ -100,12 +101,13 @@ class WorkshopTicketRollTest extends TestCase
             if ($count > 0) {
                 $firstRow = $document->querySelector('.roll tbody tr');
                 $this->assertSame('Guardian Example - '.($count > 10 ? 'parent.with.a.long.email.address@example.com' : 'parent1@example.com'), trim($firstRow->querySelector('.contact div')->textContent));
-                $this->assertSame('', trim($firstRow->querySelectorAll('td')->item(3)->textContent));
+                $this->assertSame('8', trim($firstRow->querySelectorAll('td')->item(1)->textContent));
+                $this->assertSame('', trim($firstRow->querySelectorAll('td')->item(4)->textContent));
             }
             $sheets = $document->querySelectorAll('.sheet');
             $this->assertCount($pageCount, $sheets);
             foreach ($sheets as $sheet) {
-                $this->assertCount(4, $sheet->querySelectorAll('.roll th'));
+                $this->assertCount(5, $sheet->querySelectorAll('.roll th'));
                 $this->assertCount(10, $sheet->querySelectorAll('.roll tbody tr'));
             }
             $dropInSheet = $sheets->item($pageCount - 1);
@@ -114,7 +116,7 @@ class WorkshopTicketRollTest extends TestCase
                 $cells = $row->querySelectorAll('td');
                 $this->assertSame('', trim($cells->item(0)->textContent));
                 $this->assertSame('', trim($cells->item(1)->textContent));
-                $this->assertSame('', trim($cells->item(3)->textContent));
+                $this->assertSame('', trim($cells->item(4)->textContent));
             }
             $populatedRows = $document->querySelectorAll('.reference')->length;
             $this->assertSame($count, $populatedRows);

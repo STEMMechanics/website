@@ -9,17 +9,18 @@ class TicketReissueService
 {
     public function hasAttendeeChanges(Ticket $ticket, array $details): bool
     {
-        $normalized = $this->normalizeDetails($details);
+        $normalized = $this->normalizeDetails($details + ['age' => $ticket->age]);
 
         return $normalized['firstname'] !== trim((string) ($ticket->firstname ?? ''))
             || $normalized['surname'] !== trim((string) ($ticket->surname ?? ''))
+            || $normalized['age'] !== $ticket->age
             || $normalized['email'] !== strtolower(trim((string) ($ticket->email ?? '')))
             || $normalized['phone'] !== trim((string) ($ticket->phone ?? ''));
     }
 
     public function reissue(Ticket $ticket, array $details): array
     {
-        $normalized = $this->normalizeDetails($details);
+        $normalized = $this->normalizeDetails($details + ['age' => $ticket->age]);
         $this->ensureAttendeeGhostUser($normalized);
 
         if (! $this->hasAttendeeChanges($ticket, $normalized)) {
@@ -44,6 +45,7 @@ class TicketReissueService
         $newTicket->invoice_line_id = $ticket->invoice_line_id;
         $newTicket->firstname = $normalized['firstname'];
         $newTicket->surname = $normalized['surname'];
+        $newTicket->age = $normalized['age'];
         $newTicket->email = $normalized['email'];
         $newTicket->phone = $normalized['phone'];
         $newTicket->reissued_from_ticket_id = $ticket->id;
@@ -68,6 +70,7 @@ class TicketReissueService
         return [
             'firstname' => trim((string) ($details['firstname'] ?? '')),
             'surname' => trim((string) ($details['surname'] ?? '')),
+            'age' => isset($details['age']) && $details['age'] !== '' ? (int) $details['age'] : null,
             'email' => strtolower(trim((string) ($details['email'] ?? ''))),
             'phone' => trim((string) ($details['phone'] ?? '')),
         ];

@@ -3187,6 +3187,7 @@ class WorkshopController extends Controller
             fputcsv($out, [
                 'Source',
                 'Attendee Name',
+                'Age',
                 'Parent/Guardian Name',
                 'Email',
                 'Phone',
@@ -3200,6 +3201,7 @@ class WorkshopController extends Controller
                 fputcsv($out, [
                     $row['source'],
                     $row['child_name'],
+                    $row['age'],
                     $row['guardian_name'],
                     $row['email'],
                     CsvPhoneNumber::format($row['phone']),
@@ -4082,6 +4084,7 @@ class WorkshopController extends Controller
             $rows[] = [
                 'source' => $entry->is_anonymous ? 'anonymous' : 'dropin',
                 'child_name' => $entry->is_anonymous && $childName === '' ? 'Anonymous attendee' : $childName,
+                'age' => '',
                 'guardian_name' => trim((string) ($entry->guardian_name ?? '')),
                 'email' => trim((string) ($entry->email ?? '')),
                 'phone' => trim((string) ($entry->phone ?? '')),
@@ -4108,6 +4111,7 @@ class WorkshopController extends Controller
                 $rows[] = [
                     'source' => $session ? 'ticket: '.Carbon::parse($session['starts_at'])->format('j M Y g:ia') : 'ticket',
                     'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
+                    'age' => (string) ($ticket->age ?? ''),
                     'guardian_name' => $ticket->guardianName(),
                     'email' => trim((string) ($ticket->email ?? '')),
                     'phone' => trim((string) ($ticket->phone ?? '')),

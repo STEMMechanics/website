@@ -36,7 +36,7 @@ window.SM.workshopSuggestions = config => ({
     },
 });
 window.SM.workshopBookingReview = config => ({
-    participants: config.participants.map(person => ({...person, workshops: person.workshops || []})),
+    participants: config.participants.map(person => ({...person, age: person.age ?? '', workshops: person.workshops || []})),
     prices: config.prices,
     reviewVersion: config.reviewVersion,
     conflicted: false,
@@ -138,7 +138,7 @@ window.SM.workshopBookingReview = config => ({
     },
     money(amount) { return new Intl.NumberFormat('en-AU', {style:'currency', currency:'AUD'}).format(amount); },
     addParticipant() {
-        if (this.participants.length < 10) this.participants.push({firstname:'', surname:config.surname, workshops:[]});
+        if (this.participants.length < 10) this.participants.push({firstname:'', surname:config.surname, age:'', workshops:[]});
     },
     quantity(id) { return this.participants.filter(person => person.workshops.includes(id)).length; },
     selectionFull(person, id) {

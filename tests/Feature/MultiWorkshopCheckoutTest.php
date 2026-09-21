@@ -80,6 +80,41 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame(app(WorkshopCheckoutCart::class)->bookings()[0]['count'], collect($people)->sum(fn ($person) => count($person['workshops'])));
     }
 
+    public function test_optional_ages_survive_drafts_and_are_saved_on_each_selected_workshop_ticket(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '15']);
+        $other = $this->createTicketedWorkshop(['price' => '15']);
+        $this->begin($anchor);
+        $people = [
+            ['firstname' => 'Alex', 'surname' => 'Example', 'age' => 8, 'workshops' => [$anchor->id]],
+            ['firstname' => 'Sam', 'surname' => 'Example', 'age' => null, 'workshops' => [$anchor->id]],
+        ];
+        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), [
+            'review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'),
+            'participants' => $people,
+        ])->assertOk();
+        $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
+        $people = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->viewData('participants');
+        $this->assertSame(8, $people[0]['age']);
+        $this->assertNull($people[1]['age']);
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), [
+            'review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'),
+            'participants' => $people,
+        ])->assertSessionHasNoErrors();
+        $tickets = Ticket::whereIn('id', session('ticket_checkout_flow.'.$anchor->id.'.hold_ids'))->get();
+        $this->assertCount(4, $tickets);
+        $this->assertSame([8, 8], $tickets->where('firstname', 'Alex')->pluck('age')->all());
+        $this->assertSame([null, null], $tickets->where('firstname', 'Sam')->pluck('age')->all());
+
+        foreach ([-1, 121, 8.5, 'unknown'] as $invalidAge) {
+            $people[0]['age'] = $invalidAge;
+            $this->post(route('workshop.ticket.flow.review.save', $anchor), [
+                'review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'),
+                'participants' => $people,
+            ])->assertSessionHasErrors('participants.0.age');
+        }
+    }
+
     public function test_incomplete_participant_drafts_survive_leaving_to_add_workshops(): void
     {
         $anchor = $this->createTicketedWorkshop(['price' => '15']);

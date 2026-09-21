@@ -10,6 +10,7 @@
         editTicketLabel: '',
         editFirstname: '',
         editSurname: '',
+        editAge: '',
         editEmail: '',
         editPhone: '',
         openCancelModal(action, label) {
@@ -22,6 +23,7 @@
             this.editTicketLabel = label;
             this.editFirstname = details.firstname || '';
             this.editSurname = details.surname || '';
+            this.editAge = details.age ?? '';
             this.editEmail = details.email || '';
             this.editPhone = details.phone || '';
             this.editModalOpen = true;
@@ -32,6 +34,7 @@
             this.editTicketLabel = '';
             this.editFirstname = '';
             this.editSurname = '';
+            this.editAge = '';
             this.editEmail = '';
             this.editPhone = '';
         },
@@ -139,6 +142,7 @@
                                                     {
                                                         firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
                                                         surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
+                                                        age: @js($ticket->age),
                                                         email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
                                                         phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                     }
@@ -191,6 +195,7 @@
                     @csrf
                     <x-ui.input name="firstname" label="First Name" x-model="editFirstname" required />
                     <x-ui.input name="surname" label="Surname" x-model="editSurname" required />
+                    <x-ui.input type="number" min="0" max="120" step="1" inputmode="numeric" name="age" label="Age (optional)" x-model="editAge" />
                     <x-ui.input name="email" type="email" label="Email" x-model="editEmail" required />
                     <x-ui.input name="phone" label="Phone" x-model="editPhone" required />
                     <div class="pt-2 flex justify-end gap-3">

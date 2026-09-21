@@ -452,11 +452,13 @@ class WorkshopTicketFlowController extends Controller
             'participants' => 'required|array|min:1|max:10',
             'participants.*.firstname' => 'nullable|string|max:120',
             'participants.*.surname' => 'nullable|string|max:120',
+            'participants.*.age' => 'nullable|integer|min:0|max:120',
             'participants.*.workshops' => 'present|array|max:10',
             'participants.*.workshops.*' => ['required', 'string', Rule::in($session['workshop_ids'])],
         ]);
         $session['review_draft'] = array_map(fn ($person) => [
             'firstname' => $person['firstname'] ?? '', 'surname' => $person['surname'] ?? '',
+            ...(array_key_exists('age', $person) ? ['age' => isset($person['age']) ? (int) $person['age'] : null] : []),
             'workshops' => array_values(array_unique($person['workshops'])),
         ], array_values($data['participants']));
         $session['reviewed'] = false;
@@ -484,6 +486,7 @@ class WorkshopTicketFlowController extends Controller
             'participants' => 'required|array|min:1|max:10',
             'participants.*.firstname' => 'required|string|max:120',
             'participants.*.surname' => 'required|string|max:120',
+            'participants.*.age' => 'nullable|integer|min:0|max:120',
             'participants.*.workshops' => 'required|array|min:1|max:10',
             'participants.*.workshops.*' => ['required', 'string', Rule::in($session['workshop_ids'])],
         ], ['participants.*.workshops.required' => 'Choose at least one workshop for each participant.']);
@@ -523,6 +526,7 @@ class WorkshopTicketFlowController extends Controller
                     }
                     $ticket->firstname = trim($person['firstname']);
                     $ticket->surname = trim($person['surname']);
+                    $ticket->age = $person['age'] ?? null;
                     $ticket->email = $session['purchaser']['email'];
                     $ticket->phone = $session['purchaser']['phone'];
                     $ticket->save();
@@ -1684,6 +1688,7 @@ class WorkshopTicketFlowController extends Controller
             'tickets.*.id' => ['required', 'integer'],
             'tickets.*.firstname' => ['required', 'string', 'max:120'],
             'tickets.*.surname' => ['required', 'string', 'max:120'],
+            'tickets.*.age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'tickets.*.email' => ['required', 'email', 'max:255'],
             'tickets.*.phone' => ['required', 'string', 'max:60'],
         ]);
@@ -1714,6 +1719,7 @@ class WorkshopTicketFlowController extends Controller
 
                 $ticket->firstname = trim((string) ($details['firstname'] ?? ''));
                 $ticket->surname = trim((string) ($details['surname'] ?? ''));
+                if (array_key_exists('age', $details)) $ticket->age = $details['age'];
                 $ticket->email = strtolower(trim((string) ($details['email'] ?? '')));
                 $ticket->phone = trim((string) ($details['phone'] ?? ''));
                 $ticket->save();

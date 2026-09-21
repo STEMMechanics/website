@@ -92,6 +92,7 @@
                         <x-ui.grid class="sm:grid-cols-2 gap-3">
                             <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][surname]" label="Surname" value="{{ old('tickets.'.$index.'.surname', $ticket->surname) }}" required />
+                            <x-ui.input type="number" min="0" max="120" step="1" inputmode="numeric" name="tickets[{{ $index }}][age]" label="Age (optional)" value="{{ old('tickets.'.$index.'.age', $ticket->age) }}" />
                             <x-ui.input type="email" name="tickets[{{ $index }}][email]" label="Email" value="{{ old('tickets.'.$index.'.email', $ticket->email) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][phone]" label="Phone" value="{{ old('tickets.'.$index.'.phone', $ticket->phone) }}" required />
                         </x-ui.grid>
