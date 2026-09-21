@@ -1,8 +1,9 @@
 <x-layout title="Your workshop booking">
-    <x-mast>Your workshop booking</x-mast>
-    <x-container class="max-w-4xl mt-6 mx-auto">
-        <div class="relative rounded-lg border border-gray-200 bg-white p-5 pt-20 shadow-sm sm:p-6 sm:pt-20">
+    <x-mast>{{ $workshop->title }}</x-mast>
+    <x-container class="max-w-3xl mt-6 mx-auto">
+        <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
             @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at']])
+            <div class="flex-1 min-w-0">
             <div class="mb-3 flex items-center gap-3">
                 <x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" />
                 <h2 class="text-2xl font-bold">Review your workshops</h2>
@@ -38,7 +39,7 @@
                     <h2 class="mb-2 text-xl font-bold">Other workshops you can join</h2>
                     <p class="mb-4 text-sm text-gray-600">Add sessions at any venue or online for the same participants. Check the times and allow for travel between venues.</p>
                     <x-ui.input type="search" label="Find a workshop" placeholder="Search workshops or locations…" x-model="search" autocomplete="off" />
-                    <div class="grid max-h-[32rem] gap-4 overflow-y-auto sm:grid-cols-2">
+                    <div class="grid grid-cols-1 max-h-[32rem] gap-4 overflow-y-auto">
                         @foreach($additionalWorkshops as $additional)
                             @php($available = app(\App\Services\WorkshopTicketService::class)->availableTickets($additional))
                             <div x-show="@js(mb_strtolower($additional->title.' '.$additional->getLocationDisplay(true))).includes(search.toLowerCase())" class="flex flex-col rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -64,6 +65,8 @@
                 <form method="POST" action="{{ route('workshop.ticket.flow.cancel', $workshop) }}">@csrf<x-ui.button type="submit" color="secondary">Cancel booking</x-ui.button></form>
                 <form method="POST" action="{{ route('workshop.ticket.flow.cart.update', $workshop) }}">@csrf<input type="hidden" name="action" value="continue"><x-ui.button type="submit">{{ $ticketPricing['subtotal_amount'] > 0 ? 'Continue to payment' : 'Confirm booking' }}</x-ui.button></form>
             </div>
+            </div>
+            <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
         </div>
     </x-container>
 </x-layout>

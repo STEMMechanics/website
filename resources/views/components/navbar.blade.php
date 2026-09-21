@@ -21,6 +21,7 @@
             'shipping_country' => 'Australia',
             'user' => $navUser,
         ]);
+        $workshopBookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
         $operationCounts = $isAdmin ? app(\App\Support\AdminBadgeCache::class)->remember('operations', fn () => [
@@ -142,10 +143,11 @@
                     <span class="sr-only">Open user menu</span>
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
                 </button>
-                @if($publicShopAvailable)
+                @if($publicShopAvailable || $workshopBookings !== [])
                     <button
                             type="button"
                             @click.prevent="openCartDrawer()"
+                            x-show="publicShopAvailable || workshopTicketCount() > 0"
                             class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out relative"
                             title="Cart"
                             aria-label="Cart"
@@ -280,7 +282,7 @@
 
 </nav>
 
-    @if($publicShopAvailable)
+    @if($publicShopAvailable || $workshopBookings !== [])
         <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="if (cartOpen) { cartOpen = false }" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
             <div
                 x-show="cartOpen"
@@ -312,7 +314,8 @@
                     </button>
                 </div>
 
-                <div x-show="cartState.is_empty" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
+                @include('workshop.tickets.partials.cart-bookings')
+                <div x-show="cartState.is_empty && workshopTicketCount() === 0" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
                     <div class="text-lg font-semibold text-gray-900">Your cart is empty</div>
                     <p class="mt-2 text-sm text-gray-600">Add a few items from the store and they will appear here.</p>
                     <div class="mt-4">
@@ -449,6 +452,7 @@
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.shopNavbarConfig = {
+        workshopBookings: @js($workshopBookings),
         publicShopAvailable: {{ $publicShopAvailable ? 'true' : 'false' }},
         cartOpen: {{ (session('store-cart-open') || session('shop-cart-open')) && $publicShopAvailable ? 'true' : 'false' }},
         cartState: @js($shopCartPayload),
@@ -469,6 +473,9 @@
             pageMenuOpen: false,
             userMenuOpen: false,
             publicShopAvailable: Boolean(config.publicShopAvailable),
+            workshopBookings: config.workshopBookings || [],
+            bookingNow: Date.now(),
+            bookingTimer: null,
             cartOpen: Boolean(config.cartOpen),
             cartState: config.cartState || {},
             busyCartLineKey: null,
@@ -483,8 +490,13 @@
             scrollLockY: 0,
             keyboardShortcutHandler: null,
 
+            workshopTicketCount() {
+                return this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow)
+                    .reduce((count, booking) => count + booking.count, 0);
+            },
+
             cartCount() {
-                return Number(this.cartState?.summary?.item_count || 0);
+                return Number(this.cartState?.summary?.item_count || 0) + this.workshopTicketCount();
             },
 
             setCartState(cart) {
@@ -798,7 +810,7 @@
             },
 
             openCartDrawer() {
-                if (!this.publicShopAvailable) {
+                if (!this.publicShopAvailable && this.workshopTicketCount() === 0) {
                     return;
                 }
 
@@ -868,7 +880,14 @@
                 }
             },
 
+            destroy() {
+                if (this.bookingTimer) clearInterval(this.bookingTimer);
+            },
+
             init() {
+                if (this.workshopBookings.length) {
+                    this.bookingTimer = setInterval(() => { this.bookingNow = Date.now(); }, 1000);
+                }
                 this.$watch('showSearch', () => this.syncScrollLock());
                 this.$watch('pageMenuOpen', () => this.syncScrollLock());
                 this.$watch('userMenuOpen', () => this.syncScrollLock());

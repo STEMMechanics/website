@@ -1,4 +1,5 @@
 @php
+    $workshopBookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
     $consolidationSavingsAmount = (float) ($summary['shipping_quote']['consolidation_savings_amount'] ?? 0);
 @endphp
 
@@ -13,8 +14,9 @@
         class="py-8"
         x-data="shopCartPage(window.shopCartPageConfig || {})"
     >
+        @include('workshop.tickets.partials.cart-bookings')
         <div x-show="cartState.is_empty" x-cloak class="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $workshopBookings !== [] ? 'Your store cart is empty' : 'Your cart is empty' }}</h2>
             <p class="text-gray-600 mb-6">Browse the store and add a few items to get started.</p>
             <x-ui.button type="link" href="{{ route('shop.index') }}">Browse Store</x-ui.button>
         </div>

@@ -206,6 +206,35 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame(4, Ticket::where('status', Ticket::STATUS_PENDING_XFER)->count());
     }
 
+    public function test_guest_can_leave_checkout_and_resume_from_the_cart_until_the_hold_expires(): void
+    {
+        $anchor = $this->createTicketedWorkshop();
+        $other = $this->createTicketedWorkshop();
+        $this->begin($anchor);
+        $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
+        $ids = Ticket::orderBy('id')->pluck('id')->all();
+        $this->get(route('workshop.index'))->assertOk()->assertSee('Continue booking')
+            ->assertSee(route('workshop.ticket.flow.cart', $anchor), false)->assertSee('4 tickets reserved');
+        $bookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
+        $this->assertCount(1, $bookings);
+        $this->assertSame(4, $bookings[0]['count']);
+        $this->get($bookings[0]['url'])->assertOk()->assertSee('Review your workshops');
+        $this->assertSame($ids, Ticket::orderBy('id')->pluck('id')->all());
+        $this->travel(11)->minutes();
+        $this->assertSame([], app(\App\Services\WorkshopCheckoutCart::class)->bookings());
+        $this->get(route('workshop.index'))->assertOk()->assertDontSee('Continue booking');
+    }
+
+    public function test_completed_bookings_are_removed_from_cart_navigation(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => 'Free']);
+        $other = $this->createTicketedWorkshop(['price' => 'Free']);
+        $this->begin($anchor);
+        $this->assertCount(1, app(\App\Services\WorkshopCheckoutCart::class)->bookings());
+        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors();
+        $this->assertSame([], app(\App\Services\WorkshopCheckoutCart::class)->bookings());
+    }
+
     private function createTicketedWorkshop(array $overrides = []): Workshop
     {
         $author = User::factory()->create();
