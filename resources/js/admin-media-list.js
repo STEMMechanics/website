@@ -44,6 +44,7 @@ function initialiseSelection() {
         root.querySelector('#admin-media-edit-selected').textContent = `Edit ${selected.length} ${selected.length === 1 ? 'item' : 'items'}`;
         root.querySelector('#admin-media-selection-toolbar').dataset.selected = String(selected.length > 0);
         root.querySelector('#admin-media-edit-selected').disabled = !selected.length;
+        root.querySelector('#admin-media-download-selected').disabled = !selected.length;
         root.querySelector('#admin-media-bulk-inputs').replaceChildren(...selected.map(name => {
             const input = document.createElement('input'); input.type = 'hidden'; input.name = 'media_names[]'; input.value = name; return input;
         }));
@@ -170,6 +171,7 @@ function bulkFormValues(form) {
 document.addEventListener('submit', async event => {
     const form = event.target;
     if (form.id === 'admin-media-bulk-form') {
+        if (event.submitter?.id === 'admin-media-download-selected') return;
         event.preventDefault();
         const names = [...selected];
         if (!names.length) return;

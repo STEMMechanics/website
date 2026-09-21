@@ -23,7 +23,7 @@ class SentEmailListTest extends TestCase
             ->assertOk()->assertViewHas('emails', fn ($emails) => $emails->count() === 10 && $emails->total() === 12)
             ->assertSee('Email failure details')->assertSee('data-open-dialog=', false)
             ->assertSee('&lt;script&gt;bad()&lt;/script&gt;', false)->assertDontSee('<script>bad()</script>', false)
-            ->assertSee('Rows per page');
+            ->assertSee('Items per page');
         $this->get(route('admin.server.sent-emails', ['per_page' => 100000]))
             ->assertOk()->assertViewHas('emails', fn ($emails) => $emails->perPage() === 50);
     }

@@ -180,6 +180,14 @@ class SiteListControls
     {
         if ($this->scope) return [];
         $presets = match (request()->route()?->getName()) {
+            'admin.invoice.index' => [
+                'All invoices' => [],
+                'Draft / scheduled' => ['status' => ['draft']],
+                'Outstanding' => ['status' => ['issued', 'sent', 'overdue']],
+                'Overdue' => ['status' => ['overdue']],
+                'Paid' => ['status' => ['paid']],
+                'Cancelled / written off' => ['status' => ['cancelled', 'written_off']],
+            ],
             'admin.workshop.index' => ['All workshops' => ['show_cancelled' => '1'], 'Current' => ['show_cancelled' => '0', 'list_starts_at_min' => today()->toDateString()]],
             'admin.workshop.attendance' => ['Current' => ['show_cancelled' => '0'], 'Including cancelled' => ['show_cancelled' => '1']],
             'admin.payment.index' => ['All payments' => [], 'Unallocated' => ['unallocated_only' => '1']],

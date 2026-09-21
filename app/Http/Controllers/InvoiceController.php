@@ -99,7 +99,7 @@ class InvoiceController extends Controller
                 : 0;
         }), 2);
 
-        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderByRaw('CAST(invoice_number AS DECIMAL(20, 0)) DESC')->orderByDesc('invoice_number')->orderByDesc('created_at')->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
         $invoiceEmailDefaults = $invoices->getCollection()
             ->mapWithKeys(function (Invoice $invoice): array {
                 return [(string) $invoice->id => $this->invoiceEmailPayload($invoice)];
