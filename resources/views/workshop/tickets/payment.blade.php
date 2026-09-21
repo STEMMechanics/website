@@ -89,7 +89,7 @@
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
             <div class="flex-1">
-                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? 'workshop.ticket.flow.cart' : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
+                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? (($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.cart') : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
                 @include('workshop.tickets.partials.selected-workshops')
                 @error('equipment')<p class="mb-4 text-sm text-red-600">{{ $message }}</p>@enderror

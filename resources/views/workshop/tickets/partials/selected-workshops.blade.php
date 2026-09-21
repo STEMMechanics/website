@@ -6,6 +6,6 @@
                 <li><span class="font-semibold">{{ $selectedWorkshop->title }}</span><span class="block text-gray-600">{{ $selectedWorkshop->getTicketTimeRangeLabel() }} · {{ $selectedWorkshop->getLocationDisplay(true) }}</span></li>
             @endforeach
         </ul>
-        <p class="mt-3 text-gray-600">{{ $session['participant_count'] ?? 1 }} participant(s) at each workshop. One checkout for all selected sessions.</p>
+        <p class="mt-3 text-gray-600">One booking for your selected participants and workshops.</p>
     </div>
 @endif

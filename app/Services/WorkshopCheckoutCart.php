@@ -34,6 +34,7 @@ class WorkshopCheckoutCart
                 continue;
             }
             $bookings[] = [
+                'id' => (string) $anchorId,
                 'title' => $tickets->pluck('workshop.title')->unique()->join(', '),
                 'count' => $tickets->count(),
                 'expires_at' => $expires->toIso8601String(),

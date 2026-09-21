@@ -12,6 +12,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Services\SquareApiService;
+use App\Services\WorkshopCheckoutCart;
 use App\Services\WorkshopTicketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -46,6 +47,16 @@ class MultiWorkshopCheckoutTest extends TestCase
         ]);
     }
 
+    private function reviewAll(Workshop $workshop): TestResponse
+    {
+        $session = session('ticket_checkout_flow.'.$workshop->id);
+
+        return $this->post(route('workshop.ticket.flow.review.save', $workshop), ['participants' => [
+            ['firstname' => 'Alex', 'surname' => 'Example', 'workshops' => $session['workshop_ids']],
+            ['firstname' => 'Sam', 'surname' => 'Example', 'workshops' => $session['workshop_ids']],
+        ]])->assertSessionHasNoErrors();
+    }
+
     public function test_four_sessions_across_venues_and_online_share_payment_and_participant_details(): void
     {
         $workshops = collect([
@@ -57,12 +68,14 @@ class MultiWorkshopCheckoutTest extends TestCase
         $anchor = $workshops->first();
         $this->get(route('workshop.ticket.flow.start', $anchor))->assertOk()->assertDontSee('Book more workshops');
         $this->begin($anchor)->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
-        $this->get(route('workshop.ticket.flow.cart', $anchor))->assertOk()->assertSee('Add workshop')->assertSee('Online Coding');
+        $this->get(route('workshop.ticket.flow.cart', $anchor))->assertOk()->assertSee('Add workshop')->assertSee('Online Coding')->assertDontSee('@js(', false);
         foreach ($workshops->skip(1) as $other) {
             $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
         }
-        $this->get(route('workshop.ticket.flow.cart', $anchor))->assertOk()->assertSee('Online Coding')->assertSee('$140.00');
-        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
+        $this->get(route('workshop.ticket.flow.cart', $anchor))->assertOk()->assertSee('Online Coding')->assertDontSee('Your booking ·');
+        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->assertSee('Who’s coming?');
+        $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
         $this->get(route('workshop.ticket.flow.payment', $anchor))->assertOk()->assertSee('Community Rockets')->assertDontSee('<option value="pay_at_door">', false);
         $gateway = Mockery::mock(SquareApiService::class);
         $gateway->shouldReceive('isEnabled')->andReturn(true);
@@ -70,7 +83,7 @@ class MultiWorkshopCheckoutTest extends TestCase
             ->andReturn(['payment' => ['id' => 'multi-payment', 'status' => 'COMPLETED', 'amount_money' => ['amount' => 14000]]]);
         $this->app->instance(SquareApiService::class, $gateway);
         $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'credit_card', 'source_id' => 'cnon:test'])
-            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $anchor));
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
         $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'credit_card', 'source_id' => 'cnon:test'])
             ->assertRedirect(route('workshop.ticket.flow.details', $anchor));
         $this->assertDatabaseCount('invoices', 1);
@@ -83,12 +96,6 @@ class MultiWorkshopCheckoutTest extends TestCase
                 $this->assertSame((float) $selected->price, (float) $ticket->invoiceLine->line_total_inc_tax);
             }
         }
-        $this->get(route('workshop.ticket.flow.details', $anchor))->assertOk()->assertViewHas('participantTickets', fn ($tickets) => $tickets->count() === 2)->assertSee('Bring a hat.');
-        $ids = $anchor->tickets()->orderBy('id')->pluck('id');
-        $this->post(route('workshop.ticket.flow.details.save', $anchor), ['tickets' => [
-            ['id' => $ids[0], 'firstname' => 'Alex', 'surname' => 'Example', 'email' => 'parent@example.com', 'phone' => '0400123456'],
-            ['id' => $ids[1], 'firstname' => 'Sam', 'surname' => 'Example', 'email' => 'parent@example.com', 'phone' => '0400123456'],
-        ]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
         $this->assertSame(4, Ticket::where('firstname', 'Alex')->count());
         $this->assertSame(4, Ticket::where('firstname', 'Sam')->count());
         $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()->assertSee('Online Coding');
@@ -134,11 +141,12 @@ class MultiWorkshopCheckoutTest extends TestCase
         $anchor = $this->createTicketedWorkshop();
         $other = $this->createTicketedWorkshop(['max_tickets' => 1]);
         $this->begin($anchor);
+        Ticket::factory()->create(['workshop_id' => $other->id, 'status' => Ticket::STATUS_PAID]);
         $before = session('ticket_checkout_flow.'.$anchor->id);
         $this->travel(2)->minutes();
         $this->cartAction($anchor, 'add', $other)->assertSessionHasErrors('workshop_id');
         $this->assertSame($before, session('ticket_checkout_flow.'.$anchor->id));
-        $this->assertSame(0, $other->tickets()->count());
+        $this->assertSame(1, $other->tickets()->count());
         $this->assertSame(2, $anchor->tickets()->count());
     }
 
@@ -149,7 +157,8 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->begin($anchor)->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
         $this->assertSame(0, Ticket::where('status', Ticket::STATUS_PAID)->count());
         $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
-        $this->cartAction($anchor, 'continue')->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
+        $this->cartAction($anchor, 'continue')->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
         $this->get(route('workshop.ticket.flow.payment', $anchor))->assertOk()->assertSee('$60.00');
         $this->post(route('workshop.ticket.flow.cancel', $anchor))->assertRedirect();
         $this->assertDatabaseCount('tickets', 0);
@@ -161,7 +170,8 @@ class MultiWorkshopCheckoutTest extends TestCase
         $other = $this->createTicketedWorkshop(['price' => 'Free', 'type' => 'online']);
         $this->begin($anchor);
         $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
-        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $anchor));
+        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
         $this->assertSame(4, Ticket::where('status', Ticket::STATUS_PAID)->count());
         $this->assertDatabaseCount('invoices', 0);
         $this->cartAction($anchor, 'remove', $other)->assertRedirect(route('workshop.ticket.flow.details', $anchor));
@@ -195,13 +205,14 @@ class MultiWorkshopCheckoutTest extends TestCase
         $coupon->restrictedWorkshops()->attach($anchor);
         $this->begin($anchor);
         $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
+        $this->reviewAll($anchor);
         $this->postJson(route('workshop.ticket.flow.voucher', $anchor), ['voucher_code' => 'SESSION5'])
             ->assertStatus(422)->assertJsonValidationErrors('voucher_code');
         $coupon->restrictedWorkshops()->attach($other);
         $this->postJson(route('workshop.ticket.flow.voucher', $anchor), ['voucher_code' => 'SESSION5'])
             ->assertOk()->assertJsonPath('summary.voucher_discount_amount', 5);
         $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'bank_transfer'])
-            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.details', $anchor));
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
         $this->assertSame(65.0, (float) Invoice::sole()->total_amount);
         $this->assertSame(4, Ticket::where('status', Ticket::STATUS_PENDING_XFER)->count());
     }
@@ -214,14 +225,14 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
         $ids = Ticket::orderBy('id')->pluck('id')->all();
         $this->get(route('workshop.index'))->assertOk()->assertSee('Continue booking')
-            ->assertSee(route('workshop.ticket.flow.cart', $anchor), false)->assertSee('4 tickets reserved');
-        $bookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
+            ->assertSee('Workshop booking');
+        $bookings = app(WorkshopCheckoutCart::class)->bookings();
         $this->assertCount(1, $bookings);
-        $this->assertSame(4, $bookings[0]['count']);
-        $this->get($bookings[0]['url'])->assertOk()->assertSee('Your booking');
+        $this->assertSame(3, $bookings[0]['count']);
+        $this->get($bookings[0]['url'])->assertOk()->assertSee('More workshops');
         $this->assertSame($ids, Ticket::orderBy('id')->pluck('id')->all());
         $this->travel(11)->minutes();
-        $this->assertSame([], app(\App\Services\WorkshopCheckoutCart::class)->bookings());
+        $this->assertSame([], app(WorkshopCheckoutCart::class)->bookings());
         $this->get(route('workshop.index'))->assertOk()->assertDontSee('Continue booking');
     }
 
@@ -230,9 +241,71 @@ class MultiWorkshopCheckoutTest extends TestCase
         $anchor = $this->createTicketedWorkshop(['price' => 'Free']);
         $other = $this->createTicketedWorkshop(['price' => 'Free']);
         $this->begin($anchor);
-        $this->assertCount(1, app(\App\Services\WorkshopCheckoutCart::class)->bookings());
-        $this->cartAction($anchor, 'continue')->assertSessionHasNoErrors();
-        $this->assertSame([], app(\App\Services\WorkshopCheckoutCart::class)->bookings());
+        $this->assertCount(1, app(WorkshopCheckoutCart::class)->bookings());
+        $this->reviewAll($anchor);
+        $this->assertSame([], app(WorkshopCheckoutCart::class)->bookings());
+    }
+
+    public function test_different_children_can_attend_different_sessions_and_unselected_sessions_are_released(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '12', 'ages' => '5–8']);
+        $older = $this->createTicketedWorkshop(['price' => '20', 'ages' => '9–12', 'max_tickets' => 1]);
+        $unused = $this->createTicketedWorkshop(['price' => '30']);
+        $this->begin($anchor);
+        $this->postJson(route('workshop.ticket.flow.cart.update', $anchor), ['action' => 'add', 'workshop_id' => $older->id])
+            ->assertOk()->assertJsonPath('selected.1', $older->id)->assertJsonPath('bookings.0.count', 3);
+        $this->cartAction($anchor, 'add', $unused)->assertSessionHasNoErrors();
+        $this->get(route('workshop.ticket.flow.payment', $anchor))->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => [
+            ['firstname' => 'Younger', 'surname' => 'Child', 'workshops' => [$anchor->id]],
+            ['firstname' => 'Older', 'surname' => 'Child', 'workshops' => [$older->id]],
+        ]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
+        $this->assertSame(['Younger'], $anchor->tickets()->pluck('firstname')->all());
+        $this->assertSame(['Older'], $older->tickets()->pluck('firstname')->all());
+        $this->assertSame(0, $unused->tickets()->count());
+        $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'bank_transfer'])
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
+        $this->assertSame(32.0, (float) Invoice::sole()->total_amount);
+        $this->assertDatabaseCount('tickets', 2);
+    }
+
+    public function test_review_capacity_failure_is_atomic_and_never_accepts_foreign_workshops(): void
+    {
+        $anchor = $this->createTicketedWorkshop();
+        $other = $this->createTicketedWorkshop(['max_tickets' => 1]);
+        $foreign = $this->createTicketedWorkshop();
+        $this->begin($anchor);
+        $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
+        $before = Ticket::orderBy('id')->get()->toArray();
+        $people = [
+            ['firstname' => 'First', 'surname' => 'Child', 'workshops' => [$anchor->id, $other->id]],
+            ['firstname' => 'Second', 'surname' => 'Child', 'workshops' => [$other->id]],
+        ];
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => $people])->assertSessionHasErrors('participants');
+        $this->assertSame($before, Ticket::orderBy('id')->get()->toArray());
+        $people[1]['workshops'] = [$foreign->id];
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => $people])->assertSessionHasErrors('participants.1.workshops.0');
+        $this->assertSame($before, Ticket::orderBy('id')->get()->toArray());
+        $this->assertDatabaseCount('invoices', 0);
+    }
+
+    public function test_ajax_failures_and_removing_a_session_do_not_silently_change_the_booking(): void
+    {
+        $anchor = $this->createTicketedWorkshop();
+        $other = $this->createTicketedWorkshop();
+        $private = $this->createTicketedWorkshop(['is_private' => true]);
+        $this->begin($anchor);
+        $this->postJson(route('workshop.ticket.flow.cart.update', $anchor), ['action' => 'add', 'workshop_id' => $private->id])->assertStatus(422);
+        $this->assertSame(0, $private->tickets()->count());
+        $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
+        $this->reviewAll($anchor);
+        $this->postJson(route('workshop.ticket.flow.cart.update', $anchor), ['action' => 'remove', 'workshop_id' => $other->id])
+            ->assertOk()->assertJsonCount(1, 'selected')->assertJsonPath('bookings.0.count', 2);
+        $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'bank_transfer'])
+            ->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->travel(11)->minutes();
+        $this->postJson(route('workshop.ticket.flow.cart.update', $anchor), ['action' => 'add', 'workshop_id' => $other->id])
+            ->assertStatus(409)->assertJsonPath('redirect', route('workshop.ticket.flow.start', $anchor));
     }
 
     private function createTicketedWorkshop(array $overrides = []): Workshop

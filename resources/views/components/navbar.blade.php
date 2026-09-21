@@ -314,7 +314,14 @@
                     </button>
                 </div>
 
-                @include('workshop.tickets.partials.cart-bookings')
+                <template x-for="booking in workshopBookings" :key="booking.url + booking.expires_at + booking.count">
+                    <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
+                        <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
+                        <p class="text-sm font-semibold" x-text="booking.title"></p>
+                        <p class="mt-1 text-sm text-gray-600"><span x-text="booking.count + (booking.count === 1 ? ' ticket' : ' tickets')"></span> reserved · <span x-text="timeRemaining"></span> remaining</p>
+                        <x-ui.button x-bind:href="booking.url" type="link" class="mt-3">Continue booking</x-ui.button>
+                    </div>
+                </template>
                 <div x-show="cartState.is_empty && workshopTicketCount() === 0" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
                     <div class="text-lg font-semibold text-gray-900">Your cart is empty</div>
                     <p class="mt-2 text-sm text-gray-600">Add a few items from the store and they will appear here.</p>
@@ -476,6 +483,7 @@
             workshopBookings: config.workshopBookings || [],
             bookingNow: Date.now(),
             bookingTimer: null,
+            workshopUpdateHandler: null,
             cartOpen: Boolean(config.cartOpen),
             cartState: config.cartState || {},
             busyCartLineKey: null,
@@ -882,9 +890,12 @@
 
             destroy() {
                 if (this.bookingTimer) clearInterval(this.bookingTimer);
+                window.removeEventListener('workshop-cart-updated', this.workshopUpdateHandler);
             },
 
             init() {
+                this.workshopUpdateHandler = event => { this.workshopBookings = event.detail; };
+                window.addEventListener('workshop-cart-updated', this.workshopUpdateHandler);
                 if (this.workshopBookings.length) {
                     this.bookingTimer = setInterval(() => { this.bookingNow = Date.now(); }, 1000);
                 }
