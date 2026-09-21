@@ -293,11 +293,12 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop)->withErrors(['quantity' => 'Your ticket hold expired. Please start again.']);
         }
         abort_unless(app(WorkshopCheckoutSelection::class)->supportsCombined($workshop), 404);
-        $data = $request->validate(['action' => 'required|in:add,remove,continue', 'workshop_id' => 'nullable|required_unless:action,continue|string', 'allow_partial' => 'sometimes|boolean']);
+        $data = $request->validate(['action' => 'required|in:add,remove,continue', 'workshop_id' => 'nullable|required_unless:action,continue|string']);
         if ($data['action'] === 'continue') {
             return redirect()->route('workshop.ticket.flow.review', $workshop);
         }
         $id = $data['workshop_id'];
+        $capacityNotice = null;
         if ($data['action'] === 'remove') {
             if ($id !== $workshop->id && in_array($id, $session['workshop_ids'], true)) {
                 $removedIds = Ticket::whereIn('id', $session['hold_ids'])->where('workshop_id', $id)->where('status', Ticket::STATUS_HOLD)->pluck('id')->all();
@@ -323,7 +324,7 @@ class WorkshopTicketFlowController extends Controller
             if (! app(WorkshopCheckoutSelection::class)->candidates($workshop)->contains('id', $id)) {
                 throw ValidationException::withMessages(['workshop_id' => 'This workshop is not available for a combined booking.']);
             }
-            $session = DB::transaction(function () use ($workshop, $session, $id, $ticketService, $request) {
+            $session = DB::transaction(function () use ($workshop, $session, $id, $ticketService, &$capacityNotice) {
                 $locked = Workshop::whereIn('id', [...$session['workshop_ids'], $id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 if ($this->holdsExpired($workshop, $session['hold_ids'], $ticketService)) {
                     throw ValidationException::withMessages(['workshop_id' => 'Your ticket hold expired. Please start again.']);
@@ -335,10 +336,11 @@ class WorkshopTicketFlowController extends Controller
                 $quantity = count($session['review_draft'] ?? $session['participants'] ?? array_fill(0, $session['participant_count'], []));
                 $available = $ticketService->availableTickets($additional);
                 if ($available !== null && $available < $quantity) {
-                    if ($available < 1 || ! $request->boolean('allow_partial')) {
+                    if ($available < 1) {
                         throw ValidationException::withMessages(['workshop_id' => $additional->title.': only '.$available.' places remain for your '.$quantity.' participants.']);
                     }
                     $quantity = $available;
+                    $capacityNotice = $additional->title.': only '.$available.' '.($available === 1 ? 'spot is' : 'spots are').' available. The first '.$available.' '.($available === 1 ? 'participant has' : 'participants have').' been selected. You can change who attends below.';
                 }
                 $flags = $this->allocateEarlyBirdFlags($additional, $ticketService, $quantity);
                 for ($i = 0; $i < $quantity; $i++) {
@@ -381,8 +383,10 @@ class WorkshopTicketFlowController extends Controller
         $session['reviewed'] = false;
         $this->putFlowSession($workshop, $session);
         app(\App\Services\WorkshopEquipmentService::class)->removeUnavailable($workshop);
-        if ($request->boolean('allow_partial') && $data['action'] === 'add') {
-            session()->flash('booking_capacity_notice', 'Limited places are available for the workshop you added. Please check the selected participants below and choose who will attend.');
+        if ($capacityNotice !== null) {
+            session()->flash('message-title', 'Limited places');
+            session()->flash('message', $capacityNotice);
+            session()->flash('message-type', 'warning');
             $url = route('workshop.ticket.flow.review', $workshop);
 
             return $request->expectsJson() ? response()->json(['redirect' => $url]) : redirect()->to($url);

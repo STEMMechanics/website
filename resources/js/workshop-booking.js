@@ -3,7 +3,7 @@ window.SM.workshopSuggestions = config => ({
     selected: config.selected || [],
     busy: false,
     error: '',
-    async change(id, allowPartial = false) {
+    async change(id) {
         if (this.busy) return;
         this.busy = true;
         this.error = '';
@@ -11,7 +11,7 @@ window.SM.workshopSuggestions = config => ({
             const response = await fetch(config.url, {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': config.csrf},
-                body: JSON.stringify({action: this.selected.includes(id) ? 'remove' : 'add', workshop_id: id, allow_partial: allowPartial}),
+                body: JSON.stringify({action: this.selected.includes(id) ? 'remove' : 'add', workshop_id: id}),
             });
             if (response.status === 419) throw new Error('Your session expired. Reload the page and try again.');
             const result = await response.json().catch(() => ({message: 'Unable to update your booking. Please try again.'}));

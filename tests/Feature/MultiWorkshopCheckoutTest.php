@@ -203,18 +203,17 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
     }
 
-    public function test_limited_workshop_places_are_explicit_and_can_be_added_for_a_subset_of_participants(): void
+    public function test_limited_workshop_places_select_first_participants_and_show_a_themed_notice(): void
     {
         $anchor = $this->createTicketedWorkshop(['price' => '15']);
         $other = $this->createTicketedWorkshop(['title' => 'Butterfly Trainers', 'price' => '20', 'max_tickets' => 2]);
         $this->begin($anchor, 3);
-        $this->get(route('workshop.show', $other))->assertOk()->assertSee('Add 2 places')->assertSee('available for your 3 participants');
-        $this->from(route('workshop.show', $other))->post(route('workshop.ticket.flow.join', $other))->assertSessionHasErrors('workshop_id');
-        $this->get(route('workshop.show', $other))->assertOk()->assertSee('only 2 places remain for your 3 participants.');
+        $this->get(route('workshop.show', $other))->assertOk()->assertSee('Add to booking')->assertDontSee('available for your 3 participants');
         $people = collect(['Alex', 'Sam', 'Chris'])->map(fn ($name) => ['firstname' => $name, 'surname' => 'Example', 'workshops' => [$anchor->id]])->all();
         $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertOk();
-        $this->post(route('workshop.ticket.flow.join', $other), ['allow_partial' => 1])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.review', $anchor));
-        $participants = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->assertSee('choose who will attend')->viewData('participants');
+        $this->post(route('workshop.ticket.flow.join', $other))->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.review', $anchor))
+            ->assertSessionHas('message-type', 'warning')->assertSessionHas('message', 'Butterfly Trainers: only 2 spots are available. The first 2 participants have been selected. You can change who attends below.');
+        $participants = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->assertSee('only 2 spots are available')->viewData('participants');
         $this->assertContains($other->id, $participants[0]['workshops']);
         $this->assertContains($other->id, $participants[1]['workshops']);
         $this->assertNotContains($other->id, $participants[2]['workshops']);
