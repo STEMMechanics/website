@@ -8,7 +8,7 @@
         </x-ui.button>
     </div>
     <div x-bind:id="$id('participant-age-help')" x-show="ageHelpOpen" x-cloak x-on:click.outside="ageHelpOpen = false" role="note" class="absolute left-0 top-8 z-20 w-64 max-w-full rounded-lg border border-gray-200 bg-white p-3 text-sm font-normal text-gray-700 shadow-lg">
-        Age in years helps us tailor the workshop activities.
+        Including the age helps us tailor the workshop activities.
     </div>
     <x-ui.input-control type="number" min="0" max="120" step="1" inputmode="numeric" :name="$name" :value="$value" x-bind:id="$id('participant-age')" {{ $attributes->class(['max-w-28']) }} />
 </div>
