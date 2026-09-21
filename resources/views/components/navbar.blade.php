@@ -319,7 +319,7 @@
                         <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
                         <p class="text-sm font-semibold" x-text="booking.title"></p>
                         <p class="mt-1 text-sm text-gray-600"><span x-text="booking.count + (booking.count === 1 ? ' ticket' : ' tickets')"></span> reserved · <span x-text="timeRemaining"></span> remaining</p>
-                        <x-ui.button x-bind:href="booking.url" type="link" class="mt-3">Continue booking</x-ui.button>
+                        <x-ui.button href="#" x-bind:href="booking.url" class="mt-3">Continue booking</x-ui.button>
                     </div>
                 </template>
                 <div x-show="cartState.is_empty && workshopTicketCount() === 0" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
