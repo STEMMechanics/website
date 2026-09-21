@@ -55,6 +55,19 @@ class WorkshopTicketFlowController extends Controller
         private readonly StoreCouponService $coupons
     ) {}
 
+    public function join(Request $request, Workshop $workshop, WorkshopTicketService $ticketService): JsonResponse|RedirectResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+        $anchor = app(\App\Services\WorkshopCheckoutCart::class)->activeFor($workshop);
+        if (!$anchor) return redirect()->route('workshop.ticket.flow.start', $workshop);
+        $session = $this->getFlowSession($anchor);
+        if (in_array($workshop->id, $session['workshop_ids'] ?? [$anchor->id], true)) {
+            return redirect()->route('workshop.ticket.flow.cart', $anchor);
+        }
+        $request->merge(['action' => 'add', 'workshop_id' => $workshop->id]);
+        return $this->updateCart($request, $anchor, $ticketService);
+    }
+
     public function start(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
     {
         $this->ensureWorkshopPubliclyVisible($workshop);

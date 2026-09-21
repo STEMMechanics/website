@@ -314,6 +314,7 @@
                     </button>
                 </div>
 
+                <div x-show="workshopExpiryNotice" x-cloak role="status" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" x-text="workshopExpiryNotice"></div>
                 <template x-for="booking in workshopBookings" :key="booking.url + booking.expires_at + booking.count">
                     <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
                         <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
@@ -483,6 +484,7 @@
             workshopBookings: config.workshopBookings || [],
             bookingNow: Date.now(),
             bookingTimer: null,
+            workshopExpiryNotice: '',
             workshopUpdateHandler: null,
             cartOpen: Boolean(config.cartOpen),
             cartState: config.cartState || {},
@@ -497,6 +499,16 @@
             drawerDeliveryUpdateError: '',
             scrollLockY: 0,
             keyboardShortcutHandler: null,
+
+            refreshWorkshopBookings() {
+                this.bookingNow = Date.now();
+                const expired = this.workshopBookings.filter(booking => Date.parse(booking.expires_at) <= this.bookingNow);
+                if (!expired.length) return;
+
+                this.workshopBookings = this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow);
+                this.workshopExpiryNotice = 'Your ticket reservation has expired and those tickets have been removed from your cart. Please select your workshops again to continue booking. Places are subject to availability.';
+                window.SM?.banner('Workshop tickets expired', this.workshopExpiryNotice, 'warning');
+            },
 
             workshopTicketCount() {
                 return this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow)
@@ -894,11 +906,14 @@
             },
 
             init() {
-                this.workshopUpdateHandler = event => { this.workshopBookings = event.detail; };
+                this.workshopUpdateHandler = event => {
+                    this.workshopBookings = event.detail;
+                    if (this.workshopBookings.length) this.workshopExpiryNotice = '';
+                    this.refreshWorkshopBookings();
+                };
                 window.addEventListener('workshop-cart-updated', this.workshopUpdateHandler);
-                if (this.workshopBookings.length) {
-                    this.bookingTimer = setInterval(() => { this.bookingNow = Date.now(); }, 1000);
-                }
+                this.refreshWorkshopBookings();
+                this.bookingTimer = setInterval(() => this.refreshWorkshopBookings(), 1000);
                 this.$watch('showSearch', () => this.syncScrollLock());
                 this.$watch('pageMenuOpen', () => this.syncScrollLock());
                 this.$watch('userMenuOpen', () => this.syncScrollLock());

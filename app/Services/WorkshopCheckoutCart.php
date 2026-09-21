@@ -8,6 +8,30 @@ use Illuminate\Support\Carbon;
 
 class WorkshopCheckoutCart
 {
+    public function activeFor(Workshop $workshop): ?Workshop
+    {
+        $selection = app(WorkshopCheckoutSelection::class);
+        if (! $selection->supportsCombined($workshop)) {
+            return null;
+        }
+        $eligible = collect($this->bookings())->reverse()->map(function ($booking) use ($selection) {
+            $checkout = session('ticket_checkout_flow.'.$booking['id']);
+            $ids = $checkout['workshop_ids'] ?? [$booking['id']];
+            $workshops = Workshop::whereIn('id', $ids)->get();
+            if ($workshops->count() !== count($ids) || ! $workshops->every(fn (Workshop $item) => $selection->supportsCombined($item) && $item->isPubliclyVisible()
+                && in_array($item->status, ['open', 'full'], true)
+                && (! $item->closes_at || $item->closes_at->isFuture())
+            )) {
+                return;
+            }
+
+            return $workshops->firstWhere('id', $booking['id']);
+        })->filter();
+
+        return $eligible->first(fn (Workshop $anchor) => in_array($workshop->id, session('ticket_checkout_flow.'.$anchor->id.'.workshop_ids', [$anchor->id]), true))
+            ?? $eligible->first();
+    }
+
     /** Active reservations belong to the current browser session, including guest bookings. */
     public function bookings(): array
     {

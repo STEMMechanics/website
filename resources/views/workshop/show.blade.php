@@ -6,6 +6,8 @@
     $interestPrefillPhone = old('interest_phone', trim((string) (auth()->user()?->phone ?? '')));
     $interestModalOpen = $errors->has('interest_name') || $errors->has('interest_email') || $errors->has('interest_phone');
     $userHasInterest = $currentUserInterest !== null;
+    $activeWorkshopBooking = app(\App\Services\WorkshopCheckoutCart::class)->activeFor($workshop);
+    $alreadyInWorkshopBooking = $activeWorkshopBooking && in_array($workshop->id, session('ticket_checkout_flow.'.$activeWorkshopBooking->id.'.workshop_ids', [$activeWorkshopBooking->id]), true);
     $isStemcraftWorkshop = $workshop->isStemcraftWorkshop();
 
     $eventLocation = $workshop->isPhysicalWorkshop() && $workshop->location_id
@@ -132,10 +134,18 @@
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
-                @if($workshop->status === 'open')
+                @if($alreadyInWorkshopBooking)
+                    <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
+                        @csrf
+                        <x-ui.button type="submit" class="w-full">Continue booking</x-ui.button>
+                    </form>
+                @elseif($workshop->status === 'open')
                     @if($workshop->registration === 'tickets' && $availableTickets !== null)
                         @if((int) $availableTickets > 0)
-                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Tickets</x-ui.button>
+                            <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
+                                @csrf
+                                <x-ui.button type="submit" class="w-full">{{ $activeWorkshopBooking ? 'Add to booking' : 'Get Tickets' }}</x-ui.button>
+                            </form>
                             @if($workshop->requiresPrivateTicketCode())
                                 <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>
                             @endif

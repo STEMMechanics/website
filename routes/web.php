@@ -71,6 +71,7 @@ Route::get('workshops/{workshop}/register', [WorkshopController::class, 'registr
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');
 Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'interest'])->name('workshop.interest');
 Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
+Route::post('workshops/{workshop}/tickets/join', [WorkshopTicketFlowController::class, 'join'])->block(120, 120)->name('workshop.ticket.flow.join');
 Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
 Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->block(120, 120)->name('workshop.ticket.flow.begin');
 Route::get('workshops/{workshop}/tickets/cart', [WorkshopTicketFlowController::class, 'cart'])->name('workshop.ticket.flow.cart');

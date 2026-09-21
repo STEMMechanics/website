@@ -308,6 +308,56 @@ class MultiWorkshopCheckoutTest extends TestCase
             ->assertStatus(409)->assertJsonPath('redirect', route('workshop.ticket.flow.start', $anchor));
     }
 
+    public function test_workshop_page_adds_to_the_existing_booking_without_restarting_participant_details(): void
+    {
+        $anchor = $this->createTicketedWorkshop();
+        $other = $this->createTicketedWorkshop(['title' => 'Next workshop']);
+        $this->begin($anchor);
+        $this->reviewAll($anchor);
+        $before = session('ticket_checkout_flow.'.$anchor->id);
+        $this->travel(3)->minutes();
+        $this->get(route('workshop.show', $other))->assertOk()->assertSee('Add to booking')
+            ->assertSee(route('workshop.ticket.flow.join', $other), false);
+        $this->post(route('workshop.ticket.flow.join', $other))->assertSessionHasNoErrors()
+            ->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
+        $after = session('ticket_checkout_flow.'.$anchor->id);
+        $this->assertSame($before['participants'], $after['participants']);
+        $this->assertSame($before['purchaser'], $after['purchaser']);
+        $this->assertSame($before['hold_ids'], $anchor->tickets()->orderBy('id')->pluck('id')->all());
+        $this->assertSame(1, $other->tickets()->count());
+        $this->assertFalse($after['reviewed']);
+        $this->assertSame(now()->addMinutes(10)->toIso8601String(), $after['expires_at']);
+        $this->assertNull(session('ticket_checkout_flow.'.$other->id));
+        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
+        $this->assertSame($after, session('ticket_checkout_flow.'.$anchor->id));
+        $this->assertSame(1, $other->tickets()->count());
+    }
+
+    public function test_already_reserved_full_workshop_resumes_instead_of_creating_duplicate_tickets(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['max_tickets' => 2]);
+        $this->begin($anchor);
+        $before = session('ticket_checkout_flow.'.$anchor->id);
+        $this->get(route('workshop.show', $anchor))->assertOk()->assertSee('Continue booking');
+        $this->post(route('workshop.ticket.flow.join', $anchor))->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
+        $this->assertSame($before, session('ticket_checkout_flow.'.$anchor->id));
+        $this->assertDatabaseCount('tickets', 2);
+    }
+
+    public function test_expired_and_special_bookings_start_their_normal_flow_instead_of_being_combined(): void
+    {
+        $anchor = $this->createTicketedWorkshop();
+        $other = $this->createTicketedWorkshop();
+        $special = $this->createTicketedWorkshop(['is_private' => true, 'private_code' => 'secret']);
+        $this->begin($anchor);
+        $before = session('ticket_checkout_flow.'.$anchor->id);
+        $this->post(route('workshop.ticket.flow.join', $special))->assertRedirect(route('workshop.ticket.flow.start', $special));
+        $this->assertSame($before, session('ticket_checkout_flow.'.$anchor->id));
+        $this->travel(11)->minutes();
+        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.start', $other));
+        $this->assertSame(0, $other->tickets()->count());
+    }
+
     private function createTicketedWorkshop(array $overrides = []): Workshop
     {
         $author = User::factory()->create();
