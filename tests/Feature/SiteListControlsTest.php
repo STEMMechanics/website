@@ -21,6 +21,41 @@ class SiteListControlsTest extends TestCase
         return $user;
     }
 
+    public function test_admin_invoices_default_to_highest_number_and_allow_date_sorting(): void
+    {
+        $this->admin();
+        $scheduled = \App\Models\Invoice::factory()->create(['invoice_number' => '9999', 'issue_date' => today()->addMonths(4)]);
+        $recent = \App\Models\Invoice::factory()->create(['invoice_number' => '10000', 'issue_date' => today()]);
+        $response = $this->get(route('admin.invoice.index'))->assertOk();
+        $this->assertSame([$recent->id, $scheduled->id], $response->viewData('invoices')->pluck('id')->all());
+        $response->assertSee('All invoices')->assertSee('Draft / scheduled')->assertSee('Cancelled / written off');
+
+        $response = $this->get(route('admin.invoice.index', ['list_sort' => 'issue_date', 'list_direction' => 'desc']))->assertOk();
+        $this->assertSame([$scheduled->id, $recent->id], $response->viewData('invoices')->pluck('id')->all());
+    }
+
+    public function test_admin_invoice_tabs_filter_statuses_and_calculate_overdue(): void
+    {
+        $this->admin();
+        $draft = \App\Models\Invoice::factory()->create(['status' => 'draft']);
+        $overdue = \App\Models\Invoice::factory()->create(['status' => 'sent', 'due_date' => today()->subDay()]);
+        $issued = \App\Models\Invoice::factory()->create(['status' => 'issued', 'due_date' => today()->addDay()]);
+        $paid = \App\Models\Invoice::factory()->create(['status' => 'paid']);
+        $cancelled = \App\Models\Invoice::factory()->create(['status' => 'cancelled']);
+        $writtenOff = \App\Models\Invoice::factory()->create(['status' => 'written_off']);
+
+        foreach ([
+            [['draft'], [$draft->id]],
+            [['issued', 'sent', 'overdue'], [$issued->id, $overdue->id]],
+            [['overdue'], [$overdue->id]],
+            [['paid'], [$paid->id]],
+            [['cancelled', 'written_off'], [$cancelled->id, $writtenOff->id]],
+        ] as [$statuses, $expected]) {
+            $response = $this->get(route('admin.invoice.index', ['status' => $statuses]))->assertOk();
+            $this->assertEqualsCanonicalizing($expected, $response->viewData('invoices')->pluck('id')->all());
+        }
+    }
+
     public function test_registered_list_fields_are_real_non_sensitive_columns(): void
     {
         foreach (config('listings') as $route => $definition) {

@@ -395,14 +395,18 @@
                 </x-ui.table>
             </div>
 
-        <x-ui.list-pagination :paginator="$invoices" />
-        <div class="mt-3 flex flex-wrap justify-end gap-2">
-            <form id="admin-invoice-bulk-form" method="POST" action="{{ route('admin.allocation-overrides.edit', ['kind' => 'invoices']) }}" data-bulk-open="finance-bulk-editor">
-                @csrf
-                <div data-bulk-inputs></div>
-                <x-ui.bulk-edit-button type="submit" :count="0" disabled />
-            </form>
-            <x-ui.button color="secondary" data-invoice-allocate data-record-editor href="{{ route('admin.invoice.bulk-allocation.preview') }}">Allocate 0 invoices</x-ui.button></div>
+        <x-ui.list-pagination :paginator="$invoices">
+            <x-slot:actions>
+                <div class="flex flex-wrap items-center gap-2">
+                    <form id="admin-invoice-bulk-form" method="POST" action="{{ route('admin.allocation-overrides.edit', ['kind' => 'invoices']) }}" data-bulk-open="finance-bulk-editor">
+                        @csrf
+                        <div data-bulk-inputs></div>
+                        <x-ui.bulk-edit-button type="submit" :count="0" disabled />
+                    </form>
+                    <x-ui.button color="secondary" data-invoice-allocate data-record-editor href="{{ route('admin.invoice.bulk-allocation.preview') }}">Allocate 0 invoices</x-ui.button>
+                </div>
+            </x-slot:actions>
+        </x-ui.list-pagination>
         @endif
 
         <x-admin.invoice-email-modal />

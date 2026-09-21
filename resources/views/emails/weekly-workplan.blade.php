@@ -74,12 +74,20 @@ Scheduled for **{{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }}**
 - None needing follow-up.
 @endforelse
 
-<div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Unpaid or quote-request orders ({{ $workplan['orders']->count() }})</div>
+<div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Orders needing attention ({{ $workplan['orders']->count() }})</div>
 
 @forelse($workplan['orders'] as $order)
-- [{{ $order->order_number }} – {{ $order->user?->getName() ?: $order->billing_name }}]({{ route('admin.shop.order.edit', $order) }}), {{ money((float) $order->total_amount) }}
+- [{{ $order->order_number }} – {{ $order->user?->getName() ?: $order->billing_name }}]({{ route('admin.shop.order.edit', $order) }}), {{ $order->statusLabel() }} · {{ money((float) $order->total_amount) }}
 @empty
 - None needing follow-up.
+@endforelse
+
+<div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Stock to replenish ({{ $workplan['lowStock']->count() }})</div>
+
+@forelse($workplan['lowStock'] as $stock)
+- [{{ $stock['title'] }}]({{ route('admin.shop.product.edit', $stock['product_id']) }}) — {{ $stock['available'] === 0 ? 'Out of stock' : $stock['available'].' remaining' }}{{ $stock['shared'] ? ' (shared stock)' : '' }}@if($stock['threshold'] !== null), low-stock threshold {{ $stock['threshold'] }}@endif
+@empty
+- No stock currently needs replenishing.
 @endforelse
 
 <div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Workshop interest without a booking ({{ $workplan['interests']->count() }})</div>

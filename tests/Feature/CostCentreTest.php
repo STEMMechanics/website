@@ -167,7 +167,7 @@ class CostCentreTest extends TestCase
         $this->actingAs($this->admin());
         DB::table('finance_settings')->where('id', 1)->update(['opening_date' => '2026-09-01', 'opening_cash_cents' => 100000, 'opening_gst_cents' => 10000]);
         DB::table('finance_categories')->where('id', 1)->update(['opening_cents' => 50000]);
-        $this->get(route('admin.cost-centre.index'))->assertOk()->assertSee('500.00')->assertSee('GST')->assertSee('System')->assertSee('data-record-editor', false)->assertSee('Rows per page');
+        $this->get(route('admin.cost-centre.index'))->assertOk()->assertSee('500.00')->assertSee('GST')->assertSee('System')->assertSee('data-record-editor', false)->assertSee('Items per page');
         $this->postJson(route('admin.cost-centre.store'), ['name' => 'Training', 'priority' => 80, 'active' => 1])->assertOk();
         $id = DB::table('finance_categories')->where('name', 'Training')->value('id');
         $this->get(route('admin.cost-centre.edit', ['id' => $id]))->assertOk();

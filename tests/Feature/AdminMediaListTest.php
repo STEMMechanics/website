@@ -39,6 +39,50 @@ class AdminMediaListTest extends TestCase
         $this->assertSame(0, $xpath->query('//section[@data-dynamic-list="admin-media-index"]//script')->length);
     }
 
+    public function test_bulk_download_contains_selected_originals_from_both_storage_disks(): void
+    {
+        $this->admin();
+        Storage::fake('archive');
+        $first = $this->media('first.png');
+        $second = $this->media('second.png', ['storage_disk' => 'archive']);
+        $this->media('unselected.png');
+        Storage::disk('media')->put($first->hash, 'first original');
+        Storage::disk('archive')->put($second->hash, 'second original');
+
+        $response = $this->post(route('admin.media.bulk.download'), [
+            'media_names' => [$first->name, $second->name],
+        ])->assertOk();
+        $response->assertHeader('content-type', 'application/zip');
+        $path = $response->baseResponse->getFile()->getPathname();
+        $zip = new \ZipArchive;
+        try {
+            $this->assertTrue($zip->open($path));
+            $this->assertSame(2, $zip->numFiles);
+            $this->assertSame('first original', $zip->getFromName('first.png'));
+            $this->assertSame('second original', $zip->getFromName('second.png'));
+            $zip->close();
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_bulk_download_rejects_empty_unknown_and_unavailable_files(): void
+    {
+        $this->admin();
+        $missing = $this->media('missing.png');
+        foreach ([[], ['unknown.png'], [$missing->name]] as $names) {
+            $this->postJson(route('admin.media.bulk.download'), ['media_names' => $names])
+                ->assertUnprocessable();
+        }
+    }
+
+    public function test_bulk_download_is_restricted_to_admins(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->post(route('admin.media.bulk.download'), ['media_names' => ['private.png']])
+            ->assertForbidden();
+    }
+
     public function test_filtering_sorting_and_preset_counts_are_server_rendered(): void
     {
         $this->admin();

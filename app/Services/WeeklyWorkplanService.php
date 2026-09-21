@@ -8,6 +8,7 @@ use App\Models\ContactEnquiry;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Reminder;
 use App\Models\StoreOrder;
@@ -15,6 +16,7 @@ use App\Models\Ticket;
 use App\Models\Workshop;
 use App\Models\WorkshopInterest;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class WeeklyWorkplanService
 {
@@ -44,8 +46,11 @@ class WeeklyWorkplanService
         $quotes = Quote::query()->whereIn('status', [Quote::STATUS_OPEN, Quote::STATUS_AWAITING_DECISION])
             ->whereNotNull('follow_up_at')->whereDate('follow_up_at', '<=', today())
             ->with('user')->orderBy('follow_up_at')->limit(10)->get();
-        $orders = StoreOrder::query()->whereIn('status', [StoreOrder::STATUS_PENDING_PAYMENT, StoreOrder::STATUS_QUOTE_REQUESTED])
-            ->where('created_at', '<', now()->subDay())->with('user')->orderBy('created_at')->limit(10)->get();
+        $orders = StoreOrder::query()->where(function ($query): void {
+            $query->whereIn('status', StoreOrder::ACTION_REQUIRED_STATUSES)
+                ->orWhere(fn ($query) => $query->where('status', StoreOrder::STATUS_PENDING_PAYMENT)->where('created_at', '<', now()->subDay()));
+        })->with('user')->orderBy('created_at')->get();
+        $lowStock = $this->lowStock();
         $interests = WorkshopInterest::query()->where('created_at', '>=', now()->subDays(30))->with('workshop')
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')->from('tickets')
@@ -81,10 +86,51 @@ class WeeklyWorkplanService
             $key => $this->percentageChange((int) $stats[$key], $previous),
         ])->all();
 
-        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers', 'newsletter') + [
+        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers', 'newsletter', 'lowStock') + [
             'stats' => $stats,
             'websiteChanges' => $websiteChanges,
         ];
+    }
+
+    private function lowStock(): Collection
+    {
+        $rows = collect();
+        Product::query()->active()->where('product_type', Product::PRODUCT_TYPE_PHYSICAL)->with('variants')
+            ->chunkById(200, function ($products) use ($rows): void {
+                foreach ($products as $product) {
+                    $selections = [[
+                        'title' => $product->shared_inventory ? $product->title : $product->displayTitle(),
+                        'available' => $product->inventory_quantity,
+                        'threshold' => $product->effectiveLowStockThreshold(),
+                    ]];
+                    if (! $product->shared_inventory) {
+                        foreach ($product->variants->where('is_active', true) as $variant) {
+                            $variant->setRelation('product', $product);
+                            $selections[] = [
+                                'title' => $product->displayTitle($variant),
+                                'available' => $variant->availableInventory(),
+                                'threshold' => $variant->effectiveLowStockThreshold(),
+                            ];
+                        }
+                    }
+                    foreach ($selections as $selection) {
+                        if ($selection['available'] === null) {
+                            continue;
+                        }
+                        $available = max(0, (int) $selection['available']);
+                        if ($available > 0 && ($selection['threshold'] === null || $available > $selection['threshold'])) {
+                            continue;
+                        }
+                        $rows->push(array_merge($selection, [
+                            'product_id' => $product->id,
+                            'available' => $available,
+                            'shared' => (bool) $product->shared_inventory,
+                        ]));
+                    }
+                }
+            });
+
+        return $rows->sortBy([['available', 'asc'], ['title', 'asc']])->values();
     }
 
     /** @return array{percentage: float, label: string, direction: string} */

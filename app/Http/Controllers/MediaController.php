@@ -499,6 +499,43 @@ class MediaController extends Controller
         ]);
     }
 
+    public function admin_bulk_download(Request $request)
+    {
+        $validated = $request->validate([
+            'media_names' => ['required', 'array', 'min:1', 'max:5000'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+        ]);
+        $media = Media::query()->whereIn('name', $validated['media_names'])->get();
+        $files = [];
+        foreach ($media as $item) {
+            $path = $item->path();
+            if ($path === null || !is_file($path) || !is_readable($path)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'media_names' => 'The original file for '.$item->name.' is unavailable. Deselect it and try again.',
+                ]);
+            }
+            $files[] = ['path' => $path, 'name' => basename($item->name)];
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'media-download-');
+        abort_if($zipPath === false, 500, 'Could not create the download archive.');
+        $zip = new \ZipArchive;
+        try {
+            abort_if($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true, 500, 'Could not open the download archive.');
+            foreach ($files as $file) {
+                abort_unless($zip->addFile($file['path'], $file['name']), 500, 'Could not add a file to the download archive.');
+            }
+            abort_unless($zip->close(), 500, 'Could not finish the download archive.');
+        } catch (\Throwable $exception) {
+            if (is_file($zipPath)) unlink($zipPath);
+            throw $exception;
+        }
+
+        return response()->download($zipPath, 'media-'.now()->format('Y-m-d-His').'.zip', [
+            'Cache-Control' => 'private, no-store',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function admin_bulk_select(Request $request)
     {
         $validated = $request->validate([

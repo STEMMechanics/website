@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast>Store Orders</x-mast>
 
-    <x-container>
+    <x-container class="py-5">
         <x-ui.dynamic-list name="admin-shop-order">
         <x-ui.collection-controls class="my-5" />
 

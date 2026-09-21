@@ -52,7 +52,7 @@ class SupplierDirectoryTest extends TestCase
         $this->assertSame($supplier->id, $expense->supplier_id);
         $this->assertSame([2 => 10000], app(FinancePlanner::class)->expenseSplits($expense));
         $this->get(route('admin.supplier.index'))->assertOk()->assertSee('Workshop Supplies')->assertSee('data-dynamic-list', false)->assertSee('Sort by Expenses')->assertSee('View expenses')->assertSee('data-record-editor', false);
-        $this->get(route('admin.supplier.show', $supplier))->assertOk()->assertSee('Microbit materials')->assertDontSee('Unrelated expense')->assertSee('Default cost centre:')->assertDontSee('· 100%')->assertSee('Rows per page');
+        $this->get(route('admin.supplier.show', $supplier))->assertOk()->assertSee('Microbit materials')->assertDontSee('Unrelated expense')->assertSee('Default cost centre:')->assertDontSee('· 100%')->assertSee('Items per page');
         $this->get(route('admin.supplier.edit', $supplier))->assertOk()->assertSee('Default cost centre')->assertDontSee('percentage split');
         $this->get(route('admin.expense.edit', $expense))->assertOk()->assertSee('Cost centre allocation');
         $this->get(route('admin.expense.index', ['supplier_id' => $supplier->id]))->assertOk()->assertSee('Microbit materials')->assertDontSee('Unrelated expense')->assertSee('Supplier account');

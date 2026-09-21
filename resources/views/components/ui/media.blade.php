@@ -13,6 +13,7 @@
     $placeholderId = $name.'_placeholder_'.$mediaUiUid;
     $nameId = $name.'_name_'.$mediaUiUid;
     $sizeId = $name.'_size_'.$mediaUiUid;
+    $actionsId = $name.'_actions_'.$mediaUiUid;
     $clearButtonId = $name.'_clear_'.$mediaUiUid;
     $maxUploadSize = \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize());
 @endphp
@@ -24,8 +25,20 @@
         data-media-name="{{ $name }}"
         data-mime-type="{{ $mime_type }}"
         data-allow-uploads="{{ $allowUploads ? '1' : '0' }}"
-        class="mt-1 rounded-2xl border-2 border-dashed {{ $hasError ? 'border-red-600' : 'border-gray-300' }} bg-white p-5 text-center transition {{ $allowUploads ? 'hover:border-primary-color hover:bg-sky-50' : '' }}"
+        class="relative mt-1 rounded-2xl border-2 border-dashed {{ $hasError ? 'border-red-600' : 'border-gray-300' }} bg-white p-5 text-center transition {{ $allowUploads ? 'hover:border-primary-color hover:bg-sky-50' : '' }}"
     >
+        <div id="{{ $actionsId }}" class="absolute right-3 top-3 hidden flex items-center gap-2">
+            <x-ui.button type="link" variant="plain" href="#" target="_blank" rel="noopener noreferrer" data-media-open
+                class="inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white p-0 text-gray-600 shadow-sm hover:bg-gray-100 hover:text-primary-color"
+                title="Open original image in a new tab" aria-label="Open original image in a new tab">
+                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+            </x-ui.button>
+            <x-ui.button type="link" variant="plain" href="#" download data-media-download
+                class="inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white p-0 text-gray-600 shadow-sm hover:bg-gray-100 hover:text-primary-color"
+                title="Download original image (highest resolution)" aria-label="Download original image (highest resolution)">
+                <i class="fa-solid fa-download" aria-hidden="true"></i>
+            </x-ui.button>
+        </div>
         <div class="flex flex-col items-center">
             <i id="{{ $placeholderId }}" class="fa-regular fa-image text-8xl text-gray-400"></i>
             <img class="hidden rounded-lg max-w-72 max-h-40 my-4" id="{{ $previewId }}" alt="preview" />
@@ -62,6 +75,25 @@
 </div>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+    function syncMediaActions(name, details = null) {
+        const input = document.getElementById(name);
+        const actions = document.getElementById(input?.dataset.actionsId);
+        if (!actions) return;
+        const visible = Boolean(details?.mime_type?.startsWith('image/') && details.url && details.download_url);
+        actions.classList.toggle('hidden', !visible);
+        actions.parentElement.classList.toggle('pt-14', visible);
+        const open = actions.querySelector('[data-media-open]');
+        const download = actions.querySelector('[data-media-download]');
+        if (visible) {
+            open.href = details.url;
+            download.href = details.download_url;
+            download.setAttribute('download', details.name || '');
+        } else {
+            open.removeAttribute('href');
+            download.removeAttribute('href');
+        }
+    }
+
     function revokeLocalMediaPreview(name) {
         const input = document.getElementById(name);
         const localPreviewUrl = input?.dataset?.localPreviewUrl || '';
@@ -96,7 +128,7 @@
         }
 
         SM.mediaDetails(mediaName, (details) => {
-            if (!details) {
+            if (input.value !== mediaName || !details) {
                 return;
             }
 
@@ -173,6 +205,7 @@
         const sizeEl = document.getElementById(input.dataset.sizeId);
 
         revokeLocalMediaPreview(name);
+        syncMediaActions(name);
 
         if (preview) {
             preview.classList.add('hidden');
@@ -200,6 +233,7 @@
         }
 
         input.value = value || '';
+        syncMediaActions(name);
 
         if (!value) {
             resetMediaPreview(name);
@@ -207,10 +241,11 @@
         }
 
         SM.mediaDetails(value, (details) => {
-            if (!details) {
+            if (input.value !== value || !details) {
                 return;
             }
 
+            syncMediaActions(name, details);
             const nameEl = document.getElementById(input.dataset.nameId);
             const sizeEl = document.getElementById(input.dataset.sizeId);
             const preview = document.getElementById(input.dataset.previewId);
@@ -272,6 +307,7 @@
             return;
         }
 
+        syncMediaActions(name);
         showLocalMediaPreview(name, fileList[0]);
 
         if (sizeEl) {
@@ -320,6 +356,7 @@
             return;
         }
 
+        input.dataset.actionsId = @js($actionsId);
         input.dataset.previewId = @js($previewId);
         input.dataset.placeholderId = @js($placeholderId);
         input.dataset.nameId = @js($nameId);

@@ -101,6 +101,7 @@
                         <div id="admin-media-bulk-inputs"></div>
                         <div id="admin-media-selection-toolbar" class="sm-list-bulkbar mb-0!" data-selected="false">
                             <x-ui.bulk-edit-button type="submit" id="admin-media-edit-selected" :count="0" data-bulk-selected class="ml-auto px-3 sm:px-8" disabled />
+                            <x-ui.button type="submit" id="admin-media-download-selected" formaction="{{ route('admin.media.bulk.download') }}" color="secondary" data-bulk-selected class="px-3" title="Download selected original files as a ZIP" disabled><i class="fa-solid fa-download mr-2" aria-hidden="true"></i>Download selected</x-ui.button>
                             <x-ui.button variant="plain" data-toggle-selection class="ml-auto lg:hidden text-primary-color underline">Select</x-ui.button>
                         </div>
                     </form>
