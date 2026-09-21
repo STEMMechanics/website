@@ -5,6 +5,13 @@
         <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
+                @php
+                    $completionPricing = collect($ticketPricing['items'] ?? [])->map(fn ($item) => [
+                        'workshop_id' => $item['workshop_id'],
+                        'value' => $item['count'].' '.($item['count'] === 1 ? 'ticket' : 'tickets').' · '.($item['unit_price'] > 0 ? money($item['unit_price']).' each' : 'Free').(!empty($item['is_early_bird']) ? ' (Early bird)' : ''),
+                    ]);
+                @endphp
+                @include('workshop.tickets.partials.selected-workshops', ['workshopPricing' => $completionPricing, 'showSingleWorkshop' => true])
                 <x-workshop-course-schedule :workshop="$workshop" />
 
                 @php
@@ -28,8 +35,8 @@
                 $earlyBirdUnitPrice = $ticketPricing['early_bird_unit_price'] ?? null;
                 $earlyBirdUnitPrice = is_numeric($earlyBirdUnitPrice) ? round((float) $earlyBirdUnitPrice, 2) : null;
                 $orderEarlyBirdSummary = null;
-                if ($earlyBirdCount > 0 && $earlyBirdUnitPrice !== null && $standardUnitPrice > $earlyBirdUnitPrice) {
-                $orderSavings = round(($standardUnitPrice - $earlyBirdUnitPrice) * $earlyBirdCount, 2);
+                if (($ticketPricing['savings_amount'] ?? 0) > 0) {
+                $orderSavings = (float) $ticketPricing['savings_amount'];
                 if ($orderSavings > 0.0001) {
                 $orderEarlyBirdSummary = 'Save $'.number_format($orderSavings, 2).' with earlybird pricing.';
                 }
@@ -70,6 +77,8 @@
                 @include('workshop.tickets.partials.summary', [
                 'workshop' => $workshop,
                 'rows' => $summaryRows,
+                'showWorkshopDetails' => false,
+                'alignAmounts' => true,
                 ])
 
                 @if(!empty($session['equipment_quote_id']))
@@ -105,6 +114,7 @@
                             <tr class="border-t border-t-gray-300 text-sm">
                                 <td class="px-3 py-2">
                                     <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                                    @if(($checkoutWorkshops ?? collect())->count() > 1)<div class="text-xs text-gray-500">{{ $ticket->workshop?->title }}</div>@endif
                                     @if($ticket->isEarlyBirdTicket())
                                         <x-ui.badge color="amber" uppercase class="mt-1">Early bird</x-ui.badge>
                                     @endif

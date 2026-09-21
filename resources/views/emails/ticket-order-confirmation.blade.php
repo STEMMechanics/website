@@ -24,20 +24,23 @@
 <p style="font-size:14px; line-height:1.6; margin:0 0 12px;">Hi {{ $confirmation['firstName'] }},</p>
 <p style="font-size:14px; line-height:1.6; margin:0 0 24px;">Thank you for your booking.@if($confirmation['attachments'] !== '') {{ $confirmation['attachments'] }}@endif</p>
 
+@foreach(($workshop['bookedSessions'] ?? [$workshop]) as $bookedSession)
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fa; border-left:3px solid #167eb5; margin-bottom:24px;">
 <tr><td style="padding:20px;">
 <div style="color:#5f6c78; font-size:11px; letter-spacing:1.1px; text-transform:uppercase;">Your workshop</div>
-<h2 style="font-size:21px; line-height:1.3; margin:6px 0 12px; color:#202b36;">{{ $workshop['title'] ?? '-' }}</h2>
-@if(!empty($workshop['schedule']))
-@foreach($workshop['schedule'] as $session)
+<h2 style="font-size:21px; line-height:1.3; margin:6px 0 12px; color:#202b36;">{{ $bookedSession['title'] ?? '-' }}</h2>
+@if(!empty($bookedSession['schedule']))
+@foreach($bookedSession['schedule'] as $session)
 <p style="font-size:14px; line-height:1.6; margin:0;">{{ $session }}</p>
 @endforeach
 @else
-<p style="font-size:14px; line-height:1.6; margin:0;">{{ $workshop['time'] ?? $workshop['starts_at'] ?? '-' }}</p>
+<p style="font-size:14px; line-height:1.6; margin:0;">{{ $bookedSession['time'] ?? $bookedSession['starts_at'] ?? '-' }}</p>
 @endif
-<p style="font-size:14px; line-height:1.6; margin:12px 0 0; color:#5f6c78;">{{ $workshop['location'] ?? '-' }}</p>
+<p style="font-size:14px; line-height:1.6; margin:12px 0 0; color:#5f6c78;">{{ $bookedSession['location'] ?? '-' }}</p>
 </td></tr>
 </table>
+
+@endforeach
 
 @if(count($tickets) > 0)
 <h3 style="font-size:15px; line-height:1.4; margin:0 0 10px;">{{ $confirmation['ticketHeading'] }}</h3>
@@ -46,6 +49,7 @@
 <tr>
 <td style="padding:5px 16px 5px 0; font-size:14px; line-height:1.5; vertical-align:top; overflow-wrap:anywhere;">
 {{ $ticket['name'] ?? '-' }}
+@if(count($workshop['bookedSessions'] ?? []) > 1)<br><span style="color:#5f6c78; font-size:12px;">{{ $ticket['workshopTitle'] ?? '' }}</span>@endif
 @if(!empty($ticket['earlyBird']))<span style="color:#5f6c78; font-size:12px;"> · Early bird</span>@endif
 </td>
 <td align="right" style="padding:5px 0; font-size:14px; line-height:1.5; color:#5f6c78; vertical-align:top;">Ticket {{ $ticket['reference'] ?? '-' }}</td>
@@ -85,10 +89,13 @@
 @endif
 @endif
 
-@if(trim((string) ($workshop['participantInformation'] ?? '')) !== '')
-<h3 style="font-size:15px; margin:24px 0 10px;">Before your workshop</h3>
-<div style="font-size:14px; line-height:1.6;">{!! $workshop['participantInformation'] !!}</div>
+@foreach(($workshop['bookedSessions'] ?? [$workshop]) as $bookedSession)
+@if(trim((string) ($bookedSession['participantInformation'] ?? '')) !== '')
+<h3 style="font-size:15px; margin:24px 0 10px;">Before your workshop @if(count($workshop['bookedSessions'] ?? []) > 1) · {{ $bookedSession['title'] }}@endif</h3>
+<div style="font-size:14px; line-height:1.6;">{!! $bookedSession['participantInformation'] !!}</div>
 @endif
+
+@endforeach
 
 <table role="presentation" cellpadding="0" cellspacing="0" class="booking-actions" style="margin:24px 0 26px;">
 <tr><td style="padding-right:22px;">

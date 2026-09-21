@@ -1,12 +1,14 @@
-<x-layout :title="$workshop->title.' — Delivery details'">
-    <x-mast :title="$workshop->title" />
+<x-layout :title="$equipmentTitle.' — Delivery details'">
+    <x-mast :title="$equipmentTitle" />
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
         <div class="flex-1 min-w-0">
         <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.equipment', $workshop)" /><h2 class="text-2xl font-bold">Delivery details</h2></div>
         <p class="mb-4 text-sm text-gray-600">Choose how you would like to receive your equipment.</p>
-        @include('workshop.tickets.partials.summary', ['workshop' => $workshop])
+        @foreach($equipmentWorkshops as $equipmentWorkshop)
+            @include('workshop.tickets.partials.summary', ['workshop' => $equipmentWorkshop])
+        @endforeach
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach
         @php($customer = $session['equipment_customer'] ?? [])
         <form method="POST" action="{{ route('workshop.ticket.flow.delivery.save', $workshop) }}" x-data="SM.workshopDelivery(@js(['summary' => $summary, 'ticketAmount' => $ticketAmount]))" x-on:input="scheduleQuote()" x-on:change="scheduleQuote()" x-on:submit="if (loading || quoteError) $event.preventDefault()">
@@ -56,7 +58,7 @@
             <div class="mt-5 flex justify-end"><x-ui.button type="submit" name="action" value="continue" x-bind:disabled="loading || Boolean(quoteError)"><span x-text="loading ? 'Updating delivery…' : 'Continue'">Continue</span></x-ui.button></div>
         </form>
         </div>
-        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $equipmentHero?->url }}')"></div>
         </div>
     </x-container>
 </x-layout>

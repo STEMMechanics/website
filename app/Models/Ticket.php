@@ -68,6 +68,16 @@ class Ticket extends Model
         });
     }
 
+    public function guardianName(): string
+    {
+        $billingName = trim((string) ($this->invoice->billing_name ?? ''));
+        if ($billingName !== '') {
+            return $billingName;
+        }
+
+        return trim(($this->user->firstname ?? '').' '.($this->user->surname ?? ''));
+    }
+
     public function getRouteKeyName(): string
     {
         return self::supportsReferenceCodes() ? 'reference_code' : 'id';

@@ -672,7 +672,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
             'surname' => 'Example',
             'email' => 'buyer@example.com',
             'phone' => '0400123456',
-        ])->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+        ])->assertRedirect(route('workshop.ticket.flow.cart', $workshop));
 
         $invalidVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
             'voucher_code' => 'NOPE',
@@ -952,7 +952,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
             $this->post(route('workshop.ticket.flow.begin', $workshop), [
                 'quantity' => 1, 'firstname' => 'Jamie', 'surname' => 'Example',
                 'email' => 'buyer@example.com', 'phone' => '0400123456',
-            ])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+            ])->assertSessionHasNoErrors()->assertRedirect();
             $this->withSession(['_old_input' => ['payment_method' => 'pay_at_door']])
                 ->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()
                 ->assertDontSee('<option value="pay_at_door">', false)

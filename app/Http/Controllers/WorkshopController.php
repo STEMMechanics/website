@@ -2945,7 +2945,7 @@ class WorkshopController extends Controller
             abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
         }
 
-        $currentTickets = Ticket::query()
+        $currentTickets = Ticket::query()->with(['user', 'invoice'])
             ->where('workshop_id', $workshop->id)
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->orderBy('firstname')
@@ -2959,7 +2959,7 @@ class WorkshopController extends Controller
             'session' => app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
         ])->setPaper('a4', 'landscape')->setOption([
             'enable_font_subsetting' => true,
-        ])->stream('workshop-'.$workshop->id.'-ticket-roll.pdf');
+        ])->stream($this->workshopExportFilename($workshop, 'Sign-In', 'pdf'));
     }
 
     /**
@@ -3164,13 +3164,19 @@ class WorkshopController extends Controller
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
+    private function workshopExportFilename(Workshop $workshop, string $label, string $extension): string
+    {
+        $workshopName = trim(preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii($workshop->title)), '-') ?: 'Workshop';
+        $datePrefix = $workshop->starts_at?->format('ymd');
+
+        return ($datePrefix ? $datePrefix.'-' : '').$workshopName.'-'.$label.'.'.$extension;
+    }
+
     public function admin_attendance_csv(Workshop $workshop)
     {
         $rows = $this->buildAttendanceExportRows($workshop);
 
-        $workshopName = trim(preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii($workshop->title)), '-') ?: 'Workshop';
-        $datePrefix = $workshop->starts_at?->format('ymd');
-        $filename = ($datePrefix ? $datePrefix.'-' : '').$workshopName.'-Attendance.csv';
+        $filename = $this->workshopExportFilename($workshop, 'Attendance', 'csv');
 
         return response()->streamDownload(function () use ($rows): void {
             $out = fopen('php://output', 'w');
@@ -3222,7 +3228,7 @@ class WorkshopController extends Controller
             'workshop' => $workshop->loadMissing('location'),
             'rows' => collect($rows),
             'generatedAt' => now(),
-        ])->stream('workshop-'.$workshop->id.'-attendance.pdf');
+        ])->stream($this->workshopExportFilename($workshop, 'Attendance', 'pdf'));
     }
 
     public function admin_attendance_tickets(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
@@ -4087,7 +4093,7 @@ class WorkshopController extends Controller
         }
 
         if (in_array((string) $workshop->registration, ['tickets'], true)) {
-            $tickets = Ticket::query()
+            $tickets = Ticket::query()->with(['user', 'invoice'])
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('status', Ticket::activePurchasedStatuses())
                 ->orderBy('firstname')
@@ -4102,7 +4108,7 @@ class WorkshopController extends Controller
                 $rows[] = [
                     'source' => $session ? 'ticket: '.Carbon::parse($session['starts_at'])->format('j M Y g:ia') : 'ticket',
                     'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
-                    'guardian_name' => '',
+                    'guardian_name' => $ticket->guardianName(),
                     'email' => trim((string) ($ticket->email ?? '')),
                     'phone' => trim((string) ($ticket->phone ?? '')),
                     'media_consent' => '',

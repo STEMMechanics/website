@@ -26,7 +26,7 @@
         foreach ($pricingItems as $item) {
             $count = (int) ($item['count'] ?? 0);
             $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
-            $label = !empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets';
+            $label = ($checkoutWorkshops ?? collect())->count() > 1 ? \Illuminate\Support\Str::beforeLast($item['label'], ' · ') : (!empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets');
             $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per ticket' : 'Free');
 
             if (! empty($item['is_early_bird'])) {
@@ -34,6 +34,8 @@
             }
 
             $summaryRows[] = [
+                'type' => 'ticket',
+                'workshop_id' => $item['workshop_id'],
                 'label' => $label,
                 'value' => $value,
             ];
@@ -67,7 +69,7 @@
 <x-layout>
     <x-mast>Ticket Checkout</x-mast>
 
-    <x-container class="max-w-3xl mt-6 mx-auto">
+    <x-container class="max-w-4xl mt-6 mx-auto">
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6 relative"
             x-data="ticketPaymentPage({
                         squareEnabled: @js($squareEnabled),
@@ -88,13 +90,16 @@
                 })"
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
-            <div class="flex-1">
-                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
+            <div class="min-w-0 flex-1">
+                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(app(\App\Services\WorkshopEquipmentService::class)->products($workshop)->isNotEmpty() ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? (($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.cart') : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
+                @include('workshop.tickets.partials.selected-workshops', ['workshopPricing' => collect($summaryRows)->where('type', 'ticket')])
                 @error('equipment')<p class="mb-4 text-sm text-red-600">{{ $message }}</p>@enderror
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,
-                    'rows' => $summaryRows,
+                    'rows' => ($checkoutWorkshops ?? collect())->count() > 1 ? array_filter($summaryRows, fn ($row) => ($row['type'] ?? '') !== 'ticket') : $summaryRows,
+                    'alignAmounts' => true,
+                    'showWorkshopDetails' => ($checkoutWorkshops ?? collect())->count() <= 1,
                     'totalActionLabel' => $voucherButtonLabel,
                     'totalActionAttributes' => [
                         'x-on:click' => 'openVoucherDialog()',
@@ -289,7 +294,7 @@
                     </div>
                 </template>
             </div>
-            <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center text-right" style="background-image:url('{{ $workshop->hero?->url }}')">
+            <div class="hidden lg:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center text-right" style="background-image:url('{{ $workshop->hero?->url }}')">
             </div>
 
             <form id="ticket-cancel-form" method="POST" action="{{ route('workshop.ticket.flow.cancel', $workshop) }}" class="hidden">

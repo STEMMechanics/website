@@ -50,6 +50,7 @@ class WorkshopTicketRollTest extends TestCase
         $admin = $this->admin();
         $paid = Ticket::factory()->create(['firstname' => 'Zoe', 'status' => Ticket::STATUS_PAID]);
         $workshop = $paid->workshop;
+        $workshop->update(['title' => 'Straw Towers', 'starts_at' => '2026-09-22 10:30:00']);
         $door = Ticket::factory()->create(['workshop_id' => $workshop->id, 'firstname' => 'Ada', 'status' => Ticket::STATUS_PENDING_DOOR]);
         foreach ([Ticket::STATUS_HOLD, Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED] as $status) {
             Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => $status]);
@@ -67,7 +68,7 @@ class WorkshopTicketRollTest extends TestCase
         }))->andReturn($pdf);
         $pdf->shouldReceive('setPaper')->once()->with('a4', 'landscape')->andReturnSelf();
         $pdf->shouldReceive('setOption')->once()->andReturnSelf();
-        $pdf->shouldReceive('stream')->once()->andReturn(response('%PDF-test', 200, ['Content-Type' => 'application/pdf']));
+        $pdf->shouldReceive('stream')->once()->with('260922-Straw-Towers-Sign-In.pdf')->andReturn(response('%PDF-test', 200, ['Content-Type' => 'application/pdf']));
 
         $this->actingAs($admin)->get(route('admin.workshop.tickets.pdf', $workshop))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf');
@@ -89,12 +90,18 @@ class WorkshopTicketRollTest extends TestCase
                 'email' => $count > 10 ? 'parent.with.a.long.email.address@example.com' : 'parent'.$i.'@example.com',
                 'phone' => '0400 123 456',
                 'reference_code' => 'REF'.$i,
-            ]));
+            ])->setRelation('user', new User(['firstname' => 'Guardian', 'surname' => 'Example']))->setRelation('invoice', null));
             $data = ['workshop' => $workshop, 'currentTickets' => $tickets];
             $html = view('pdf.workshop-ticket-roll', $data)->render();
             $this->assertStringContainsString('Media consent (Yes)', $html);
+            if ($count > 0) $this->assertStringContainsString('Guardian Example', $html);
             $this->assertStringContainsString('your signature confirms your contact details are correct and your child has been dropped off', $html);
             $document = HTMLDocument::createFromString($html, LIBXML_NOERROR);
+            if ($count > 0) {
+                $firstRow = $document->querySelector('.roll tbody tr');
+                $this->assertSame('Guardian Example', trim($firstRow->querySelector('.contact div')->textContent));
+                $this->assertSame('', trim($firstRow->querySelectorAll('td')->item(3)->textContent));
+            }
             $sheets = $document->querySelectorAll('.sheet');
             $this->assertCount($pageCount, $sheets);
             foreach ($sheets as $sheet) {

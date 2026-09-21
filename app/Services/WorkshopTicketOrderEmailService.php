@@ -54,8 +54,8 @@ class WorkshopTicketOrderEmailService
 
         try {
             $this->dispatchCombinedEmail($lockedDelivery);
-            $workshop = Workshop::find($lockedDelivery->workshop_id);
-            if ($workshop) {
+            $workshops = Workshop::whereIn('id', Ticket::whereIn('id', $lockedDelivery->ticket_ids ?? [])->select('workshop_id'))->get();
+            foreach ($workshops as $workshop) {
                 app(WorkshopWelcomeService::class)->queueForBooking($workshop);
             }
 
@@ -146,6 +146,7 @@ class WorkshopTicketOrderEmailService
 
         $attachments = [];
         $workshop = $firstTicket->workshop instanceof Workshop ? $firstTicket->workshop : null;
+        $workshops = $tickets->pluck('workshop')->filter()->unique('id')->sortBy('starts_at')->values();
 
         if ($invoice instanceof Invoice) {
             $invoicePdf = $this->buildInvoicePdfBinary($invoice);
@@ -213,23 +214,22 @@ class WorkshopTicketOrderEmailService
             ];
         }
 
-        if ($workshop instanceof Workshop) {
-            foreach ($workshop->participantAttachments as $participantAttachment) {
-                $path = $participantAttachment->path();
-                if ($path === null || ! is_file($path)) {
-                    continue;
-                }
-                $content = file_get_contents($path);
-                if ($content === false) {
-                    continue;
-                }
-                $attachments[] = [
-                    'type' => 'participant',
-                    'content' => $content,
-                    'filename' => (string) $participantAttachment->name,
-                    'mime' => (string) ($participantAttachment->mime_type ?: 'application/octet-stream'),
-                ];
+        $participantAttachments = $workshops->flatMap(fn (Workshop $item) => $item->participantAttachments)->unique('name');
+        foreach ($participantAttachments as $participantAttachment) {
+            $path = $participantAttachment->path();
+            if ($path === null || ! is_file($path)) {
+                continue;
             }
+            $content = file_get_contents($path);
+            if ($content === false) {
+                continue;
+            }
+            $attachments[] = [
+                'type' => 'participant',
+                'content' => $content,
+                'filename' => (string) $participantAttachment->name,
+                'mime' => (string) ($participantAttachment->mime_type ?: 'application/octet-stream'),
+            ];
         }
 
         $ticketRows = $tickets->map(function (Ticket $ticket): array {
@@ -238,6 +238,7 @@ class WorkshopTicketOrderEmailService
                 'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
                 'email' => (string) ($ticket->email ?? ''),
                 'earlyBird' => $ticket->isEarlyBirdTicket(),
+                'workshopTitle' => (string) ($ticket->workshop->title ?? ''),
             ];
         })->values()->all();
 
@@ -247,7 +248,14 @@ class WorkshopTicketOrderEmailService
             recipientName: $recipientName,
             workshop: [
                 'id' => $workshop instanceof Workshop ? (string) $workshop->id : '',
-                'title' => $workshop instanceof Workshop ? (string) $workshop->title : '',
+                'title' => $workshops->count() > 1 ? 'your workshops' : ($workshop instanceof Workshop ? (string) $workshop->title : ''),
+                'bookedSessions' => $workshops->map(fn (Workshop $item) => [
+                    'title' => $item->title,
+                    'time' => $item->getTicketTimeRangeLabel(),
+                    'location' => $item->getLocationDisplay(true),
+                    'schedule' => $item->isCourse() ? $item->courseScheduleDisplayLines() : [],
+                    'participantInformation' => (string) ($item->participant_information ?? ''),
+                ])->all(),
                 'time' => $workshop instanceof Workshop ? (string) $workshop->getTicketTimeRangeLabel() : '-',
                 'location' => $workshop instanceof Workshop ? (string) $workshop->getLocationDisplay(true) : '-',
                 'registration' => 'tickets',

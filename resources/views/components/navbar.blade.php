@@ -21,6 +21,7 @@
             'shipping_country' => 'Australia',
             'user' => $navUser,
         ]);
+        $workshopBookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
         $operationCounts = $isAdmin ? app(\App\Support\AdminBadgeCache::class)->remember('operations', fn () => [
@@ -142,10 +143,11 @@
                     <span class="sr-only">Open user menu</span>
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
                 </button>
-                @if($publicShopAvailable)
+                @if($publicShopAvailable || $workshopBookings !== [])
                     <button
                             type="button"
                             @click.prevent="openCartDrawer()"
+                            x-show="publicShopAvailable || workshopTicketCount() > 0"
                             class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out relative"
                             title="Cart"
                             aria-label="Cart"
@@ -280,7 +282,7 @@
 
 </nav>
 
-    @if($publicShopAvailable)
+    @if($publicShopAvailable || $workshopBookings !== [])
         <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="if (cartOpen) { cartOpen = false }" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
             <div
                 x-show="cartOpen"
@@ -312,7 +314,16 @@
                     </button>
                 </div>
 
-                <div x-show="cartState.is_empty" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
+                <div x-show="workshopExpiryNotice" x-cloak role="status" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" x-text="workshopExpiryNotice"></div>
+                <template x-for="booking in workshopBookings" :key="booking.url + booking.expires_at + booking.count">
+                    <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
+                        <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
+                        <p class="text-sm font-semibold" x-text="booking.title"></p>
+                        <p class="mt-1 text-sm text-gray-600"><span x-text="workshopDisplayCount(booking) + (workshopDisplayCount(booking) === 1 ? ' ticket' : ' tickets')"></span> <span x-text="(workshopSelection?.bookingId === booking.id || booking.selection_pending) ? 'selected' : 'reserved'"></span> · <span x-text="timeRemaining"></span> remaining</p>
+                        <x-ui.button href="#" x-bind:href="booking.url" class="mt-3">Continue booking</x-ui.button>
+                    </div>
+                </template>
+                <div x-show="cartState.is_empty && workshopTicketCount() === 0" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center">
                     <div class="text-lg font-semibold text-gray-900">Your cart is empty</div>
                     <p class="mt-2 text-sm text-gray-600">Add a few items from the store and they will appear here.</p>
                     <div class="mt-4">
@@ -449,6 +460,7 @@
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.shopNavbarConfig = {
+        workshopBookings: @js($workshopBookings),
         publicShopAvailable: {{ $publicShopAvailable ? 'true' : 'false' }},
         cartOpen: {{ (session('store-cart-open') || session('shop-cart-open')) && $publicShopAvailable ? 'true' : 'false' }},
         cartState: @js($shopCartPayload),
@@ -469,6 +481,13 @@
             pageMenuOpen: false,
             userMenuOpen: false,
             publicShopAvailable: Boolean(config.publicShopAvailable),
+            workshopBookings: config.workshopBookings || [],
+            bookingNow: Date.now(),
+            bookingTimer: null,
+            workshopExpiryNotice: '',
+            workshopUpdateHandler: null,
+            workshopSelection: null,
+            workshopSelectionHandler: null,
             cartOpen: Boolean(config.cartOpen),
             cartState: config.cartState || {},
             busyCartLineKey: null,
@@ -483,8 +502,27 @@
             scrollLockY: 0,
             keyboardShortcutHandler: null,
 
+            refreshWorkshopBookings() {
+                this.bookingNow = Date.now();
+                const expired = this.workshopBookings.filter(booking => Date.parse(booking.expires_at) <= this.bookingNow);
+                if (!expired.length) return;
+
+                this.workshopBookings = this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow);
+                this.workshopExpiryNotice = 'Your tickets expired. Please select your workshops again.';
+                window.SM?.banner('Workshop tickets expired', this.workshopExpiryNotice, 'warning');
+            },
+
+            workshopDisplayCount(booking) {
+                return this.workshopSelection?.bookingId === booking.id ? this.workshopSelection.count : booking.count;
+            },
+
+            workshopTicketCount() {
+                return this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow)
+                    .reduce((count, booking) => count + this.workshopDisplayCount(booking), 0);
+            },
+
             cartCount() {
-                return Number(this.cartState?.summary?.item_count || 0);
+                return Number(this.cartState?.summary?.item_count || 0) + this.workshopTicketCount();
             },
 
             setCartState(cart) {
@@ -798,7 +836,7 @@
             },
 
             openCartDrawer() {
-                if (!this.publicShopAvailable) {
+                if (!this.publicShopAvailable && this.workshopTicketCount() === 0) {
                     return;
                 }
 
@@ -868,7 +906,24 @@
                 }
             },
 
+            destroy() {
+                if (this.bookingTimer) clearInterval(this.bookingTimer);
+                window.removeEventListener('workshop-cart-updated', this.workshopUpdateHandler);
+                window.removeEventListener('workshop-selection-updated', this.workshopSelectionHandler);
+            },
+
             init() {
+                this.workshopSelectionHandler = event => { this.workshopSelection = event.detail; };
+                window.addEventListener('workshop-selection-updated', this.workshopSelectionHandler);
+                this.workshopUpdateHandler = event => {
+                    this.workshopSelection = null;
+                    this.workshopBookings = event.detail;
+                    if (this.workshopBookings.length) this.workshopExpiryNotice = '';
+                    this.refreshWorkshopBookings();
+                };
+                window.addEventListener('workshop-cart-updated', this.workshopUpdateHandler);
+                this.refreshWorkshopBookings();
+                this.bookingTimer = setInterval(() => this.refreshWorkshopBookings(), 1000);
                 this.$watch('showSearch', () => this.syncScrollLock());
                 this.$watch('pageMenuOpen', () => this.syncScrollLock());
                 this.$watch('userMenuOpen', () => this.syncScrollLock());

@@ -4,21 +4,23 @@ Hi {!! $confirmation['firstName'] !!},
 
 Thank you for your booking. {!! $confirmation['attachments'] !!}
 
+@foreach(($workshop['bookedSessions'] ?? [$workshop]) as $bookedSession)
 YOUR WORKSHOP
-{!! $workshop['title'] ?? '-' !!}
-@if(!empty($workshop['schedule']))
-@foreach($workshop['schedule'] as $session)
+{!! $bookedSession['title'] ?? '-' !!}
+@if(!empty($bookedSession['schedule']))
+@foreach($bookedSession['schedule'] as $session)
 {!! $session !!}
 @endforeach
 @else
-{!! $workshop['time'] ?? $workshop['starts_at'] ?? '-' !!}
+{!! $bookedSession['time'] ?? $bookedSession['starts_at'] ?? '-' !!}
 @endif
-{!! $workshop['location'] ?? '-' !!}
+{!! $bookedSession['location'] ?? '-' !!}
+@endforeach
 
 @if(count($tickets) > 0)
 {!! $confirmation['ticketHeading'] !!}
 @foreach($tickets as $ticket)
-{!! $ticket['name'] ?? '-' !!} — Ticket {!! $ticket['reference'] ?? '-' !!}{!! !empty($ticket['earlyBird']) ? ' · Early bird' : '' !!}
+{!! $ticket['name'] ?? '-' !!}@if(count($workshop['bookedSessions'] ?? []) > 1) · {!! $ticket['workshopTitle'] ?? '' !!}@endif — Ticket {!! $ticket['reference'] ?? '-' !!}{!! !empty($ticket['earlyBird']) ? ' · Early bird' : '' !!}
 @endforeach
 @endif
 
@@ -49,10 +51,12 @@ We’ll let you know when your order is ready to collect.
 View Store Order: {!! $equipmentOrder['url'] !!}
 @endif
 
-@if(trim((string) ($workshop['participantInformation'] ?? '')) !== '')
-Before your workshop
-{!! html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>', '<br />', '</li>'], "\n", (string) $workshop['participantInformation'])), ENT_QUOTES | ENT_HTML5, 'UTF-8') !!}
+@foreach(($workshop['bookedSessions'] ?? [$workshop]) as $bookedSession)
+@if(trim((string) ($bookedSession['participantInformation'] ?? '')) !== '')
+Before your workshop @if(count($workshop['bookedSessions'] ?? []) > 1) · {!! $bookedSession['title'] !!}@endif
+{!! html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>', '<br />', '</li>'], "\n", (string) $bookedSession['participantInformation'])), ENT_QUOTES | ENT_HTML5, 'UTF-8') !!}
 @endif
+@endforeach
 
 Manage {!! $ticketCount === 1 ? 'ticket' : 'tickets' !!}: {!! url('/tickets') !!}
 
