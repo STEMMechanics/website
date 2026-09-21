@@ -99,7 +99,7 @@ class WorkshopTicketRollTest extends TestCase
             $document = HTMLDocument::createFromString($html, LIBXML_NOERROR);
             if ($count > 0) {
                 $firstRow = $document->querySelector('.roll tbody tr');
-                $this->assertSame('Guardian Example', trim($firstRow->querySelector('.contact div')->textContent));
+                $this->assertSame('Guardian Example - '.($count > 10 ? 'parent.with.a.long.email.address@example.com' : 'parent1@example.com'), trim($firstRow->querySelector('.contact div')->textContent));
                 $this->assertSame('', trim($firstRow->querySelectorAll('td')->item(3)->textContent));
             }
             $sheets = $document->querySelectorAll('.sheet');

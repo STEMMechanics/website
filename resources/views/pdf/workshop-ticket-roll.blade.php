@@ -22,8 +22,8 @@
         .tick-box { display: inline-block; width: 11px; height: 11px; border: 1px solid #758895; vertical-align: middle; position: relative; top: 3px; }
         .consent-choice { display: inline-block; white-space: nowrap; margin: 0 3px; }
         .reference { font-size: 8px; color: #667985; }
-        .contact { font-size: 9px; }
-        .contact div { line-height: 0.65; }
+        .contact { font-size: 11px; }
+        .contact div { line-height: 0.8; }
         .consent { margin-top: 10px; font-size: 10px; line-height: 1; color: #4c5c67; }
         .consent strong { color: #24485d; }
         .sheet-footer { margin-top: 8px; color: #667985; font-size: 9px; }
@@ -55,10 +55,10 @@
             <table class="roll">
                 <thead>
                     <tr>
-                        <th style="width: 27%">Attendee name</th>
-                        <th style="width: 33%">Contact name / email / phone</th>
-                        <th style="width: 16%" class="center">Media consent</th>
-                        <th style="width: 24%">Parent / guardian signature</th>
+                        <th style="width: 22%">Attendee name</th>
+                        <th style="width: 44%">Contact name / email / phone</th>
+                        <th style="width: 14%" class="center">Media consent</th>
+                        <th style="width: 20%">Parent / guardian signature</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,8 +69,7 @@
                                 @if($ticket)<div class="reference">{{ $ticket->reference_code ?: $ticket->id }}</div>@endif
                             </td>
                             <td class="contact">
-                                @if($ticket && $ticket->guardianName() !== '')<div>{{ $ticket->guardianName() }}</div>@endif
-                                <div>{{ $ticket?->email ?? '' }}</div>
+                                <div>{{ collect([$ticket?->guardianName(), $ticket?->email])->filter(fn ($value) => trim((string) $value) !== '')->implode(' - ') }}</div>
                                 <div>{{ $ticket?->phone ?? '' }}</div>
                             </td>
                             <td class="center">

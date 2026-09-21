@@ -3,6 +3,7 @@
 
     <x-container class="py-5">
         <x-ui.dynamic-list name="admin-shop-order">
+        <x-finance.attention-notice kind="orders" :total="$attentionCount" />
         <x-ui.collection-controls class="my-5" />
 
         @if($orders->isEmpty())
@@ -27,7 +28,7 @@
                                 <div>{{ $order->billing_name ?: '-' }}</div>
                                 <div class="text-xs text-gray-500">{{ $order->billing_email ?: '-' }}</div>
                             </td>
-                            <td class="text-center!">{{ $order->statusLabel() }}</td>
+                            <td class="text-center!"><x-ui.store-order-status-badge :order="$order" /></td>
                             <td class="text-center!">${{ number_format((float) $order->total_amount, 2) }}</td>
                             <td class="">
                                 <x-ui.row-actions class="whitespace-nowrap">
