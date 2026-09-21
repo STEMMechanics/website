@@ -5,6 +5,7 @@
 @endphp
 
 <x-ui.table variant="plain" table-class="text-sm mb-4">
+    @if($showWorkshopDetails ?? true)
     <tr>
         <th class="text-left pr-4 w-24">Workshop</th>
         <td>{{ $workshop->title }}</td>
@@ -37,6 +38,7 @@
         </td>
     </tr>
     @endif
+    @endif
     @foreach($rows as $row)
         @php
             $rowType = trim((string) ($row['type'] ?? 'data'));
@@ -50,17 +52,32 @@
             </tr>
             @continue
         @endif
+        @if($rowType === 'ticket')
+            <tr>
+                <td colspan="2" class="py-2">
+                    <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <span class="min-w-0 flex-1 basis-48 font-semibold">{{ $label }}</span>
+                        <span class="shrink-0 whitespace-nowrap text-gray-700">{{ $row['value'] ?? '-' }}</span>
+                    </div>
+                </td>
+            </tr>
+            @continue
+        @endif
+        @if($label === 'Total Cost' && $resolvedTotalActionLabel !== '')
+            <tr>
+                <td colspan="2" class="pt-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-3">
+                        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 font-semibold"><span>{{ $label }}</span><span class="whitespace-nowrap">{{ $row['value'] ?? '-' }}</span></div>
+                        <x-ui.button variant="plain" :type="$resolvedTotalActionAttributes->get('type', 'button')" :button-attributes="$resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'shrink-0 rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm hover:bg-gray-500 hover:text-white'])">{{ $resolvedTotalActionLabel }}</x-ui.button>
+                    </div>
+                </td>
+            </tr>
+            @continue
+        @endif
         <tr>
             <th class="text-left pr-4">{{ $label }}</th>
             <td class="{{ $valueClass }}">
-                @if($label === 'Total Cost' && $resolvedTotalActionLabel !== '')
-                    <div class="relative w-full pr-28">
-                        <x-ui.button variant="plain" :type="$resolvedTotalActionAttributes->get('type', 'button')" :button-attributes="$resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'absolute right-0 top-1/2 inline-flex shrink-0 -translate-y-1/2 items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color disabled:cursor-not-allowed disabled:opacity-50'])">
-                            {{ $resolvedTotalActionLabel }}
-                        </x-ui.button>
-                        <span class="font-semibold">{{ $row['value'] ?? '-' }}</span>
-                    </div>
-                @elseif($valueHtml !== null)
+                @if($valueHtml !== null)
                     {!! $valueHtml !!}
                 @else
                     {{ $row['value'] ?? '-' }}
