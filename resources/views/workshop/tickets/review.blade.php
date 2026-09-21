@@ -6,8 +6,9 @@
             <div class="flex-1 min-w-0">
                 <div class="mb-4 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.cart', $workshop)" /><h2 class="text-2xl font-bold">Review booking</h2></div>
                 @foreach($errors->all() as $error)<p class="mb-3 text-sm text-red-600" role="alert">{{ $error }}</p>@endforeach
-                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="SM.workshopBookingReview(@js(['draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]))">
+                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="SM.workshopBookingReview(@js(['reviewVersion' => $session['review_version'], 'draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]))">
                     @csrf
+                    <input type="hidden" name="review_version" value="{{ $session['review_version'] }}" x-bind:value="reviewVersion">
                     <p x-show="saveError" x-text="saveError" role="alert" class="mb-3 text-sm text-red-600"></p>
                     <h3 class="mb-3 text-lg font-semibold">Who’s coming?</h3>
                     <template x-for="(person, index) in participants" :key="index">

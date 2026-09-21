@@ -38,6 +38,8 @@ window.SM.workshopSuggestions = config => ({
 window.SM.workshopBookingReview = config => ({
     participants: config.participants.map(person => ({...person, workshops: person.workshops || []})),
     prices: config.prices,
+    reviewVersion: config.reviewVersion,
+    conflicted: false,
     submitting: false,
     saveError: '',
     saveTimer: null,
@@ -69,6 +71,7 @@ window.SM.workshopBookingReview = config => ({
         this.$nextTick(() => this.syncCartSelection());
     },
     async saveDraft() {
+        if (this.conflicted) return false;
         if (this.submitting) return true;
         clearTimeout(this.saveTimer);
         if (this.saving) {
@@ -82,12 +85,19 @@ window.SM.workshopBookingReview = config => ({
                 const response = await fetch(config.draftUrl, {
                     method:'POST', credentials:'same-origin', keepalive:true,
                     headers:{'Accept':'application/json', 'Content-Type':'application/json', 'X-CSRF-TOKEN':config.csrf},
-                    body:JSON.stringify({participants:JSON.parse(snapshot)}),
+                    body:JSON.stringify({participants:JSON.parse(snapshot), review_version:this.reviewVersion}),
                 });
                 if (!response.ok) {
                     const result = await response.json().catch(() => ({}));
+                    if (response.status === 409 && result.redirect) {
+                        this.conflicted = true;
+                        window.location.assign(result.redirect);
+                        return false;
+                    }
                     throw new Error(Object.values(result.errors || {}).flat()[0] || result.message || 'Could not save your participant details. Please try again before leaving this page.');
                 }
+                const result = await response.json();
+                this.reviewVersion = result.review_version;
                 this.savedSnapshot = snapshot;
                 this.saveError = '';
                 return true;
@@ -103,12 +113,16 @@ window.SM.workshopBookingReview = config => ({
     },
     async submitReview(event) {
         clearTimeout(this.saveTimer);
+        if (this.conflicted) { event.preventDefault(); return; }
         if (this.submitting) return;
         this.submitting = true;
         if (this.saving) {
             event.preventDefault();
             await this.saving;
-            event.target.requestSubmit();
+            if (!this.conflicted) {
+                await this.$nextTick();
+                event.target.requestSubmit();
+            }
         }
     },
     destroy() {

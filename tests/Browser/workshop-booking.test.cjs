@@ -80,7 +80,7 @@ test('navigation waits for participant draft saving and preserves the latest edi
     const {SM} = load(async (url, options) => {
         requests.push(JSON.parse(options.body));
         if (requests.length === 1) await new Promise(resolve => { resolveSave = resolve; });
-        return {ok:true};
+        return {ok:true,json:async () => ({review_version:"next"})};
     }, {window, document:{addEventListener:(type, callback) => {click = callback;}, removeEventListener() {}}});
     const review = window.SM.workshopBookingReview({draftUrl:'/draft', csrf:'token', bookingId:'anchor', participants:[{firstname:'', surname:'Example', workshops:['anchor']}], prices:{anchor:{price:0}}});
     review.$watch = (key, callback) => {watch = callback;};
@@ -118,8 +118,9 @@ test('failed draft saving keeps details on the page and blocks navigation', asyn
 
 test('confirming a booking waits for any draft save and prevents later autosaves', async () => {
     let resolveSave, requests = 0, submitted = false, prevented = false;
-    const {SM} = load(async () => { requests++; await new Promise(resolve => {resolveSave = resolve;}); return {ok:true}; });
+    const {SM} = load(async () => { requests++; await new Promise(resolve => {resolveSave = resolve;}); return {ok:true,json:async () => ({review_version:"next"})}; });
     const review = SM.workshopBookingReview({draftUrl:'/draft', participants:[{firstname:'Alex', workshops:['anchor']}], prices:{anchor:{price:0}}});
+    review.$nextTick = async () => {};
     const saving = review.saveDraft();
     const submit = review.submitReview({preventDefault() {prevented = true;}, target:{requestSubmit() {submitted = true;}}});
     assert.equal(prevented, true);
@@ -161,4 +162,26 @@ test('removing a selected sold-out workshop updates availability and allows addi
     await suggestions.change('other');
     assert.equal(suggestions.label('other'), 'Remove');
     assert.equal(suggestions.error, '');
+});
+
+test('draft saves use the latest booking version and stale windows stop submitting', async () => {
+    const requests = [], redirects = [];
+    const window = {location:{assign:url => redirects.push(url)}};
+    load(async (url, options) => {
+        requests.push(JSON.parse(options.body));
+        return requests.length === 1 ? {ok:true,json:async () => ({review_version:'updated'})} : {ok:false,status:409,json:async () => ({redirect:'/review',message:'Booking changed'})};
+    }, {window});
+    const review = window.SM.workshopBookingReview({draftUrl:'/draft',reviewVersion:'original',participants:[{firstname:'Alex',workshops:['anchor']}],prices:{anchor:{price:0}}});
+    await review.saveDraft();
+    assert.equal(requests[0].review_version, 'original');
+    assert.equal(review.reviewVersion, 'updated');
+    review.participants[0].firstname = 'Sam';
+    assert.equal(await review.saveDraft(), false);
+    assert.equal(requests[1].review_version, 'updated');
+    assert.deepEqual(redirects, ['/review']);
+    let prevented = false;
+    await review.submitReview({preventDefault() {prevented = true;}});
+    assert.equal(prevented, true);
+    assert.equal(await review.saveDraft(), false);
+    assert.equal(requests.length, 2);
 });

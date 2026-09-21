@@ -404,6 +404,7 @@ class WorkshopTicketFlowController extends Controller
         abort_unless(app(WorkshopCheckoutSelection::class)->supportsCombined($workshop), 404);
         $session['review_required'] = true;
         $this->putFlowSession($workshop, $session);
+        $session = $this->getFlowSession($workshop);
         $tickets = Ticket::whereIn('id', $session['hold_ids'])->get();
         $participants = $session['participants'] ?? array_fill(0, $session['participant_count'], [
             'firstname' => '', 'surname' => $session['purchaser']['surname'], 'workshops' => [$workshop->id],
@@ -440,6 +441,13 @@ class WorkshopTicketFlowController extends Controller
         if (! $session || ($session['payment_complete'] ?? false) || $this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             return response()->json(['message' => 'Your reservation has ended. Please start a new booking.'], 409);
         }
+        if (! $request->filled('review_version') || $request->input('review_version') !== ($session['review_version'] ?? null)) {
+            $message = 'Your booking changed in another window. Please review the updated workshops and participants.';
+            session()->flash('message', $message);
+            session()->flash('message-type', 'warning');
+
+            return response()->json(['message' => $message, 'redirect' => route('workshop.ticket.flow.review', $workshop)], 409);
+        }
         $data = $request->validate([
             'participants' => 'required|array|min:1|max:10',
             'participants.*.firstname' => 'nullable|string|max:120',
@@ -455,7 +463,7 @@ class WorkshopTicketFlowController extends Controller
         $session['review_required'] = true;
         $this->putFlowSession($workshop, $session);
 
-        return response()->json(['saved' => true]);
+        return response()->json(['saved' => true, 'review_version' => $this->getFlowSession($workshop)['review_version']]);
     }
 
     public function saveReview(Request $request, Workshop $workshop, WorkshopTicketService $ticketService): RedirectResponse
@@ -469,6 +477,9 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop)->withErrors(['quantity' => 'Your ticket hold expired. Please start again.']);
         }
         abort_unless(app(WorkshopCheckoutSelection::class)->supportsCombined($workshop), 404);
+        if (! $request->filled('review_version') || $request->input('review_version') !== ($session['review_version'] ?? null)) {
+            return redirect()->route('workshop.ticket.flow.review', $workshop)->withErrors(['booking' => 'Your booking changed in another window. Please review the updated workshops and participants.']);
+        }
         $data = $request->validate([
             'participants' => 'required|array|min:1|max:10',
             'participants.*.firstname' => 'required|string|max:120',
@@ -2179,6 +2190,7 @@ class WorkshopTicketFlowController extends Controller
 
     private function putFlowSession(Workshop $workshop, array $payload): void
     {
+        $payload['review_version'] = hash('sha256', serialize(array_intersect_key($payload, array_flip(['hold_ids', 'workshop_ids', 'participants', 'review_draft', 'purchaser', 'payment_complete']))));
         session()->put(self::SESSION_KEY_PREFIX.$workshop->id, $payload);
     }
 

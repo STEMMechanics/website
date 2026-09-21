@@ -50,6 +50,7 @@ class WorkshopTicketRollTest extends TestCase
         $admin = $this->admin();
         $paid = Ticket::factory()->create(['firstname' => 'Zoe', 'status' => Ticket::STATUS_PAID]);
         $workshop = $paid->workshop;
+        $workshop->update(['title' => 'Straw Towers', 'starts_at' => '2026-09-22 10:30:00']);
         $door = Ticket::factory()->create(['workshop_id' => $workshop->id, 'firstname' => 'Ada', 'status' => Ticket::STATUS_PENDING_DOOR]);
         foreach ([Ticket::STATUS_HOLD, Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED] as $status) {
             Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => $status]);
@@ -67,7 +68,7 @@ class WorkshopTicketRollTest extends TestCase
         }))->andReturn($pdf);
         $pdf->shouldReceive('setPaper')->once()->with('a4', 'landscape')->andReturnSelf();
         $pdf->shouldReceive('setOption')->once()->andReturnSelf();
-        $pdf->shouldReceive('stream')->once()->andReturn(response('%PDF-test', 200, ['Content-Type' => 'application/pdf']));
+        $pdf->shouldReceive('stream')->once()->with('260922-Straw-Towers-Sign-In.pdf')->andReturn(response('%PDF-test', 200, ['Content-Type' => 'application/pdf']));
 
         $this->actingAs($admin)->get(route('admin.workshop.tickets.pdf', $workshop))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf');

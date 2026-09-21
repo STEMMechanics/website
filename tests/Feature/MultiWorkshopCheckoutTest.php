@@ -51,7 +51,7 @@ class MultiWorkshopCheckoutTest extends TestCase
     {
         $session = session('ticket_checkout_flow.'.$workshop->id);
 
-        return $this->post(route('workshop.ticket.flow.review.save', $workshop), ['participants' => [
+        return $this->post(route('workshop.ticket.flow.review.save', $workshop), ['review_version' => $session['review_version'], 'participants' => [
             ['firstname' => 'Alex', 'surname' => 'Example', 'workshops' => $session['workshop_ids']],
             ['firstname' => 'Sam', 'surname' => 'Example', 'workshops' => $session['workshop_ids']],
         ]])->assertSessionHasNoErrors();
@@ -90,7 +90,7 @@ class MultiWorkshopCheckoutTest extends TestCase
             ['firstname' => 'Alex', 'surname' => 'Example', 'workshops' => [$anchor->id]],
             ['firstname' => 'Sam', 'surname' => '', 'workshops' => []],
         ];
-        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertOk();
+        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertOk();
         $after = session('ticket_checkout_flow.'.$anchor->id);
         $this->assertSame($before['hold_ids'], $after['hold_ids']);
         $this->assertSame($before['expires_at'], $after['expires_at']);
@@ -118,10 +118,10 @@ class MultiWorkshopCheckoutTest extends TestCase
         ];
         $draftUrl = route('workshop.ticket.flow.review.draft', $anchor);
         $reviewUrl = route('workshop.ticket.flow.review', $anchor);
-        $this->postJson($draftUrl, ['participants' => $people])->assertOk();
+        $this->postJson($draftUrl, ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertOk();
         $this->assertSame($people, $this->get($reviewUrl)->assertOk()->viewData('participants'));
         array_shift($people);
-        $this->postJson($draftUrl, ['participants' => $people])->assertOk();
+        $this->postJson($draftUrl, ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertOk();
         $this->assertSame($people, $this->get($reviewUrl)->assertOk()->viewData('participants'));
         $this->cartAction($anchor, 'add', $other)->assertSessionHasNoErrors();
         foreach ($people as &$person) {
@@ -141,10 +141,10 @@ class MultiWorkshopCheckoutTest extends TestCase
         $other = $this->createTicketedWorkshop(['price' => '20']);
         $this->begin($anchor);
         $people = [['firstname' => '', 'surname' => '', 'workshops' => [$other->id]]];
-        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertUnprocessable();
+        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertUnprocessable();
         $people[0]['workshops'] = [$anchor->id];
         $this->travel(11)->minutes();
-        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertStatus(409);
+        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertStatus(409);
         $this->assertArrayNotHasKey('review_draft', session('ticket_checkout_flow.'.$anchor->id));
     }
 
@@ -216,7 +216,7 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->begin($anchor, 3);
         $this->get(route('workshop.show', $other))->assertOk()->assertSee('Add to booking')->assertDontSee('available for your 3 participants');
         $people = collect(['Alex', 'Sam', 'Chris'])->map(fn ($name) => ['firstname' => $name, 'surname' => 'Example', 'workshops' => [$anchor->id]])->all();
-        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertOk();
+        $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertOk();
         $this->post(route('workshop.ticket.flow.join', $other))->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.cart', $anchor))->assertSessionMissing('message');
         $participants = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->viewData('participants');
         $this->assertContains($other->id, $participants[0]['workshops']);
@@ -254,6 +254,51 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->postJson($url, ['action' => 'add', 'workshop_id' => $other->id])->assertOk()
             ->assertJsonPath('availability.'.$other->id, 0)->assertJsonMissingPath('redirect');
         $this->assertSame(2, $other->tickets()->count());
+    }
+
+    public function test_stale_window_cannot_drop_a_workshop_added_in_another_window(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '0']);
+        $other = $this->createTicketedWorkshop(['price' => '0']);
+        $this->begin($anchor, 3);
+        $people = collect(['Alex', 'Sam', 'Chris'])->map(fn ($name) => ['firstname' => $name, 'surname' => 'Example', 'workshops' => [$anchor->id]])->all();
+        $draftUrl = route('workshop.ticket.flow.review.draft', $anchor);
+        $saveUrl = route('workshop.ticket.flow.review.save', $anchor);
+        $reviewUrl = route('workshop.ticket.flow.review', $anchor);
+        $this->postJson($draftUrl, ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertOk();
+        $oldVersion = $this->get($reviewUrl)->assertOk()->viewData('session')['review_version'];
+        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
+        $current = session('ticket_checkout_flow.'.$anchor->id);
+        $this->assertNotSame($oldVersion, $current['review_version']);
+        $this->post($saveUrl, ['review_version' => $oldVersion, 'participants' => $people])->assertRedirect($reviewUrl)->assertSessionHasErrors('booking');
+        $this->assertSame($current, session('ticket_checkout_flow.'.$anchor->id));
+        $this->postJson($draftUrl, ['review_version' => $oldVersion, 'participants' => $people])->assertStatus(409)->assertJsonPath('redirect', $reviewUrl);
+        $this->assertSame($current, session('ticket_checkout_flow.'.$anchor->id));
+        $this->assertSame(3, $other->tickets()->count());
+        $this->assertDatabaseCount('invoices', 0);
+        $fresh = $this->get($reviewUrl)->assertOk();
+        $people = $fresh->viewData('participants');
+        foreach ($people as $person) $this->assertSame([$anchor->id, $other->id], $person['workshops']);
+        $this->post($saveUrl, ['review_version' => $fresh->viewData('session')['review_version'], 'participants' => $people])
+            ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
+        $this->assertSame(6, Ticket::where('status', Ticket::STATUS_PAID)->count());
+        $this->post($saveUrl, ['review_version' => $current['review_version'], 'participants' => $people])->assertRedirect(route('workshop.ticket.flow.details', $anchor));
+        $this->assertSame(6, Ticket::where('status', Ticket::STATUS_PAID)->count());
+        $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()->assertDontSee('One booking for your selected participants and workshops.');
+    }
+
+    public function test_stale_participant_draft_cannot_overwrite_newer_participant_edits(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '15']);
+        $this->begin($anchor);
+        $version = session('ticket_checkout_flow.'.$anchor->id.'.review_version');
+        $people = [['firstname' => 'Updated', 'surname' => 'Example', 'workshops' => [$anchor->id]]];
+        $url = route('workshop.ticket.flow.review.draft', $anchor);
+        $response = $this->postJson($url, ['review_version' => $version, 'participants' => $people])->assertOk();
+        $this->assertNotSame($version, $response->json('review_version'));
+        $people[0]['firstname'] = 'Stale';
+        $this->postJson($url, ['review_version' => $version, 'participants' => $people])->assertStatus(409);
+        $this->assertSame('Updated', session('ticket_checkout_flow.'.$anchor->id.'.review_draft.0.firstname'));
     }
 
     public function test_four_sessions_across_venues_and_online_share_payment_and_participant_details(): void
@@ -455,7 +500,7 @@ class MultiWorkshopCheckoutTest extends TestCase
             ->assertOk()->assertJsonPath('selected.1', $older->id)->assertJsonPath('bookings.0.count', 4);
         $this->cartAction($anchor, 'add', $unused)->assertSessionHasNoErrors();
         $this->get(route('workshop.ticket.flow.payment', $anchor))->assertRedirect(route('workshop.ticket.flow.review', $anchor));
-        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => [
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => [
             ['firstname' => 'Younger', 'surname' => 'Child', 'workshops' => [$anchor->id]],
             ['firstname' => 'Older', 'surname' => 'Child', 'workshops' => [$older->id]],
         ]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
@@ -481,10 +526,10 @@ class MultiWorkshopCheckoutTest extends TestCase
             ['firstname' => 'Second', 'surname' => 'Child', 'workshops' => [$other->id]],
             ['firstname' => 'Third', 'surname' => 'Child', 'workshops' => [$other->id]],
         ];
-        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => $people])->assertSessionHasErrors('participants');
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertSessionHasErrors('participants');
         $this->assertSame($before, Ticket::orderBy('id')->get()->toArray());
         $people[1]['workshops'] = [$foreign->id];
-        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['participants' => $people])->assertSessionHasErrors('participants.1.workshops.0');
+        $this->post(route('workshop.ticket.flow.review.save', $anchor), ['review_version' => session('ticket_checkout_flow.'.$anchor->id.'.review_version'), 'participants' => $people])->assertSessionHasErrors('participants.1.workshops.0');
         $this->assertSame($before, Ticket::orderBy('id')->get()->toArray());
         $this->assertDatabaseCount('invoices', 0);
     }

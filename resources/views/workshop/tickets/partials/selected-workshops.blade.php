@@ -19,6 +19,5 @@
                 </li>
             @endforeach
         </ul>
-        @unless(isset($workshopPricing))<p class="mt-3 text-gray-600">One booking for your selected participants and workshops.</p>@endunless
     </div>
 @endif
