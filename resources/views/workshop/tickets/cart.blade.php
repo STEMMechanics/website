@@ -14,6 +14,7 @@
                 <div>
                     <div class="grid grid-cols-1 gap-4">
                         @foreach($additionalWorkshops as $additional)
+                            @php($participantCount = count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'])
                             @php($available = app(\App\Services\WorkshopTicketService::class)->availableTickets($additional))
                             <div class="flex flex-col rounded-xl border border-gray-200 bg-gray-50 p-4">
                                 <div class="mb-3 flex gap-3">
@@ -23,9 +24,12 @@
                                 <p class="text-sm text-gray-600">{{ $additional->getTicketTimeRangeLabel() }}</p>
                                 <p class="text-sm text-gray-600">{{ $additional->getLocationDisplay(true) }}</p>
                                 <p class="mb-3 text-sm text-gray-600">Ages: {{ $additional->ages }}</p>
+                                @if($available !== null && $available > 0 && $available < $participantCount)
+                                    <p class="mb-3 text-sm text-amber-800" x-show="!selected.includes(@js($additional->id))">Only {{ $available }} {{ $available === 1 ? 'place is' : 'places are' }} available. Add these places, then choose who will attend.</p>
+                                @endif
                                 <div class="mt-auto flex flex-wrap items-center gap-3 justify-end">
                                     <span class="text-sm font-semibold text-green-700" x-show="selected.includes(@js($additional->id))" x-cloak><i class="fa-solid fa-check" aria-hidden="true"></i> Added</span>
-                                    <x-ui.button type="button" color="secondary" data-workshop-id="{{ $additional->id }}" data-sold-out="{{ $available !== null && $available < 1 ? '1' : '0' }}" x-on:click="change($el.dataset.workshopId)" x-bind:disabled="busy || (!selected.includes($el.dataset.workshopId) && (selected.length >= 10 || $el.dataset.soldOut === '1'))" x-text="selected.includes($el.dataset.workshopId) ? 'Remove' : ($el.dataset.soldOut === '1' ? 'Sold out' : 'Add workshop')">Add workshop</x-ui.button>
+                                    <x-ui.button type="button" color="secondary" data-workshop-id="{{ $additional->id }}" data-sold-out="{{ $available !== null && $available < 1 ? '1' : '0' }}" data-partial-places="{{ $available !== null && $available > 0 && $available < $participantCount ? $available : 0 }}" x-on:click="change($el.dataset.workshopId, !selected.includes($el.dataset.workshopId) && Number($el.dataset.partialPlaces) > 0)" x-bind:disabled="busy || (!selected.includes($el.dataset.workshopId) && (selected.length >= 10 || $el.dataset.soldOut === '1'))" x-text="selected.includes($el.dataset.workshopId) ? 'Remove' : ($el.dataset.soldOut === '1' ? 'Sold out' : (Number($el.dataset.partialPlaces) > 0 ? 'Add ' + $el.dataset.partialPlaces + (Number($el.dataset.partialPlaces) === 1 ? ' place' : ' places') : 'Add workshop'))">Add workshop</x-ui.button>
                                 </div>
                             </div>
                         @endforeach

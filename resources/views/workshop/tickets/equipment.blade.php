@@ -4,7 +4,7 @@
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
         <div class="flex-1 min-w-0">
-        <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Optional equipment</h2></div>
+        <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Optional equipment</h2></div>
         <p class="mb-4 text-sm text-gray-600">Choose any equipment you need, or continue without it.</p>
         @include('workshop.tickets.partials.summary', ['workshop' => $workshop])
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach

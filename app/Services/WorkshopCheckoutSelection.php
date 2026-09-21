@@ -10,8 +10,7 @@ class WorkshopCheckoutSelection
     public function supportsCombined(Workshop $workshop): bool
     {
         return $workshop->registration === 'tickets' && ! $workshop->usesClassroomRegistration()
-            && ! $workshop->requiresPrivateTicketCode() && ! $workshop->isPrivate()
-            && empty($workshop->optional_product_ids);
+            && ! $workshop->requiresPrivateTicketCode() && ! $workshop->isPrivate();
     }
 
     /** Public sessions can be combined across venues and online. */

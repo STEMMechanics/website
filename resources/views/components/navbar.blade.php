@@ -319,7 +319,7 @@
                     <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
                         <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
                         <p class="text-sm font-semibold" x-text="booking.title"></p>
-                        <p class="mt-1 text-sm text-gray-600"><span x-text="booking.count + (booking.count === 1 ? ' ticket' : ' tickets')"></span> reserved · <span x-text="timeRemaining"></span> remaining</p>
+                        <p class="mt-1 text-sm text-gray-600"><span x-text="workshopDisplayCount(booking) + (workshopDisplayCount(booking) === 1 ? ' ticket' : ' tickets')"></span> <span x-text="(workshopSelection?.bookingId === booking.id || booking.selection_pending) ? 'selected' : 'reserved'"></span> · <span x-text="timeRemaining"></span> remaining</p>
                         <x-ui.button href="#" x-bind:href="booking.url" class="mt-3">Continue booking</x-ui.button>
                     </div>
                 </template>
@@ -486,6 +486,8 @@
             bookingTimer: null,
             workshopExpiryNotice: '',
             workshopUpdateHandler: null,
+            workshopSelection: null,
+            workshopSelectionHandler: null,
             cartOpen: Boolean(config.cartOpen),
             cartState: config.cartState || {},
             busyCartLineKey: null,
@@ -510,9 +512,13 @@
                 window.SM?.banner('Workshop tickets expired', this.workshopExpiryNotice, 'warning');
             },
 
+            workshopDisplayCount(booking) {
+                return this.workshopSelection?.bookingId === booking.id ? this.workshopSelection.count : booking.count;
+            },
+
             workshopTicketCount() {
                 return this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow)
-                    .reduce((count, booking) => count + booking.count, 0);
+                    .reduce((count, booking) => count + this.workshopDisplayCount(booking), 0);
             },
 
             cartCount() {
@@ -903,10 +909,14 @@
             destroy() {
                 if (this.bookingTimer) clearInterval(this.bookingTimer);
                 window.removeEventListener('workshop-cart-updated', this.workshopUpdateHandler);
+                window.removeEventListener('workshop-selection-updated', this.workshopSelectionHandler);
             },
 
             init() {
+                this.workshopSelectionHandler = event => { this.workshopSelection = event.detail; };
+                window.addEventListener('workshop-selection-updated', this.workshopSelectionHandler);
                 this.workshopUpdateHandler = event => {
+                    this.workshopSelection = null;
                     this.workshopBookings = event.detail;
                     if (this.workshopBookings.length) this.workshopExpiryNotice = '';
                     this.refreshWorkshopBookings();

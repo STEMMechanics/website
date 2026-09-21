@@ -7,6 +7,9 @@
     $interestModalOpen = $errors->has('interest_name') || $errors->has('interest_email') || $errors->has('interest_phone');
     $userHasInterest = $currentUserInterest !== null;
     $activeWorkshopBooking = app(\App\Services\WorkshopCheckoutCart::class)->activeFor($workshop);
+    $activeBookingSession = $activeWorkshopBooking ? session('ticket_checkout_flow.'.$activeWorkshopBooking->id, []) : [];
+    $bookingParticipants = count($activeBookingSession['review_draft'] ?? $activeBookingSession['participants'] ?? []) ?: ($activeBookingSession['participant_count'] ?? 0);
+    $limitedBookingPlaces = $activeWorkshopBooking && $availableTickets !== null && $availableTickets > 0 && $availableTickets < $bookingParticipants;
     $alreadyInWorkshopBooking = $activeWorkshopBooking && in_array($workshop->id, session('ticket_checkout_flow.'.$activeWorkshopBooking->id.'.workshop_ids', [$activeWorkshopBooking->id]), true);
     $isStemcraftWorkshop = $workshop->isStemcraftWorkshop();
 
@@ -134,6 +137,9 @@
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
+                @foreach(['workshop_id', 'quantity', 'allow_partial'] as $bookingError)
+                    @error($bookingError)<p class="mb-3 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                @endforeach
                 @if($alreadyInWorkshopBooking)
                     <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
                         @csrf
@@ -144,7 +150,11 @@
                         @if((int) $availableTickets > 0)
                             <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
                                 @csrf
-                                <x-ui.button type="submit" class="w-full">{{ $activeWorkshopBooking ? 'Add to booking' : 'Get Tickets' }}</x-ui.button>
+                                @if($limitedBookingPlaces)
+                                    <p class="mb-3 text-sm text-amber-800">Only {{ $availableTickets }} {{ $availableTickets === 1 ? 'place is' : 'places are' }} available for your {{ $bookingParticipants }} participants. Add these places, then choose who will attend.</p>
+                                    <input type="hidden" name="allow_partial" value="1">
+                                @endif
+                                <x-ui.button type="submit" class="w-full">{{ $limitedBookingPlaces ? 'Add '.$availableTickets.' '.($availableTickets === 1 ? 'place' : 'places') : ($activeWorkshopBooking ? 'Add to booking' : 'Get Tickets') }}</x-ui.button>
                             </form>
                             @if($workshop->requiresPrivateTicketCode())
                                 <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>

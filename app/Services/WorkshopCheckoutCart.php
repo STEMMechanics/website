@@ -60,7 +60,9 @@ class WorkshopCheckoutCart
             $bookings[] = [
                 'id' => (string) $anchorId,
                 'title' => $tickets->pluck('workshop.title')->unique()->join(', '),
-                'count' => $tickets->count(),
+                'count' => isset($checkout['review_draft'])
+                    ? collect($checkout['review_draft'])->sum(fn ($person) => count(array_intersect($person['workshops'], $checkout['workshop_ids']))) : $tickets->count(),
+                'selection_pending' => isset($checkout['review_draft']),
                 'expires_at' => $expires->toIso8601String(),
                 'url' => route(app(WorkshopCheckoutSelection::class)->supportsCombined($anchor)
                     ? 'workshop.ticket.flow.cart' : 'workshop.ticket.flow.payment', $anchor),

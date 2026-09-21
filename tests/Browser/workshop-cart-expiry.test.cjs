@@ -74,3 +74,15 @@ test('extended reservations use the new deadline and removed bookings do not tri
     tick(600000);
     assert.equal(notices.length, 0);
 });
+
+test('review selections update only that booking count without claiming additional reservations', () => {
+    const {controller, listeners, tick} = navbar([booking('first'), booking('second')]);
+    listeners.get('workshop-selection-updated')({detail:{bookingId:'first', count:5}});
+    assert.equal(controller.cartCount(), 10);
+    assert.equal(controller.workshopBookings[0].count, 2);
+    assert.equal(controller.workshopDisplayCount(controller.workshopBookings[0]), 5);
+    listeners.get('workshop-selection-updated')({detail:{bookingId:'first', count:0}});
+    assert.equal(controller.cartCount(), 5);
+    tick(600000);
+    assert.equal(controller.cartCount(), 3);
+});

@@ -12,7 +12,21 @@ class WorkshopEquipmentService
 {
     public function products(Workshop $workshop): Collection
     {
-        return Product::query()->active()->with(['variants', 'hero'])->whereIn('id', $workshop->optional_product_ids ?? [])->orderBy('title')->get();
+        $workshopIds = session('ticket_checkout_flow.'.$workshop->id.'.workshop_ids', [$workshop->id]);
+        $productIds = Workshop::whereIn('id', $workshopIds)->get()->flatMap(fn (Workshop $item) => $item->optional_product_ids ?? [])->unique()->all();
+
+        return Product::query()->active()->with(['variants', 'hero'])->whereIn('id', $productIds)->orderBy('title')->get();
+    }
+
+    public function removeUnavailable(Workshop $workshop): void
+    {
+        $allowed = $this->products($workshop)->pluck('id')->all();
+        $cart = $this->cart($workshop);
+        foreach ($cart->contents()['lines'] ?? [] as $key => $line) {
+            if (! in_array((int) $line['product_id'], $allowed, true)) {
+                $cart->removeLine((string) $key);
+            }
+        }
     }
 
     public function cart(Workshop $workshop): StoreCartService

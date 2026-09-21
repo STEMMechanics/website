@@ -77,6 +77,7 @@ Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController:
 Route::get('workshops/{workshop}/tickets/cart', [WorkshopTicketFlowController::class, 'cart'])->name('workshop.ticket.flow.cart');
 Route::post('workshops/{workshop}/tickets/cart', [WorkshopTicketFlowController::class, 'updateCart'])->block(120, 120)->name('workshop.ticket.flow.cart.update');
 Route::get('workshops/{workshop}/tickets/review', [WorkshopTicketFlowController::class, 'review'])->name('workshop.ticket.flow.review');
+Route::post('workshops/{workshop}/tickets/review/draft', [WorkshopTicketFlowController::class, 'saveReviewDraft'])->block(120, 120)->name('workshop.ticket.flow.review.draft');
 Route::post('workshops/{workshop}/tickets/review', [WorkshopTicketFlowController::class, 'saveReview'])->block(120, 120)->name('workshop.ticket.flow.review.save');
 Route::get('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'equipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment');
 Route::post('workshops/{workshop}/tickets/equipment', [WorkshopTicketFlowController::class, 'saveEquipment'])->middleware('full-account')->name('workshop.ticket.flow.equipment.save');

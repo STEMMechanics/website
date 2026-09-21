@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function load(fetch) {
+function load(fetch, overrides = {}) {
     const events = [];
     const window = {dispatchEvent: e => events.push(e), location: {assign() { throw new Error('Unexpected navigation'); }}};
-    vm.runInNewContext(fs.readFileSync('resources/js/workshop-booking.js', 'utf8'), {window, fetch, Intl, CustomEvent: class {constructor(type, options) {this.type = type; this.detail = options.detail;}}});
+    vm.runInNewContext(fs.readFileSync('resources/js/workshop-booking.js', 'utf8'), {window, fetch, Intl, setTimeout, clearTimeout, ...overrides, CustomEvent: class {constructor(type, options) {this.type = type; this.detail = options.detail;}}});
     return {SM: window.SM, events};
 }
 
@@ -51,4 +51,83 @@ test('a capacity error keeps the selection unchanged and displays the server mes
     assert.equal(suggestions.error, 'No places remain.');
     assert.equal(suggestions.busy, false);
     assert.equal(events.length, 0);
+});
+
+test('review sends the current ticket selection to the cart, including unchecked workshops', () => {
+    const {SM, events} = load();
+    const review = SM.workshopBookingReview({bookingId:'anchor', surname:'Example', participants:[
+        {workshops:['anchor', 'other']}, {workshops:['anchor']}, {workshops:['anchor']},
+    ], prices:{anchor:{price:0}, other:{price:0}}});
+    let watch;
+    review.$watch = (key, callback) => { assert.equal(key, 'participants'); watch = callback; };
+    review.$nextTick = callback => callback();
+    review.init();
+    assert.equal(events.at(-1).detail.count, 4);
+    review.participants[0].workshops = ['anchor'];
+    watch();
+    assert.equal(events.at(-1).type, 'workshop-selection-updated');
+    assert.equal(events.at(-1).detail.bookingId, 'anchor');
+    assert.equal(events.at(-1).detail.count, 3);
+    review.participants.splice(2, 1);
+    watch();
+    assert.equal(events.at(-1).detail.count, 2);
+});
+
+test('navigation waits for participant draft saving and preserves the latest edits', async () => {
+    let click, watch, resolveSave;
+    const requests = [], navigations = [];
+    const window = {dispatchEvent() {}, addEventListener() {}, removeEventListener() {}, location:{assign:url => navigations.push(url)}};
+    const {SM} = load(async (url, options) => {
+        requests.push(JSON.parse(options.body));
+        if (requests.length === 1) await new Promise(resolve => { resolveSave = resolve; });
+        return {ok:true};
+    }, {window, document:{addEventListener:(type, callback) => {click = callback;}, removeEventListener() {}}});
+    const review = window.SM.workshopBookingReview({draftUrl:'/draft', csrf:'token', bookingId:'anchor', participants:[{firstname:'', surname:'Example', workshops:['anchor']}], prices:{anchor:{price:0}}});
+    review.$watch = (key, callback) => {watch = callback;};
+    review.$nextTick = callback => callback();
+    review.init();
+    review.participants[0].firstname = 'Alex';
+    watch();
+    let prevented = false;
+    const navigation = click({button:0, target:{closest:() => ({href:'/workshops', getAttribute:() => '/workshops', hasAttribute:() => false})}, preventDefault() {prevented = true;}});
+    assert.equal(prevented, true);
+    assert.equal(navigations.length, 0);
+    review.participants[0].firstname = 'Alexandra';
+    resolveSave();
+    await navigation;
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].participants[0].firstname, 'Alexandra');
+    assert.deepEqual(navigations, ['/workshops']);
+    review.destroy();
+});
+
+test('failed draft saving keeps details on the page and blocks navigation', async () => {
+    let click;
+    const window = {dispatchEvent() {}, addEventListener() {}, removeEventListener() {}, location:{assign() {throw new Error('Must not navigate');}}};
+    load(async () => {throw new Error('Network unavailable');}, {window, document:{addEventListener:(type, callback) => {click = callback;}, removeEventListener() {}}});
+    const review = window.SM.workshopBookingReview({draftUrl:'/draft', participants:[{firstname:'', workshops:['anchor']}], prices:{anchor:{price:0}}});
+    review.$watch = () => {};
+    review.$nextTick = callback => callback();
+    review.init();
+    review.participants[0].firstname = 'Alex';
+    await click({button:0, target:{closest:() => ({href:'/workshops', getAttribute:() => '/workshops', hasAttribute:() => false})}, preventDefault() {}});
+    assert.equal(review.saveError, 'Network unavailable');
+    assert.equal(review.participants[0].firstname, 'Alex');
+    review.destroy();
+});
+
+test('confirming a booking waits for any draft save and prevents later autosaves', async () => {
+    let resolveSave, requests = 0, submitted = false, prevented = false;
+    const {SM} = load(async () => { requests++; await new Promise(resolve => {resolveSave = resolve;}); return {ok:true}; });
+    const review = SM.workshopBookingReview({draftUrl:'/draft', participants:[{firstname:'Alex', workshops:['anchor']}], prices:{anchor:{price:0}}});
+    const saving = review.saveDraft();
+    const submit = review.submitReview({preventDefault() {prevented = true;}, target:{requestSubmit() {submitted = true;}}});
+    assert.equal(prevented, true);
+    assert.equal(submitted, false);
+    resolveSave();
+    await saving;
+    await submit;
+    await review.saveDraft();
+    assert.equal(submitted, true);
+    assert.equal(requests, 1);
 });
