@@ -117,7 +117,7 @@ class AdminWorkshopManualTicketTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('@js(', false);
-        $response->assertSee('x-on:click.prevent="createTicketOpen = true"', false);
+        $response->assertSee('x-on:open-create-workshop-ticket.window="createTicketOpen = true"', false);
         $response->assertSee('Email ticket to this email address');
         $response->assertSee('Email customer about this cancellation');
     }

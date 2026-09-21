@@ -16,7 +16,13 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets
+        <x-slot:actions>
+            <x-ui.button type="button" color="mast" class="gap-2" x-data x-on:click.prevent="$dispatch('open-create-workshop-ticket')">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
+            </x-ui.button>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container>
         <x-ui.dynamic-list name="admin-workshop-tickets">
@@ -52,6 +58,7 @@
                 bulkEmailOpen: @js($bulkEmailModalOpen),
                 smsOpen: @js($smsModalOpen),
             }"
+            x-on:open-create-workshop-ticket.window="createTicketOpen = true"
             data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
             x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -87,16 +94,9 @@
 
         <div class="my-4 flex flex-wrap items-center justify-between gap-3" data-ticket-toolbar>
             <div class="flex flex-wrap items-center gap-2">
-                <x-ui.button type="button" class="gap-2" x-on:click.prevent="createTicketOpen = true">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
-                </x-ui.button>
-                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">
-                    <i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet
-                </x-ui.button>
-                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.attendance', $workshop) }}">
-                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Check in
-                </x-ui.button>
                 <x-ui.action-menu id="workshop-ticket-tools" title="Ticket tools">
+                    <x-ui.row-action label="Print sign-in sheet" icon="fa-solid fa-print" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank" />
+                    <x-ui.row-action label="Check in" icon="fa-solid fa-clipboard-check" href="{{ route('admin.workshop.attendance', $workshop) }}" />
                     <x-ui.row-action label="Attendance export (PDF)" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
                     <x-ui.row-action label="Email ticket contacts" icon="fa-regular fa-envelope" type="button" x-on:click.prevent="bulkEmailOpen = true" />
                     <x-ui.row-action label="Text ticket contacts" icon="fa-solid fa-comment-sms" type="button" x-on:click.prevent="smsOpen = true" :title="$smsButtonTitle" :disabled="! $smsButtonEnabled" />
