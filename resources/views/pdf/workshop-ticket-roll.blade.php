@@ -19,7 +19,7 @@
         .roll td { border: 1px solid #cbd5dc; height: 32px; padding: 4px 7px; line-height: 0.95; vertical-align: middle; overflow-wrap: break-word; }
         .roll tr { page-break-inside: avoid; }
         .roll .center { text-align: center; }
-        .tick-box { display: inline-block; width: 11px; height: 11px; border: 1px solid #758895; vertical-align: middle; }
+        .tick-box { display: inline-block; width: 11px; height: 11px; border: 1px solid #758895; vertical-align: middle; position: relative; top: 3px; }
         .consent-choice { display: inline-block; white-space: nowrap; margin: 0 3px; }
         .reference { font-size: 8px; color: #667985; }
         .contact { font-size: 9px; }
