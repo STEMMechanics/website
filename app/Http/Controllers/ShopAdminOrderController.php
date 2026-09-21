@@ -49,6 +49,7 @@ class ShopAdminOrderController extends Controller
         }
 
         return view('admin.shop.order.index', [
+            'attentionCount' => StoreOrder::actionRequiredCount(),
             'orders' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1),
         ]);
     }

@@ -42,7 +42,7 @@
                     'title' => 'Store',
                     'items' => [
                     ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*'], 'badge' => $storeOrderActionCount, 'badge_title' => $storeOrderActionCount.' store '.($storeOrderActionCount === 1 ? 'order requires' : 'orders require').' action'],
-                    ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*'], 'badge' => $productAttentionCount, 'badge_title' => $productAttentionCount.' '.($productAttentionCount === 1 ? 'product needs' : 'products need').' stock, order or allocation attention'],
+                    ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*'], 'badge' => $productAttentionCount, 'badge_title' => $productAttentionCount.' '.($productAttentionCount === 1 ? 'product needs' : 'products need').' stock or allocation attention'],
                     ['label' => 'Categories', 'route' => route('admin.shop.category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.category.*']],
                     ['label' => 'Vouchers', 'route' => route('admin.shop.coupon.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.coupon.*']],
                     ['label' => 'Settings', 'route' => route('admin.shop.settings.edit'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.settings.*']],

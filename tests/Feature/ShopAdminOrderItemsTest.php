@@ -76,7 +76,13 @@ class ShopAdminOrderItemsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.order.index'))
             ->assertOk()
-            ->assertSee('title="'.$expectedCount.' store orders require action"', false);
+            ->assertSee('title="'.$expectedCount.' store orders require action"', false)
+            ->assertSeeText($expectedCount.' orders need attention')
+            ->assertSee('aria-label="Store orders needing attention"', false)
+            ->assertSee('bg-amber-50', false)
+            ->assertSee('fa-solid fa-box-open', false)
+            ->assertSee('bg-emerald-50', false)
+            ->assertSee('bg-sky-50', false);
     }
 
     public function test_collected_items_do_not_expose_bulk_selection_checkboxes(): void

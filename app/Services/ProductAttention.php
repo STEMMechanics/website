@@ -117,11 +117,7 @@ class ProductAttention
             $threshold = $summary['low_stock_threshold'];
             $summaries[$productId]['low_stock'] = $available !== null
                 && ($available <= 0 || ($threshold !== null && $available <= $threshold));
-            $summaries[$productId]['actionable'] = $summaries[$productId]['awaiting'] > 0
-                || $summaries[$productId]['reserved'] > 0
-                || $summaries[$productId]['backorder'] > 0
-                || $summaries[$productId]['preorder'] > 0
-                || $summaries[$productId]['low_stock'];
+            $summaries[$productId]['actionable'] = $summaries[$productId]['low_stock'];
         }
 
         return $summaries;

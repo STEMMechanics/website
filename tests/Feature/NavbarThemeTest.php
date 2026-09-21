@@ -48,10 +48,10 @@ class NavbarThemeTest extends TestCase
         $this->actingAs($this->createAdminUser());
         Product::factory()->create(['price' => 11, 'inventory_quantity' => 1]);
         $this->get(route('admin.shop.product.index'))->assertOk()
-            ->assertSee('1 product needs stock, order or allocation attention')
+            ->assertSee('1 product needs stock or allocation attention')
             ->assertSee('Low stock')
             ->assertSee('Allocation needs review')
-            ->assertSee('1 with low stock or orders awaiting fulfilment');
+            ->assertSee('1 with low stock');
     }
 
     private function renderNavbarForHost(string $host): string

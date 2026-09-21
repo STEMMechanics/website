@@ -1063,7 +1063,7 @@ class AdminShopProductTest extends TestCase
             ->assertSeeText('Free');
     }
 
-    public function test_actionable_filter_shows_untracked_products_with_open_fulfilment_work(): void
+    public function test_product_stock_attention_excludes_orders_awaiting_fulfilment(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -1090,12 +1090,13 @@ class AdminShopProductTest extends TestCase
             'inventory_reserved_quantity' => 0,
         ]);
 
+        $this->assertSame(0, app(\App\Services\ProductAttention::class)->counts()['inventory']);
+
         $this->actingAs($admin)
             ->get(route('admin.shop.product.index', ['filter' => 'actionable']))
             ->assertOk()
-            ->assertSeeText('Untracked Supplier Item')
-            ->assertSeeText('Not tracked')
-            ->assertSeeText('22 awaiting fulfilment')
+            ->assertDontSeeText('Untracked Supplier Item')
+            ->assertDontSeeText('22 awaiting fulfilment')
             ->assertDontSeeText('Nothing Pending');
     }
 
