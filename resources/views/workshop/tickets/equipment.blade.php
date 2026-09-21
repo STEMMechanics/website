@@ -1,12 +1,14 @@
-<x-layout :title="$workshop->title.' — Optional equipment'">
-    <x-mast :title="$workshop->title" />
+<x-layout :title="$equipmentTitle.' — Optional equipment'">
+    <x-mast :title="$equipmentTitle" />
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
         <div class="flex-1 min-w-0">
         <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Optional equipment</h2></div>
         <p class="mb-4 text-sm text-gray-600">Choose any equipment you need, or continue without it.</p>
-        @include('workshop.tickets.partials.summary', ['workshop' => $workshop])
+        @foreach($equipmentWorkshops as $equipmentWorkshop)
+            @include('workshop.tickets.partials.summary', ['workshop' => $equipmentWorkshop])
+        @endforeach
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach
         @php
             $savedLines = collect($cart->contents()['lines'] ?? [])->keyBy('product_id');
@@ -65,7 +67,7 @@
             <div class="mt-5 flex justify-end"><x-ui.button type="submit" name="action" value="select">Continue</x-ui.button></div>
         </form>
         </div>
-        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $equipmentHero?->url }}')"></div>
         </div>
     </x-container>
 </x-layout>

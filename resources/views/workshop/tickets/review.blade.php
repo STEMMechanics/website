@@ -28,7 +28,7 @@
                             <p class="text-sm text-gray-600">{{ $item->getTicketTimeRangeLabel() }}</p>
                             <p class="mb-3 text-sm text-gray-600">{{ $item->getLocationDisplay(true) }}</p>
                             @if($pricing[$item->id]['capacity'] !== null)
-                                <p class="mb-3 text-sm font-medium text-amber-800" x-show="participants.length > @js($pricing[$item->id]['capacity'])" x-cloak>{{ $pricing[$item->id]['capacity'] }} {{ $pricing[$item->id]['capacity'] === 1 ? 'spot' : 'spots' }} available for your booking, including your reserved tickets. Untick someone first to change who attends.</p>
+                                <p class="mb-3 text-sm font-medium text-amber-800" x-show="participants.length > @js($pricing[$item->id]['capacity'])" x-cloak>Only {{ $pricing[$item->id]['capacity'] }} {{ $pricing[$item->id]['capacity'] === 1 ? 'spot' : 'spots' }} available. Untick someone to swap.</p>
                                 <p class="mb-3 text-sm text-red-600" role="alert" x-show="overCapacity(@js($item->id))" x-cloak>Please reduce the selected participants to match the available places.</p>
                             @endif
                             <template x-for="(person, index) in participants" :key="index">

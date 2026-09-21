@@ -160,10 +160,16 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame(4, app(WorkshopCheckoutCart::class)->bookings()[0]['count']);
         $this->travel(9)->minutes();
         $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.equipment', $anchor));
-        $this->get(route('workshop.ticket.flow.equipment', $anchor))->assertOk()->assertSee($product->title);
+        $equipmentPage = $this->get(route('workshop.ticket.flow.equipment', $anchor))->assertOk()->assertSee($product->title);
+        $this->assertSame('Butterfly Trainers', $equipmentPage->viewData('equipmentTitle'));
+        $this->assertSame([$other->id], $equipmentPage->viewData('equipmentWorkshops')->pluck('id')->all());
+        $this->assertSame(70.0, $equipmentPage->viewData('ticketAmount'));
         $this->post(route('workshop.ticket.flow.equipment.save', $anchor), ['action' => 'select', 'quantities' => [$product->id => 1]])
             ->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.delivery', $anchor));
         $this->assertCount(1, app(\App\Services\WorkshopEquipmentService::class)->cart($anchor)->contents()['lines']);
+        $deliveryPage = $this->get(route('workshop.ticket.flow.delivery', $anchor))->assertOk();
+        $this->assertSame('Butterfly Trainers', $deliveryPage->viewData('equipmentTitle'));
+        $this->assertSame(70.0, $deliveryPage->viewData('ticketAmount'));
         $this->post(route('workshop.ticket.flow.equipment.save', $anchor), ['action' => 'skip'])->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
         $this->get(route('workshop.ticket.flow.payment', $anchor))->assertOk();
         $this->post(route('workshop.ticket.flow.payment.process', $anchor), ['payment_method' => 'bank_transfer'])
@@ -228,7 +234,7 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->begin($anchor, 3);
         $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.review', $anchor));
         $response = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()
-            ->assertSee('2 spots available for your booking')->assertSee('3 spots available for your booking')
+            ->assertSee('Only 2 spots available. Untick someone to swap.')->assertSee('Only 3 spots available. Untick someone to swap.')
             ->assertSee('selectionFull(person, $el.value)', false)->assertDontSee('@js(', false);
         $this->assertSame(3, $response->viewData('pricing')[$anchor->id]['capacity']);
         $this->assertSame(2, $response->viewData('pricing')[$other->id]['capacity']);

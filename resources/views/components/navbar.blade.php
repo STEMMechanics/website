@@ -508,7 +508,7 @@
                 if (!expired.length) return;
 
                 this.workshopBookings = this.workshopBookings.filter(booking => Date.parse(booking.expires_at) > this.bookingNow);
-                this.workshopExpiryNotice = 'Your ticket reservation has expired and those tickets have been removed from your cart. Please select your workshops again to continue booking. Places are subject to availability.';
+                this.workshopExpiryNotice = 'Your tickets expired. Please select your workshops again.';
                 window.SM?.banner('Workshop tickets expired', this.workshopExpiryNotice, 'warning');
             },
 

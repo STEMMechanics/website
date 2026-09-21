@@ -566,8 +566,14 @@ class WorkshopTicketFlowController extends Controller
         $review = $equipment->summary($workshop, $session);
         $delivery = request()->routeIs('workshop.ticket.flow.delivery');
         if ($delivery && $review['lines']->isEmpty()) return redirect()->route('workshop.ticket.flow.equipment', $workshop);
-        $pricing = $this->calculateTicketCheckoutPricing($workshop, Ticket::where('workshop_id', $workshop->id)->whereIn('id', $session['hold_ids'])->get());
-        return view($delivery ? 'workshop.tickets.delivery' : 'workshop.tickets.equipment', ['workshop' => $workshop, 'session' => $session, 'products' => $equipment->products($workshop), 'ticketAmount' => (float) $pricing['subtotal_amount']] + $review);
+        $products = $equipment->products($workshop);
+        $productIds = $products->pluck('id')->all();
+        $equipmentWorkshops = $this->checkoutWorkshops($workshop)->filter(fn (Workshop $item) => array_intersect($item->optional_product_ids ?? [], $productIds) !== [])->values();
+        if ($equipmentWorkshops->isEmpty()) $equipmentWorkshops = collect([$workshop]);
+        $equipmentTitle = $equipmentWorkshops->pluck('title')->join(', ');
+        $equipmentHero = $equipmentWorkshops->first()->hero;
+        $pricing = $this->calculateTicketCheckoutPricing($workshop, Ticket::with('workshop')->whereIn('id', $session['hold_ids'])->get());
+        return view($delivery ? 'workshop.tickets.delivery' : 'workshop.tickets.equipment', ['workshop' => $workshop, 'session' => $session, 'products' => $products, 'equipmentWorkshops' => $equipmentWorkshops, 'equipmentTitle' => $equipmentTitle, 'equipmentHero' => $equipmentHero, 'ticketAmount' => (float) $pricing['subtotal_amount']] + $review);
     }
 
     public function saveEquipment(Request $request, Workshop $workshop, WorkshopTicketService $tickets, \App\Services\WorkshopEquipmentService $equipment): RedirectResponse|JsonResponse
