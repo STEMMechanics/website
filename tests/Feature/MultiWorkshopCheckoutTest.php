@@ -218,7 +218,7 @@ class MultiWorkshopCheckoutTest extends TestCase
         $bookings = app(\App\Services\WorkshopCheckoutCart::class)->bookings();
         $this->assertCount(1, $bookings);
         $this->assertSame(4, $bookings[0]['count']);
-        $this->get($bookings[0]['url'])->assertOk()->assertSee('Review your workshops');
+        $this->get($bookings[0]['url'])->assertOk()->assertSee('Your booking');
         $this->assertSame($ids, Ticket::orderBy('id')->pluck('id')->all());
         $this->travel(11)->minutes();
         $this->assertSame([], app(\App\Services\WorkshopCheckoutCart::class)->bookings());
