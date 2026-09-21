@@ -41,6 +41,17 @@ class AdminSiteOptionMaintenanceTest extends TestCase
         $this->postJson(route('admin.site_option.maintenance-refresh'), ['online_visitors_confirmed' => true])->assertOk();
     }
 
+    public function test_deployment_start_failure_returns_json_for_the_live_monitor(): void
+    {
+        $this->actingAs($this->createAdminUser());
+        config(['services.deploy.script_path' => storage_path('missing-deployment-script.sh')]);
+
+        $this->postJson(route('admin.server.deploy'), ['online_visitors_confirmed' => true])
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['message']);
+    }
+
     public function test_unavailable_visitor_count_requires_explicit_confirmation(): void
     {
         $this->actingAs($this->createAdminUser());

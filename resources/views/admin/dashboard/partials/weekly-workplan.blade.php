@@ -31,7 +31,7 @@
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-pink-100 bg-pink-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-pink-700">Invoices due</div><div class="text-3xl font-bold text-pink-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
-                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700">{{ $outstandingReminderCount }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700" x-data="{ count: {{ $outstandingReminderCount }} }" @workplan-task-checked.window="count += $event.detail.change" x-text="count">{{ $outstandingReminderCount }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="text-3xl font-bold text-amber-700">{{ $followUpCount }}</div></div>
             </section>
 
@@ -47,7 +47,11 @@
                     @endforeach
                     @foreach($workplan['workshops'] as $workshop)
                         @php($workshopLocation = trim((string) $workshop->getLocationName()))
-                        <a href="{{ route('workshop.show', $workshop) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600"></i><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}{{ $workshopLocation !== '' ? ' · '.$workshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.workshop.checkoff', $workshop)), @js((bool) $workshop->workplan_checked))" :data-checked="checked" data-checked="{{ $workshop->workplan_checked ? 'true' : 'false' }}">
+                            <i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600" aria-hidden="true"></i>
+                            <x-ui.checkbox bare small labelHidden :label="'Items picked and ready to deliver: '.$workshop->title" title="Items picked and ready to deliver" x-model="checked" @change="save()" x-bind:disabled="saving" :checked="$workshop->workplan_checked" />
+                            <a data-workplan-label href="{{ route('workshop.show', $workshop) }}" class="flex min-w-0 flex-1 items-start gap-3"><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}{{ $workshopLocation !== '' ? ' · '.$workshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        </div>
                     @endforeach
                     @foreach($allocationTasks ?? [] as $task)
                         <a href="{{ route('admin.workshop.allocation.edit', $task['workshop']) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50">
@@ -61,7 +65,15 @@
                         @php($reminderWorkshopName = $reminder->remindable instanceof \App\Models\Workshop ? $reminder->remindable->title : '')
                         @php($reminderWorkshopLocation = $reminder->remindable instanceof \App\Models\Workshop ? trim((string) $reminder->remindable->getLocationName()) : '')
                         @php($reminderCompleted = $reminder->isCompletedWorkshopTask())
+                        @if($reminder->kind === \App\Services\ReminderService::WORKSHOP_TASK_KIND && $reminder->remindable instanceof \App\Models\Workshop && is_numeric($reminder->source_id))
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.task.checkoff', ['workshop' => $reminder->remindable, 'task' => $reminder->source_id])), @js($reminderCompleted))" :data-checked="checked" data-checked="{{ $reminderCompleted ? 'true' : 'false' }}">
+                            <i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600" aria-hidden="true"></i>
+                            <x-ui.checkbox bare small labelHidden :label="'Complete '.$reminderTaskName.' for '.$reminderWorkshopName" x-model="checked" @change="save(true)" x-bind:disabled="saving" :checked="$reminderCompleted" />
+                            <a data-workplan-label href="{{ $reminder->action_url ?: '#' }}" class="flex min-w-0 flex-1 items-start gap-3"><span class="min-w-0 flex-1" :class="checked ? 'text-gray-400 line-through' : ''"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName }} · {{ $reminderTaskName }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        </div>
+                        @else
                         <a href="{{ $reminder->action_url ?: '#' }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-regular fa-bell mt-0.5 w-4 {{ $reminderCompleted ? 'text-gray-400' : 'text-emerald-600' }}"></i><span class="min-w-0 flex-1 {{ $reminderCompleted ? 'text-gray-400 line-through' : '' }}"><span class="block font-semibold {{ $reminderCompleted ? '' : 'text-gray-900' }}">{{ $reminderWorkshopName !== '' ? $reminderWorkshopName.' · '.$reminderTaskName : $reminder->subject }}</span><span class="text-xs {{ $reminderCompleted ? '' : 'text-gray-500' }}">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        @endif
                     @endforeach
                     @if($workplan['scheduledInvoices']->isEmpty() && $workplan['dueInvoices']->isEmpty() && $workplan['workshops']->isEmpty() && $workplan['reminders']->isEmpty() && empty($allocationTasks))
                         <p class="p-4 text-sm text-gray-500">Nothing is currently scheduled for the rest of this fortnight.</p>
@@ -82,7 +94,7 @@
                         </div>
                     @endforeach
                     @foreach($workplan['orders'] as $order)
-                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ $order->statusLabel() }} · {{ money((float) $order->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50"><i class="fa-solid fa-box mt-0.5 w-4 text-orange-600" aria-hidden="true"></i><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ $order->statusLabel() }} · {{ money((float) $order->total_amount) }}</span>@foreach($order->items as $item)<span class="block text-xs text-gray-500">• {{ $item->displayTitle() }} · <span class="whitespace-nowrap">Qty {{ $item->quantity }}</span></span>@endforeach@if($order->shipping_package_summary)<span class="block text-xs text-gray-500">Postage: {{ $order->shipping_package_summary }}</span>@endif</span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
                     @foreach($workplan['lowStock'] as $stock)
                         <a href="{{ route('admin.shop.product.edit', $stock['product_id']) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50">
@@ -95,7 +107,7 @@
                         </a>
                     @endforeach
                     @foreach($workplan['overdue'] as $invoice)
-                        <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Overdue invoice {{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="block text-xs text-red-600">{{ money((float) $invoice->displayOutstandingAmount()) }} outstanding · due {{ $invoice->due_date?->format('j M') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        @include('admin.dashboard.partials.invoice-follow-up', ['invoice' => $invoice])
                     @endforeach
                     @foreach($workplan['pendingTransfers'] as $payment)
                         <a href="{{ route('admin.payment.edit', $payment) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Pending transfer · {{ $payment->user?->getName() ?: 'Unknown customer' }}</span><span class="block text-xs text-gray-500">{{ money((float) $payment->total_amount) }} · received {{ $payment->received_on?->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>

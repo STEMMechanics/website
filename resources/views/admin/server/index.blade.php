@@ -110,7 +110,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
-                <form method="POST" action="{{ route('admin.server.deploy') }}" data-check-visitors data-sm-confirm="Update the site with the selected options?" data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
+                <form method="POST" action="{{ route('admin.server.deploy') }}" data-deploy-form data-check-visitors data-sm-confirm="Update the site with the selected options?" data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
                     @csrf
                     <x-ui.checkbox
  name="current"
@@ -131,6 +131,7 @@
                 <x-ui.button type="button" color="danger" id="server-info-maintenance-refresh-button">Clear Cache & Restart Queue</x-ui.button>
             </div>
             <div class="text-xs text-gray-600 mb-3">
+                <p id="deployment-status" role="status" class="mb-3 text-sm font-semibold">Checking deployment status…</p>
                 <p><strong>Output Log:</strong> <code>{{ $deployOutputPath }}</code></p>
                 <p><strong>Last Output Update:</strong> <span id="deploy-log-updated">{{ $deployOutputModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 150 lines</p>
@@ -203,6 +204,11 @@
         const emptyEl = document.getElementById('deploy-log-empty');
         const contentEl = document.getElementById('deploy-log-content');
         const endpoint = "{{ route('admin.server.deploy.log') }}";
+        const deployment = window.SM.deploymentStatus({
+            element: document.getElementById('deployment-status'),
+            watch: @js(str_starts_with((string) session('message-title'), 'Deploy started')),
+            notify: (title, message, tone) => window.SM.banner(title, message, tone),
+        });
         const laravelUpdatedEl = document.getElementById('laravel-log-updated');
         const laravelSizeEl = document.getElementById('laravel-log-size');
         const laravelEmptyEl = document.getElementById('laravel-log-empty');
@@ -243,6 +249,7 @@
             return fetch(bustUrl, {
                 ...options,
                 cache: 'no-store',
+                signal: AbortSignal.timeout(15000),
                 credentials: 'same-origin',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -252,6 +259,11 @@
                     ...(options.headers || {}),
                 },
             }).then(async (response) => {
+                if (response.ok && !response.headers.get('content-type')?.includes('application/json')) {
+                    const error = new Error('Your session needs refreshing. Sign in again.');
+                    error.status = 401;
+                    throw error;
+                }
                 const payload = await response.json().catch(() => ({}));
                 if (!response.ok || payload.success === false) {
                     const error = new Error(payload.message || 'Request failed with status ' + response.status);
@@ -275,6 +287,7 @@
                 .then((data) => {
                     updatedEl.textContent = data.modified_at || 'N/A';
                     const content = (data.content || '').trim();
+                    void deployment.update(content);
 
                     if (!data.exists || content === '') {
                         emptyEl.classList.remove('hidden');
@@ -288,8 +301,8 @@
                     contentEl.textContent = data.content;
                     scrollToBottom(contentEl);
                 })
-                .catch(() => {
-                    // Keep the last known content if polling fails.
+                .catch((error) => {
+                    deployment.error(error);
                 });
         };
 
@@ -454,6 +467,22 @@
             }
             if (form.dataset.confirmedSubmit === '1') {
                 delete form.dataset.confirmedSubmit;
+                if (form.hasAttribute('data-deploy-form')) {
+                    event.preventDefault();
+                    const button = form.querySelector('button[type="submit"]');
+                    setButtonLoading(button, true, 'Starting…');
+                    try {
+                        const data = await fetchJson(form.action, { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+                        autoRefreshEl.checked = true;
+                        await deployment.update('Deployment status: Starting deployment…');
+                        window.SM.banner('Deployment started', data.message, 'info');
+                        void refreshLog(false);
+                    } catch (error) {
+                        window.SM.banner('Could not start deployment', error.message, 'danger');
+                    } finally {
+                        setButtonLoading(button, false);
+                    }
+                }
                 return;
             }
 

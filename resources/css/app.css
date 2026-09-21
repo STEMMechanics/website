@@ -1873,6 +1873,13 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 }
 .online-visitors-table td[data-label="Page views"] { text-align: center !important; }
 
+[data-sidebar-keyboard-selected="true"] {
+    background-color: #0369a1 !important;
+    color: white !important;
+    outline: 2px solid #0c4a6e;
+    outline-offset: -2px;
+}
+
 .square-apple-pay-button {
     -webkit-appearance: -apple-pay-button;
     -apple-pay-button-type: pay;
@@ -1881,3 +1888,7 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     min-width: 140px;
     border-radius: 6px;
 }
+
+.workplan-checkoff[data-checked="true"] > i,
+.workplan-checkoff[data-checked="true"] [data-workplan-label] * { color: #9ca3af !important; }
+.workplan-checkoff[data-checked="true"] [data-workplan-label] { text-decoration: line-through; color: #9ca3af; }

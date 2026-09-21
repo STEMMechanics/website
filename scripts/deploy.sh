@@ -334,8 +334,12 @@ notify_pushover "Deploy starting: $DEPLOY_LABEL"
 check_runtime_tools
 ensure_tool_caches
 
+echo "Deployment status: Enabling maintenance mode"
+
 # Put app into maintenance mode before mutating the checked-out code or built assets.
 run_app "cd $WORKDIR && php artisan down || true"
+
+echo "Deployment status: Downloading the selected release"
 
 # Checkout the selected target
 if [[ "$CURRENT" -eq 1 ]]; then
@@ -366,9 +370,13 @@ fi
 set_env_value "APP_VERSION" "$VERSION_STRING"
 set_env_value "APP_COMMIT" "$COMMIT_HASH"
 
+echo "Deployment status: Installing PHP dependencies"
+
 # PHP deps
 #run_app "cd $WORKDIR && composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader"
 run_app "cd $WORKDIR && composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader --no-progress --classmap-authoritative"
+
+echo "Deployment status: Building website assets"
 
 # Frontend build (required for Vite manifest.json) (was npm install + npm run build)
 #run_app "cd $WORKDIR && npm install"
@@ -376,11 +384,15 @@ run_app "cd $WORKDIR && rm -rf public/build node_modules"
 run_app "cd $WORKDIR && npm ci"
 run_app "cd $WORKDIR && npm run build"
 
+echo "Deployment status: Updating the database"
+
 # DB migrations
 run_app "cd $WORKDIR && php artisan migrate --force"
 
 # Permissions post-build
 fix_permissions
+
+echo "Deployment status: Rebuilding caches"
 
 # Clear/rebuild caches
 #run_app "cd $WORKDIR && php artisan cache:clear"
@@ -394,6 +406,8 @@ if ! run_app "cd $WORKDIR && php artisan security:deployment-check"; then
 fi
 run_app "cd $WORKDIR && php artisan queue:restart"
 run_app "cd $WORKDIR && php artisan search:index-documents"
+
+echo "Deployment status: Bringing the site online"
 
 # Bring app back up
 run_app "cd $WORKDIR && php artisan up"

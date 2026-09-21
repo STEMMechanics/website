@@ -182,7 +182,9 @@
                 </div>
                 @if($isAdmin)
                     <form method="GET" action="{{ route('search.index') }}" class="mb-2" data-sidebar-search>
-                        <x-ui.input type="search" class="mb-0" name="q" error="" placeholder="Search menu or site…" :noWrapper="true" autocomplete="off" maxlength="255" />
+                        <x-ui.input type="search" class="mb-0" name="q" error="" placeholder="Search menu or site…" aria-label="Search menu or site" aria-describedby="sidebar-search-help" :noWrapper="true" autocomplete="off" maxlength="255" />
+                        <span id="sidebar-search-help" class="sr-only">Use Up and Down to select a menu item, then Enter to open it. Without a selection, Enter searches the site. Escape clears the selection.</span>
+                        <span data-sidebar-selection-status role="status" class="sr-only"></span>
                     </form>
                     <p data-sidebar-empty hidden class="px-4 py-2 text-sm text-gray-500">No matching menu items. Press Enter to search the site.</p>
                 @else

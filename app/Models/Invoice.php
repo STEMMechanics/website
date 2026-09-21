@@ -76,9 +76,11 @@ class Invoice extends Model
         'gst_amount',
         'total_amount',
         'notes',
+        'follow_up_contacted_at',
     ];
 
     protected $casts = [
+        'follow_up_contacted_at' => 'datetime',
         'inventory_reservations' => 'array',
         'issue_date' => 'date',
         'issued_at' => 'datetime',

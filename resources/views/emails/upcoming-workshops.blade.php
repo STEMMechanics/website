@@ -14,7 +14,7 @@
     $featuredWorkshop = $heroImageCandidates->isNotEmpty() ? \Illuminate\Support\Arr::random($heroImageCandidates->all()) : $allItems->first();
     $featuredProduct = $storeProducts->isNotEmpty() ? \Illuminate\Support\Arr::random($storeProducts->all()) : null;
     $featuredImageUrl = $contentOrder === 'store' && $featuredProduct
-        ? url($featuredProduct->primaryImageUrl())
+        ? url($featuredProduct->primaryImageUrl('lg'))
         : ($featuredWorkshop?->hero?->url ? url((string) $featuredWorkshop->hero->url) : null);
     $featuredImageUrl = $storePromotion['hero_image_url'] ?? $featuredImageUrl;
     $featuredImageAlt = $contentOrder === 'store' && $featuredProduct ? $featuredProduct->title : $featuredWorkshop?->title;

@@ -240,6 +240,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/push-devices/test', [PushDeviceController::class, 'sendTest'])->middleware('throttle:6,1,push-test:')->name('admin.push-devices.test');
     Route::redirect('/admin', '/admin/dashboard');
     Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::patch('/admin/dashboard/invoices/{invoice}/follow-up', [\App\Http\Controllers\WorkplanCheckoffController::class, 'invoice'])->name('admin.workplan.invoice.follow-up');
+    Route::patch('/admin/dashboard/workshops/{workshop}/checkoff', [\App\Http\Controllers\WorkplanCheckoffController::class, 'workshop'])->name('admin.workplan.workshop.checkoff');
+    Route::patch('/admin/dashboard/workshops/{workshop}/tasks/{task}/checkoff', [\App\Http\Controllers\WorkplanCheckoffController::class, 'task'])->name('admin.workplan.task.checkoff');
     Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');
     Route::get('/admin/media', [MediaController::class, 'admin_index'])->name('admin.media.index');
     Route::get('/admin/media/selection', [MediaController::class, 'admin_selection'])->name('admin.media.selection');
