@@ -397,7 +397,7 @@ class ServerController extends Controller
         return redirect()->route('admin.server.index');
     }
 
-    public function admin_deploy(Request $request): RedirectResponse
+    public function admin_deploy(Request $request): RedirectResponse|JsonResponse
     {
         app(\App\Services\OnlineVisitors::class)->ensureDisruptionConfirmed($request->boolean('online_visitors_confirmed'));
         $args = [];
@@ -413,7 +413,14 @@ class ServerController extends Controller
             $label[] = 'force';
         }
 
-        return $this->startDeployProcess($args, 'Deploy started (' . implode(', ', $label) . ')');
+        $response = $this->startDeployProcess($args, 'Deploy started (' . implode(', ', $label) . ')');
+        if ($request->expectsJson()) {
+            $success = session()->pull('message-type') === 'success';
+            session()->forget('message-title');
+            return response()->json(['success' => $success, 'message' => session()->pull('message')], $success ? 202 : 422);
+        }
+
+        return $response;
     }
 
     public function admin_deploy_log(): JsonResponse
@@ -1439,7 +1446,7 @@ class ServerController extends Controller
         }
 
         $deployCommand = escapeshellarg($scriptPath) . $argString;
-        $timestampedCommand = $deployCommand . " 2>&1 | awk '{ print strftime(\"[%Y-%m-%d %H:%M:%S]\"), \$0; fflush(); }'";
+        $timestampedCommand = 'set -o pipefail; '.$deployCommand . " 2>&1 | awk '{ print strftime(\"[%Y-%m-%d %H:%M:%S]\"), \$0; fflush(); }'; deploy_exit=\$?; echo \"Deployment process exited with code \$deploy_exit\"; exit \$deploy_exit";
 
         @file_put_contents(
             $outputPath,

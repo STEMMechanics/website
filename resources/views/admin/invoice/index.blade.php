@@ -38,7 +38,7 @@
             },
         }"
         >
-        <x-ui.collection-controls class="my-5" />
+        <x-ui.collection-controls class="my-5 first:mt-5" />
 
         <x-ui.grid class="mb-4 gap-3 sm:grid-cols-3">
             <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">

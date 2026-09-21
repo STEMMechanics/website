@@ -37,19 +37,22 @@ class WeeklyWorkplanService
         $workshops = Workshop::query()->whereBetween('starts_at', [$weekStart, $weekEnd->copy()->endOfDay()])
             ->whereIn('status', ['open', 'scheduled'])
             ->with('location')->orderBy('starts_at')->get();
-        $reminders = Reminder::query()->where('status', Reminder::STATUS_PENDING)
+        $reminders = Reminder::query()->where(fn ($query) => $query->where('status', Reminder::STATUS_PENDING)
+                ->orWhere('kind', ReminderService::WORKSHOP_TASK_KIND))
             ->where(function ($query): void {
                 $query->where('kind', '!=', ReminderService::WORKSHOP_TASK_KIND)
                     ->orWhereHasMorph('remindable', [Workshop::class], fn ($query) => $query->where('status', '!=', 'cancelled'));
             })
-            ->whereBetween('scheduled_at', [$weekStart, $weekEnd->copy()->endOfDay()])->with('remindable')->orderBy('scheduled_at')->get();
+            ->whereBetween('scheduled_at', [$weekStart, $weekEnd->copy()->endOfDay()])->with('remindable')->orderBy('scheduled_at')->get()
+            ->filter(fn (Reminder $reminder) => $reminder->status === Reminder::STATUS_PENDING || $reminder->isCompletedWorkshopTask())
+            ->unique(fn (Reminder $reminder) => $reminder->kind === ReminderService::WORKSHOP_TASK_KIND ? $reminder->remindable_id.':'.$reminder->source_id : 'reminder:'.$reminder->id)->values();
         $quotes = Quote::query()->whereIn('status', [Quote::STATUS_OPEN, Quote::STATUS_AWAITING_DECISION])
             ->whereNotNull('follow_up_at')->whereDate('follow_up_at', '<=', today())
             ->with('user')->orderBy('follow_up_at')->limit(10)->get();
         $orders = StoreOrder::query()->where(function ($query): void {
             $query->whereIn('status', StoreOrder::ACTION_REQUIRED_STATUSES)
                 ->orWhere(fn ($query) => $query->where('status', StoreOrder::STATUS_PENDING_PAYMENT)->where('created_at', '<', now()->subDay()));
-        })->with('user')->orderBy('created_at')->get();
+        })->with(['user', 'items'])->orderBy('created_at')->get();
         $lowStock = $this->lowStock();
         $interests = WorkshopInterest::query()->where('created_at', '>=', now()->subDays(30))->with('workshop')
             ->whereNotExists(function ($query): void {

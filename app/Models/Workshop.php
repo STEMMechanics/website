@@ -70,6 +70,7 @@ class Workshop extends Model
         'pick_list_participants',
         'pick_list_checked_item_ids',
         'run_sheet_completed_task_ids',
+        'workplan_checked',
         'workshop_run_sheet',
         'pick_list_custom_items',
         'pick_list_is_customized',
@@ -106,6 +107,7 @@ class Workshop extends Model
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
         'run_sheet_completed_task_ids' => 'array',
+        'workplan_checked' => 'boolean',
         'pick_list_custom_items' => 'array',
         'pick_list_is_customized' => 'boolean',
     ];
