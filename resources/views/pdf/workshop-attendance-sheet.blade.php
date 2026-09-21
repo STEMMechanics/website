@@ -53,7 +53,7 @@
                     <thead>
                         <tr>
                             <th style="width: 11%">Source</th>
-                            <th style="width: 22%">Attendee / ticket</th>
+                            <th style="width: 22%">Attendee</th>
                             <th style="width: 4%" class="center">Age</th>
                             <th style="width: 37%">Parent / guardian contact</th>
                             <th style="width: 8%" class="center">Media consent</th>
@@ -63,8 +63,8 @@
                     <tbody>
                         @foreach($page as $row)
                             <tr>
-                                <td class="source">{{ ucfirst($row['source'] ?? '') }}</td>
-                                <td>{{ $row['child_name'] ?? '' }}@if(!empty($row['ticket_reference']))<div class="reference">{{ $row['ticket_reference'] }}</div>@endif</td>
+                                <td class="source">{{ ucfirst($row['source'] ?? '') }}@if(!empty($row['ticket_reference']))<div class="reference">{{ $row['ticket_reference'] }}</div>@endif</td>
+                                <td>{{ $row['child_name'] ?? '' }}</td>
                                 <td class="center">{{ $row['age'] ?? '' }}</td>
                                 <td class="contact">
                                     @foreach(['guardian_name', 'email', 'phone'] as $field)
