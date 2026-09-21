@@ -2945,7 +2945,7 @@ class WorkshopController extends Controller
             abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
         }
 
-        $currentTickets = Ticket::query()
+        $currentTickets = Ticket::query()->with(['user', 'invoice'])
             ->where('workshop_id', $workshop->id)
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->orderBy('firstname')
@@ -4093,7 +4093,7 @@ class WorkshopController extends Controller
         }
 
         if (in_array((string) $workshop->registration, ['tickets'], true)) {
-            $tickets = Ticket::query()
+            $tickets = Ticket::query()->with(['user', 'invoice'])
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('status', Ticket::activePurchasedStatuses())
                 ->orderBy('firstname')
@@ -4108,7 +4108,7 @@ class WorkshopController extends Controller
                 $rows[] = [
                     'source' => $session ? 'ticket: '.Carbon::parse($session['starts_at'])->format('j M Y g:ia') : 'ticket',
                     'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
-                    'guardian_name' => '',
+                    'guardian_name' => $ticket->guardianName(),
                     'email' => trim((string) ($ticket->email ?? '')),
                     'phone' => trim((string) ($ticket->phone ?? '')),
                     'media_consent' => '',

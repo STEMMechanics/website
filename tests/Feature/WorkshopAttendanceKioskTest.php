@@ -180,6 +180,21 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->assertSame('0400 999 888', $csvRows[1][4]);
     }
 
+    public function test_ticket_attendance_exports_use_booking_guardian_names_when_available(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $guardian = User::factory()->create(['firstname' => 'Account', 'surname' => 'Guardian']);
+        $invoice = Invoice::factory()->create(['user_id' => $guardian->id, 'billing_name' => 'Booking Guardian']);
+        foreach ([['Anna', $invoice->id, $guardian->id], ['Ben', null, $guardian->id], ['Chris', null, null]] as [$firstname, $invoiceId, $userId]) {
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'user_id' => $userId, 'invoice_id' => $invoiceId, 'firstname' => $firstname, 'surname' => 'Child']);
+        }
+        $csv = $this->actingAs($admin)->get(route('admin.workshop.attendance.csv', $workshop))->assertOk()->streamedContent();
+        $rows = array_map(fn ($line) => str_getcsv($line, escape: ''), explode("\n", trim($csv)));
+        $this->assertSame('Parent/Guardian Name', $rows[0][2]);
+        $this->assertSame(['Booking Guardian', 'Account Guardian', ''], array_column(array_slice($rows, 1), 2));
+    }
+
     public function test_ticketed_attendance_page_renders_payment_controls(): void
     {
         $admin = $this->createAdminUser();
