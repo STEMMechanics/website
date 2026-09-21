@@ -3,7 +3,7 @@
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
             @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at']])
-            <div class="flex-1 min-w-0" x-data="SM.workshopSuggestions(@js(['bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]))">
+            <div class="flex-1 min-w-0" x-data="SM.workshopSuggestions(@js(['availability' => $availability, 'participantCount' => count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'], 'bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]))">
             <div class="mb-3 flex items-center gap-3">
                 <x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" />
                 <h2 class="text-2xl font-bold">More workshops</h2>
@@ -14,8 +14,6 @@
                 <div>
                     <div class="grid grid-cols-1 gap-4">
                         @foreach($additionalWorkshops as $additional)
-                            @php($participantCount = count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'])
-                            @php($available = app(\App\Services\WorkshopTicketService::class)->availableTickets($additional))
                             <div class="flex flex-col rounded-xl border border-gray-200 bg-gray-50 p-4">
                                 <div class="mb-3 flex gap-3">
                                     @if($additional->hero)<img src="{{ $additional->hero->url }}" alt="" class="h-16 w-16 shrink-0 rounded-lg object-cover" loading="lazy">@endif
@@ -26,7 +24,7 @@
                                 <p class="mb-3 text-sm text-gray-600">Ages: {{ $additional->ages }}</p>
                                 <div class="mt-auto flex flex-wrap items-center gap-3 justify-end">
                                     <span class="text-sm font-semibold text-green-700" x-show="selected.includes(@js($additional->id))" x-cloak><i class="fa-solid fa-check" aria-hidden="true"></i> Added</span>
-                                    <x-ui.button type="button" color="secondary" data-workshop-id="{{ $additional->id }}" data-sold-out="{{ $available !== null && $available < 1 ? '1' : '0' }}" data-partial-places="{{ $available !== null && $available > 0 && $available < $participantCount ? $available : 0 }}" x-on:click="change($el.dataset.workshopId)" x-bind:disabled="busy || (!selected.includes($el.dataset.workshopId) && (selected.length >= 10 || $el.dataset.soldOut === '1'))" x-text="selected.includes($el.dataset.workshopId) ? 'Remove' : ($el.dataset.soldOut === '1' ? 'Sold out' : (Number($el.dataset.partialPlaces) > 0 ? 'Add to booking' : 'Add workshop'))">Add workshop</x-ui.button>
+                                    <x-ui.button type="button" color="secondary" data-workshop-id="{{ $additional->id }}" x-on:click="change($el.dataset.workshopId)" x-bind:disabled="busy || (!selected.includes($el.dataset.workshopId) && (selected.length >= 10 || soldOut($el.dataset.workshopId)))" x-text="label($el.dataset.workshopId)">Add workshop</x-ui.button>
                                 </div>
                             </div>
                         @endforeach

@@ -271,12 +271,15 @@ class WorkshopTicketFlowController extends Controller
         }
         $tickets = Ticket::with('workshop')->whereIn('id', $session['hold_ids'])->get();
 
+        $additionalWorkshops = app(WorkshopCheckoutSelection::class)->candidates($workshop);
+
         return view('workshop.tickets.cart', [
             'workshop' => $workshop,
             'session' => $session,
             'checkoutWorkshops' => $this->checkoutWorkshops($workshop),
             'ticketPricing' => $this->calculateTicketCheckoutPricing($workshop, $tickets),
-            'additionalWorkshops' => app(WorkshopCheckoutSelection::class)->candidates($workshop),
+            'additionalWorkshops' => $additionalWorkshops,
+            'availability' => $additionalWorkshops->mapWithKeys(fn (Workshop $item) => [$item->id => $ticketService->availableTickets($item)]),
         ]);
     }
 
@@ -298,7 +301,6 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.review', $workshop);
         }
         $id = $data['workshop_id'];
-        $capacityNotice = null;
         if ($data['action'] === 'remove') {
             if ($id !== $workshop->id && in_array($id, $session['workshop_ids'], true)) {
                 $removedIds = Ticket::whereIn('id', $session['hold_ids'])->where('workshop_id', $id)->where('status', Ticket::STATUS_HOLD)->pluck('id')->all();
@@ -324,7 +326,7 @@ class WorkshopTicketFlowController extends Controller
             if (! app(WorkshopCheckoutSelection::class)->candidates($workshop)->contains('id', $id)) {
                 throw ValidationException::withMessages(['workshop_id' => 'This workshop is not available for a combined booking.']);
             }
-            $session = DB::transaction(function () use ($workshop, $session, $id, $ticketService, &$capacityNotice) {
+            $session = DB::transaction(function () use ($workshop, $session, $id, $ticketService) {
                 $locked = Workshop::whereIn('id', [...$session['workshop_ids'], $id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 if ($this->holdsExpired($workshop, $session['hold_ids'], $ticketService)) {
                     throw ValidationException::withMessages(['workshop_id' => 'Your ticket hold expired. Please start again.']);
@@ -340,7 +342,6 @@ class WorkshopTicketFlowController extends Controller
                         throw ValidationException::withMessages(['workshop_id' => $additional->title.': only '.$available.' places remain for your '.$quantity.' participants.']);
                     }
                     $quantity = $available;
-                    $capacityNotice = $additional->title.': only '.$available.' '.($available === 1 ? 'spot is' : 'spots are').' available. The first '.$available.' '.($available === 1 ? 'participant has' : 'participants have').' been selected. You can change who attends below.';
                 }
                 $flags = $this->allocateEarlyBirdFlags($additional, $ticketService, $quantity);
                 for ($i = 0; $i < $quantity; $i++) {
@@ -383,16 +384,8 @@ class WorkshopTicketFlowController extends Controller
         $session['reviewed'] = false;
         $this->putFlowSession($workshop, $session);
         app(\App\Services\WorkshopEquipmentService::class)->removeUnavailable($workshop);
-        if ($capacityNotice !== null) {
-            session()->flash('message-title', 'Limited places');
-            session()->flash('message', $capacityNotice);
-            session()->flash('message-type', 'warning');
-            $url = route('workshop.ticket.flow.review', $workshop);
-
-            return $request->expectsJson() ? response()->json(['redirect' => $url]) : redirect()->to($url);
-        }
         if ($request->expectsJson()) {
-            return response()->json(['selected' => $session['workshop_ids'], 'expires_at' => $session['expires_at'], 'bookings' => app(\App\Services\WorkshopCheckoutCart::class)->bookings()]);
+            return response()->json(['availability' => app(WorkshopCheckoutSelection::class)->candidates($workshop)->mapWithKeys(fn (Workshop $item) => [$item->id => $ticketService->availableTickets($item)]), 'selected' => $session['workshop_ids'], 'expires_at' => $session['expires_at'], 'bookings' => app(\App\Services\WorkshopCheckoutCart::class)->bookings()]);
         }
 
         return redirect()->route('workshop.ticket.flow.cart', $workshop);

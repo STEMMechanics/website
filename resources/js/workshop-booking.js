@@ -1,6 +1,13 @@
 window.SM = window.SM || {};
 window.SM.workshopSuggestions = config => ({
     selected: config.selected || [],
+    availability: config.availability || {},
+    soldOut(id) { return this.availability[id] != null && this.availability[id] < 1; },
+    label(id) {
+        if (this.selected.includes(id)) return 'Remove';
+        if (this.soldOut(id)) return 'Sold out';
+        return this.availability[id] != null && this.availability[id] < config.participantCount ? 'Add to booking' : 'Add workshop';
+    },
     busy: false,
     error: '',
     async change(id) {
@@ -18,6 +25,7 @@ window.SM.workshopSuggestions = config => ({
             if (result.redirect) { window.location.assign(result.redirect); return; }
             if (!response.ok) throw new Error(Object.values(result.errors || {}).flat()[0] || result.message || 'Unable to update your booking. Please try again.');
             this.selected = result.selected;
+            this.availability = result.availability || this.availability;
             window.dispatchEvent(new CustomEvent('workshop-hold-updated', {detail: {expires_at: result.expires_at, booking_id: config.bookingId}}));
             window.dispatchEvent(new CustomEvent('workshop-cart-updated', {detail: result.bookings}));
         } catch (error) {

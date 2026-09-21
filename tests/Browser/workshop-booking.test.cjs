@@ -147,3 +147,18 @@ test('capacity includes reserved spots and allows swapping participants without 
     review.participants.splice(0, 1);
     assert.equal(review.hasOverCapacitySelection, false);
 });
+
+test('removing a selected sold-out workshop updates availability and allows adding it again', async () => {
+    const {SM} = load(async (url, options) => {
+        const adding = JSON.parse(options.body).action === 'add';
+        return {ok:true,json:async () => ({selected:adding ? ['anchor','other'] : ['anchor'],availability:{other:adding ? 0 : 2},bookings:[],expires_at:'deadline'})};
+    });
+    const suggestions = SM.workshopSuggestions({selected:['anchor','other'],availability:{other:0},participantCount:3});
+    assert.equal(suggestions.label('other'), 'Remove');
+    await suggestions.change('other');
+    assert.equal(suggestions.soldOut('other'), false);
+    assert.equal(suggestions.label('other'), 'Add to booking');
+    await suggestions.change('other');
+    assert.equal(suggestions.label('other'), 'Remove');
+    assert.equal(suggestions.error, '');
+});

@@ -209,7 +209,7 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->reviewAll($anchor)->assertRedirect(route('workshop.ticket.flow.complete', $anchor));
     }
 
-    public function test_limited_workshop_places_select_first_participants_and_show_a_themed_notice(): void
+    public function test_limited_workshop_places_select_first_participants_without_advancing_or_notifying(): void
     {
         $anchor = $this->createTicketedWorkshop(['price' => '15']);
         $other = $this->createTicketedWorkshop(['title' => 'Butterfly Trainers', 'price' => '20', 'max_tickets' => 2]);
@@ -217,9 +217,8 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->get(route('workshop.show', $other))->assertOk()->assertSee('Add to booking')->assertDontSee('available for your 3 participants');
         $people = collect(['Alex', 'Sam', 'Chris'])->map(fn ($name) => ['firstname' => $name, 'surname' => 'Example', 'workshops' => [$anchor->id]])->all();
         $this->postJson(route('workshop.ticket.flow.review.draft', $anchor), ['participants' => $people])->assertOk();
-        $this->post(route('workshop.ticket.flow.join', $other))->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.review', $anchor))
-            ->assertSessionHas('message-type', 'warning')->assertSessionHas('message', 'Butterfly Trainers: only 2 spots are available. The first 2 participants have been selected. You can change who attends below.');
-        $participants = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->assertSee('only 2 spots are available')->viewData('participants');
+        $this->post(route('workshop.ticket.flow.join', $other))->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.cart', $anchor))->assertSessionMissing('message');
+        $participants = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()->viewData('participants');
         $this->assertContains($other->id, $participants[0]['workshops']);
         $this->assertContains($other->id, $participants[1]['workshops']);
         $this->assertNotContains($other->id, $participants[2]['workshops']);
@@ -232,12 +231,29 @@ class MultiWorkshopCheckoutTest extends TestCase
         $anchor = $this->createTicketedWorkshop(['price' => '15', 'max_tickets' => 3]);
         $other = $this->createTicketedWorkshop(['price' => '20', 'max_tickets' => 2]);
         $this->begin($anchor, 3);
-        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.review', $anchor));
+        $this->post(route('workshop.ticket.flow.join', $other))->assertRedirect(route('workshop.ticket.flow.cart', $anchor));
         $response = $this->get(route('workshop.ticket.flow.review', $anchor))->assertOk()
-            ->assertSee('Only 2 spots available. Untick someone to swap.')->assertSee('Only 3 spots available. Untick someone to swap.')
+            ->assertSee('Only 2 spots available.')->assertSee('Only 3 spots available.')
             ->assertSee('selectionFull(person, $el.value)', false)->assertDontSee('@js(', false);
         $this->assertSame(3, $response->viewData('pricing')[$anchor->id]['capacity']);
         $this->assertSame(2, $response->viewData('pricing')[$other->id]['capacity']);
+    }
+
+    public function test_removing_a_full_workshop_releases_holds_and_returns_fresh_availability(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '15']);
+        $other = $this->createTicketedWorkshop(['price' => '20', 'max_tickets' => 2]);
+        $this->begin($anchor, 3);
+        $url = route('workshop.ticket.flow.cart.update', $anchor);
+        $this->postJson($url, ['action' => 'add', 'workshop_id' => $other->id])->assertOk()
+            ->assertJsonPath('availability.'.$other->id, 0)->assertJsonMissingPath('redirect')->assertSessionMissing('message');
+        $this->assertSame(2, $other->tickets()->count());
+        $this->postJson($url, ['action' => 'remove', 'workshop_id' => $other->id])->assertOk()
+            ->assertJsonPath('availability.'.$other->id, 2)->assertJsonMissingPath('redirect');
+        $this->assertSame(0, $other->tickets()->count());
+        $this->postJson($url, ['action' => 'add', 'workshop_id' => $other->id])->assertOk()
+            ->assertJsonPath('availability.'.$other->id, 0)->assertJsonMissingPath('redirect');
+        $this->assertSame(2, $other->tickets()->count());
     }
 
     public function test_four_sessions_across_venues_and_online_share_payment_and_participant_details(): void
