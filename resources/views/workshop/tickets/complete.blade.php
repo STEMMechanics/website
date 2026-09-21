@@ -5,7 +5,13 @@
         <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
-                @include('workshop.tickets.partials.selected-workshops')
+                @php
+                    $completionPricing = collect($ticketPricing['items'] ?? [])->map(fn ($item) => [
+                        'workshop_id' => $item['workshop_id'],
+                        'value' => $item['count'].' '.($item['count'] === 1 ? 'ticket' : 'tickets').' · '.($item['unit_price'] > 0 ? money($item['unit_price']).' each' : 'Free').(!empty($item['is_early_bird']) ? ' (Early bird)' : ''),
+                    ]);
+                @endphp
+                @include('workshop.tickets.partials.selected-workshops', ['workshopPricing' => $completionPricing, 'showSingleWorkshop' => true])
                 <x-workshop-course-schedule :workshop="$workshop" />
 
                 @php
@@ -71,6 +77,8 @@
                 @include('workshop.tickets.partials.summary', [
                 'workshop' => $workshop,
                 'rows' => $summaryRows,
+                'showWorkshopDetails' => false,
+                'alignAmounts' => true,
                 ])
 
                 @if(!empty($session['equipment_quote_id']))

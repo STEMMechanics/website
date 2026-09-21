@@ -284,7 +284,13 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame(6, Ticket::where('status', Ticket::STATUS_PAID)->count());
         $this->post($saveUrl, ['review_version' => $current['review_version'], 'participants' => $people])->assertRedirect(route('workshop.ticket.flow.details', $anchor));
         $this->assertSame(6, Ticket::where('status', Ticket::STATUS_PAID)->count());
-        $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()->assertDontSee('One booking for your selected participants and workshops.');
+        $completed = $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()
+            ->assertSee('3 tickets · Free')->assertDontSee('One booking for your selected participants and workshops.');
+        $document = \Dom\HTMLDocument::createFromString($completed->getContent(), LIBXML_NOERROR);
+        $headers = collect(iterator_to_array($document->querySelectorAll('th')))->map(fn ($header) => trim($header->textContent))->all();
+        $this->assertNotContains('Workshop', $headers);
+        $this->assertNotContains('Date', $headers);
+        $this->assertNotContains('Location', $headers);
     }
 
     public function test_stale_participant_draft_cannot_overwrite_newer_participant_edits(): void
@@ -342,7 +348,7 @@ class MultiWorkshopCheckoutTest extends TestCase
         }
         $this->assertSame(4, Ticket::where('firstname', 'Alex')->count());
         $this->assertSame(4, Ticket::where('firstname', 'Sam')->count());
-        $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()->assertSee('Online Coding');
+        $this->get(route('workshop.ticket.flow.complete', $anchor))->assertOk()->assertSee('Online Coding')->assertSee('2 tickets · $10.00 each');
         Queue::assertPushed(SendEmail::class, function ($job) {
             if (! $job->mailable instanceof TicketOrderConfirmation) {
                 return false;

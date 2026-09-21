@@ -1,6 +1,6 @@
-@if(isset($checkoutWorkshops) && $checkoutWorkshops->count() > 1)
+@if(isset($checkoutWorkshops) && ($checkoutWorkshops->count() > 1 || (($showSingleWorkshop ?? false) && $checkoutWorkshops->isNotEmpty())))
     <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm">
-        <h3 class="mb-4 font-semibold">Your workshops</h3>
+        <h3 class="mb-4 font-semibold">{{ $checkoutWorkshops->count() === 1 ? 'Your workshop' : 'Your workshops' }}</h3>
         <ul class="divide-y divide-sky-200">
             @foreach($checkoutWorkshops as $selectedWorkshop)
                 <li class="py-4 first:pt-0 last:pb-0">
