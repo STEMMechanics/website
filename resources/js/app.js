@@ -59,3 +59,5 @@ import './deployment-status';
 import './workplan-checkoff';
 
 import './form-keyboard';
+
+import './newsletter-header-copy';

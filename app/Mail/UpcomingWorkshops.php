@@ -89,38 +89,25 @@ class UpcomingWorkshops extends Mailable
      */
     private function selectHeroCopy(string $focus): array
     {
-        $copyConfig = $focus === 'store' ? $this->storeHeroMessages() : config('newsletter.upcoming_workshops.hero_messages', []);
-        $copy = collect($copyConfig)
-            ->filter(fn ($item) => is_array($item))
-            ->map(function (array $item): array {
-                return [
-                    'header' => trim((string) ($item['header'] ?? '')),
-                    'cta' => trim((string) ($item['cta'] ?? '')),
-                    'subject' => trim((string) ($item['subject'] ?? '')),
-                ];
-            })
-            ->filter(fn (array $item): bool => $item['header'] !== '' && $item['cta'] !== '')
-            ->values();
+        $selected = Arr::random($this->heroCopyOptions($focus));
 
-        if ($copy->isEmpty()) {
-            if ($focus === 'store') {
-                return ['Fresh STEM store picks', 'Discover kits, materials and parts for your next project.', 'Fresh STEM store picks'];
-            }
+        return [$selected['header'], $selected['cta'], $selected['subject']];
+    }
 
-            return [
-                'Fresh workshops are ready to book.',
-                'Pick your next session, lock in your place, and keep the momentum going with something hands-on.',
-                'Upcoming Workshops 🌟',
-            ];
-        }
+    /** @return array<int, array{header:string,cta:string,subject:string}> */
+    public function heroCopyOptions(string $focus): array
+    {
+        $messages = $focus === 'store' ? $this->storeHeroMessages() : config('newsletter.upcoming_workshops.hero_messages', []);
+        $options = collect($messages)->filter(fn ($item) => is_array($item))
+            ->map(fn (array $item): array => [
+                'header' => trim((string) ($item['header'] ?? '')),
+                'cta' => trim((string) ($item['cta'] ?? '')),
+                'subject' => trim((string) ($item['subject'] ?? '')) ?: ($focus === 'store' ? 'Fresh STEM store picks' : 'Upcoming Workshops 🌟'),
+            ])->filter(fn (array $item): bool => $item['header'] !== '' && $item['cta'] !== '')->values()->all();
 
-        $selected = Arr::random($copy->all());
-
-        return [
-            (string) $selected['header'],
-            (string) $selected['cta'],
-            (string) ($selected['subject'] ?? 'Upcoming Workshops 🌟'),
-        ];
+        return $options ?: [$focus === 'store'
+            ? ['header' => 'Fresh STEM store picks', 'cta' => 'Discover kits, materials and parts for your next project.', 'subject' => 'Fresh STEM store picks']
+            : ['header' => 'Fresh workshops are ready to book.', 'cta' => 'Pick your next session, lock in your place, and keep the momentum going with something hands-on.', 'subject' => 'Upcoming Workshops 🌟']];
     }
 
     /** @return array<int, array<string, string>> */

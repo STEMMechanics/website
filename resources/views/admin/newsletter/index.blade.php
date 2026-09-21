@@ -33,14 +33,30 @@
         <p class="mb-2 text-sm text-slate-500">Next release: {{ $newsletterReleaseAt->format('l j F, g:ia') }}. Workshops are selected from six hours after release.</p>
         <p class="mb-4 text-sm text-slate-500">Edit the newsletter where it appears. Use the pencil to edit text, arrows to refresh a product, or the eye to hide a workshop.</p>
         <x-admin.newsletter-editor-dialog id="newsletter-header-editor" title="Edit newsletter header">
-            <div data-newsletter-presentation>
-                <x-ui.input form="newsletter-content-form" name="subject" label="Subject" :value="$storePromotion->subject" />
+            <div data-newsletter-presentation data-header-copy-options="{{ json_encode($headerCopyOptions) }}">
+                <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
+                    <label for="newsletter-subject" class="col-span-2 block text-sm font-medium text-gray-900">Subject</label>
+                    <x-ui.input-control id="newsletter-subject" form="newsletter-content-form" name="subject" class="h-11" :value="old('subject', $storePromotion->subject)" />
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="subject" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh subject" aria-label="Refresh subject"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    @error('subject')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
                 <x-ui.select form="newsletter-content-form" name="content_order" label="Content order">
                     <option value="store" @selected($contentOrder === 'store')>Store sections, then workshops</option>
                     <option value="workshops" @selected($contentOrder === 'workshops')>Workshops, then store sections</option>
                 </x-ui.select>
-                <x-ui.input form="newsletter-content-form" name="hero_header" label="Hero heading" :value="$storePromotion->hero_header" />
-                <x-ui.input form="newsletter-content-form" name="hero_cta" label="Hero introduction" type="textarea" :value="$storePromotion->hero_cta" />
+                <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
+                    <label for="newsletter-hero_header" class="col-span-2 block text-sm font-medium text-gray-900">Hero heading</label>
+                    <x-ui.input-control id="newsletter-hero_header" form="newsletter-content-form" name="hero_header" class="h-11" :value="old('hero_header', $storePromotion->hero_header)" />
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_header" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero heading" aria-label="Refresh hero heading"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    @error('hero_header')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
+                    <label for="newsletter-hero_cta" class="col-span-2 block text-sm font-medium text-gray-900">Hero introduction</label>
+                    <x-ui.textarea-control id="newsletter-hero_cta" form="newsletter-content-form" name="hero_cta" rows="4">{{ old('hero_cta', $storePromotion->hero_cta) }}</x-ui.textarea-control>
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_cta" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero introduction" aria-label="Refresh hero introduction"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    @error('hero_cta')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <p class="mb-4 text-xs text-gray-500">Refresh any field for a suggestion matching the selected content order. Save header to apply your changes.</p>
                 <input form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" oninput="SMNewsletterPhotoPreview('header')">
                 <div class="rounded-xl border border-slate-200 p-4">
                     <p class="mb-3 text-sm font-medium">Header image</p>
@@ -61,7 +77,7 @@
         @php
             $heroProduct = collect($currentStoreSelection['sections'] ?? [])->flatMap(fn ($section) => collect($section['products'] ?? []))->first();
             $heroWorkshop = $newsletterWorkshops->first();
-            $heroImage = $currentStoreSelection['hero_image_url'] ?? ($contentOrder === 'store' && $heroProduct ? $heroProduct->primaryImageUrl() : $heroWorkshop?->hero?->url);
+            $heroImage = $currentStoreSelection['hero_image_url'] ?? ($contentOrder === 'store' && $heroProduct ? $heroProduct->primaryImageUrl('lg') : $heroWorkshop?->hero?->url);
         @endphp
         <div data-newsletter-canvas class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-8">
             <header class="relative mb-8 overflow-hidden rounded-xl bg-slate-900 p-6 text-white sm:p-9">

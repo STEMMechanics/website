@@ -57,12 +57,13 @@ class EmailSubscriptionController extends Controller
         $selector = app(NewsletterProductSelectionService::class);
         $releaseAt = app(NewsletterWorkshopSelectionService::class)->nextRelease();
         $currentStoreSelection = $selector->selection();
-        new UpcomingWorkshops('', storeSelection: $currentStoreSelection, releaseAt: $releaseAt);
+        $newsletter = new UpcomingWorkshops('', storeSelection: $currentStoreSelection, releaseAt: $releaseAt);
         $currentStoreSelection = $selector->selection();
         $draft = $selector->draft();
         $workshopSelector = app(NewsletterWorkshopSelectionService::class);
 
         return view('admin.newsletter.index', [
+            'headerCopyOptions' => ['store' => $newsletter->heroCopyOptions('store'), 'workshops' => $newsletter->heroCopyOptions('workshops')],
             'newsletterLinkOptions' => Product::query()->active()->orderBy('title')->get()->map(fn ($product) => ['title' => $product->title, 'type' => 'Store item', 'url' => route('shop.product.show', $product)])
                 ->concat(\App\Models\Workshop::query()->publiclyVisible()->where(fn ($query) => $query->whereNull('is_private')->orWhere('is_private', false))->whereIn('status', ['open', 'scheduled'])->where('starts_at', '>=', now())->orderBy('starts_at')->get()->map(fn ($workshop) => ['title' => $workshop->title.' · '.$workshop->starts_at->format('j M Y'), 'type' => 'Workshop', 'url' => route('workshop.show', $workshop)]))->values(),
             'storePromotion' => $draft,
