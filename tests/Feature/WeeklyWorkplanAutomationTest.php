@@ -9,6 +9,9 @@ use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Quote;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\StoreOrder;
 use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -23,6 +26,51 @@ use Tests\TestCase;
 class WeeklyWorkplanAutomationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_actionable_orders_appear_immediately_and_unpaid_orders_after_a_day(): void
+    {
+        $expected = [];
+        foreach (StoreOrder::ACTION_REQUIRED_STATUSES as $status) {
+            $expected[] = StoreOrder::factory()->create(['status' => $status])->id;
+        }
+        $expected[] = StoreOrder::factory()->create(['status' => StoreOrder::STATUS_PENDING_PAYMENT, 'created_at' => now()->subHours(25)])->id;
+        foreach ([StoreOrder::STATUS_PENDING_PAYMENT, StoreOrder::STATUS_SHIPPED, StoreOrder::STATUS_COLLECTED, StoreOrder::STATUS_FULFILLED, StoreOrder::STATUS_CANCELLED] as $status) {
+            StoreOrder::factory()->create(['status' => $status]);
+        }
+        $workplan = app(WeeklyWorkplanService::class)->build();
+        $this->assertEqualsCanonicalizing($expected, $workplan['orders']->modelKeys());
+        StoreOrder::query()->whereIn('id', $expected)->update(['status' => StoreOrder::STATUS_FULFILLED]);
+        $this->assertCount(0, app(WeeklyWorkplanService::class)->build()['orders']);
+    }
+
+    public function test_stock_followups_respect_shared_pools_variants_and_replenishment(): void
+    {
+        $shared = Product::factory()->create(['title' => 'Shared pigs', 'product_type' => Product::PRODUCT_TYPE_PHYSICAL, 'shared_inventory' => true, 'inventory_quantity' => 4, 'inventory_units' => 5, 'low_stock_threshold' => 5]);
+        ProductVariant::factory()->count(2)->create(['product_id' => $shared->id, 'inventory_units' => 10, 'inventory_quantity' => 0]);
+        $independent = Product::factory()->create(['title' => 'Independent kits', 'product_type' => Product::PRODUCT_TYPE_PHYSICAL, 'inventory_quantity' => 100, 'low_stock_threshold' => 5]);
+        $variant = ProductVariant::factory()->create(['product_id' => $independent->id, 'name' => 'Small kit', 'inventory_quantity' => 2]);
+        ProductVariant::factory()->create(['product_id' => $independent->id, 'is_active' => false, 'inventory_quantity' => 0]);
+        $empty = Product::factory()->create(['product_type' => Product::PRODUCT_TYPE_PHYSICAL, 'inventory_quantity' => 0, 'low_stock_threshold' => null]);
+        Product::factory()->create(['product_type' => Product::PRODUCT_TYPE_PHYSICAL, 'inventory_quantity' => null]);
+        Product::factory()->create(['status' => 'archived', 'product_type' => Product::PRODUCT_TYPE_PHYSICAL, 'inventory_quantity' => 0]);
+        Product::factory()->create(['product_type' => Product::PRODUCT_TYPE_DIGITAL, 'inventory_quantity' => 0]);
+        $workplan = app(WeeklyWorkplanService::class)->build();
+        $rows = $workplan['lowStock'];
+        $this->assertCount(3, $rows);
+        $this->assertSame($empty->id, $rows->first()['product_id']);
+        $this->assertSame(4, $rows->firstWhere('product_id', $shared->id)['available']);
+        $this->assertTrue($rows->firstWhere('product_id', $shared->id)['shared']);
+        $this->assertStringContainsString('Small kit', $rows->firstWhere('product_id', $independent->id)['title']);
+        $admin = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()->assertSee('Restock')->assertSee('Shared pigs');
+        $this->assertStringContainsString('Shared pigs', view('pdf.weekly-workplan', ['workplan' => $workplan])->render());
+        $this->assertStringContainsString('Stock to replenish', (new WeeklyWorkplan($workplan))->render());
+        $shared->update(['inventory_quantity' => 60]);
+        $variant->update(['inventory_quantity' => 20]);
+        $empty->update(['inventory_quantity' => 10]);
+        $this->assertCount(0, app(WeeklyWorkplanService::class)->build()['lowStock']);
+    }
 
     public function test_fortnightly_workplan_is_queued_for_admins(): void
     {

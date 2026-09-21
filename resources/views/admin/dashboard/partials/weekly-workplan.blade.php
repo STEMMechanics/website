@@ -4,7 +4,8 @@
         + $workplan['interests']->count()
         + $workplan['enquiries']->count()
         + $workplan['overdue']->count()
-        + $workplan['pendingTransfers']->count();
+        + $workplan['pendingTransfers']->count()
+        + $workplan['lowStock']->count();
     $outstandingReminderCount = $workplan['reminders']
         ->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())
         ->count() + count($allocationTasks ?? []);
@@ -81,7 +82,17 @@
                         </div>
                     @endforeach
                     @foreach($workplan['orders'] as $order)
-                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ str($order->status)->replace('_', ' ')->title() }} · {{ money((float) $order->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                        <a href="{{ route('admin.shop.order.edit', $order) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Order {{ $order->order_number }} · {{ $order->user?->getName() ?: $order->billing_name }}</span><span class="block text-xs text-gray-500">{{ $order->statusLabel() }} · {{ money((float) $order->total_amount) }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @endforeach
+                    @foreach($workplan['lowStock'] as $stock)
+                        <a href="{{ route('admin.shop.product.edit', $stock['product_id']) }}" class="flex items-start gap-3 p-3 text-sm hover:bg-gray-50">
+                            <i class="fa-solid fa-box-open mt-0.5 w-4 text-amber-600" aria-hidden="true"></i>
+                            <span class="min-w-0 flex-1">
+                                <span class="block font-semibold text-gray-900">Restock · {{ $stock['title'] }}</span>
+                                <span class="block text-xs text-amber-700">{{ $stock['available'] === 0 ? 'Out of stock' : $stock['available'].' remaining' }}{{ $stock['shared'] ? ' · Shared stock' : '' }}@if($stock['threshold'] !== null) · Low-stock threshold {{ $stock['threshold'] }}@endif</span>
+                            </span>
+                            <i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i>
+                        </a>
                     @endforeach
                     @foreach($workplan['overdue'] as $invoice)
                         <a href="{{ route('admin.invoice.edit', $invoice) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Overdue invoice {{ $invoice->invoice_number }} · {{ $invoice->user?->getName() ?: $invoice->billing_name }}</span><span class="block text-xs text-red-600">{{ money((float) $invoice->displayOutstandingAmount()) }} outstanding · due {{ $invoice->due_date?->format('j M') }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>

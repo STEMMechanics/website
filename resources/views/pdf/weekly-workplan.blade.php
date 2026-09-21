@@ -80,7 +80,7 @@
             <td class="pink"><strong>{{ $workplan['dueInvoices']->count() }}</strong><span>Invoices due</span></td>
             <td class="violet"><strong>{{ $workplan['workshops']->count() }}</strong><span>Workshops</span></td>
             <td class="emerald"><strong>{{ $workplan['reminders']->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())->count() }}</strong><span>Reminders</span></td>
-            <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() }}</strong><span>Follow-ups</span></td>
+            <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() + $workplan['pendingTransfers']->count() + $workplan['interests']->count() + $workplan['enquiries']->count() + $workplan['lowStock']->count() }}</strong><span>Follow-ups</span></td>
         </tr>
     </table>
 
@@ -144,11 +144,12 @@
 
     <div class="section followups">
         <h2>Suggested follow-ups</h2>
-        @if($workplan['quotes']->isEmpty() && $workplan['orders']->isEmpty() && $workplan['overdue']->isEmpty() && $workplan['pendingTransfers']->isEmpty() && $workplan['interests']->isEmpty() && $workplan['enquiries']->isEmpty())
+        @if($workplan['quotes']->isEmpty() && $workplan['orders']->isEmpty() && $workplan['overdue']->isEmpty() && $workplan['pendingTransfers']->isEmpty() && $workplan['interests']->isEmpty() && $workplan['enquiries']->isEmpty() && $workplan['lowStock']->isEmpty())
         <p class="muted">No follow-ups are currently suggested.</p>
         @else
         <h3>Quotes</h3><ul>@forelse($workplan['quotes'] as $quote)<li>{{ $quote->quote_number }} - {{ $quote->user?->getName() }} - {{ money((float) $quote->total_amount) }}</li>@empty<li>None.</li>@endforelse</ul>
-        <h3>Orders</h3><ul>@forelse($workplan['orders'] as $order)<li>{{ $order->order_number }} - {{ $order->user?->getName() ?: $order->billing_name }} - {{ money((float) $order->total_amount) }}</li>@empty<li>None.</li>@endforelse</ul>
+        <h3>Orders</h3><ul>@forelse($workplan['orders'] as $order)<li>{{ $order->order_number }} - {{ $order->user?->getName() ?: $order->billing_name }} - {{ $order->statusLabel() }} - {{ money((float) $order->total_amount) }}</li>@empty<li>None.</li>@endforelse</ul>
+        <h3>Stock to replenish</h3><ul>@forelse($workplan['lowStock'] as $stock)<li>{{ $stock['title'] }} - {{ $stock['available'] === 0 ? 'Out of stock' : $stock['available'].' remaining' }}{{ $stock['shared'] ? ' (shared stock)' : '' }}@if($stock['threshold'] !== null) - threshold {{ $stock['threshold'] }}@endif</li>@empty<li>None.</li>@endforelse</ul>
         <h3>Overdue invoices</h3><ul>@forelse($workplan['overdue'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }} - {{ money((float) $invoice->displayOutstandingAmount()) }} outstanding</li>@empty<li>None.</li>@endforelse</ul>
         <h3>Other</h3><ul>
             @foreach($workplan['pendingTransfers'] as $payment)<li>Pending transfer - {{ $payment->user?->getName() ?: 'Unknown customer' }} - {{ money((float) $payment->total_amount) }}</li>@endforeach
