@@ -26,7 +26,7 @@
         foreach ($pricingItems as $item) {
             $count = (int) ($item['count'] ?? 0);
             $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
-            $label = !empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets';
+            $label = ($checkoutWorkshops ?? collect())->count() > 1 ? $item['label'] : (!empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets');
             $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per ticket' : 'Free');
 
             if (! empty($item['is_early_bird'])) {
@@ -89,8 +89,9 @@
             x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
             <div class="flex-1">
-                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : 'workshop.ticket.flow.start', $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
+                <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(!empty($workshop->optional_product_ids) ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? 'workshop.ticket.flow.cart' : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
+                @include('workshop.tickets.partials.selected-workshops')
                 @error('equipment')<p class="mb-4 text-sm text-red-600">{{ $message }}</p>@enderror
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,

@@ -21,6 +21,7 @@ use App\Services\AccountCreditService;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
 use App\Services\StoreCouponService;
+use App\Services\WorkshopCheckoutSelection;
 use App\Services\WorkshopRecommendationService;
 use App\Services\WorkshopRegistrationGroupService;
 use App\Services\WorkshopTicketOrderEmailService;
@@ -33,6 +34,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -75,10 +77,10 @@ class WorkshopTicketFlowController extends Controller
 
         return view('workshop.tickets.start', [
             'workshop' => $workshop,
-            'availableTickets' => $ticketService->availableTickets($workshop) === null ? null : $ticketService->availableTickets($workshop) + count($previousHoldIds),
+            'availableTickets' => $ticketService->availableTickets($workshop) === null ? null : $ticketService->availableTickets($workshop) + Ticket::whereIn('id', $previousHoldIds)->where('workshop_id', $workshop->id)->count(),
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
             'prefill' => $previousSession['purchaser'] ?? $this->defaultPurchaserData(),
-            'ticketQuantity' => count($previousHoldIds) ?: 1,
+            'ticketQuantity' => (int) ($previousSession['participant_count'] ?? count($previousHoldIds)) ?: 1,
             'holdExpiresAt' => $previousHoldIds !== [] ? ($previousSession['expires_at'] ?? null) : null,
             'equipmentProducts' => app(\App\Services\WorkshopEquipmentService::class)->products($workshop),
             'requiresPrivateCode' => $workshop->requiresPrivateTicketCode(),
@@ -135,8 +137,16 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
+        $additionalIds = $previousHoldIds !== [] ? array_values(array_diff($previousSession['workshop_ids'] ?? [], [$workshop->id])) : [];
+        $candidates = app(\App\Services\WorkshopCheckoutSelection::class)->candidates($workshop)->keyBy('id');
+        foreach ($additionalIds as $id) {
+            if (!$candidates->has($id)) {
+                throw ValidationException::withMessages(['additional_workshops' => 'One of the selected workshops is no longer available for a combined booking.']);
+            }
+        }
+        $selectedIds = array_values(array_unique([$workshop->id, ...$additionalIds]));
         $available = $ticketService->availableTickets($workshop);
-        if ($available !== null) $available += count($previousHoldIds);
+        if ($available !== null) $available += Ticket::whereIn('id', $previousHoldIds)->where('workshop_id', $workshop->id)->count();
         if ($available !== null && (int) $validated['quantity'] > $available) {
             throw ValidationException::withMessages([
                 'quantity' => 'Only '.$available.' tickets are available right now.',
@@ -153,40 +163,57 @@ class WorkshopTicketFlowController extends Controller
         ];
         $purchaserUserId = $this->resolveCheckoutUserId($workshop, $purchaser);
 
-        $holdIds = DB::transaction(function () use ($workshop, $ticketService, $validated, $purchaser, $purchaserUserId, $previousHoldIds) {
-            Ticket::where('workshop_id', $workshop->id)->whereIn('id', $previousHoldIds)->where('status', Ticket::STATUS_HOLD)->delete();
-            $ticketService->cleanupExpiredHolds($workshop);
-            $available = $ticketService->availableTickets($workshop);
-            if ($available !== null && (int) $validated['quantity'] > $available) {
-                throw ValidationException::withMessages([
-                    'quantity' => 'Not enough tickets available.',
-                ]);
-            }
-
-            $earlyBirdFlags = $this->allocateEarlyBirdFlags($workshop, $ticketService, (int) $validated['quantity']);
+        $participantTicketIds = [];
+        $expiry = null;
+        $holdIds = DB::transaction(function () use ($ticketService, $validated, $purchaser, $purchaserUserId, $previousHoldIds, $selectedIds, $previousSession, &$participantTicketIds, &$expiry) {
+            // Lock the workshop rows in a consistent order before checking capacity.
+            $selected = Workshop::query()->whereIn('id', $selectedIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            Ticket::whereIn('id', $previousHoldIds)->where('status', Ticket::STATUS_HOLD)->delete();
             $ids = [];
-            for ($i = 0; $i < (int) $validated['quantity']; $i++) {
-                $ticket = new Ticket;
-                $ticket->workshop_id = $workshop->id;
-                $ticket->user_id = $purchaserUserId;
-                $ticket->status = Ticket::STATUS_HOLD;
-                $ticket->firstname = $purchaser['firstname'];
-                $ticket->surname = $purchaser['surname'];
-                $ticket->email = $purchaser['email'];
-                $ticket->phone = $purchaser['phone'];
-                $ticket->is_early_bird = $earlyBirdFlags[$i] ?? false;
-                $ticket->save();
-                $ticket->ensureReferenceCode();
-                $ids[] = $ticket->id;
+            foreach ($selectedIds as $id) {
+                $sessionWorkshop = $selected->get($id);
+                if (!$sessionWorkshop instanceof Workshop || !$sessionWorkshop->isPubliclyVisible()) abort(404);
+                $ticketService->cleanupExpiredHolds($sessionWorkshop);
+                if (!$ticketService->canStartTicketCheckout($sessionWorkshop)) {
+                    throw ValidationException::withMessages(['quantity' => $sessionWorkshop->title.' is no longer available.']);
+                }
+                $available = $ticketService->availableTickets($sessionWorkshop);
+                if ($available !== null && (int) $validated['quantity'] > $available) {
+                    throw ValidationException::withMessages(['quantity' => $sessionWorkshop->title.': only '.$available.' places remain.']);
+                }
+                $earlyBirdFlags = $this->allocateEarlyBirdFlags($sessionWorkshop, $ticketService, (int) $validated['quantity']);
+                $sessionExpiry = $previousHoldIds !== [] && !empty($previousSession['expires_at'])
+                    ? \Illuminate\Support\Carbon::parse($previousSession['expires_at'])
+                    : now()->addMinutes($ticketService->holdWindowMinutes($sessionWorkshop));
+                $expiry = $expiry === null || $sessionExpiry->lt($expiry) ? $sessionExpiry : $expiry;
+                for ($i = 0; $i < (int) $validated['quantity']; $i++) {
+                    $ticket = new Ticket;
+                    $ticket->workshop_id = $sessionWorkshop->id;
+                    $ticket->user_id = $purchaserUserId;
+                    $ticket->status = Ticket::STATUS_HOLD;
+                    $ticket->firstname = $purchaser['firstname'];
+                    $ticket->surname = $purchaser['surname'];
+                    $ticket->email = $purchaser['email'];
+                    $ticket->phone = $purchaser['phone'];
+                    $ticket->is_early_bird = $earlyBirdFlags[$i] ?? false;
+                    $ticket->created_at = $sessionExpiry->copy()->subMinutes($ticketService->holdWindowMinutes($sessionWorkshop));
+                    $ticket->save();
+                    $ticket->ensureReferenceCode();
+                    $ids[] = $ticket->id;
+                    $participantTicketIds[$i][] = $ticket->id;
+                }
+                $ticketService->syncManagedTicketStatus($sessionWorkshop);
             }
-
             return $ids;
         });
-        $ticketService->syncManagedTicketStatus($workshop);
 
         $sessionPayload = [
             'hold_ids' => $holdIds,
-            'expires_at' => now()->addMinutes($ticketService->holdWindowMinutes($workshop))->toIso8601String(),
+            'workshop_ids' => $selectedIds,
+            'started_at' => $previousHoldIds !== [] ? ($previousSession['started_at'] ?? now()->toIso8601String()) : now()->toIso8601String(),
+            'participant_count' => (int) $validated['quantity'],
+            'participant_ticket_ids' => $participantTicketIds,
+            'expires_at' => $expiry?->toIso8601String(),
             'purchaser' => $purchaser,
             'purchaser_user_id' => $purchaserUserId,
             'voucher_code' => null,
@@ -200,11 +227,126 @@ class WorkshopTicketFlowController extends Controller
 
         if (! empty($workshop->optional_product_ids)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
 
-        if ($ticketService->ticketPriceAmount($workshop) <= 0.0001) {
+        if (app(\App\Services\WorkshopCheckoutSelection::class)->candidates($workshop)->isNotEmpty()) {
+            return redirect()->route('workshop.ticket.flow.cart', $workshop);
+        }
+
+        if ($this->calculateTicketCheckoutPricing($workshop, Ticket::with('workshop')->whereIn('id', $holdIds)->get())['subtotal_amount'] <= 0.0001) {
             return $this->completeFreeCheckout($workshop, $sessionPayload, $ticketService);
         }
 
         return redirect()->route('workshop.ticket.flow.payment', $workshop);
+    }
+
+    public function cart(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+        $session = $this->getFlowSession($workshop);
+        if ($session['payment_complete'] ?? false) {
+            return redirect()->route('workshop.ticket.flow.details', $workshop);
+        }
+        if (! $session || $this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
+            return redirect()->route('workshop.ticket.flow.start', $workshop)->withErrors(['quantity' => 'Your ticket hold expired. Please start again.']);
+        }
+        if (! app(WorkshopCheckoutSelection::class)->supportsCombined($workshop)) {
+            return redirect()->route('workshop.ticket.flow.payment', $workshop);
+        }
+        $tickets = Ticket::with('workshop')->whereIn('id', $session['hold_ids'])->get();
+
+        return view('workshop.tickets.cart', [
+            'workshop' => $workshop,
+            'session' => $session,
+            'checkoutWorkshops' => $this->checkoutWorkshops($workshop),
+            'ticketPricing' => $this->calculateTicketCheckoutPricing($workshop, $tickets),
+            'additionalWorkshops' => app(WorkshopCheckoutSelection::class)->candidates($workshop)
+                ->reject(fn (Workshop $item) => in_array($item->id, $session['workshop_ids'], true)),
+        ]);
+    }
+
+    public function updateCart(Request $request, Workshop $workshop, WorkshopTicketService $ticketService): RedirectResponse
+    {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+        $session = $this->getFlowSession($workshop);
+        if ($session['payment_complete'] ?? false) {
+            return redirect()->route('workshop.ticket.flow.details', $workshop);
+        }
+        if (! $session || $this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
+            return redirect()->route('workshop.ticket.flow.start', $workshop)->withErrors(['quantity' => 'Your ticket hold expired. Please start again.']);
+        }
+        abort_unless(app(WorkshopCheckoutSelection::class)->supportsCombined($workshop), 404);
+        $data = $request->validate(['action' => 'required|in:add,remove,continue', 'workshop_id' => 'nullable|required_unless:action,continue|string']);
+        if ($data['action'] === 'continue') {
+            $tickets = Ticket::with('workshop')->whereIn('id', $session['hold_ids'])->get();
+            if ($this->calculateTicketCheckoutPricing($workshop, $tickets)['subtotal_amount'] <= 0.0001) {
+                return $this->completeFreeCheckout($workshop, $session, $ticketService);
+            }
+
+            return redirect()->route('workshop.ticket.flow.payment', $workshop);
+        }
+        $id = $data['workshop_id'];
+        if ($data['action'] === 'remove') {
+            if ($id !== $workshop->id && in_array($id, $session['workshop_ids'], true)) {
+                $removedIds = Ticket::whereIn('id', $session['hold_ids'])->where('workshop_id', $id)->where('status', Ticket::STATUS_HOLD)->pluck('id')->all();
+                Ticket::whereIn('id', $removedIds)->delete();
+                $session['hold_ids'] = array_values(array_diff($session['hold_ids'], $removedIds));
+                $session['workshop_ids'] = array_values(array_diff($session['workshop_ids'], [$id]));
+                $session['participant_ticket_ids'] = array_map(fn ($ids) => array_values(array_diff($ids, $removedIds)), $session['participant_ticket_ids']);
+                if ($removed = Workshop::find($id)) {
+                    $ticketService->syncManagedTicketStatus($removed);
+                }
+            }
+        } elseif (! in_array($id, $session['workshop_ids'], true)) {
+            if (count($session['workshop_ids']) >= 10) {
+                throw ValidationException::withMessages(['workshop_id' => 'You can book up to 10 workshops together.']);
+            }
+            if (! app(WorkshopCheckoutSelection::class)->candidates($workshop)->contains('id', $id)) {
+                throw ValidationException::withMessages(['workshop_id' => 'This workshop is not available for a combined booking.']);
+            }
+            $session = DB::transaction(function () use ($workshop, $session, $id, $ticketService) {
+                $locked = Workshop::whereIn('id', [...$session['workshop_ids'], $id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                if ($this->holdsExpired($workshop, $session['hold_ids'], $ticketService)) {
+                    throw ValidationException::withMessages(['workshop_id' => 'Your ticket hold expired. Please start again.']);
+                }
+                $additional = $locked->get($id);
+                if (! $additional || ! $additional->isPubliclyVisible() || ! app(WorkshopCheckoutSelection::class)->supportsCombined($additional) || ! $ticketService->canStartTicketCheckout($additional)) {
+                    throw ValidationException::withMessages(['workshop_id' => 'This workshop is no longer available.']);
+                }
+                $quantity = (int) $session['participant_count'];
+                $available = $ticketService->availableTickets($additional);
+                if ($available !== null && $available < $quantity) {
+                    throw ValidationException::withMessages(['workshop_id' => $additional->title.': only '.$available.' places remain.']);
+                }
+                $flags = $this->allocateEarlyBirdFlags($additional, $ticketService, $quantity);
+                for ($i = 0; $i < $quantity; $i++) {
+                    $ticket = new Ticket;
+                    $ticket->workshop_id = $id;
+                    $ticket->user_id = $session['purchaser_user_id'];
+                    $ticket->status = Ticket::STATUS_HOLD;
+                    foreach (['firstname', 'surname', 'email', 'phone'] as $field) {
+                        $ticket->{$field} = $session['purchaser'][$field];
+                    }
+                    $ticket->is_early_bird = $flags[$i] ?? false;
+                    $ticket->save();
+                    $ticket->ensureReferenceCode();
+                    $session['hold_ids'][] = $ticket->id;
+                    $session['participant_ticket_ids'][$i][] = $ticket->id;
+                }
+                $session['workshop_ids'][] = $id;
+                // Held tickets use created_at as the reservation clock throughout availability and cleanup.
+                $window = $ticketService->holdWindowMinutes($additional);
+                $deadline = Carbon::parse($session['started_at'])->addMinutes(max(30, $window));
+                $expiry = now()->addMinutes($window)->min($deadline);
+                Ticket::whereIn('id', $session['hold_ids'])->where('status', Ticket::STATUS_HOLD)
+                    ->update(['created_at' => $expiry->copy()->subMinutes($window)]);
+                $session['expires_at'] = $expiry->toIso8601String();
+                $ticketService->syncManagedTicketStatus($additional);
+
+                return $session;
+            });
+        }
+        $this->putFlowSession($workshop, $session);
+
+        return redirect()->route('workshop.ticket.flow.cart', $workshop);
     }
 
     public function equipment(Workshop $workshop, WorkshopTicketService $tickets, \App\Services\WorkshopEquipmentService $equipment): View|RedirectResponse
@@ -325,13 +467,14 @@ class WorkshopTicketFlowController extends Controller
         return view('workshop.tickets.payment', [
             'workshop' => $workshop,
             'session' => $session,
+            'checkoutWorkshops' => $this->checkoutWorkshops($workshop),
             'holdCount' => $checkoutTotals['hold_count'],
             'ticketPricing' => $checkoutTotals['ticket_pricing'],
             'ticketPriceAmount' => $checkoutTotals['ticket_price_amount'],
             'totalAmount' => $checkoutTotals['total_amount'],
             'equipmentAmount' => $checkoutTotals['equipment_amount'],
             'hasEquipment' => $equipmentSummary['lines']->isNotEmpty(),
-            'canPayAtDoor' => $workshop->allowsPayAtDoor() && $equipmentSummary['lines']->isEmpty(),
+            'canPayAtDoor' => $this->checkoutAllowsPayAtDoor($workshop) && $equipmentSummary['lines']->isEmpty(),
             'deliveryAmount' => (float) ($equipmentSummary['summary']['shipping'] ?? 0),
             'equipmentQuoteRequired' => (bool) ($equipmentSummary['summary']['shipping_quote']['requires_manual_quote'] ?? false),
             'voucherCode' => $checkoutTotals['voucher_code'],
@@ -383,7 +526,7 @@ class WorkshopTicketFlowController extends Controller
         $equipmentService = app(\App\Services\WorkshopEquipmentService::class);
         $equipment = $equipmentService->summary($workshop, $session);
         $allowedPaymentMethods = $equipment['lines']->isNotEmpty() ? ['credit_card', 'credit'] : ['bank_transfer', 'credit_card', 'credit'];
-        if ($equipment['lines']->isEmpty() && $workshop->allowsPayAtDoor()) {
+        if ($equipment['lines']->isEmpty() && $this->checkoutAllowsPayAtDoor($workshop)) {
             $allowedPaymentMethods[] = 'pay_at_door';
         }
         $accountTermsDays = $this->checkoutAccountTermsDays();
@@ -408,7 +551,7 @@ class WorkshopTicketFlowController extends Controller
 
         $holdIds = $checkoutTotals['hold_ids'];
         $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $holdIds)
             ->orderBy('id')
             ->get();
@@ -445,11 +588,15 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays, $checkoutTotals) {
+            Workshop::whereIn('id', $this->checkoutWorkshopIds($workshop))->orderBy('id')->lockForUpdate()->get();
+            if ($this->holdsExpired($workshop, $holdIds, $ticketService)) {
+                throw ValidationException::withMessages(['quantity' => 'One or more selected workshops are no longer available. Please review your booking.']);
+            }
             $holds = Ticket::query()
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $holdIds)
                 ->where('status', Ticket::STATUS_HOLD)
-                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
+                ->where('created_at', '>=', now()->subMinutes($this->checkoutHoldMinutes($workshop, $ticketService)))
                 ->lockForUpdate()
                 ->get();
 
@@ -544,7 +691,7 @@ class WorkshopTicketFlowController extends Controller
                     ->map(fn (Ticket $ticket) => $ticket->ensureReferenceCode())
                     ->values()
                     ->all();
-                $customerPayment->reference = 'Workshop '.$workshop->title.' ticket'.(count($ticketReferences) > 1 ? 's' : '').' ['.implode(',', $ticketReferences).']';
+                $customerPayment->reference = \Illuminate\Support\Str::limit('Workshop tickets: '.$this->checkoutWorkshops($workshop)->pluck('title')->join(', ').' ['.implode(',', $ticketReferences).']', 230, '');
                 if ($equipmentOrder) {
                     $customerPayment->reference .= ' · Store Order '.$equipmentOrder->order_number;
                 }
@@ -642,7 +789,7 @@ class WorkshopTicketFlowController extends Controller
                 $ticket->invoice_id = $invoice?->id;
                 $ticket->invoice_line_id = $lineIdByTicketId[(int) $ticket->id] ?? null;
                 if ($ticket->is_early_bird === null) {
-                    $ticket->is_early_bird = $workshop->earlyBirdIsActive();
+                    $ticket->is_early_bird = ($ticket->workshop ?? $workshop)->earlyBirdIsActive();
                 }
                 $ticket->save();
             }
@@ -656,7 +803,7 @@ class WorkshopTicketFlowController extends Controller
                 'credit_applied' => $creditApplied,
             ];
         });
-        $ticketService->syncManagedTicketStatus($workshop);
+        $this->syncCheckoutWorkshops($workshop, $ticketService);
 
         $session['equipment_order_id'] = $result['equipment_order_id'];
         $session['equipment_quote_id'] = $result['equipment_quote_id'];
@@ -687,7 +834,7 @@ class WorkshopTicketFlowController extends Controller
         $this->workshopRegistrationGroups->assignForTickets(
             Ticket::query()
                 ->with('workshop')
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $holdIds)
                 ->get(),
             trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
@@ -765,11 +912,15 @@ class WorkshopTicketFlowController extends Controller
         $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
 
         $result = DB::transaction(function () use ($workshop, $holdIds, $ticketService, $session): array {
+            Workshop::whereIn('id', $this->checkoutWorkshopIds($workshop))->orderBy('id')->lockForUpdate()->get();
+            if ($this->holdsExpired($workshop, $holdIds, $ticketService)) {
+                throw ValidationException::withMessages(['quantity' => 'One or more selected workshops are no longer available. Please review your booking.']);
+            }
             $holds = Ticket::query()
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $holdIds)
                 ->where('status', Ticket::STATUS_HOLD)
-                ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
+                ->where('created_at', '>=', now()->subMinutes($this->checkoutHoldMinutes($workshop, $ticketService)))
                 ->lockForUpdate()
                 ->get();
 
@@ -792,7 +943,7 @@ class WorkshopTicketFlowController extends Controller
                 $ticket->invoice_id = null;
                 $ticket->invoice_line_id = null;
                 if ($ticket->is_early_bird === null) {
-                    $ticket->is_early_bird = $workshop->earlyBirdIsActive();
+                    $ticket->is_early_bird = ($ticket->workshop ?? $workshop)->earlyBirdIsActive();
                 }
                 $ticket->save();
             }
@@ -802,7 +953,7 @@ class WorkshopTicketFlowController extends Controller
                 'payment_id' => null,
             ];
         });
-        $ticketService->syncManagedTicketStatus($workshop);
+        $this->syncCheckoutWorkshops($workshop, $ticketService);
 
         $session['invoice_id'] = null;
         $session['payment_method'] = $result['payment_method'];
@@ -824,7 +975,7 @@ class WorkshopTicketFlowController extends Controller
         $this->workshopRegistrationGroups->assignForTickets(
             Ticket::query()
                 ->with('workshop')
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $holdIds)
                 ->get(),
             trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
@@ -865,7 +1016,7 @@ class WorkshopTicketFlowController extends Controller
     ): array {
         $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
         $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $holdIds)
             ->orderBy('id')
             ->get();
@@ -954,6 +1105,7 @@ class WorkshopTicketFlowController extends Controller
 
         $ticketItems = [];
         $subtotal = 0.0;
+        $savings = 0.0;
         $earlyBirdCount = 0;
         $standardCount = 0;
 
@@ -962,17 +1114,22 @@ class WorkshopTicketFlowController extends Controller
                 continue;
             }
 
-            $isEarlyBird = $ticket->isEarlyBirdTicket() && $earlyBirdUnitPrice !== null;
-            $unitPrice = $isEarlyBird ? $earlyBirdUnitPrice : $baseUnitPrice;
+            $ticketWorkshop = $ticket->workshop ?? $workshop;
+            $earlyPrice = $ticketWorkshop->earlyBirdPriceAmount();
+            $isEarlyBird = $ticket->isEarlyBirdTicket() && $earlyPrice !== null;
+            $unitPrice = $isEarlyBird ? $earlyPrice : $ticketWorkshop->baseTicketPriceAmount();
             $subtotal = round($subtotal + (float) $unitPrice, 2);
 
             if ($isEarlyBird) {
                 $earlyBirdCount++;
+                $savings += max(0, $ticketWorkshop->baseTicketPriceAmount() - $unitPrice);
             } else {
                 $standardCount++;
             }
 
             $ticketItems[] = [
+                'workshop_id' => $ticketWorkshop->id,
+                'workshop_title' => $ticketWorkshop->title,
                 'ticket_id' => (int) $ticket->id,
                 'ticket_reference' => $ticket->ensureReferenceCode(),
                 'is_early_bird' => $isEarlyBird,
@@ -982,10 +1139,11 @@ class WorkshopTicketFlowController extends Controller
 
         $groupedItems = [];
         foreach ($ticketItems as $item) {
-            $key = $item['is_early_bird'] ? 'early_bird' : 'standard';
+            $key = $item['workshop_id'].':'.($item['is_early_bird'] ? 'early_bird' : 'standard').':'.$item['unit_price'];
             if (! isset($groupedItems[$key])) {
                 $groupedItems[$key] = [
-                    'label' => $item['is_early_bird'] ? 'Early Bird' : 'Standard',
+                    'workshop_id' => $item['workshop_id'],
+                    'label' => $item['workshop_title'].' · '.($item['is_early_bird'] ? 'Early Bird' : 'Standard'),
                     'count' => 0,
                     'unit_price' => $item['unit_price'],
                     'amount' => 0.0,
@@ -1004,6 +1162,7 @@ class WorkshopTicketFlowController extends Controller
             'early_bird_unit_price' => $earlyBirdUnitPrice,
             'standard_unit_price' => $baseUnitPrice,
             'subtotal_amount' => $subtotal,
+            'savings_amount' => round($savings, 2),
             'items' => array_values($groupedItems),
         ];
     }
@@ -1081,6 +1240,12 @@ class WorkshopTicketFlowController extends Controller
         ?User $user = null,
         ?string $billingEmail = null
     ): array {
+        if (filled($voucherCode) && count($this->checkoutWorkshopIds($workshop)) > 1) {
+            foreach ($this->checkoutWorkshops($workshop) as $item) {
+                $check = $this->coupons->evaluate($voucherCode, $subtotal, 0, $user, $billingEmail, Coupon::CHECKOUT_CONTEXT_WORKSHOPS, ['workshop_id' => (string) $item->id]);
+                if (($check['error'] ?? null) !== null) return $check;
+            }
+        }
         $evaluation = $this->coupons->evaluate(
             $voucherCode,
             $subtotal,
@@ -1169,7 +1334,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $session['hold_ids'] ?? [])
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->orderBy('id')
@@ -1187,6 +1352,8 @@ class WorkshopTicketFlowController extends Controller
         return view('workshop.tickets.details', [
             'workshop' => $workshop,
             'session' => $session,
+            'checkoutWorkshops' => $this->checkoutWorkshops($workshop),
+            'participantTickets' => isset($session['participant_ticket_ids']) ? collect($session['participant_ticket_ids'])->map(fn ($ids) => $tickets->firstWhere('id', $ids[0]))->filter()->values() : $tickets,
             'tickets' => $tickets,
             'ticketPricing' => $ticketPricing,
             'bankTransferDetails' => (string) ($session['payment_method'] ?? '') === 'bank_transfer'
@@ -1204,9 +1371,7 @@ class WorkshopTicketFlowController extends Controller
             abort(403);
         }
 
-        $isParticipantAttachment = $workshop->participantAttachments()
-            ->where('media.name', $media->name)
-            ->exists();
+        $isParticipantAttachment = $this->checkoutWorkshops($workshop)->contains(fn (Workshop $selected) => $selected->participantAttachments()->where('media.name', $media->name)->exists());
         if (! $isParticipantAttachment) {
             abort(404);
         }
@@ -1242,7 +1407,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $activeCount = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $holdIds)
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->count();
@@ -1282,11 +1447,16 @@ class WorkshopTicketFlowController extends Controller
         ]);
 
         $ticketMap = collect($validated['tickets'])->keyBy(fn ($ticket) => (int) $ticket['id']);
+        foreach ($session['participant_ticket_ids'] ?? [] as $ids) {
+            $details = $ticketMap->get((int) $ids[0]);
+            if ($details === null) throw ValidationException::withMessages(['tickets' => 'Details are required for each participant.']);
+            foreach ($ids as $id) $ticketMap->put((int) $id, $details);
+        }
         $updatedHoldIds = [];
 
         DB::transaction(function () use ($workshop, $session, $ticketMap, &$updatedHoldIds) {
             $tickets = Ticket::query()
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $session['hold_ids'] ?? [])
                 ->whereIn('status', Ticket::activePurchasedStatuses())
                 ->lockForUpdate()
@@ -1366,7 +1536,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $session['hold_ids'] ?? [])
             ->orderBy('id')
             ->get();
@@ -1392,6 +1562,7 @@ class WorkshopTicketFlowController extends Controller
 
         return view('workshop.tickets.complete', [
             'workshop' => $workshop,
+            'checkoutWorkshops' => $this->checkoutWorkshops($workshop),
             'tickets' => $tickets,
             'invoice' => $invoice,
             'payment' => $payment,
@@ -1399,7 +1570,7 @@ class WorkshopTicketFlowController extends Controller
             'sentToEmail' => $sentToEmail,
             'accessToken' => $accessToken,
             'ticketPricing' => $ticketPricing,
-            'recommendedWorkshops' => $recommendations->forWorkshop($workshop),
+            'recommendedWorkshops' => $recommendations->forWorkshop($workshop)->reject(fn (Workshop $item) => in_array($item->id, $this->checkoutWorkshopIds($workshop), true)),
         ]);
     }
 
@@ -1413,7 +1584,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $tickets = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $session['hold_ids'] ?? [])
             ->orderBy('id')
             ->get();
@@ -1473,12 +1644,12 @@ class WorkshopTicketFlowController extends Controller
         $session = $this->getFlowSession($workshop);
         if ($session && ! ($session['payment_complete'] ?? false)) {
             Ticket::query()
-                ->where('workshop_id', $workshop->id)
+                ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
                 ->whereIn('id', $session['hold_ids'] ?? [])
                 ->where('status', Ticket::STATUS_HOLD)
                 ->delete();
         }
-        $ticketService->syncManagedTicketStatus($workshop);
+        $this->syncCheckoutWorkshops($workshop, $ticketService);
         $this->clearFlowSession($workshop);
 
         return redirect()->route('workshop.show', $workshop);
@@ -1515,13 +1686,13 @@ class WorkshopTicketFlowController extends Controller
     ): Invoice {
         $tickets = collect($holds)->values();
         $quantity = max(1, $tickets->count());
-        $linePrices = $tickets->map(fn (Ticket $ticket): float => $this->ticketCheckoutUnitPrice($workshop, $ticket))->values();
+        $linePrices = $tickets->map(fn (Ticket $ticket): float => $this->ticketCheckoutUnitPrice($ticket->workshop ?? $workshop, $ticket))->values();
         $subtotalAmount = round($linePrices->sum(), 2);
         $voucherAmount = round(min($subtotalAmount, max(0, $voucherAmount)), 2);
         $totalAmount = round(max(0, $subtotalAmount - $voucherAmount), 2);
 
         $invoice = new Invoice;
-        $effectiveStartsAt = $workshop->effectiveStartsAt();
+        $effectiveStartsAt = $tickets->map(fn (Ticket $ticket) => ($ticket->workshop ?? $workshop)->effectiveStartsAt())->filter()->sort()->first() ?? $workshop->effectiveStartsAt();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->user_id = $purchaserUserId ?: $this->checkoutAccountUserId();
         $invoice->billing_name = trim((string) (($purchaser['firstname'] ?? '').' '.($purchaser['surname'] ?? '')));
@@ -1550,7 +1721,8 @@ class WorkshopTicketFlowController extends Controller
         $gst = 0.0;
 
         foreach ($tickets as $index => $ticket) {
-            $lineTotalInc = round((float) ($linePrices[$index] ?? $this->ticketCheckoutUnitPrice($workshop, $ticket)), 2);
+            $lineWorkshop = $ticket->workshop ?? $workshop;
+            $lineTotalInc = round((float) ($linePrices[$index] ?? $this->ticketCheckoutUnitPrice($ticket->workshop ?? $workshop, $ticket)), 2);
             $lineTotalEx = round($lineTotalInc / 1.1, 2);
             $taxAmount = round($lineTotalInc - $lineTotalEx, 2);
             $ticketReference = $ticket->ensureReferenceCode();
@@ -1559,13 +1731,13 @@ class WorkshopTicketFlowController extends Controller
             $line->invoice_id = $invoice->id;
             $line->line_number = $index + 1;
             $line->kind = 'ticket';
-            $line->description = $workshop->title.' - Ticket '.$ticketReference;
-            $line->notes = $workshop->ticketInvoiceLineNotes($ticket);
+            $line->description = $lineWorkshop->title.' - Ticket '.$ticketReference;
+            $line->notes = $lineWorkshop->ticketInvoiceLineNotes($ticket);
             $line->details_json = [
                 'ticket_id' => (int) $ticket->id,
                 'ticket_reference' => $ticketReference,
-                'workshop_id' => $workshop->id,
-                'workshop_title' => $workshop->title,
+                'workshop_id' => $lineWorkshop->id,
+                'workshop_title' => $lineWorkshop->title,
             ];
             $line->quantity = 1;
             $line->unit_price_ex_tax = $lineTotalEx;
@@ -1741,6 +1913,34 @@ class WorkshopTicketFlowController extends Controller
         dispatch(new SendEmail($email, new UserRegister($token->id, $email)))->onQueue('mail');
     }
 
+    /** @return array<int, string> */
+    private function checkoutWorkshopIds(Workshop $workshop): array
+    {
+        return $this->getFlowSession($workshop)['workshop_ids'] ?? [$workshop->id];
+    }
+
+    private function checkoutWorkshops(Workshop $workshop): Collection
+    {
+        return Workshop::whereIn('id', $this->checkoutWorkshopIds($workshop))->with('location')->orderBy('starts_at')->get();
+    }
+
+    private function checkoutHoldMinutes(Workshop $workshop, WorkshopTicketService $service): int
+    {
+        return (int) ($this->checkoutWorkshops($workshop)->map(fn (Workshop $item) => $service->holdWindowMinutes($item))->min() ?? $service->holdWindowMinutes($workshop));
+    }
+
+    private function checkoutAllowsPayAtDoor(Workshop $workshop): bool
+    {
+        return $this->checkoutWorkshops($workshop)->every(fn (Workshop $item) => $item->allowsPayAtDoor());
+    }
+
+    private function syncCheckoutWorkshops(Workshop $workshop, WorkshopTicketService $service): void
+    {
+        foreach ($this->checkoutWorkshops($workshop) as $item) {
+            $service->syncManagedTicketStatus($item);
+        }
+    }
+
     private function getFlowSession(Workshop $workshop): ?array
     {
         $value = session()->get(self::SESSION_KEY_PREFIX.$workshop->id);
@@ -1777,12 +1977,19 @@ class WorkshopTicketFlowController extends Controller
             return true;
         }
 
-        $ticketService->cleanupExpiredHolds($workshop);
+        $selected = $this->checkoutWorkshops($workshop);
+        if ($selected->count() !== count($this->checkoutWorkshopIds($workshop))) return true;
+        foreach ($selected as $item) {
+            if (!$item->isPubliclyVisible() || !in_array($item->status, ['open', 'full'], true)
+                || ($item->closes_at && $item->closes_at->isPast())) return true;
+            if ($selected->count() > 1 && !app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($item)) return true;
+            $ticketService->cleanupExpiredHolds($item);
+        }
         $count = Ticket::query()
-            ->where('workshop_id', $workshop->id)
+            ->whereIn('workshop_id', $this->checkoutWorkshopIds($workshop))
             ->whereIn('id', $holdIds)
             ->where('status', Ticket::STATUS_HOLD)
-            ->where('created_at', '>=', now()->subMinutes($ticketService->holdWindowMinutes($workshop)))
+            ->where('created_at', '>=', now()->subMinutes($this->checkoutHoldMinutes($workshop, $ticketService)))
             ->count();
 
         return $count !== count($holdIds);

@@ -6,8 +6,8 @@
         $earlyBirdUnitPrice = $ticketPricing['early_bird_unit_price'] ?? null;
         $earlyBirdUnitPrice = is_numeric($earlyBirdUnitPrice) ? round((float) $earlyBirdUnitPrice, 2) : null;
         $orderEarlyBirdSummary = null;
-        if ($earlyBirdCount > 0 && $earlyBirdUnitPrice !== null && $standardUnitPrice > $earlyBirdUnitPrice) {
-            $orderSavings = round(($standardUnitPrice - $earlyBirdUnitPrice) * $earlyBirdCount, 2);
+        if (($ticketPricing['savings_amount'] ?? 0) > 0) {
+            $orderSavings = (float) $ticketPricing['savings_amount'];
             if ($orderSavings > 0.0001) {
                 $orderEarlyBirdSummary = 'Save $'.number_format($orderSavings, 2).' with earlybird pricing.';
             }
@@ -20,21 +20,23 @@
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">Add Ticket Holder Details</h2>
                 <p class="text-sm text-gray-600 mb-2">
-                    Congrats, you're in. Your ticket{{ $tickets->count() === 1 ? '' : 's' }} {{ $tickets->count() === 1 ? 'is' : 'are' }} reserved for <strong>{{ $workshop->title }}</strong>.
+                    Congrats, you're in. Your ticket{{ $tickets->count() === 1 ? '' : 's' }} {{ $tickets->count() === 1 ? 'is' : 'are' }} reserved for <strong>{{ ($checkoutWorkshops ?? collect([$workshop]))->pluck('title')->join(', ') }}</strong>.
                 </p>
-                <p class="text-sm text-gray-600 mb-4">Add details for each ticket holder below.</p>
+                <p class="text-sm text-gray-600 mb-4">Add details for each participant below. These details will be used for their ticket at every selected workshop.</p>
+                @include('workshop.tickets.partials.selected-workshops')
                 @if($orderEarlyBirdSummary)
                     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                         {{ $orderEarlyBirdSummary }}
                     </div>
                 @endif
 
-                @php($participantAttachments = $workshop->participantAttachments()->get())
-                @if(trim((string) ($workshop->participant_information ?? '')) !== '' || $participantAttachments->isNotEmpty())
+                @foreach(($checkoutWorkshops ?? collect([$workshop])) as $informationWorkshop)
+                @php($participantAttachments = $informationWorkshop->participantAttachments()->get())
+                @if(trim((string) ($informationWorkshop->participant_information ?? '')) !== '' || $participantAttachments->isNotEmpty())
                     <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                        <div class="mb-2 text-base font-semibold">Additional Information</div>
-                        @if(trim((string) ($workshop->participant_information ?? '')) !== '')
-                            <div class="participant-information-content prose prose-sm max-w-none [&_a]:font-normal [&_a]:text-primary-color [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary-color-dark">{!! $workshop->participant_information !!}</div>
+                        <div class="mb-2 text-base font-semibold">Additional Information · {{ $informationWorkshop->title }}</div>
+                        @if(trim((string) ($informationWorkshop->participant_information ?? '')) !== '')
+                            <div class="participant-information-content prose prose-sm max-w-none [&_a]:font-normal [&_a]:text-primary-color [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary-color-dark">{!! $informationWorkshop->participant_information !!}</div>
                         @endif
                         @if($participantAttachments->isNotEmpty())
                             <div class="mt-4 font-bold">Workshop documents:</div>
@@ -53,6 +55,7 @@
                     </div>
                 @endif
 
+                @endforeach
                 @if((string) ($session['payment_method'] ?? '') === 'bank_transfer' && is_array($bankTransferDetails ?? null))
                     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                         <div class="font-semibold text-base mb-2">Bank Transfer Details</div>
@@ -73,11 +76,15 @@
                 <x-workshop-course-schedule :workshop="$workshop" />
         <form id="ticket-details-form" method="POST" action="{{ route('workshop.ticket.flow.details.save', $workshop) }}">
                     @csrf
-                    @foreach($tickets as $index => $ticket)
+                    @foreach(($participantTickets ?? $tickets) as $index => $ticket)
                     <div class="border border-gray-400 rounded-lg p-4 mb-3">
                         <div class="font-semibold mb-2">
-                            Ticket {{ $index + 1 }} - {{ $ticket->reference_code }}
-                            @if($ticket->isEarlyBirdTicket())
+                            @if(($checkoutWorkshops ?? collect())->count() > 1)
+                                Participant {{ $index + 1 }}
+                            @else
+                                Ticket {{ $index + 1 }} - {{ $ticket->reference_code }}
+                            @endif
+                            @if(($checkoutWorkshops ?? collect())->count() <= 1 && $ticket->isEarlyBirdTicket())
                                 <x-ui.badge color="amber" uppercase class="ml-2 align-middle">Early bird</x-ui.badge>
                             @endif
                         </div>
