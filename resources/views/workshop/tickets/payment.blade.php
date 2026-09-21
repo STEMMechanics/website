@@ -35,6 +35,7 @@
 
             $summaryRows[] = [
                 'type' => 'ticket',
+                'workshop_id' => $item['workshop_id'],
                 'label' => $label,
                 'value' => $value,
             ];
@@ -92,11 +93,12 @@
             <div class="min-w-0 flex-1">
                 <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(app(\App\Services\WorkshopEquipmentService::class)->products($workshop)->isNotEmpty() ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? (($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.cart') : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
 
-                @include('workshop.tickets.partials.selected-workshops')
+                @include('workshop.tickets.partials.selected-workshops', ['workshopPricing' => collect($summaryRows)->where('type', 'ticket')])
                 @error('equipment')<p class="mb-4 text-sm text-red-600">{{ $message }}</p>@enderror
                 @include('workshop.tickets.partials.summary', [
                     'workshop' => $workshop,
-                    'rows' => $summaryRows,
+                    'rows' => ($checkoutWorkshops ?? collect())->count() > 1 ? array_filter($summaryRows, fn ($row) => ($row['type'] ?? '') !== 'ticket') : $summaryRows,
+                    'alignAmounts' => true,
                     'showWorkshopDetails' => ($checkoutWorkshops ?? collect())->count() <= 1,
                     'totalActionLabel' => $voucherButtonLabel,
                     'totalActionAttributes' => [

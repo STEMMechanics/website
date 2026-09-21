@@ -67,16 +67,16 @@
             <tr>
                 <td colspan="2" class="pt-3">
                     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-3">
-                        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 font-semibold"><span>{{ $label }}</span><span class="whitespace-nowrap">{{ $row['value'] ?? '-' }}</span></div>
-                        <x-ui.button variant="plain" :type="$resolvedTotalActionAttributes->get('type', 'button')" :button-attributes="$resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'shrink-0 rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm hover:bg-gray-500 hover:text-white'])">{{ $resolvedTotalActionLabel }}</x-ui.button>
+                        <div class="flex w-full items-baseline justify-between gap-4 font-semibold"><span>{{ $label }}</span><span class="whitespace-nowrap">{{ $row['value'] ?? '-' }}</span></div>
+                        <x-ui.button variant="plain" :type="$resolvedTotalActionAttributes->get('type', 'button')" :button-attributes="$resolvedTotalActionAttributes->merge(['type' => 'button', 'class' => 'ml-auto shrink-0 rounded-md border border-gray-400 bg-white px-4 py-1 text-xs font-semibold leading-6 text-gray-800 shadow-sm hover:bg-gray-500 hover:text-white'])">{{ $resolvedTotalActionLabel }}</x-ui.button>
                     </div>
                 </td>
             </tr>
             @continue
         @endif
         <tr>
-            <th class="text-left pr-4">{{ $label }}</th>
-            <td class="{{ $valueClass }}">
+            <th class="text-left pr-4 {{ ($alignAmounts ?? false) ? 'py-2 align-top' : '' }}">{{ $label }}</th>
+            <td class="{{ $valueClass }} {{ ($alignAmounts ?? false) ? 'py-2 text-right align-top' : '' }}">
                 @if($valueHtml !== null)
                     {!! $valueHtml !!}
                 @else
