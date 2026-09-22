@@ -990,6 +990,8 @@
             </section>
         </form>
         @isset($invoice)
+            @if($isLocked) @include('admin.invoice.workshop-funding') @endif
+            @foreach($errors->get('workshop_funding*') as $messages) @foreach($messages as $message)<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@endforeach @endforeach
             <section class="mt-5 min-w-0">
                 @include('admin.invoice.allocation-panel')
             </section>

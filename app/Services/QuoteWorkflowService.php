@@ -137,6 +137,11 @@ class QuoteWorkflowService
 
     public function createInvoiceFromQuote(Quote $quote, bool $issueInvoice = false): Invoice
     {
+        return DB::transaction(fn () => $this->createLinkedInvoiceFromQuote($quote, $issueInvoice));
+    }
+
+    private function createLinkedInvoiceFromQuote(Quote $quote, bool $issueInvoice): Invoice
+    {
         $quote->refreshLifecycleStatus();
         $quote->loadMissing('user', 'privateFinanceFiles');
 
@@ -233,6 +238,7 @@ class QuoteWorkflowService
                 'line_total_inc_tax' => $amounts['gross'],
             ]);
         }
+        app(\App\Services\Finance\WorkshopFunding::class)->validateLinks($invoice);
 
         app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
 

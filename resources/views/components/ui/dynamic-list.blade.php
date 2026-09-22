@@ -5,6 +5,9 @@
         <x-ui.loading-indicator class="sm-list-spinner text-6xl" />
     </div>
     <div data-list-content tabindex="-1">
+        @isset($beforePresets)
+            {{ $beforePresets }}
+        @endisset
         @php($collectionPresets = $showPresets ? app(\App\Services\SiteListControls::class)->presets() : [])
         @if($collectionPresets)
             @isset($presetActions)

@@ -11,9 +11,9 @@
         <label x-show="item.kind === 'workshop'" class="w-24 text-sm">Hours
             <x-ui.input-control class="mt-1 h-11" type="number" min="0.01" max="24" step="0.01" x-model="item.workshop_hours" x-bind:required="item.kind === 'workshop' &amp;&amp; (!item.legacy_workshop || !!item.workshop_seats)" x-on:input="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />
         </label>
-        <label x-show="item.kind === 'workshop'" class="w-24 text-sm">Seats
-            <x-ui.input-control class="mt-1 h-11" type="number" min="1" max="10000" step="1" x-model="item.workshop_seats" x-bind:required="item.kind === 'workshop' &amp;&amp; (!item.legacy_workshop || !!item.workshop_hours)" x-on:input="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />
-        </label>
+        <div x-show="item.kind === 'workshop'" class="w-32 text-sm"><span class="mb-1 block">Seats</span>
+            <x-finance.workshop-seats-field />
+        </div>
         <label x-show="item.kind === 'travel'" class="w-40 text-sm">Travel hours
             <x-ui.input-control class="mt-1 h-11" type="number" min="0" max="2500" step="0.25" x-model="item.travel_hours" x-on:input="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />
         </label>

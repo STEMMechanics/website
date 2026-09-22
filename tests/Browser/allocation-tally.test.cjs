@@ -184,3 +184,49 @@ test('supplied choices and override mode count as changes even when the amounts 
     tally.refreshWorkshopDefaults();
     assert.equal(tally.allocationChanged, false);
 });
+
+test('invoice preview excludes linked workshop receipts and costs', () => {
+    const { tally, sm } = setup({ values: { 1: '0' }, enabled: false, total: 50000 });
+    const linked = { kind: 'workshop', details_json: { workshop: { linked_workshop_id: 'session' } } };
+    const travel = { kind: 'travel' };
+    sm.lineAmounts = item => ({ net: item === linked ? 400 : 100 });
+    sm.lineCostAllocations = items => { assert.deepEqual(Array.from(items), [travel]); return { 1: 10000 }; };
+    tally.previewInvoice({ total: 50000, items: [linked, travel] }, []);
+    assert.equal(tally.total, 10000);
+    assert.equal(tally.values[1], '100.00');
+});
+
+test('workshop seat previews update defaults including zero seats and preserve manual overrides', () => {
+    const { tally } = setup({ values: { 1: '20.00', 2: '30.00' }, enabled: false,
+        workshopId: 'one', workshopInputs: { participants: 10, hours: 2 },
+        workshopDefaults: { selected: {}, supplied: {}, notSupplied: {} },
+        workshopRules: [{ category_id: 1, basis: 'participant', rate_cents: 200 }, { category_id: 2, basis: 'hour', rate_cents: 1500 }] });
+    tally.previewWorkshop({ id: 'other', participants: 6, hours: 2 });
+    assert.equal(tally.values[1], '20.00');
+    tally.previewWorkshop({ id: 'one', participants: 6, hours: 2 });
+    assert.equal(tally.values[1], '12.00');
+    assert.equal(tally.values[2], '30.00');
+    assert.equal(tally.allocationChanged, true);
+    tally.previewWorkshop({ id: 'one', participants: 0, hours: 3 });
+    assert.equal(tally.values[1], '0.00');
+    assert.equal(tally.values[2], '45.00');
+    tally.enabled = true;
+    tally.values[1] = '99.00';
+    tally.previewWorkshop({ id: 'one', participants: 8, hours: 2 });
+    assert.equal(tally.values[1], '99.00');
+    tally.enabled = false;
+    tally.refreshWorkshopDefaults();
+    assert.equal(tally.values[1], '16.00');
+});
+
+test('linked funding preview follows single and grouped invoice amounts without counting manual rows', () => {
+    const { tally, sm } = setup({ workshopId: 'one', received: 0 });
+    sm.lineAmounts = item => ({ net: item.net });
+    tally.previewWorkshopFunding({ items: [{ kind: 'workshop', net: 160, details_json: { workshop: { linked_workshop_id: 'one' } } }] });
+    assert.equal(tally.total, 16000);
+    tally.previewWorkshopFunding({ items: [{ kind: 'multi_workshop', net: 300, workshops: [
+        { workshop_hours: 2, workshop_seats: 5, details_json: { workshop: { linked_workshop_id: 'one' } } },
+        { workshop_hours: 2, workshop_seats: 10 },
+    ] }] });
+    assert.equal(tally.total, 10000);
+});

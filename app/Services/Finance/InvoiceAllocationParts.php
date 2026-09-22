@@ -17,6 +17,9 @@ class InvoiceAllocationParts
 
     public function lineKey(InvoiceLine $line, Invoice $invoice): string
     {
+        if ($line->kind === 'workshop' && ! empty($line->details_json['workshop']['linked_workshop_id'])) {
+            return $this->key($line->details_json['workshop']['linked_workshop_id']);
+        }
         $tickets = $invoice->tickets->where('invoice_line_id', $line->id);
         $workshop = $line->details_json['workshop_id'] ?? ($tickets->pluck('workshop_id')->unique()->count() === 1 ? $tickets->first()->workshop_id : null);
         if ($line->kind === 'ticket' || $tickets->isNotEmpty()) {
@@ -28,14 +31,29 @@ class InvoiceAllocationParts
         return 'invoice';
     }
 
+    /** Split a grouped delivery by its billed seat-hours, preserving every cent. */
+    public function lineWeights(InvoiceLine $line, Invoice $invoice): array
+    {
+        $net = max(0, app(FinancePlanner::class)->cents($line->line_total_ex_tax));
+        if ($line->kind !== 'multi_workshop') return [$this->lineKey($line, $invoice) => $net];
+        $weights = [];
+        foreach ($line->details_json['multi_workshop']['rows'] ?? [] as $row) {
+            $id = $row['details_json']['workshop']['linked_workshop_id'] ?? null;
+            $key = $id ? $this->key($id) : 'invoice';
+            $weights[$key] = ($weights[$key] ?? 0) + (int) round((float) $row['workshop_hours'] * (int) $row['workshop_seats'] * 100);
+        }
+        if (! array_sum($weights)) return ['invoice' => $net];
+        ksort($weights);
+        return array_map(fn ($key) => $this->portion($net, $weights, $key), array_combine(array_keys($weights), array_keys($weights)));
+    }
+
     public function weights(Invoice $invoice): array
     {
         $invoice->loadMissing('lines', 'tickets');
         $planner = app(FinancePlanner::class);
         $weights = [];
         foreach ($invoice->lines as $line) {
-            $key = $this->lineKey($line, $invoice);
-            $weights[$key] = ($weights[$key] ?? 0) + max(0, $planner->cents($line->line_total_ex_tax));
+            foreach ($this->lineWeights($line, $invoice) as $key => $amount) $weights[$key] = ($weights[$key] ?? 0) + $amount;
         }
         // Historical ticket invoices may predate invoice lines.
         if (! array_sum($weights)) {
@@ -94,8 +112,10 @@ class InvoiceAllocationParts
                                 $adjusted = [];
                                 break 2;
                             }
-                            $key = $this->lineKey($line, $invoice);
-                            $adjusted[$key] = ($adjusted[$key] ?? 0) + abs($planner->cents($adjustmentLine->line_total_ex_tax));
+                            $lineWeights = $this->lineWeights($line, $invoice);
+                            foreach ($lineWeights as $key => $weight) {
+                                $adjusted[$key] = ($adjusted[$key] ?? 0) + $this->portion(abs($planner->cents($adjustmentLine->line_total_ex_tax)), $lineWeights, $key);
+                            }
                         }
                     }
                     if (array_sum($adjusted)) {

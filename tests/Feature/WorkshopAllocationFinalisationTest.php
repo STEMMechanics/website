@@ -164,7 +164,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $f = $this->fixture();
         $service = app(WorkshopAllocation::class);
         $this->assertSame('Ready for review', $service->state($f['workshop'])['status']);
-        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Received excluding GST')->assertSee('Finalise allocation')->assertDontSee('name="outcomes_reviewed"', false);
+        $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()->assertSee('Received (ex GST)')->assertSee('Finalise allocation')->assertDontSee('name="outcomes_reviewed"', false);
         $this->get(route('admin.invoice.allocation.edit', $f['invoice']))->assertOk()->assertSee('Ticket allocation managed by workshop')->assertDontSee('Save allocation');
         $this->postJson(route('admin.invoice.allocation.store', $f['invoice']), ['targets' => [1 => 100]])->assertUnprocessable();
         $this->assertSame(0, app(FinanceAttention::class)->counts()['unallocated_invoices']);
@@ -207,7 +207,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $f['workshop']->update(['ends_at' => now()->addDay()]);
         $this->get(route('admin.workshop.allocation.edit', $f['workshop']))->assertOk()
             ->assertSee('Finalise allocation')->assertSee('Override defaults')
-            ->assertSee('Finalise after the workshop ends and payment outcomes are completed.')
+            ->assertSee('Finalise after the workshop ends.')
             ->assertSee('x-bind:disabled="true"', false)
             ->assertDontSee('Supplied items can be changed after');
         $this->postJson(route('admin.workshop.allocation.store', $f['workshop']), ['source_hash' => $hash])->assertUnprocessable();

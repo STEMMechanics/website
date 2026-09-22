@@ -164,14 +164,16 @@ class InvoiceController extends Controller
         }
 
         DB::transaction(function () use ($invoice, $lineItems, $request): void {
+            $this->prepareWorkshopAllocations($request, $invoice);
             if ($invoice->exists) {
                 $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
                 $invoice->inventory_reservations = $locked->inventory_reservations;
             }
             $invoice->save();
-            $this->replaceInvoiceLines($invoice, $lineItems);
+            $fundingChanged = $this->replaceInvoiceLines($invoice, $lineItems);
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
-            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+            $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
+            $this->saveWorkshopAllocations($request, $invoice);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -216,8 +218,32 @@ class InvoiceController extends Controller
         return redirect()->to(route('admin.invoice.edit', $invoice).'#tax-adjustments');
     }
 
-    private function saveInvoiceAllocation(Request $request, Invoice $invoice): void
+    private function prepareWorkshopAllocations(Request $request, Invoice $invoice): void
     {
+        if (! $request->has('workshop_allocations')) return;
+        $request->validate(['workshop_allocations' => 'array']);
+        $request->attributes->set('validated_workshop_allocations', app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->prepare($invoice, $request->input('workshop_allocations')));
+    }
+
+    private function saveWorkshopAllocations(Request $request, Invoice $invoice): void
+    {
+        if (! $request->has('workshop_allocations')) return;
+        $request->validate(['workshop_allocations' => 'array']);
+        app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->save($invoice->fresh(), $request->input('workshop_allocations'), $request->user()->id, $request->attributes->get('validated_workshop_allocations', []));
+    }
+
+    private function saveInvoiceAllocation(Request $request, Invoice $invoice, bool $fundingChanged = false): void
+    {
+        $funding = app(\App\Services\Finance\WorkshopFunding::class);
+        if (! $invoice->canEditContents() && $request->has('workshop_funding')) {
+            $request->validate(['workshop_funding' => 'array', 'workshop_funding.*' => 'array:linked_workshop_id,allocation_basis,allocation_seats,rows', 'workshop_funding.*.rows' => 'array', 'workshop_funding.*.rows.*' => 'array:linked_workshop_id,allocation_basis,allocation_seats']);
+            $fundingChanged = $funding->saveLinks($invoice, $request->input('workshop_funding')) || $fundingChanged;
+        }
+        $funding->validateLinks($invoice);
+        if ($fundingChanged) {
+            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice->fresh(), $request->user()->id, true);
+            return;
+        }
         if ($request->has('allocation')) {
             $request->validate(['allocation' => 'array']);
             try {
@@ -254,11 +280,13 @@ class InvoiceController extends Controller
 
         if (! $invoice->canEditContents()) {
             DB::transaction(function () use ($invoice, $validated, $request): void {
+                $this->prepareWorkshopAllocations($request, $invoice);
                 $invoice->purchase_order_number = $validated['purchase_order_number'] ?? null;
                 $invoice->notes = $validated['notes'] ?? null;
                 $invoice->quote_id = $validated['quote_id'] ?? null;
                 $invoice->save();
                 $this->saveInvoiceAllocation($request, $invoice);
+                $this->saveWorkshopAllocations($request, $invoice);
             });
             $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
             if ($request->has('private_files')) {
@@ -304,14 +332,16 @@ class InvoiceController extends Controller
         }
 
         DB::transaction(function () use ($invoice, $lineItems, $request): void {
+            $this->prepareWorkshopAllocations($request, $invoice);
             if ($invoice->exists) {
                 $locked = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
                 $invoice->inventory_reservations = $locked->inventory_reservations;
             }
             $invoice->save();
-            $this->replaceInvoiceLines($invoice, $lineItems);
+            $fundingChanged = $this->replaceInvoiceLines($invoice, $lineItems);
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
-            $this->saveInvoiceAllocation($request, $invoice);
+            $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
+            $this->saveWorkshopAllocations($request, $invoice);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -2411,7 +2441,7 @@ class InvoiceController extends Controller
         }
     }
 
-    private function replaceInvoiceLines(Invoice $invoice, array $lineItems): void
+    private function replaceInvoiceLines(Invoice $invoice, array $lineItems): bool
     {
         $previous = $invoice->lines()->get();
         $invoice->lines()->delete();
@@ -2441,6 +2471,8 @@ class InvoiceController extends Controller
             }
             $invoice->lines()->save($line);
         }
+        $signature = fn ($lines) => $lines->flatMap(fn ($line) => app(\App\Services\Finance\WorkshopFunding::class)->entries($line))->pluck('details_json.workshop.linked_workshop_id')->values()->all();
+        return $signature($previous) !== $signature($invoice->lines()->get());
     }
 
     private function normalizeLineItem(array $item, ?array $saved = null): ?array
