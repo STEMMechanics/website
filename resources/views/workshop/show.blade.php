@@ -114,7 +114,7 @@
                     </div>
                 @endif
                 <article class="content my-4">{!! $workshopContent !!}</article>
-                <x-ui.filelist class="mt-16" value="{!! $workshop->files()->where('visibility', 'public')->orderBy('name')->get() !!}" no-tags />
+                <x-ui.filelist class="mt-16" :value="$workshop->files()->where('visibility', 'public')->orderBy('name')->get()->each->append('url')" no-tags />
             </div>
             <div class="flex flex-col sm:pt-8 basis-64 grow-0 shrink-0">
                 @if($workshop->status === 'closed')
