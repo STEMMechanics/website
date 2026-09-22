@@ -67,8 +67,11 @@ test('inspection marker remains for saved plans exceeding funding and follows li
     assert.equal(workspace.needsInspection('workshop'), true);
     assert.equal(workspace.inspectionReason('workshop'), 'Needs inspection: allocation exceeds funding');
     workspace.updatePlan({key: 'workshop', values: {1: '90.00'}, funding: 10000, inspect: false});
+    assert.equal(workspace.needsInspection('workshop'), true);
+    assert.equal(workspace.inspectionReason('workshop'), 'Needs inspection: funding remains unallocated');
+    workspace.updatePlan({key: 'workshop', values: {1: '100.00'}, funding: 10000, inspect: false});
     assert.equal(workspace.needsInspection('workshop'), false);
-    workspace.updatePlan({key: 'workshop', values: {1: '90.00'}, funding: 10000, inspect: true});
+    workspace.updatePlan({key: 'workshop', values: {1: '100.00'}, funding: 10000, inspect: true});
     assert.equal(workspace.needsInspection('workshop'), true);
 });
 
@@ -89,4 +92,13 @@ test('balanced workshop edits clear the issue marker before saving', () => {
     assert.equal(workspace.needsInspection('workshop'), true);
     workspace.updatePlan({key: 'workshop', values: {1: '69.18', 2: '15.00', 3: '28.00', 4: '6.00'}, funding: 11818, inspect: false});
     assert.equal(workspace.needsInspection('workshop'), false);
+});
+
+test('invoice items with an unallocated cent need inspection until balanced', () => {
+    const workspace = setup().workspace({plans: {invoice: {}}, income: 10000});
+    workspace.updatePlan({key: 'invoice', values: {1: '99.99'}, funding: 10000});
+    assert.equal(workspace.needsInspection('invoice'), true);
+    assert.equal(workspace.inspectionReason('invoice'), 'Needs inspection: funding remains unallocated');
+    workspace.updatePlan({key: 'invoice', values: {1: '99.99', 2: '0.01'}, funding: 10000});
+    assert.equal(workspace.needsInspection('invoice'), false);
 });

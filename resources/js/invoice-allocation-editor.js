@@ -56,8 +56,14 @@ window.SM.invoiceAllocationWorkspace = config => ({
         if (detail.inspect !== undefined) this.inspection[detail.key] = detail.inspect;
         if (detail.funding !== undefined) this.funding[detail.key] = detail.funding;
     },
-    needsInspection(key) { return !!this.inspection[key] || (this.funding[key] !== undefined && this.planTotal(key) > this.funding[key]); },
-    inspectionReason(key) { return this.funding[key] !== undefined && this.planTotal(key) > this.funding[key] ? 'Needs inspection: allocation exceeds funding' : 'Needs inspection'; },
+    needsInspection(key) { return !!this.inspection[key] || (this.funding[key] !== undefined && this.planTotal(key) !== this.funding[key]); },
+    inspectionReason(key) {
+        if (this.funding[key] !== undefined) {
+            if (this.planTotal(key) > this.funding[key]) return 'Needs inspection: allocation exceeds funding';
+            if (this.planTotal(key) < this.funding[key]) return 'Needs inspection: funding remains unallocated';
+        }
+        return 'Needs inspection';
+    },
     categoryAmount(key, id) { return Math.round(Number(this.plans[key]?.[id] || 0) * 100); },
     categoryTotal(id) { return Object.keys(this.plans).reduce((sum, key) => sum + this.categoryAmount(key, id), 0); },
     planTotal(key) { return Object.values(this.plans[key] || {}).reduce((sum, value) => sum + Math.round(Number(value || 0) * 100), 0); },

@@ -151,7 +151,7 @@ class WorkshopFundingTest extends TestCase
         $state = $service->state($workshop);
         $this->assertTrue($state['ready']);
         $this->assertSame(0, $state['pending']);
-        $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('Needs inspection')->assertSee('data-allocation-ready="1"', false);
+        $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee("inspectionReason('invoice')", false)->assertSee('data-allocation-ready="1"', false);
         $lines[0]['workshop_seats'] = 8;
         $this->put(route('admin.invoice.update', $invoice), [
             'invoice_number' => $invoice->invoice_number, 'issue_date' => today()->toDateString(),

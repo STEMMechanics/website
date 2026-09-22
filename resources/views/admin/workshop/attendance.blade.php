@@ -128,12 +128,6 @@
             </x-slot:right>
         </x-ui.toolbar>
 
-        <div class="mb-6">
-            <x-ui.filelist
-                label="Workshop Files"
-                value="{!! $workshop->files()->orderBy('name')->get() !!}" />
-        </div>
-
         <x-ui.dynamic-list name="admin-workshop-attendance">
         @if($isTicketedWorkshop)
             <div
