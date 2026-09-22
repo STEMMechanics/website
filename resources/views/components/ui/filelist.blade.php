@@ -93,12 +93,12 @@
                             mime_type: typeof data.mime_type === 'string' ? data.mime_type : '',
                             size: Number.isFinite(Number(data.size)) ? Number(data.size) : 0,
                             status: '',
-                            url: '/media/' + encodeURIComponent(name),
+                            url: '/media/download/' + encodeURIComponent(name),
                             thumbnail: '/thumbnails/unknown.webp',
                             file_type: 'File',
                             is_private: false,
                             password: null,
-                            download_url: '/media/' + encodeURIComponent(name) + '?download=1',
+                            download_url: '/media/download/' + encodeURIComponent(name) + '?download=1',
                             can_delete: false,
                             delete_url: null,
                         };
@@ -259,7 +259,7 @@
 
         const url = typeof value.url === 'string' && value.url.trim() !== ''
             ? value.url
-            : '/media/' + encodeURIComponent(value.name.trim());
+            : '/media/download/' + encodeURIComponent(value.name.trim());
         const hashIndex = url.indexOf('#');
         const path = hashIndex < 0 ? url : url.slice(0, hashIndex);
         const fragment = hashIndex < 0 ? '' : url.slice(hashIndex);
@@ -285,14 +285,14 @@
             mime_type: '',
             size: 0,
             status: '',
-            url: '/media/' + encodeURIComponent(trimmedName),
+            url: '/media/download/' + encodeURIComponent(trimmedName),
             thumbnail: '/thumbnails/unknown.webp',
             file_type: 'File',
             visibility: 'private',
             storage_disk: null,
             is_private: false,
             password: null,
-            download_url: '/media/' + encodeURIComponent(trimmedName) + '?download=1',
+            download_url: '/media/download/' + encodeURIComponent(trimmedName) + '?download=1',
             can_delete: false,
             delete_url: null,
             edit_url: null,

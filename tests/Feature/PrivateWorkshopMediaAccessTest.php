@@ -102,6 +102,29 @@ class PrivateWorkshopMediaAccessTest extends TestCase
         ]);
     }
 
+    public function test_public_workshop_archive_file_uses_the_download_route(): void
+    {
+        [, $workshop, $owner] = $this->createPrivateWorkshopMedia();
+        Storage::fake('archive');
+        config(['media.use_x_sendfile' => false, 'media.use_x_accel' => false]);
+        $media = Media::create([
+            'name' => 'bcf.mp4', 'title' => 'Life in Australia',
+            'hash' => str_repeat('d', 64), 'mime_type' => 'video/mp4',
+            'size' => 13, 'user_id' => $owner->id, 'visibility' => 'public', 'storage_disk' => 'archive',
+        ]);
+        Storage::disk('archive')->put($media->hash, 'archive-video');
+        $workshop->files()->attach($media->name);
+        $response = $this->get(route('workshop.show', $workshop))->assertOk();
+        preg_match("/const initialValue = JSON.parse\\('([^']*)'\\);/", $response->getContent(), $match);
+        $this->assertNotEmpty($match);
+        $files = json_decode(json_decode('"'.$match[1].'"'), true);
+        $this->assertSame($media->name, $files[0]['name']);
+        $this->assertSame(route('media.download', $media), $files[0]['url']);
+        $this->get($files[0]['url'])->assertOk();
+        $download = $this->get($files[0]['url'].'?download=1')->assertOk();
+        $this->assertStringContainsString('attachment;', $download->headers->get('Content-Disposition'));
+    }
+
     /**
      * @return array{0: Media, 1: Workshop, 2: User}
      */
