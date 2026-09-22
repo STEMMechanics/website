@@ -28,9 +28,9 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
     if (item.kind === 'travel') applyPlanPrice(item, plan, inclusive);
     if (item.kind !== 'workshop') return;
     const hours = Number(item.workshop_hours), seats = Number(item.workshop_seats);
-    if (hours > 0 && seats > 0) {
+    if (hours > 0 && seats >= 0 && item.workshop_seats !== '' && item.workshop_seats != null) {
         item.quantity = Math.round(hours * seats * 100) / 100;
-        item.details_json = { ...(item.details_json || {}), workshop: { hours, seats, date: item.workshop_date || item.details_json?.workshop?.date || null, venue_supplied: !!item.venue_supplied, supplied_categories: { ...(item.supplied_categories || {}) } } };
+        item.details_json = { ...(item.details_json || {}), workshop: { ...(item.details_json?.workshop || {}), hours, seats, date: item.workshop_date || item.details_json?.workshop?.date || null, venue_supplied: !!item.venue_supplied, supplied_categories: { ...(item.supplied_categories || {}) } } };
         syncWorkshopNotes(item);
         applyPlanPrice(item, plan, inclusive);
     }
@@ -263,3 +263,69 @@ window.SM.documentAmounts = (items, original = null) => {
 };
 
 window.SM.formatUnitPrice = formatUnitPrice;
+
+
+window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
+    item, catalog, billingLocked, query: '', open: false, menuOpen: false, selected: 0, menuTop: 0, menuLeft: 0, menuWidth: 320,
+    init() {
+        this.item.details_json ??= {};
+        this.item.details_json.workshop ??= {};
+        this.item.details_json.workshop.allocation_basis ??= 'manual';
+        this.item.details_json.workshop.allocation_seats ??= this.item.workshop_seats ?? this.item.details_json.workshop.seats ?? null;
+    },
+    get linkedWorkshop() { return this.catalog.find(option => option.id === this.item.details_json.workshop.linked_workshop_id); },
+    get seatValue() {
+        if (!this.billingLocked) return this.item.workshop_seats;
+        const basis = this.item.details_json.workshop.allocation_basis;
+        if (this.linkedWorkshop && basis === 'capacity') return Number(this.linkedWorkshop.capacity || 0);
+        if (this.linkedWorkshop && basis === 'tickets') return Number(this.linkedWorkshop.tickets || 0);
+        return this.item.details_json.workshop.allocation_seats;
+    },
+    set seatValue(value) {
+        if (!this.billingLocked) this.item.workshop_seats = value;
+        this.item.details_json.workshop.allocation_seats = value;
+        this.item.details_json.workshop.allocation_basis = 'manual';
+    },
+    get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets' }[this.item.details_json.workshop.allocation_basis]; },
+    get matches() {
+        const query = this.query.trim().toLowerCase();
+        const description = String(this.item.description || '').toLowerCase();
+        const date = this.item.workshop_date || this.item.details_json.workshop.date;
+        const score = option => (date && option.date === date ? 4 : 0) + (option.title && description.includes(option.title.toLowerCase()) ? 3 : 0);
+        return this.catalog.filter(option => !query || option.label.toLowerCase().includes(query)).sort((a, b) => score(b) - score(a)).slice(0, 12);
+    },
+    position(element, width = 320) {
+        const rect = element.getBoundingClientRect();
+        this.menuWidth = Math.min(width, window.innerWidth - 16);
+        this.menuTop = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 320));
+        this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
+    },
+    editDescription(element) {
+        if (this.item.details_json.workshop.linked_workshop_id) return;
+        this.query = this.item.description || '';
+        this.selected = 0;
+        this.position(element, Math.max(320, element.offsetWidth));
+        this.open = !!this.query.trim();
+    },
+    browse(element) { this.position(element); this.query = ''; this.selected = 0; this.open = !this.open; },
+    move(step) { this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step)); },
+    setSeats(basis) {
+        const option = this.linkedWorkshop;
+        if (basis !== 'manual' && !option) return;
+        const value = basis === 'capacity' ? Number(option.capacity || 0) : basis === 'tickets' ? Number(option.tickets || 0) : this.seatValue;
+        this.seatValue = value;
+        this.item.details_json.workshop.allocation_basis = basis;
+        this.menuOpen = false;
+    },
+    choose(option) {
+        this.item.details_json.workshop.linked_workshop_id = option?.id || null;
+        if (option && !this.billingLocked) {
+            this.item.description = option.title || option.label;
+            if (option.hours > 0) this.item.workshop_hours = option.hours;
+            this.item.workshop_date = option.date || '';
+        }
+        if (option && this.item.details_json.workshop.allocation_basis !== 'manual') this.setSeats(this.item.details_json.workshop.allocation_basis);
+        else if (!option) this.setSeats('manual');
+        this.open = false;
+    },
+});

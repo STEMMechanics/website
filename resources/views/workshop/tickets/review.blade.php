@@ -13,9 +13,10 @@
                     <h3 class="mb-3 text-lg font-semibold">Who’s coming?</h3>
                     <template x-for="(person, index) in participants" :key="index">
                         <div class="mb-3 rounded-lg border border-gray-200 p-3">
-                            <div class="flex items-center justify-between gap-2"><h4 class="font-semibold" x-text="'Participant ' + (index + 1)"></h4><x-ui.row-action icon="fa-trash" label="Remove participant" x-show="participants.length > 1" x-on:click="participants.splice(index, 1)" /></div>
+                            <div class="flex items-start justify-between gap-2 h-11"><h4 class="font-semibold" x-text="'Participant ' + (index + 1)"></h4><x-ui.row-action icon="fa-trash" label="Remove participant" x-show="participants.length > 1" x-on:click="participants.splice(index, 1)" /></div>
                             <label class="mb-3 block text-sm font-medium">First name<x-ui.input-control x-bind:name="`participants[${index}][firstname]`" x-model="person.firstname" autocomplete="off" required /></label>
                             <label class="mb-3 block text-sm font-medium">Surname<x-ui.input-control x-bind:name="`participants[${index}][surname]`" x-model="person.surname" autocomplete="off" required /></label>
+                            <x-ui.participant-age x-bind:name="`participants[${index}][age]`" x-model="person.age" />
                         </div>
                     </template>
                     <x-ui.button type="button" color="secondary" x-on:click="addParticipant()" x-bind:disabled="participants.length >= 10">Add another participant</x-ui.button>
@@ -47,7 +48,7 @@
                     <div class="flex justify-end"><x-ui.button type="submit" x-bind:disabled="hasOverCapacitySelection" x-text="total > 0 ? 'Continue to payment' : 'Confirm booking'">Continue</x-ui.button></div>
                 </form>
             </div>
-            <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>

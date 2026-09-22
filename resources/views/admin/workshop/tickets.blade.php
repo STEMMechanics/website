@@ -16,7 +16,13 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets
+        <x-slot:actions>
+            <x-ui.button type="button" color="mast" class="gap-2" x-data x-on:click.prevent="$dispatch('open-create-workshop-ticket')">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
+            </x-ui.button>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container>
         <x-ui.dynamic-list name="admin-workshop-tickets">
@@ -52,6 +58,7 @@
                 bulkEmailOpen: @js($bulkEmailModalOpen),
                 smsOpen: @js($smsModalOpen),
             }"
+            x-on:open-create-workshop-ticket.window="createTicketOpen = true"
             data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
             x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -87,17 +94,10 @@
 
         <div class="my-4 flex flex-wrap items-center justify-between gap-3" data-ticket-toolbar>
             <div class="flex flex-wrap items-center gap-2">
-                <x-ui.button type="button" class="gap-2" x-on:click.prevent="createTicketOpen = true">
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
-                </x-ui.button>
-                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">
-                    <i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet
-                </x-ui.button>
-                <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.attendance', $workshop) }}">
-                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Check in
-                </x-ui.button>
                 <x-ui.action-menu id="workshop-ticket-tools" title="Ticket tools">
-                    <x-ui.row-action label="Attendance export (PDF)" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
+                    <x-ui.row-action label="Print sign-in sheet" icon="fa-solid fa-print" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank" />
+                    <x-ui.row-action label="Check in" icon="fa-solid fa-clipboard-check" href="{{ route('admin.workshop.attendance', $workshop) }}" />
+                    <x-ui.row-action label="Attendance report" icon="fa-regular fa-file-pdf" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}" target="_blank" />
                     <x-ui.row-action label="Email ticket contacts" icon="fa-regular fa-envelope" type="button" x-on:click.prevent="bulkEmailOpen = true" />
                     <x-ui.row-action label="Text ticket contacts" icon="fa-solid fa-comment-sms" type="button" x-on:click.prevent="smsOpen = true" :title="$smsButtonTitle" :disabled="! $smsButtonEnabled" />
                 </x-ui.action-menu>
@@ -285,12 +285,12 @@
                             @if($canOpenTicketPdf)
                             <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
                             @else
-                            <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
+                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" disabled title="Ticket PDF unavailable for this status" />
                             @endif
                             @if($ticket->invoice_id)
                             <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
                             @else
-                            <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" disabled title="No linked invoice" />
                             @endif
                             @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
@@ -306,7 +306,7 @@
                                                 }
                                             )" />
                             @else
-                            <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
+                            <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral" disabled title="Ticket is not editable" />
                             @endif
 
                             @if($canCancel)
@@ -321,7 +321,7 @@
                                     {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
                                 )" />
                             @else
-                            <span class="text-gray-300" title="Ticket is not cancellable"><i class="fa-solid fa-ban"></i></span>
+                            <x-ui.row-action label="Cancel ticket" icon="fa-solid fa-ban" tone="neutral" disabled title="Ticket is not cancellable" />
                             @endif
                         </x-ui.row-actions>
                     </td>
@@ -424,19 +424,19 @@
                         <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in the customer email.</p>
                     </div>
 
-                    <label class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                        <div class="flex gap-3">
-                            <x-ui.checkbox bare small x-model="$store.ticketCancelModal.emailCustomer" class="mt-1" />
+                    <div class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <label class="flex items-center gap-3">
+                            <x-ui.checkbox bare small x-model="$store.ticketCancelModal.emailCustomer" />
                             <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
-                        </div>
+                        </label>
 
                         <template x-if="$store.ticketCancelModal.showSquareRefund">
-                            <label class="flex gap-3">
-                                <x-ui.checkbox bare small x-model="$store.ticketCancelModal.processSquareRefund" class="mt-1" />
+                            <label class="flex items-center gap-3">
+                                <x-ui.checkbox bare small x-model="$store.ticketCancelModal.processSquareRefund" />
                                 <span class="block text-sm font-semibold text-gray-900">Process Square refund</span>
                             </label>
                         </template>
-                    </label>
+                    </div>
 
                     <div class="flex justify-end gap-3 pt-2">
                         <x-ui.button type="button" color="primary-outline" x-on:click="SM.closeTicketCancelModal()">Keep Ticket</x-ui.button>

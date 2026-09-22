@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 class InvoiceAllocationFilters
 {
+    /** @param Builder<\App\Models\Invoice> $query */
     public function apply(Builder $query, array $data): void
     {
         if (! empty($data['customer'])) {
@@ -54,6 +55,13 @@ class InvoiceAllocationFilters
             $budgets = DB::table('finance_budgets')->whereNull('workshop_id')->select('id');
             if (($data['allocation_state'] ?? '') === 'not_allocated') {
                 $query->where(fn ($part) => $part->whereDoesntHave('tickets')->orWhereHas('lines', fn ($lines) => $lines->where('kind', '!=', 'ticket')->where('line_total_ex_tax', '>', 0)));
+                // Linked workshop plans are reviewed through workshop attention, not a second invoice plan.
+                $workshopOnly = (clone $query)->whereHas('lines', fn ($lines) => $lines->whereIn('kind', ['workshop', 'multi_workshop']))
+                    ->with(['lines', 'tickets'])->get()->filter(fn ($invoice) =>
+                        $invoice->lines->contains(fn ($line) => app(WorkshopFunding::class)->entries($line)->isNotEmpty())
+                        && app(InvoiceAllocationParts::class)->total($invoice) === 0
+                    )->modelKeys();
+                $query->whereNotIn('invoices.id', $workshopOnly);
             }
             if (($data['allocation_state'] ?? '') === 'manual') {
                 $budgets->where('manual', true);

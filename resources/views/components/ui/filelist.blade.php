@@ -257,6 +257,18 @@
             return null;
         }
 
+        const url = typeof value.url === 'string' && value.url.trim() !== ''
+            ? value.url
+            : '/media/' + encodeURIComponent(value.name.trim());
+        const hashIndex = url.indexOf('#');
+        const path = hashIndex < 0 ? url : url.slice(0, hashIndex);
+        const fragment = hashIndex < 0 ? '' : url.slice(hashIndex);
+
+        // Keep the stored object so editor title/description bindings still persist.
+        if (value.url !== url) value.url = url;
+        if (typeof value.download_url !== 'string' || value.download_url.trim() === '') {
+            value.download_url = path + (path.includes('?') ? '&' : '?') + 'download=1' + fragment;
+        }
         return value;
     }
 

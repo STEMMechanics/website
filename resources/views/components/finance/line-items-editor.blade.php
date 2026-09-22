@@ -14,7 +14,7 @@
     <x-ui.table variant="listing" table-class="min-w-[44rem] w-full">
         <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
         <template x-for="(item, index) in lineItems" :key="index">
-            <tbody x-data="{ expanded: item.kind === 'product' }" class="[&>tr>td]:bg-white!">
+            <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; item.kind === 'workshop') }" class="[&>tr>td]:bg-white!">
                 <tr>
                     <td class="min-w-64">
                         <div class="flex items-center gap-2">
@@ -33,7 +33,8 @@
                 <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
                     <div class="ml-10">
                     <x-finance.product-line-fields />
-                    <div class="mb-3"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
+                    <div class="mb-3" x-show="item.kind !== 'workshop'"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
+                    <div class="mb-3" x-show="item.kind === 'workshop'"><label class="mb-1 block text-sm">Workshop</label><x-finance.workshop-funding-fields /></div>
                     <x-finance.workshop-line-fields :inclusive="true" />
                     <div x-show="item.kind === 'workshop'" class="mt-3 max-w-xs"><x-ui.input label="Workshop date" type="date" x-model="item.workshop_date" x-on:change="serializeLineItems()" /></div>
                     <div class="flex items-center justify-between mt-4">

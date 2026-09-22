@@ -713,6 +713,7 @@ class TicketController extends Controller
         $validated = $request->validate([
             'firstname' => ['required', 'string', 'max:120'],
             'surname' => ['required', 'string', 'max:120'],
+            'age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:60'],
         ]);

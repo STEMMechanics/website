@@ -620,6 +620,23 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertFalse(Workshop::where('title', $payload['title'])->sole()->allow_pay_at_door);
     }
 
+    public function test_clearing_a_ticket_price_saves_a_free_workshop(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = Ticket::factory()->create()->workshop;
+        $workshop->update(['registration' => 'tickets', 'price' => '25.00', 'price_is_automatic' => true, 'max_tickets' => 20]);
+        $payload = $this->workshopUpdatePayload($workshop, $workshop->location, $workshop->hero_media_name, [
+            'registration' => 'tickets', 'price' => '', 'price_is_automatic' => 0, 'max_tickets' => 20,
+        ]);
+        $this->actingAs($admin)->put(route('admin.workshop.update', $workshop), $payload)
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $workshop->refresh();
+        $this->assertNull($workshop->price);
+        $this->assertFalse($workshop->price_is_automatic);
+        $this->assertSame(0.0, $workshop->baseTicketPriceAmount());
+        $this->get(route('admin.workshop.edit', $workshop))->assertOk()->assertSeeText('Leave blank for free tickets.');
+    }
+
     private function workshopUpdatePayload(Workshop $workshop, Location $location, string $heroName, array $overrides = []): array
     {
         return array_merge([

@@ -156,7 +156,7 @@
                     <x-ui.button href="{{ route('workshop.show', $workshop) }}">Back to Workshop</x-ui.button>
                 </div>
             </div>
-            <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
         @include('workshop.partials.recommendations', [
             'workshops' => $recommendedWorkshops,

@@ -177,7 +177,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->assertStringContainsString('Taylor Example', $content);
         $this->assertStringContainsString('Jordan Example', $content);
         $csvRows = array_map(fn (string $line): array => str_getcsv($line, escape: ''), explode("\n", trim($content)));
-        $this->assertSame('0400 999 888', $csvRows[1][4]);
+        $this->assertSame('0400 999 888', $csvRows[1][5]);
     }
 
     public function test_ticket_attendance_exports_use_booking_guardian_names_when_available(): void
@@ -187,12 +187,14 @@ class WorkshopAttendanceKioskTest extends TestCase
         $guardian = User::factory()->create(['firstname' => 'Account', 'surname' => 'Guardian']);
         $invoice = Invoice::factory()->create(['user_id' => $guardian->id, 'billing_name' => 'Booking Guardian']);
         foreach ([['Anna', $invoice->id, $guardian->id], ['Ben', null, $guardian->id], ['Chris', null, null]] as [$firstname, $invoiceId, $userId]) {
-            Ticket::factory()->create(['workshop_id' => $workshop->id, 'user_id' => $userId, 'invoice_id' => $invoiceId, 'firstname' => $firstname, 'surname' => 'Child']);
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'user_id' => $userId, 'invoice_id' => $invoiceId, 'firstname' => $firstname, 'surname' => 'Child', 'age' => $firstname === 'Anna' ? 8 : null]);
         }
         $csv = $this->actingAs($admin)->get(route('admin.workshop.attendance.csv', $workshop))->assertOk()->streamedContent();
         $rows = array_map(fn ($line) => str_getcsv($line, escape: ''), explode("\n", trim($csv)));
-        $this->assertSame('Parent/Guardian Name', $rows[0][2]);
-        $this->assertSame(['Booking Guardian', 'Account Guardian', ''], array_column(array_slice($rows, 1), 2));
+        $this->assertSame('Age', $rows[0][2]);
+        $this->assertSame(['8', '', ''], array_column(array_slice($rows, 1), 2));
+        $this->assertSame('Parent/Guardian Name', $rows[0][3]);
+        $this->assertSame(['Booking Guardian', 'Account Guardian', ''], array_column(array_slice($rows, 1), 3));
     }
 
     public function test_ticketed_attendance_page_renders_payment_controls(): void

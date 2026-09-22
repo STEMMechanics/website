@@ -50,8 +50,8 @@ class InvoiceAllocation
             ? DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first()
             : DB::table('finance_budgets')->whereNull('workshop_id')->whereIn('id', DB::table('finance_budget_invoices')->where('invoice_id', $invoice->id)->select('budget_id'))->first();
         $workshopId = $workshop?->id;
-        $ids = $workshop ? Ticket::where('workshop_id', $workshop->id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all() : [$invoice->id];
-        $warning = ! $workshop && $parts->total($invoice) <= 0 && $invoice->tickets()->exists() ? 'Allocation managed by workshop.' : null;
+        $ids = $workshop ? app(WorkshopFunding::class)->invoiceIds($workshop->id) : [$invoice->id];
+        $warning = ! $workshop && $parts->total($invoice) <= 0 && ($invoice->tickets()->exists() || $invoice->lines->contains(fn ($line) => app(WorkshopFunding::class)->entries($line)->isNotEmpty())) ? 'Allocation managed by workshop.' : null;
         $date = $invoice->issue_date?->toDateString() ?? today()->toDateString();
         if ($workshop) {
             $date = $workshop->starts_at->toDateString();
@@ -67,10 +67,15 @@ class InvoiceAllocation
         if ($workshop) {
             $assumptions['pricing_participants'] ??= min($workshop->max_tickets ?: PHP_INT_MAX, (int) ($planner->decode($version->prices)['pricing_participants'] ?? 10));
             $assumptions = array_merge($assumptions, ['participants' => Ticket::where('workshop_id', $workshopId)->whereIn('status', Ticket::activePurchasedStatuses())->count(), 'hours' => $workshop->teachingHours(), 'venue_supplied' => (bool) ($assumptions['venue_supplied'] ?? false)]);
+            $savedSupplied = $budget ? ($assumptions['supplied_categories'] ?? null) : null;
+            $assumptions = array_replace($assumptions, app(WorkshopFunding::class)->assumptions($workshop));
+            if ($savedSupplied !== null) $assumptions['supplied_categories'] = $savedSupplied;
+            if ($supplied !== null) $assumptions['supplied_categories'] = $supplied;
             $suggestedTargets = $planner->targets($rules, $assumptions);
         } else {
             $assumptions = ['source' => 'invoice_lines', 'lines' => []];
             foreach (WorkshopLine::allocationLines($invoice->lines()->get()->filter(fn ($line) => $parts->lineKey($line, $invoice->loadMissing('tickets')) === 'invoice')->toArray()) as $lineData) {
+                if (! empty($lineData['details_json']['workshop']['linked_workshop_id'])) continue;
                 $line = (object) $lineData;
                 if ($line->kind === 'workshop') {
                     $details = $line->details_json['workshop'] ?? null;
@@ -144,7 +149,7 @@ class InvoiceAllocation
             if (! $userId) {
                 return;
             }
-            if ($context['warning'] || $context['automaticWarning'] || (! $context['suggestedTargets'] && ! $budget) || ($budget && $budget->manual && ! $force)) {
+            if (($context['warning'] && ! $budget) || $context['automaticWarning'] || (! $context['suggestedTargets'] && ! $budget) || ($budget && $budget->manual && ! $force)) {
                 return;
             }
             $planner = app(FinancePlanner::class);

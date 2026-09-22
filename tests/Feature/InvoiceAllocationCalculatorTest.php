@@ -51,7 +51,7 @@ class InvoiceAllocationCalculatorTest extends TestCase
         $line = InvoiceLine::factory()->create(['invoice_id' => $invoice->id, 'kind' => 'ticket', 'line_total_ex_tax' => 100, 'tax_amount' => 10, 'line_total_inc_tax' => 110, 'details_json' => ['workshop_id' => $ticket->workshop_id]]);
         $ticket->update(['invoice_line_id' => $line->id]);
         $this->get(route('admin.invoice.edit', $invoice))->assertOk()
-            ->assertSee('Ticket allocation managed by workshop')
+            ->assertSee('Allocation sections')->assertSee('All rows belong to linked workshops.')
             ->assertDontSee('aria-label="Calculate cost centre allocation"', false);
     }
 }

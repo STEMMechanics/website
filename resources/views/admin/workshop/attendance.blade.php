@@ -479,7 +479,11 @@
                             const savedIds = Array.isArray(payload?.attended_ticket_ids)
                                 ? payload.attended_ticket_ids
                                 : attendedIds;
-                            this.ticketAttendance = this.attendanceStateFromIds(savedIds);
+                            // A response only describes the submitted snapshot. Keep any newer clicks
+                            // intact so the queued save sends the latest attendance selection.
+                            if (!this.ticketAttendanceSaveQueued) {
+                                this.ticketAttendance = this.attendanceStateFromIds(savedIds);
+                            }
                             this.lastAttendanceSavedAtDisplay = String(payload?.saved_at_display || '').trim() || null;
                         } catch (error) {
                             this.ticketAttendanceError = error?.message || 'Could not save ticket attendance.';
@@ -939,7 +943,7 @@
                         <div class="mt-4 flex flex-wrap items-center justify-end gap-3">
                             <div class="text-xs text-gray-500" x-show="ticketAttendanceSaving">Saving attendance...</div>
                             <div class="text-xs text-red-600" x-show="ticketAttendanceError" x-text="ticketAttendanceError"></div>
-                            <div class="text-xs text-gray-500" x-show="lastAttendanceSavedAtDisplay && !ticketAttendanceSaving" x-text="'Saved ' + lastAttendanceSavedAtDisplay"></div>
+                            <div class="text-xs text-gray-500" x-show="lastAttendanceSavedAtDisplay && !ticketAttendanceSaving && !ticketAttendanceSaveQueued && !ticketAttendanceError" x-text="'Saved ' + lastAttendanceSavedAtDisplay"></div>
                         </div>
                     </div>
 

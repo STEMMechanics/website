@@ -395,3 +395,79 @@ test('workshop defaults explain charging and expanded generated notes upgrade sa
     sm.defaultWorkshopDescription(item);
     assert.equal(item.description, 'Holiday program');
 });
+
+test('workshop funding links and allocation counts survive pricing edits without changing charged seats', () => {
+    const item = { kind: 'workshop', workshop_hours: 2, workshop_seats: 20, quantity: 40, unit_price: 10, details_json: { workshop: { linked_workshop_id: 'council-session', allocation_basis: 'tickets', allocation_seats: 12 } } };
+    update(item);
+    assert.equal(item.details_json.workshop.linked_workshop_id, 'council-session');
+    assert.equal(item.details_json.workshop.allocation_basis, 'tickets');
+    assert.equal(item.details_json.workshop.allocation_seats, 12);
+    assert.equal(item.quantity, 40);
+    const editor = context.window.SM.workshopFundingEditor(item, [{ id: 'other-session', label: 'Other workshop · 24 Sep 2026' }]);
+    editor.init();
+    editor.query = 'other';
+    editor.choose(editor.matches[0]);
+    assert.equal(item.details_json.workshop.linked_workshop_id, 'other-session');
+    assert.equal(item.quantity, 40);
+    assert.equal(item.unit_price, 10);
+    editor.choose(null);
+    assert.equal(item.details_json.workshop.linked_workshop_id, null);
+});
+
+test('workshop link helper suggests matching quote descriptions and dates without linking automatically', () => {
+    const item = { description: 'Morning - Straw Towers', workshop_date: '2026-09-22', workshop_seats: 20, details_json: {} };
+    const editor = context.window.SM.workshopFundingEditor(item, [
+        { id: 'other', title: 'Other workshop', label: 'Other workshop · 22 Sep 2026', date: '2026-09-22' },
+        { id: 'match', title: 'Straw Towers', label: 'Straw Towers · 22 Sep 2026', date: '2026-09-22' },
+    ]);
+    editor.init();
+    assert.equal(editor.matches[0].id, 'match');
+    assert.equal(item.details_json.workshop.linked_workshop_id, undefined);
+});
+
+test('linking fills workshop hours and date while custom description edits retain the link', () => {
+    const item = { kind: 'workshop', description: '', workshop_hours: 1, workshop_seats: 10, details_json: {} };
+    const option = { id: 'straw', title: 'Straw Towers', label: 'Straw Towers · 22 Sep 2026', date: '2026-09-22', hours: 2, capacity: 20, tickets: 7 };
+    const editor = context.window.SM.workshopFundingEditor(item, [option]);
+    editor.init();
+    editor.choose(option);
+    assert.equal(item.workshop_hours, 2);
+    assert.equal(item.workshop_date, '2026-09-22');
+    assert.equal(item.description, 'Straw Towers');
+    item.description = 'Morning - Straw Towers';
+    editor.editDescription(null);
+    assert.equal(item.details_json.workshop.linked_workshop_id, 'straw');
+    editor.setSeats('capacity');
+    update(item);
+    assert.equal(item.workshop_seats, 20);
+    assert.equal(item.quantity, 40);
+    editor.setSeats('tickets');
+    update(item);
+    assert.equal(item.workshop_seats, 7);
+    assert.equal(item.quantity, 14);
+    editor.seatValue = 12;
+    assert.equal(item.details_json.workshop.allocation_basis, 'manual');
+    assert.equal(item.details_json.workshop.allocation_seats, 12);
+    editor.choose(null);
+    assert.equal(item.description, 'Morning - Straw Towers');
+});
+
+test('zero registrations replace seats with zero and clear the previous billed quantity', () => {
+    const item = { kind: 'workshop', workshop_hours: 2, workshop_seats: 20, quantity: 40, details_json: { workshop: { linked_workshop_id: 'empty' } } };
+    const editor = context.window.SM.workshopFundingEditor(item, [{ id: 'empty', tickets: 0 }]);
+    editor.init(); editor.setSeats('tickets'); update(item);
+    assert.equal(item.workshop_seats, 0);
+    assert.equal(item.quantity, 0);
+});
+
+test('issued invoice link and seats controls only update internal allocation settings', () => {
+    const item = { description: 'Issued wording', workshop_hours: 1, workshop_seats: 20, quantity: 20, details_json: { workshop: { seats: 20 } } };
+    const option = { id: 'straw', title: 'Straw Towers', hours: 2, tickets: 7 };
+    const editor = context.window.SM.workshopFundingEditor(item, [option], true);
+    editor.init(); editor.choose(option); editor.setSeats('tickets');
+    assert.equal(item.description, 'Issued wording');
+    assert.equal(item.workshop_hours, 1);
+    assert.equal(item.workshop_seats, 20);
+    assert.equal(item.quantity, 20);
+    assert.equal(item.details_json.workshop.allocation_seats, 7);
+});

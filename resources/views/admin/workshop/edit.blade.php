@@ -956,7 +956,7 @@ if (isset($workshop)) {
                         @endphp
                         <div x-data="{
                             price: @js(old('price', $workshop->price ?? '')),
-                            automatic: @js((bool) old('price_is_automatic', $workshop->price_is_automatic ?? false)),
+                            automatic: @js((bool) old('price_is_automatic', $workshop->price_is_automatic ?? !isset($workshop))),
                             planId: @js((string) $ticketPlan->id),
                             plans: @js($ticketPlanOptions),
                             get plan() { return this.plans[this.planId]; },
@@ -969,7 +969,7 @@ if (isset($workshop)) {
                                 this.previousPricingInputs = inputs;
                                 this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
                                 this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
-                                if (!force && !changed && String(this.price ?? '').trim() !== '') return;
+                                if (!force && (!this.automatic || (!changed && String(this.price ?? '').trim() !== ''))) return;
                                 const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
@@ -993,7 +993,7 @@ if (isset($workshop)) {
                             <div class="relative mt-1">
                                 <x-ui.input-control id="workshop-price" name="price" x-model="price" x-bind:class="registration === 'tickets' ? 'pr-11' : ''"
                                     x-on:input="automatic = false" x-on:blur="reprice()" />
-                                <x-ui.button variant="plain" type="button" x-show="registration === 'tickets' && String(price ?? '').trim() !== ''" x-cloak
+                                <x-ui.button variant="plain" type="button" x-show="registration === 'tickets'" x-cloak
                                     aria-label="Refresh suggested ticket price" title="Refresh suggested ticket price from the allocation plan"
                                     class="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-primary-color"
                                     x-on:click="reprice(true)">
@@ -1001,7 +1001,7 @@ if (isset($workshop)) {
                                 </x-ui.button>
                             </div>
                             @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                            <p class="mb-4 mt-1 text-xs text-gray-500">Leave blank to hide from public. Also supports Free, TBD or TBC.</p>
+                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'">Leave blank to hide from public.</span> Also supports Free, TBD or TBC.</p>
                             <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
                                 <input type="hidden" name="allow_pay_at_door" value="0">
                                 <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />

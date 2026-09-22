@@ -79,6 +79,11 @@ class FinancePlanner
                 throw ValidationException::withMessages(['from' => 'Choose a smaller range (up to 200 workshops per preview).']);
             }
             foreach ($workshops as $workshop) {
+                if (app(WorkshopFunding::class)->lines($workshop->id)->isNotEmpty()) {
+                    $context = app(WorkshopAllocation::class)->context($workshop);
+                    $rows[] = ['workshop_id' => $workshop->id, 'name' => $workshop->title, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $context['version']->id, 'targets' => $context['targets'], 'warning' => 'Review and finalise this funded workshop on its allocation page.', 'income' => $context['income'], 'suggested_price_cents' => null, 'structured' => true];
+                    continue;
+                }
                 $tickets = Ticket::query()->where('workshop_id', $workshop->id)->get();
                 $invoiceIds = $tickets->pluck('invoice_id')->filter()->merge(DB::table('invoice_lines')->where('source_type', $workshop->getMorphClass())->where('source_id', $workshop->id)->pluck('invoice_id'))->unique()->values()->all();
                 $assumptions = [
@@ -94,7 +99,7 @@ class FinancePlanner
         // A multi-workshop invoice needs an explicit split; never count its receipts twice.
         $counts = array_count_values(array_merge(...array_map(fn ($row) => $row['invoice_ids'], $rows)));
         foreach ($rows as &$row) {
-            if (collect($row['invoice_ids'])->contains(fn ($id) => ($counts[$id] ?? 0) > 1)) {
+            if (empty($row['structured']) && collect($row['invoice_ids'])->contains(fn ($id) => ($counts[$id] ?? 0) > 1)) {
                 $row['warning'] = 'Shared invoice: allocate this invoice separately once, with a combined cost breakdown.';
             }
         }
@@ -340,7 +345,7 @@ class FinancePlanner
     public function budgetInvoiceIds(object $budget): array
     {
         return $budget->workshop_id
-            ? Ticket::where('workshop_id', $budget->workshop_id)->whereNotNull('invoice_id')->pluck('invoice_id')->unique()->all()
+            ? app(WorkshopFunding::class)->invoiceIds($budget->workshop_id)
             : DB::table('finance_budget_invoices')->where('budget_id', $budget->id)->pluck('invoice_id')->all();
     }
 

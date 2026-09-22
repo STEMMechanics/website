@@ -39,6 +39,7 @@ class Ticket extends Model
         'invoice_line_id',
         'firstname',
         'surname',
+        'age',
         'email',
         'phone',
         'attended_at',
@@ -49,6 +50,7 @@ class Ticket extends Model
 
     protected $casts = [
         'status' => 'integer',
+        'age' => 'integer',
         'attended_at' => 'datetime',
         'is_early_bird' => 'boolean',
     ];

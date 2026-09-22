@@ -140,8 +140,9 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->post(route('workshop.ticket.flow.begin', $workshop), $buyer)->assertRedirect(route('workshop.ticket.flow.details', $workshop));
         $this->assertSame(1, $workshop->tickets()->count());
         $this->post(route('workshop.ticket.flow.details.save', $workshop), ['tickets' => [
-            ['id' => $firstTicket->id] + $buyer,
+            ['id' => $firstTicket->id, 'age' => 14] + $buyer,
         ]])->assertSessionHasNoErrors()->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+        $this->assertSame(14, $firstTicket->fresh()->age);
         $this->get(route('workshop.ticket.flow.details', $workshop))->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
 
         $this->travel(1)->hours();

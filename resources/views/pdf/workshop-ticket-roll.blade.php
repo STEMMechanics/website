@@ -56,9 +56,10 @@
                 <thead>
                     <tr>
                         <th style="width: 22%">Attendee name</th>
-                        <th style="width: 44%">Contact name / email / phone</th>
-                        <th style="width: 14%" class="center">Media consent</th>
-                        <th style="width: 20%">Parent / guardian signature</th>
+                        <th style="width: 4%" class="center">Age</th>
+                        <th style="width: 42%">Contact name / email / phone</th>
+                        <th style="width: 13%" class="center">Media consent</th>
+                        <th style="width: 19%">Parent / guardian signature</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,6 +69,7 @@
                                 {{ $ticket ? trim(($ticket->firstname ?? '').' '.($ticket->surname ?? '')) : '' }}
                                 @if($ticket)<div class="reference">{{ $ticket->reference_code ?: $ticket->id }}</div>@endif
                             </td>
+                            <td class="center">{{ $ticket?->age ?? '' }}</td>
                             <td class="contact">
                                 <div>{{ collect([$ticket?->guardianName(), $ticket?->email])->filter(fn ($value) => trim((string) $value) !== '')->implode(' - ') }}</div>
                                 <div>{{ $ticket?->phone ?? '' }}</div>

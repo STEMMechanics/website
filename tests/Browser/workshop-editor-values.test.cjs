@@ -68,3 +68,38 @@ test('workshop form bootstrap is available independently of the compiled pricing
     assert.equal(typeof state.courseTeachingHours, 'function');
     assert.ok(blade.indexOf('/workshop-course.js?v=') < blade.indexOf('...SM.courseEditor('));
 });
+
+test('clearing an automatic price keeps the workshop free on blur and schedule changes', () => {
+    const editor = pricingEditor();
+    editor.reprice();
+    editor.price = '';
+    editor.automatic = false;
+    editor.reprice();
+    assert.equal(editor.price, '');
+    assert.equal(editor.automatic, false);
+    editor.manualEndsAt = '2024-06-01T12:30';
+    editor.reprice();
+    assert.equal(editor.price, '');
+    assert.equal(editor.breakdown.total, 18000);
+    editor.reprice(true);
+    assert.notEqual(editor.price, '');
+    assert.equal(editor.automatic, true);
+});
+
+test('opening a saved free workshop preserves a blank price', () => {
+    for (const price of ['', null]) {
+        const editor = pricingEditor(false);
+        editor.price = price;
+        editor.reprice();
+        assert.equal(editor.price, price);
+        assert.equal(editor.automatic, false);
+    }
+});
+
+test('new automatic workshops still receive an initial suggested price', () => {
+    const editor = pricingEditor(true);
+    editor.price = '';
+    editor.reprice();
+    assert.notEqual(editor.price, '');
+    assert.equal(editor.automatic, true);
+});

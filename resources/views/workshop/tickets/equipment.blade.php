@@ -67,7 +67,7 @@
             <div class="mt-5 flex justify-end"><x-ui.button type="submit" name="action" value="select">Continue</x-ui.button></div>
         </form>
         </div>
-        <div class="hidden md:block w-64 shrink-0 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $equipmentHero?->url }}')"></div>
+        @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>

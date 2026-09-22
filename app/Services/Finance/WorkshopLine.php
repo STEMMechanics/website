@@ -41,7 +41,7 @@ class WorkshopLine
         }
         $data = Validator::make(['hours' => $hours, 'seats' => $seats, 'supplied_categories' => $item['supplied_categories'] ?? $details['workshop']['supplied_categories'] ?? [], 'venue_supplied' => $item['venue_supplied'] ?? $details['workshop']['venue_supplied'] ?? true], [
             'hours' => 'required|numeric|min:0.01|max:24',
-            'seats' => 'required|integer|min:1|max:10000',
+            'seats' => 'required|integer|min:0|max:10000',
             'venue_supplied' => 'required|boolean',
             'supplied_categories' => 'array|max:100',
             'supplied_categories.*' => 'boolean',
@@ -49,6 +49,8 @@ class WorkshopLine
         $date = $item['workshop_date'] ?? $details['workshop']['date'] ?? null;
         Validator::make(['date' => $date], ['date' => 'nullable|date_format:Y-m-d'])->validate();
         $details['workshop'] = ['date' => $date ?: null, 'hours' => round((float) $data['hours'], 2), 'seats' => (int) $data['seats'], 'venue_supplied' => (bool) $data['venue_supplied'], 'supplied_categories' => array_map(fn ($value) => (bool) $value, $data['supplied_categories'])];
+        $details['workshop'] += WorkshopFunding::settings(array_merge($item['details_json']['workshop'] ?? [], $item, ['seats' => $data['seats']]));
+        if (($details['workshop']['allocation_basis'] ?? null) === 'manual') $details['workshop']['allocation_seats'] = (int) $data['seats'];
         $item['details_json'] = $details;
         $item['quantity'] = round($details['workshop']['hours'] * $data['seats'], 2);
 
@@ -64,7 +66,7 @@ class WorkshopLine
             'rows.*' => 'required|array',
             'rows.*.description' => 'required|string|max:500',
             'rows.*.workshop_hours' => 'required|numeric|min:0.01|max:24',
-            'rows.*.workshop_seats' => 'required|integer|min:1|max:10000',
+            'rows.*.workshop_seats' => 'required|integer|min:0|max:10000',
         ])->validate();
         $notes = [];
         $normalized = [];
@@ -73,6 +75,7 @@ class WorkshopLine
             $row = self::normalize($row);
             $workshop = $row['details_json']['workshop'];
             $normalized[] = [
+                'details_json' => ['workshop' => WorkshopFunding::settings($workshop)],
                 'description' => trim($row['description']),
                 'workshop_date' => $workshop['date'],
                 'workshop_hours' => $workshop['hours'],
@@ -85,7 +88,7 @@ class WorkshopLine
         }
         $quantity = round(array_sum(array_map(fn ($row) => $row['workshop_hours'] * $row['workshop_seats'], $normalized)), 2);
         // Preserve the amount of previously saved one-group lines when adopting seat-hours.
-        if ((float) ($item['quantity'] ?? 0) === 1.0 && empty($details['multi_workshop']['quantity_basis'])) {
+        if ($quantity > 0 && (float) ($item['quantity'] ?? 0) === 1.0 && empty($details['multi_workshop']['quantity_basis'])) {
             if (!isset($details['inclusive_unit_price'])) {
                 $rate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
                 $net = round((float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0), 2);

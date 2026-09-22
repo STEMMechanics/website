@@ -92,6 +92,7 @@
                         <x-ui.grid class="sm:grid-cols-2 gap-3">
                             <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][surname]" label="Surname" value="{{ old('tickets.'.$index.'.surname', $ticket->surname) }}" required />
+                            <x-ui.participant-age name="tickets[{{ $index }}][age]" value="{{ old('tickets.'.$index.'.age', $ticket->age) }}" />
                             <x-ui.input type="email" name="tickets[{{ $index }}][email]" label="Email" value="{{ old('tickets.'.$index.'.email', $ticket->email) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][phone]" label="Phone" value="{{ old('tickets.'.$index.'.phone', $ticket->phone) }}" required />
                         </x-ui.grid>
@@ -103,7 +104,7 @@
                     </div>
                 </form>
             </div>
-            <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>
+            @include('workshop.tickets.partials.pattern-sidebar')
         </div>
     </x-container>
 </x-layout>

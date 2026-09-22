@@ -26,6 +26,8 @@ class FinanceReportData
 
     private array $invoiceIds = [];
 
+    private array $workshopInvoiceIds = [];
+
     private array $paymentsByInvoice = [];
 
     public Collection $suppliersByName;
@@ -44,10 +46,14 @@ class FinanceReportData
         $links = DB::table('finance_budget_invoices')->get();
         $candidates = Ticket::whereIn('workshop_id', $budgets->pluck('workshop_id')->filter())->whereNotNull('invoice_id')->get(['workshop_id', 'invoice_id']);
         $linksByBudget = $links->groupBy('budget_id');
-        $candidatesByWorkshop = $candidates->groupBy('workshop_id');
+        $this->workshopInvoiceIds = $candidates->groupBy('workshop_id')->map(fn ($rows) => $rows->pluck('invoice_id')->unique()->values()->all())->all();
+        foreach (app(WorkshopFunding::class)->linkedLines($this->workshops->keys()->all()) as $line) {
+            $workshopId = $line->details_json['workshop']['linked_workshop_id'];
+            $this->workshopInvoiceIds[$workshopId] = array_values(array_unique([...($this->workshopInvoiceIds[$workshopId] ?? []), $line->invoice_id]));
+        }
         foreach ($budgets as $budget) {
             $ids = $budget->workshop_id
-                ? $candidatesByWorkshop->get($budget->workshop_id, collect())->pluck('invoice_id')->unique()->all()
+                ? $this->workshopInvoiceIds($budget->workshop_id)
                 : $linksByBudget->get($budget->id, collect())->pluck('invoice_id')->all();
             $this->invoiceIds[$budget->id] = $ids;
         }
@@ -64,6 +70,11 @@ class FinanceReportData
                 $refund->setRelation('refundOf', $payment);
             }
         }
+    }
+
+    public function workshopInvoiceIds(string $workshopId): array
+    {
+        return $this->workshopInvoiceIds[$workshopId] ?? [];
     }
 
     public function invoiceIds(object $budget): array
