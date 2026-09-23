@@ -392,7 +392,7 @@ class AdminDashboardServiceTest extends TestCase
 
         $this->assertSame('week', $data['period']);
         $this->assertSame('This week', $data['periodLabel']);
-        $this->assertSame(['Workshops', 'Tickets', 'Store', 'Finance', 'Website', 'Growth'], collect($data['cards'])->pluck('title')->all());
+        $this->assertSame(['Workshops', 'Tickets', 'Store', 'Finance', 'Website', 'Downloads', 'Growth'], collect($data['cards'])->pluck('title')->all());
 
         $workshops = $this->cardByTitle($data, 'Workshops');
         $tickets = $this->cardByTitle($data, 'Tickets');
@@ -437,7 +437,7 @@ class AdminDashboardServiceTest extends TestCase
         $this->assertSame('Store Item Two', $data['storeSalesRows'][1]['product_title']);
         $this->assertSame(1, $data['storeSalesRows'][1]['views']);
         $this->assertSame(2, $data['storeSalesRows'][1]['items_sold']);
-        $this->assertSame(['Workshop Activity', 'Ticket Activity', 'Store Activity', 'Website Traffic', 'Financial Performance', 'Audience Growth'], collect($data['charts'])->pluck('title')->all());
+        $this->assertSame(['Workshop Activity', 'Ticket Activity', 'Store Activity', 'Website Traffic', 'Financial Performance', 'Audience Growth', 'Media Downloads'], collect($data['charts'])->pluck('title')->all());
         $this->assertCount(7, $data['charts'][0]['labels']);
         $this->assertSame(3.0, array_sum($data['charts'][0]['series'][0]['values']));
         $this->assertSame(3.0, array_sum($data['charts'][1]['series'][0]['values']));

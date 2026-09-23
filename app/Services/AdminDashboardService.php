@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AnalyticsEvent;
 use App\Models\EmailSubscriptions;
 use App\Models\Expense;
+use App\Models\MediaDownload;
 use App\Models\Payment;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
@@ -66,6 +67,8 @@ class AdminDashboardService
         $analyticsViewsPrevious = $this->countAnalyticsEventsBetween($previousStart, $previousEnd);
         $analyticsVisitorsCurrent = $this->countAnalyticsVisitorsBetween($currentStart, $currentEnd);
         $analyticsVisitorsPrevious = $this->countAnalyticsVisitorsBetween($previousStart, $previousEnd);
+        $mediaDownloadsCurrent = $this->countMediaDownloadsBetween($currentStart, $currentEnd);
+        $mediaDownloadsPrevious = $this->countMediaDownloadsBetween($previousStart, $previousEnd);
 
         $totalUsersCurrent = $this->countUsersAt($currentEnd);
         $totalUsersPrevious = $this->countUsersAt($previousEnd);
@@ -75,6 +78,7 @@ class AdminDashboardService
         $workshopSalesRows = $this->topWorkshopSalesRows($currentStart, $currentEnd);
         $storeSalesRows = $this->topStoreSalesRows($currentStart, $currentEnd);
         $trafficSourceRows = $this->topTrafficSourceRows($currentStart, $currentEnd);
+        $mediaDownloadRows = $this->topMediaDownloadRows($currentStart, $currentEnd);
         $chartBuckets = $this->chartBuckets($periodKey, $currentStart, $currentEnd);
 
         return [
@@ -151,6 +155,16 @@ class AdminDashboardService
                     ],
                 ],
                 [
+                    'title' => 'Downloads',
+                    'description' => 'Explicit media file downloads in the selected period.',
+                    'links' => [
+                        ['label' => 'Media', 'route' => route('admin.media.index'), 'icon' => 'fa-solid fa-photo-film'],
+                    ],
+                    'metrics' => [
+                        $this->metric('Media downloads', $mediaDownloadsCurrent, $mediaDownloadsPrevious),
+                    ],
+                ],
+                [
                     'title' => 'Growth',
                     'description' => 'Total verified users and confirmed email subscriptions.',
                     'links' => [
@@ -170,11 +184,40 @@ class AdminDashboardService
                 $this->websiteTrafficChart($chartBuckets),
                 $this->financeChart($chartBuckets),
                 $this->growthChart($chartBuckets),
+                $this->mediaDownloadsChart($chartBuckets),
             ],
             'workshopSalesRows' => $workshopSalesRows,
             'storeSalesRows' => $storeSalesRows,
             'trafficSourceRows' => $trafficSourceRows,
+            'mediaDownloadRows' => $mediaDownloadRows,
         ];
+    }
+
+    private function countMediaDownloadsBetween(Carbon $start, Carbon $end): int
+    {
+        return MediaDownload::query()
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
+            ->count();
+    }
+
+    private function topMediaDownloadRows(Carbon $start, Carbon $end): Collection
+    {
+        return MediaDownload::query()
+            ->join('media', 'media.name', '=', 'media_downloads.media_name')
+            ->where('media_downloads.created_at', '>=', $start)
+            ->where('media_downloads.created_at', '<', $end)
+            ->select([
+                'media_downloads.media_name',
+                'media.title',
+                'media.mime_type',
+            ])
+            ->selectRaw('COUNT(*) as downloads')
+            ->groupBy('media_downloads.media_name', 'media.title', 'media.mime_type')
+            ->orderByDesc('downloads')
+            ->orderBy('media.title')
+            ->limit(10)
+            ->get();
     }
 
     private function topTrafficSourceRows(Carbon $start, Carbon $end): Collection
@@ -437,6 +480,19 @@ class AdminDashboardService
                 ['label' => 'Unique visitors', 'color' => 'violet', 'values' => array_map(fn (int $index): int => (int) ($rows->get($index)->visitors ?? 0), array_keys($buckets))],
             ],
         ];
+    }
+
+    private function mediaDownloadsChart(array $buckets): array
+    {
+        $downloads = $this->bucketedValues(
+            MediaDownload::query(),
+            'media_downloads.created_at',
+            $buckets
+        );
+
+        return $this->chart('Downloads', 'Media Downloads', 'Explicit media file downloads throughout the selected period.', $buckets, [
+            ['label' => 'Downloads', 'color' => 'sky', 'type' => 'bar', 'values' => $downloads],
+        ]);
     }
 
     /**

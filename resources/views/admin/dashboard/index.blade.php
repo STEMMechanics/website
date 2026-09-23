@@ -106,6 +106,37 @@
         </div>
 
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Media Downloads</h2>
+                    <p class="mt-1 text-sm text-gray-500">Files with the most explicit download requests in the selected period.</p>
+                </div>
+                <a href="{{ route('admin.media.downloads', ['from' => $periodStart->toDateString(), 'to' => $periodEnd->copy()->subSecond()->toDateString(), 'limit' => 100]) }}" class="text-sm font-semibold text-primary-color hover:underline">View top 100</a>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                <x-ui.table variant="listing">
+                    <x-slot:header>
+                        <x-ui.list-heading label="File" />
+                        <x-ui.list-heading label="Type" />
+                        <x-ui.list-heading class="text-right" label="Requests" />
+                    </x-slot:header>
+                    <x-slot:body>
+                        @forelse($mediaDownloadRows as $row)
+                            <tr>
+                                <td><a href="{{ route('admin.media.edit', ['media' => $row->media_name]) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $row->title }}</a><div class="text-xs text-gray-500">{{ $row->media_name }}</div></td>
+                                <td>{{ $row->mime_type }}</td>
+                                <td class="text-right font-semibold">{{ number_format((int) $row->downloads) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="text-center text-gray-500">No media downloads in this period.</td></tr>
+                        @endforelse
+                    </x-slot:body>
+                </x-ui.table>
+            </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Top 10 Workshop Activity</h2>

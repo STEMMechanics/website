@@ -254,6 +254,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/media/selection', [MediaController::class, 'admin_selection'])->name('admin.media.selection');
     Route::patch('/admin/media/{media}/details', [MediaController::class, 'admin_quick_update'])->name('admin.media.quick-update');
     Route::get('/admin/media/duplicates', [MediaController::class, 'admin_duplicates'])->name('admin.media.duplicates');
+    Route::get('/admin/media/downloads', [MediaController::class, 'admin_downloads'])->name('admin.media.downloads');
     Route::post('/admin/media/duplicates/merge', [MediaController::class, 'admin_merge_duplicates'])->name('admin.media.duplicates.merge');
     Route::post('/admin/media/duplicates/scan-similar', [MediaController::class, 'admin_scan_similar'])->name('admin.media.duplicates.scan-similar');
     Route::post('/admin/media/duplicates/merge-similar', [MediaController::class, 'admin_merge_similar'])->name('admin.media.duplicates.merge-similar');

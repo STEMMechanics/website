@@ -52,6 +52,9 @@
 @endphp
 
 <x-layout>
+    @push('head')
+        @vite('resources/js/workshop-pick-list.js')
+    @endpush
     <x-mast backRoute="admin.workshop-template.index" backTitle="Workshop Templates">{{ $editing ? 'Edit' : 'Create' }} Workshop Template</x-mast>
 
     <x-container class="mt-4">

@@ -7,6 +7,7 @@ use App\Jobs\Media\GenerateVariants;
 use App\Jobs\Media\GeneratePerceptualHash;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -146,6 +147,11 @@ class Media extends Model
     public function getUrlAttribute(): string
     {
         return route('media.download', $this);
+    }
+
+    public function downloads(): HasMany
+    {
+        return $this->hasMany(MediaDownload::class, 'media_name', 'name');
     }
 
     public function url($variant, $strict = false): string
