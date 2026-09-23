@@ -116,8 +116,8 @@ export function allocationTally(config) {
         money(cents) { return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' }); },
         format(id) { this.values[id] = (this.cents(this.values[id]) / 100).toFixed(2); },
         allocateRemaining(id) {
-            if (!this.enabled || this.remaining <= 0 || !Object.hasOwn(this.values, id)) return;
-            this.values[id] = ((this.cents(this.values[id]) + this.remaining) / 100).toFixed(2);
+            if (!this.enabled || this.remaining === 0 || !Object.hasOwn(this.values, id)) return;
+            this.values[id] = (Math.max(0, this.cents(this.values[id]) + this.remaining) / 100).toFixed(2);
         },
         refreshDefaults() {
             if (!config.defaults || this.enabled) return;
