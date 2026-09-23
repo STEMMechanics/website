@@ -413,6 +413,44 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
             </div>
 
             @isset($medium)
+                <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold">Downloads</h3>
+                            <p class="mt-1 text-sm text-gray-500">Explicit downloads of this file and its variants.</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">{{ number_format((int) ($mediaDownloadCount ?? 0)) }}</div>
+                            <div class="text-xs text-gray-500">total requests</div>
+                        </div>
+                    </div>
+                    @if(($mediaRecentDownloads ?? collect())->isNotEmpty())
+                        <div class="mt-4 overflow-hidden rounded-lg border border-gray-200">
+                            <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
+                                <x-slot:header>
+                                    <th class="px-3 py-2">Downloaded</th>
+                                    <th class="px-3 py-2">User</th>
+                                    <th class="px-3 py-2 text-center!">Variant</th>
+                                    <th class="px-3 py-2 text-center!">Source</th>
+                                </x-slot:header>
+                                <x-slot:body>
+                                    @foreach($mediaRecentDownloads as $download)
+                                        <tr>
+                                            <td class="px-3 py-2"><x-ui.date-time>{{ $download->created_at->format('M j, Y g:i a') }}</x-ui.date-time></td>
+                                            <td class="px-3 py-2">{{ $download->user?->getName() ?: $download->user?->email ?: 'Guest' }}</td>
+                                            <td class="px-3 py-2 text-center!">{{ $download->variant ?: 'Original' }}</td>
+                                            <td class="px-3 py-2 text-center! capitalize">{{ $download->source }}</td>
+                                        </tr>
+                                    @endforeach
+                                </x-slot:body>
+                            </x-ui.table>
+                        </div>
+                    @else
+                        <p class="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500">No downloads recorded yet.</p>
+                    @endif
+                    <a href="{{ route('admin.media.downloads') }}" class="mt-3 inline-block text-sm font-semibold text-primary-color hover:underline">View download report</a>
+                </div>
+
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4" x-show="visibilityValue === 'protected'" x-cloak>
                     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>

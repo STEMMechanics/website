@@ -6,6 +6,7 @@
                     <x-ui.action-menu color="mast" id="media-tools" title="Media tools">
                         <a href="{{ route('admin.media.create') }}"><i class="fa-solid fa-file-circle-plus"></i>Create with metadata</a>
                         <a href="{{ route('admin.media.duplicates') }}"><i class="fa-solid fa-clone"></i>Find Duplicates <x-ui.badge color="warning">{{ $duplicateAttentionCount }}</x-ui.badge></a>
+                        <a href="{{ route('admin.media.downloads') }}"><i class="fa-solid fa-chart-column"></i>Download report</a>
                         <x-ui.button variant="plain" id="regenerate-missing-variants-button" onclick="this.closest('dialog').close(); confirmRegenerateMissingVariants()"><i class="fa-solid fa-arrows-rotate"></i>Regenerate Missing Variants</x-ui.button>
                     </x-ui.action-menu>
         </x-slot:actions>
@@ -36,6 +37,14 @@
                 <div data-filter-controls data-filter-schema="{{ json_encode(collect($filterLabels)->map(fn ($label, $key) => ['label' => $label, 'type' => 'text', 'count' => $key !== 'search'])->all()) }}" data-filter-search="search">
                 <x-ui.preset-views :items="$presetItems" label="Media presets" />
                 <div class="my-5 flex flex-wrap items-center gap-3">
+                    <form method="GET" action="{{ route('admin.media.index') }}" class="flex min-w-0 flex-1 basis-full items-center gap-3 lg:basis-auto">
+                        <x-ui.query-inputs :values="request()->except(['search', 'page'])" />
+                        <div class="relative min-w-0 flex-1">
+                            <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-3.5 text-slate-400" aria-hidden="true"></i>
+                            <x-ui.input-control type="search" name="search" :value="request('search')" placeholder="Search media" aria-label="Search media" class="min-h-11 pl-10!" />
+                        </div>
+                        <button type="submit" class="sr-only">Search</button>
+                    </form>
                     <x-ui.button color="outline" data-open-dialog="media-filter-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none"><i class="fa-solid fa-filter mr-2"></i>Filters <x-ui.badge data-filter-count color="sky" class="ml-2" :hidden="$activeFilters->except('search')->isEmpty()">{{ $activeFilters->except('search')->count() }}</x-ui.badge></x-ui.button>
                     <x-ui.button color="outline" data-open-dialog="media-sort-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none lg:hidden"><i class="fa-solid fa-arrow-down-short-wide mr-2"></i>{{ \App\Services\MediaListFilters::SORTS[request('sort', 'created_at')] }} <span class="ml-1">{{ request('direction', 'desc') === 'asc' ? '↑' : '↓' }}</span></x-ui.button>
                     <nav data-view-tabs aria-label="Media layout" class="ml-auto flex rounded-lg border border-slate-200 bg-white p-1">

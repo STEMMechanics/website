@@ -8,6 +8,7 @@ use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
+use App\Models\MediaDownload;
 use App\Models\Token;
 use App\Models\User;
 use App\Models\Workshop;
@@ -91,6 +92,29 @@ class MediaController extends Controller
             'view' => $view,
         ]);
 
+    }
+
+    public function admin_downloads(Request $request)
+    {
+        $limit = (int) $request->query('limit', 10);
+        $limit = in_array($limit, [10, 25, 50, 100], true) ? $limit : 10;
+        $from = $request->date('from')?->startOfDay() ?? now()->subYear()->startOfDay();
+        $to = $request->date('to')?->addDay()->startOfDay() ?? now()->addDay()->startOfDay();
+
+        $rows = MediaDownload::query()
+            ->join('media', 'media.name', '=', 'media_downloads.media_name')
+            ->where('media_downloads.created_at', '>=', $from)
+            ->where('media_downloads.created_at', '<', $to)
+            ->select(['media_downloads.media_name', 'media.title', 'media.mime_type'])
+            ->selectRaw('COUNT(*) as downloads')
+            ->selectRaw('MAX(media_downloads.created_at) as last_downloaded_at')
+            ->groupBy('media_downloads.media_name', 'media.title', 'media.mime_type')
+            ->orderByDesc('downloads')
+            ->orderBy('media.title')
+            ->limit($limit)
+            ->get();
+
+        return view('admin.media.downloads', compact('rows', 'limit', 'from', 'to'));
     }
 
     private function usedMediaNamesForRequest(Request $request): array
@@ -963,6 +987,8 @@ class MediaController extends Controller
             'mediaFilesInfo' => $mediaFilesInfo,
             'mediaOwners' => $this->mediaOwners(),
             'mediaUsages' => app(MediaUsageService::class)->usagesFor((string) $media->name),
+            'mediaDownloadCount' => $media->downloads()->count(),
+            'mediaRecentDownloads' => $media->downloads()->with('user')->latest()->limit(20)->get(),
             'workshopOptions' => $this->workshopOptions()
                 ->concat($media->workshopFiles)
                 ->concat($media->workshopPhotos)
@@ -1848,20 +1874,12 @@ class MediaController extends Controller
         }
 
         $variant = '';
-        $download = false;
+        $download = $request->has('download') && ($request->query('download') === null || filter_var($request->query('download'), FILTER_VALIDATE_BOOLEAN));
         $variants = array_keys($media->getVariantTypes());
-        $query = $request->getQueryString();
-        if($query !== '') {
-            $queryList = explode('&', $query);
-            foreach($queryList as $queryItem) {
-                $parts = explode('=', $queryItem);
-                if($variant === '' && in_array($parts[0], $variants) && ($parts[1] === '' || filter_var($parts[1], FILTER_VALIDATE_BOOLEAN))) {
-                    $variant = $parts[0];
-                }
-
-                if($parts[0] === 'download' && ($parts[1] === '' || filter_var($parts[1], FILTER_VALIDATE_BOOLEAN))) {
-                    $download = true;
-                }
+        foreach ($variants as $variantName) {
+            if ($request->has($variantName) && ($request->query($variantName) === null || filter_var($request->query($variantName), FILTER_VALIDATE_BOOLEAN))) {
+                $variant = $variantName;
+                break;
             }
         }
 
@@ -1876,6 +1894,19 @@ class MediaController extends Controller
             $file = $variantFile['file'];
             $mime_type = $variantFile['mime_type'];
             $name = $variantFile['name'];
+        }
+
+        if ($download) {
+            try {
+                MediaDownload::query()->create([
+                    'media_name' => $media->name,
+                    'user_id' => Auth::id(),
+                    'variant' => $variant !== '' ? $variant : null,
+                    'source' => $this->mediaDownloadSource($request),
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         $headers = [
@@ -1898,6 +1929,13 @@ class MediaController extends Controller
         }
 
         return response()->file($file, $headers);
+    }
+
+    private function mediaDownloadSource(Request $request): string
+    {
+        $refererPath = parse_url((string) $request->headers->get('referer'), PHP_URL_PATH) ?: '';
+
+        return str_starts_with($refererPath, '/admin/') ? 'admin' : (str_starts_with($refererPath, '/account/') ? 'account' : 'public');
     }
 
     private function mediaXAccelRedirectPath(string $file): string
