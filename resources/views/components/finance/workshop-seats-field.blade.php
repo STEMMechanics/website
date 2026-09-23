@@ -9,7 +9,7 @@
     </div>
     <template x-teleport="body" x-on:workshop-line-changed="">
         <div x-cloak x-show="menuOpen" x-on:click.outside="menuOpen = false" class="fixed z-50 rounded-xl border border-slate-200 bg-white p-2 shadow-xl" x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', width: menuWidth + 'px' }">
-            <template x-for="choice in [{ value: 'manual', label: 'Manual number' }, { value: 'capacity', label: 'Workshop capacity' }, { value: 'tickets', label: 'Registered tickets' }]" :key="choice.value">
+            <template x-for="choice in [{ value: 'manual', label: 'Manual number' }, { value: 'capacity', label: 'Workshop capacity' }, { value: 'tickets', label: 'Registered tickets' }, { value: 'attendance', label: 'Attendance count' }]" :key="choice.value">
                 <button type="button" class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50 disabled:opacity-40" x-bind:disabled="choice.value !== 'manual' &amp;&amp; !linkedWorkshop" x-on:click="setSeats(choice.value); $dispatch('workshop-line-changed')"><span x-text="choice.label"></span><i x-show="item.details_json.workshop.allocation_basis === choice.value" class="fa-solid fa-check text-sky-600" aria-hidden="true"></i></button>
             </template>
             <p x-show="!linkedWorkshop" class="px-3 py-2 text-xs text-slate-500">Link a workshop to use its capacity or tickets.</p>

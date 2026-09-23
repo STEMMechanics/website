@@ -467,7 +467,10 @@
                             });
                             const payload = await response.json().catch(() => ({}));
                             if (!response.ok) {
-                                throw new Error(String(payload?.message || 'Could not save ticket attendance.'));
+                                const message = response.status === 419
+                                    ? 'Your session has expired. Refresh the page and try again.'
+                                    : String(payload?.message || 'Could not save ticket attendance.');
+                                throw new Error(message);
                             }
 
                             const savedIds = Array.isArray(payload?.attended_ticket_ids)
@@ -480,7 +483,14 @@
                             }
                             this.lastAttendanceSavedAtDisplay = String(payload?.saved_at_display || '').trim() || null;
                         } catch (error) {
-                            this.ticketAttendanceError = error?.message || 'Could not save ticket attendance.';
+                            const message = error?.message || 'Could not save ticket attendance.';
+                            this.ticketAttendanceError = message;
+                            if (window.SM && typeof window.SM.notice === 'function') {
+                                window.SM.notice('Attendance save failed', message, 'danger', {
+                                    toast: true,
+                                    timer: 6000,
+                                });
+                            }
                         } finally {
                             this.ticketAttendanceSaving = false;
                             if (this.ticketAttendanceSaveQueued) {
@@ -934,10 +944,11 @@
                             </x-slot:body>
                         </x-ui.table>
                         </div>
-                        <div class="mt-4 flex flex-wrap items-center justify-end gap-3">
-                            <div class="text-xs text-gray-500" x-show="ticketAttendanceSaving">Saving attendance...</div>
-                            <div class="text-xs text-red-600" x-show="ticketAttendanceError" x-text="ticketAttendanceError"></div>
-                            <div class="text-xs text-gray-500" x-show="lastAttendanceSavedAtDisplay && !ticketAttendanceSaving && !ticketAttendanceSaveQueued && !ticketAttendanceError" x-text="'Saved ' + lastAttendanceSavedAtDisplay"></div>
+                        <div class="mt-4 flex min-h-5 flex-wrap items-center justify-end gap-3">
+                            <div class="text-xs text-gray-500" aria-live="polite">
+                                <span x-show="ticketAttendanceSaving || ticketAttendanceSaveQueued">Saving attendance...</span>
+                                <span x-show="lastAttendanceSavedAtDisplay && !ticketAttendanceSaving && !ticketAttendanceSaveQueued && !ticketAttendanceError" x-text="'Saved ' + lastAttendanceSavedAtDisplay"></span>
+                            </div>
                         </div>
                     </div>
 
