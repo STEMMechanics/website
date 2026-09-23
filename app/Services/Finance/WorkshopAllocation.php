@@ -69,6 +69,17 @@ class WorkshopAllocation
         ];
         if ($workshop->isCourse()) {
             $source['sessions'] = $workshop->effectiveScheduleEntries();
+            $source['session_attendance'] = DB::table('workshop_session_attendance')
+                ->where('workshop_id', $workshop->id)
+                ->orderBy('session_id')
+                ->orderBy('ticket_id')
+                ->get(['session_id', 'ticket_id', 'attended_at'])
+                ->map(fn ($attendance): array => [
+                    $attendance->session_id,
+                    $attendance->ticket_id,
+                    $attendance->attended_at,
+                ])
+                ->all();
         }
         $hash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
         // Settled cancellations with no retained receipts need no initial allocation.

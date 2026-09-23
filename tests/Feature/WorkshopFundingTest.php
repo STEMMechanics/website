@@ -2,8 +2,23 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Invoice, InvoiceLine, InvoicePaymentAllocation, Payment, Quote, Ticket, User, UserGroup, Workshop};
-use App\Services\Finance\{FinancePlanner, FinanceReportData, InvoiceAllocation, InvoiceAllocationParts, WorkshopAllocation, WorkshopFunding, WorkshopLine};
+use App\Models\Invoice;
+use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
+use App\Models\Quote;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Models\UserGroup;
+use App\Models\Workshop;
+use App\Services\Finance\FinancePlanner;
+use App\Services\Finance\FinanceReportData;
+use App\Services\Finance\InvoiceAllocation;
+use App\Services\Finance\InvoiceAllocationFilters;
+use App\Services\Finance\InvoiceAllocationParts;
+use App\Services\Finance\InvoiceAllocationWorkspace;
+use App\Services\Finance\WorkshopAllocation;
+use App\Services\Finance\WorkshopFunding;
+use App\Services\Finance\WorkshopLine;
 use App\Services\QuoteWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +33,7 @@ class WorkshopFundingTest extends TestCase
         $user = User::factory()->create();
         UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
         $this->actingAs($user);
+
         return $user;
     }
 
@@ -28,6 +44,7 @@ class WorkshopFundingTest extends TestCase
         $ticket->delete();
         $workshop->fill(['starts_at' => now()->subHours(3), 'ends_at' => now()->subHour(), 'max_tickets' => 20, 'price' => 'Free']);
         $workshop->save();
+
         return $workshop;
     }
 
@@ -43,6 +60,7 @@ class WorkshopFundingTest extends TestCase
         $number = 'COUNCIL-'.Invoice::count();
         $this->post(route('admin.invoice.store'), ['invoice_number' => $number, 'issue_date' => today()->toDateString(), 'line_items_json' => json_encode($lines)])
             ->assertSessionHasNoErrors()->assertRedirect();
+
         return Invoice::where('invoice_number', $number)->firstOrFail();
     }
 
@@ -106,6 +124,30 @@ class WorkshopFundingTest extends TestCase
         $this->assertSame(4, $service->context($workshop)['assumptions']['participants']);
         $this->assertSame('440.00', $invoice->fresh()->total_amount);
         $this->assertSame('40.00', $line->fresh()->quantity);
+    }
+
+    public function test_attendance_basis_uses_marked_attendees(): void
+    {
+        $this->admin();
+        $workshop = $this->workshop();
+        Ticket::factory()->count(2)->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => now(),
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => null,
+        ]);
+
+        $catalogOption = collect(app(WorkshopFunding::class)->catalog())
+            ->firstWhere('id', (string) $workshop->id);
+        $this->assertSame(2, $catalogOption['attendance']);
+
+        $invoice = $this->createInvoice([$this->line($workshop, 'attendance')]);
+        $this->assertSame(2, app(WorkshopAllocation::class)->context($workshop)['assumptions']['participants']);
+        $this->assertSame('40.00', $invoice->lines->first()->quantity);
     }
 
     public function test_existing_issued_invoice_can_be_linked_and_unlinked_without_changing_price(): void
@@ -191,7 +233,7 @@ class WorkshopFundingTest extends TestCase
         $second->update(['starts_at' => now()->subDays(2), 'ends_at' => now()->subDay()]);
         $invoice = $this->createInvoice([$this->line($first), $this->line($second)]);
         $invoice->update(['status' => Invoice::STATUS_ISSUED]);
-        $this->assertSame([$first->id, $second->id], app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->workshops($invoice)->pluck('id')->all());
+        $this->assertSame([$first->id, $second->id], app(InvoiceAllocationWorkspace::class)->workshops($invoice)->pluck('id')->all());
         $line = $invoice->lines()->first();
         $hash = app(WorkshopAllocation::class)->state($first)['hash'];
         $payload = ['invoice_number' => $invoice->invoice_number, 'issue_date' => today()->toDateString(),
@@ -222,7 +264,7 @@ class WorkshopFundingTest extends TestCase
         $budget = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first();
         $this->assertNotNull($budget->finalised_at);
         $unallocated = Invoice::query()->whereKey($invoice->id);
-        app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($unallocated, ['allocation_state' => 'not_allocated']);
+        app(InvoiceAllocationFilters::class)->apply($unallocated, ['allocation_state' => 'not_allocated']);
         $this->assertFalse($unallocated->exists());
         $this->assertTrue($service->state($workshop)['current']);
         $this->assertSame(0, array_sum(app(FinancePlanner::class)->budgetReport($budget)['funding']['categories']));

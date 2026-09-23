@@ -279,6 +279,7 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         const basis = this.item.details_json.workshop.allocation_basis;
         if (this.linkedWorkshop && basis === 'capacity') return Number(this.linkedWorkshop.capacity || 0);
         if (this.linkedWorkshop && basis === 'tickets') return Number(this.linkedWorkshop.tickets || 0);
+        if (this.linkedWorkshop && basis === 'attendance') return Number(this.linkedWorkshop.attendance || 0);
         return this.item.details_json.workshop.allocation_seats;
     },
     set seatValue(value) {
@@ -286,7 +287,7 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         this.item.details_json.workshop.allocation_seats = value;
         this.item.details_json.workshop.allocation_basis = 'manual';
     },
-    get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets' }[this.item.details_json.workshop.allocation_basis]; },
+    get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets', attendance: 'Attendance count' }[this.item.details_json.workshop.allocation_basis]; },
     get matches() {
         const query = this.query.trim().toLowerCase();
         const description = String(this.item.description || '').toLowerCase();
@@ -312,7 +313,7 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
     setSeats(basis) {
         const option = this.linkedWorkshop;
         if (basis !== 'manual' && !option) return;
-        const value = basis === 'capacity' ? Number(option.capacity || 0) : basis === 'tickets' ? Number(option.tickets || 0) : this.seatValue;
+        const value = basis === 'capacity' ? Number(option.capacity || 0) : basis === 'tickets' ? Number(option.tickets || 0) : basis === 'attendance' ? Number(option.attendance || 0) : this.seatValue;
         this.seatValue = value;
         this.item.details_json.workshop.allocation_basis = basis;
         this.menuOpen = false;
