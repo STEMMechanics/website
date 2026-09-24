@@ -4,6 +4,9 @@
 
 @php
 $workshopModel = $workshop ?? null;
+$ticketChangeNotificationRecipients = $ticketChangeNotificationRecipients ?? [];
+$ticketChangeEmailDefaultTo = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
+$ticketChangeEmailDefaultSubject = 'Workshop update: '.trim((string) ($workshopModel?->title ?? 'Workshop'));
 $workshopContent = isset($workshop) ? $workshop->content : '';
 $workshopStatusForForm = old('status', $workshopModel?->status ?? 'draft');
 $workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshopModel?->starts_at ?? ''));
@@ -166,6 +169,15 @@ if (isset($workshop)) {
             ticketHolderNotificationCount: @js((int) ($ticketChangeNotificationRecipientCount ?? 0)),
             notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
             ticketChangeEmailNotes: @js((string) old('ticket_change_email_notes', '')),
+            ticketChangeEmailTo: @js((string) old('ticket_change_email_to', $ticketChangeEmailDefaultTo)),
+            ticketChangeEmailCc: @js((string) old('ticket_change_email_cc', '')),
+            ticketChangeEmailBcc: @js((string) old('ticket_change_email_bcc', implode(', ', $ticketChangeNotificationRecipients))),
+            ticketChangeEmailSubject: @js((string) old('ticket_change_email_subject', $ticketChangeEmailDefaultSubject)),
+            ticketChangeEmailBody: @js((string) old('ticket_change_email_body', '')),
+            ticketChangeEmailOpen: false,
+            workshopTitle: @js($workshopModel?->title ?? 'Workshop'),
+            supportEmail: @js($ticketChangeEmailDefaultTo),
+            originalLocationLabel: @js(isset($workshopModel) ? $workshopModel->getLocationName() : 'Online'),
             workshopCancelReasonDefault: @js("We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details."),
             workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
             hasCustomPickList: @js($hasCustomPickList),
@@ -322,6 +334,35 @@ if (isset($workshop)) {
             this.cancelWorkshopOpen = false;
             this.status = this.originalStatus;
             },
+            openTicketChangeEmailModal() {
+            if (!String(this.ticketChangeEmailBody || '').trim()) {
+                this.ticketChangeEmailBody = this.defaultTicketChangeEmailBody();
+            }
+            this.ticketChangeEmailOpen = true;
+            },
+            closeTicketChangeEmailModal() {
+            this.ticketChangeEmailOpen = false;
+            },
+            saveTicketChangeEmail(sendEmail) {
+            this.notifyTicketHolders = Boolean(sendEmail);
+            this.ticketChangeEmailOpen = false;
+            this.submitForm();
+            },
+            defaultTicketChangeEmailBody() {
+            return `<p>Hi @{{first_name}},</p><p>We wanted to let you know that a few details for your upcoming ${this.workshopTitle} workshop have changed.</p><p><strong>Updated details:</strong><br>Date/Time: ${this.ticketChangeEmailFormatDateTime(this.currentStartsAt())} – ${this.ticketChangeEmailFormatDateTime(this.currentEndsAt())}<br>Location: ${this.ticketChangeEmailNewLocation()}</p><p><strong>For reference, the previous details were:</strong><br>Date/Time: ${this.ticketChangeEmailFormatDateTime(this.originalStartsAt)} – ${this.ticketChangeEmailFormatDateTime(this.originalEndsAt)}<br>Location: ${this.originalLocationLabel}</p><p>We’re sorry for any inconvenience this change may cause. If you have any questions or need a hand, please contact us at ${this.supportEmail}.</p><p>We look forward to seeing you there!</p>`;
+            },
+            ticketChangeEmailNewLocation() {
+            const selectedLocation = this.locations.find((location) => String(location.id) === this.normalizedCurrentLocationId());
+            return this.type === 'stemcraft'
+                ? 'STEMCraft'
+                : (this.workshopFormat === 'course' || this.type === 'physical')
+                    ? (selectedLocation?.name || 'Unknown location')
+                    : 'Online';
+            },
+            ticketChangeEmailFormatDateTime(value) {
+            const parsed = new Date(String(value || '').replace(' ', 'T'));
+            return Number.isNaN(parsed.getTime()) ? String(value || '-') : parsed.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+            },
             confirmCancelWorkshop() {
             this.cancelWorkshopOpen = false;
             this.submitForm();
@@ -463,60 +504,7 @@ if (isset($workshop)) {
             return;
             }
 
-            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
-            if (window.SM && typeof window.SM.confirm === 'function') {
-                window.SM.confirm(
-                    'Notify ticket holders?',
-                    'Date, time, or location changed and active ticket holders exist. Save and email them about the change?',
-                    'Save and Email',
-                    (isConfirmed) => {
-                        this.notifyTicketHolders = Boolean(isConfirmed);
-                        this.submitForm();
-                    }
-                );
-                return;
-            }
-
-            this.notifyTicketHolders = true;
-            this.submitForm();
-            return;
-            }
-
-            const recipientCount = Number.parseInt(String(this.ticketHolderNotificationCount || 0), 10);
-            const recipientLabel = recipientCount === 1 ? 'ticket holder' : 'ticket holders';
-            const result = await Swal.fire({
-            position: 'top',
-            icon: 'question',
-            iconColor: '#2563eb',
-            title: 'Notify ticket holders?',
-            html: `This workshop has <strong>${recipientCount}</strong> active ${recipientLabel}. Date, time, or location changed. You can queue an update email now or save without sending anything.`,
-            input: 'textarea',
-            inputLabel: 'Additional notes',
-            inputValue: this.ticketChangeEmailNotes || '',
-            inputPlaceholder: 'Optional extra details to include in the email',
-            inputAttributes: {
-            'aria-label': 'Additional notes',
-            },
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Save and Email',
-            confirmButtonColor: '#2563eb',
-            denyButtonText: 'Save Only',
-            denyButtonColor: '#6b7280',
-            cancelButtonText: 'Cancel',
-            reverseButtons: true,
-            focusConfirm: false,
-            preConfirm: () => document.querySelector('.swal2-textarea')?.value || '',
-            preDeny: () => document.querySelector('.swal2-textarea')?.value || '',
-            });
-
-            if (!result.isConfirmed && !result.isDenied) {
-                return;
-            }
-
-            this.ticketChangeEmailNotes = String(result.value || '').trim();
-            this.notifyTicketHolders = result.isConfirmed;
-            this.submitForm();
+            this.openTicketChangeEmailModal();
             },
             async submitCreateLocation() {
             if (this.createLocationSubmitting) {
@@ -600,6 +588,7 @@ if (isset($workshop)) {
                 @csrf
                 <input type="hidden" name="notify_ticket_holders" :value="notifyTicketHolders ? '1' : '0'">
                 <input type="hidden" name="ticket_change_email_notes" :value="ticketChangeEmailNotes">
+                <input type="hidden" name="ticket_change_email_body" :value="ticketChangeEmailBody">
                 <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
                 <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
                 <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
@@ -916,6 +905,70 @@ if (isset($workshop)) {
                         </div>
                     </div>
                 </div>
+
+            <div
+                x-cloak
+                x-show="ticketChangeEmailOpen"
+                x-on:keydown.escape.window="closeTicketChangeEmailModal()"
+                class="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ticket-change-email-title">
+                <div class="absolute inset-0 bg-black/40" x-on:click="closeTicketChangeEmailModal()"></div>
+                <div class="relative mx-auto my-2 flex h-[calc(100vh-1.5rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white p-4 shadow-xl sm:my-4 sm:h-[calc(100vh-2rem)] sm:p-6">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h3 id="ticket-change-email-title" class="text-lg font-semibold text-gray-900">Notify ticket holders?</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                This currently has <strong x-text="ticketHolderNotificationCount"></strong> active
+                                <span x-text="Number(ticketHolderNotificationCount) === 1 ? 'ticket holder' : 'ticket holders'"></span>.
+                                Notify the ticket holders of the workshop changes by email?
+                            </p>
+                        </div>
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTicketChangeEmailModal()" aria-label="Close ticket holder notification modal">
+                            <i class="fa-solid fa-xmark"></i>
+                        </x-ui.button>
+                    </div>
+
+                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-to">To</label>
+                            <input id="ticket-change-email-to" name="ticket_change_email_to" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailTo" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="hello@stemmechanics.com.au">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-cc">CC <span class="font-normal text-gray-500">(optional)</span></label>
+                            <input id="ticket-change-email-cc" name="ticket_change_email_cc" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailCc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="email@example.com">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-bcc">BCC</label>
+                            <textarea id="ticket-change-email-bcc" name="ticket_change_email_bcc" rows="2" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailBcc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="Separate addresses with commas, semicolons, or new lines"></textarea>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-subject">Subject</label>
+                            <input id="ticket-change-email-subject" name="ticket_change_email_subject" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailSubject" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+                            <label class="block text-sm font-semibold text-gray-900">Message</label>
+                            <span class="text-xs text-gray-500">Placeholders: @{{first_name}}, @{{last_name}}, @{{full_name}}</span>
+                        </div>
+                        <x-ui.mini-editor x-model="ticketChangeEmailBody" content-class="min-h-48" />
+                        <p class="mt-1 text-xs text-gray-500">BCC sends one shared message. Name placeholders use a generic greeting when multiple ticket holders are included.</p>
+                    </div>
+                    </div>
+
+                    <div class="mt-4 flex shrink-0 flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="closeTicketChangeEmailModal()">Cancel</x-ui.button>
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <x-ui.button type="button" color="secondary" x-on:click="saveTicketChangeEmail(false)">Save</x-ui.button>
+                            <x-ui.button type="button" x-on:click="saveTicketChangeEmail(true)">Save and Email</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1 content-center flex gap-8">

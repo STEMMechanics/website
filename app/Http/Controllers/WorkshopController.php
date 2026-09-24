@@ -1243,6 +1243,7 @@ class WorkshopController extends Controller
             'earlyBirdTicketCount' => $earlyBirdTicketCount,
             'maxTicketsRemaining' => $maxTicketsRemaining,
             'earlyBirdTicketLimitRemaining' => $earlyBirdTicketLimitRemaining,
+            'ticketChangeNotificationRecipients' => $this->resolveWorkshopTicketEmailRecipients($workshop),
             'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop)),
         ]);
     }
@@ -2152,6 +2153,11 @@ class WorkshopController extends Controller
             'pending_files_meta.*.notes' => 'nullable|string',
             'notify_ticket_holders' => 'nullable|boolean',
             'ticket_change_email_notes' => 'nullable|string',
+            'ticket_change_email_to' => 'nullable|string|max:5000',
+            'ticket_change_email_cc' => 'nullable|string|max:5000',
+            'ticket_change_email_bcc' => 'nullable|string|max:5000',
+            'ticket_change_email_subject' => 'nullable|string|max:255',
+            'ticket_change_email_body' => 'nullable|string|max:50000',
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -2185,10 +2191,23 @@ class WorkshopController extends Controller
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
         $shouldNotifyTicketHolders = $request->boolean('notify_ticket_holders');
         $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
+        $ticketChangeEmailTo = trim((string) $request->input('ticket_change_email_to', ''));
+        $ticketChangeEmailCc = trim((string) $request->input('ticket_change_email_cc', ''));
+        $ticketChangeEmailBcc = trim((string) $request->input('ticket_change_email_bcc', ''));
+        $ticketChangeEmailSubject = trim((string) $request->input('ticket_change_email_subject', ''));
+        $ticketChangeEmailBody = trim((string) $request->input('ticket_change_email_body', ''));
+        $toRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailTo);
+        $ccRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailCc);
+        $additionalBccRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailBcc);
+        if (count($toRecipients) > 1) {
+            throw ValidationException::withMessages([
+                'ticket_change_email_to' => 'Enter one To address. Use CC or BCC for additional recipients.',
+            ]);
+        }
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
-        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files']);
+        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['ticket_change_email_to'], $workshopData['ticket_change_email_cc'], $workshopData['ticket_change_email_bcc'], $workshopData['ticket_change_email_subject'], $workshopData['ticket_change_email_body'], $workshopData['participant_files']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -2393,11 +2412,20 @@ class WorkshopController extends Controller
 
         if ($shouldNotifyTicketHolders && $ticketChangeSummary !== null) {
             try {
-                $recipientCount = $this->notifyWorkshopTicketHoldersOfChange($workshop->fresh('location'), $ticketChangeSummary, $ticketChangeEmailNotes);
+                $recipientCount = $this->notifyWorkshopTicketHoldersOfChange(
+                    $workshop->fresh('location'),
+                    $ticketChangeSummary,
+                    $ticketChangeEmailNotes,
+                    $additionalBccRecipients,
+                    $toRecipients,
+                    $ccRecipients,
+                    $ticketChangeEmailSubject,
+                    $ticketChangeEmailBody,
+                );
 
                 if ($recipientCount > 0) {
                     $message = 'Workshop has been updated and an email was queued to '
-                        .$recipientCount.' ticket holder'.($recipientCount === 1 ? '' : 's').'.';
+                        .$recipientCount.' recipient'.($recipientCount === 1 ? '' : 's').'.';
                 } else {
                     $message = 'Workshop has been updated, but no active ticket-holder email addresses were found for this change notice.';
                     $messageType = 'warning';
@@ -5323,18 +5351,30 @@ class WorkshopController extends Controller
     /**
      * @param  array<string, string|array<int, string>>  $ticketChangeSummary
      */
-    private function notifyWorkshopTicketHoldersOfChange(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): int
+    private function notifyWorkshopTicketHoldersOfChange(
+        Workshop $workshop,
+        array $ticketChangeSummary,
+        string $additionalNotes = '',
+        array $additionalBccRecipients = [],
+        array $toRecipients = [],
+        array $ccRecipients = [],
+        string $subject = '',
+        string $body = '',
+    ): int
     {
-        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop);
+        $recipients = array_values(array_unique([...$additionalBccRecipients]));
         if ($recipients === []) {
             return 0;
         }
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
-        $toEmail = $initiatedByEmail;
+        $toEmail = $toRecipients[0] ?? null;
         if ($toEmail === null) {
-            $fallback = trim((string) config('mail.from.address', ''));
+            $fallback = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
             $toEmail = $fallback !== '' ? $fallback : null;
+        }
+        if ($toEmail === null) {
+            $toEmail = $initiatedByEmail;
         }
         if ($toEmail === null) {
             $fallback = trim((string) config('mail.admin_bcc', ''));
@@ -5348,9 +5388,14 @@ class WorkshopController extends Controller
         }
 
         dispatch(new SendEmail($toEmail, new WorkshopTicketBroadcast(
-            subjectLine: 'Workshop update: '.trim((string) ($workshop->title ?? 'Workshop')),
+            subjectLine: $subject !== '' ? $subject : 'Workshop update: '.trim((string) ($workshop->title ?? 'Workshop')),
             workshopTitle: (string) ($workshop->title ?? 'Workshop'),
-            messageBody: $this->buildWorkshopTicketChangeMessage($workshop, $ticketChangeSummary, $additionalNotes),
+            messageBody: $this->replaceWorkshopTicketEmailPlaceholders(
+                $body !== '' ? $body : $this->buildWorkshopTicketChangeMessage($workshop, $ticketChangeSummary, $additionalNotes),
+                $workshop,
+                $recipients,
+            ),
+            ccRecipients: array_values(array_diff($ccRecipients, [$toEmail], $recipients)),
             bccRecipients: $recipients,
             initiatedByEmail: $initiatedByEmail,
             initiatedByName: $initiatedByName,
@@ -5359,19 +5404,87 @@ class WorkshopController extends Controller
         return count($recipients);
     }
 
+    private function replaceWorkshopTicketEmailPlaceholders(string $body, Workshop $workshop, array $bccRecipients): string
+    {
+        $name = count($bccRecipients) === 1
+            ? $this->resolveWorkshopTicketEmailRecipientName($workshop, $bccRecipients[0])
+            : 'there';
+        $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $firstName = $parts[0] ?? 'there';
+        $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+        $supportEmail = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
+        $safeBody = strip_tags($body, '<p><br><strong><em><u><s><ul><ol><li><a>');
+
+        return str_replace(
+            ['{{first_name}}', '{{last_name}}', '{{full_name}}', '{{support_email}}'],
+            [e($firstName), e($lastName), e($name), e($supportEmail)],
+            $safeBody,
+        );
+    }
+
+    private function resolveWorkshopTicketEmailRecipientName(Workshop $workshop, string $email): string
+    {
+        $tickets = Ticket::query()
+            ->with('user')
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->get();
+
+        foreach ($tickets as $ticket) {
+            $ticketEmails = [
+                strtolower(trim((string) ($ticket->email ?? ''))),
+                strtolower(trim((string) ($ticket->user->email ?? ''))),
+            ];
+            if (! in_array(strtolower($email), $ticketEmails, true)) {
+                continue;
+            }
+
+            $name = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? '')));
+            if ($name === '') {
+                $name = trim((string) ($ticket->user?->getName() ?? ''));
+            }
+
+            return $name !== '' ? $name : 'there';
+        }
+
+        return 'there';
+    }
+
+    /** @return array<int, string> */
+    private function parseAdditionalEmailRecipients(string $value): array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+
+        $recipients = preg_split('/[;,\s]+/', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $normalized = [];
+        foreach ($recipients as $recipient) {
+            $email = strtolower(trim((string) $recipient));
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'ticket_change_email_bcc' => 'Enter valid email addresses separated by commas, semicolons, or new lines.',
+                ]);
+            }
+            $normalized[$email] = $email;
+        }
+
+        return array_values($normalized);
+    }
+
     /**
      * @param  array<string, string|array<int, string>>  $ticketChangeSummary
      */
     private function buildWorkshopTicketChangeMessage(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): string
     {
         $message = [
-            'The details for "'.trim((string) ($workshop->title ?? 'Workshop')).'" have changed.',
+            'We wanted to let you know that a few details for your upcoming "'.trim((string) ($workshop->title ?? 'Workshop')).'" workshop have changed.',
             '',
             'Updated details:',
             '- Date/Time: '.(string) ($ticketChangeSummary['new_schedule'] ?? '-'),
             '- Location: '.(string) ($ticketChangeSummary['new_location'] ?? '-'),
             '',
-            'Previous details:',
+            'For reference, the previous details were:',
             '- Date/Time: '.(string) ($ticketChangeSummary['old_schedule'] ?? '-'),
             '- Location: '.(string) ($ticketChangeSummary['old_location'] ?? '-'),
         ];
@@ -5383,7 +5496,9 @@ class WorkshopController extends Controller
             $message[] = $trimmedNotes;
         }
 
-        return implode("\n", $message);
+        return '<p>Hi {{first_name}},</p>'.collect($message)
+            ->map(fn (string $line): string => $line === '' ? '<p>&nbsp;</p>' : '<p>'.e($line).'</p>')
+            ->implode('').'<p>We’re sorry for any inconvenience this change may cause. If you have any questions or need a hand, please contact us at {{support_email}}.</p><p>We look forward to seeing you there!</p>';
     }
 
     /**

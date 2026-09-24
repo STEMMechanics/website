@@ -134,6 +134,9 @@
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
+                @if($workshop->status === 'open' && $workshop->registration === 'tickets' && !($canGetTickets ?? false))
+                    <div class="sm-registration-closed">Registration for this event has closed.</div>
+                @endif
                 @foreach(['workshop_id', 'quantity', 'allow_partial'] as $bookingError)
                     @error($bookingError)<p class="mb-3 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
                 @endforeach
@@ -142,7 +145,7 @@
                         @csrf
                         <x-ui.button type="submit" class="w-full">Continue booking</x-ui.button>
                     </form>
-                @elseif($workshop->status === 'open')
+                @elseif($workshop->status === 'open' && ($workshop->registration !== 'tickets' || ($canGetTickets ?? false)))
                     @if($workshop->registration === 'tickets' && $availableTickets !== null)
                         @if((int) $availableTickets > 0)
                             <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
