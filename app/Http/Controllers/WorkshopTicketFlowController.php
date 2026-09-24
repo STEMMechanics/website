@@ -6,6 +6,7 @@ use App\Jobs\SendEmail;
 use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Mail\UserRegister;
 use App\Models\Coupon;
+use App\Models\EmailSubscriptions;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Media;
@@ -88,11 +89,12 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.show', $workshop);
         }
 
+        $prefill = $previousSession['purchaser'] ?? $this->defaultPurchaserData();
         return view('workshop.tickets.start', [
             'workshop' => $workshop,
             'availableTickets' => $ticketService->availableTickets($workshop) === null ? null : $ticketService->availableTickets($workshop) + Ticket::whereIn('id', $previousHoldIds)->where('workshop_id', $workshop->id)->count(),
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
-            'prefill' => $previousSession['purchaser'] ?? $this->defaultPurchaserData(),
+            'prefill' => $prefill,
             'ticketQuantity' => (int) ($previousSession['participant_count'] ?? count($previousHoldIds)) ?: 1,
             'holdExpiresAt' => $previousHoldIds !== [] ? ($previousSession['expires_at'] ?? null) : null,
             'equipmentProducts' => app(\App\Services\WorkshopEquipmentService::class)->products($workshop),
@@ -245,7 +247,7 @@ class WorkshopTicketFlowController extends Controller
 
         if (! empty($workshop->optional_product_ids)) { return redirect()->route('workshop.ticket.flow.equipment', $workshop); }
 
-        if (app(\App\Services\WorkshopCheckoutSelection::class)->candidates($workshop)->isNotEmpty()) {
+        if ($this->availableCombinedWorkshopCandidates($workshop, $ticketService)->isNotEmpty()) {
             return redirect()->route('workshop.ticket.flow.cart', $workshop);
         }
 
@@ -271,7 +273,11 @@ class WorkshopTicketFlowController extends Controller
         }
         $tickets = Ticket::with('workshop')->whereIn('id', $session['hold_ids'])->get();
 
-        $additionalWorkshops = app(WorkshopCheckoutSelection::class)->candidates($workshop);
+        $additionalWorkshops = $this->availableCombinedWorkshopCandidates($workshop, $ticketService);
+
+        if ($additionalWorkshops->isEmpty()) {
+            return redirect()->route('workshop.ticket.flow.payment', $workshop);
+        }
 
         return view('workshop.tickets.cart', [
             'workshop' => $workshop,
@@ -1139,6 +1145,17 @@ class WorkshopTicketFlowController extends Controller
         ]);
     }
 
+    private function availableCombinedWorkshopCandidates(Workshop $anchor, WorkshopTicketService $ticketService): Collection
+    {
+        return app(WorkshopCheckoutSelection::class)->candidates($anchor)
+            ->filter(function (Workshop $candidate) use ($ticketService): bool {
+                $ticketService->cleanupExpiredHolds($candidate);
+
+                return $ticketService->canStartTicketCheckout($candidate);
+            })
+            ->values();
+    }
+
     private function completeFreeCheckout(
         Workshop $workshop,
         array $session,
@@ -1602,6 +1619,8 @@ class WorkshopTicketFlowController extends Controller
             'participantTickets' => isset($session['participant_ticket_ids']) ? collect($session['participant_ticket_ids'])->map(fn ($ids) => $tickets->firstWhere('id', $ids[0]))->filter()->values() : $tickets,
             'tickets' => $tickets,
             'ticketPricing' => $ticketPricing,
+            'newsletterSubscribed' => ($email = strtolower(trim((string) data_get($session, 'purchaser.email', '')))) !== ''
+                && EmailSubscriptions::query()->whereRaw('LOWER(email) = ?', [$email])->whereNotNull('confirmed')->exists(),
             'bankTransferDetails' => (string) ($session['payment_method'] ?? '') === 'bank_transfer'
                 ? $this->bankTransferDetails($invoice)
                 : null,
@@ -1691,6 +1710,7 @@ class WorkshopTicketFlowController extends Controller
             'tickets.*.age' => ['nullable', 'integer', 'min:0', 'max:120'],
             'tickets.*.email' => ['required', 'email', 'max:255'],
             'tickets.*.phone' => ['required', 'string', 'max:60'],
+            'subscribe_newsletter' => ['nullable', 'boolean'],
         ]);
 
         $ticketMap = collect($validated['tickets'])->keyBy(fn ($ticket) => (int) $ticket['id']);
@@ -1731,6 +1751,8 @@ class WorkshopTicketFlowController extends Controller
         if ($updatedHoldIds !== []) {
             $session['hold_ids'] = $updatedHoldIds;
         }
+        $session['subscribe_newsletter'] = $request->boolean('subscribe_newsletter');
+        $this->subscribePurchaserToNewsletter($session);
         $session['details_complete'] = true;
         $this->putFlowSession($workshop, $session);
 
@@ -2203,6 +2225,29 @@ class WorkshopTicketFlowController extends Controller
     private function clearFlowSession(Workshop $workshop): void
     {
         session()->forget(self::SESSION_KEY_PREFIX.$workshop->id);
+    }
+
+    private function subscribePurchaserToNewsletter(array $session): void
+    {
+        if (! ($session['subscribe_newsletter'] ?? false)) {
+            return;
+        }
+
+        $email = strtolower(trim((string) data_get($session, 'purchaser.email', '')));
+        if ($email === '') {
+            return;
+        }
+
+        $subscription = EmailSubscriptions::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+        if (! $subscription) {
+            $subscription = new EmailSubscriptions(['email' => $email]);
+        }
+        if ($subscription->confirmed === null) {
+            $subscription->confirmed = now();
+        }
+        $subscription->save();
     }
 
     /** @return array<int, int> */

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\SendEmail;
 use App\Mail\TicketOrderConfirmation;
 use App\Models\Coupon;
+use App\Models\EmailSubscriptions;
 use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Media;
@@ -78,6 +79,57 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertContains($third->id, $people[0]['workshops']);
         $this->assertContains($third->id, $people[1]['workshops']);
         $this->assertSame(app(WorkshopCheckoutCart::class)->bookings()[0]['count'], collect($people)->sum(fn ($person) => count($person['workshops'])));
+    }
+
+    public function test_ticket_checkout_can_subscribe_purchaser_after_free_checkout(): void
+    {
+        $workshop = $this->createTicketedWorkshop(['price' => '0']);
+
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1,
+            'firstname' => 'Parent',
+            'surname' => 'Example',
+            'email' => 'parent@example.com',
+            'phone' => '0400123456',
+            'subscribe_newsletter' => '1',
+        ])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+
+        $ticket = Ticket::query()->where('workshop_id', $workshop->id)->firstOrFail();
+        $this->post(route('workshop.ticket.flow.details.save', $workshop), [
+            'tickets' => [[
+                'id' => $ticket->id,
+                'firstname' => 'Parent',
+                'surname' => 'Example',
+                'email' => 'parent@example.com',
+                'phone' => '0400123456',
+            ]],
+            'subscribe_newsletter' => '1',
+        ])->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+
+        $this->assertDatabaseHas('email_subscriptions', [
+            'email' => 'parent@example.com',
+        ]);
+        $this->assertNotNull(EmailSubscriptions::query()->where('email', 'parent@example.com')->value('confirmed'));
+    }
+
+    public function test_ticket_details_hides_newsletter_checkbox_for_confirmed_subscriber(): void
+    {
+        $this->actingAs(User::factory()->create(['email' => 'parent@example.com']));
+        EmailSubscriptions::query()->create(['email' => 'parent@example.com', 'confirmed' => now()]);
+        $workshop = $this->createTicketedWorkshop(['price' => '0']);
+
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1,
+            'firstname' => 'Parent',
+            'surname' => 'Example',
+            'email' => 'parent@example.com',
+            'phone' => '0400123456',
+        ])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+
+        $this->get(route('workshop.ticket.flow.details', $workshop))
+            ->assertOk()
+            ->assertDontSee('subscribe_newsletter', false)
+            ->assertDontSee('Subscribe me to workshop updates');
     }
 
     public function test_optional_ages_survive_drafts_and_are_saved_on_each_selected_workshop_ticket(): void
@@ -433,6 +485,20 @@ class MultiWorkshopCheckoutTest extends TestCase
         $this->assertSame($before, session('ticket_checkout_flow.'.$anchor->id));
         $this->assertSame(1, $other->tickets()->count());
         $this->assertSame(2, $anchor->tickets()->count());
+    }
+
+    public function test_sold_out_workshops_are_removed_from_more_workshops_step(): void
+    {
+        $anchor = $this->createTicketedWorkshop(['price' => '15']);
+        $soldOut = $this->createTicketedWorkshop(['max_tickets' => 1]);
+        Ticket::factory()->create([
+            'workshop_id' => $soldOut->id,
+            'status' => Ticket::STATUS_PAID,
+        ]);
+
+        $this->begin($anchor)->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
+        $this->get(route('workshop.ticket.flow.cart', $anchor))
+            ->assertRedirect(route('workshop.ticket.flow.payment', $anchor));
     }
 
     public function test_free_anchor_can_add_paid_session_and_cancellation_releases_both(): void

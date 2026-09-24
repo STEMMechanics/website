@@ -46,6 +46,30 @@ class WorkshopVisibilityRulesTest extends TestCase
         ]);
     }
 
+    public function test_closed_ticket_registration_does_not_show_get_tickets_button(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'Past Ticket Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'tickets',
+            price: '15'
+        );
+        $workshop->update([
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->subHours(22),
+            'closes_at' => now()->subHour(),
+            'max_tickets' => 10,
+        ]);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertViewHas('canGetTickets', false)
+            ->assertSee('Registration for this event has closed.')
+            ->assertDontSee('Get Tickets');
+    }
+
     public function test_admin_external_registration_click_is_not_recorded(): void
     {
         $workshop = $this->createWorkshop(
