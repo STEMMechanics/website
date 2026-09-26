@@ -16,6 +16,19 @@ class WorkshopInterest extends Model
         'name',
         'email',
         'phone',
+        'two_day_reminder_queued_at',
+        'two_day_reminder_sent_at',
+        'two_hour_reminder_queued_at',
+        'two_hour_reminder_sent_at',
+        'reminders_unsubscribed_at',
+    ];
+
+    protected $casts = [
+        'two_day_reminder_queued_at' => 'datetime',
+        'two_day_reminder_sent_at' => 'datetime',
+        'two_hour_reminder_queued_at' => 'datetime',
+        'two_hour_reminder_sent_at' => 'datetime',
+        'reminders_unsubscribed_at' => 'datetime',
     ];
 
     /**
