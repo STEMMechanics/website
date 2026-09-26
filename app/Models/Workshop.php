@@ -70,6 +70,7 @@ class Workshop extends Model
         'pick_list_participants',
         'pick_list_checked_item_ids',
         'run_sheet_completed_task_ids',
+        'run_sheet_tasks_initialized',
         'workplan_checked',
         'workshop_run_sheet',
         'pick_list_custom_items',
@@ -107,6 +108,7 @@ class Workshop extends Model
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
         'run_sheet_completed_task_ids' => 'array',
+        'run_sheet_tasks_initialized' => 'boolean',
         'workplan_checked' => 'boolean',
         'pick_list_custom_items' => 'array',
         'pick_list_is_customized' => 'boolean',
@@ -185,6 +187,14 @@ class Workshop extends Model
     public function pickListTemplate(): BelongsTo
     {
         return $this->belongsTo(PickListTemplate::class, 'pick_list_template_id');
+    }
+
+    /**
+     * @return HasMany<WorkshopRunSheetTask, $this>
+     */
+    public function runSheetTasks(): HasMany
+    {
+        return $this->hasMany(WorkshopRunSheetTask::class)->orderBy('sort_order')->orderBy('id');
     }
 
     /**

@@ -1,4 +1,4 @@
-@if(($personalNote['enabled'] ?? false) && filled($personalNote['body'] ?? null))
+@if(\App\Services\NewsletterNoteContent::hasText($personalNote))
 <table data-newsletter-personal-note role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:1028px; margin:0 auto 28px auto; border:0;">
 <tr>
 @if(filled($personalNote['image_url'] ?? null))

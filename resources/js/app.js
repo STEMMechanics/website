@@ -59,6 +59,10 @@ import './deployment-status';
 
 import './workplan-checkoff';
 
+import './admin-ai';
+import './admin-dashboard-actions';
+
 import './form-keyboard';
 
 import './newsletter-header-copy';
+import './workshop-task-copy';

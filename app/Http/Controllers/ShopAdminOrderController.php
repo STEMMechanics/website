@@ -16,6 +16,7 @@ use App\Services\DocumentNumberService;
 use App\Services\QuoteWorkflowService;
 use App\Services\StoreOrderService;
 use App\Support\InvoiceDueDate;
+use App\Support\ShopShippingSettings;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,7 +86,7 @@ class ShopAdminOrderController extends Controller
                 'user',
                 'coupon',
             ]),
-            'carrierSuggestions' => $this->carrierSuggestions(),
+            'carrierSuggestions' => ShopShippingSettings::carrierSuggestions(),
         ]);
     }
 
@@ -720,23 +721,6 @@ class ShopAdminOrderController extends Controller
         $lineCount = max(count($noteLines), 1);
 
         return 1.0 + min($lineCount * 0.35, 4.0);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function carrierSuggestions(): array
-    {
-        return StoreOrderItemTracking::query()
-            ->whereNotNull('carrier')
-            ->orderByDesc('id')
-            ->limit(100)
-            ->pluck('carrier')
-            ->map(fn ($carrier) => trim((string) $carrier))
-            ->filter(fn (string $carrier) => $carrier !== '')
-            ->unique(fn (string $carrier) => mb_strtolower($carrier))
-            ->values()
-            ->all();
     }
 
     /**

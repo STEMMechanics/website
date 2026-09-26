@@ -8,7 +8,6 @@ use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\WorkshopTemplateTask;
 use App\Services\PdfAttachmentAppender;
-use App\Services\ReminderService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,13 +22,16 @@ class PickListTemplateController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PickListTemplate::query()->withCount(['items', 'tasks', 'attachments']);
+        $query = PickListTemplate::query()->with('hero')->withCount(['items', 'tasks', 'attachments']);
 
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search', ''));
             $query->where(function ($builder) use ($search): void {
                 $builder->where('name', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('default_workshop_title', 'like', '%'.$search.'%')
+                    ->orWhere('default_workshop_summary', 'like', '%'.$search.'%')
+                    ->orWhere('default_workshop_content', 'like', '%'.$search.'%')
                     ->orWhere('run_sheet', 'like', '%'.$search.'%');
             });
         }
@@ -45,6 +47,7 @@ class PickListTemplateController extends Controller
     {
         return view('admin.pick-list-template.edit', [
             'itemSuggestions' => $this->itemSuggestions(),
+            'defaultSocialTasks' => $this->defaultSocialTasks(),
         ]);
     }
 
@@ -66,11 +69,11 @@ class PickListTemplateController extends Controller
             return $template;
         });
 
-        session()->flash('message', 'Workshop template has been created');
-        session()->flash('message-title', 'Workshop template created');
+        session()->flash('message', 'Workshop blueprint has been created');
+        session()->flash('message-title', 'Workshop blueprint created');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop-template.edit', $template);
+        return redirect()->route('admin.workshop-blueprint.edit', $template);
     }
 
     public function edit(PickListTemplate $pickListTemplate)
@@ -80,6 +83,7 @@ class PickListTemplateController extends Controller
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
             'itemSuggestions' => $this->itemSuggestions(),
+            'defaultSocialTasks' => $this->defaultSocialTasks(),
         ]);
     }
 
@@ -97,10 +101,8 @@ class PickListTemplateController extends Controller
             $this->syncTasks($pickListTemplate, $validated['tasks'] ?? []);
             $pickListTemplate->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
         });
-        app(ReminderService::class)->syncTemplateWorkshops((int) $pickListTemplate->id);
-
-        session()->flash('message', 'Workshop template has been updated');
-        session()->flash('message-title', 'Workshop template updated');
+        session()->flash('message', 'Workshop blueprint has been updated');
+        session()->flash('message-title', 'Workshop blueprint updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
@@ -110,11 +112,11 @@ class PickListTemplateController extends Controller
     {
         $pickListTemplate->delete();
 
-        session()->flash('message', 'Workshop template has been deleted');
-        session()->flash('message-title', 'Workshop template deleted');
+        session()->flash('message', 'Workshop blueprint has been deleted');
+        session()->flash('message-title', 'Workshop blueprint deleted');
         session()->flash('message-type', 'danger');
 
-        return redirect()->route('admin.workshop-template.index');
+        return redirect()->route('admin.workshop-blueprint.index');
     }
 
     public function duplicate(PickListTemplate $pickListTemplate): RedirectResponse
@@ -126,6 +128,10 @@ class PickListTemplateController extends Controller
         $copy->description = $pickListTemplate->description;
         $copy->duration = $pickListTemplate->duration;
         $copy->participants = $pickListTemplate->participants;
+        $copy->default_workshop_title = $pickListTemplate->default_workshop_title;
+        $copy->default_workshop_summary = $pickListTemplate->default_workshop_summary;
+        $copy->default_workshop_content = $pickListTemplate->default_workshop_content;
+        $copy->hero_media_name = $pickListTemplate->hero_media_name;
         $copy->run_sheet = $pickListTemplate->run_sheet;
         $copy->run_sheet_drawing_data = $pickListTemplate->run_sheet_drawing_data;
         $copy->run_sheet_canvas_data = $pickListTemplate->run_sheet_canvas_data;
@@ -157,11 +163,11 @@ class PickListTemplateController extends Controller
             PickListTemplate::ATTACHMENT_COLLECTION
         );
 
-        session()->flash('message', 'Workshop template has been duplicated');
-        session()->flash('message-title', 'Workshop template duplicated');
+        session()->flash('message', 'Workshop blueprint has been duplicated');
+        session()->flash('message-title', 'Workshop blueprint duplicated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop-template.edit', $copy);
+        return redirect()->route('admin.workshop-blueprint.edit', $copy);
     }
 
     public function pdf(PickListTemplate $pickListTemplate): Response
@@ -190,7 +196,7 @@ class PickListTemplateController extends Controller
 
         return response($content, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="workshop-template-'.$pickListTemplate->id.'.pdf"',
+            'Content-Disposition' => 'inline; filename="workshop-blueprint-'.$pickListTemplate->id.'.pdf"',
         ]);
     }
 
@@ -225,6 +231,10 @@ class PickListTemplateController extends Controller
             'description' => ['nullable', 'string'],
             'duration' => ['nullable', 'string', 'max:255'],
             'participants' => ['nullable', 'string', 'max:255'],
+            'default_workshop_title' => ['nullable', 'string', 'max:255'],
+            'default_workshop_summary' => ['nullable', 'string', 'max:1000'],
+            'default_workshop_content' => ['nullable', 'string', 'max:30000'],
+            'hero_media_name' => ['nullable', 'string', Rule::exists('media', 'name')],
             'run_sheet' => ['nullable', 'string'],
             'run_sheet_drawing_data' => ['nullable', 'string'],
             'run_sheet_canvas_data' => ['nullable', 'string'],
@@ -310,6 +320,10 @@ class PickListTemplateController extends Controller
             'description' => $validated['description'] ?? null,
             'duration' => trim((string) ($validated['duration'] ?? '')) ?: null,
             'participants' => trim((string) ($validated['participants'] ?? '')) ?: null,
+            'default_workshop_title' => trim((string) ($validated['default_workshop_title'] ?? '')) ?: null,
+            'default_workshop_summary' => trim((string) ($validated['default_workshop_summary'] ?? '')) ?: null,
+            'default_workshop_content' => trim((string) ($validated['default_workshop_content'] ?? '')) ?: null,
+            'hero_media_name' => trim((string) ($validated['hero_media_name'] ?? '')) ?: null,
             'run_sheet' => $validated['run_sheet'] ?? null,
             'run_sheet_drawing_data' => $validated['run_sheet_drawing_data'] ?? null,
             'run_sheet_canvas_data' => $validated['run_sheet_canvas_data'] ?? null,
@@ -407,6 +421,57 @@ class PickListTemplateController extends Controller
             ->filter(fn (string $value) => $value !== '')
             ->values()
             ->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function defaultSocialTasks(): array
+    {
+        return [
+            [
+                'id' => null,
+                'name' => 'Social Media: Draft Facebook post',
+                'notes' => '',
+                'subtasks' => [],
+                'reminder_enabled' => false,
+                'reminder_days' => 7,
+                'reminder_direction' => 'before',
+                'reminder_time' => '06:00',
+                'sort_order' => 10,
+            ],
+            [
+                'id' => null,
+                'name' => 'Social Media: Draft Instagram caption',
+                'notes' => '',
+                'subtasks' => [],
+                'reminder_enabled' => false,
+                'reminder_days' => 7,
+                'reminder_direction' => 'before',
+                'reminder_time' => '06:00',
+                'sort_order' => 20,
+            ],
+            [
+                'id' => null,
+                'name' => 'Social Media: Select or create a post image',
+                'notes' => '',
+                'subtasks' => [],
+                'reminder_enabled' => false,
+                'reminder_days' => 7,
+                'reminder_direction' => 'before',
+                'reminder_time' => '06:00',
+                'sort_order' => 30,
+            ],
+            [
+                'id' => null,
+                'name' => 'Social Media: Schedule posts',
+                'notes' => '<p>Schedule the approved workshop posts and check that the registration link is correct.</p>',
+                'subtasks' => [],
+                'reminder_enabled' => false,
+                'reminder_days' => 7,
+                'reminder_direction' => 'before',
+                'reminder_time' => '06:00',
+                'sort_order' => 40,
+            ],
+        ];
     }
 
     /**

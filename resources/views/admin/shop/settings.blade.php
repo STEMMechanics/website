@@ -351,18 +351,39 @@
                         <div class="mt-4 space-y-3" x-show="trackingLinkTemplates.length > 0" x-cloak>
                             <template x-for="(trackingLinkTemplate, templateIndex) in trackingLinkTemplates" :key="templateIndex">
                                 <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                    <div class="flex flex-wrap items-start justify-between gap-4">
-                                        <div class="grid flex-1 gap-4 md:grid-cols-[minmax(0,0.75fr),minmax(0,1.25fr)]">
+                                    <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                                        <div class="grid gap-4 md:grid-cols-2">
                                             <div>
-                                                <label class="mb-1 block text-sm font-medium text-gray-700">Courier</label>
-                                                <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`tracking_link_templates[${templateIndex}][carrier]`" placeholder="Australia Post" x-model="trackingLinkTemplate.carrier" />
+                                                <label x-bind:for="`tracking-link-template-carrier-${templateIndex}`" class="mb-1 block text-sm font-medium text-gray-700">Courier</label>
+                                                <x-ui.input
+                                                    type="text"
+                                                    :noLabel="true"
+                                                    label="Australia Post"
+                                                    :suggestions="$carrierSuggestions ?? []"
+                                                    :showSuggestionsOnFocus="true"
+                                                    class="mb-0!"
+                                                    :fieldClasses="$inlineInputClasses"
+                                                    aria-label="Courier"
+                                                    x-bind:id="`tracking-link-template-carrier-${templateIndex}`"
+                                                    x-bind:name="`tracking_link_templates[${templateIndex}][carrier]`"
+                                                    x-model="trackingLinkTemplate.carrier"
+                                                />
                                             </div>
                                             <div>
                                                 <label class="mb-1 block text-sm font-medium text-gray-700">Tracking URL Template</label>
                                                 <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`tracking_link_templates[${templateIndex}][template]`" placeholder="https://example.com/track?id={tracking}" x-model="trackingLinkTemplate.template" />
                                             </div>
                                         </div>
-                                        <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removeTrackingLinkTemplate(templateIndex)">Remove</x-ui.button>
+                                        <x-ui.button
+                                            type="button"
+                                            color="danger-outline"
+                                            class="h-11 w-11 shrink-0 px-0!"
+                                            x-on:click="removeTrackingLinkTemplate(templateIndex)"
+                                            aria-label="Remove courier tracking link template"
+                                            title="Remove courier tracking link template"
+                                        >
+                                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                        </x-ui.button>
                                     </div>
                                 </div>
                             </template>

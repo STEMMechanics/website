@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Workshop;
-use App\Models\WorkshopTemplateTask;
+use App\Models\WorkshopRunSheetTask;
 use App\Services\ReminderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,12 +46,12 @@ class WorkplanCheckoffController extends Controller
         return response()->json(['checked' => (bool) $workshop->workplan_checked]);
     }
 
-    public function task(Request $request, Workshop $workshop, WorkshopTemplateTask $task): JsonResponse
+    public function task(Request $request, Workshop $workshop, WorkshopRunSheetTask $task): JsonResponse
     {
         $data = $request->validate(['checked' => ['required', 'boolean']]);
         DB::transaction(function () use ($workshop, $task, $data): void {
             $locked = Workshop::query()->lockForUpdate()->findOrFail($workshop->id);
-            abort_unless($locked->pick_list_template_id !== null && (int) $task->pick_list_template_id === (int) $locked->pick_list_template_id, 404);
+            abort_unless((string) $task->workshop_id === (string) $locked->id, 404);
             $ids = collect($locked->run_sheet_completed_task_ids ?? [])->map(fn ($id) => (int) $id)
                 ->reject(fn ($id) => $id === (int) $task->id);
             if ($data['checked']) $ids->push((int) $task->id);
