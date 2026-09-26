@@ -8,6 +8,14 @@ use DOMNode;
 
 class NewsletterNoteContent
 {
+    public static function hasText(array $note): bool
+    {
+        $text = html_entity_decode(strip_tags(self::html($note)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/[\s\x{00a0}]+/u', ' ', $text) ?? $text;
+
+        return trim($text) !== '';
+    }
+
     public static function html(array $note, bool $email = false): string
     {
         $body = (string) ($note['body'] ?? '');

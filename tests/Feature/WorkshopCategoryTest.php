@@ -27,7 +27,7 @@ class WorkshopCategoryTest extends TestCase
                     'category_ids' => [$category->id],
                 ],
             ])
-            ->get(route('admin.workshop.create'))
+            ->get(route('admin.workshop.create', ['blank' => 1]))
             ->assertOk()
             ->assertSee('name="category_ids[]"', false)
             ->assertSee('checked', false);

@@ -7,7 +7,7 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
-use App\Models\WorkshopTemplateTask;
+use App\Services\WorkshopBlueprintService;
 use App\Services\ReminderService;
 use App\Services\WeeklyWorkplanService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,8 +48,10 @@ class WorkplanCheckoffTest extends TestCase
     {
         $this->admin();
         $template = PickListTemplate::create(['name' => 'Checklist']);
-        $task = WorkshopTemplateTask::create(['pick_list_template_id' => $template->id, 'name' => 'Pack boxes']);
+        $template->tasks()->create(['name' => 'Pack boxes']);
         $workshop = Workshop::factory()->create(['user_id' => auth()->id(), 'status' => 'open', 'pick_list_template_id' => $template->id]);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $task = $workshop->runSheetTasks()->sole();
         $reminder = Reminder::create([
             'kind' => ReminderService::WORKSHOP_TASK_KIND, 'remindable_type' => $workshop->getMorphClass(),
             'remindable_id' => $workshop->id, 'source_type' => $task->getMorphClass(), 'source_id' => $task->id,
@@ -63,7 +65,11 @@ class WorkplanCheckoffTest extends TestCase
         $this->assertTrue(app(WeeklyWorkplanService::class)->build()['reminders']->contains('id', $reminder->id));
         $this->patchJson($url, ['checked' => false])->assertOk();
         $this->assertNotContains($task->id, $workshop->fresh()->run_sheet_completed_task_ids);
-        $other = WorkshopTemplateTask::create(['pick_list_template_id' => PickListTemplate::create(['name' => 'Other'])->id, 'name' => 'Other']);
+        $otherBlueprint = PickListTemplate::create(['name' => 'Other']);
+        $otherBlueprint->tasks()->create(['name' => 'Other']);
+        $otherWorkshop = Workshop::factory()->create(['user_id' => auth()->id(), 'pick_list_template_id' => $otherBlueprint->id]);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($otherWorkshop);
+        $other = $otherWorkshop->runSheetTasks()->sole();
         $this->patchJson(route('admin.workplan.task.checkoff', ['workshop' => $workshop, 'task' => $other]), ['checked' => true])->assertNotFound();
     }
 

@@ -11,6 +11,7 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopRunSheetTask;
 use App\Services\ReminderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -54,17 +55,18 @@ class ReminderSystemTest extends TestCase
         ]);
 
         app(ReminderService::class)->syncWorkshop($workshop);
+        $workshopTask = $workshop->runSheetTasks()->sole();
 
         $reminder = Reminder::query()->sole();
         $this->assertSame($facilitator->id, $reminder->recipient_user_id);
         $this->assertSame('Workshop task: Publish before post — '.$workshop->title, $reminder->subject);
         $this->assertSame('facilitator@example.com', $reminder->recipient_email);
-        $this->assertSame($task->id, (int) $reminder->source_id);
+        $this->assertSame($workshopTask->id, (int) $reminder->source_id);
         $this->assertSame(
             $workshop->starts_at->copy()->subDays(5)->startOfDay()->setTime(6, 0)->toDateTimeString(),
             $reminder->scheduled_at->toDateTimeString()
         );
-        $this->assertStringContainsString('#task-'.$task->id, (string) $reminder->action_url);
+        $this->assertStringContainsString('#task-'.$workshopTask->id, (string) $reminder->action_url);
 
         UserGroup::query()->create(['user_id' => $creator->id, 'slug' => 'admin']);
         $this->actingAs($creator)
@@ -82,9 +84,9 @@ class ReminderSystemTest extends TestCase
 
         UserGroup::query()->create(['user_id' => $facilitator->id, 'slug' => 'admin']);
         $this->actingAs($facilitator)
-            ->get(route('admin.workshop.run-sheet.task.complete', [$workshop, $task]))
-            ->assertRedirect(route('admin.workshop.run-sheet', $workshop).'#task-'.$task->id);
-        $this->assertSame([$task->id], $workshop->fresh()->run_sheet_completed_task_ids);
+            ->get(route('admin.workshop.run-sheet.task.complete', [$workshop, $workshopTask]))
+            ->assertRedirect(route('admin.workshop.run-sheet', $workshop).'#task-'.$workshopTask->id);
+        $this->assertSame([$workshopTask->id], $workshop->fresh()->run_sheet_completed_task_ids);
         $this->assertSame(Reminder::STATUS_CANCELLED, $reminder->fresh()->status);
 
         $workshop->update(['status' => 'cancelled']);
@@ -189,6 +191,17 @@ class ReminderSystemTest extends TestCase
         $service->syncWorkshop($workshop);
         $original = Reminder::query()->sole();
         $original->update(['status' => Reminder::STATUS_QUEUED, 'queued_at' => now()]);
+
+        $task = $workshop->runSheetTasks()->sole();
+        $template->tasks()->firstOrFail()->update([
+            'notes' => 'Blueprint changes should not alter existing workshops',
+            'reminder_offset_days' => -1,
+        ]);
+        $service->syncWorkshop($workshop->fresh());
+
+        $this->assertSame(1, Reminder::query()->count());
+        $this->assertSame('Original notes', Reminder::query()->sole()->message);
+        $this->assertSame(-5, $task->fresh()->reminder_offset_days);
 
         $task->update([
             'notes' => 'Updated notes',

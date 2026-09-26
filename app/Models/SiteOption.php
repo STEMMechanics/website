@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Services\ExternalBackupService;
+use App\Support\HomeHero;
+use App\Support\RequestMemo;
 use App\Support\StemcraftFaqs;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,8 +37,8 @@ class SiteOption extends Model
                 'description' => 'Minimum business cash buffer in dollars. Retained when calculating available drawings, after GST, protected cost-centre funds and pending drawings. Set 0 for no extra buffer.',
                 'input_type' => 'number',
             ],
-            \App\Support\HomeHero::OPTION => [
-                'value' => json_encode(\App\Support\HomeHero::defaults(), JSON_UNESCAPED_SLASHES),
+            HomeHero::OPTION => [
+                'value' => json_encode(HomeHero::defaults(), JSON_UNESCAPED_SLASHES),
                 'description' => 'Homepage hero image and text. Use Homepage settings for a live preview.',
             ],
             'app.notice' => [
@@ -195,6 +197,10 @@ class SiteOption extends Model
             'workshops.school-holidays-label' => [
                 'value' => 'School holidays',
                 'description' => 'Label shown in the workshop calendar key for shaded school holiday dates.',
+            ],
+            'workshops.public-holidays' => [
+                'value' => '',
+                'description' => 'Public holidays relevant to your workshops. Enter one date per line, optionally followed by a label separated by |, for example 2026-12-25 | Christmas Day.',
             ],
             'stemcraft.server-status.enabled' => [
                 'value' => '0',
@@ -446,7 +452,7 @@ class SiteOption extends Model
 
     public static function value(string $name, ?string $default = null): ?string
     {
-        $value = app(\App\Support\RequestMemo::class)->remember('site-option:'.$name, fn () => static::query()
+        $value = app(RequestMemo::class)->remember('site-option:'.$name, fn () => static::query()
             ->where('name', $name)
             ->value('value'));
 

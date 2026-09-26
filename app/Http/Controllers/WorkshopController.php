@@ -979,14 +979,79 @@ class WorkshopController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function admin_create()
+    public function admin_create(Request $request)
     {
+        $blueprints = PickListTemplate::query()->with('hero')->withCount(['tasks', 'items'])->orderBy('name')->get();
+        $blueprintId = $request->integer('blueprint_id') ?: null;
+        if (! $request->boolean('blank') && $blueprintId === null) {
+            return view('admin.workshop.create', ['blueprints' => $blueprints]);
+        }
+
+        $selectedBlueprint = $blueprintId !== null
+            ? PickListTemplate::query()->with(['tasks', 'items'])->findOrFail($blueprintId)
+            : null;
+
         return view('admin.workshop.edit', [
-            'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+            'pickListTemplates' => $blueprints,
+            'selectedBlueprint' => $selectedBlueprint,
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
         ]);
+    }
+
+    /** @return list<array<string, mixed>>|null */
+    private function submittedWorkshopTasks(Request $request, ?Workshop $workshop = null): ?array
+    {
+        if (! $request->exists('workshop_tasks_payload')) {
+            return null;
+        }
+
+        $payload = trim((string) $request->input('workshop_tasks_payload', ''));
+        if ($payload === '') {
+            return [];
+        }
+
+        $tasks = json_decode($payload, true);
+        if (! is_array($tasks)) {
+            throw ValidationException::withMessages(['workshop_tasks_payload' => 'The workshop tasks could not be read. Reload the form and try again.']);
+        }
+
+        $taskIdRules = ['nullable', 'integer'];
+        if ($workshop) {
+            $taskIdRules[] = Rule::exists('workshop_run_sheet_tasks', 'id')
+                ->where(fn ($query) => $query->where('workshop_id', $workshop->id));
+        }
+
+        $validated = Validator::make(['tasks' => $tasks], [
+            'tasks' => ['required', 'array', 'max:100'],
+            'tasks.*' => ['required', 'array'],
+            'tasks.*.id' => $taskIdRules,
+            'tasks.*.blueprint_task_id' => ['nullable', 'integer', 'exists:workshop_template_tasks,id'],
+            'tasks.*.name' => ['required', 'string', 'max:255'],
+            'tasks.*.notes' => ['nullable', 'string', 'max:30000'],
+            'tasks.*.subtasks' => ['nullable', 'array', 'max:50'],
+            'tasks.*.subtasks.*' => ['required', 'array'],
+            'tasks.*.subtasks.*.title' => ['required', 'string', 'max:100'],
+            'tasks.*.subtasks.*.content' => ['nullable', 'string', 'max:12000'],
+            'tasks.*.reminder_enabled' => ['nullable', 'boolean'],
+            'tasks.*.reminder_offset_days' => ['nullable', 'integer', 'between:-365,365'],
+            'tasks.*.reminder_time' => ['nullable', Rule::in(['06:00', '12:00', '16:00'])],
+        ])->validate();
+
+        return collect($validated['tasks'] ?? [])
+            ->map(fn (array $task): array => [
+                'id' => isset($task['id']) ? (int) $task['id'] : null,
+                'blueprint_task_id' => isset($task['blueprint_task_id']) ? (int) $task['blueprint_task_id'] : null,
+                'name' => trim((string) ($task['name'] ?? '')),
+                'notes' => (string) ($task['notes'] ?? ''),
+                'subtasks' => $task['subtasks'] ?? [],
+                'reminder_enabled' => filter_var($task['reminder_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'reminder_offset_days' => $task['reminder_offset_days'] ?? null,
+                'reminder_time' => $task['reminder_time'] ?? null,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -1028,6 +1093,7 @@ class WorkshopController extends Controller
             'early_bird_ends_at' => 'nullable|date',
             'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'tickets_json' => 'nullable|string',
+            'workshop_tasks_payload' => ['nullable', 'string', 'max:60000'],
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -1043,6 +1109,8 @@ class WorkshopController extends Controller
             'hero_media_name.exists' => __('validation.custom_messages.hero_media_name_exists'),
             'registration_data.required_if' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
+
+        $submittedWorkshopTasks = $this->submittedWorkshopTasks($request);
 
         $workshopData = $request->all();
         $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request));
@@ -1060,7 +1128,7 @@ class WorkshopController extends Controller
             ? (string) $request->input('facilitator_user_id')
             : (string) $workshopData['user_id'];
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
-        unset($workshopData['category_ids'], $workshopData['participant_files']);
+        unset($workshopData['category_ids'], $workshopData['participant_files'], $workshopData['workshop_tasks_payload']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -1091,6 +1159,11 @@ class WorkshopController extends Controller
                 ->where('id', (int) $workshopData['pick_list_template_id'])
                 ->value('description') ?? '');
             $workshopData['pick_list_notes'] = trim($templateNotes) !== '' ? $templateNotes : null;
+        }
+        if (($workshopData['pick_list_template_id'] ?? null) !== null && ! filled($workshopData['workshop_run_sheet'] ?? null)) {
+            $workshopData['workshop_run_sheet'] = PickListTemplate::query()
+                ->whereKey($workshopData['pick_list_template_id'])
+                ->value('run_sheet');
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['link', 'email', 'message'], true)) {
             $workshopData['registration_data'] = null;
@@ -1125,6 +1198,12 @@ class WorkshopController extends Controller
         }
 
         $workshop = Workshop::create($workshopData);
+        $blueprintService = app(\App\Services\WorkshopBlueprintService::class);
+        if ($submittedWorkshopTasks === null) {
+            $blueprintService->copyTasksFromBlueprint($workshop, $workshop->pick_list_template_id ? (int) $workshop->pick_list_template_id : null);
+        } else {
+            $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
+        }
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         if ($request->exists('format')) {
@@ -1138,7 +1217,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Workshop created');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.workshop.edit', $workshop);
     }
 
     /**
@@ -1209,8 +1288,10 @@ class WorkshopController extends Controller
      */
     public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
+        app(\App\Services\WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
         $workshop->loadCount('interests');
-        $workshop->loadMissing(['categories', 'pickListTemplate', 'requestedBy.organisations', 'hostedFor.parent']);
+        $workshop->loadMissing(['categories', 'pickListTemplate', 'runSheetTasks', 'requestedBy.organisations', 'hostedFor.parent']);
+        $workshopTaskDrafts = app(\App\Services\WorkshopBlueprintService::class)->taskDraftsForWorkshop($workshop);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
             'tickets as attended_tickets_count' => fn ($query) => $query
@@ -1232,6 +1313,7 @@ class WorkshopController extends Controller
 
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
+            'workshopTaskDrafts' => $workshopTaskDrafts,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
@@ -2152,6 +2234,7 @@ class WorkshopController extends Controller
             'pending_files_meta.*.notes' => 'nullable|string',
             'notify_ticket_holders' => 'nullable|boolean',
             'ticket_change_email_notes' => 'nullable|string',
+            'workshop_tasks_payload' => ['nullable', 'string', 'max:60000'],
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -2167,6 +2250,8 @@ class WorkshopController extends Controller
             'hero_media_name.exists' => __('validation.custom_messages.hero_media_name_exists'),
             'registration_data.required_if' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
+
+        $submittedWorkshopTasks = $this->submittedWorkshopTasks($request, $workshop);
 
         $workshopData = $request->all();
         $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request, $workshop));
@@ -2188,7 +2273,7 @@ class WorkshopController extends Controller
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
-        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files']);
+        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files'], $workshopData['workshop_tasks_payload']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -2221,7 +2306,9 @@ class WorkshopController extends Controller
 
         if ($templateChanged) {
             $workshopData['run_sheet_completed_task_ids'] = null;
-            $workshopData['workshop_run_sheet'] = null;
+            $workshopData['workshop_run_sheet'] = $newTemplateId !== null
+                ? PickListTemplate::query()->whereKey($newTemplateId)->value('run_sheet')
+                : null;
         }
 
         if ($resetPickListCustomization) {
@@ -2331,6 +2418,14 @@ class WorkshopController extends Controller
         }
 
         $workshop->update($workshopData);
+        $blueprintService = app(\App\Services\WorkshopBlueprintService::class);
+        if ($templateChanged) {
+            $blueprintService->copyTasksFromBlueprint($workshop, $newTemplateId);
+        } elseif ($submittedWorkshopTasks !== null) {
+            $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
+        } else {
+            $blueprintService->ensureWorkshopTasks($workshop);
+        }
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         if ($request->exists('format')) {

@@ -23,7 +23,7 @@ class WorkshopTemplateTest extends TestCase
         $template = PickListTemplate::query()->create(['name' => 'Social media template']);
 
         $response = $this->actingAs($admin)
-            ->get(route('admin.workshop-template.edit', $template));
+            ->get(route('admin.workshop-blueprint.edit', $template));
 
         $response
             ->assertOk()
@@ -34,6 +34,7 @@ class WorkshopTemplateTest extends TestCase
             ->assertSee('x-on:click.self="closeTaskEditor()"', false)
             ->assertSee("document.body.classList.toggle('overflow-hidden'", false)
             ->assertSeeText('Details and Alerts')
+            ->assertSeeText('Workshop Blueprints')
             ->assertSeeText('Subtask content')
             ->assertSee('Expand task editor', false)
             ->assertSee('Show workshop placeholders', false)
@@ -62,6 +63,42 @@ class WorkshopTemplateTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), 'aria-label="Show workshop placeholders"'));
     }
 
+    public function test_blueprint_index_shows_workshop_defaults_and_uses_mobile_listing_layout(): void
+    {
+        $admin = $this->createAdminUser();
+        $blueprint = PickListTemplate::query()->create([
+            'name' => 'Paper Speakers',
+            'description' => 'Internal preparation notes.',
+            'duration' => '90 minutes',
+            'participants' => '8–24',
+            'default_workshop_title' => 'Build a paper speaker',
+            'default_workshop_summary' => 'Make music with a simple paper speaker.',
+        ]);
+        $blueprint->tasks()->create(['name' => 'Draft Facebook post', 'sort_order' => 10]);
+        $blueprint->items()->create([
+            'item_name' => 'Copper tape',
+            'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
+            'quantity_value' => 1,
+            'sort_order' => 10,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-blueprint.index'))
+            ->assertOk()
+            ->assertSee('Reusable workshop details, hero images, materials, run sheets, and social tasks.')
+            ->assertSee('sm-mobile-cards', false)
+            ->assertSee('Pick list')
+            ->assertSee('Attachments')
+            ->assertDontSee('Workshop copy')
+            ->assertSee('Paper Speakers')
+            ->assertSee('Workshop: Build a paper speaker')
+            ->assertSee('90 minutes')
+            ->assertSee('8–24')
+            ->assertSee('data-label="Tasks" class="text-center tabular-nums">1</td>', false)
+            ->assertSee('data-label="Pick list" class="text-center tabular-nums">1</td>', false)
+            ->assertSee('Internal preparation notes.');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -73,11 +110,14 @@ class WorkshopTemplateTest extends TestCase
         $admin = $this->createAdminUser();
         $attachment = $this->createMedia($admin, 'paper-speakers-guide.pdf');
 
-        $response = $this->actingAs($admin)->post(route('admin.workshop-template.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.workshop-blueprint.store'), [
             'name' => 'Paper Speakers - Standard',
             'description' => 'Standard paper speaker workshop.',
             'duration' => '1.5 hours',
             'participants' => '8-24',
+            'default_workshop_title' => 'Build a paper speaker',
+            'default_workshop_summary' => 'Make music with a simple paper speaker.',
+            'default_workshop_content' => '<p>Families can build and test a paper speaker.</p>',
             'run_sheet' => '<h2>Welcome</h2><p>Introduce the activity.</p>',
             'run_sheet_drawing_data' => 'data:image/png;base64,dGVzdA==',
             'tasks' => [
@@ -106,9 +146,12 @@ class WorkshopTemplateTest extends TestCase
         $template = PickListTemplate::query()->where('name', 'Paper Speakers - Standard')->firstOrFail();
 
         $response->assertSessionHasNoErrors();
-        $response->assertRedirect(route('admin.workshop-template.edit', $template));
+        $response->assertRedirect(route('admin.workshop-blueprint.edit', $template));
         $this->assertSame('1.5 hours', $template->duration);
         $this->assertSame('8-24', $template->participants);
+        $this->assertSame('Build a paper speaker', $template->default_workshop_title);
+        $this->assertSame('Make music with a simple paper speaker.', $template->default_workshop_summary);
+        $this->assertSame('<p>Families can build and test a paper speaker.</p>', $template->default_workshop_content);
         $this->assertCount(2, $template->tasks);
         $this->assertSame(['Charge batteries', 'Print worksheets'], $template->tasks->pluck('name')->all());
         $this->assertSame('<p><strong>The day before</strong></p>', $template->tasks->first()->notes);
@@ -120,14 +163,66 @@ class WorkshopTemplateTest extends TestCase
         $this->assertSame([$attachment->name], $template->attachments()->pluck('media.name')->all());
     }
 
+    public function test_new_blueprints_offer_social_posting_tasks_and_contextual_wands(): void
+    {
+        $admin = $this->createAdminUser();
+        config(['services.openai.api_key' => 'test-openai-key']);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop-blueprint.create'))
+            ->assertOk()
+            ->assertSee('Social Media: Draft Facebook post', false)
+            ->assertSee('Social Media: Draft Instagram caption', false)
+            ->assertSee('Social Media: Select or create a post image', false)
+            ->assertSee('Social Media: Schedule posts', false)
+            ->assertSee('data-ai-kind="blueprint_description"', false)
+            ->assertSee('data-ai-kind="blueprint_description_amend"', false)
+            ->assertSee('aria-label="Add missing supported learning outcomes without changing the description"', false)
+            ->assertSee('Existing description and outcomes are kept unchanged.', false)
+            ->assertSee('if ($event.detail?.append) { appendExternalContent($event.detail?.html || \'\') }', false)
+            ->assertSee('data-ai-editor-format="workshop-description"', false)
+            ->assertSee('blueprintFieldValue', false)
+            ->assertSee('refreshBlueprintAiContext($event.currentTarget)', false)
+            ->assertSee('[data-editor-name=default_workshop_content] .tiptap', false)
+            ->assertSee('JSON.stringify(blueprintFormContext())', false)
+            ->assertSee('data-ai-kind="workshop_summary"', false)
+            ->assertSee('data-ai-fill-target="default_workshop_summary"', false)
+            ->assertSee('Use the workshop description to draft or improve this summary', false)
+            ->assertSee('data-ai-kind="task_content"', false)
+            ->assertSee('data-ai-kind="social_post_bundle"', false)
+            ->assertSee('Drafting social posts from the workshop description', false)
+            ->assertSee('aria-label="Add missing tasks and draft or refresh social post copy"', false)
+            ->assertDontSee('Task notes and social post copy are copied into each workshop.');
+
+        $this->assertStringNotContainsString('x-bind:disabled="allDefaultSocialPostTasksAdded()"', $response->getContent());
+        $this->assertStringNotContainsString('$root.elements.namedItem', $response->getContent());
+        $this->assertSame(3, substr_count($response->getContent(), 'x-on:click="refreshBlueprintAiContext($event.currentTarget)"'));
+
+        $html = $response->getContent();
+        $document = new \DOMDocument();
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+        $blueprintForm = $document->getElementById('workshop-blueprint-form');
+        $this->assertNotNull($blueprintForm);
+        $this->assertStringContainsString('blueprintFormContext', $blueprintForm->getAttribute('x-data'));
+        $this->assertStringContainsString('defaultDescription', $blueprintForm->getAttribute('x-data'));
+
+        foreach (['blueprint_description', 'blueprint_description_amend'] as $kind) {
+            $this->assertSame(1, preg_match('/<button\b(?=[^>]*data-ai-kind="'.$kind.'")[^>]*>/s', $html, $matches));
+            $this->assertDoesNotMatchRegularExpression('/\sdisabled(?:\s|=|>)/i', $matches[0]);
+        }
+    }
+
     public function test_serialized_browser_task_payload_is_saved(): void
     {
         $admin = $this->createAdminUser();
         $template = PickListTemplate::query()->create(['name' => 'Task payload template']);
 
         $response = $this->actingAs($admin)
-            ->from(route('admin.workshop-template.edit', $template))
-            ->put(route('admin.workshop-template.update', $template), [
+            ->from(route('admin.workshop-blueprint.edit', $template))
+            ->put(route('admin.workshop-blueprint.update', $template), [
                 'name' => $template->name,
                 'tasks_payload' => json_encode([[
                     'id' => null,
@@ -144,7 +239,7 @@ class WorkshopTemplateTest extends TestCase
             ]);
 
         $response->assertSessionHasNoErrors();
-        $response->assertRedirect(route('admin.workshop-template.edit', $template));
+        $response->assertRedirect(route('admin.workshop-blueprint.edit', $template));
         $task = $template->fresh()->tasks()->sole();
         $this->assertSame('Publish social post', $task->name);
         $this->assertSame('<p>Join us {time-range}</p>', $task->notes);
@@ -162,6 +257,9 @@ class WorkshopTemplateTest extends TestCase
             'description' => 'Advanced notes',
             'duration' => '2 hours',
             'participants' => '6-16',
+            'default_workshop_title' => 'Advanced paper speakers',
+            'default_workshop_summary' => 'A detailed build for returning makers.',
+            'default_workshop_content' => '<p>Build a more advanced speaker.</p>',
             'run_sheet' => '<p>Advanced run sheet</p>',
         ]);
         $template->tasks()->create([
@@ -177,12 +275,15 @@ class WorkshopTemplateTest extends TestCase
         ]);
         $template->updateFiles([$attachment->name], PickListTemplate::ATTACHMENT_COLLECTION);
 
-        $response = $this->actingAs($admin)->post(route('admin.workshop-template.duplicate', $template));
+        $response = $this->actingAs($admin)->post(route('admin.workshop-blueprint.duplicate', $template));
         $copy = PickListTemplate::query()->where('name', 'Paper Speakers - Advanced (Copy)')->firstOrFail();
 
-        $response->assertRedirect(route('admin.workshop-template.edit', $copy));
+        $response->assertRedirect(route('admin.workshop-blueprint.edit', $copy));
         $this->assertNotSame($template->id, $copy->id);
         $this->assertSame('2 hours', $copy->duration);
+        $this->assertSame('Advanced paper speakers', $copy->default_workshop_title);
+        $this->assertSame('A detailed build for returning makers.', $copy->default_workshop_summary);
+        $this->assertSame('<p>Build a more advanced speaker.</p>', $copy->default_workshop_content);
         $this->assertSame(['Prepare soldering stations'], $copy->tasks->pluck('name')->all());
         $this->assertSame([['title' => 'Safety', 'content' => '<p>Check each station.</p>']], $copy->tasks->first()->subtasks);
         $this->assertSame(['Soldering iron'], $copy->items->pluck('item_name')->all());
@@ -194,7 +295,7 @@ class WorkshopTemplateTest extends TestCase
         Storage::fake('archive');
         $admin = $this->createAdminUser();
 
-        $response = $this->actingAs($admin)->post(route('admin.workshop-template.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.workshop-blueprint.store'), [
             'name' => 'Paper Speakers - Drop In',
             'duration' => '2 hours',
             'participants' => '10-20',
@@ -202,10 +303,10 @@ class WorkshopTemplateTest extends TestCase
         ]);
 
         $template = PickListTemplate::query()->where('name', 'Paper Speakers - Drop In')->firstOrFail();
-        $response->assertRedirect(route('admin.workshop-template.edit', $template));
+        $response->assertRedirect(route('admin.workshop-blueprint.edit', $template));
         $this->assertSame(['facilitator-guide.pdf'], $template->attachments()->pluck('media.name')->all());
 
-        $pdfResponse = $this->actingAs($admin)->get(route('admin.workshop-template.pdf', $template));
+        $pdfResponse = $this->actingAs($admin)->get(route('admin.workshop-blueprint.pdf', $template));
         $pdfResponse->assertOk();
         $pdfResponse->assertHeader('content-type', 'application/pdf');
     }

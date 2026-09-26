@@ -7,7 +7,7 @@
         $resolvedTemplate = $templatePdf ? $template : $workshop->pickListTemplate;
         $documentName = $templatePdf ? $resolvedTemplate->name : $workshop->title;
     @endphp
-    <title>{{ $templatePdf ? 'Workshop Template' : 'Workshop Plan' }} - {{ $documentName }}</title>
+    <title>{{ $templatePdf ? 'Workshop Blueprint' : 'Workshop Plan' }} - {{ $documentName }}</title>
     <style>
         @include('pdf.partials.styling')
         body { line-height: 1.15; }
@@ -53,11 +53,13 @@
         'participants' => $participants,
         'calculatedItems' => $calculatedItems,
         'pickListNotes' => $templatePdf ? '' : ($pickListNotes ?? ''),
-        'documentTitle' => $templatePdf ? 'Workshop Template' : 'Workshop Pick List',
+        'documentTitle' => $templatePdf ? 'Workshop Blueprint' : 'Workshop Pick List',
     ])
 
     @php
-        $tasks = $resolvedTemplate?->tasks ?? collect();
+        $tasks = $templatePdf
+            ? ($resolvedTemplate?->tasks ?? collect())
+            : ($workshop?->runSheetTasks ?? collect());
         $runSheet = trim((string) (($templatePdf ?? false)
             ? ($resolvedTemplate?->run_sheet ?? '')
             : ($workshop->workshop_run_sheet ?? $resolvedTemplate?->run_sheet ?? '')));
@@ -128,7 +130,7 @@
             @if($runSheet !== '' || $templateDrawing !== '' || $workshopNotes !== '' || $workshopDrawingPath)
                 <div class="section-title run-sheet-title">Run Sheet</div>
                 @if($runSheet !== '')<div class="run-sheet">{!! $runSheet !!}</div>@endif
-                @if($templateDrawing !== '')<img class="drawing" src="{{ $templateDrawing }}" alt="Template run sheet drawing">@endif
+                @if($templateDrawing !== '')<img class="drawing" src="{{ $templateDrawing }}" alt="Blueprint run sheet drawing">@endif
                 @if($workshopNotes !== '')
                     <div class="section-title">Workshop-specific Notes</div>
                     <div class="task-notes">{{ $workshopNotes }}</div>
