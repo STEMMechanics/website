@@ -64,6 +64,7 @@ use App\Http\Controllers\WorkshopCategoryController;
 use App\Http\Controllers\WorkshopController;
 use App\Http\Controllers\WorkshopCostingController;
 use App\Http\Controllers\WorkshopHistoryController;
+use App\Http\Controllers\WorkshopInterestReminderController;
 use App\Http\Controllers\WorkshopPickListController;
 use App\Http\Controllers\WorkshopPromotionalFlyerController;
 use App\Http\Controllers\WorkshopRecommendationController;
@@ -86,6 +87,9 @@ Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('w
 Route::get('workshops/{workshop}/register', [WorkshopController::class, 'registrationRedirect'])->name('workshop.registration.redirect');
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');
 Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'interest'])->name('workshop.interest');
+Route::match(['GET', 'POST'], 'workshop-interest-reminders/{interest}/unsubscribe', [WorkshopInterestReminderController::class, 'unsubscribe'])
+    ->middleware('signed')
+    ->name('workshop-interest-reminders.unsubscribe');
 Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
 Route::post('workshops/{workshop}/tickets/join', [WorkshopTicketFlowController::class, 'join'])->block(120, 120)->name('workshop.ticket.flow.join');
 Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');

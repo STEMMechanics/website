@@ -236,3 +236,5 @@ Artisan::command('workshops:send-welcomes', function () {
 })->purpose('Queue due welcome emails and catch up late active bookings');
 
 Schedule::command('workshops:send-welcomes')->everyMinute()->withoutOverlapping();
+
+Schedule::command('workshops:send-interest-reminders')->everyMinute()->withoutOverlapping();
