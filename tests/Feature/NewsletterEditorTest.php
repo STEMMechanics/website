@@ -14,6 +14,7 @@ use App\Models\Workshop;
 use App\Services\NewsletterProductSelectionService;
 use App\Services\WeeklyWorkplanService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -30,9 +31,47 @@ class NewsletterEditorTest extends TestCase
         return $admin;
     }
 
+    public function test_newsletter_editor_uses_inline_ai_actions_without_the_copy_panel_or_old_instructions(): void
+    {
+        $this->admin();
+
+        $response = $this->get(route('admin.newsletter.index'))->assertOk();
+
+        $response
+            ->assertSee('aria-label="Replace header text with AI"', false)
+            ->assertSee('data-ai-processing-message="Updating newsletter text…"', false)
+            ->assertSee('data-ai-lock-fields="subject,hero_header,hero_cta"', false)
+            ->assertSee('data-ai-lock-controls="#newsletter-header-editor [data-newsletter-refresh], #newsletter-header-editor [name=content_order], #newsletter-header-editor button[type=submit]"', false)
+            ->assertSee('data-ai-toast', false)
+            ->assertSee('id="newsletter-header-ai-toast"', false)
+            ->assertSee('id="newsletter-note-ai-toast"', false)
+            ->assertSee('popover="manual"', false)
+            ->assertSee('z-[3200]', false)
+            ->assertSee('data-ai-widget-target="#newsletter-note-ai-toast"', false)
+            ->assertSee('data-ai-processing-message="Writing your newsletter introduction…"', false)
+            ->assertSee('data-ai-lock-content="#newsletter-note-editor .tiptap"', false)
+            ->assertSee('Newsletter introduction')
+            ->assertSee('aria-label="Replace introduction with AI"', false)
+            ->assertSee('aria-label="Append AI text"', false)
+            ->assertSee('maxCharacters: 4000', false)
+            ->assertSee('w-[min(56rem,calc(100%-2rem))]', false)
+            ->assertSee('newsletter-note-image-remove')
+            ->assertSee('newsletter-header-image-remove')
+            ->assertDontSee('aria-label="Edit newsletter settings"', false)
+            ->assertDontSee('Use the link button to find a store item or workshop')
+            ->assertDontSee('Draft newsletter copy')
+            ->assertDontSee('Workshops are selected from six hours after release')
+            ->assertDontSee('Edit the newsletter where it appears')
+            ->assertDontSee('Include in this newsletter');
+
+        $this->assertMatchesRegularExpression('/<button\b(?=[^>]*\bid="newsletter-note-image-remove")(?=[^>]*\shidden(?:\s|=|>))[^>]*>/', $response->getContent());
+        $this->assertMatchesRegularExpression('/<button\b(?=[^>]*\bid="newsletter-header-image-remove")(?=[^>]*\shidden(?:\s|=|>))[^>]*>/', $response->getContent());
+        $response->assertSeeInOrder(['Send Test Email', 'Save newsletter']);
+    }
+
     public function test_hiding_a_workshop_advances_the_selection_in_editor_dashboard_and_email_and_can_be_restored(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-23 12:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-23 12:00:00'));
         Queue::fake();
         $admin = $this->admin();
         $location = Location::factory()->create(['name' => 'Julia Creek Library']);
@@ -68,7 +107,7 @@ class NewsletterEditorTest extends TestCase
 
     public function test_previews_use_the_scheduled_release_but_sending_now_uses_today(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-20 10:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-20 10:00:00'));
         Queue::fake();
         $admin = $this->admin();
         Location::factory()->create();

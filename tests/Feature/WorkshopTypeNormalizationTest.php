@@ -25,7 +25,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_admin_can_open_the_create_workshop_form(): void
+    public function test_admin_can_choose_a_blank_workshop_or_start_from_a_blueprint(): void
     {
         $admin = $this->createAdminUser();
 
@@ -35,7 +35,176 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response
             ->assertOk()
             ->assertSeeText('Create Workshop')
-            ->assertSeeText($admin->getName().' · '.$admin->email);
+            ->assertSeeText('Blank workshop')
+            ->assertSeeText('Start with a blank workshop or choose a blueprint')
+            ->assertSee(route('admin.workshop.create', ['blank' => 1]), false);
+
+        $blankWorkshopResponse = $this->get(route('admin.workshop.create', ['blank' => 1]));
+
+        $blankWorkshopResponse
+            ->assertOk()
+            ->assertSeeText($admin->getName().' · '.$admin->email)
+            ->assertSeeText('Run sheet tasks');
+
+        $html = $blankWorkshopResponse->getContent();
+        $this->assertTrue(
+            strpos($html, 'Run sheet tasks') < strpos($html, '<label for="summary"')
+                && strpos($html, '<label for="summary"') < strpos($html, '>Description</h2>'),
+            'The summary should sit next to the description, after the run sheet tasks.'
+        );
+    }
+
+    public function test_selected_blueprint_prefills_public_workshop_copy_hero_and_tasks(): void
+    {
+        $admin = $this->createAdminUser();
+        $hero = $this->createHeroMedia($admin);
+        $blueprint = PickListTemplate::query()->create([
+            'name' => 'Paper Speakers',
+            'default_workshop_title' => 'Build a paper speaker',
+            'default_workshop_summary' => 'Make music with a simple paper speaker.',
+            'default_workshop_content' => '<p>Build and test a paper speaker.</p>',
+            'hero_media_name' => $hero,
+            'run_sheet' => '<p>Welcome and introduce the build.</p>',
+        ]);
+        $blueprint->tasks()->create([
+            'name' => 'Draft Facebook post',
+            'notes' => 'Use the workshop date.',
+            'reminder_enabled' => true,
+            'reminder_offset_days' => -14,
+            'reminder_time' => '12:00',
+            'sort_order' => 10,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.create', ['blueprint_id' => $blueprint->id]))
+            ->assertOk()
+            ->assertSee('value="Build a paper speaker"', false)
+            ->assertSeeText('Make music with a simple paper speaker.')
+            ->assertSeeText('Build and test a paper speaker.')
+            ->assertSee('name="hero_media_name" value="'.$hero.'"', false)
+            ->assertSee('Draft Facebook post', false)
+            ->assertSee('data-ai-kind="workshop_summary"', false)
+            ->assertSee('data-ai-fill-target="summary"', false)
+            ->assertSee('data-ai-kind="workshop_description"', false)
+            ->assertSee('data-ai-kind="workshop_description_amend"', false)
+            ->assertSee('data-ai-editor-format="workshop-description"', false)
+            ->assertSee('Amend the description and add missing supported sections, including learning outcomes', false)
+            ->assertSee('data-ai-kind="task_content"', false)
+            ->assertSee('x-show="task.expanded"', false)
+            ->assertSee('taskReminderSummary(task)', false)
+            ->assertSeeText('Email a reminder to the workshop facilitator')
+            ->assertSee('data-open-dialog="workshop-task-copy-dialog"', false)
+            ->assertSee('fa-eye', false)
+            ->assertSee('id="workshop-task-copy-dialog"', false)
+            ->assertSee('resolvedWorkshopTaskCopy(previewTask)', false)
+            ->assertSee('aria-label="Insert workshop placeholder"', false)
+            ->assertSee('fa-key', false)
+            ->assertSee('{date-long}', false)
+            ->assertSeeText('This preview uses the current workshop details. Saved placeholders stay up to date when you change them.')
+            ->assertSee('x-model="task.reminder_direction"', false)
+            ->assertSee('x-model="task.reminder_time"', false)
+            ->assertDontSeeText('Task notes or social post copy');
+    }
+
+    public function test_creating_from_a_blueprint_copies_its_run_sheet_and_task_snapshot(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create(['name' => 'Maker Lab']);
+        $hero = $this->createHeroMedia($admin);
+        $blueprint = PickListTemplate::query()->create([
+            'name' => 'Blueprint workshop',
+            'default_workshop_title' => 'Build a paper speaker',
+            'default_workshop_summary' => 'Make music with a paper speaker.',
+            'default_workshop_content' => '<p>Build and test a simple speaker.</p>',
+            'hero_media_name' => $hero,
+            'run_sheet' => '<p>Welcome the group and introduce the build.</p>',
+        ]);
+        $blueprint->tasks()->create([
+            'name' => 'Draft Facebook post',
+            'notes' => 'Join us {date-long} at {time-range} in {location}. Ages {ages}; cost {cost}. {workshop-url}',
+            'subtasks' => [['title' => 'Instagram caption', 'content' => 'More details: {date-long} {workshop-url}']],
+            'sort_order' => 10,
+        ]);
+        $blueprint->tasks()->create([
+            'name' => 'Schedule social posts',
+            'notes' => 'Check the registration link.',
+            'sort_order' => 20,
+        ]);
+        $sourceWorkshop = $this->createWorkshop($admin, $location, $hero);
+        $payload = $this->workshopUpdatePayload($sourceWorkshop, $location, $hero, [
+            'title' => $blueprint->default_workshop_title,
+            'summary' => $blueprint->default_workshop_summary,
+            'content' => $blueprint->default_workshop_content,
+            'pick_list_template_id' => $blueprint->id,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.workshop.store'), $payload)
+            ->assertSessionHasNoErrors();
+
+        $created = Workshop::query()->where('title', 'Build a paper speaker')->sole();
+        $response->assertRedirect(route('admin.workshop.edit', $created));
+        $this->assertSame($blueprint->id, (int) $created->pick_list_template_id);
+        $this->assertSame('Make music with a paper speaker.', $created->summary);
+        $this->assertSame('<p>Build and test a simple speaker.</p>', $created->content);
+        $this->assertSame($hero, $created->hero_media_name);
+        $this->assertSame('<p>Welcome the group and introduce the build.</p>', $created->workshop_run_sheet);
+        $this->assertTrue($created->run_sheet_tasks_initialized);
+        $this->assertSame(
+            ['Draft Facebook post', 'Schedule social posts'],
+            $created->runSheetTasks()->orderBy('sort_order')->pluck('name')->all(),
+        );
+        $createdTasks = $created->runSheetTasks()->orderBy('sort_order')->get();
+        $this->assertSame(['Draft Facebook post', 'Schedule social posts'], $createdTasks->pluck('name')->all());
+        $this->assertSame('Join us {date-long} at {time-range} in {location}. Ages {ages}; cost {cost}. {workshop-url}', $createdTasks[0]->notes);
+        $this->assertSame('Check the registration link.', $createdTasks[1]->notes);
+        $this->assertSame('More details: {date-long} {workshop-url}', $createdTasks[0]->subtasks[0]['content']);
+    }
+
+    public function test_workshop_editor_restores_legacy_resolved_blueprint_placeholders_only_when_copy_is_unchanged(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create(['name' => 'Maker Lab']);
+        $hero = $this->createHeroMedia($admin);
+        $blueprint = PickListTemplate::query()->create(['name' => 'Paper Speakers']);
+        $templateCopy = '<p>Join us {date-long} at {time-range} in {location}.</p>';
+        $templateSubtask = 'More details: {date-long} {workshop-url}';
+        $blueprintTask = $blueprint->tasks()->create([
+            'name' => 'Social Media: Workshop Announcement',
+            'notes' => $templateCopy,
+            'subtasks' => [['title' => 'Link', 'content' => $templateSubtask]],
+            'sort_order' => 10,
+        ]);
+        $editedBlueprintTask = $blueprint->tasks()->create([
+            'name' => 'Social Media: Before the Workshop',
+            'notes' => '<p>Draft this invitation for {date-long}.</p>',
+            'sort_order' => 20,
+        ]);
+        $workshop = $this->createWorkshop($admin, $location, $hero);
+        $workshop->update(['pick_list_template_id' => $blueprint->id, 'run_sheet_tasks_initialized' => true]);
+        $placeholderRenderer = app(\App\Services\ReminderService::class);
+        $workshop->runSheetTasks()->create([
+            'blueprint_task_id' => $blueprintTask->id,
+            'name' => $blueprintTask->name,
+            'notes' => $placeholderRenderer->renderWorkshopPlaceholders($templateCopy, $workshop),
+            'subtasks' => [[
+                'title' => 'Link',
+                'content' => $placeholderRenderer->renderWorkshopPlaceholders($templateSubtask, $workshop),
+            ]],
+            'sort_order' => 10,
+        ]);
+        $workshop->runSheetTasks()->create([
+            'blueprint_task_id' => $editedBlueprintTask->id,
+            'name' => $editedBlueprintTask->name,
+            'notes' => '<p>I rewrote this copy for the family newsletter.</p>',
+            'sort_order' => 20,
+        ]);
+
+        $drafts = app(\App\Services\WorkshopBlueprintService::class)->taskDraftsForWorkshop($workshop);
+
+        $this->assertSame($templateCopy, $drafts[0]['notes']);
+        $this->assertSame($templateSubtask, $drafts[0]['subtasks'][0]['content']);
+        $this->assertSame('<p>I rewrote this copy for the family newsletter.</p>', $drafts[1]['notes']);
     }
 
     public function test_changing_workshop_to_online_clears_location_id(): void
@@ -154,7 +323,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertSame((string) $newLocation->id, (string) $workshop->fresh()->location_id);
     }
 
-    public function test_admin_workshop_edit_hides_unused_summary_and_early_bird_note_fields(): void
+    public function test_admin_workshop_edit_shows_workshop_summary_and_hides_unused_early_bird_note_fields(): void
     {
         $admin = $this->createAdminUser();
         $owner = User::factory()->create();
@@ -166,8 +335,8 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
 
         $response->assertOk();
-        $response->assertDontSee('name="summary"', false);
-        $response->assertDontSee('Short copy used in newsletter emails.', false);
+        $response->assertSee('name="summary"', false);
+        $response->assertSeeText('Existing workshop summary');
         $response->assertDontSee('Early Bird Note');
         $response->assertSee('Early Bird', false);
         $response->assertSee('ui-collapsible-section', false);

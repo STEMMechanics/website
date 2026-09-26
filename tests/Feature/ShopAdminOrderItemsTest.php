@@ -131,10 +131,11 @@ class ShopAdminOrderItemsTest extends TestCase
             ])->id,
             'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
             'quantity' => 1,
+            'parcel_number' => 2,
             'carrier' => 'Australia Post',
-            'tracking_number' => null,
-            'tracking_url' => null,
-            'notes' => null,
+            'tracking_number' => 'TRACK-ORDER-1002',
+            'tracking_url' => 'https://track.example.test/parcel/TRACK-ORDER-1002',
+            'notes' => 'Customer emailed the tracking details.',
             'dispatched_at' => now(),
         ]);
         $item = StoreOrderItem::factory()->create([
@@ -146,6 +147,17 @@ class ShopAdminOrderItemsTest extends TestCase
             'available_now_quantity' => 2,
             'delayed_quantity' => 1,
             'inventory_reserved_quantity' => 2,
+        ]);
+        StoreOrderItemTracking::query()->create([
+            'store_order_item_id' => $item->id,
+            'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED,
+            'quantity' => 1,
+            'parcel_number' => 3,
+            'carrier' => 'Sendle',
+            'tracking_number' => null,
+            'tracking_url' => null,
+            'notes' => null,
+            'dispatched_at' => now(),
         ]);
 
         $this->actingAs($admin)
@@ -164,6 +176,17 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Preparing Order')
             ->assertSee('Cancel Items')
             ->assertSee('Add Shipment')
+            ->assertSee('Shipment history')
+            ->assertSee('Courier:')
+            ->assertSee('Australia Post')
+            ->assertSee('Dispatched:')
+            ->assertSee(now()->format('D j M, Y'))
+            ->assertSee('TRACK-ORDER-1002')
+            ->assertSee('No tracking details')
+            ->assertDontSee('Reserved stock dispatch')
+            ->assertDontSee('Parcel #2')
+            ->assertSee('https://track.example.test/parcel/TRACK-ORDER-1002', false)
+            ->assertSee('Customer emailed the tracking details.')
             ->assertSee('Parcel number')
             ->assertSee('Tracking mode')
             ->assertSee('No Tracking Number')
@@ -177,7 +200,8 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Save All Changes')
             ->assertSee('Clear Staged Changes')
             ->assertDontSee('Finish Order Edits')
-            ->assertSee($item->displayTitle());
+            ->assertSee($item->displayTitle())
+            ->assertViewHas('carrierSuggestions', fn (array $suggestions): bool => in_array('Australia Post', $suggestions, true));
     }
 
     public function test_admin_pickup_orders_show_pickup_copy_and_pick_list_pdf_link(): void

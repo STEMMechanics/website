@@ -24,6 +24,20 @@ export function openListDialog(dialog, trigger) {
     }
 }
 
+let listDialogMouseDown = null;
+
+document.addEventListener('mousedown', event => {
+    listDialogMouseDown = null;
+    const dialog = event.target.closest?.('[data-list-dialog]');
+    if (!dialog?.open) return;
+
+    const rect = dialog.getBoundingClientRect();
+    listDialogMouseDown = {
+        dialog,
+        startedInside: event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom,
+    };
+}, true);
+
 document.addEventListener('click', event => {
     const summary = event.target.closest('.sm-filter-sections summary');
     if (summary && window.innerWidth >= 768) {
@@ -35,8 +49,9 @@ document.addEventListener('click', event => {
     const close = event.target.closest('[data-close-dialog]');
     if (close) { event.preventDefault(); close.closest('dialog')?.close(); }
     if (event.target.matches('[data-list-dialog]')) {
-        const rect = event.target.getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.target.close();
+        const press = listDialogMouseDown;
+        listDialogMouseDown = null;
+        if (press?.dialog === event.target && !press.startedInside) event.target.close();
     }
     const rowAction = event.target.closest('.sm-row-action:not(:disabled)');
     if (rowAction) rowAction.closest('dialog.sm-list-dialog-actions')?.close();

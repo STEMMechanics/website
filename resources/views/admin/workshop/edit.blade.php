@@ -4,7 +4,9 @@
 
 @php
 $workshopModel = $workshop ?? null;
-$workshopContent = isset($workshop) ? $workshop->content : '';
+$selectedBlueprint = $selectedBlueprint ?? null;
+$workshopContent = old('content', $workshopModel?->content ?? $selectedBlueprint?->default_workshop_content ?? '');
+$workshopSummary = old('summary', $workshopModel?->summary ?? $selectedBlueprint?->default_workshop_summary ?? '');
 $workshopStatusForForm = old('status', $workshopModel?->status ?? 'draft');
 $workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshopModel?->starts_at ?? ''));
 $workshopEndValue = old('ends_at', \App\Helpers::timestampNoSeconds($workshopModel?->ends_at ?? ''));
@@ -29,11 +31,33 @@ $savedTickets = isset($workshop)
 : '[]';
 }
 
-$pickListTemplateFieldValue = old('pick_list_template_id', $workshopModel?->pick_list_template_id ?? '');
+$pickListTemplateFieldValue = old('pick_list_template_id', $workshopModel?->pick_list_template_id ?? $selectedBlueprint?->id ?? '');
 $pickListTemplateMode = old('pick_list_template_id') !== null
     ? $pickListTemplateFieldValue
     : (($workshopModel?->pick_list_is_customized) ? 'custom' : $pickListTemplateFieldValue);
 $hasCustomPickList = (bool) ($workshopModel?->pick_list_is_customized);
+$providedWorkshopTaskDrafts = $workshopTaskDrafts ?? null;
+$submittedTaskDrafts = old('workshop_tasks_payload');
+$decodedTaskDrafts = is_string($submittedTaskDrafts) ? json_decode($submittedTaskDrafts, true) : null;
+$taskSource = $workshopModel?->runSheetTasks ?? $selectedBlueprint?->tasks ?? collect();
+$workshopTaskDrafts = is_array($decodedTaskDrafts)
+    ? $decodedTaskDrafts
+    : (is_array($providedWorkshopTaskDrafts)
+        ? $providedWorkshopTaskDrafts
+        : collect($taskSource)->map(fn ($task) => [
+        'id' => $workshopModel ? (int) $task->id : null,
+        'blueprint_task_id' => $workshopModel ? ($task->blueprint_task_id ? (int) $task->blueprint_task_id : null) : (int) $task->id,
+        'name' => (string) $task->name,
+        'notes' => (string) ($task->notes ?? ''),
+        'subtasks' => collect($task->subtasks ?? [])->map(fn ($subtask) => [
+            'title' => (string) ($subtask['title'] ?? ''),
+            'content' => (string) ($subtask['content'] ?? ''),
+        ])->values()->all(),
+        'reminder_enabled' => (bool) ($task->reminder_enabled ?? false),
+        'reminder_offset_days' => $task->reminder_offset_days,
+        'reminder_time' => (string) ($task->reminder_time ?? ''),
+        'sort_order' => (int) ($task->sort_order ?? 0),
+        ])->values()->all());
 $soldTicketCount = (int) ($soldTicketCount ?? $activeTicketCount ?? 0);
 $soldEarlyBirdTicketCount = (int) ($soldEarlyBirdTicketCount ?? 0);
 $maxTicketsTotal = is_numeric($workshopModel?->max_tickets ?? null) ? max(0, (int) $workshopModel->max_tickets) : null;
@@ -121,9 +145,11 @@ if (isset($workshop)) {
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
+        <x-admin.ai-status-toast id="workshop-ai-toast" message="Preparing workshop copy…" detail="Workshop and blueprint details are being used to draft the content." progress-label="Workshop content generation" />
         @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
-        <form x-data="{
+        <form id="workshop-form" x-data="{
             ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
+            workshopTaskPreviewRevision: 0,
             type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),
             originalStatus: @js(isset($workshopModel) ? (string) $workshopModel->status : $workshopStatusForForm),
@@ -173,6 +199,21 @@ if (isset($workshop)) {
             pickListTemplateMode: @js((string) $pickListTemplateMode),
             pickListTemplateId: @js((string) $pickListTemplateFieldValue),
             pickListTemplateReset: false,
+            workshopSummaryAiContext() {
+                const value = (name) => {
+                    const field = this.$el.elements.namedItem(name);
+                    return field && typeof field.value === 'string' ? field.value : '';
+                };
+                return {
+                    source: 'workshop',
+                    blueprint_id: value('pick_list_template_id'),
+                    workshop: {
+                        title: value('title'),
+                        summary: value('summary'),
+                        description: value('content').replace(/<[^>]*>/g, ' ').slice(0, 4000),
+                    },
+                };
+            },
             updatePickListTemplateSelection(value) {
                 const nextValue = String(value ?? '');
                 const wasCustom = this.pickListTemplateMode === 'custom';
@@ -593,7 +634,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit.prevent="handleSubmit()">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -604,7 +645,7 @@ if (isset($workshop)) {
                 <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
                 <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
                 <div class="mb-4">
-                    <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
+                    <x-ui.input label="Title" name="title" value="{{ old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '') }}" />
                 </div>
                 <div class="mb-4">
                     <x-ui.select
@@ -621,7 +662,7 @@ if (isset($workshop)) {
                     </x-ui.select>
                 </div>
                 <div class="mb-4">
-                    <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
+                    <x-ui.media label="Image" name="hero_media_name" value="{{ old('hero_media_name', $workshopModel?->hero_media_name ?? $selectedBlueprint?->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" />
                 </div>
                 <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1148,18 +1189,90 @@ if (isset($workshop)) {
                     </div>
                 </div>
                 @include('admin.workshop.partials.welcome-settings')
+                <div x-data="{
+                    ...SM.workshopTaskCopy({ publicUrl: @js($workshopModel ? route('workshop.show', $workshopModel) : '') }),
+                    previewTask: null,
+                    tasks: @js($workshopTaskDrafts).map((task) => {
+                        const reminderOffset = Number(task.reminder_offset_days || 0);
+                        return {
+                            ...task,
+                            reminder_days: Math.abs(reminderOffset),
+                            reminder_direction: reminderOffset < 0 ? 'before' : 'after',
+                            reminder_time: task.reminder_time || '12:00',
+                            expanded: false,
+                            copy_status: '',
+                        };
+                    }),
+                    addTask() { this.tasks.push({ id: null, blueprint_task_id: null, name: 'New task', notes: '', subtasks: [], reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_offset_days: null, reminder_time: '12:00', expanded: true, copy_status: '', sort_order: (this.tasks.length + 1) * 10 }); },
+                    removeTask(index) { this.tasks.splice(index, 1); },
+                    addSubtask(task) { task.subtasks ||= []; task.subtasks.push({ title: `Detail ${task.subtasks.length + 1}`, content: '' }); },
+                    removeSubtask(task, index) { task.subtasks.splice(index, 1); },
+                    toggleTask(index) { this.tasks[index].expanded = !this.tasks[index].expanded; },
+                    taskReminderSummary(task) {
+                        if (!task.reminder_enabled) return 'No reminder set';
+                        const days = Math.max(0, Number(task.reminder_days || 0));
+                        const when = days === 0 ? 'on workshop day' : `${days} day${days === 1 ? '' : 's'} ${task.reminder_direction || 'before'}`;
+                        const time = ({ '06:00': '6:00am', '12:00': '12:00pm', '16:00': '4:00pm' })[task.reminder_time] || 'time not set';
+                        return `Reminder ${when} · ${time}`;
+                    },
+                    workshopAiContext(taskIndex = null, subtaskIndex = null) {
+                        const form = document.getElementById('workshop-form');
+                        const value = (name) => { const field = form?.elements?.namedItem(name); return (field && typeof field.value === 'string') ? field.value : ''; };
+                        const task = taskIndex === null ? null : (this.tasks[taskIndex] || null);
+                        const subtask = task && subtaskIndex !== null ? (task.subtasks || [])[subtaskIndex] || null : null;
+                        const content = (subtask?.content || task?.notes || '').slice(0, 8000);
+                        return {
+                            source: 'workshop',
+                            blueprint_id: value('pick_list_template_id'),
+                            workshop: {
+                                title: value('title'), summary: value('summary'), description: value('content').replace(/<[^>]*>/g, ' ').slice(0, 4000),
+                                public_url: @js($workshopModel ? route('workshop.show', $workshopModel) : ''),
+                                type: value('type'), format: value('format'), ages: value('ages'), starts_at: value('starts_at'), ends_at: value('ends_at'),
+                                location_id: value('location_id'), price: value('price'), status: value('status'), registration: value('registration'),
+                                registration_data: value('registration_data'), max_tickets: value('max_tickets'), hero_media_name: value('hero_media_name'),
+                                publish_at: value('publish_at'), closes_at: value('closes_at'), is_private: value('is_private'), is_hidden: value('is_hidden'),
+                                allow_pay_at_door: value('allow_pay_at_door'), early_bird_price: value('early_bird_price'),
+                                early_bird_ends_at: value('early_bird_ends_at'), early_bird_ticket_limit: value('early_bird_ticket_limit'),
+                                sold_ticket_count: @js((int) ($soldTicketCount ?? 0)),
+                                sold_early_bird_ticket_count: @js((int) ($soldEarlyBirdTicketCount ?? 0)),
+                            },
+                            task_outline: this.tasks.filter((item) => String(item.name || '').trim()).slice(0, 40).map((item) => ({
+                                name: item.name, notes: String(item.notes || '').replace(/<[^>]*>/g, ' ').slice(0, 250),
+                                subtasks: (item.subtasks || []).map((child) => child.title).filter(Boolean).slice(0, 12),
+                            })),
+                            target: { task_index: taskIndex, subtask_index: subtaskIndex, task_name: task?.name || '', subtask_title: subtask?.title || '', current_content: content },
+                        };
+                    },
+                    applyTaskAiContent(detail) {
+                        if (detail?.context?.source !== 'workshop') return;
+                        const target = detail.context.target || {};
+                        const task = this.tasks[Number(target.task_index)];
+                        if (!task) return;
+                        if (target.subtask_index === null || target.subtask_index === undefined) task.notes = detail.html;
+                        else if (task.subtasks?.[Number(target.subtask_index)]) task.subtasks[Number(target.subtask_index)].content = detail.html;
+                    },
+                    serializedTasks() {
+                        return JSON.stringify(this.tasks.filter((task) => String(task.name || '').trim()).map((task, index) => ({
+                            id: task.id || null, blueprint_task_id: task.blueprint_task_id || null, name: String(task.name || '').trim(), notes: task.notes || '',
+                            subtasks: (task.subtasks || []).filter((child) => String(child.title || '').trim()).map((child) => ({ title: String(child.title).trim(), content: child.content || '' })),
+                            reminder_enabled: task.reminder_enabled ? '1' : '0',
+                            reminder_offset_days: task.reminder_direction === 'after' ? Math.abs(Number(task.reminder_days || 0)) : -Math.abs(Number(task.reminder_days || 0)),
+                            reminder_time: task.reminder_time || null, sort_order: (index + 1) * 10,
+                        })));
+                    },
+                }" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)">
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select
-                            label="Workshop Template"
+                            label="Workshop Blueprint"
                             name="pick_list_template_mode"
                             x-model="pickListTemplateMode"
                             x-on:change="updatePickListTemplateSelection($event.target.value)"
                         >
                             <x-slot name="labelRight">
-                                <a href="{{ route('admin.workshop-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
+                                <a href="{{ route('admin.workshop-blueprint.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage blueprints</a>
                                 @if(isset($workshop) && $workshop->pick_list_template_id)
-                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
+                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop-blueprint.edit', $workshop->pick_list_template_id) }}">Open selected blueprint</a>
                                 @endif
                                 @isset($workshop)
                                     <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open Run Sheet</a>
@@ -1169,18 +1282,125 @@ if (isset($workshop)) {
                                 <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>
                                 <option value="" disabled>──────────</option>
                             @endif
-                            <option value="" @selected((string) $pickListTemplateMode === '')>No template</option>
+                            <option value="" @selected((string) $pickListTemplateMode === '')>No blueprint</option>
                             @foreach(($pickListTemplates ?? collect()) as $pickListTemplate)
                                 <option value="{{ $pickListTemplate->id }}" @selected((string) $pickListTemplateMode !== 'custom' && (string) $pickListTemplateFieldValue === (string) $pickListTemplate->id)>{{ $pickListTemplate->name }}</option>
                             @endforeach
                         </x-ui.select>
                     </div>
                 </div>
-                <div class="mb-4">
+                <input type="hidden" name="workshop_tasks_payload" x-bind:value="serializedTasks()">
+                @error('workshop_tasks_payload')<div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">These tasks belong to this workshop. Blueprint changes will not overwrite them.</p></div>
+                        <x-ui.button type="button" color="outline" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1"></i>Add task</x-ui.button>
+                    </div>
+                    <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
+                    <div class="space-y-4">
+                        <template x-for="(task, taskIndex) in tasks" :key="task.id || `new-workshop-task-${taskIndex}`">
+                            <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                <div class="flex items-center gap-2">
+                                    <button type="button" class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
+                                        <i class="fa-solid shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                                        <span class="min-w-0 font-medium text-gray-900" x-text="task.name || 'Untitled task'"></span>
+                                        <span x-show="String(task.notes || '').trim() !== ''" class="inline-flex items-center gap-1 text-xs text-gray-500"><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Notes</span>
+                                        <span class="inline-flex items-center gap-1 text-xs text-gray-500"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
+                                    </button>
+                                    <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash"></i></x-ui.button>
+                                </div>
+                                <div x-show="task.expanded" x-cloak class="mt-4 border-t border-gray-200 pt-4">
+                                    <label class="mb-3 block"><span class="mb-1 block text-sm font-medium text-gray-700">Task</span><x-ui.input-control type="text" maxlength="255" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="task.name" /></label>
+                                    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                        <span class="text-sm font-medium text-gray-700">Notes</span>
+                                        <div class="flex items-center gap-1">
+                                            <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex))" x-bind:data-ai-mode="String(task.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task notes" title="Write or improve task notes" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                            <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" x-show="taskPreviewAvailable(task)" x-cloak x-on:click="previewTask = task" data-open-dialog="workshop-task-copy-dialog" aria-haspopup="dialog" aria-controls="workshop-task-copy-dialog" aria-label="Preview and copy workshop post" title="Preview and copy workshop post"><i class="fa-solid fa-eye" aria-hidden="true"></i></x-ui.button>
+                                        </div>
+                                    </div>
+                                    <div x-show="String(task.notes || '').trim() !== ''">
+                                        <x-ui.mini-editor x-model="task.notes">
+                                            <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                        </x-ui.mini-editor>
+                                    </div>
+                                    <div x-show="String(task.notes || '').trim() === ''" class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
+                                        <span>No notes added.</span>
+                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = '<p></p>'">Add notes</x-ui.button>
+                                    </div>
+                                    <div class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+                                        <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
+                                            <input type="checkbox" class="rounded border-gray-300 text-primary-color focus:ring-primary-color" x-model="task.reminder_enabled">
+                                            <span>Email a reminder to the workshop facilitator</span>
+                                        </label>
+                                        <div x-show="task.reminder_enabled" class="mt-3 grid gap-3 sm:grid-cols-3">
+                                            <label class="block text-sm text-gray-700">Days
+                                                <x-ui.input-control type="number" min="0" max="365" step="1" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900" x-model.number="task.reminder_days" />
+                                            </label>
+                                            <x-ui.select :name="null" label="When" class="mb-0" x-model="task.reminder_direction">
+                                                <option value="before">Before workshop</option>
+                                                <option value="after">After workshop</option>
+                                            </x-ui.select>
+                                            <x-ui.select :name="null" label="Time" class="mb-0" x-model="task.reminder_time">
+                                                <option value="06:00">6:00am</option>
+                                                <option value="12:00">12:00pm</option>
+                                                <option value="16:00">4:00pm</option>
+                                            </x-ui.select>
+                                        </div>
+                                    </div>
+                                    <details x-show="(task.subtasks || []).length > 0" class="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                                        <summary class="cursor-pointer text-sm font-medium text-gray-700">Social post sections and other details (<span x-text="task.subtasks?.length || 0"></span>)</summary>
+                                        <div class="mt-3 space-y-4">
+                                            <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="`workshop-subtask-${task.id || taskIndex}-${subtaskIndex}`">
+                                                <div class="border-t border-gray-200 pt-3">
+                                                    <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="inline-flex size-8 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section"><i class="fa-solid fa-trash"></i></x-ui.button></div>
+                                                    <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
+                                                    <x-ui.mini-editor x-model="subtask.content">
+                                                        <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                                    </x-ui.mini-editor>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </details>
+                                    <x-ui.button type="button" variant="plain" class="mt-2 text-sm text-primary-color hover:underline" x-on:click="addSubtask(task)"><i class="fa-solid fa-plus mr-1"></i>Add section</x-ui.button>
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+                    <x-ui.list-dialog id="workshop-task-copy-dialog" title="Workshop copy preview" kind="edit">
+                        <div class="p-4 sm:p-5">
+                            <p class="mb-3 text-sm text-slate-600">This preview uses the current workshop details. Saved placeholders stay up to date when you change them.</p>
+                            <pre x-show="previewTask" class="max-h-[55dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-gray-800" x-text="resolvedWorkshopTaskCopy(previewTask)"></pre>
+                            <p x-show="previewTask && !workshopPublicUrl && String(previewTask.notes || '').includes('{workshop-url}')" class="mt-3 text-xs text-slate-600">Save the workshop to add its public link to the preview.</p>
+                        </div>
+                        <div class="sm-dialog-footer">
+                            <x-ui.button type="button" color="outline" data-close-dialog>Close</x-ui.button>
+                            <x-ui.button type="button" x-bind:disabled="!previewTask" x-on:click="copyWorkshopTaskCopy(previewTask)"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i><span x-text="previewTask?.copy_status || 'Copy text'"></span></x-ui.button>
+                        </div>
+                    </x-ui.list-dialog>
+                </section>
+                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
+                    <div class="mb-5">
+                        <div class="mb-1 flex items-center gap-1 pl-1">
+                            <label for="summary" class="text-sm">Summary</label>
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="summary" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopSummaryAiContext())" x-bind:data-ai-mode="String($root.elements.namedItem('summary')?.value || '').trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                        </div>
+                        <x-ui.input type="textarea" noLabel class="mb-0" id="summary" name="summary" value="{{ $workshopSummary }}" rows="3" />
+                    </div>
+                    <div class="mb-2 flex items-center justify-between gap-3"><h2 class="font-semibold text-gray-900">Description</h2></div>
                     <x-ui.editor
-                        label="Content"
+                        label=""
                         name="content"
-                        value="{!! $workshopContent !!}"></x-ui.editor>
+                        value="{!! $workshopContent !!}">
+                        <x-slot:toolbar>
+                            <button type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Replace and improve workshop description" title="Replace and improve the current description" {{ blank(config('services.openai.api_key')) ? 'disabled' : '' }}>
+                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                            </button>
+                            <button type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Checking workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Amend description and add missing supported sections" title="Amend the description and add missing supported sections, including learning outcomes">
+                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                            </button>
+                        </x-slot:toolbar>
+                    </x-ui.editor>
+                </section>
                 </div>
                 <x-ui.editor-actions>
                     @if(isset($workshop) && ($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0))

@@ -25,7 +25,7 @@
                 :suggestions="$supplierSuggestions ?? []"
                 info="Start typing to choose an existing supplier or enter a new one."
             />
-            <x-ui.input label="Description" name="description" value="{{ $expense->description ?? '' }}" required />
+            <x-ui.input label="Description" name="description" id="expense-description" value="{{ $expense->description ?? '' }}" required />
             <x-ui.input
                 label="Invoice / Receipt ID"
                 name="invoice_id"
@@ -33,7 +33,24 @@
                 required
                 info="Supplier invoice or receipt reference used in BAS exports and document naming."
             />
-            <x-ui.input type="date" label="Expense Date" name="paid_on" id="expense-paid-on" value="{{ $defaultPaidOn }}" />
+            <div data-validation-field="paid_on" class="mb-4">
+                <label for="expense-paid-on" class="flex text-sm pl-1 items-center">Expense Date</label>
+                <input
+                    id="expense-paid-on"
+                    name="paid_on"
+                    type="date"
+                    value="{{ old('paid_on', $defaultPaidOn) }}"
+                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-auto focus:outline-none focus:ring-0 focus:border-blue-600 {{ $errors->has('paid_on') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                    @if($errors->has('paid_on')) aria-invalid="true" aria-describedby="expense-paid-on-error" @endif
+                    @if(!isset($expense))
+                        data-ai-replace-default
+                        data-ai-default-value="{{ $defaultPaidOn }}"
+                    @endif
+                />
+                @if($errors->has('paid_on'))
+                    <p data-validation-error id="expense-paid-on-error" role="alert" class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('paid_on') }}</p>
+                @endif
+            </div>
 
             <div class="grid gap-x-6 sm:grid-cols-2">
                 <div class="flex-1">
@@ -65,11 +82,53 @@
 
             <x-ui.file-upload label="Receipt Document" name="receipt_document_file" id="expense-receipt-file" />
 
-            <div class="mb-6">
-                <div class="mb-2 flex items-center justify-between gap-3">
-                    <div class="font-semibold">Receipt Preview</div>
-                    @if(isset($expense) && $expense->receipt_document_path && $documentExists)
-                        <div class="flex items-center gap-2">
+            <div
+                class="sm-ai-status-toast pointer-events-none fixed left-4 right-4 top-4 z-[140] mx-auto max-w-md -translate-y-full opacity-0 transition-all duration-300 ease-out"
+                data-ai-widget
+                data-ai-auto-file="#expense-receipt-file"
+                data-ai-configured="{{ filled(config('services.openai.api_key')) ? 'true' : 'false' }}"
+                data-ai-url="{{ route('admin.ai.expenses.extract.stream') }}"
+                data-ai-csrf-url="{{ route('admin.ai.csrf-token') }}"
+                data-ai-token="{{ csrf_token() }}"
+                data-ai-stream="true"
+                data-ai-file="#expense-receipt-file"
+                data-ai-fill-scope="#expense-form"
+                data-ai-fill-fields="supplier,description,invoice_id,paid_on,total_amount,gst_amount"
+                aria-hidden="true"
+            >
+                <div data-ai-status class="overflow-hidden rounded-xl border border-sky-200 bg-white text-sm font-medium shadow-lg" role="status" aria-live="polite">
+                    <div class="sm-ai-status-row relative flex min-h-14 items-center gap-3 px-4 py-3">
+                        <span class="sm-ai-status-icon" aria-hidden="true">
+                            <i data-ai-processing-icon class="fa-solid fa-wand-magic-sparkles"></i>
+                            <i data-ai-complete-icon class="fa-solid fa-circle-check"></i>
+                            <i data-ai-error-icon class="fa-solid fa-circle-exclamation"></i>
+                        </span>
+                        <span class="sm-ai-starfield" aria-hidden="true">
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-1"></i>
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-2"></i>
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-3"></i>
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-4"></i>
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-5"></i>
+                            <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-6"></i>
+                        </span>
+                        <span class="sm-ai-status-copy">
+                            <span data-ai-status-text class="block">AI is reading the PDF…</span>
+                            <span data-ai-status-detail class="mt-0.5 block text-xs font-normal text-slate-500" hidden>Filling blank fields; you can keep editing.</span>
+                        </span>
+                    </div>
+                    <div data-ai-progress-track class="sm-ai-progress-track" role="progressbar" aria-label="Receipt processing" aria-valuetext="Processing" aria-hidden="true">
+                        <span class="sm-ai-progress-bar"></span>
+                    </div>
+                </div>
+            </div>
+
+            <details class="sm-expense-receipt-details mb-6 rounded-xl border border-slate-200 bg-white p-4">
+                <summary class="flex cursor-pointer list-none items-center justify-start gap-3 font-semibold">
+                    <i data-expense-preview-chevron class="fa-solid fa-chevron-right text-sm text-slate-500 transition-transform" aria-hidden="true"></i>
+                    <span>Receipt Preview</span>
+                </summary>
+                @if(isset($expense) && $expense->receipt_document_path && $documentExists)
+                    <div class="mt-3 flex justify-end gap-2">
                             <x-ui.button
                                 href="{{ route('admin.expense.document.view', $expense) }}"
                                 target="_blank"
@@ -100,9 +159,9 @@
                             >
                                 <i class="fa-solid fa-trash-can"></i>
                             </x-ui.button>
-                        </div>
-                    @endif
-                </div>
+                    </div>
+                @endif
+                <div class="mt-3">
                 <div id="expense-receipt-preview-wrap" class="{{ $documentViewUrl ? '' : 'hidden' }} border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
                     <div id="expense-receipt-preview-empty" class="text-sm text-gray-500 p-4 {{ $documentViewUrl ? 'hidden' : '' }}">
                         No receipt selected yet.
@@ -120,7 +179,8 @@
                     <iframe id="expense-receipt-preview-frame" class="hidden w-full h-128 bg-white" title="Receipt preview"></iframe>
                 </div>
                 <div id="expense-receipt-preview-note" class="mt-2 hidden text-xs text-gray-500" aria-live="polite"></div>
-            </div>
+                </div>
+            </details>
 
             <x-finance.expense-allocation :expense="$expense ?? null" />
 
@@ -719,7 +779,36 @@
 
                 saving = true;
                 receiptInput.dispatchEvent(new CustomEvent('sm:file-upload-state', { detail: { uploading: true } }));
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                let csrfToken = csrfMeta?.content || '';
+                const csrfRefreshUrl = document.querySelector('[data-ai-csrf-url]')?.dataset.aiCsrfUrl || '';
+
+                const updateCsrfToken = (token) => {
+                    csrfToken = token;
+                    if (csrfMeta) csrfMeta.content = token;
+                    expenseForm.querySelectorAll('input[name="_token"]').forEach((field) => { field.value = token; });
+                    document.querySelectorAll('[data-ai-token]').forEach((element) => { element.dataset.aiToken = token; });
+                };
+
+                const refreshCsrfToken = async () => {
+                    if (!csrfRefreshUrl) throw new Error('Your session has expired. Reload the page and try again.');
+
+                    const tokenResponse = await fetch(csrfRefreshUrl, {
+                        method: 'GET',
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                    });
+                    const tokenPayload = await tokenResponse.json().catch(() => ({}));
+                    if (!tokenResponse.ok || typeof tokenPayload.token !== 'string' || tokenPayload.token === '') {
+                        throw new Error(tokenResponse.redirected || tokenResponse.status === 401
+                            ? 'Your session has expired. Reload the page and try again.'
+                            : 'Could not refresh your session. Reload the page and try again.');
+                    }
+
+                    updateCsrfToken(tokenPayload.token);
+                    return tokenPayload.token;
+                };
 
                 try {
                     const formData = new FormData(expenseForm);
@@ -743,23 +832,32 @@
                     });
                     formData.set(receiptInput.name, materializedUpload, materializedName);
 
-                    const response = await fetch(expenseForm.action, {
+                    const sendExpense = (token) => fetch(expenseForm.action, {
                         method: 'POST',
                         credentials: 'same-origin',
                         headers: {
                             'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
+                            'X-CSRF-TOKEN': token,
                             'X-Requested-With': 'XMLHttpRequest',
                         },
                         body: formData,
                     });
+                    let response = await sendExpense(csrfToken);
+                    if (response.status === 419) {
+                        const refreshedToken = await refreshCsrfToken();
+                        formData.set('_token', refreshedToken);
+                        response = await sendExpense(refreshedToken);
+                    }
                     const payload = await response.json().catch(() => ({}));
 
                     if (!response.ok) {
                         const messages = payload.errors && typeof payload.errors === 'object'
                             ? Object.values(payload.errors).flat().filter((message) => typeof message === 'string' && message.trim())
                             : [];
-                        showSaveErrors(messages.length ? messages : [payload.message || 'Unable to save the expense. Please try again.'], payload.errors || {});
+                        const fallbackMessage = response.status === 419
+                            ? 'Your session has expired. Reload the page and try again.'
+                            : payload.message || 'Unable to save the expense. Please try again.';
+                        showSaveErrors(messages.length ? messages : [fallbackMessage], payload.errors || {});
                         return;
                     }
 
