@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Workshop;
 use App\Models\WorkshopInterest;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -11,7 +12,8 @@ class WorkshopInterestReminderController extends Controller
     public function unsubscribe(Request $request, WorkshopInterest $interest): View
     {
         $interest->loadMissing('workshop');
-        abort_unless($interest->workshop, 404);
+        $workshop = $interest->workshop;
+        abort_unless($workshop instanceof Workshop, 404);
 
         if ($request->isMethod('post') && ! $interest->reminders_unsubscribed_at) {
             $interest->update([
@@ -24,6 +26,7 @@ class WorkshopInterestReminderController extends Controller
 
         return view('workshop.interest-reminder-unsubscribe', [
             'interest' => $interest,
+            'workshop' => $workshop,
             'unsubscribed' => (bool) $interest->reminders_unsubscribed_at,
             'actionUrl' => $request->fullUrl(),
         ]);

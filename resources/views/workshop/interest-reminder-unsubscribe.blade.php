@@ -4,16 +4,16 @@
             @if ($unsubscribed)
                 <h1 class="text-2xl font-semibold text-slate-900">Reminders stopped</h1>
                 <p class="mt-3 text-slate-600">
-                    We’ll no longer send you reminder emails about <strong>{{ $interest->workshop->title }}</strong>.
+                    We’ll no longer send you reminder emails about <strong>{{ $workshop->title }}</strong>.
                     Your interest in the workshop is still recorded.
                 </p>
-                <a href="{{ route('workshop.show', $interest->workshop) }}" class="mt-6 inline-flex text-sm font-medium text-sky-700 underline">
+                <a href="{{ route('workshop.show', $workshop) }}" class="mt-6 inline-flex text-sm font-medium text-sky-700 underline">
                     View workshop details
                 </a>
             @else
                 <h1 class="text-2xl font-semibold text-slate-900">Stop workshop reminders?</h1>
                 <p class="mt-3 text-slate-600">
-                    We’ll stop sending reminder emails about <strong>{{ $interest->workshop->title }}</strong>.
+                    We’ll stop sending reminder emails about <strong>{{ $workshop->title }}</strong>.
                     Your interest in the workshop will remain recorded.
                 </p>
                 <div class="mt-6 flex flex-wrap items-center gap-3">
@@ -23,7 +23,7 @@
                             Stop these reminders
                         </button>
                     </form>
-                    <a href="{{ route('workshop.show', $interest->workshop) }}" class="inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                    <a href="{{ route('workshop.show', $workshop) }}" class="inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
                         Keep reminders
                     </a>
                 </div>
