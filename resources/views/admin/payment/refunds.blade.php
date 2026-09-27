@@ -8,9 +8,9 @@
 @endphp
 
 <x-layout>
-    <x-mast>Refunds</x-mast>
+    <x-mast title="Refunds" />
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-payment-refunds">
         <x-ui.collection-controls class="my-4" />
 
@@ -43,6 +43,7 @@
                             \App\Models\SquareRefundOperation::STATUS_FAILED,
                             \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED,
                         ], true);
+                        $alertSilenced = $needsManualAction && $manualRefund->notification_silenced_at !== null;
                         $ticketReference = (string) ($ticket?->reference_code ?: ($ticket?->id ? '#'.$ticket->id : '-'));
                         $invoiceNumber = (string) ($invoice?->invoice_number ?: '-');
                         $orderNumber = $order?->order_number ? '#'.$order->order_number : '-';
@@ -53,6 +54,7 @@
                         $workshopUrl = $ticket?->workshop ? route('admin.workshop.tickets', $ticket->workshop) : null;
                         $orderUrl = $order ? route('admin.shop.order.edit', $order) : null;
                         $markCompletedUrl = route('admin.payment.refunds.complete', $manualRefund);
+                        $silenceAlertUrl = route($alertSilenced ? 'admin.payment.refunds.restore-alert' : 'admin.payment.refunds.silence-alert', $manualRefund);
                         $refundAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
                         $refundReceivedOn = now()->format('Y-m-d\TH:i');
                         $refundPaymentId = (int) data_get($manualRefund->payload, 'manual_refund.refund_payment_id', 0);
@@ -150,15 +152,22 @@
                                 <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                             @endif
                             @if($needsManualAction)
-                                <x-ui.button variant="plain"
-                                    type="button"
-                                    class="inline-flex items-center rounded-md border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
-                                    x-on:click="leaveAsCredit = false; refundModalOpen = true"
-                                >
-                                    Record refund
-                                </x-ui.button>
+                                <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="leaveAsCredit = false; refundModalOpen = true" />
+                                <form method="POST" action="{{ $silenceAlertUrl }}">
+                                    @csrf
+                                    <x-ui.row-action
+                                        :label="$alertSilenced ? 'Restore alert' : 'Silence alert'"
+                                        :icon="$alertSilenced ? 'fa-solid fa-bell' : 'fa-solid fa-bell-slash'"
+                                        :tone="$alertSilenced ? 'warning' : 'neutral'"
+                                        type="submit"
+                                    />
+                                </form>
                             @endif
                         </x-ui.row-actions>
+
+                        @if($alertSilenced)
+                            <p class="mt-3 text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced; refund remains unfinished.</p>
+                        @endif
 
                         <div
                             x-cloak
@@ -253,6 +262,7 @@
                             \App\Models\SquareRefundOperation::STATUS_FAILED,
                             \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED,
                         ], true);
+                                $alertSilenced = $needsManualAction && $manualRefund->notification_silenced_at !== null;
                                 $ticketReference = (string) ($ticket?->reference_code ?: ($ticket?->id ? '#'.$ticket->id : '-'));
                                 $invoiceNumber = (string) ($invoice?->invoice_number ?: '-');
                                 $orderNumber = $order?->order_number ? '#'.$order->order_number : '-';
@@ -263,6 +273,7 @@
                         $workshopUrl = $ticket?->workshop ? route('admin.workshop.tickets', $ticket->workshop) : null;
                         $orderUrl = $order ? route('admin.shop.order.edit', $order) : null;
                         $markCompletedUrl = route('admin.payment.refunds.complete', $manualRefund);
+                        $silenceAlertUrl = route($alertSilenced ? 'admin.payment.refunds.restore-alert' : 'admin.payment.refunds.silence-alert', $manualRefund);
                         $refundAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
                         $refundReceivedOn = now()->format('Y-m-d\TH:i');
                         $refundPaymentId = (int) data_get($manualRefund->payload, 'manual_refund.refund_payment_id', 0);
@@ -354,15 +365,21 @@
                                             <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                                         @endif
                                         @if($needsManualAction)
-                                            <x-ui.button variant="plain"
-                                                type="button"
-                                                class="inline-flex items-center rounded-md border border-emerald-600 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
-                                                x-on:click="leaveAsCredit = false; refundModalOpen = true"
-                                            >
-                                                Record refund
-                                            </x-ui.button>
+                                            <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="leaveAsCredit = false; refundModalOpen = true" />
+                                            <form method="POST" action="{{ $silenceAlertUrl }}">
+                                                @csrf
+                                                <x-ui.row-action
+                                                    :label="$alertSilenced ? 'Restore alert' : 'Silence alert'"
+                                                    :icon="$alertSilenced ? 'fa-solid fa-bell' : 'fa-solid fa-bell-slash'"
+                                                    :tone="$alertSilenced ? 'warning' : 'neutral'"
+                                                    type="submit"
+                                                />
+                                            </form>
                                         @endif
                                     </x-ui.row-actions>
+                                    @if($alertSilenced)
+                                        <div class="mt-2 text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced; refund remains unfinished.</div>
+                                    @endif
 
                                     <div
                                         x-cloak

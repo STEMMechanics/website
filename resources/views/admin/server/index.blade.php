@@ -26,9 +26,12 @@
             <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                 <i class="fa-solid fa-chevron-right shrink-0 text-sm transition-transform group-open/dependencies:rotate-90" aria-hidden="true"></i>
                 <h3 class="min-w-0 flex-1 wrap-break-word text-lg font-bold">Site Dependencies</h3>
-                @php($missingDependencyCount = collect($serverDependencies)->where('installed', false)->count())
-                <x-ui.badge :color="$missingDependencyCount === 0 ? 'success' : 'danger'" class="ml-auto shrink-0">
-                    {{ $missingDependencyCount === 0 ? 'All detected' : $missingDependencyCount.' missing' }}
+                @php
+                    $missingRequiredDependencyCount = collect($serverDependencies)->where('required', true)->where('installed', false)->count();
+                    $unavailableOptionalDependencyCount = collect($serverDependencies)->where('required', false)->where('installed', false)->count();
+                @endphp
+                <x-ui.badge :color="$missingRequiredDependencyCount > 0 ? 'danger' : ($unavailableOptionalDependencyCount > 0 ? 'warning' : 'success')" class="ml-auto shrink-0">
+                    {{ $missingRequiredDependencyCount > 0 ? $missingRequiredDependencyCount.' required missing' : ($unavailableOptionalDependencyCount > 0 ? $unavailableOptionalDependencyCount.' optional unavailable' : 'All detected') }}
                 </x-ui.badge>
             </summary>
             <div class="pt-3">
@@ -40,8 +43,8 @@
                                     <h4 class="font-semibold text-gray-900">{{ $dependency['name'] }}</h4>
                                     <div class="mt-0.5 wrap-break-word text-xs text-gray-500">{{ $dependency['type'] }}@if($dependency['executable']) · <code>{{ $dependency['executable'] }}</code>@endif</div>
                                 </div>
-                                <x-ui.badge :color="$dependency['installed'] ? 'success' : 'danger'" class="shrink-0">
-                                    {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                                <x-ui.badge :color="$dependency['installed'] ? 'success' : ($dependency['required'] ? 'danger' : 'warning')" class="shrink-0">
+                                    {{ $dependency['status_label'] ?? ($dependency['installed'] ? 'Installed' : ($dependency['required'] ? 'Missing' : 'Not installed')) }}
                                 </x-ui.badge>
                             </div>
                             <dl class="mt-3 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
@@ -76,8 +79,8 @@
                                     </td>
                                     <td class="px-3 py-2 align-top text-gray-700">{{ $dependency['required'] ? 'Core / deploy' : 'Feature dependency' }}</td>
                                     <td class="px-3 py-2 align-top text-center!">
-                                        <x-ui.badge :color="$dependency['installed'] ? 'success' : 'danger'">
-                                            {{ $dependency['installed'] ? 'Installed' : 'Missing' }}
+                                        <x-ui.badge :color="$dependency['installed'] ? 'success' : ($dependency['required'] ? 'danger' : 'warning')">
+                                            {{ $dependency['status_label'] ?? ($dependency['installed'] ? 'Installed' : ($dependency['required'] ? 'Missing' : 'Not installed')) }}
                                         </x-ui.badge>
                                     </td>
                                     <td class="max-w-sm wrap-break-word px-3 py-2 align-top text-xs text-gray-700">{{ $dependency['version'] }}</td>
@@ -110,7 +113,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
-                <form method="POST" action="{{ route('admin.server.deploy') }}" data-deploy-form data-check-visitors data-sm-confirm="Update the site with the selected options?" data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
+                <form method="POST" action="{{ route('admin.server.deploy') }}" data-deploy-form data-check-visitors data-sm-confirm="Update the site with the selected options?" data-sm-confirm-button="Run Update" class="grid w-full grid-cols-2 items-center gap-3 sm:flex sm:w-auto sm:flex-wrap">
                     @csrf
                     <x-ui.checkbox
  name="current"
@@ -124,11 +127,11 @@
  label="Force"
  :noWrapper="true"
  :inline="true" />
-                    <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
+                    <x-ui.button type="submit" color="dark" class="col-span-2 w-full sm:w-auto">Run Update</x-ui.button>
                 </form>
             </div>
             <div class="mb-4 flex flex-wrap items-center gap-3">
-                <x-ui.button type="button" color="danger" id="server-info-maintenance-refresh-button">Clear Cache & Restart Queue</x-ui.button>
+                <x-ui.button type="button" color="danger" id="server-info-maintenance-refresh-button" class="w-full sm:w-auto">Clear Cache & Restart Queue</x-ui.button>
             </div>
             <div class="text-xs text-gray-600 mb-3">
                 <p id="deployment-status" role="status" class="mb-3 text-sm font-semibold">Checking deployment status…</p>
@@ -138,9 +141,9 @@
                 <div class="flex flex-wrap items-center gap-3 mt-2">
                     <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" data-sm-confirm="Clear deploy output log? This cannot be undone." data-sm-confirm-button="Clear Log">
                         @csrf
-                        <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
+                        <x-ui.button variant="plain" type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 shadow-sm hover:bg-rose-50" aria-label="Clear deploy output log" title="Clear deploy output log"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></x-ui.button>
                     </form>
-                    <x-ui.button variant="plain" type="button" id="deploy-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</x-ui.button>
+                    <x-ui.button variant="plain" type="button" id="deploy-log-refresh" data-icon-only="true" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Refresh deploy output log" title="Refresh deploy output log"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
                     <x-ui.checkbox
  id="deploy-log-auto-refresh"
  label="Auto-refresh every 10 seconds"
@@ -166,7 +169,7 @@
                 <h3 class="text-lg font-bold">Laravel Log</h3>
                 <form method="POST" action="{{ route('admin.server.log.clear') }}" data-sm-confirm="Clear laravel.log? This cannot be undone." data-sm-confirm-button="Clear Log">
                     @csrf
-                    <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
+                    <x-ui.button variant="plain" type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 shadow-sm hover:bg-rose-50" aria-label="Clear Laravel log" title="Clear Laravel log"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></x-ui.button>
                 </form>
             </div>
 
@@ -176,7 +179,7 @@
                 <p><strong>Last Modified:</strong> <span id="laravel-log-updated">{{ $logModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 300 lines</p>
                 <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <x-ui.button variant="plain" type="button" id="laravel-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</x-ui.button>
+                    <x-ui.button variant="plain" type="button" id="laravel-log-refresh" data-icon-only="true" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Refresh Laravel log" title="Refresh Laravel log"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
                 </div>
             </div>
 
@@ -225,7 +228,9 @@
                 }
                 button.disabled = true;
                 button.setAttribute('aria-busy', 'true');
-                button.innerHTML = `<span class="altcha-processing-content"><span class="altcha-inline-spinner" aria-hidden="true"></span><span>${label}</span></span>`;
+                button.innerHTML = button.dataset.iconOnly === 'true'
+                    ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>'
+                    : `<span class="altcha-processing-content"><span class="altcha-inline-spinner" aria-hidden="true"></span><span>${label}</span></span>`;
                 return;
             }
 

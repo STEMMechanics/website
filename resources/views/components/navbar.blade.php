@@ -25,7 +25,7 @@
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
         $operationCounts = $isAdmin ? app(\App\Support\AdminBadgeCache::class)->remember('operations', fn () => [
-            'refunds' => \App\Models\SquareRefundOperation::whereIn('status', [\App\Models\SquareRefundOperation::STATUS_FAILED, \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED])->count(),
+            'refunds' => \App\Models\SquareRefundOperation::whereIn('status', [\App\Models\SquareRefundOperation::STATUS_FAILED, \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED])->whereNull('notification_silenced_at')->count(),
             'orders' => \App\Models\StoreOrder::actionRequiredCount(),
             'sms' => \App\Models\InboundSms::where('provider', 'smsflow')->where('topic', 'sms.incoming')->whereNull('acknowledged_at')->count(),
         ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
@@ -159,7 +159,7 @@
             </div>
         </div>
 
-        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-180" role="menu" aria-labelledby="page-menu-button" tabindex="-1">
+        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-180" role="menu" aria-labelledby="page-menu-button" tabindex="-1" data-sidebar-navigation>
             <div x-show="pageMenuOpen" @click="pageMenuOpen=false" class="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0"

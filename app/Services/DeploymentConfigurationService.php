@@ -64,6 +64,10 @@ class DeploymentConfigurationService
         $pushSubject = trim((string) config('webpush.subject'));
         $validPushSubject = (str_starts_with($pushSubject, 'mailto:') && filter_var(substr($pushSubject, 7), FILTER_VALIDATE_EMAIL) !== false)
             || (filter_var($pushSubject, FILTER_VALIDATE_URL) !== false && parse_url($pushSubject, PHP_URL_SCHEME) === 'https');
+        $openAiConfigured = trim((string) config('services.openai.api_key')) !== '';
+        $openAiModel = trim((string) config('services.openai.model'));
+        $openAiTimeout = (int) config('services.openai.timeout', 180);
+        $openAiSettingsValid = $openAiModel !== '' && $openAiTimeout >= 10;
         $extra = [
             ['Push notification public key', trim((string) config('webpush.public_key')) !== '' ? 'pass' : 'fail', 'VAPID_PUBLIC_KEY', 'Set VAPID_PUBLIC_KEY to your existing push public key. If no key pair exists, run php artisan push:generate-keys once and store both generated keys in the server environment. Keep the same pair across deployments so existing devices remain subscribed.', false],
             ['Push notification private key', trim((string) config('webpush.private_key')) !== '' ? 'pass' : 'fail', 'VAPID_PRIVATE_KEY', 'Set VAPID_PRIVATE_KEY to the private key paired with VAPID_PUBLIC_KEY. After updating the environment, run php artisan config:cache and php artisan queue:restart. Keep the private key secret. Key presence alone does not verify delivery; use Test on a subscribed device.', false],
@@ -72,6 +76,11 @@ class DeploymentConfigurationService
             ['Analytics queue connection', $this->durableQueue((string) (config('analytics.queue_connection') ?: config('queue.default'))) ? 'pass' : 'fail', 'ANALYTICS_QUEUE_CONNECTION', 'Use a durable configured queue connection, or leave unset to use QUEUE_CONNECTION. Run a worker listening on the analytics queue.', true],
             ['Analytics migration', $this->analyticsSchemaReady() ? 'pass' : 'fail', 'Database migrations', 'Run php artisan migrate --force before restarting workers. Analytics needs the event_uuid column for retry protection.', true],
             ['Cached configuration', app()->configurationIsCached() ? 'pass' : 'review', 'Configuration cache', 'After changing environment settings, run php artisan config:cache and restart queue workers. This page reports effective loaded configuration, not raw .env contents. Local development may intentionally leave configuration uncached.', false],
+            ['OpenAI API key', $openAiConfigured ? 'pass' : 'review', 'OPENAI_API_KEY', $openAiConfigured
+                ? 'Configured (the key is hidden). This enables the site to attempt AI requests. Presence does not verify API access, permissions, or quota.'
+                : 'Optional and not configured. AI-assisted features will be unavailable until a key is set; this does not block other site features.', false],
+            ['OpenAI request settings', $openAiSettingsValid ? 'pass' : 'review', 'OPENAI_MODEL / OPENAI_REASONING_EFFORT / OPENAI_COPY_REASONING_EFFORT / OPENAI_COMPLEX_COPY_REASONING_EFFORT / OPENAI_TIMEOUT',
+                'Effective model: '.($openAiModel !== '' ? $openAiModel : 'not set').'. Reasoning: '.(string) config('services.openai.reasoning_effort', 'max').' / '.(string) config('services.openai.copy_reasoning_effort', 'low').' / '.(string) config('services.openai.complex_copy_reasoning_effort', 'medium').'. Timeout: '.$openAiTimeout.' seconds. These are loaded settings; this page does not make a billable test request.', false],
             ['Dashboard snapshots', (int) config('analytics.dashboard_snapshot_seconds') > 0 ? 'pass' : 'review', 'DASHBOARD_SNAPSHOT_SECONDS', 'Set to 300 to serve five-minute dashboard snapshots. Zero intentionally disables cached figures. Schedule analytics:snapshot via the Laravel scheduler.', false],
             ['Request profiling', 'review', 'PROFILE_REQUESTS', config('analytics.profile_requests') ? 'Profiling is enabled. Use representative dashboard/report/export requests, inspect route-only timings, then disable it after measuring.' : 'Profiling is disabled. Temporarily set PROFILE_REQUESTS=true to measure representative dashboard/report/export requests, then disable it again.', false],
             ['CSP report-only rollout', config('security.csp_report_only') ? 'pass' : 'review', 'CSP_REPORT_ONLY', 'Set CSP_REPORT_ONLY=true to collect bounded script-policy reports. Resolve the inventory of inline scripts and handlers before enforcing script restrictions.', false],

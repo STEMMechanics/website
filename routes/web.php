@@ -529,6 +529,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 
     Route::get('/admin/payments', [PaymentController::class, 'index'])->name('admin.payment.index');
     Route::get('/admin/payments/refunds', [PaymentController::class, 'credits'])->name('admin.payment.refunds');
+    Route::post('/admin/payments/refunds/{manualRefund}/silence-alert', [PaymentController::class, 'silenceManualRefundAlert'])->name('admin.payment.refunds.silence-alert');
+    Route::post('/admin/payments/refunds/{manualRefund}/restore-alert', [PaymentController::class, 'restoreManualRefundAlert'])->name('admin.payment.refunds.restore-alert');
     Route::get('/admin/payments/create', [PaymentController::class, 'create'])->name('admin.payment.create');
     Route::post('/admin/payments', [PaymentController::class, 'store'])->name('admin.payment.store');
     Route::get('/admin/payments/{payment}', [PaymentController::class, 'edit'])->name('admin.payment.edit');

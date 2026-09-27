@@ -73,13 +73,39 @@ class DeploymentConfigurationTest extends TestCase
 
     public function test_admin_site_info_shows_statuses_and_remediation_but_not_secret_values(): void
     {
-        config(['services.smsflow.webhook_secret' => 'unique-private-callback-secret', 'services.smsflow.api_key' => 'unique-private-api-key']);
+        config([
+            'services.smsflow.webhook_secret' => 'unique-private-callback-secret',
+            'services.smsflow.api_key' => 'unique-private-api-key',
+            'services.openai.api_key' => 'unique-private-openai-key',
+            'services.openai.model' => 'gpt-6-luna-test',
+        ]);
         $admin = User::factory()->create();
         UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin)->get(route('admin.server.index'))->assertOk()
             ->assertSee('Configuration')->assertSee('Needs attention')->assertSee('Review needed')
+            ->assertSee('OpenAI Service')->assertSee('OpenAI Responses API')->assertSee('gpt-6-luna-test')
+            ->assertSee('Configured; API access not tested')
             ->assertSee('SMSFLOW_WEBHOOK_SECRET')->assertSee('php artisan config:cache')
-            ->assertDontSee('unique-private-callback-secret')->assertDontSee('unique-private-api-key');
+            ->assertDontSee('unique-private-callback-secret')->assertDontSee('unique-private-api-key')
+            ->assertDontSee('unique-private-openai-key');
+    }
+
+    public function test_openai_configuration_is_optional_and_never_exposes_the_api_key(): void
+    {
+        config([
+            'services.openai.api_key' => '',
+            'services.openai.model' => 'gpt-6-luna',
+            'services.openai.timeout' => 180,
+        ]);
+        $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');
+        $this->assertSame('review', $checks['OpenAI API key']['status']);
+        $this->assertFalse($checks['OpenAI API key']['blocking']);
+        $this->assertSame('pass', $checks['OpenAI request settings']['status']);
+
+        config(['services.openai.api_key' => 'private-openai-test-secret']);
+        $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');
+        $this->assertSame('pass', $checks['OpenAI API key']['status']);
+        $this->assertStringNotContainsString('private-openai-test-secret', $checks->toJson());
     }
 
     public function test_site_info_remains_administrator_only(): void

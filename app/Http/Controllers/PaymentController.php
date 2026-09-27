@@ -238,6 +238,7 @@ class PaymentController extends Controller
                 SquareRefundOperation::STATUS_MANUAL_REQUIRED,
                 SquareRefundOperation::STATUS_FAILED,
             ])
+            ->whereNull('notification_silenced_at')
             ->count();
         $pendingCount = (clone $summaryQuery)
             ->where('status', SquareRefundOperation::STATUS_PENDING)
@@ -256,6 +257,56 @@ class PaymentController extends Controller
             'manualRefundTotal' => $manualRefundTotal,
             'hideCompleted' => $hideCompleted,
         ]);
+    }
+
+    public function silenceManualRefundAlert(SquareRefundOperation $manualRefund): RedirectResponse
+    {
+        if (! in_array($manualRefund->status, [
+            SquareRefundOperation::STATUS_FAILED,
+            SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+        ], true)) {
+            session()->flash('message', 'Only unfinished manual refunds have an alert to silence.');
+            session()->flash('message-title', 'Nothing to do');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $manualRefund->forceFill([
+            'notification_silenced_at' => now(),
+            'notification_silenced_by' => Auth::id(),
+        ])->save();
+
+        session()->flash('message', 'The refund remains unfinished, but its alert has been silenced.');
+        session()->flash('message-title', 'Alert silenced');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function restoreManualRefundAlert(SquareRefundOperation $manualRefund): RedirectResponse
+    {
+        if (! in_array($manualRefund->status, [
+            SquareRefundOperation::STATUS_FAILED,
+            SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+        ], true)) {
+            session()->flash('message', 'Only unfinished manual refunds can have an alert restored.');
+            session()->flash('message-title', 'Nothing to do');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $manualRefund->forceFill([
+            'notification_silenced_at' => null,
+            'notification_silenced_by' => null,
+        ])->save();
+
+        session()->flash('message', 'The refund alert is active again.');
+        session()->flash('message-title', 'Alert restored');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
     }
 
     public function completeManualRefund(Request $request, SquareRefundOperation $manualRefund): RedirectResponse
@@ -999,7 +1050,13 @@ class PaymentController extends Controller
 
     public function refundManual(Request $request, Payment $payment): RedirectResponse
     {
-        if ($this->isSquareManagedPayment($payment)) {
+        $wasRetainedAsAccountCredit = SquareRefundOperation::query()
+            ->where('payment_id', $payment->id)
+            ->where('status', SquareRefundOperation::STATUS_COMPLETED)
+            ->where('payload->manual_refund->resolution', 'credit_retained')
+            ->exists();
+
+        if ($this->isSquareManagedPayment($payment) && ! $wasRetainedAsAccountCredit) {
             session()->flash('message', 'This payment is managed by Square. Use the Square refund action.');
             session()->flash('message-title', 'Refund blocked');
             session()->flash('message-type', 'danger');

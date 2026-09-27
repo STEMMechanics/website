@@ -11,8 +11,11 @@ class SquareRefundOperation extends Model
     use HasFactory;
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_MANUAL_REQUIRED = 'manual_required';
 
     protected $fillable = [
@@ -28,6 +31,8 @@ class SquareRefundOperation extends Model
         'failure_message',
         'payload',
         'processed_at',
+        'notification_silenced_at',
+        'notification_silenced_by',
     ];
 
     protected $casts = [
@@ -35,6 +40,7 @@ class SquareRefundOperation extends Model
         'refunded_cents' => 'integer',
         'payload' => 'array',
         'processed_at' => 'datetime',
+        'notification_silenced_at' => 'datetime',
     ];
 
     public function invoice(): BelongsTo
@@ -55,5 +61,10 @@ class SquareRefundOperation extends Model
     public function customerPayment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id');
+    }
+
+    public function notificationSilencedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'notification_silenced_by');
     }
 }
