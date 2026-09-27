@@ -9,11 +9,11 @@ use Throwable;
 class ServerDependencyService
 {
     /**
-     * @return array<int, array{name: string, type: string, purpose: string, required: bool, installed: bool, executable: ?string, version: string}>
+     * @return array<int, array{name: string, type: string, purpose: string, required: bool, installed: bool, executable: ?string, version: string, status_label?: string}>
      */
     public function statuses(): array
     {
-        return [
+        $dependencies = [
             $this->phpExtension('Fileinfo', 'fileinfo', 'File type and upload detection'),
             $this->phpExtension('Imagick PHP extension', 'imagick', 'Image variants and PDF/image processing'),
             $this->phpExtension('Mbstring', 'mbstring', 'Unicode text handling'),
@@ -41,6 +41,23 @@ class ServerDependencyService
             ], 'MySQL/MariaDB database restores', false),
             $this->command('gzip', [['gzip', '--version']], 'Database backup compression and restore', false),
         ];
+
+        $openAiConfigured = trim((string) config('services.openai.api_key')) !== '';
+        $openAiModel = trim((string) config('services.openai.model'));
+        $dependencies[] = [
+            'name' => 'OpenAI Responses API',
+            'type' => 'External API',
+            'purpose' => 'Expense PDF extraction and AI-assisted writing in workshop, product, and newsletter tools',
+            'required' => false,
+            'installed' => $openAiConfigured,
+            'executable' => 'api.openai.com',
+            'version' => $openAiConfigured
+                ? 'Key configured · model: '.($openAiModel !== '' ? $openAiModel : 'Not set')
+                : 'No API key configured (optional)',
+            'status_label' => $openAiConfigured ? 'Configured' : 'Not configured',
+        ];
+
+        return $dependencies;
     }
 
     /**

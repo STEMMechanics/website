@@ -49,6 +49,7 @@ import './online-visitors';
 import './product-postage-preview';
 
 import './sidebar-search';
+import './sidebar-navigation-feedback';
 import './expense-drop';
 
 import './square-apple-pay';
