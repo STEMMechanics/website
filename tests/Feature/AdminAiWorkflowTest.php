@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\PickListTemplate;
+use App\Models\PickListTemplateItem;
 use App\Models\Product;
 use App\Models\SiteOption;
 use App\Models\Supplier;
@@ -97,6 +98,41 @@ class AdminAiWorkflowTest extends TestCase
                 && array_key_exists('document_type', $data['text']['format']['schema']['properties'])
                 && ($fileInput['type'] ?? null) === 'input_file'
                 && str_starts_with((string) ($fileInput['file_data'] ?? ''), 'data:application/pdf;base64,');
+        });
+    }
+
+    public function test_admin_can_extract_expense_fields_from_a_jpeg_receipt(): void
+    {
+        $fields = [
+            'document_type' => 'Receipt',
+            'supplier' => 'Camera Supplier',
+            'description' => 'Receipt photographed as an image',
+            'invoice_id' => 'JPEG-1',
+            'paid_on' => '2026-09-18',
+            'date_basis' => 'transaction_date',
+            'total_amount' => '22.00',
+            'gst_amount' => '2.00',
+            'currency' => 'AUD',
+            'evidence' => [],
+            'needs_review' => [],
+        ];
+        Http::fake(['https://api.openai.com/v1/responses' => Http::response(['output_text' => json_encode($fields)], 200)]);
+
+        $response = $this->actingAs($this->createAdminUser())->postJson(route('admin.ai.expenses.extract'), [
+            'receipt_pdf' => UploadedFile::fake()->image('receipt.jpg', 120, 80),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('result.document_type', 'Receipt')
+            ->assertJsonPath('result.invoice_id', 'JPEG-1');
+
+        Http::assertSent(function (ClientRequest $request): bool {
+            $content = $request->data()['input'][0]['content'] ?? [];
+            $imageInput = collect($content)->firstWhere('type', 'input_image');
+
+            return is_array($imageInput)
+                && str_starts_with((string) ($imageInput['image_url'] ?? ''), 'data:image/jpeg;base64,')
+                && ($imageInput['detail'] ?? null) === 'high';
         });
     }
 
@@ -523,7 +559,7 @@ class AdminAiWorkflowTest extends TestCase
         ]);
         $blueprint->items()->create([
             'item_name' => 'Copper tape',
-            'quantity_type' => \App\Models\PickListTemplateItem::TYPE_PER_PARTICIPANT,
+            'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
             'quantity_value' => 1,
             'sort_order' => 10,
         ]);
@@ -599,7 +635,7 @@ class AdminAiWorkflowTest extends TestCase
         ]);
         $blueprint->items()->create([
             'item_name' => 'Copper tape',
-            'quantity_type' => \App\Models\PickListTemplateItem::TYPE_PER_PARTICIPANT,
+            'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
             'quantity_value' => 1,
             'sort_order' => 10,
         ]);
@@ -649,7 +685,7 @@ class AdminAiWorkflowTest extends TestCase
         ]);
         $blueprint->items()->create([
             'item_name' => 'Aluminium foil',
-            'quantity_type' => \App\Models\PickListTemplateItem::TYPE_PER_PARTICIPANT,
+            'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
             'quantity_value' => 1,
             'sort_order' => 10,
         ]);

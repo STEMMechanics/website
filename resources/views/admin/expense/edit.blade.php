@@ -80,7 +80,13 @@
                 </div>
             </div>
 
-            <x-ui.file-upload label="Receipt Document" name="receipt_document_file" id="expense-receipt-file" />
+            <x-ui.file-upload
+                label="Receipt Document"
+                name="receipt_document_file"
+                id="expense-receipt-file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                info="PDF or JPEG, PNG or WebP image."
+            />
 
             <div
                 class="sm-ai-status-toast pointer-events-none fixed left-4 right-4 top-4 z-[140] mx-auto max-w-md -translate-y-full opacity-0 transition-all duration-300 ease-out"
@@ -112,7 +118,7 @@
                             <i data-ai-star class="fa-solid fa-star sm-ai-star sm-ai-star-6"></i>
                         </span>
                         <span class="sm-ai-status-copy">
-                            <span data-ai-status-text class="block">AI is reading the PDF…</span>
+                            <span data-ai-status-text class="block">AI is reading the receipt…</span>
                             <span data-ai-status-detail class="mt-0.5 block text-xs font-normal text-slate-500" hidden>Filling blank fields; you can keep editing.</span>
                         </span>
                     </div>

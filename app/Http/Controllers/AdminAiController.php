@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\Location;
-use App\Models\Supplier;
 use App\Models\PickListTemplate;
+use App\Models\Supplier;
 use App\Models\Workshop;
 use App\Services\NewsletterAiContext;
 use App\Services\OpenAiWorkflowAssistant;
@@ -33,7 +33,7 @@ class AdminAiController extends Controller
     public function extractExpense(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'receipt_pdf' => ['required', 'file', 'mimes:pdf', 'max:12288'],
+            'receipt_pdf' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:12288'],
         ]);
 
         $file = $validated['receipt_pdf'];
@@ -44,7 +44,7 @@ class AdminAiController extends Controller
     public function extractExpenseStream(Request $request): StreamedResponse
     {
         $validated = $request->validate([
-            'receipt_pdf' => ['required', 'file', 'mimes:pdf', 'max:12288'],
+            'receipt_pdf' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:12288'],
         ]);
         $file = $validated['receipt_pdf'];
         $this->extendExecutionLimit();
@@ -95,15 +95,25 @@ class AdminAiController extends Controller
                 'cost_centre' => (string) ($supplier->cost_centre ?? ''),
             ])->all();
 
+        $mimeType = strtolower((string) ($file->getMimeType() ?: $file->getClientMimeType()));
+        $encodedFile = base64_encode((string) file_get_contents($file->getRealPath()));
+        $documentInput = in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)
+            ? [
+                'type' => 'input_image',
+                'image_url' => 'data:'.$mimeType.';base64,'.$encodedFile,
+                'detail' => 'high',
+            ]
+            : [
+                'type' => 'input_file',
+                'filename' => Str::limit((string) $file->getClientOriginalName(), 120, ''),
+                'file_data' => 'data:application/pdf;base64,'.$encodedFile,
+                'detail' => 'high',
+            ];
+
         $input = [[
             'role' => 'user',
             'content' => [
-                [
-                    'type' => 'input_file',
-                    'filename' => Str::limit((string) $file->getClientOriginalName(), 120, ''),
-                    'file_data' => 'data:application/pdf;base64,'.base64_encode((string) file_get_contents($file->getRealPath())),
-                    'detail' => 'high',
-                ],
+                $documentInput,
                 [
                     'type' => 'input_text',
                     'text' => 'Extract expense-entry fields from this invoice or receipt. Classify the document with a short label such as “Fuel receipt”, “Tax invoice”, or “Online order receipt”; use “Receipt” if unclear. Use an existing supplier name exactly when there is a clear match to this list; otherwise preserve the printed supplier name. Known suppliers: '.json_encode($knownSuppliers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n\nReturn only printed facts, exact short evidence quotes and page numbers. Do not use the filename as evidence. Return blank strings and add a needs_review note when a field is missing or unclear. Use the transaction/paid date if present, otherwise invoice date; never use due date. The total must be the amount including GST. Return monetary values as decimal digits only, without currency symbols or thousands separators. Never infer GST from the total. For GST absent or unclear, leave gst_amount blank and flag it for review. Use ISO YYYY-MM-DD for paid_on and AUD only if the document supports it.",
@@ -638,11 +648,19 @@ class AdminAiController extends Controller
 
             $hashtags = [];
             foreach ($rawHashtags as $rawHashtag) {
-                if (! is_string($rawHashtag)) continue;
+                if (! is_string($rawHashtag)) {
+                    continue;
+                }
                 $hashtag = trim($rawHashtag);
-                if (preg_match('/^#[\p{L}\p{N}_]+$/u', $hashtag) !== 1) continue;
-                if (strtolower($hashtag) === '#stemmechanics') $hashtag = '#STEMMechanics';
-                if (! in_array(strtolower($hashtag), array_map('strtolower', $hashtags), true)) $hashtags[] = $hashtag;
+                if (preg_match('/^#[\p{L}\p{N}_]+$/u', $hashtag) !== 1) {
+                    continue;
+                }
+                if (strtolower($hashtag) === '#stemmechanics') {
+                    $hashtag = '#STEMMechanics';
+                }
+                if (! in_array(strtolower($hashtag), array_map('strtolower', $hashtags), true)) {
+                    $hashtags[] = $hashtag;
+                }
             }
 
             $hashtags = array_values(array_filter($hashtags, fn (string $hashtag): bool => strtolower($hashtag) !== '#stemmechanics'));

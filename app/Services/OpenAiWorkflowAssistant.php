@@ -72,7 +72,7 @@ class OpenAiWorkflowAssistant
             $message = match ($response->status()) {
                 401, 403 => 'The AI service credentials or project do not have permission to process this request.',
                 404 => 'The configured AI model was not found. Check the model setting.',
-                413 => 'The PDF is too large for the AI service. Choose a smaller file.',
+                413 => 'The uploaded input is too large for the AI service. Choose a smaller file.',
                 429 => 'The AI service is busy or its API quota has been reached. Try again later.',
                 400 => $providerMessage !== ''
                     ? 'The AI service rejected the request: '.Str::limit($providerMessage, 300, '')
@@ -184,7 +184,7 @@ class OpenAiWorkflowAssistant
             throw new RuntimeException(match ($response->status()) {
                 401, 403 => 'The AI service credentials or project do not have permission to process this request.',
                 404 => 'The configured AI model was not found. Check the model setting.',
-                413 => 'The PDF is too large for the AI service. Choose a smaller file.',
+                413 => 'The uploaded input is too large for the AI service. Choose a smaller file.',
                 429 => 'The AI service is busy or its API quota has been reached. Try again later.',
                 default => 'The AI service returned an error (HTTP '.$response->status().'). Please try again.',
             });
