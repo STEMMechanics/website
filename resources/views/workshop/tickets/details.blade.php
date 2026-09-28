@@ -92,12 +92,21 @@
                         <x-ui.grid class="sm:grid-cols-2 gap-3">
                             <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][surname]" label="Surname" value="{{ old('tickets.'.$index.'.surname', $ticket->surname) }}" required />
-                            <x-ui.participant-age name="tickets[{{ $index }}][age]" value="{{ old('tickets.'.$index.'.age', $ticket->age) }}" />
                             <x-ui.input type="email" name="tickets[{{ $index }}][email]" label="Email" value="{{ old('tickets.'.$index.'.email', $ticket->email) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][phone]" label="Phone" value="{{ old('tickets.'.$index.'.phone', $ticket->phone) }}" required />
+                            <x-ui.participant-age name="tickets[{{ $index }}][age]" value="{{ old('tickets.'.$index.'.age', $ticket->age) }}" />
                         </x-ui.grid>
                     </div>
                     @endforeach
+
+                    @unless($newsletterSubscribed ?? false)
+                        <x-ui.checkbox
+                            name="subscribe_newsletter"
+                            label="Subscribe me to workshop updates"
+                            :checked="old('subscribe_newsletter', true)"
+                            class="mt-4"
+                        />
+                    @endunless
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-end">
                         <x-ui.button type="submit">Save Ticket Details</x-ui.button>

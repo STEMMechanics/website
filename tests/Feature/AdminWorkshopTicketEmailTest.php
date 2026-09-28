@@ -759,34 +759,53 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'ends_at' => $workshop->ends_at?->copy()->addDay()->toDateTimeString(),
                 'notify_ticket_holders' => '1',
                 'ticket_change_email_notes' => "Please use the new entrance.\nParking has changed.",
+                'ticket_change_email_bcc' => "holder@example.com, linked@example.com, manager@example.com, events@example.com",
             ]));
 
         $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
-        $response->assertSessionHas('message', 'Workshop has been updated and an email was queued to 2 ticket holders.');
+        $response->assertSessionHas('message', 'Workshop has been updated and an email was queued to 4 recipients.');
 
         Queue::assertPushed(SendEmail::class, 1);
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($admin): bool {
-            $this->assertSame((string) $admin->email, (string) $job->to);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            $this->assertSame((string) config('mail.admin_bcc'), (string) $job->to);
             $this->assertInstanceOf(WorkshopTicketBroadcast::class, $job->mailable);
 
             $recipients = $this->extractPrivateArrayProperty($job->mailable, 'bccRecipients');
             sort($recipients);
             $this->assertSame([
+                'events@example.com',
                 'holder@example.com',
                 'linked@example.com',
+                'manager@example.com',
             ], $recipients);
 
             $rendered = html_entity_decode(strip_tags($job->mailable->render()));
-            $this->assertStringContainsString('The details for "Workshop Tickets" have changed.', $rendered);
+            $this->assertStringContainsString('We wanted to let you know that a few details for your upcoming "Workshop Tickets" workshop have changed.', $rendered);
             $this->assertStringContainsString('Updated details:', $rendered);
             $this->assertStringContainsString('Location: New Lab', $rendered);
-            $this->assertStringContainsString('Previous details:', $rendered);
+            $this->assertStringContainsString('For reference, the previous details were:', $rendered);
             $this->assertStringContainsString('Location: Old Hall', $rendered);
             $this->assertStringContainsString('Please use the new entrance.', $rendered);
             $this->assertStringContainsString('Parking has changed.', $rendered);
 
             return true;
         });
+    }
+
+    public function test_workshop_change_rejects_invalid_additional_bcc_addresses(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createTicketWorkshop();
+        $location = Location::factory()->create(['name' => 'New Lab']);
+
+        $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, [
+                'starts_at' => $workshop->starts_at?->copy()->addDay()->toDateTimeString(),
+                'ends_at' => $workshop->ends_at?->copy()->addDay()->toDateTimeString(),
+                'notify_ticket_holders' => '1',
+                'ticket_change_email_bcc' => 'not-an-email',
+            ]))
+            ->assertSessionHasErrors('ticket_change_email_bcc');
     }
 
     public function test_workshop_update_can_skip_change_email_when_admin_chooses_not_to_send(): void

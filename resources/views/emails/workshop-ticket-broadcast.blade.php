@@ -1,7 +1,7 @@
 @component('mail::message')
 Hi there,
 
-{{ $messageBody }}
+{!! $messageBody !!}
 
 Thanks,<br>
 {{ \App\Support\EmailSignatureFormatter::resolve($initiatedByName ?? null) }}
