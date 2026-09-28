@@ -39,6 +39,16 @@ test('supplier defaults follow the net amount while overrides retain entered val
     assert.equal(tally.remaining, 0);
 });
 
+test('unallocated expense totals need attention even when automatic allocation is disabled', () => {
+    const { tally } = setup({ values: { 1: '0.00' }, total: 1105, enabled: false, exact: true });
+    assert.equal(tally.needsAttention, true);
+    tally.values[1] = '11.05';
+    assert.equal(tally.needsAttention, false);
+    tally.total = 0;
+    tally.values[1] = '0.00';
+    assert.equal(tally.needsAttention, false);
+});
+
 function expenseGstUpdater(inputs, tally) {
     const source = fs.readFileSync('resources/views/admin/expense/edit.blade.php', 'utf8');
     const updater = source.slice(source.indexOf('const updateGstFromTotal ='), source.indexOf('const resetPreviewVisibility ='));

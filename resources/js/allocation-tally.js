@@ -112,6 +112,7 @@ export function allocationTally(config) {
         },
         get allocated() { return Object.values(this.values).reduce((sum, value) => sum + this.cents(value), 0); },
         get remaining() { return this.total - this.allocated; },
+        get needsAttention() { return this.total > 0 && this.remaining !== 0; },
         get valid() { return !this.enabled || (!config.exact || this.remaining === 0); },
         money(cents) { return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD' }); },
         format(id) { this.values[id] = (this.cents(this.values[id]) / 100).toFixed(2); },
