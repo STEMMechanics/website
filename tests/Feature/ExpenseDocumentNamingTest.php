@@ -99,6 +99,21 @@ class ExpenseDocumentNamingTest extends TestCase
         }
     }
 
+    public function test_expense_editor_keeps_ampersands_in_supplier_autocomplete_value(): void
+    {
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Coffin & Sons',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.edit', $expense));
+
+        $response->assertOk()
+            ->assertSee("rawValue: 'Coffin \\u0026 Sons'", false)
+            ->assertDontSee("rawValue: 'Coffin \\u0026amp; Sons'", false);
+    }
+
     public function test_expense_update_suffixes_attachment_name_when_target_filename_exists(): void
     {
         Storage::fake('local');

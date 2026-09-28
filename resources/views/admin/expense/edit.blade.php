@@ -20,7 +20,7 @@
                 label="Supplier"
                 name="supplier"
                 id="expense-supplier"
-                value="{{ $expense->supplier ?? $supplierName ?? '' }}"
+                :value="$expense->supplier ?? $supplierName ?? ''"
                 required
                 :suggestions="$supplierSuggestions ?? []"
                 info="Start typing to choose an existing supplier or enter a new one."
