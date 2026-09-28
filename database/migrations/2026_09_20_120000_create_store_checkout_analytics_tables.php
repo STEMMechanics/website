@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('total', 12, 2)->nullable();
             $table->boolean('manual_quote')->default(false);
             $table->timestamp('checkout_started_at')->nullable();
-            $table->timestamp('last_activity_at')->index();
+            $table->timestamp('last_activity_at')->useCurrent()->index();
             $table->boolean('payment_failed')->default(false);
             $table->boolean('payment_cancelled')->default(false);
             $table->timestamps();
