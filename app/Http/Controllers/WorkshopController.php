@@ -25,16 +25,22 @@ use App\Models\WorkshopCategory;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
 use App\Services\DocumentNumberService;
+use App\Services\Finance\PricingVersion;
 use App\Services\ManualWorkshopTicketEmailService;
 use App\Services\MediaImageEditor;
 use App\Services\ReminderService;
+use App\Services\SiteListControls;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
+use App\Services\WorkshopBlueprintService;
+use App\Services\WorkshopCourseSettings;
 use App\Services\WorkshopPickListService;
 use App\Services\WorkshopRecommendationService;
+use App\Services\WorkshopSessionAttendance;
 use App\Services\WorkshopTicketService;
 use App\Support\CsvPhoneNumber;
+use App\Support\ListPageSize;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Barryvdh\DomPDF\PDF;
 use Carbon\Carbon;
@@ -46,6 +52,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -129,7 +136,7 @@ class WorkshopController extends Controller
 
         if ($view === 'month') {
             // Calendar navigation must not inherit hidden list filters.
-            $controls = app(\App\Services\SiteListControls::class);
+            $controls = app(SiteListControls::class);
             foreach ([...array_keys($controls->filterFields()), 'search', 'list_sort', 'list_direction', 'page'] as $parameter) {
                 $request->query->remove($parameter);
             }
@@ -143,18 +150,19 @@ class WorkshopController extends Controller
         }
 
         $workshopQuery = $this->buildWorkshopAdminQuery($search);
-        app(\App\Services\SiteListControls::class)->capturePresetCounts($workshopQuery);
+        app(SiteListControls::class)->capturePresetCounts($workshopQuery);
         if ($request->expectsJson() && $request->boolean('select_listing')) {
-            app(\App\Services\SiteListControls::class)->apply($workshopQuery);
+            app(SiteListControls::class)->apply($workshopQuery);
             $ids = $workshopQuery->limit(5001)->pluck('id');
             abort_if($ids->count() > 5000, 422, 'Select up to 5000 workshops at a time. Narrow your filters and try again.');
+
             return response()->json(['names' => $ids])->header('Cache-Control', 'no-store, private');
         }
         $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
 
         $workshops = $workshopQuery
             ->orderBy('starts_at', 'desc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
 
         $tabQuery = array_filter([
@@ -318,7 +326,9 @@ class WorkshopController extends Controller
         DB::transaction(function () use ($workshops, $changes, $addCategoryIds, $removeCategoryIds): void {
             foreach ($workshops as $workshop) {
                 $itemChanges = $changes;
-                if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) { $itemChanges['price_is_automatic'] = false; }
+                if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) {
+                    $itemChanges['price_is_automatic'] = false;
+                }
                 if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL && ! $workshop->isCourse()) {
                     $itemChanges['location_id'] = null;
                 }
@@ -512,7 +522,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -574,7 +584,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -637,6 +647,7 @@ class WorkshopController extends Controller
                         }
                     }
                 }
+
                 continue;
             }
 
@@ -1121,13 +1132,13 @@ class WorkshopController extends Controller
         $submittedWorkshopTasks = $this->submittedWorkshopTasks($request);
 
         $workshopData = $request->all();
-        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request));
+        $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door');
         if ($request->input('registration') === 'tickets') {
-            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
-            $workshopData['pricing_version_id'] = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
+            PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
+            $workshopData['pricing_version_id'] = PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
         }
 
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
@@ -1206,7 +1217,7 @@ class WorkshopController extends Controller
         }
 
         $workshop = Workshop::create($workshopData);
-        $blueprintService = app(\App\Services\WorkshopBlueprintService::class);
+        $blueprintService = app(WorkshopBlueprintService::class);
         if ($submittedWorkshopTasks === null) {
             $blueprintService->copyTasksFromBlueprint($workshop, $workshop->pick_list_template_id ? (int) $workshop->pick_list_template_id : null);
         } else {
@@ -1296,10 +1307,10 @@ class WorkshopController extends Controller
      */
     public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
-        app(\App\Services\WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
         $workshop->loadCount('interests');
         $workshop->loadMissing(['categories', 'pickListTemplate', 'runSheetTasks', 'requestedBy.organisations', 'hostedFor.parent']);
-        $workshopTaskDrafts = app(\App\Services\WorkshopBlueprintService::class)->taskDraftsForWorkshop($workshop);
+        $workshopTaskDrafts = app(WorkshopBlueprintService::class)->taskDraftsForWorkshop($workshop);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
             'tickets as attended_tickets_count' => fn ($query) => $query
@@ -1333,6 +1344,7 @@ class WorkshopController extends Controller
             'earlyBirdTicketCount' => $earlyBirdTicketCount,
             'maxTicketsRemaining' => $maxTicketsRemaining,
             'earlyBirdTicketLimitRemaining' => $earlyBirdTicketLimitRemaining,
+            'ticketChangeNotificationRecipients' => $this->resolveWorkshopTicketEmailRecipients($workshop),
             'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop)),
         ]);
     }
@@ -1382,7 +1394,7 @@ class WorkshopController extends Controller
                 });
             })
             ->orderBy('name')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(50))
             ->withQueryString();
 
         return view('admin.workshop.files', [
@@ -1418,7 +1430,7 @@ class WorkshopController extends Controller
         return redirect()->route('admin.workshop.files', $workshop);
     }
 
-    public function admin_files_upload(Request $request, Workshop $workshop): \Illuminate\Http\JsonResponse
+    public function admin_files_upload(Request $request, Workshop $workshop): JsonResponse
     {
         if ($request->filled('upload_token')) {
             $request->files->set('pending_files', [
@@ -1526,7 +1538,9 @@ class WorkshopController extends Controller
                 'storage_disk' => $validated['storage_disk'] ?? null,
                 'visibility' => $validated['visibility'] ?? null,
             ], fn ($value) => $value !== null && $value !== '');
-            if ($changes === []) continue;
+            if ($changes === []) {
+                continue;
+            }
             $file->update($changes);
             if (isset($changes['storage_disk']) && $oldStorageDisk !== $file->storageDiskName()) {
                 $this->moveWorkshopMediaOriginalToStorageDisk($file, $oldStorageDisk);
@@ -1550,7 +1564,9 @@ class WorkshopController extends Controller
         abort_if($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true, 500, 'Could not open zip file.');
         foreach ($files as $file) {
             $path = $file->path();
-            if ($path !== null && is_file($path)) $zip->addFile($path, $file->name);
+            if ($path !== null && is_file($path)) {
+                $zip->addFile($path, $file->name);
+            }
         }
         $zip->close();
 
@@ -1586,7 +1602,7 @@ class WorkshopController extends Controller
             })
             ->orderByDesc('photographed_at')
             ->orderByDesc('media.created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(24))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(24))
             ->withQueryString();
 
         return view('admin.workshop.photos', [
@@ -1896,14 +1912,20 @@ class WorkshopController extends Controller
     private function moveWorkshopMediaOriginalToStorageDisk(Media $media, string $fromDisk): void
     {
         $hash = trim((string) ($media->hash ?? ''));
-        if ($hash === '' || $fromDisk === $media->storageDiskName()) return;
+        if ($hash === '' || $fromDisk === $media->storageDiskName()) {
+            return;
+        }
 
         $source = Storage::disk($fromDisk);
         $target = $media->sourceStorage();
-        if (! $source->exists($hash)) return;
+        if (! $source->exists($hash)) {
+            return;
+        }
         if (! $target->exists($hash)) {
             $stream = $source->readStream($hash);
-            if (is_resource($stream)) $target->put($hash, $stream);
+            if (is_resource($stream)) {
+                $target->put($hash, $stream);
+            }
         }
         if (! Media::query()->where('hash', $hash)->where('storage_disk', $fromDisk)->where('name', '!=', $media->getKey())->exists()) {
             $source->delete($hash);
@@ -2120,6 +2142,7 @@ class WorkshopController extends Controller
             $duplicateMedia = Media::query()->where('hash', $hash)->oldest()->first();
             if ($duplicateMedia instanceof Media) {
                 $pendingNameMap[$pendingId] = $duplicateMedia->name;
+
                 continue;
             }
 
@@ -2244,6 +2267,11 @@ class WorkshopController extends Controller
             'pending_files_meta.*.notes' => 'nullable|string',
             'notify_ticket_holders' => 'nullable|boolean',
             'ticket_change_email_notes' => 'nullable|string',
+            'ticket_change_email_to' => 'nullable|string|max:5000',
+            'ticket_change_email_cc' => 'nullable|string|max:5000',
+            'ticket_change_email_bcc' => 'nullable|string|max:5000',
+            'ticket_change_email_subject' => 'nullable|string|max:255',
+            'ticket_change_email_body' => 'nullable|string|max:50000',
             'workshop_tasks_payload' => ['nullable', 'string', 'max:60000'],
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
@@ -2266,14 +2294,14 @@ class WorkshopController extends Controller
         $submittedWorkshopTasks = $this->submittedWorkshopTasks($request, $workshop);
 
         $workshopData = $request->all();
-        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request, $workshop));
+        $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request, $workshop));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door', (bool) $workshop->allow_pay_at_door);
         if ($request->input('registration') === 'tickets') {
-            $savedPlan = \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
-            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
-            $workshopData['pricing_version_id'] = $savedPlan ?? \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: ($workshop->pricing_version_id ?? null))->id;
+            $savedPlan = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
+            PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
+            $workshopData['pricing_version_id'] = $savedPlan ?? PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: ($workshop->pricing_version_id ?? null))->id;
         }
 
         $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
@@ -2282,10 +2310,24 @@ class WorkshopController extends Controller
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
         $shouldNotifyTicketHolders = $request->boolean('notify_ticket_holders');
         $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
+        $ticketChangeEmailTo = trim((string) $request->input('ticket_change_email_to', ''));
+        $ticketChangeEmailCc = trim((string) $request->input('ticket_change_email_cc', ''));
+        $ticketChangeEmailBcc = trim((string) $request->input('ticket_change_email_bcc', ''));
+        $ticketChangeEmailSubject = trim((string) $request->input('ticket_change_email_subject', ''));
+        $ticketChangeEmailBody = trim((string) $request->input('ticket_change_email_body', ''));
+        $toRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailTo);
+        $ccRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailCc);
+        $additionalBccRecipients = $this->parseAdditionalEmailRecipients($ticketChangeEmailBcc);
+        if (count($toRecipients) > 1) {
+            throw ValidationException::withMessages([
+                'ticket_change_email_to' => 'Enter one To address. Use CC or BCC for additional recipients.',
+            ]);
+        }
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
         unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files'], $workshopData['workshop_tasks_payload']);
+        unset($workshopData['ticket_change_email_to'], $workshopData['ticket_change_email_cc'], $workshopData['ticket_change_email_bcc'], $workshopData['ticket_change_email_subject'], $workshopData['ticket_change_email_body']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -2430,7 +2472,7 @@ class WorkshopController extends Controller
         }
 
         $workshop->update($workshopData);
-        $blueprintService = app(\App\Services\WorkshopBlueprintService::class);
+        $blueprintService = app(WorkshopBlueprintService::class);
         if ($templateChanged) {
             $blueprintService->copyTasksFromBlueprint($workshop, $newTemplateId);
         } elseif ($submittedWorkshopTasks !== null) {
@@ -2500,11 +2542,20 @@ class WorkshopController extends Controller
 
         if ($shouldNotifyTicketHolders && $ticketChangeSummary !== null) {
             try {
-                $recipientCount = $this->notifyWorkshopTicketHoldersOfChange($workshop->fresh('location'), $ticketChangeSummary, $ticketChangeEmailNotes);
+                $recipientCount = $this->notifyWorkshopTicketHoldersOfChange(
+                    $workshop->fresh('location'),
+                    $ticketChangeSummary,
+                    $ticketChangeEmailNotes,
+                    $additionalBccRecipients,
+                    $toRecipients,
+                    $ccRecipients,
+                    $ticketChangeEmailSubject,
+                    $ticketChangeEmailBody,
+                );
 
                 if ($recipientCount > 0) {
                     $message = 'Workshop has been updated and an email was queued to '
-                        .$recipientCount.' ticket holder'.($recipientCount === 1 ? '' : 's').'.';
+                        .$recipientCount.' recipient'.($recipientCount === 1 ? '' : 's').'.';
                 } else {
                     $message = 'Workshop has been updated, but no active ticket-holder email addresses were found for this change notice.';
                     $messageType = 'warning';
@@ -2769,7 +2820,7 @@ class WorkshopController extends Controller
                 [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED]
             )
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
             ->onEachSide(1);
 
         return view('admin.workshop.tickets', [
@@ -3063,7 +3114,7 @@ class WorkshopController extends Controller
         return DomPdf::loadView('pdf.workshop-ticket-roll', [
             'workshop' => $workshop->loadMissing('location'),
             'currentTickets' => $currentTickets,
-            'session' => app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
+            'session' => app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
         ])->setPaper('a4', 'landscape')->setOption([
             'enable_font_subsetting' => true,
         ])->stream($this->workshopExportFilename($workshop, 'Sign-In', 'pdf'));
@@ -3115,12 +3166,12 @@ class WorkshopController extends Controller
 
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
-        $courseSession = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        $courseSession = app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
         request()->attributes->set('course_session', $courseSession);
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
-        app(\App\Services\SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
+        app(SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
 
         $activeTickets = collect();
         $cancelledTickets = collect();
@@ -3156,7 +3207,7 @@ class WorkshopController extends Controller
                 ->orderBy('firstname')
                 ->orderBy('surname')
                 ->orderBy('id')
-                ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+                ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
             if ($showCancelledTickets) {
                 $cancelledTicketsQuery = Ticket::query()
@@ -3169,7 +3220,7 @@ class WorkshopController extends Controller
                     ->orderBy('firstname')
                     ->orderBy('surname')
                     ->orderBy('id')
-                    ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+                    ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
             }
 
             [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($activeTickets);
@@ -3366,7 +3417,7 @@ class WorkshopController extends Controller
             $activeIds = $workshop->tickets()->whereIn('status', Ticket::activePurchasedStatuses())->pluck('id')->all();
             $selected = array_values(array_intersect($validated['attended_ticket_ids'] ?? [], $activeIds));
             $sessionId = $request->string('session_id')->toString();
-            app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $sessionId, $selected, $activeIds);
+            app(WorkshopSessionAttendance::class)->sync($workshop, $sessionId, $selected, $activeIds);
 
             return $request->expectsJson() ? response()->json([
                 'message' => 'Session attendance saved.', 'attended_ticket_ids' => $selected,
@@ -3625,7 +3676,7 @@ class WorkshopController extends Controller
         }
         $courseAttendance = function () use ($workshop, $request, $selectedTicketIds, $attendedTicketIds): void {
             if ($workshop->isCourse() && ($request->boolean('sync_attendance') || $request->boolean('mark_attended'))) {
-                app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $request->string('session_id')->toString(),
+                app(WorkshopSessionAttendance::class)->sync($workshop, $request->string('session_id')->toString(),
                     $request->boolean('sync_attendance') ? $attendedTicketIds : $selectedTicketIds, $selectedTicketIds);
             }
         };
@@ -4171,7 +4222,7 @@ class WorkshopController extends Controller
     private function buildAttendanceExportRows(Workshop $workshop): array
     {
         $rows = [];
-        $session = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        $session = app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
         $attendance = $session ? DB::table('workshop_session_attendance')->where('workshop_id', $workshop->id)
             ->where('session_id', $session['id'])->pluck('attended_at', 'ticket_id') : collect();
 
@@ -5430,18 +5481,29 @@ class WorkshopController extends Controller
     /**
      * @param  array<string, string|array<int, string>>  $ticketChangeSummary
      */
-    private function notifyWorkshopTicketHoldersOfChange(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): int
-    {
-        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop);
+    private function notifyWorkshopTicketHoldersOfChange(
+        Workshop $workshop,
+        array $ticketChangeSummary,
+        string $additionalNotes = '',
+        array $additionalBccRecipients = [],
+        array $toRecipients = [],
+        array $ccRecipients = [],
+        string $subject = '',
+        string $body = '',
+    ): int {
+        $recipients = array_values(array_unique([...$additionalBccRecipients]));
         if ($recipients === []) {
             return 0;
         }
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
-        $toEmail = $initiatedByEmail;
+        $toEmail = $toRecipients[0] ?? null;
         if ($toEmail === null) {
-            $fallback = trim((string) config('mail.from.address', ''));
+            $fallback = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
             $toEmail = $fallback !== '' ? $fallback : null;
+        }
+        if ($toEmail === null) {
+            $toEmail = $initiatedByEmail;
         }
         if ($toEmail === null) {
             $fallback = trim((string) config('mail.admin_bcc', ''));
@@ -5455,9 +5517,14 @@ class WorkshopController extends Controller
         }
 
         dispatch(new SendEmail($toEmail, new WorkshopTicketBroadcast(
-            subjectLine: 'Workshop update: '.trim((string) ($workshop->title ?? 'Workshop')),
+            subjectLine: $subject !== '' ? $subject : 'Workshop update: '.trim((string) ($workshop->title ?? 'Workshop')),
             workshopTitle: (string) ($workshop->title ?? 'Workshop'),
-            messageBody: $this->buildWorkshopTicketChangeMessage($workshop, $ticketChangeSummary, $additionalNotes),
+            messageBody: $this->replaceWorkshopTicketEmailPlaceholders(
+                $body !== '' ? $body : $this->buildWorkshopTicketChangeMessage($workshop, $ticketChangeSummary, $additionalNotes),
+                $workshop,
+                $recipients,
+            ),
+            ccRecipients: array_values(array_diff($ccRecipients, [$toEmail], $recipients)),
             bccRecipients: $recipients,
             initiatedByEmail: $initiatedByEmail,
             initiatedByName: $initiatedByName,
@@ -5466,19 +5533,87 @@ class WorkshopController extends Controller
         return count($recipients);
     }
 
+    private function replaceWorkshopTicketEmailPlaceholders(string $body, Workshop $workshop, array $bccRecipients): string
+    {
+        $name = count($bccRecipients) === 1
+            ? $this->resolveWorkshopTicketEmailRecipientName($workshop, $bccRecipients[0])
+            : 'there';
+        $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $firstName = $parts[0] ?? 'there';
+        $lastName = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+        $supportEmail = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
+        $safeBody = strip_tags($body, '<p><br><strong><em><u><s><ul><ol><li><a>');
+
+        return str_replace(
+            ['{{first_name}}', '{{last_name}}', '{{full_name}}', '{{support_email}}'],
+            [e($firstName), e($lastName), e($name), e($supportEmail)],
+            $safeBody,
+        );
+    }
+
+    private function resolveWorkshopTicketEmailRecipientName(Workshop $workshop, string $email): string
+    {
+        $tickets = Ticket::query()
+            ->with('user')
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->get();
+
+        foreach ($tickets as $ticket) {
+            $ticketEmails = [
+                strtolower(trim((string) ($ticket->email ?? ''))),
+                strtolower(trim((string) ($ticket->user->email ?? ''))),
+            ];
+            if (! in_array(strtolower($email), $ticketEmails, true)) {
+                continue;
+            }
+
+            $name = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? '')));
+            if ($name === '') {
+                $name = trim((string) ($ticket->user?->getName() ?? ''));
+            }
+
+            return $name !== '' ? $name : 'there';
+        }
+
+        return 'there';
+    }
+
+    /** @return array<int, string> */
+    private function parseAdditionalEmailRecipients(string $value): array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+
+        $recipients = preg_split('/[;,\s]+/', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $normalized = [];
+        foreach ($recipients as $recipient) {
+            $email = strtolower(trim((string) $recipient));
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages([
+                    'ticket_change_email_bcc' => 'Enter valid email addresses separated by commas, semicolons, or new lines.',
+                ]);
+            }
+            $normalized[$email] = $email;
+        }
+
+        return array_values($normalized);
+    }
+
     /**
      * @param  array<string, string|array<int, string>>  $ticketChangeSummary
      */
     private function buildWorkshopTicketChangeMessage(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): string
     {
         $message = [
-            'The details for "'.trim((string) ($workshop->title ?? 'Workshop')).'" have changed.',
+            'We wanted to let you know that a few details for your upcoming "'.trim((string) ($workshop->title ?? 'Workshop')).'" workshop have changed.',
             '',
             'Updated details:',
             '- Date/Time: '.(string) ($ticketChangeSummary['new_schedule'] ?? '-'),
             '- Location: '.(string) ($ticketChangeSummary['new_location'] ?? '-'),
             '',
-            'Previous details:',
+            'For reference, the previous details were:',
             '- Date/Time: '.(string) ($ticketChangeSummary['old_schedule'] ?? '-'),
             '- Location: '.(string) ($ticketChangeSummary['old_location'] ?? '-'),
         ];
@@ -5490,7 +5625,9 @@ class WorkshopController extends Controller
             $message[] = $trimmedNotes;
         }
 
-        return implode("\n", $message);
+        return '<p>Hi {{first_name}},</p>'.collect($message)
+            ->map(fn (string $line): string => $line === '' ? '<p>&nbsp;</p>' : '<p>'.e($line).'</p>')
+            ->implode('').'<p>We’re sorry for any inconvenience this change may cause. If you have any questions or need a hand, please contact us at {{support_email}}.</p><p>We look forward to seeing you there!</p>';
     }
 
     /**
@@ -5523,6 +5660,7 @@ class WorkshopController extends Controller
                 'workshop_ids' => ['required', 'array', 'min:1', 'max:5000'],
                 'workshop_ids.*' => ['required', 'string', 'distinct', Rule::exists('workshops', 'id')],
             ]);
+
             return array_values($validated['workshop_ids']);
         }
 

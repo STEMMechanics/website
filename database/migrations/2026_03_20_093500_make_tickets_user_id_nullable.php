@@ -19,7 +19,11 @@ return new class extends Migration
             });
         }
 
-        DB::statement('ALTER TABLE `tickets` MODIFY `user_id` CHAR(36) NULL');
+        Schema::table('tickets', function (Blueprint $table): void {
+            // Laravel uses MariaDB's native UUID type on MariaDB 10.7+ and
+            // CHAR(36) on older MariaDB versions and MySQL.
+            $table->foreignUuid('user_id')->nullable()->change();
+        });
 
         if (! $this->hasForeignKey('tickets', 'tickets_user_id_foreign')) {
             Schema::table('tickets', function (Blueprint $table): void {
@@ -44,7 +48,9 @@ return new class extends Migration
             });
         }
 
-        DB::statement('ALTER TABLE `tickets` MODIFY `user_id` CHAR(36) NOT NULL');
+        Schema::table('tickets', function (Blueprint $table): void {
+            $table->foreignUuid('user_id')->nullable(false)->change();
+        });
 
         if (! $this->hasForeignKey('tickets', 'tickets_user_id_foreign')) {
             Schema::table('tickets', function (Blueprint $table): void {
