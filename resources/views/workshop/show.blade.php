@@ -131,7 +131,7 @@
                     @else
                         <div class="sm-registration-none">Registration not required for this event. Arrive early to avoid disappointment as seating maybe limited.</div>
                     @endif
-                @elseif($workshop->isPrivate())
+                @elseif($workshop->isPrivate() && !($workshop->registration === 'message' && filled(trim((string) ($workshop->registration_data ?? '')))))
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
                 @foreach(['workshop_id', 'quantity', 'allow_partial'] as $bookingError)

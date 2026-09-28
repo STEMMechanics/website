@@ -46,6 +46,25 @@ class WorkshopVisibilityRulesTest extends TestCase
         ]);
     }
 
+    public function test_private_custom_registration_message_replaces_the_generic_private_notice(): void
+    {
+        $customMessage = 'This is a private workshop for children attending Caravonica OSHC. Registrations are managed directly by Caravonica OSHC, so please contact their team to book your child’s place.';
+        $workshop = $this->createWorkshop(
+            title: 'Caravonica OSHC Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            isPrivate: true,
+            registration: 'message'
+        );
+        $workshop->update(['registration_data' => $customMessage]);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee($customMessage, false)
+            ->assertDontSee('This workshop is a private event and is not open to public registration.', false);
+    }
+
     public function test_admin_external_registration_click_is_not_recorded(): void
     {
         $workshop = $this->createWorkshop(
