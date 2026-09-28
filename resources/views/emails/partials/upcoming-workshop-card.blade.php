@@ -16,6 +16,7 @@
         ->filter(fn ($line) => trim((string) $line) !== '')
         ->take($compact ? 2 : 3)
         ->values();
+    $showPrice = ! $workshop->isPriceHiddenFromPublic();
     $priceAmount = $workshop->currentTicketPriceAmount();
     $priceLabel = $priceAmount > 0.0001
         ? '$'.number_format($priceAmount, 2)
@@ -120,8 +121,10 @@
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0 0 0; border-top:1px solid #e2e8f0;">
 <tr>
 <td valign="middle" style="padding:14px 0 0 0; width:60%;">
+@if($showPrice)
 <span class="newsletter-workshop-card__price" style="font-size:20px; line-height:1; font-weight:900; color:#0f172a; letter-spacing:-0.04em;">{{ $priceLabel }}</span>
-@if($earlyBirdSummary)
+@endif
+@if($showPrice && $earlyBirdSummary)
 <div style="margin-top:5px; font-size:12px; line-height:1.4; color:#b45309; font-weight:700;">{{ $earlyBirdSummary }}</div>
 @endif
 </td>

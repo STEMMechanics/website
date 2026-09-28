@@ -926,6 +926,10 @@ class WorkshopController extends Controller
 
     private function workshopFeedPriceLabel(Workshop $workshop): string
     {
+        if ($workshop->isPriceHiddenFromPublic()) {
+            return '';
+        }
+
         $priceAmount = $workshop->currentTicketPriceAmount();
         if ($priceAmount <= 0.0001) {
             return 'Free';
@@ -1078,6 +1082,7 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'price' => ['nullable', 'string', 'max:255'],
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
@@ -2212,6 +2217,7 @@ class WorkshopController extends Controller
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'price' => ['nullable', 'string', 'max:255'],
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',

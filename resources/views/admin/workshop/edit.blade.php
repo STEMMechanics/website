@@ -1042,7 +1042,7 @@ if (isset($workshop)) {
                                 </x-ui.button>
                             </div>
                             @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'">Leave blank to hide from public.</span> Also supports Free, TBD or TBC.</p>
+                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
                             <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
                                 <input type="hidden" name="allow_pay_at_door" value="0">
                                 <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />

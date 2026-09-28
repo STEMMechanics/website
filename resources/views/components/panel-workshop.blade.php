@@ -73,24 +73,26 @@
                     </div>{{ $workshop->ages ? 'Ages ' . $workshop->ages : 'All ages' }}
                 </div>
             @endif
-            <div class="text-gray-600 text-sm mb-1 flex gap-2">
-                <div class="w-6 flex items-center justify-center">
-                    <i class="fa-solid fa-dollar-sign"></i>
-                </div>
-                <div class="min-w-0">
-                    <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <span>
-                            {{ $ticketPriceAmount > 0.0001 ? number_format($ticketPriceAmount, 2) : 'Free' }}
-                            @if($showEarlyBirdBadgeOnly && $earlyBirdSummary)
-                                <span class="text-gray-500 text-xs">- Early Bird Pricing</span>
-                            @endif
-                        </span>
+            @if(! $workshop->isPriceHiddenFromPublic())
+                <div class="text-gray-600 text-sm mb-1 flex gap-2">
+                    <div class="w-6 flex items-center justify-center">
+                        <i class="fa-solid fa-dollar-sign"></i>
                     </div>
-                    @if(!$showEarlyBirdBadgeOnly && $earlyBirdStatus)
-                        <div class="text-xs text-gray-500 mt-0.5">{{ $earlyBirdStatus }}</div>
-                    @endif
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <span>
+                                {{ $ticketPriceAmount > 0.0001 ? number_format($ticketPriceAmount, 2) : 'Free' }}
+                                @if($showEarlyBirdBadgeOnly && $earlyBirdSummary)
+                                    <span class="text-gray-500 text-xs">- Early Bird Pricing</span>
+                                @endif
+                            </span>
+                        </div>
+                        @if(!$showEarlyBirdBadgeOnly && $earlyBirdStatus)
+                            <div class="text-xs text-gray-500 mt-0.5">{{ $earlyBirdStatus }}</div>
+                        @endif
+                    </div>
                 </div>
-            </div>
+            @endif
         </div>
     </div>
 </a>
