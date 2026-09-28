@@ -2,7 +2,16 @@
     @push('head')
         @vite('resources/js/workshop-pick-list.js')
     @endpush
-    <x-mast backRoute="workshop.index" backTitle="Workshops">Run Sheet</x-mast>
+    <x-mast backRoute="workshop.index" backTitle="Workshops">
+        <x-slot>Run Sheet</x-slot>
+        <x-slot:actions>
+            <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
+                View public page
+                <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
+                <span class="sr-only">(opens in a new tab)</span>
+            </x-ui.button>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container>
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">

@@ -399,7 +399,7 @@ const makePayload = async (button, form) => {
     if (fileSelector) {
         const input = document.querySelector(fileSelector);
         const file = input instanceof HTMLInputElement ? input.files?.[0] : null;
-        if (!file) throw new Error('Choose a PDF first.');
+        if (!file) throw new Error('Choose a PDF or image first.');
         let fileBytes;
         try {
             fileBytes = await file.arrayBuffer();
@@ -612,7 +612,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     };
     const initialToken = csrfToken() || trigger.dataset.aiToken || readFormField(form, '_token');
     if (initialToken) requestHeaders['X-CSRF-TOKEN'] = initialToken;
-    const initialStatus = automatic ? 'Reading receipt PDF…' : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
+    const initialStatus = automatic ? 'Reading receipt…' : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
     setStatus(root, initialStatus, false, automatic || root.hasAttribute('data-ai-toast'));
 
     try {
@@ -769,10 +769,12 @@ document.addEventListener('change', (event) => {
     }
 
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    if (!isPdf) {
+    const isReceiptImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+        || /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    if (!isPdf && !isReceiptImage) {
         widget._adminAiAbortController?.abort();
         clearResults(widget);
-        setStatus(widget, 'PDF only.', true);
+        setStatus(widget, 'PDF or JPEG/PNG/WebP image only.', true);
         return;
     }
 

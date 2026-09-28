@@ -183,6 +183,41 @@ class ExpenseDocumentNamingTest extends TestCase
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 
+    public function test_expense_attachment_can_be_updated_with_a_jpeg_receipt(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Camera Receipt Supplier',
+            'invoice_id' => 'JPEG-1',
+            'paid_on' => '2026-08-28',
+            'total_amount' => 22.00,
+            'gst_amount' => 2.00,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.expense.edit', $expense))
+            ->post(route('admin.expense.update', $expense), [
+                'supplier' => 'Camera Receipt Supplier',
+                'description' => 'Receipt scanned as a JPEG',
+                'invoice_id' => 'JPEG-1',
+                'paid_on' => '2026-08-28',
+                'total_amount' => '22.00',
+                'gst_amount' => '2.00',
+                'receipt_document_file' => UploadedFile::fake()->image('receipt.jpg', 120, 80),
+            ]);
+
+        $response->assertRedirect(route('admin.expense.edit', $expense));
+        $response->assertSessionHasNoErrors();
+
+        $expense->refresh();
+
+        $this->assertSame('jpg', pathinfo((string) $expense->receipt_document_path, PATHINFO_EXTENSION));
+        Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
+    }
+
     public function test_expense_attachment_ajax_update_returns_a_redirect_payload(): void
     {
         Storage::fake('local');
