@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AnalyticsEvent;
 use App\Models\Workshop;
+use App\Services\AnalyticsIpFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class WorkshopRecommendationController extends Controller
             'placement' => ['required', 'string', 'max:40'],
         ]);
 
-        if (! (bool) (auth()->user()?->isAdmin() ?? false)) {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! app(AnalyticsIpFilter::class)->ignores($request->ip())) {
             foreach (array_unique($validated['workshop_ids']) as $workshopId) {
                 $this->record($request, AnalyticsEvent::TYPE_RECOMMENDATION_IMPRESSION, (string) $workshopId, (string) $validated['source_workshop_id'], (string) $validated['placement']);
             }
@@ -31,7 +32,7 @@ class WorkshopRecommendationController extends Controller
 
     public function click(Request $request, Workshop $source, Workshop $workshop): RedirectResponse
     {
-        if (! (bool) (auth()->user()?->isAdmin() ?? false) && $workshop->isPubliclyVisible()) {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && $workshop->isPubliclyVisible() && ! app(AnalyticsIpFilter::class)->ignores($request->ip())) {
             $this->record($request, AnalyticsEvent::TYPE_RECOMMENDATION_CLICK, (string) $workshop->id, (string) $source->id, trim((string) $request->query('placement', 'workshop')));
         }
 

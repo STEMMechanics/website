@@ -12,7 +12,7 @@ class StoreCheckoutAnalytics
 
     public function record(Request $request, string $stage = 'cart', ?string $outcome = null, ?int $orderId = null, ?array $summary = null): void
     {
-        if (! config('analytics.enabled', true) || ! $request->hasSession() || $request->user()?->isAdmin()) {
+        if (! config('analytics.enabled', true) || ! $request->hasSession() || $request->user()?->isAdmin() || app(AnalyticsIpFilter::class)->ignores($request->ip())) {
             return;
         }
         foreach ((array) config('analytics.ignore_bot_user_agents', []) as $bot) {
