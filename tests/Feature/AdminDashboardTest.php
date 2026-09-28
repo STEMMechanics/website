@@ -13,6 +13,7 @@ use App\Models\Workshop;
 use App\Services\AdminDashboardActions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -211,6 +212,91 @@ class AdminDashboardTest extends TestCase
         $this->assertStringContainsString('session_id='.$sessionId, $attendance['url']);
     }
 
+    public function test_dashboard_does_not_include_attendance_for_a_partly_marked_workshop_before_it_ends(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $media = Media::factory()->create(['user_id' => $admin->id]);
+        $startsAt = now()->addHour();
+        $workshop = Workshop::factory()->create([
+            'title' => 'Already marked workshop',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHours(2),
+            'status' => 'open',
+            'registration' => 'tickets',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => now(),
+        ]);
+        Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+            'attended_at' => null,
+        ]);
+
+        $attendance = collect(app(AdminDashboardActions::class)->build())
+            ->firstWhere('title', 'Mark Attendance');
+
+        $this->assertNull($attendance);
+    }
+
+    public function test_course_attendance_action_remains_for_a_session_with_unmarked_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $media = Media::factory()->create(['user_id' => $admin->id]);
+        $markedSessionId = '0d11028c-e6f3-47b7-8715-061e197d2e7a';
+        $unmarkedSessionId = '5f2bc4e8-00d1-47a3-8f94-a15d8c936e4c';
+        $firstStartsAt = now()->subHours(3);
+        $secondStartsAt = now()->addHour();
+        $workshop = Workshop::factory()->create([
+            'title' => 'Partly marked course',
+            'starts_at' => $firstStartsAt,
+            'ends_at' => $secondStartsAt->copy()->addHour(),
+            'format' => 'course',
+            'course_sessions' => [
+                [
+                    'id' => $markedSessionId,
+                    'starts_at' => $firstStartsAt->format('Y-m-d\\TH:i'),
+                    'ends_at' => $firstStartsAt->copy()->addHour()->format('Y-m-d\\TH:i'),
+                ],
+                [
+                    'id' => $unmarkedSessionId,
+                    'starts_at' => $secondStartsAt->format('Y-m-d\\TH:i'),
+                    'ends_at' => $secondStartsAt->copy()->addHour()->format('Y-m-d\\TH:i'),
+                ],
+            ],
+            'status' => 'open',
+            'registration' => 'tickets',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'status' => Ticket::STATUS_PAID,
+        ]);
+
+        DB::table('workshop_session_attendance')->insert([
+            'workshop_id' => $workshop->id,
+            'session_id' => $markedSessionId,
+            'ticket_id' => $ticket->id,
+            'attended_at' => now(),
+        ]);
+
+        $attendance = collect(app(AdminDashboardActions::class)->build())
+            ->filter(fn (array $card): bool => $card['title'] === 'Mark Attendance')
+            ->values();
+
+        $this->assertCount(1, $attendance);
+        $this->assertStringContainsString('session_id='.$unmarkedSessionId, $attendance->first()['url']);
+    }
+
     public function test_dashboard_action_cards_have_a_fresh_json_endpoint(): void
     {
         $response = $this->actingAs($this->createAdminUser())->getJson(route('admin.dashboard.actions'));
@@ -218,9 +304,30 @@ class AdminDashboardTest extends TestCase
         $response->assertOk()->assertJsonStructure([
             'actions' => [['title', 'description', 'url', 'icon', 'tone', 'dismiss_key', 'title_no_wrap']],
         ]);
-        $this->assertGreaterThanOrEqual(5, count($response->json('actions')));
+        $this->assertGreaterThanOrEqual(4, count($response->json('actions')));
         $this->assertLessThanOrEqual(8, count($response->json('actions')));
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_dashboard_does_not_include_store_orders_when_all_orders_are_fulfilled(): void
+    {
+        StoreOrder::factory()->create(['status' => StoreOrder::STATUS_SHIPPED]);
+        StoreOrder::factory()->create(['status' => StoreOrder::STATUS_FULFILLED]);
+
+        $cards = app(AdminDashboardActions::class)->build();
+
+        $this->assertNull(collect($cards)->first(fn (array $card): bool => $card['url'] === route('admin.shop.order.index')));
+    }
+
+    public function test_dashboard_includes_store_order_action_when_an_order_needs_attention(): void
+    {
+        StoreOrder::factory()->create(['status' => StoreOrder::STATUS_PROCESSING]);
+
+        $card = collect(app(AdminDashboardActions::class)->build())
+            ->firstWhere('title', 'Process store orders');
+
+        $this->assertNotNull($card);
+        $this->assertStringContainsString('1 store order needs a follow-up.', $card['description']);
     }
 
     public function test_bas_action_appears_near_month_end_for_the_previous_month(): void

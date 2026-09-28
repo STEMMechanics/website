@@ -6,8 +6,8 @@ use App\Models\Invoice;
 use App\Models\StoreOrder;
 use App\Models\Ticket;
 use App\Models\Workshop;
-use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class AdminDashboardActions
@@ -69,7 +69,6 @@ class AdminDashboardActions
             $this->card('Add an expense', 'Record a purchase and attach its receipt.', route('admin.expense.create'), 'fa-solid fa-receipt', 'emerald'),
             $this->card('Create a workshop', 'Set up a new workshop or course.', route('admin.workshop.create'), 'fa-solid fa-calendar-plus', 'violet'),
             $this->card('Manage workshops', 'View schedules, bookings, and attendance.', route('admin.workshop.index'), 'fa-solid fa-calendar-days', 'violet'),
-            $this->card('Store orders', 'Review orders and update their progress.', route('admin.shop.order.index'), 'fa-solid fa-box-open', 'amber'),
             $this->card('Manage invoices', 'Create invoices and review payments due.', route('admin.invoice.index'), 'fa-solid fa-file-invoice-dollar', 'sky'),
         ];
 
@@ -167,7 +166,7 @@ class AdminDashboardActions
                         continue;
                     }
                     $attended = (int) ($courseAttendance[$workshop->id.'|'.$session['id']] ?? 0);
-                    if ($endsAt->lte($now) && $attended >= $ticketCount) {
+                    if ($attended > 0) {
                         continue;
                     }
                     $actions[] = $this->attendanceCard($workshop, $startsAt, $endsAt, $ticketCount, $attended, (string) $session['id']);
@@ -182,7 +181,7 @@ class AdminDashboardActions
                 continue;
             }
             $attended = $tickets->filter(fn (Ticket $ticket): bool => $ticket->attended_at !== null)->count();
-            if ($endsAt->lte($now) && $attended >= $ticketCount) {
+            if ($attended > 0) {
                 continue;
             }
             $actions[] = $this->attendanceCard($workshop, $startsAt, $endsAt, $ticketCount, $attended);
