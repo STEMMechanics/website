@@ -10,7 +10,7 @@
     $enabled = (bool) old('allocation_override', $manual->isNotEmpty());
 @endphp
 <section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
-    <div x-data="{ allocationOpen: @js($errors->has('splits')) }" x-effect="if (enabled && !valid) allocationOpen = true">
+    <div x-data="{ allocationOpen: @js($errors->has('splits')), allocationTouched: false }" x-effect="if (needsAttention) { allocationOpen = true; if (!allocationTouched) enabled = true; }">
         <button
             type="button"
             class="flex w-full items-center justify-between gap-4 text-left"
@@ -45,7 +45,7 @@
 
         <div id="expense-allocation-content" x-show="allocationOpen" x-cloak class="mt-5 border-t border-slate-200 pt-4">
             <input type="hidden" name="allocation_editor" value="1">
-            <x-ui.checkbox name="allocation_override" value="1" label="Set an allocation for this expense" x-model="enabled" :checked="$enabled" />
+            <x-ui.checkbox name="allocation_override" value="1" label="Set an allocation for this expense" x-model="enabled" x-on:change="allocationTouched = true" :checked="$enabled" />
             @if(!$expense)
                 <p class="mt-2 text-sm text-gray-500">For a new supplier, this allocation is also saved as its default percentages for future expenses.</p>
             @endif

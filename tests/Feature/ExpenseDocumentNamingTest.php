@@ -45,6 +45,9 @@ class ExpenseDocumentNamingTest extends TestCase
         $this->assertFalse($collapsedReceipt->hasAttribute('open'));
         $collapsedAllocation = $collapsedDocument->querySelector('[data-validation-field="splits"] div[x-data*="allocationOpen"]');
         $this->assertStringContainsString('allocationOpen: false', $collapsedAllocation->getAttribute('x-data'));
+        $this->assertStringContainsString('allocationTouched: false', $collapsedAllocation->getAttribute('x-data'));
+        $this->assertStringContainsString('if (needsAttention)', $collapsedAllocation->getAttribute('x-effect'));
+        $this->assertStringContainsString('allocationTouched = true', $collapsedDocument->querySelector('[data-validation-field="splits"] input[name="allocation_override"]')->getAttribute('x-on:change'));
 
         $errors = new ViewErrorBag;
         $errors->put('default', new MessageBag([
