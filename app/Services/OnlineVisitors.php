@@ -74,8 +74,10 @@ class OnlineVisitors
         }
         try {
             $admins = DB::table('user_groups')->where('slug', 'admin')->pluck('user_id')->all();
+            $ipFilter = app(AnalyticsIpFilter::class);
 
             $visitors = collect($this->recent())
+                ->reject(fn ($visitor) => $ipFilter->ignores($visitor['ip'] ?? null))
                 ->reject(fn ($visitor) => $visitor['user_id'] !== null && in_array($visitor['user_id'], $admins, true))
                 ->sortByDesc('seen_at')
                 ->unique(fn ($visitor, $token) => $visitor['user_id'] ? 'user:'.$visitor['user_id'] : 'session:'.$token);
