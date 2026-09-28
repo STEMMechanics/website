@@ -68,6 +68,46 @@ test('receipt images use the JSON extraction endpoint instead of the progress st
     assert.match(editorSource, /data-ai-json-url="\{\{ route\('admin\.ai\.expenses\.extract'\) \}\}"/);
 });
 
+test('automatic receipt extraction identifies only blank fields and gives a tailored status', () => {
+    const source = fs.readFileSync('resources/js/admin-ai.js', 'utf8');
+    const start = source.indexOf('const readFormField =');
+    const end = source.indexOf('\n\nconst fillField', start);
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
+
+    class HTMLInputElement {
+        constructor(value, attributes = {}, dataset = {}) {
+            this.value = value;
+            this.attributes = attributes;
+            this.dataset = dataset;
+        }
+
+        hasAttribute(name) {
+            return Boolean(this.attributes[name]);
+        }
+    }
+
+    const fields = new Map([
+        ['supplier', new HTMLInputElement('Coffin & Sons')],
+        ['description', new HTMLInputElement('Workshop materials')],
+        ['invoice_id', new HTMLInputElement('INV-42')],
+        ['paid_on', new HTMLInputElement('2026-09-28')],
+        ['total_amount', new HTMLInputElement('')],
+        ['gst_amount', new HTMLInputElement('')],
+    ]);
+    const form = { elements: { namedItem: name => fields.get(name) } };
+    const trigger = { dataset: { aiFillFields: 'supplier,description,invoice_id,paid_on,total_amount,gst_amount' } };
+    const context = { HTMLInputElement };
+    vm.createContext(context);
+    vm.runInContext(`${source.slice(start, end)}\nglobalThis.getAiBlankFields = getAiBlankFields;\nglobalThis.automaticAiStatus = automaticAiStatus;`, context);
+
+    const blankFields = Array.from(context.getAiBlankFields(trigger, form));
+    assert.deepEqual(blankFields, ['total_amount', 'gst_amount']);
+    assert.equal(context.automaticAiStatus(blankFields), 'Reading receipt to fill total amount and GST amount…');
+    assert.match(source, /if \(button\.dataset\.aiFillFields\) \{\s+getAiBlankFields\(button, scope\)\.forEach\(\(name\) => payload\.append\('fill_fields\[\]', name\)\);/);
+    assert.match(source, /Receipt attached\. All expense fields are already complete\./);
+});
+
 test('AI payload includes a context field when its bound value is temporarily empty', async () => {
     const source = fs.readFileSync('resources/js/admin-ai.js', 'utf8');
     const start = source.indexOf('const makePayload = async');

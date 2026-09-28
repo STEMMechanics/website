@@ -136,6 +136,37 @@ class AdminAiWorkflowTest extends TestCase
         });
     }
 
+    public function test_ai_extracts_only_the_requested_blank_expense_fields(): void
+    {
+        $fields = [
+            'document_type' => 'Tax invoice',
+            'supplier' => '',
+            'description' => '',
+            'invoice_id' => '',
+            'paid_on' => '',
+            'total_amount' => '22.00',
+            'gst_amount' => '2.00',
+            'currency' => 'AUD',
+            'evidence' => [],
+            'needs_review' => [],
+        ];
+        Http::fake(['https://api.openai.com/v1/responses' => Http::response(['output_text' => json_encode($fields)], 200)]);
+
+        $response = $this->actingAs($this->createAdminUser())->postJson(route('admin.ai.expenses.extract'), [
+            'receipt_pdf' => UploadedFile::fake()->create('invoice.pdf', 100, 'application/pdf'),
+            'fill_fields' => ['total_amount', 'gst_amount'],
+        ]);
+
+        $response->assertOk();
+
+        Http::assertSent(function (ClientRequest $request): bool {
+            $text = (string) ($request->data()['input'][0]['content'][1]['text'] ?? '');
+
+            return str_contains($text, 'Only extract these currently blank expense-entry fields: total amount, GST amount.')
+                && str_contains($text, 'do not add needs_review notes for fields outside this list.');
+        });
+    }
+
     public function test_admin_can_refresh_the_ai_request_csrf_token(): void
     {
         $response = $this->actingAs($this->createAdminUser())

@@ -34,22 +34,28 @@ class AdminAiController extends Controller
     {
         $validated = $request->validate([
             'receipt_pdf' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:12288'],
+            'fill_fields' => ['nullable', 'array'],
+            'fill_fields.*' => ['string', 'in:supplier,description,invoice_id,paid_on,total_amount,gst_amount'],
         ]);
 
         $file = $validated['receipt_pdf'];
+        $requestedFields = array_values($validated['fill_fields'] ?? []);
 
-        return $this->run(fn (): array => $this->extractExpenseResult($file));
+        return $this->run(fn (): array => $this->extractExpenseResult($file, null, $requestedFields));
     }
 
     public function extractExpenseStream(Request $request): StreamedResponse
     {
         $validated = $request->validate([
             'receipt_pdf' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:12288'],
+            'fill_fields' => ['nullable', 'array'],
+            'fill_fields.*' => ['string', 'in:supplier,description,invoice_id,paid_on,total_amount,gst_amount'],
         ]);
         $file = $validated['receipt_pdf'];
+        $requestedFields = array_values($validated['fill_fields'] ?? []);
         $this->extendExecutionLimit();
 
-        return response()->stream(function () use ($file): void {
+        return response()->stream(function () use ($file, $requestedFields): void {
             echo ": connected\n\n";
             if (ob_get_level() > 0) {
                 @ob_flush();
@@ -61,7 +67,7 @@ class AdminAiController extends Controller
                     $this->emitSseEvent('progress', [
                         'message' => Str::limit('Identified: '.$documentType.' · reading expense details…', 100, ''),
                     ]);
-                });
+                }, $requestedFields);
                 $this->emitSseEvent('result', ['result' => $result]);
             } catch (RuntimeException $exception) {
                 $this->emitSseEvent('error', ['message' => $exception->getMessage()]);
@@ -83,7 +89,7 @@ class AdminAiController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function extractExpenseResult(UploadedFile $file, ?callable $onDocumentType = null): array
+    private function extractExpenseResult(UploadedFile $file, ?callable $onDocumentType = null, array $requestedFields = []): array
     {
         $knownSuppliers = DB::table('finance_supplier_rules as rules')
             ->leftJoin('finance_categories as categories', 'categories.id', '=', 'rules.category_id')
@@ -110,13 +116,40 @@ class AdminAiController extends Controller
                 'detail' => 'high',
             ];
 
+        $expenseFieldLabels = [
+            'supplier' => 'supplier',
+            'description' => 'description',
+            'invoice_id' => 'invoice / receipt ID',
+            'paid_on' => 'expense date',
+            'total_amount' => 'total amount',
+            'gst_amount' => 'GST amount',
+        ];
+        $requestedFields = array_values(array_intersect(array_keys($expenseFieldLabels), $requestedFields));
+        $fieldInstruction = $requestedFields === []
+            ? 'Extract all expense-entry fields from this invoice or receipt.'
+            : 'Only extract these currently blank expense-entry fields: '.implode(', ', array_map(fn (string $field): string => $expenseFieldLabels[$field], $requestedFields)).'. Leave all other expense fields blank and do not add needs_review notes for fields outside this list.';
+        $allExpenseFieldsRequested = $requestedFields === [];
+        $fieldRules = [];
+        if ($allExpenseFieldsRequested || in_array('paid_on', $requestedFields, true)) {
+            $fieldRules[] = 'Use the transaction/paid date if present, otherwise invoice date; never use due date.';
+            $fieldRules[] = 'Use ISO YYYY-MM-DD for paid_on.';
+        }
+        if ($allExpenseFieldsRequested || in_array('total_amount', $requestedFields, true)) {
+            $fieldRules[] = 'The total must be the amount including GST.';
+            $fieldRules[] = 'Return monetary values as decimal digits only, without currency symbols or thousands separators.';
+        }
+        if ($allExpenseFieldsRequested || in_array('gst_amount', $requestedFields, true)) {
+            $fieldRules[] = 'Never infer GST from the total. For GST absent or unclear, leave gst_amount blank and flag it for review.';
+        }
+        $fieldRules[] = 'Use AUD only if the document supports it.';
+
         $input = [[
             'role' => 'user',
             'content' => [
                 $documentInput,
                 [
                     'type' => 'input_text',
-                    'text' => 'Extract expense-entry fields from this invoice or receipt. Classify the document with a short label such as “Fuel receipt”, “Tax invoice”, or “Online order receipt”; use “Receipt” if unclear. Use an existing supplier name exactly when there is a clear match to this list; otherwise preserve the printed supplier name. Known suppliers: '.json_encode($knownSuppliers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n\nReturn only printed facts, exact short evidence quotes and page numbers. Do not use the filename as evidence. Return blank strings and add a needs_review note when a field is missing or unclear. Use the transaction/paid date if present, otherwise invoice date; never use due date. The total must be the amount including GST. Return monetary values as decimal digits only, without currency symbols or thousands separators. Never infer GST from the total. For GST absent or unclear, leave gst_amount blank and flag it for review. Use ISO YYYY-MM-DD for paid_on and AUD only if the document supports it.",
+                    'text' => $fieldInstruction.' Classify the document with a short label such as “Fuel receipt”, “Tax invoice”, or “Online order receipt”; use “Receipt” if unclear. Use an existing supplier name exactly when there is a clear match to this list; otherwise preserve the printed supplier name. Known suppliers: '.json_encode($knownSuppliers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n\nReturn only printed facts, exact short evidence quotes and page numbers. Do not use the filename as evidence. Return blank strings and add a needs_review note when a requested field is missing or unclear. ".implode(' ', $fieldRules),
                 ],
             ],
         ]];
