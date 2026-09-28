@@ -259,6 +259,58 @@ const readFormField = (form, name) => {
     return field.value ?? '';
 };
 
+const isReceiptImageFile = (file) => {
+    if (!file) return false;
+    const type = String(file.type || '').toLowerCase();
+    const name = String(file.name || '').toLowerCase();
+
+    return ['image/jpeg', 'image/png', 'image/webp'].includes(type)
+        || /\.(?:jpe?g|png|webp)$/.test(name);
+};
+
+const aiFieldLabels = {
+    supplier: 'supplier',
+    description: 'description',
+    invoice_id: 'invoice / receipt ID',
+    paid_on: 'expense date',
+    total_amount: 'total amount',
+    gst_amount: 'GST amount',
+};
+
+const getAiFillFields = (trigger) => (trigger.dataset.aiFillFields || '')
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean);
+
+const isAiFieldBlank = (form, name) => {
+    const field = form?.elements?.namedItem(name);
+    if (!field || (typeof RadioNodeList !== 'undefined' && field instanceof RadioNodeList)) return false;
+    if (String(readFormField(form, name)).trim() === '') return true;
+
+    return name === 'paid_on'
+        && typeof HTMLInputElement !== 'undefined'
+        && field instanceof HTMLInputElement
+        && field.hasAttribute('data-ai-replace-default')
+        && field.dataset.aiUserModified !== 'true'
+        && field.value === field.dataset.aiDefaultValue;
+};
+
+const getAiBlankFields = (trigger, form) => getAiFillFields(trigger)
+    .filter((name) => isAiFieldBlank(form, name));
+
+const formatAiFieldList = (fields) => {
+    const labels = fields.map((name) => aiFieldLabels[name] || name.replaceAll('_', ' '));
+    if (labels.length <= 1) return labels[0] || '';
+    if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+    return `${labels.slice(0, -1).join(', ')}, and ${labels.at(-1)}`;
+};
+
+const automaticAiStatus = (blankFields) => {
+    if (blankFields.length === 0) return 'Reading receipt…';
+    if (blankFields.length > 3) return `Reading receipt to fill ${blankFields.length} blank expense fields…`;
+    return `Reading receipt to fill ${formatAiFieldList(blankFields)}…`;
+};
+
 const fillField = (form, name, value, button, onlyIfBlank = false) => {
     if (typeof value !== 'string' || value.trim() === '') return false;
     if (onlyIfBlank && String(readFormField(form, name)).trim() !== '') {
@@ -419,6 +471,9 @@ const makePayload = async (button, form) => {
     const scope = button.dataset.aiScope ? document.querySelector(button.dataset.aiScope) : form;
     const fields = (button.dataset.aiFields || '').split(',').map((field) => field.trim()).filter(Boolean);
     fields.forEach((name) => payload.append(name, readFormField(scope, name)));
+    if (button.dataset.aiFillFields) {
+        getAiBlankFields(button, scope).forEach((name) => payload.append('fill_fields[]', name));
+    }
     if (button.dataset.aiMode) payload.append('mode', button.dataset.aiMode);
     if (button.dataset.aiKind) payload.append('kind', button.dataset.aiKind);
     if (button.hasAttribute?.('data-ai-context') || button.dataset.aiContext) {
@@ -586,9 +641,23 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     const root = targetWidget || (trigger.matches('[data-ai-widget]') ? trigger : trigger.closest('[data-ai-widget]'));
     if (!root) return;
 
+    const form = trigger.dataset.aiScope ? document.querySelector(trigger.dataset.aiScope) : trigger.closest('form');
+    const fillFields = automatic ? getAiFillFields(trigger) : [];
+    const blankFields = automatic ? getAiBlankFields(trigger, form) : [];
+
     root._adminAiAbortController?.abort();
+    root._adminAiAbortController = null;
     root._adminAiUnlockFields?.();
     root._adminAiUnlockFields = null;
+
+    if (automatic && fillFields.length > 0 && blankFields.length === 0) {
+        clearResults(root);
+        root._adminAiProcessing = false;
+        root.removeAttribute('aria-busy');
+        setStatus(root, 'Receipt attached. All expense fields are already complete.');
+        return;
+    }
+
     const controller = new AbortController();
     root._adminAiAbortController = controller;
     root._adminAiProcessing = true;
@@ -596,7 +665,6 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
 
     if (automatic) clearResults(root);
 
-    const form = trigger.dataset.aiScope ? document.querySelector(trigger.dataset.aiScope) : trigger.closest('form');
     root._adminAiUnlockFields = lockAiFields(trigger, form);
     const isButton = trigger instanceof HTMLButtonElement;
     const originalDisabled = isButton ? trigger.disabled : false;
@@ -605,19 +673,25 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
         trigger.setAttribute('aria-busy', 'true');
         trigger.classList.add('opacity-70', 'cursor-wait');
     }
-    const streamProgress = automatic && trigger.dataset.aiStream === 'true';
+    const selectedFile = trigger.dataset.aiFile
+        ? document.querySelector(trigger.dataset.aiFile)?.files?.[0]
+        : null;
+    const streamProgress = automatic && trigger.dataset.aiStream === 'true' && !isReceiptImageFile(selectedFile);
+    const requestUrl = !streamProgress && trigger.dataset.aiJsonUrl
+        ? trigger.dataset.aiJsonUrl
+        : trigger.dataset.aiUrl;
     const requestHeaders = {
         Accept: streamProgress ? 'text/event-stream, application/json' : 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
     };
     const initialToken = csrfToken() || trigger.dataset.aiToken || readFormField(form, '_token');
     if (initialToken) requestHeaders['X-CSRF-TOKEN'] = initialToken;
-    const initialStatus = automatic ? 'Reading receipt…' : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
+    const initialStatus = automatic ? automaticAiStatus(blankFields) : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
     setStatus(root, initialStatus, false, automatic || root.hasAttribute('data-ai-toast'));
 
     try {
         let payload = await makePayload(trigger, form);
-        let response = await fetch(trigger.dataset.aiUrl, {
+        let response = await fetch(requestUrl, {
             method: 'POST',
             headers: requestHeaders,
             body: payload,
@@ -629,7 +703,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
             const refreshedToken = await refreshCsrfToken(trigger.dataset.aiCsrfUrl, controller.signal);
             payload.set('_token', refreshedToken);
             requestHeaders['X-CSRF-TOKEN'] = refreshedToken;
-            response = await fetch(trigger.dataset.aiUrl, {
+            response = await fetch(requestUrl, {
                 method: 'POST',
                 headers: requestHeaders,
                 body: payload,
@@ -769,8 +843,7 @@ document.addEventListener('change', (event) => {
     }
 
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const isReceiptImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-        || /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    const isReceiptImage = isReceiptImageFile(file);
     if (!isPdf && !isReceiptImage) {
         widget._adminAiAbortController?.abort();
         clearResults(widget);
