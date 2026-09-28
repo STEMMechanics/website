@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\PickListTemplate;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
@@ -226,6 +227,8 @@ class WorkshopCategoryTest extends TestCase
         $maker = WorkshopCategory::factory()->create(['name' => 'Maker', 'slug' => 'maker']);
         $workshop = $this->createPublicWorkshop($admin, $location, 'Pinball Machines');
         $workshop->categories()->attach($building);
+        $blueprint = PickListTemplate::query()->create(['name' => 'Pinball blueprint']);
+        $blueprint->categories()->attach($building);
 
         $this->actingAs($admin)
             ->delete(route('admin.workshop-category.destroy', $building), [
@@ -247,6 +250,10 @@ class WorkshopCategoryTest extends TestCase
         $this->assertEqualsCanonicalizing(
             [$maker->id],
             $workshop->fresh()->categories()->pluck('workshop_categories.id')->all()
+        );
+        $this->assertEqualsCanonicalizing(
+            [$maker->id],
+            $blueprint->fresh()->categories()->pluck('workshop_categories.id')->all()
         );
     }
 

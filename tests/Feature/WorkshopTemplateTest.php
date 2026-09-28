@@ -7,6 +7,7 @@ use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\WorkshopCategory;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -20,6 +21,7 @@ class WorkshopTemplateTest extends TestCase
     public function test_task_editor_contains_scroll_containment_and_workshop_placeholder_help(): void
     {
         $admin = $this->createAdminUser();
+        $category = WorkshopCategory::factory()->create(['name' => 'Paper crafts']);
         $template = PickListTemplate::query()->create(['name' => 'Social media template']);
 
         $response = $this->actingAs($admin)
@@ -58,7 +60,10 @@ class WorkshopTemplateTest extends TestCase
             ->assertSee('aria-label="Line"', false)
             ->assertSee('aria-label="Rectangle"', false)
             ->assertSee('aria-label="Circle"', false)
-            ->assertSee('aria-label="Text"', false);
+            ->assertSee('aria-label="Text"', false)
+            ->assertSeeText('Paper crafts')
+            ->assertSee('name="category_ids[]"', false)
+            ->assertSee('value="'.$category->id.'"', false);
 
         $this->assertSame(2, substr_count($response->getContent(), 'aria-label="Show workshop placeholders"'));
     }
@@ -109,12 +114,14 @@ class WorkshopTemplateTest extends TestCase
     {
         $admin = $this->createAdminUser();
         $attachment = $this->createMedia($admin, 'paper-speakers-guide.pdf');
+        $category = WorkshopCategory::factory()->create(['name' => 'Paper crafts']);
 
         $response = $this->actingAs($admin)->post(route('admin.workshop-blueprint.store'), [
             'name' => 'Paper Speakers - Standard',
             'description' => 'Standard paper speaker workshop.',
             'duration' => '1.5 hours',
             'participants' => '8-24',
+            'category_ids' => [$category->id],
             'default_workshop_title' => 'Build a paper speaker',
             'default_workshop_summary' => 'Make music with a simple paper speaker.',
             'default_workshop_content' => '<p>Families can build and test a paper speaker.</p>',
@@ -152,6 +159,7 @@ class WorkshopTemplateTest extends TestCase
         $this->assertSame('Build a paper speaker', $template->default_workshop_title);
         $this->assertSame('Make music with a simple paper speaker.', $template->default_workshop_summary);
         $this->assertSame('<p>Families can build and test a paper speaker.</p>', $template->default_workshop_content);
+        $this->assertSame([$category->id], $template->categories()->pluck('workshop_categories.id')->all());
         $this->assertCount(2, $template->tasks);
         $this->assertSame(['Charge batteries', 'Print worksheets'], $template->tasks->pluck('name')->all());
         $this->assertSame('<p><strong>The day before</strong></p>', $template->tasks->first()->notes);
@@ -252,6 +260,7 @@ class WorkshopTemplateTest extends TestCase
     {
         $admin = $this->createAdminUser();
         $attachment = $this->createMedia($admin, 'advanced-notes.pdf');
+        $category = WorkshopCategory::factory()->create(['name' => 'Advanced builds']);
         $template = PickListTemplate::query()->create([
             'name' => 'Paper Speakers - Advanced',
             'description' => 'Advanced notes',
@@ -262,6 +271,7 @@ class WorkshopTemplateTest extends TestCase
             'default_workshop_content' => '<p>Build a more advanced speaker.</p>',
             'run_sheet' => '<p>Advanced run sheet</p>',
         ]);
+        $template->categories()->attach($category);
         $template->tasks()->create([
             'name' => 'Prepare soldering stations',
             'subtasks' => [['title' => 'Safety', 'content' => '<p>Check each station.</p>']],
@@ -284,6 +294,7 @@ class WorkshopTemplateTest extends TestCase
         $this->assertSame('Advanced paper speakers', $copy->default_workshop_title);
         $this->assertSame('A detailed build for returning makers.', $copy->default_workshop_summary);
         $this->assertSame('<p>Build a more advanced speaker.</p>', $copy->default_workshop_content);
+        $this->assertSame([$category->id], $copy->categories()->pluck('workshop_categories.id')->all());
         $this->assertSame(['Prepare soldering stations'], $copy->tasks->pluck('name')->all());
         $this->assertSame([['title' => 'Safety', 'content' => '<p>Check each station.</p>']], $copy->tasks->first()->subtasks);
         $this->assertSame(['Soldering iron'], $copy->items->pluck('item_name')->all());

@@ -6,6 +6,7 @@ use App\Traits\HasFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
@@ -43,6 +44,14 @@ class PickListTemplate extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(WorkshopTemplateTask::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * @return BelongsToMany<WorkshopCategory, $this>
+     */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkshopCategory::class, 'pick_list_template_workshop_category')->withTimestamps();
     }
 
     /**

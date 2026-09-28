@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\WorkshopCategory;
 use App\Models\WorkshopTemplateTask;
 use App\Services\PdfAttachmentAppender;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
@@ -48,6 +49,7 @@ class PickListTemplateController extends Controller
         return view('admin.pick-list-template.edit', [
             'itemSuggestions' => $this->itemSuggestions(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
+            'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
         ]);
     }
 
@@ -64,6 +66,7 @@ class PickListTemplateController extends Controller
             $this->fillTemplate($template, $validated);
             $this->syncItems($template, $validated['items'] ?? []);
             $this->syncTasks($template, $validated['tasks'] ?? []);
+            $template->categories()->sync($validated['category_ids'] ?? []);
             $template->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
 
             return $template;
@@ -78,12 +81,13 @@ class PickListTemplateController extends Controller
 
     public function edit(PickListTemplate $pickListTemplate)
     {
-        $pickListTemplate->load(['items', 'tasks', 'attachments']);
+        $pickListTemplate->load(['items', 'tasks', 'attachments', 'categories']);
 
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
             'itemSuggestions' => $this->itemSuggestions(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
+            'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
         ]);
     }
 
@@ -99,6 +103,7 @@ class PickListTemplateController extends Controller
             $this->fillTemplate($pickListTemplate, $validated);
             $this->syncItems($pickListTemplate, $validated['items'] ?? []);
             $this->syncTasks($pickListTemplate, $validated['tasks'] ?? []);
+            $pickListTemplate->categories()->sync($validated['category_ids'] ?? []);
             $pickListTemplate->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
         });
         session()->flash('message', 'Workshop blueprint has been updated');
@@ -121,7 +126,7 @@ class PickListTemplateController extends Controller
 
     public function duplicate(PickListTemplate $pickListTemplate): RedirectResponse
     {
-        $pickListTemplate->load(['items', 'tasks', 'attachments']);
+        $pickListTemplate->load(['items', 'tasks', 'attachments', 'categories']);
 
         $copy = new PickListTemplate;
         $copy->name = trim((string) $pickListTemplate->name).' (Copy)';
@@ -136,6 +141,7 @@ class PickListTemplateController extends Controller
         $copy->run_sheet_drawing_data = $pickListTemplate->run_sheet_drawing_data;
         $copy->run_sheet_canvas_data = $pickListTemplate->run_sheet_canvas_data;
         $copy->save();
+        $copy->categories()->sync($pickListTemplate->categories->modelKeys());
 
         foreach ($pickListTemplate->items as $item) {
             $copy->items()->create([
@@ -231,6 +237,8 @@ class PickListTemplateController extends Controller
             'description' => ['nullable', 'string'],
             'duration' => ['nullable', 'string', 'max:255'],
             'participants' => ['nullable', 'string', 'max:255'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['integer', 'distinct', Rule::exists('workshop_categories', 'id')],
             'default_workshop_title' => ['nullable', 'string', 'max:255'],
             'default_workshop_summary' => ['nullable', 'string', 'max:1000'],
             'default_workshop_content' => ['nullable', 'string', 'max:30000'],
@@ -309,6 +317,12 @@ class PickListTemplateController extends Controller
             ->values()
             ->all();
         $validated['attachments'] = array_values($validated['attachments'] ?? []);
+        $validated['category_ids'] = collect($validated['category_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
         return $validated;
     }

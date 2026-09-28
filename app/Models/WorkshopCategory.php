@@ -30,6 +30,14 @@ class WorkshopCategory extends Model
         return $this->belongsToMany(Workshop::class, 'workshop_category_workshop')->withTimestamps();
     }
 
+    /**
+     * @return BelongsToMany<PickListTemplate, $this>
+     */
+    public function pickListTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(PickListTemplate::class, 'pick_list_template_workshop_category')->withTimestamps();
+    }
+
     public function iconClass(): string
     {
         $iconClass = trim((string) ($this->icon_class ?? ''));
