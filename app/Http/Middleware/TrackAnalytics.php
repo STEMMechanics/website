@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Jobs\RecordAnalyticsEvent;
 use App\Models\AnalyticsEvent;
 use App\Models\User;
+use App\Services\AnalyticsIpFilter;
 use App\Services\OnlineVisitors;
 use App\Support\VisitorDetails;
 use Closure;
@@ -128,6 +129,10 @@ class TrackAnalytics
         }
 
         if ($this->isBotRequest($request)) {
+            return false;
+        }
+
+        if (app(AnalyticsIpFilter::class)->ignores($request->ip())) {
             return false;
         }
 

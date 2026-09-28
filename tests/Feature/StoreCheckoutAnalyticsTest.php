@@ -3,13 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\AnalyticsIpFilter;
+use App\Services\DashboardSnapshot;
 use App\Services\StoreCartService;
 use App\Services\StoreCheckoutAnalytics;
 use App\Services\StoreCheckoutReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class StoreCheckoutAnalyticsTest extends TestCase
@@ -102,6 +106,20 @@ class StoreCheckoutAnalyticsTest extends TestCase
         $this->assertDatabaseCount('store_checkout_sessions', 0);
     }
 
+    public function test_ignored_ips_are_not_recorded_as_checkout_activity(): void
+    {
+        SiteOption::query()->create([
+            'name' => AnalyticsIpFilter::OPTION,
+            'value' => '198.51.100.42',
+        ]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->postJson(route('shop.cart.add', $this->product()), ['quantity' => 1])
+            ->assertSuccessful();
+
+        $this->assertDatabaseCount('store_checkout_sessions', 0);
+    }
+
     public function test_value_ranges_use_matching_carts_and_calculate_even_and_odd_medians(): void
     {
         $report = app(StoreCheckoutReport::class);
@@ -110,7 +128,7 @@ class StoreCheckoutAnalyticsTest extends TestCase
         $this->assertSame(['lowest' => null, 'highest' => null, 'median' => null], $report->values($from, $to)['completed']);
         $insert = function (float $value, ?string $outcome, $created, $active): void {
             DB::table('store_checkout_sessions')->insert([
-                'id' => (string) \Illuminate\Support\Str::uuid(), 'subtotal' => $value,
+                'id' => (string) Str::uuid(), 'subtotal' => $value,
                 'outcome' => $outcome, 'created_at' => $created, 'updated_at' => $active,
                 'last_activity_at' => $active,
             ]);
@@ -139,7 +157,7 @@ class StoreCheckoutAnalyticsTest extends TestCase
         UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin);
         config(['analytics.dashboard_snapshot_seconds' => 300]);
-        $snapshot = app(\App\Services\DashboardSnapshot::class);
+        $snapshot = app(DashboardSnapshot::class);
         $snapshot->refresh('overview');
         $data = $snapshot->get('overview');
         $this->assertSame(1, $data['checkoutActivity']['Inactive carts']);
