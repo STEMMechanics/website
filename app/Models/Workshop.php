@@ -374,6 +374,12 @@ class Workshop extends Model
         return max(0, round((float) $number, 2));
     }
 
+    public function isPriceHiddenFromPublic(): bool
+    {
+        return $this->registration !== 'tickets'
+            && trim((string) ($this->price ?? '')) === '-';
+    }
+
     public function earlyBirdPriceAmount(): ?float
     {
         if ($this->early_bird_price === null || trim((string) $this->early_bird_price) === '') {

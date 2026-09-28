@@ -59,6 +59,7 @@
 
     $registrationType = (string) ($workshop->registration ?? '');
     $hasBookableOffer = ! $workshop->isPrivate()
+        && ! $workshop->isPriceHiddenFromPublic()
         && in_array($registrationType, ['tickets', 'link', 'email', 'message'], true);
     if ($hasBookableOffer) {
         $offerUrl = match ($registrationType) {
@@ -327,16 +328,18 @@
                 @else
                     <p class="mb-0 text-xs">&nbsp;</p>
                 @endif
-                <h2 class="text-gray-600 text-lg font-bold">
-                    <i class="mr-1 fa-solid fa-dollar-sign w-5 text-center"></i>
-                    <span class="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <span>
-                            {{ $ticketPriceAmount > 0.0001 ? number_format((float) $ticketPriceAmount, 2, '.', '') : 'Free' }}
+                @if(! $workshop->isPriceHiddenFromPublic())
+                    <h2 class="text-gray-600 text-lg font-bold">
+                        <i class="mr-1 fa-solid fa-dollar-sign w-5 text-center"></i>
+                        <span class="inline-flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <span>
+                                {{ $ticketPriceAmount > 0.0001 ? number_format((float) $ticketPriceAmount, 2, '.', '') : 'Free' }}
+                            </span>
                         </span>
-                    </span>
-                </h2>
-                @if($earlyBirdStatus)
-                    <p class="text-gray-600 text-xs pl-6 mb-6">{{ $earlyBirdStatus }}</p>
+                    </h2>
+                    @if($earlyBirdStatus)
+                        <p class="text-gray-600 text-xs pl-6 mb-6">{{ $earlyBirdStatus }}</p>
+                    @endif
                 @endif
             </div>
         </div>

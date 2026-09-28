@@ -65,6 +65,36 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertDontSee('This workshop is a private event and is not open to public registration.', false);
     }
 
+    public function test_dash_price_hides_an_unknown_non_ticket_price_from_public_surfaces(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'Externally Managed Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'message',
+            price: '-'
+        );
+        $workshop->update(['registration_data' => 'Contact the organiser to register.']);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee($workshop->title)
+            ->assertDontSee('Free')
+            ->assertDontSee('fa-dollar-sign', false)
+            ->assertDontSee('priceCurrency', false);
+
+        $this->get(route('workshop.index'))
+            ->assertOk()
+            ->assertSee($workshop->title)
+            ->assertDontSee('Free');
+
+        $this->get(route('workshop.feed'))
+            ->assertOk()
+            ->assertSee($workshop->title)
+            ->assertDontSee('<sm:price>', false);
+    }
+
     public function test_admin_external_registration_click_is_not_recorded(): void
     {
         $workshop = $this->createWorkshop(
