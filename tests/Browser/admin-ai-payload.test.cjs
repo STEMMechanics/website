@@ -47,6 +47,27 @@ test('AI receipt payload rebuilds an IndexedDB-restored File and includes the cu
     assert.match(source, /requestHeaders\['X-CSRF-TOKEN'\] = initialToken/);
 });
 
+test('receipt images use the JSON extraction endpoint instead of the progress stream', () => {
+    const source = fs.readFileSync('resources/js/admin-ai.js', 'utf8');
+    const start = source.indexOf('const isReceiptImageFile =');
+    const end = source.indexOf('\n\nconst fillField', start);
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
+
+    const context = {};
+    vm.createContext(context);
+    vm.runInContext(`${source.slice(start, end)}\nglobalThis.isReceiptImageFile = isReceiptImageFile;`, context);
+
+    assert.equal(context.isReceiptImageFile({ type: 'image/jpeg', name: 'receipt' }), true);
+    assert.equal(context.isReceiptImageFile({ type: '', name: 'receipt.jpg' }), true);
+    assert.equal(context.isReceiptImageFile({ type: 'application/pdf', name: 'receipt.pdf' }), false);
+    assert.match(source, /const streamProgress = automatic && trigger\.dataset\.aiStream === 'true' && !isReceiptImageFile\(selectedFile\)/);
+    assert.match(source, /const requestUrl = !streamProgress && trigger\.dataset\.aiJsonUrl/);
+
+    const editorSource = fs.readFileSync('resources/views/admin/expense/edit.blade.php', 'utf8');
+    assert.match(editorSource, /data-ai-json-url="\{\{ route\('admin\.ai\.expenses\.extract'\) \}\}"/);
+});
+
 test('AI payload includes a context field when its bound value is temporarily empty', async () => {
     const source = fs.readFileSync('resources/js/admin-ai.js', 'utf8');
     const start = source.indexOf('const makePayload = async');

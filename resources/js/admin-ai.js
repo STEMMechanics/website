@@ -259,6 +259,15 @@ const readFormField = (form, name) => {
     return field.value ?? '';
 };
 
+const isReceiptImageFile = (file) => {
+    if (!file) return false;
+    const type = String(file.type || '').toLowerCase();
+    const name = String(file.name || '').toLowerCase();
+
+    return ['image/jpeg', 'image/png', 'image/webp'].includes(type)
+        || /\.(?:jpe?g|png|webp)$/.test(name);
+};
+
 const fillField = (form, name, value, button, onlyIfBlank = false) => {
     if (typeof value !== 'string' || value.trim() === '') return false;
     if (onlyIfBlank && String(readFormField(form, name)).trim() !== '') {
@@ -605,7 +614,13 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
         trigger.setAttribute('aria-busy', 'true');
         trigger.classList.add('opacity-70', 'cursor-wait');
     }
-    const streamProgress = automatic && trigger.dataset.aiStream === 'true';
+    const selectedFile = trigger.dataset.aiFile
+        ? document.querySelector(trigger.dataset.aiFile)?.files?.[0]
+        : null;
+    const streamProgress = automatic && trigger.dataset.aiStream === 'true' && !isReceiptImageFile(selectedFile);
+    const requestUrl = !streamProgress && trigger.dataset.aiJsonUrl
+        ? trigger.dataset.aiJsonUrl
+        : trigger.dataset.aiUrl;
     const requestHeaders = {
         Accept: streamProgress ? 'text/event-stream, application/json' : 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
@@ -617,7 +632,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
 
     try {
         let payload = await makePayload(trigger, form);
-        let response = await fetch(trigger.dataset.aiUrl, {
+        let response = await fetch(requestUrl, {
             method: 'POST',
             headers: requestHeaders,
             body: payload,
@@ -629,7 +644,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
             const refreshedToken = await refreshCsrfToken(trigger.dataset.aiCsrfUrl, controller.signal);
             payload.set('_token', refreshedToken);
             requestHeaders['X-CSRF-TOKEN'] = refreshedToken;
-            response = await fetch(trigger.dataset.aiUrl, {
+            response = await fetch(requestUrl, {
                 method: 'POST',
                 headers: requestHeaders,
                 body: payload,
@@ -769,8 +784,7 @@ document.addEventListener('change', (event) => {
     }
 
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const isReceiptImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-        || /\.(?:jpe?g|png|webp)$/i.test(file.name);
+    const isReceiptImage = isReceiptImageFile(file);
     if (!isPdf && !isReceiptImage) {
         widget._adminAiAbortController?.abort();
         clearResults(widget);

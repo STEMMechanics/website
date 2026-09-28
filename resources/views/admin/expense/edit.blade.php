@@ -94,6 +94,7 @@
                 data-ai-auto-file="#expense-receipt-file"
                 data-ai-configured="{{ filled(config('services.openai.api_key')) ? 'true' : 'false' }}"
                 data-ai-url="{{ route('admin.ai.expenses.extract.stream') }}"
+                data-ai-json-url="{{ route('admin.ai.expenses.extract') }}"
                 data-ai-csrf-url="{{ route('admin.ai.csrf-token') }}"
                 data-ai-token="{{ csrf_token() }}"
                 data-ai-stream="true"
