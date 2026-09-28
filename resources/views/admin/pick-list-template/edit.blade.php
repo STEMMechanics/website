@@ -49,6 +49,9 @@
             ],
         ])->all()
         : [];
+    $selectedCategoryIds = collect(old('category_ids', $editing ? $template->categories->pluck('id')->all() : []))
+        ->map(fn ($id) => (string) $id)
+        ->all();
 @endphp
 
 <x-layout>
@@ -396,6 +399,36 @@
                     <x-ui.input label="Duration" name="duration" value="{{ old('duration', $template->duration ?? '') }}" placeholder="e.g. 1 hr, 1.5 hours, or 90 mins" />
                     <x-ui.input label="Participants" name="participants" value="{{ old('participants', $template->participants ?? '') }}" placeholder="e.g. 10 or 10-15" />
                 </x-ui.grid>
+                <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">These categories are preselected when a workshop is created from this blueprint.</p>
+                        </div>
+                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
+                    </div>
+
+                    @if(($workshopCategories ?? collect())->isEmpty())
+                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
+                    @else
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach($workshopCategories as $category)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                    <x-ui.checkbox
+                                        name="category_ids[]"
+                                        value="{{ $category->id }}"
+                                        :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
+                                        :noWrapper="true"
+                                    />
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="font-medium">{{ $category->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             </div>
 
             <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">

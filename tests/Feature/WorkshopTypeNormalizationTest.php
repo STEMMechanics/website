@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopCategory;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -58,6 +59,7 @@ class WorkshopTypeNormalizationTest extends TestCase
     {
         $admin = $this->createAdminUser();
         $hero = $this->createHeroMedia($admin);
+        $category = WorkshopCategory::factory()->create(['name' => 'Audio projects']);
         $blueprint = PickListTemplate::query()->create([
             'name' => 'Paper Speakers',
             'default_workshop_title' => 'Build a paper speaker',
@@ -66,6 +68,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             'hero_media_name' => $hero,
             'run_sheet' => '<p>Welcome and introduce the build.</p>',
         ]);
+        $blueprint->categories()->attach($category);
         $blueprint->tasks()->create([
             'name' => 'Draft Facebook post',
             'notes' => 'Use the workshop date.',
@@ -75,10 +78,12 @@ class WorkshopTypeNormalizationTest extends TestCase
             'sort_order' => 10,
         ]);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->get(route('admin.workshop.create', ['blueprint_id' => $blueprint->id]))
             ->assertOk()
             ->assertSee('value="Build a paper speaker"', false)
+            ->assertSeeText('Audio projects')
+            ->assertSee('name="category_ids[]"', false)
             ->assertSeeText('Make music with a simple paper speaker.')
             ->assertSeeText('Build and test a paper speaker.')
             ->assertSee('name="hero_media_name" value="'.$hero.'"', false)
@@ -104,6 +109,11 @@ class WorkshopTypeNormalizationTest extends TestCase
             ->assertSee('x-model="task.reminder_direction"', false)
             ->assertSee('x-model="task.reminder_time"', false)
             ->assertDontSeeText('Task notes or social post copy');
+
+        $this->assertMatchesRegularExpression(
+            '/<input\b(?=[^>]*checked)(?=[^>]*name="category_ids\[\]")(?=[^>]*value="'.$category->id.'")[^>]*>/s',
+            $response->getContent(),
+        );
     }
 
     public function test_creating_from_a_blueprint_copies_its_run_sheet_and_task_snapshot(): void
@@ -111,6 +121,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $admin = $this->createAdminUser();
         $location = Location::factory()->create(['name' => 'Maker Lab']);
         $hero = $this->createHeroMedia($admin);
+        $category = WorkshopCategory::factory()->create(['name' => 'Audio projects']);
         $blueprint = PickListTemplate::query()->create([
             'name' => 'Blueprint workshop',
             'default_workshop_title' => 'Build a paper speaker',
@@ -119,6 +130,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             'hero_media_name' => $hero,
             'run_sheet' => '<p>Welcome the group and introduce the build.</p>',
         ]);
+        $blueprint->categories()->attach($category);
         $blueprint->tasks()->create([
             'name' => 'Draft Facebook post',
             'notes' => 'Join us {date-long} at {time-range} in {location}. Ages {ages}; cost {cost}. {workshop-url}',
@@ -136,6 +148,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             'summary' => $blueprint->default_workshop_summary,
             'content' => $blueprint->default_workshop_content,
             'pick_list_template_id' => $blueprint->id,
+            'category_ids' => [$category->id],
         ]);
 
         $response = $this->actingAs($admin)
@@ -148,6 +161,7 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertSame('Make music with a paper speaker.', $created->summary);
         $this->assertSame('<p>Build and test a simple speaker.</p>', $created->content);
         $this->assertSame($hero, $created->hero_media_name);
+        $this->assertSame([$category->id], $created->categories()->pluck('workshop_categories.id')->all());
         $this->assertSame('<p>Welcome the group and introduce the build.</p>', $created->workshop_run_sheet);
         $this->assertTrue($created->run_sheet_tasks_initialized);
         $this->assertSame(

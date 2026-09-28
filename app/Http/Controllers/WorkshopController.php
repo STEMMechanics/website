@@ -992,7 +992,7 @@ class WorkshopController extends Controller
         }
 
         $selectedBlueprint = $blueprintId !== null
-            ? PickListTemplate::query()->with(['tasks', 'items'])->findOrFail($blueprintId)
+            ? PickListTemplate::query()->with(['tasks', 'items', 'categories'])->findOrFail($blueprintId)
             : null;
 
         return view('admin.workshop.edit', [

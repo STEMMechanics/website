@@ -89,7 +89,10 @@ $earlyBirdSectionOpen = $errors->hasAny(['early_bird_price', 'early_bird_ends_at
     || trim((string) $earlyBirdPriceValue) !== ''
     || trim((string) $earlyBirdEndsAtValue) !== ''
     || trim((string) $earlyBirdTicketLimitValue) !== '';
-$selectedCategoryIds = collect(old('category_ids', $workshopModel?->categories?->pluck('id')->all() ?? []))
+$defaultCategoryIds = $workshopModel?->categories?->pluck('id')->all()
+    ?? $selectedBlueprint?->categories?->pluck('id')->all()
+    ?? [];
+$selectedCategoryIds = collect(old('category_ids', $defaultCategoryIds))
     ->map(fn ($id) => (string) $id)
     ->all();
 $workshopTypeForForm = old('type', $workshopModel instanceof \App\Models\Workshop ? $workshopModel->locationType() : \App\Models\Workshop::TYPE_ONLINE);
