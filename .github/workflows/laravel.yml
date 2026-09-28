@@ -119,13 +119,73 @@ jobs:
                   output.write(summary)
           PYTHON
 
+  mariadb_migrations:
+    name: MariaDB migration smoke test
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: stemmechanics_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: imagick, mbstring, fileinfo, zip, redis, pdo_mysql
+
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      - name: Cache Composer
+        uses: actions/cache@v6
+        with:
+          path: /tmp/composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: Install PHP Dependencies
+        env:
+          COMPOSER_CACHE_DIR: /tmp/composer-cache
+        run: composer install -q --no-interaction --no-progress --prefer-dist --ignore-platform-req=ext-redis
+
+      - name: Generate key
+        run: php artisan key:generate
+
+      - name: Run MariaDB migrations
+        env:
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: stemmechanics_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan migrate --force
+
   laravel-tests:
     name: laravel-tests
-    needs: phpunit
+    needs: [phpunit, mariadb_migrations]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require every PHPUnit shard to pass
+      - name: Require PHPUnit shards and MariaDB migrations to pass
         env:
           SHARD_RESULT: ${{ needs.phpunit.result }}
-        run: test "$SHARD_RESULT" = success
+          MIGRATION_RESULT: ${{ needs.mariadb_migrations.result }}
+        run: |
+          test "$SHARD_RESULT" = success
+          test "$MIGRATION_RESULT" = success
