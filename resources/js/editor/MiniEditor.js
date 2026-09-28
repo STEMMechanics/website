@@ -11,6 +11,8 @@ document.addEventListener('alpine:init', () => {
 
         return {
             content: '',
+            maxCharacters: Number(options.maxCharacters) || 0,
+            characterCount: 0,
             updatedAt: Date.now(),
             init() {
                 editor = new Editor({
@@ -27,8 +29,9 @@ document.addEventListener('alpine:init', () => {
                             class: 'tiptap content min-h-80 px-3 py-2.5 focus:outline-none',
                         },
                     },
-                    onCreate: () => {
+                    onCreate: ({ editor: currentEditor }) => {
                         this.updatedAt = Date.now();
+                        this.updateCharacterCount(currentEditor);
                     },
                     onSelectionUpdate: () => {
                         this.updatedAt = Date.now();
@@ -38,6 +41,7 @@ document.addEventListener('alpine:init', () => {
                         this.content = currentEditor.getHTML();
                         updatingFromEditor = false;
                         this.updatedAt = Date.now();
+                        this.updateCharacterCount(currentEditor);
                     },
                 });
 
@@ -48,7 +52,16 @@ document.addEventListener('alpine:init', () => {
 
                     editor.commands.setContent(String(content || ''), false);
                     this.updatedAt = Date.now();
+                    this.updateCharacterCount();
                 });
+            },
+            updateCharacterCount(currentEditor = editor) {
+                this.characterCount = Array.from(currentEditor?.state.doc.textContent ?? '').length;
+            },
+            insertText(text) {
+                if (typeof text !== 'string' || text === '') return;
+
+                editor?.chain().focus().insertContent(text).run();
             },
             destroy() {
                 editor?.destroy();

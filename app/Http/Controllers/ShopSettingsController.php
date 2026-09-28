@@ -32,6 +32,7 @@ class ShopSettingsController extends Controller
                 array_keys(ShopShippingSettings::trackingLinkTemplates()),
                 array_values(ShopShippingSettings::trackingLinkTemplates())
             ),
+            'carrierSuggestions' => ShopShippingSettings::carrierSuggestions(),
             'shippingMethods' => $this->shippingMethods(),
             'requestQuoteSortOrder' => ShopShippingSettings::requestQuoteSortOrder(),
         ]);

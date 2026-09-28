@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Media;
 use App\Models\NewsletterProductPromotion;
 use App\Models\NewsletterStoreTheme;
 use App\Models\Product;
@@ -33,7 +34,7 @@ class NewsletterProductSelectionService
 
     private function publicImageUrl(?string $name): ?string
     {
-        $image = filled($name) ? \App\Models\Media::query()->whereKey($name)->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first() : null;
+        $image = filled($name) ? Media::query()->whereKey($name)->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first() : null;
 
         return $image ? url($image->url) : null;
     }
@@ -42,11 +43,11 @@ class NewsletterProductSelectionService
     {
         $note = $promotion->personal_note ?? [];
         $image = filled($note['image_name'] ?? null)
-            ? \App\Models\Media::query()->whereKey($note['image_name'])->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first()
+            ? Media::query()->whereKey($note['image_name'])->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%')->first()
             : null;
 
         return [
-            'enabled' => (bool) ($note['enabled'] ?? false),
+            'enabled' => NewsletterNoteContent::hasText($note),
             'body' => (string) ($note['body'] ?? ''),
             'format' => $note['format'] ?? 'text',
             'image_name' => $image?->name,

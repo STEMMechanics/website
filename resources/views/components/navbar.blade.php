@@ -25,7 +25,7 @@
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
         $operationCounts = $isAdmin ? app(\App\Support\AdminBadgeCache::class)->remember('operations', fn () => [
-            'refunds' => \App\Models\SquareRefundOperation::whereIn('status', [\App\Models\SquareRefundOperation::STATUS_FAILED, \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED])->count(),
+            'refunds' => \App\Models\SquareRefundOperation::whereIn('status', [\App\Models\SquareRefundOperation::STATUS_FAILED, \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED])->whereNull('notification_silenced_at')->count(),
             'orders' => \App\Models\StoreOrder::actionRequiredCount(),
             'sms' => \App\Models\InboundSms::where('provider', 'smsflow')->where('topic', 'sms.incoming')->whereNull('acknowledged_at')->count(),
         ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
@@ -48,9 +48,9 @@
                     ['label' => 'Settings', 'route' => route('admin.shop.settings.edit'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.settings.*']],
                 ],
             ],
-            [
-                'title' => 'People & Content',
-                'items' => [
+                [
+                    'title' => 'People & Content',
+                    'items' => [
                     ['label' => 'Users', 'route' => route('admin.user.index'), 'icon' => 'fa-solid fa-users', 'active' => ['admin.user.*']],
                     ['label' => 'Subscriptions', 'route' => route('admin.subscription.index'), 'icon' => 'fa-solid fa-envelope-open-text', 'active' => ['admin.subscription.index', 'admin.subscription.create', 'admin.subscription.edit']],
                     ['label' => 'Newsletter', 'route' => route('admin.newsletter.index'), 'icon' => 'fa-solid fa-newspaper', 'active' => ['admin.newsletter.*', 'admin.subscription.theme.*']],
@@ -69,7 +69,7 @@
                     ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],
                     ['label' => 'STEMCraft', 'route' => route('admin.stemcraft-content.edit'), 'icon' => 'fa-solid fa-cubes', 'active' => ['admin.stemcraft-content.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],
-                    ['label' => 'Workshop Templates', 'route' => route('admin.workshop-template.index'), 'icon' => 'fa-solid fa-clipboard-list', 'active' => ['admin.workshop-template.*', 'admin.pick-list-template.*']],
+                    ['label' => 'Workshop Blueprints', 'route' => route('admin.workshop-blueprint.index'), 'icon' => 'fa-solid fa-clipboard-list', 'active' => ['admin.workshop-blueprint.*', 'admin.workshop-template.*', 'admin.pick-list-template.*']],
                     ['label' => 'Reminders', 'route' => route('admin.reminder.index'), 'icon' => 'fa-regular fa-bell', 'active' => ['admin.reminder.*']],
                 ],
             ],
@@ -159,7 +159,7 @@
             </div>
         </div>
 
-        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-180" role="menu" aria-labelledby="page-menu-button" tabindex="-1">
+        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-180" role="menu" aria-labelledby="page-menu-button" tabindex="-1" data-sidebar-navigation>
             <div x-show="pageMenuOpen" @click="pageMenuOpen=false" class="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0"
@@ -189,7 +189,8 @@
                         <span data-sidebar-selection-status role="status" class="sr-only"></span>
                     </form>
                     <p data-sidebar-empty hidden class="px-4 py-2 text-sm text-gray-500">No matching menu items. Press Enter to search the site.</p>
-                @else
+                    <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
+                    @else
                 <div class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" @click.prevent="openSearchOverlay()">
                     <i class="fa fa-search w-4 mr-2"></i>Search
                 </div>
@@ -202,7 +203,6 @@
                 <a href="{{ route('workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
                 <a href="{{ route('contact') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if($isAdmin)
-                    <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
                     @foreach($adminNavSections as $section)
                         <div data-sidebar-heading="{{ $section['title'] }}" class="border-t border-gray-200 mt-4 pt-4 px-2">
                             <div class="block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{{ $section['title'] }}</div>

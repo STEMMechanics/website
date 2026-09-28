@@ -8,12 +8,18 @@ use App\Models\EmailSubscriptions;
 use App\Models\NewsletterStoreTheme;
 use App\Models\Product;
 use App\Models\SentEmail;
+use App\Models\Workshop;
+use App\Services\NewsletterNoteContent;
 use App\Services\NewsletterProductSelectionService;
 use App\Services\NewsletterWorkshopSelectionService;
+use App\Services\SiteListControls;
+use App\Support\ListPageSize;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class EmailSubscriptionController extends Controller
@@ -28,7 +34,7 @@ class EmailSubscriptionController extends Controller
 
         $subscriptions = $query
             ->orderBy('created_at', 'desc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
             ->onEachSide(1);
 
         $subscriptionEmails = $subscriptions->getCollection()
@@ -65,7 +71,7 @@ class EmailSubscriptionController extends Controller
         return view('admin.newsletter.index', [
             'headerCopyOptions' => ['store' => $newsletter->heroCopyOptions('store'), 'workshops' => $newsletter->heroCopyOptions('workshops')],
             'newsletterLinkOptions' => Product::query()->active()->orderBy('title')->get()->map(fn ($product) => ['title' => $product->title, 'type' => 'Store item', 'url' => route('shop.product.show', $product)])
-                ->concat(\App\Models\Workshop::query()->publiclyVisible()->where(fn ($query) => $query->whereNull('is_private')->orWhere('is_private', false))->whereIn('status', ['open', 'scheduled'])->where('starts_at', '>=', now())->orderBy('starts_at')->get()->map(fn ($workshop) => ['title' => $workshop->title.' · '.$workshop->starts_at->format('j M Y'), 'type' => 'Workshop', 'url' => route('workshop.show', $workshop)]))->values(),
+                ->concat(Workshop::query()->publiclyVisible()->where(fn ($query) => $query->whereNull('is_private')->orWhere('is_private', false))->whereIn('status', ['open', 'scheduled'])->where('starts_at', '>=', now())->orderBy('starts_at')->get()->map(fn ($workshop) => ['title' => $workshop->title.' · '.$workshop->starts_at->format('j M Y'), 'type' => 'Workshop', 'url' => route('workshop.show', $workshop)]))->values(),
             'storePromotion' => $draft,
             'storeProductsBySection' => collect($draft->sections)->map(fn (array $section) => $selector->availableProducts($section['category_slugs'])),
             'matchingProductCounts' => collect($draft->sections)->map(fn (array $section) => $selector->matchingProductCount($section)),
@@ -106,7 +112,7 @@ class EmailSubscriptionController extends Controller
             'content_order' => ['sometimes', 'required', Rule::in(['store', 'workshops'])],
             'personal_note' => ['sometimes', 'array:enabled,body,image_name,format'],
             'personal_note.enabled' => ['sometimes', 'boolean'],
-            'personal_note.body' => ['nullable', 'required_if:personal_note.enabled,1', 'string', 'max:12000'],
+            'personal_note.body' => ['nullable', 'string', 'max:12000'],
             'personal_note.format' => ['sometimes', Rule::in(['text', 'html'])],
             'personal_note.image_name' => ['nullable', 'string', Rule::exists('media', 'name')->where(fn ($query) => $query->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%'))],
             'hero_image_name' => ['sometimes', 'nullable', 'string', Rule::exists('media', 'name')->where(fn ($query) => $query->where('visibility', 'public')->whereNull('password')->where('mime_type', 'like', 'image/%'))],
@@ -147,14 +153,15 @@ class EmailSubscriptionController extends Controller
         $draft = $selector->draft();
         if (array_key_exists('personal_note', $validated)) {
             if (($validated['personal_note']['format'] ?? 'text') === 'html') {
-                $validated['personal_note']['body'] = \App\Services\NewsletterNoteContent::html($validated['personal_note']);
+                $validated['personal_note']['body'] = NewsletterNoteContent::html($validated['personal_note']);
             }
             $text = trim(html_entity_decode(strip_tags($validated['personal_note']['body'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-            if (mb_strlen($text) > 4000 || (($validated['personal_note']['enabled'] ?? false) && $text === '')) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['personal_note.body' => 'Enter a message of up to 4,000 characters.']);
+            $hasText = NewsletterNoteContent::hasText($validated['personal_note']);
+            if (mb_strlen($text) > 4000) {
+                throw ValidationException::withMessages(['personal_note.body' => 'Enter a message of up to 4,000 characters.']);
             }
             $draft->update(['personal_note' => [
-                'enabled' => (bool) ($validated['personal_note']['enabled'] ?? false),
+                'enabled' => $hasText,
                 'body' => trim((string) ($validated['personal_note']['body'] ?? '')),
                 'format' => $validated['personal_note']['format'] ?? 'text',
                 'image_name' => $validated['personal_note']['image_name'] ?? null,
@@ -398,7 +405,7 @@ class EmailSubscriptionController extends Controller
     }
 
     /** @param array<string, mixed>|null $storeSelection */
-    private function queueNewsletter(string $email, ?array $storeSelection = null, ?\Carbon\CarbonInterface $releaseAt = null): void
+    private function queueNewsletter(string $email, ?array $storeSelection = null, ?CarbonInterface $releaseAt = null): void
     {
         dispatch(new SendEmail($email, new UpcomingWorkshops($email, storeSelection: $storeSelection, releaseAt: $releaseAt)))->onQueue('mail');
     }

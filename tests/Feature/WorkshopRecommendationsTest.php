@@ -6,8 +6,10 @@ use App\Models\AnalyticsEvent;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Organisation;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Services\AnalyticsIpFilter;
 use App\Services\WorkshopRecommendationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -71,6 +73,34 @@ class WorkshopRecommendationsTest extends TestCase
             'source_workshop_id' => $source->id,
             'workshop_id' => $recommended->id,
         ]);
+    }
+
+    public function test_ignored_ips_are_not_recorded_as_recommendation_activity(): void
+    {
+        $user = User::factory()->create();
+        $location = Location::factory()->create(['suburb' => 'Redlynch', 'state' => 'QLD']);
+        $organisation = Organisation::factory()->create();
+        $source = $this->workshop($user, $location, $organisation, 'Robotics at Redlynch', now()->addDay());
+        $recommended = $this->workshop($user, $location, $organisation, 'Engineering at Redlynch', now()->addDays(2));
+        SiteOption::query()->create([
+            'name' => AnalyticsIpFilter::OPTION,
+            'value' => '198.51.100.42',
+        ]);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->postJson(route('workshop.recommendation.impression'), [
+                'source_workshop_id' => $source->id,
+                'workshop_ids' => [$recommended->id],
+                'placement' => 'workshop',
+            ])->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get(route('workshop.recommendation.click', [
+                'source' => $source,
+                'workshop' => $recommended,
+                'placement' => 'workshop',
+            ]))->assertRedirect(route('workshop.show', $recommended));
+
+        $this->assertDatabaseCount('analytics_events', 0);
     }
 
     private function workshop(User $user, Location $location, Organisation $organisation, string $title, $startsAt): Workshop

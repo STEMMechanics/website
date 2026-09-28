@@ -95,7 +95,9 @@
                                 @if($workshop->workshopDurationLabel())
                                     &middot; {{ $workshop->workshopDurationLabel() }}
                                 @endif
-                                &middot; {{ $priceLabel }}
+                                @if(! $workshop->isPriceHiddenFromPublic())
+                                    &middot; {{ $priceLabel }}
+                                @endif
                             </div>
 
                             {{--                                        <tr>--}}

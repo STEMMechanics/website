@@ -49,6 +49,7 @@ import './online-visitors';
 import './product-postage-preview';
 
 import './sidebar-search';
+import './sidebar-navigation-feedback';
 import './expense-drop';
 
 import './square-apple-pay';
@@ -59,6 +60,10 @@ import './deployment-status';
 
 import './workplan-checkoff';
 
+import './admin-ai';
+import './admin-dashboard-actions';
+
 import './form-keyboard';
 
 import './newsletter-header-copy';
+import './workshop-task-copy';

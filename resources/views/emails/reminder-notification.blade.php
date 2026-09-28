@@ -17,7 +17,7 @@
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 24px;">
 <tr>
 <td style="padding-right: 10px;"><a href="{{ $reminder->action_url }}" class="button button-primary" target="_blank" rel="noopener">View Task</a></td>
-@if($reminder->remindable instanceof \App\Models\Workshop && $reminder->source instanceof \App\Models\WorkshopTemplateTask)
+@if($reminder->remindable instanceof \App\Models\Workshop && $reminder->source instanceof \App\Models\WorkshopRunSheetTask)
 <td><a href="{{ route('admin.workshop.run-sheet.task.complete', [$reminder->remindable, $reminder->source]) }}" class="button" target="_blank" rel="noopener" style="background-color: #16a34a; border: 8px solid #16a34a; border-left-width: 18px; border-right-width: 18px; color: #ffffff;">Mark as Complete</a></td>
 @endif
 </tr>

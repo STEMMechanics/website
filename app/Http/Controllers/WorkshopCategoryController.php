@@ -93,12 +93,15 @@ class WorkshopCategoryController extends Controller
         DB::transaction(function () use ($category, $reassignCategoryId): void {
             if ($reassignCategoryId > 0) {
                 $workshopIds = $category->workshops()->pluck('workshops.id')->all();
+                $pickListTemplateIds = $category->pickListTemplates()->pluck('pick_list_templates.id')->all();
                 $targetCategory = WorkshopCategory::query()->findOrFail($reassignCategoryId);
 
                 $targetCategory->workshops()->syncWithoutDetaching($workshopIds);
+                $targetCategory->pickListTemplates()->syncWithoutDetaching($pickListTemplateIds);
             }
 
             $category->workshops()->detach();
+            $category->pickListTemplates()->detach();
             $category->delete();
         });
 

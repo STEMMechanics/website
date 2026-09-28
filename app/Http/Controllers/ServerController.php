@@ -1642,6 +1642,8 @@ class ServerController extends Controller
     {
         $rootPath = '/';
         $storagePublicPath = storage_path('app');
+        $openAiConfigured = trim((string) config('services.openai.api_key')) !== '';
+        $openAiModel = trim((string) config('services.openai.model'));
         $diskFree = @disk_free_space($rootPath);
         $forwarded = trim((string) request()->header('Forwarded', ''));
         $forwardedFor = trim((string) request()->header('X-Forwarded-For', ''));
@@ -1659,6 +1661,14 @@ class ServerController extends Controller
             'Node Version' => $this->commandVersion(['node', '--version']),
             'npm Version' => $this->commandVersion(['npm', '--version']),
             'Composer Version' => $this->commandVersion(['composer', '--version', '--no-ansi']),
+            'OpenAI Service' => $openAiConfigured ? 'Configured; API access not tested' : 'Not configured (optional)',
+            'OpenAI Model' => $openAiModel !== '' ? $openAiModel : 'Not set',
+            'OpenAI Reasoning (default / copy / complex)' => implode(' / ', [
+                (string) config('services.openai.reasoning_effort', 'max'),
+                (string) config('services.openai.copy_reasoning_effort', 'low'),
+                (string) config('services.openai.complex_copy_reasoning_effort', 'medium'),
+            ]),
+            'OpenAI Request Timeout' => (int) config('services.openai.timeout', 180).' seconds',
             'PHP SAPI' => PHP_SAPI,
             'Web Server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
             'Reverse Proxy Detected' => $proxyDetected ? 'Likely (forwarding headers received)' : 'No forwarding headers received',

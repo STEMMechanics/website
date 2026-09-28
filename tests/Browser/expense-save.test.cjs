@@ -42,7 +42,7 @@ function setup(fetch) {
     input.name = 'receipt_document_file';
     input.type = 'file';
     input.files = [file];
-    const fieldValues = { supplier: 'Example Supplier', description: 'Fuel', invoice_id: '123', paid_on: '2026-09-20', total_amount: '51.03', gst_amount: '4.64', allocation_editor: '1' };
+    const fieldValues = { _token: 'stale-token', supplier: 'Example Supplier', description: 'Fuel', invoice_id: '123', paid_on: '2026-09-20', total_amount: '51.03', gst_amount: '4.64', allocation_editor: '1' };
     const controls = Object.fromEntries(Object.entries(fieldValues).map(([name, value]) => [name, Object.assign(element(), { name, value })]));
     controls.receipt_document_file = input;
     const errors = {};
@@ -52,9 +52,12 @@ function setup(fetch) {
     }));
     for (const [name, control] of Object.entries(controls)) control.closest = selector => selector === 'form' ? form : wrappers[name];
     form.elements = Object.values(controls);
-    form.querySelectorAll = selector => selector === '[data-validation-error]' ? Object.values(errors) : Object.values(wrappers);
+    form.querySelectorAll = selector => selector === '[data-validation-error]' ? Object.values(errors)
+        : selector === 'input[name="_token"]' ? [controls._token] : Object.values(wrappers);
     const notifications = [];
     const ready = [];
+    const csrfMeta = { content: 'stale-token' };
+    const aiWidget = { dataset: { aiCsrfUrl: '/admin/ai/csrf-token', aiToken: 'stale-token' } };
     let redirect;
     const context = {
         URLSearchParams, Blob, File, Error, console,
@@ -73,7 +76,10 @@ function setup(fetch) {
         document: {
             readyState: 'loading',
             getElementById: id => ids[id] || null,
-            querySelector: () => null,
+            querySelector: selector => selector === 'meta[name="csrf-token"]' ? csrfMeta
+                : selector === '[data-ai-csrf-url]' ? aiWidget : null,
+            querySelectorAll: selector => selector === 'input[name="_token"]' ? [controls._token]
+                : selector === '[data-ai-token]' ? [aiWidget] : [],
             createElement: element,
             addEventListener: (name, fn) => { if (name === 'DOMContentLoaded') ready.push(fn); },
         },
@@ -94,7 +100,7 @@ function setup(fetch) {
         .replace('@js($documentViewUrl)', 'null').replace('@js($documentName)', "''");
     vm.runInContext(editor, context);
     return {
-        ids, input, file, controls, errors, notifications, redirect: () => redirect,
+        ids, input, file, controls, errors, notifications, csrfMeta, aiWidget, redirect: () => redirect,
         submit: () => form.dispatchEvent({ type: 'submit', preventDefault() {} }),
     };
 }
@@ -174,6 +180,34 @@ test('normal receipt uploads rebuild file bytes and preserve every form field', 
         assert.equal(sent.get(field), app.controls[field].value);
     }
     assert.ok((await new Response(sent).arrayBuffer()).byteLength > receipt.size);
+});
+
+test('a 419 refreshes the shared CSRF token and retries the expense upload once', async () => {
+    const requests = [];
+    const app = setup(async (url, request) => {
+        requests.push({ url, request });
+        if (url === '/admin/ai/csrf-token') {
+            return { ok: true, status: 200, json: async () => ({ token: 'fresh-token' }) };
+        }
+        if (requests.filter(item => item.url === '/admin/expense').length === 1) {
+            return { ok: false, status: 419, json: async () => ({ message: 'Page expired' }) };
+        }
+
+        return { ok: true, status: 200, json: async () => ({ redirect: '/admin/expense' }) };
+    });
+
+    await app.submit();
+
+    const expenseRequests = requests.filter(item => item.url === '/admin/expense');
+    assert.equal(expenseRequests.length, 2);
+    assert.equal(requests[1].url, '/admin/ai/csrf-token');
+    assert.equal(expenseRequests[1].request.headers['X-CSRF-TOKEN'], 'fresh-token');
+    assert.equal(expenseRequests[1].request.body.get('_token'), 'fresh-token');
+    assert.equal(app.csrfMeta.content, 'fresh-token');
+    assert.equal(app.controls._token.value, 'fresh-token');
+    assert.equal(app.aiWidget.dataset.aiToken, 'fresh-token');
+    assert.equal(app.redirect(), '/admin/expense');
+    assert.equal(app.notifications.length, 0);
 });
 
 test('unreadable receipts show an attachment error without sending an empty request', async () => {

@@ -8,12 +8,12 @@
 <x-ui.editor-link-dialog />
 
 <div class="editor-container" data-editor-name="{{ $name }}">
-    @if(isset($label))
+    @if(isset($label) && trim((string) $label) !== '')
     <div class="text-sm pl-1">{{ $label }}</div>
     @endif
     <div
         x-data="editor($store.{{$name}}_content, @js(route('custom-page.link-options')))"
-        x-on:sm-editor-set-content.window="if (($event.detail?.name || '') === '{{ $name }}') { setExternalContent($event.detail?.html || '', { focusEnd: !!$event.detail?.focusEnd }) }"
+        x-on:sm-editor-set-content.window="if (($event.detail?.name || '') === '{{ $name }}') { if ($event.detail?.append) { appendExternalContent($event.detail?.html || '') } else { setExternalContent($event.detail?.html || '', { focusEnd: !!$event.detail?.focusEnd }) } }"
         data-has-error="{{ $hasError ? 'true' : 'false' }}"
         class="{{ twMerge(['editor','mt-1'], $attributes->get('class')) }}">
         <template x-if="isLoaded()">
@@ -527,6 +527,10 @@
                     aria-label="Redo">
                     <i class="fa-solid fa-redo"></i>
                 </button>
+                @if(isset($toolbar))
+                    <div class="border-l border-l-gray-300 mx-1"></div>
+                    {{ $toolbar }}
+                @endif
             </div>
         </template>
         <div x-ref="element" class="content"></div>

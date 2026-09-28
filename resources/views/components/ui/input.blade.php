@@ -30,6 +30,11 @@
     $hasSuggestions = $type === 'text' && !filter_var($readonly, FILTER_VALIDATE_BOOLEAN) && ! $disabled && count($suggestions) > 0;
     $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
     $suggestionInputHandler = trim((string) ($attributes->get('x-on:input') ?? ''));
+    $suggestionInputExpression = "if (\$event.target?._smAiUpdate === true) { rawValue = \$event.target.value; hasTyped = false; suppressRefresh = false; filtered = []; selectedIndex = -1; open = false; } else { hasTyped = true; refresh(); ";
+    if ($suggestionInputHandler !== '') {
+        $suggestionInputExpression .= $suggestionInputHandler.'; ';
+    }
+    $suggestionInputExpression .= '}';
     $isFileInput = $type === 'file';
     $inputId = (string) ($attributes->get('id') ?? $name ?? '');
     $autocomplete = (string) ($attributes->get('autocomplete') ?? 'off');
@@ -199,7 +204,7 @@
                     name="{{ $name }}"
                     x-model="rawValue"
                     x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
+                    x-on:input="{{ $suggestionInputExpression }}"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
@@ -208,7 +213,7 @@
                     @disabled($disabled)
                     {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete', 'x-on:input']) }}
                 />
-                <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
+                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
                 <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                     <ul class="max-h-60 overflow-auto py-1">
                         <template x-for="(item, index) in filtered" :key="item + '-' + index">
@@ -416,7 +421,7 @@
                     @if($name !== null && $name !== '') name="{{ $name }}" @endif
                     x-model="rawValue"
                     x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
+                    x-on:input="{{ $suggestionInputExpression }}"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
@@ -454,7 +459,7 @@
     @else
         <div class="{{ ($inline ? 'flex items-center gap-2' : '') }}">
             @if(isset($label) && $label !== '')
-            <label for="{{ $name }}" class="{{ twMerge(['flex','text-sm','pl-1','items-center'], $labelClass) }}">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
+            <label @if($inputId !== '') for="{{ $inputId }}" @endif class="{{ twMerge(['flex','text-sm','pl-1','items-center'], $labelClass) }}">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
             @endif
             @if($type === 'textarea')
                 <textarea class="{{ twMerge(['pt-2.5', 'mt-1', $attributes->has('rows') ? 'h-auto' : 'h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
@@ -596,7 +601,7 @@
                     name="{{ $name }}"
                     x-model="rawValue"
                     x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
+                    x-on:input="{{ $suggestionInputExpression }}"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"

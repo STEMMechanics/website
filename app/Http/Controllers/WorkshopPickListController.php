@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\Workshop;
-use App\Models\WorkshopTemplateTask;
+use App\Models\WorkshopRunSheetTask;
 use App\Services\ReminderService;
 use App\Services\WorkshopPickListService;
 use App\Services\PdfAttachmentAppender;
@@ -30,7 +30,8 @@ class WorkshopPickListController extends Controller
 
     public function show(Workshop $workshop)
     {
-        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments', 'reminders.recipient');
+        app(\App\Services\WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.attachments', 'runSheetTasks', 'reminders.recipient');
 
         $pickListData = $this->pickListService->build($workshop);
         $participants = $pickListData['participants'];
@@ -48,8 +49,7 @@ class WorkshopPickListController extends Controller
             ->values()
             ->all();
 
-        $templateTaskIds = $workshop->pickListTemplate?->tasks
-            ->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+        $templateTaskIds = $workshop->runSheetTasks->pluck('id')->map(fn ($id) => (int) $id)->all();
         $completedTaskIds = collect($workshop->run_sheet_completed_task_ids ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => in_array($id, $templateTaskIds, true))
@@ -88,13 +88,9 @@ class WorkshopPickListController extends Controller
         ]);
     }
 
-    public function completeTask(Workshop $workshop, WorkshopTemplateTask $task): RedirectResponse
+    public function completeTask(Workshop $workshop, WorkshopRunSheetTask $task): RedirectResponse
     {
-        abort_unless(
-            $workshop->pick_list_template_id !== null
-            && (int) $task->pick_list_template_id === (int) $workshop->pick_list_template_id,
-            404,
-        );
+        abort_unless((string) $task->workshop_id === (string) $workshop->id, 404);
 
         $completedTaskIds = collect($workshop->run_sheet_completed_task_ids ?? [])
             ->map(fn ($id) => (int) $id)
@@ -180,8 +176,8 @@ class WorkshopPickListController extends Controller
             ->values()
             ->all();
 
-        $allowedTaskIds = PickListTemplate::query()->find($templateId)?->tasks()
-            ->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+        app(\App\Services\WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $allowedTaskIds = $workshop->runSheetTasks()->pluck('id')->map(fn ($id) => (int) $id)->all();
         $completedTaskIds = collect($validated['completed_task_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => in_array($id, $allowedTaskIds, true))
@@ -242,7 +238,8 @@ class WorkshopPickListController extends Controller
             abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
         }
 
-        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.tasks', 'pickListTemplate.attachments');
+        app(\App\Services\WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.attachments', 'runSheetTasks');
         $pickListData = $this->pickListService->build($workshop);
 
         $pdf = DomPdf::loadView('pdf.workshop-pick-list', [

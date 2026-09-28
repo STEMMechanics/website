@@ -2,7 +2,16 @@
     @push('head')
         @vite('resources/js/workshop-pick-list.js')
     @endpush
-    <x-mast backRoute="workshop.index" backTitle="Workshops">Run Sheet</x-mast>
+    <x-mast backRoute="workshop.index" backTitle="Workshops">
+        <x-slot>Run Sheet</x-slot>
+        <x-slot:actions>
+            <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
+                View public page
+                <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
+                <span class="sr-only">(opens in a new tab)</span>
+            </x-ui.button>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container>
         <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
@@ -12,7 +21,7 @@
                     <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
                     <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
                     <div class="text-sm text-gray-600">
-                        <span class="font-bold w-20 inline-block">Template:</span>
+                        <span class="font-bold w-20 inline-block">Blueprint:</span>
                         @if($workshop->pick_list_is_customized)
                             Custom{{ $workshop->pickListTemplate?->name ? ' (Originally '.$workshop->pickListTemplate?->name.')' : '' }}
                         @else
@@ -93,13 +102,13 @@
                 ></x-ui.textarea-control>
             </details>
 
-            @if($workshop->pickListTemplate)
+            @if($workshop->pickListTemplate || $workshop->runSheetTasks->isNotEmpty())
                 <template x-teleport="#workshop-plan-tasks">
                 <div x-data="{ taskNote: null, taskName: '', taskSubtasks: [] }">
-                    @if($workshop->pickListTemplate->tasks->isEmpty())
-                        <p class="mt-2 text-sm text-gray-600">No template tasks.</p>
+                    @if($workshop->runSheetTasks->isEmpty())
+                        <p class="mt-2 text-sm text-gray-600">No blueprint tasks.</p>
                     @else
-                        @php($taskGroups = \App\Support\WorkshopTaskPresenter::grouped($workshop->pickListTemplate->tasks))
+                        @php($taskGroups = \App\Support\WorkshopTaskPresenter::grouped($workshop->runSheetTasks))
                         <x-ui.grid class="mt-3 gap-3 lg:grid-cols-2">
                             @foreach($taskGroups as $taskGroup)
                                 <section class="pl-8">
@@ -376,7 +385,7 @@
                     label="Instructions"
                     value="{!! old('workshop_run_sheet', $workshop->workshop_run_sheet ?? $workshop->pickListTemplate?->run_sheet ?? '') !!}"
                 />
-                <p class="mt-1 text-xs text-gray-500">Changes apply only to this workshop and do not alter the workshop template.</p>
+                <p class="mt-1 text-xs text-gray-500">Changes apply only to this workshop and do not alter its blueprint.</p>
             </div>
             </details>
 

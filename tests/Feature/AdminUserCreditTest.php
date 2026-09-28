@@ -587,7 +587,7 @@ class AdminUserCreditTest extends TestCase
         });
     }
 
-    public function test_admin_credits_page_can_mark_a_manual_refund_as_account_credit(): void
+    public function test_admin_can_retain_a_manual_refund_as_credit_and_refund_it_later(): void
     {
         Queue::fake();
 
@@ -649,6 +649,80 @@ class AdminUserCreditTest extends TestCase
         $this->assertNull($refundPayment);
 
         Queue::assertNotPushed(SendEmail::class);
+
+        $creditService = app(\App\Services\AccountCreditService::class);
+        $this->assertSame(25.0, $creditService->availableCreditForUser($user));
+
+        $creditPageResponse = $this->actingAs($admin)->get(route('admin.user.edit', $user));
+        $creditPageResponse->assertOk();
+        $creditPageResponse->assertSee('Create refund', false);
+
+        $payoutResponse = $this->actingAs($admin)->post(route('admin.payment.refund.manual', $payment), [
+            'amount' => '25.00',
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->format('Y-m-d\TH:i'),
+            'reference' => 'Later bank transfer 456',
+            'reason' => 'Payout from retained account credit',
+        ]);
+
+        $payoutResponse->assertRedirect();
+        $this->assertSame(0.0, $creditService->availableCreditForUser($user));
+
+        $payout = Payment::query()
+            ->where('refund_of_payment_id', $payment->id)
+            ->where('kind', Payment::KIND_REFUND)
+            ->where('payment_method', Payment::PAYMENT_METHOD_BANK_TRANSFER)
+            ->first();
+        $this->assertNotNull($payout);
+        $this->assertSame(25.0, (float) $payout->total_amount);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($user): bool {
+            return $job->to === $user->email
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->isRefund === true;
+        });
+    }
+
+    public function test_admin_can_silence_and_restore_an_unfinished_manual_refund_alert(): void
+    {
+        $admin = $this->createAdminUser();
+        $manualRefund = SquareRefundOperation::query()->create([
+            'idempotency_key' => 'manual-refund-alert-silence-1',
+            'requested_cents' => 2500,
+            'refunded_cents' => 0,
+            'status' => SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+            'failure_message' => 'Customer needs to provide bank details.',
+            'payload' => [],
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.refunds.silence-alert', $manualRefund));
+
+        $response->assertRedirect();
+        $manualRefund->refresh();
+        $this->assertSame(SquareRefundOperation::STATUS_MANUAL_REQUIRED, $manualRefund->status);
+        $this->assertNotNull($manualRefund->notification_silenced_at);
+        $this->assertSame($admin->id, $manualRefund->notification_silenced_by);
+
+        $pageResponse = $this->get(route('admin.payment.refunds'));
+        $pageResponse->assertOk();
+        $pageResponse->assertSee('data-view-tabs', false);
+        $pageResponse->assertSee('All refunds');
+        $pageResponse->assertSee('Unfinished');
+        $pageResponse->assertSee('Alert silenced; refund remains unfinished.');
+        $pageResponse->assertSee('Resolve refund');
+        $pageResponse->assertSee('Restore alert');
+
+        $restoreResponse = $this->post(route('admin.payment.refunds.restore-alert', $manualRefund));
+
+        $restoreResponse->assertRedirect();
+        $manualRefund->refresh();
+        $this->assertNull($manualRefund->notification_silenced_at);
+        $this->assertNull($manualRefund->notification_silenced_by);
+        $this->assertSame(SquareRefundOperation::STATUS_MANUAL_REQUIRED, $manualRefund->status);
+
+        $restoredPageResponse = $this->get(route('admin.payment.refunds'));
+        $restoredPageResponse->assertOk();
+        $restoredPageResponse->assertSee('Silence alert');
     }
 
     public function test_admin_user_index_merges_user_data(): void

@@ -352,6 +352,14 @@ class AdminShopSettingsTest extends TestCase
                 'Courier Please' => 'https://courierplease.com.au/track?consignment={tracking}',
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         ]);
+        $this->actingAs($admin)
+            ->get(route('admin.shop.settings.edit'))
+            ->assertOk()
+            ->assertViewHas('carrierSuggestions', fn (array $suggestions): bool =>
+                in_array('Australia Post', $suggestions, true)
+                && in_array('Courier Please', $suggestions, true)
+            )
+            ->assertSee('fa-trash', false);
         $this->assertDatabaseHas('store_shipping_methods', [
             'id' => $express->id,
             'code' => 'express',

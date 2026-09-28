@@ -39,7 +39,7 @@
 <table class="pick-details">
     @if($templateMode)
     <tr>
-        <td><div class="label">Template</div><div class="value">{{ $template->name }}</div></td>
+        <td><div class="label">Blueprint</div><div class="value">{{ $template->name }}</div></td>
         <td><div class="label">Duration</div><div class="value">{{ $template->duration ?: 'Not specified' }}</div></td>
         <td><div class="label" style="width: 96px;">Participants</div><div class="value">{{ $template->participants ?: 'Not specified' }}</div></td>
     </tr>

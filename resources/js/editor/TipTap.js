@@ -1300,6 +1300,49 @@ document.addEventListener('alpine:init', () => {
                     this.updatedAt = Date.now();
                 }
             },
+            appendExternalContent(html = '') {
+                let addition = SM.decodeHtml(html);
+                if (!addition.trim()) return;
+
+                if (editor) {
+                    const currentHtml = editor.getHTML();
+                    const hasLearningOutcomesHeading = /<h[1-6]\b[^>]*>\s*learning\s+outcomes\s*<\/h[1-6]>/i.test(currentHtml);
+                    if (hasLearningOutcomesHeading) {
+                        addition = addition.replace(/<h[1-6]\b[^>]*>\s*(?:additional\s+)?learning\s+outcomes\s*<\/h[1-6]>/ig, '');
+                    }
+
+                    let insertAt = null;
+                    if (hasLearningOutcomesHeading) {
+                        let inOutcomesSection = false;
+                        editor.state.doc.forEach((node, offset) => {
+                            if (node.type.name === 'heading' && node.textContent.trim().toLowerCase() === 'learning outcomes') {
+                                inOutcomesSection = true;
+                                insertAt = offset + node.nodeSize;
+                                return;
+                            }
+
+                            if (!inOutcomesSection) return;
+                            if (['bulletList', 'orderedList'].includes(node.type.name)) {
+                                insertAt = offset + node.nodeSize;
+                                return;
+                            }
+
+                            inOutcomesSection = false;
+                        });
+                    }
+
+                    const chain = editor.chain().focus();
+                    if (insertAt !== null) chain.insertContentAt(insertAt, addition).run();
+                    else chain.focus('end').insertContent(addition).run();
+                    this.updatedAt = Date.now();
+                    return;
+                }
+
+                if (/<h[1-6]\b[^>]*>\s*learning\s+outcomes\s*<\/h[1-6]>/i.test(this.content)) {
+                    addition = addition.replace(/<h[1-6]\b[^>]*>\s*(?:additional\s+)?learning\s+outcomes\s*<\/h[1-6]>/ig, '');
+                }
+                this.content = `${this.content}${addition}`;
+            },
             init() {
                 const _this = this
 

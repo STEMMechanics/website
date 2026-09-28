@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\RecordAnalyticsEvent;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\AnalyticsIpFilter;
 use App\Services\OnlineVisitors;
 use App\Support\VisitorDetails;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +63,42 @@ class OnlineVisitorsTest extends TestCase
         }
     }
 
+    public function test_ignored_ips_are_parsed_from_common_separators_and_excluded_from_tracking(): void
+    {
+        SiteOption::query()->create([
+            'name' => AnalyticsIpFilter::OPTION,
+            'value' => "198.51.100.42, 203.0.113.20\n2001:DB8::1",
+        ]);
+        Queue::fake();
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.42'])
+            ->get('/about')->assertOk();
+
+        $this->assertNull(session('analytics_session_token'));
+        $this->assertSame(0, app(OnlineVisitors::class)->count());
+        Queue::assertNotPushed(RecordAnalyticsEvent::class);
+
+        app(OnlineVisitors::class)->touch('ignored-cached-visitor', null, '/ignored', ['ip' => '203.0.113.20']);
+        app(OnlineVisitors::class)->touch('allowed-cached-visitor', null, '/allowed', ['ip' => '198.51.100.10']);
+
+        $this->assertSame(1, app(OnlineVisitors::class)->count());
+        $this->assertTrue(app(AnalyticsIpFilter::class)->ignores('2001:db8::1'));
+        $this->assertFalse(app(AnalyticsIpFilter::class)->ignores('198.51.100.10'));
+    }
+
+    public function test_default_ignored_ip_is_applied_before_the_option_is_created(): void
+    {
+        Queue::fake();
+
+        $this->assertSame('125.63.25.220', SiteOption::defaultValue(AnalyticsIpFilter::OPTION));
+        $this->withServerVariables(['REMOTE_ADDR' => '125.63.25.220'])
+            ->get('/about')->assertOk();
+
+        $this->assertNull(session('analytics_session_token'));
+        $this->assertSame(0, app(OnlineVisitors::class)->count());
+        Queue::assertNotPushed(RecordAnalyticsEvent::class);
+    }
+
     public function test_geo_headers_only_apply_from_trusted_ingress(): void
     {
         $request = Request::create('/');
@@ -114,7 +153,7 @@ class OnlineVisitorsTest extends TestCase
         $this->withHeader('User-Agent', 'Uptime-Kuma/2.5.4')->get('/')->assertOk();
         $this->assertSame(0, app(OnlineVisitors::class)->count());
         $this->assertNull(session('analytics_session_token'));
-        Queue::assertNotPushed(\App\Jobs\RecordAnalyticsEvent::class);
+        Queue::assertNotPushed(RecordAnalyticsEvent::class);
     }
 
     public function test_live_endpoint_requires_admin_and_returns_only_a_count(): void

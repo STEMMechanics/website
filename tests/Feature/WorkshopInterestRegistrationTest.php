@@ -302,6 +302,64 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->assertSee(route('admin.workshop.interests', $workshop), false);
     }
 
+    public function test_admin_can_change_registration_from_none_to_interest_and_public_page_updates(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createInterestWorkshop(['registration' => 'none']);
+
+        $payload = [
+            'title' => $workshop->title,
+            'content' => $workshop->content,
+            'type' => 'physical',
+            'location_id' => $workshop->location_id,
+            'starts_at' => $workshop->starts_at->toDateTimeString(),
+            'ends_at' => $workshop->ends_at->toDateTimeString(),
+            'publish_at' => $workshop->publish_at->toDateTimeString(),
+            'closes_at' => $workshop->closes_at->toDateTimeString(),
+            'status' => 'open',
+            'registration' => 'interest',
+            'hero_media_name' => $workshop->hero_media_name,
+        ];
+
+        $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame('interest', $workshop->fresh()->registration);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee('I&#039;m Interested', false)
+            ->assertDontSeeText('Registration not required for this event.');
+    }
+
+    public function test_admin_update_rejects_a_missing_registration_type_instead_of_silently_keeping_the_old_value(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createInterestWorkshop(['registration' => 'none']);
+
+        $payload = [
+            'title' => $workshop->title,
+            'content' => $workshop->content,
+            'type' => 'physical',
+            'location_id' => $workshop->location_id,
+            'starts_at' => $workshop->starts_at->toDateTimeString(),
+            'ends_at' => $workshop->ends_at->toDateTimeString(),
+            'publish_at' => $workshop->publish_at->toDateTimeString(),
+            'closes_at' => $workshop->closes_at->toDateTimeString(),
+            'status' => 'open',
+            'hero_media_name' => $workshop->hero_media_name,
+        ];
+
+        $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $payload)
+            ->assertSessionHasErrors('registration')
+            ->assertRedirect();
+
+        $this->assertSame('none', $workshop->fresh()->registration);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

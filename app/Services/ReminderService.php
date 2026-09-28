@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\PickListTemplate;
 use App\Models\Reminder;
 use App\Models\User;
 use App\Models\Workshop;
-use App\Models\WorkshopTemplateTask;
+use App\Models\WorkshopRunSheetTask;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -17,7 +16,8 @@ class ReminderService
 
     public function syncWorkshop(Workshop $workshop): void
     {
-        $workshop->loadMissing(['pickListTemplate.tasks', 'facilitator']);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $workshop->loadMissing(['runSheetTasks', 'facilitator']);
 
         $activeReminders = $workshop->reminders()
             ->where('kind', self::WORKSHOP_TASK_KIND)
@@ -27,8 +27,7 @@ class ReminderService
             ->groupBy(fn (Reminder $reminder): string => $this->sourceKey($reminder->source_type, $reminder->source_id));
 
         $facilitator = $workshop->facilitator;
-        $template = $workshop->pickListTemplate;
-        if ((string) $workshop->status === 'cancelled' || ! $workshop->starts_at || ! $facilitator || ! $template instanceof PickListTemplate || trim((string) $facilitator->email) === '') {
+        if ((string) $workshop->status === 'cancelled' || ! $workshop->starts_at || ! $facilitator || trim((string) $facilitator->email) === '') {
             $activeReminders->flatten()->each->update(['status' => Reminder::STATUS_CANCELLED]);
 
             return;
@@ -38,7 +37,7 @@ class ReminderService
             ->map(fn ($id): int => (int) $id)
             ->all();
 
-        foreach ($template->tasks as $task) {
+        foreach ($workshop->runSheetTasks as $task) {
             if (! $task->reminder_enabled || $task->reminder_offset_days === null || ! in_array($task->reminder_time, ['06:00', '12:00', '16:00'], true)) {
                 continue;
             }
@@ -130,20 +129,12 @@ class ReminderService
         ]);
     }
 
-    public function syncTemplateWorkshops(int $templateId): void
-    {
-        Workshop::query()
-            ->where('pick_list_template_id', $templateId)
-            ->with(['pickListTemplate.tasks', 'facilitator'])
-            ->chunkById(100, fn ($workshops) => $workshops->each(fn (Workshop $workshop) => $this->syncWorkshop($workshop)));
-    }
-
     private function sourceKey(mixed $type, mixed $id): string
     {
         return (string) $type.':'.(string) $id;
     }
 
-    private function workshopTaskMessage(WorkshopTemplateTask $task, Workshop $workshop): ?string
+    private function workshopTaskMessage(WorkshopRunSheetTask $task, Workshop $workshop): ?string
     {
         return $this->renderWorkshopPlaceholders($task->notes, $workshop);
     }

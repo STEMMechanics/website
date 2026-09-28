@@ -7,6 +7,53 @@
         <x-ui.dynamic-list name="admin-dashboard-index">
 
         <div class="mt-4 flex flex-col items-start gap-4">
+            @php
+                $actionCards = is_array($actionCards ?? null) ? $actionCards : [];
+                $actionColumns = min(4, max(2, (int) ceil(count($actionCards) / 2)));
+                $actionIconTones = [
+                    'sky' => 'bg-sky-50 text-sky-700 group-hover:bg-sky-100',
+                    'pink' => 'bg-pink-50 text-pink-700 group-hover:bg-pink-100',
+                    'violet' => 'bg-violet-50 text-violet-700 group-hover:bg-violet-100',
+                    'emerald' => 'bg-emerald-50 text-emerald-700 group-hover:bg-emerald-100',
+                    'amber' => 'bg-amber-50 text-amber-700 group-hover:bg-amber-100',
+                ];
+            @endphp
+            @if($actionCards !== [])
+            <section class="w-full" aria-label="Suggested actions">
+                <div data-dashboard-action-cards data-refresh-url="{{ route('admin.dashboard.actions') }}" data-dismiss-url="{{ route('admin.dashboard.actions.dismiss') }}" style="--sm-dashboard-action-columns: {{ $actionColumns }}" class="sm-dashboard-action-grid w-full">
+                    @foreach($actionCards as $action)
+                        <article data-action-card class="group relative flex h-full min-w-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-color/40 hover:shadow-md">
+                            <a href="{{ $action['url'] }}" class="flex min-h-24 min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-2xl p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color focus-visible:ring-offset-2">
+                                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl text-lg transition {{ $actionIconTones[$action['tone'] ?? 'sky'] ?? $actionIconTones['sky'] }}" aria-hidden="true">
+                                    <i class="{{ $action['icon'] }}"></i>
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-base font-semibold leading-snug text-gray-900 {{ !empty($action['title_no_wrap']) ? 'whitespace-nowrap' : '' }}">{{ $action['title'] }}</span>
+                                    @if(is_array($action['attendance_details'] ?? null))
+                                        @php
+                                            $attendanceDetails = $action['attendance_details'];
+                                        @endphp
+                                        <span class="mt-1.5 block text-sm font-semibold leading-snug text-gray-900">{{ $attendanceDetails['workshop'] }}</span>
+                                        <span class="mt-1.5 block text-sm leading-snug text-gray-700">{{ $attendanceDetails['schedule'] }}</span>
+                                        <span class="mt-1 block text-sm leading-snug text-gray-700">{{ $attendanceDetails['location'] }}</span>
+                                    @else
+                                        <span class="mt-1.5 block text-sm leading-snug text-gray-700">{{ $action['description'] }}</span>
+                                    @endif
+                                </span>
+                            </a>
+                            @if(!empty($action['dismiss_key']))
+                                <div class="flex justify-end border-t border-gray-100 px-3 py-1.5">
+                                    <button type="button" data-dismiss-dashboard-action data-action-key="{{ $action['dismiss_key'] }}" class="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color" aria-label="Hide this BAS action">
+                                        <i class="fa-solid fa-eye-slash" aria-hidden="true"></i><span>Hide action</span>
+                                    </button>
+                                </div>
+                            @endif
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+            @endif
+
             @include('admin.dashboard.partials.weekly-workplan', ['workplan' => $workplan])
 
             <div class="w-full">

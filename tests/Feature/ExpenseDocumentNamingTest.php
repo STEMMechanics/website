@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\IndexSearchableDocument;
 use App\Models\Expense;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\PdfTextExtractor;
@@ -30,6 +31,24 @@ class ExpenseDocumentNamingTest extends TestCase
 
     public function test_expense_editor_renders_field_errors_and_the_standard_notification(): void
     {
+        Supplier::query()->create([
+            'name' => 'STEM Supplies',
+            'supplier' => 'stem supplies',
+            'mode' => 'default',
+            'splits' => [],
+        ]);
+
+        $collapsedResponse = $this->actingAs($this->createAdminUser())->get(route('admin.expense.create'));
+        $collapsedResponse->assertOk();
+        $collapsedDocument = HTMLDocument::createFromString($collapsedResponse->getContent(), LIBXML_NOERROR);
+        $collapsedReceipt = $collapsedDocument->querySelector('details.sm-expense-receipt-details');
+        $this->assertFalse($collapsedReceipt->hasAttribute('open'));
+        $collapsedAllocation = $collapsedDocument->querySelector('[data-validation-field="splits"] div[x-data*="allocationOpen"]');
+        $this->assertStringContainsString('allocationOpen: false', $collapsedAllocation->getAttribute('x-data'));
+        $this->assertStringContainsString('allocationTouched: false', $collapsedAllocation->getAttribute('x-data'));
+        $this->assertStringContainsString('if (needsAttention)', $collapsedAllocation->getAttribute('x-effect'));
+        $this->assertStringContainsString('allocationTouched = true', $collapsedDocument->querySelector('[data-validation-field="splits"] input[name="allocation_override"]')->getAttribute('x-on:change'));
+
         $errors = new ViewErrorBag;
         $errors->put('default', new MessageBag([
             'supplier' => ['The supplier field is required.'],
@@ -45,14 +64,57 @@ class ExpenseDocumentNamingTest extends TestCase
         $response->assertSee('SM.alert(', false);
         $response->assertSee('Could not save changes');
         $response->assertDontSee('id="expense-save-errors"', false);
+        $response->assertSee('data-ai-auto-file="#expense-receipt-file"', false);
+        $response->assertSee('data-ai-processing-icon', false);
+        $response->assertSee('data-ai-progress-track', false);
+        $response->assertSee('z-[140]', false);
+        $response->assertSee('data-ai-status-text', false);
+        $response->assertSee('data-ai-complete-icon', false);
+        $response->assertSee('data-ai-error-icon', false);
+        $response->assertSee('data-ai-star', false);
+        $response->assertDontSee('Fill from invoice or receipt');
+        $response->assertDontSee('we’ll fill any blank expense fields automatically');
+        $response->assertDontSee('Evidence quotes and page numbers');
+        $response->assertDontSee('Extract fields');
 
         $document = HTMLDocument::createFromString($response->getContent(), LIBXML_NOERROR);
+        $supplierInput = $document->querySelector('#expense-supplier');
+        $this->assertStringContainsString('if ($event.target?._smAiUpdate === true)', $supplierInput->getAttribute('x-on:input'));
+        $paidOnInput = $document->querySelector('#expense-paid-on');
+        $this->assertSame('date', $paidOnInput->getAttribute('type'));
+        $this->assertSame('paid_on', $paidOnInput->getAttribute('name'));
+        $this->assertTrue($paidOnInput->hasAttribute('data-ai-replace-default'));
+        $this->assertSame($paidOnInput->getAttribute('value'), $paidOnInput->getAttribute('data-ai-default-value'));
+        $this->assertStringContainsString('appearance-auto', $paidOnInput->getAttribute('class'));
+        $response->assertSee('<label for="expense-paid-on"', false);
+        $this->assertSame('Expense Date', trim($document->querySelector('label[for="expense-paid-on"]')->textContent));
+        $receiptDetails = $document->querySelector('details.sm-expense-receipt-details');
+        $this->assertFalse($receiptDetails->hasAttribute('open'));
+        $allocationSection = $document->querySelector('[data-validation-field="splits"]');
+        $this->assertNotNull($allocationSection->querySelector('[aria-controls="expense-allocation-content"]'));
+        $this->assertNotNull($allocationSection->querySelector('[role="status"]'));
+        $this->assertStringContainsString('allocationOpen: true', $allocationSection->querySelector('div[x-data*="allocationOpen"]')->getAttribute('x-data'));
         foreach (['supplier', 'receipt_document_file', 'splits'] as $name) {
             $field = $document->querySelector('[data-validation-field="'.$name.'"]');
             $error = $field->querySelector('[data-validation-error]');
             $this->assertSame($errors->first($name), trim($error->textContent));
             $this->assertFalse($error->hasAttribute('hidden'));
         }
+    }
+
+    public function test_expense_editor_keeps_ampersands_in_supplier_autocomplete_value(): void
+    {
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Coffin & Sons',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.edit', $expense));
+
+        $response->assertOk()
+            ->assertSee("rawValue: 'Coffin \\u0026 Sons'", false)
+            ->assertDontSee("rawValue: 'Coffin \\u0026amp; Sons'", false);
     }
 
     public function test_expense_update_suffixes_attachment_name_when_target_filename_exists(): void
@@ -136,6 +198,41 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $this->assertNotNull($expense->receipt_document_path);
         $this->assertSame('ARLEC security light receipt', $expense->receipt_document_text);
+        Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
+    }
+
+    public function test_expense_attachment_can_be_updated_with_a_jpeg_receipt(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAdminUser();
+        $expense = Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Camera Receipt Supplier',
+            'invoice_id' => 'JPEG-1',
+            'paid_on' => '2026-08-28',
+            'total_amount' => 22.00,
+            'gst_amount' => 2.00,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.expense.edit', $expense))
+            ->post(route('admin.expense.update', $expense), [
+                'supplier' => 'Camera Receipt Supplier',
+                'description' => 'Receipt scanned as a JPEG',
+                'invoice_id' => 'JPEG-1',
+                'paid_on' => '2026-08-28',
+                'total_amount' => '22.00',
+                'gst_amount' => '2.00',
+                'receipt_document_file' => UploadedFile::fake()->image('receipt.jpg', 120, 80),
+            ]);
+
+        $response->assertRedirect(route('admin.expense.edit', $expense));
+        $response->assertSessionHasNoErrors();
+
+        $expense->refresh();
+
+        $this->assertSame('jpg', pathinfo((string) $expense->receipt_document_path, PATHINFO_EXTENSION));
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 

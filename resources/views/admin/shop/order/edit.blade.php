@@ -1532,6 +1532,53 @@
                                         </div>
                                     </div>
 
+                                    @if($item->trackingEntries->isNotEmpty())
+                                        <section class="ml-12 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3" aria-label="Shipment history for {{ $item->displayTitle() }}">
+                                            <div class="mb-2 flex items-center gap-2">
+                                                <i class="fa-solid fa-truck-fast text-emerald-700" aria-hidden="true"></i>
+                                                <h3 class="text-sm font-semibold text-emerald-950">Shipment history</h3>
+                                            </div>
+                                            <div class="divide-y divide-emerald-200">
+                                                @foreach($item->trackingEntries as $tracking)
+                                                    <article class="py-2 first:pt-0 last:pb-0 text-sm">
+                                                        @php($trackingUrlIsSafe = filled($tracking->tracking_url) && in_array(strtolower((string) parse_url($tracking->tracking_url, PHP_URL_SCHEME)), ['http', 'https'], true))
+                                                        <div class="space-y-1">
+                                                            <div>
+                                                                <span class="text-gray-600">Courier:</span>
+                                                                <span class="font-medium text-gray-900">{{ $tracking->carrier ?: 'Not specified' }}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span class="text-gray-600">Dispatched:</span>
+                                                                <span class="text-gray-900">{{ $tracking->dispatched_at?->format('D j M, Y') ?? 'Date not recorded' }}</span>
+                                                            </div>
+                                                            <div class="break-all">
+                                                                <span class="text-gray-600">Tracking:</span>
+                                                                @if(filled($tracking->tracking_number))
+                                                                    @if($trackingUrlIsSafe)
+                                                                        <a href="{{ $tracking->tracking_url }}" target="_blank" rel="noopener noreferrer" class="font-medium text-primary-color hover:underline">
+                                                                            {{ $tracking->tracking_number }} <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
+                                                                        </a>
+                                                                    @else
+                                                                        <span class="text-gray-900">{{ $tracking->tracking_number }}</span>
+                                                                    @endif
+                                                                @elseif($trackingUrlIsSafe)
+                                                                    <a href="{{ $tracking->tracking_url }}" target="_blank" rel="noopener noreferrer" class="font-medium text-primary-color hover:underline">
+                                                                        Open tracking page <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
+                                                                    </a>
+                                                                @else
+                                                                    <span class="text-gray-500">No tracking details</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        @if(filled($tracking->notes))
+                                                            <p class="mt-2 whitespace-pre-line border-t border-gray-100 pt-2 text-xs text-gray-600">{{ $tracking->notes }}</p>
+                                                        @endif
+                                                    </article>
+                                                @endforeach
+                                            </div>
+                                        </section>
+                                    @endif
+
                                     @if($item->downloads->isNotEmpty())
                                         <div class="text-xs text-sky-700">{{ $item->downloads->count() }} download{{ $item->downloads->count() === 1 ? '' : 's' }}</div>
                                     @endif
@@ -1620,8 +1667,15 @@
                                 @endunless
 
                                 @unless($itemActionsLocked)
-                                <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen" x-cloak class="fixed inset-0 z-180 bg-black/55" x-on:click.self="closeTracking({{ $item->id }})" x-on:keydown.escape.window="closeTracking({{ $item->id }})">
-                                    <div class="flex min-h-full items-center justify-center p-4">
+                                <div
+                                    x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen"
+                                    x-cloak
+                                    x-effect="document.body.classList.toggle('overflow-hidden', Boolean(itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen))"
+                                    class="fixed inset-0 z-180 overflow-y-auto overscroll-contain bg-black/55"
+                                    x-on:click.self="closeTracking({{ $item->id }})"
+                                    x-on:keydown.escape.window="closeTracking({{ $item->id }})"
+                                >
+                                    <div class="flex min-h-full items-start justify-center p-4">
                                         <div class="w-full max-w-2xl rounded-3xl bg-white shadow-xl">
                                             <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
                                                 <div>
@@ -1684,35 +1738,55 @@
                                                             @endif
                                                         </div>
                                                         <div>
-                                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking mode</label>
-                                                            <x-ui.select-control
+                                                            <x-ui.select
                                                                 name="tracking_mode"
-                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                                label="Tracking mode"
+                                                                labelClass="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700 pl-0"
+                                                                :value="$trackingModeValue"
+                                                                class="mb-0!"
+                                                                selectClass="rounded-xl focus:border-emerald-300"
                                                                 x-model="itemUi['{{ $item->id }}'].trackingMode"
                                                                 x-on:change="itemUi['{{ $item->id }}'].trackingModeTouched = true"
                                                             >
                                                                 <option value="none" @selected($trackingModeValue === 'none')>No Tracking Number</option>
                                                                 <option value="tracking_number" @selected($trackingModeValue === 'tracking_number')>Tracking Number</option>
-                                                            </x-ui.select-control>
+                                                            </x-ui.select>
                                                             @if($trackingBag->first('tracking_mode'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_mode') }}</div>
                                                             @endif
-                                                            <div class="mt-1 text-xs text-gray-500">Choose whether this parcel should keep only a parcel number or also record a courier tracking number.</div>
+                                                            <div class="mt-1 text-xs text-gray-500">Use a tracking number, or identify the parcel with a parcel number when no tracking number is available.</div>
                                                         </div>
-                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak>
-                                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
-                                                            <x-ui.input-control
-                                                                type="number"
-                                                                name="parcel_number"
-                                                                min="1"
-                                                                step="1"
-                                                                x-model.number="itemUi['{{ $item->id }}'].trackingParcelNumber"
-                                                                value="{{ $trackingParcelValue }}"
-                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
-                                                            @if($trackingBag->first('parcel_number'))
-                                                                <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('parcel_number') }}</div>
-                                                            @endif
-                                                            <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
+                                                        <div>
+                                                            <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak>
+                                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
+                                                                <x-ui.input-control
+                                                                    type="number"
+                                                                    name="parcel_number"
+                                                                    min="1"
+                                                                    step="1"
+                                                                    x-model.number="itemUi['{{ $item->id }}'].trackingParcelNumber"
+                                                                    value="{{ $trackingParcelValue }}"
+                                                                    class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                                @if($trackingBag->first('parcel_number'))
+                                                                    <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('parcel_number') }}</div>
+                                                                @endif
+                                                                <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
+                                                            </div>
+                                                            <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
+                                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
+                                                                <x-ui.input-control
+                                                                    type="text"
+                                                                    name="tracking_number"
+                                                                    value="{{ $trackingNumberValue }}"
+                                                                    x-model="itemUi['{{ $item->id }}'].trackingNumber"
+                                                                    x-on:blur="applyTrackingLinkTemplateToItem({{ $item->id }})"
+                                                                    class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                                    placeholder="Optional" />
+                                                                @if($trackingBag->first('tracking_number'))
+                                                                    <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_number') }}</div>
+                                                                @endif
+                                                                <div class="mt-1 text-xs text-gray-500">This tracking number identifies the parcel.</div>
+                                                            </div>
                                                         </div>
                                                         <div>
                                                             <x-ui.input
@@ -1736,21 +1810,7 @@
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('dispatched_at') }}</div>
                                                             @endif
                                                         </div>
-                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
-                                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                            <x-ui.input-control
-                                                                type="text"
-                                                                name="tracking_number"
-                                                                value="{{ $trackingNumberValue }}"
-                                                                x-model="itemUi['{{ $item->id }}'].trackingNumber"
-                                                                x-on:blur="applyTrackingLinkTemplateToItem({{ $item->id }})"
-                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
-                                                                placeholder="Optional" />
-                                                            @if($trackingBag->first('tracking_number'))
-                                                                <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_number') }}</div>
-                                                            @endif
-                                                        </div>
-                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
+                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak class="sm:col-span-2">
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>
                                                             <x-ui.input-control
                                                                 type="url"
@@ -1764,9 +1824,9 @@
                                                             @endif
                                                             <div class="mt-1 text-xs text-gray-500">Leave blank to auto-generate from the courier template when one exists.</div>
                                                         </div>
-                                                    </div>
-                                                    <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak class="mt-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
-                                                        No tracking number will be recorded for this parcel. The parcel number still keeps the shipment grouped.
+                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak class="sm:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                                                            No tracking number will be recorded for this parcel. The parcel number still keeps the shipment grouped.
+                                                        </div>
                                                     </div>
                                                     <div class="mt-4">
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
@@ -2008,7 +2068,19 @@
                                                     <option value="none">No Tracking Number</option>
                                                     <option value="tracking_number">Tracking Number</option>
                                                 </x-ui.select>
-                                                <div class="mt-1 text-xs text-gray-500">Choose whether the parcels are recorded with a tracking number or only a parcel number.</div>
+                                                <div class="mt-1 text-xs text-gray-500">Use a tracking number, or identify the parcel with a parcel number when no tracking number is available.</div>
+                                            </div>
+                                            <div>
+                                                <div x-show="bulkTrackingMode === 'none'" x-cloak>
+                                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
+                                                    <x-ui.input-control type="number" name="parcel_number" min="1" step="1" x-model.number="bulkTrackingParcelNumber" value="{{ $defaultParcelNumber }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                    <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
+                                                </div>
+                                                <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak>
+                                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
+                                                    <x-ui.input-control type="text" name="tracking_number" x-model="bulkTrackingTrackingNumber" x-on:blur="applyTrackingLinkTemplateToBulk()" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                    <div class="mt-1 text-xs text-gray-500">This tracking number identifies the parcels.</div>
+                                                </div>
                                             </div>
                                             <x-ui.input
                                                 name="carrier"
@@ -2024,15 +2096,6 @@
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Dispatch date</label>
                                                 <x-ui.input-control type="date" name="dispatched_at" value="{{ now()->toDateString() }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
-                                            </div>
-                                            <div x-show="bulkTrackingMode === 'none'" x-cloak>
-                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
-                                                <x-ui.input-control type="number" name="parcel_number" min="1" step="1" x-model.number="bulkTrackingParcelNumber" value="{{ $defaultParcelNumber }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
-                                                <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
-                                            </div>
-                                            <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak>
-                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                <x-ui.input-control type="text" name="tracking_number" x-model="bulkTrackingTrackingNumber" x-on:blur="applyTrackingLinkTemplateToBulk()" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
                                             </div>
                                             <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>

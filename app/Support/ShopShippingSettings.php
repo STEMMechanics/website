@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\SiteOption;
+use App\Models\StoreOrderItemTracking;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -149,6 +150,27 @@ class ShopShippingSettings
                     ? [$key => $value]
                     : [];
             })
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function carrierSuggestions(): array
+    {
+        $recentCarriers = StoreOrderItemTracking::query()
+            ->whereNotNull('carrier')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->pluck('carrier');
+
+        return $recentCarriers
+            ->merge(array_keys(self::trackingLinkTemplates()))
+            ->map(fn ($carrier) => trim((string) $carrier))
+            ->filter(fn (string $carrier) => $carrier !== '')
+            ->unique(fn (string $carrier) => mb_strtolower($carrier))
+            ->take(100)
+            ->values()
             ->all();
     }
 

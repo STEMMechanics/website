@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Traits\HasFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
@@ -19,6 +21,10 @@ class PickListTemplate extends Model
         'description',
         'duration',
         'participants',
+        'default_workshop_title',
+        'default_workshop_summary',
+        'default_workshop_content',
+        'hero_media_name',
         'run_sheet',
         'run_sheet_drawing_data',
         'run_sheet_canvas_data',
@@ -41,10 +47,24 @@ class PickListTemplate extends Model
     }
 
     /**
+     * @return BelongsToMany<WorkshopCategory, $this>
+     */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(WorkshopCategory::class, 'pick_list_template_workshop_category')->withTimestamps();
+    }
+
+    /**
      * @return MorphToMany<Media, $this>
      */
     public function attachments(): MorphToMany
     {
         return $this->files(self::ATTACHMENT_COLLECTION);
+    }
+
+    /** @return BelongsTo<Media, $this> */
+    public function hero(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'hero_media_name', 'name');
     }
 }

@@ -39,6 +39,18 @@ class WorkshopPricingTest extends TestCase
         $this->assertNull($pricing['earlyBirdSummary']);
     }
 
+    public function test_dash_hides_prices_for_non_ticket_workshops_but_not_ticketed_workshops(): void
+    {
+        $workshop = new Workshop();
+        $workshop->forceFill(['registration' => 'message', 'price' => ' - ']);
+
+        $this->assertTrue($workshop->isPriceHiddenFromPublic());
+
+        $workshop->registration = 'tickets';
+
+        $this->assertFalse($workshop->isPriceHiddenFromPublic());
+    }
+
     public function test_ticket_invoice_line_notes_include_an_early_bird_marker_only_when_the_ticket_is_early_bird(): void
     {
         $workshop = new Workshop();

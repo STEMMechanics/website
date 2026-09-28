@@ -23,16 +23,21 @@
         @if(session('message'))
             <div hidden data-newsletter-flash data-title="{{ session('message-title') }}" data-message="{{ session('message') }}" data-type="{{ session('message-type') }}"></div>
         @endif
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</p><p class="font-semibold text-slate-900">{{ $storePromotion->subject }}</p></div>
-            <div class="flex items-center gap-3">
-                <x-ui.button type="button" color="outline" onclick="SMNewsletterOpenEditor('newsletter-header-editor')" aria-label="Edit newsletter settings"><i class="fa-solid fa-sliders mr-2" aria-hidden="true"></i>Settings</x-ui.button>
-                <x-ui.button type="submit" form="newsletter-content-form">Save newsletter</x-ui.button>
-            </div>
-        </div>
-        <p class="mb-2 text-sm text-slate-500">Next release: {{ $newsletterReleaseAt->format('l j F, g:ia') }}. Workshops are selected from six hours after release.</p>
-        <p class="mb-4 text-sm text-slate-500">Edit the newsletter where it appears. Use the pencil to edit text, arrows to refresh a product, or the eye to hide a workshop.</p>
+        <div class="mb-4"><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</p><p class="font-semibold text-slate-900">{{ $storePromotion->subject }}</p></div>
+        <p class="mb-4 text-sm text-slate-500">Next release: {{ $newsletterReleaseAt->format('l j F, g:ia') }}.</p>
+        @php
+            $heroProduct = collect($currentStoreSelection['sections'] ?? [])->flatMap(fn ($section) => collect($section['products'] ?? []))->first();
+            $heroWorkshop = $newsletterWorkshops->first();
+            $defaultHeroImage = $contentOrder === 'store' && $heroProduct ? $heroProduct->primaryImageUrl('lg') : $heroWorkshop?->hero?->url;
+        @endphp
+
         <x-admin.newsletter-editor-dialog id="newsletter-header-editor" title="Edit newsletter header">
+            <x-slot:titleActions>
+                <div class="flex flex-wrap items-center gap-2">
+                    <x-ui.button type="button" variant="plain" class="flex h-8 w-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#newsletter-header-ai-toast" data-ai-processing-message="Updating newsletter text…" data-ai-action="newsletter-header" data-ai-url="{{ route('admin.ai.newsletter.header') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#newsletter-content-form" data-ai-fields="content_order" data-ai-lock-fields="subject,hero_header,hero_cta" data-ai-lock-controls="#newsletter-header-editor [data-newsletter-refresh], #newsletter-header-editor [name=content_order], #newsletter-header-editor button[type=submit]" :disabled="blank(config('services.openai.api_key'))" aria-label="Replace header text with AI" title="Replace header text with AI"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                </div>
+            </x-slot:titleActions>
+            <x-admin.ai-status-toast id="newsletter-header-ai-toast" message="Preparing the newsletter header…" detail="The subject, heading, and introduction are locked while AI updates them." progress-label="Newsletter header generation" />
             <div data-newsletter-presentation data-header-copy-options="{{ json_encode($headerCopyOptions) }}">
                 <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
                     <label for="newsletter-subject" class="col-span-2 block text-sm font-medium text-gray-900">Subject</label>
@@ -56,14 +61,14 @@
                     <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_cta" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero introduction" aria-label="Refresh hero introduction"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                     @error('hero_cta')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
-                <p class="mb-4 text-xs text-gray-500">Refresh any field for a suggestion matching the selected content order. Save header to apply your changes.</p>
+                <p class="mb-4 text-xs text-gray-500">The wand replaces all three fields with a draft based on this newsletter’s selected workshops and store items. The refresh arrows suggest one field at a time.</p>
                 <input form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" oninput="SMNewsletterPhotoPreview('header')">
-                <div class="rounded-xl border border-slate-200 p-4">
+                <div class="relative rounded-xl border border-slate-200 p-4">
                     <p class="mb-3 text-sm font-medium">Header image</p>
-                    <img id="newsletter-header-image-preview" @if($currentStoreSelection['hero_image_url'] ?? null) src="{{ $currentStoreSelection['hero_image_url'] }}" @else hidden @endif alt="Selected header image" class="mb-3 h-32 w-full rounded-lg object-cover">
-                    <div class="flex flex-wrap gap-3">
-                        <x-ui.button type="button" color="outline" onclick="SMNewsletterChoosePhoto('header')">Choose header image</x-ui.button>
-                        <x-ui.button type="button" color="outline" onclick="document.getElementById('newsletter-header-image').value = ''; SMNewsletterPhotoPreview('header')">Reset to default</x-ui.button>
+                    <x-ui.button type="button" variant="plain" id="newsletter-header-image-remove" class="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800" onclick="document.getElementById('newsletter-header-image').value = ''; SMNewsletterPhotoPreview('header')" aria-label="Reset header image to default" title="Reset header image to default" :hidden="!filled(old('hero_image_name', $storePromotion->hero_image_name ?? ''))"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
+                    <img id="newsletter-header-image-preview" data-default-src="{{ $defaultHeroImage ?? '' }}" @if($currentStoreSelection['hero_image_url'] ?? null) src="{{ $currentStoreSelection['hero_image_url'] }}" @else hidden @endif alt="Selected header image" class="mb-3 h-32 w-full rounded-lg object-cover">
+                    <div class="flex justify-center">
+                        <x-ui.button type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" onclick="SMNewsletterChoosePhoto('header')"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose header image</x-ui.button>
                     </div>
                     <p class="mt-2 text-xs text-slate-500">The default image is chosen from the newsletter’s products or workshops. Reset removes your override when you save.</p>
                     @error('hero_image_name')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -75,9 +80,7 @@
             </div>
         </x-admin.newsletter-editor-dialog>
         @php
-            $heroProduct = collect($currentStoreSelection['sections'] ?? [])->flatMap(fn ($section) => collect($section['products'] ?? []))->first();
-            $heroWorkshop = $newsletterWorkshops->first();
-            $heroImage = $currentStoreSelection['hero_image_url'] ?? ($contentOrder === 'store' && $heroProduct ? $heroProduct->primaryImageUrl('lg') : $heroWorkshop?->hero?->url);
+            $heroImage = $currentStoreSelection['hero_image_url'] ?? $defaultHeroImage;
         @endphp
         <div data-newsletter-canvas class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-8">
             <header class="relative mb-8 overflow-hidden rounded-xl bg-slate-900 p-6 text-white sm:p-9">
@@ -116,6 +119,10 @@
                 </div>
                 <x-ui.button type="submit" color="outline" class="mb-3 w-full sm:w-auto">Send Test Email</x-ui.button>
             </form>
+        </div>
+
+        <div class="mb-6 flex justify-end">
+            <x-ui.button type="submit" form="newsletter-content-form">Save newsletter</x-ui.button>
         </div>
 
         </div>
@@ -189,8 +196,19 @@
     window.SMNewsletterPhotoPreview = function (target) {
         const name = document.getElementById(`newsletter-${target}-image`).value;
         const preview = document.getElementById(`newsletter-${target}-image-preview`);
+        const removeButton = document.getElementById(`newsletter-${target}-image-remove`);
+        if (removeButton) removeButton.hidden = !name;
         preview.hidden = true;
-        if (!name) { preview.removeAttribute('src'); return; }
+        if (!name) {
+            const defaultSource = target === 'header' ? preview.dataset.defaultSrc : '';
+            if (defaultSource) {
+                preview.src = defaultSource;
+                preview.hidden = false;
+            } else {
+                preview.removeAttribute('src');
+            }
+            return;
+        }
         SM.mediaDetails(name, details => {
             if (document.getElementById(`newsletter-${target}-image`).value === name && details?.thumbnail) {
                 preview.src = details.thumbnail;

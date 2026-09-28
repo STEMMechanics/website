@@ -402,14 +402,14 @@ class ShopProductController extends Controller
             'short_description' => trim((string) ($validated['short_description'] ?? '')) ?: null,
             'description' => trim((string) ($validated['description'] ?? '')) ?: null,
             'search_terms' => trim((string) ($validated['search_terms'] ?? '')) ?: null,
-            'product_details' => collect($validated['product_details'] ?? [])
+            'product_details' => $this->ensureBaseSkuProductDetails(collect($validated['product_details'] ?? [])
                 ->map(fn (array $detail): array => [
                     'key' => trim((string) ($detail['key'] ?? '')),
                     'value' => trim((string) ($detail['value'] ?? '')),
                 ])
                 ->filter(fn (array $detail): bool => $detail['key'] !== '')
                 ->values()
-                ->all() ?: null,
+                ->all()) ?: null,
             'caution_message' => trim((string) ($validated['caution_message'] ?? '')) ?: null,
             'base_variant_name' => trim((string) ($validated['base_variant_name'] ?? '')) ?: null,
             'base_variant_description' => trim((string) ($validated['base_variant_description'] ?? '')) ?: null,
@@ -630,6 +630,32 @@ class ShopProductController extends Controller
         return Product::BACKORDER_SHIPPING_ESTIMATE_STATIC;
     }
 
+    /** @param array<int, array{key: string, value: string}> $details
+     * @return array<int, array{key: string, value: string}>
+     */
+    private function skuLastProductDetails(array $details): array
+    {
+        $rows = collect($details);
+        [$skuRows, $otherRows] = $rows->partition(fn (array $detail): bool => mb_strtolower(trim($detail['key'])) === 'sku');
+
+        return $otherRows->concat($skuRows)->values()->all();
+    }
+
+    /** @param array<int, array{key: string, value: string}> $details
+     * @return array<int, array{key: string, value: string}>
+     */
+    private function ensureBaseSkuProductDetails(array $details): array
+    {
+        $rows = collect($details);
+        [$skuRows, $otherRows] = $rows->partition(fn (array $detail): bool => mb_strtolower(trim($detail['key'])) === 'sku');
+        $sku = $skuRows->first();
+
+        return $otherRows->push([
+            'key' => 'SKU',
+            'value' => trim((string) data_get($sku, 'value', '')) ?: '{sku}',
+        ])->values()->all();
+    }
+
     private function normalizeVariants(array $rawVariants, Product $product): Collection
     {
         $variants = collect($rawVariants)
@@ -641,14 +667,14 @@ class ShopProductController extends Controller
                     'id' => isset($variant['id']) ? (int) $variant['id'] : null,
                     'name' => trim((string) ($variant['name'] ?? '')),
                     'description' => trim((string) ($variant['description'] ?? '')),
-                    'product_details' => collect($variant['product_details'] ?? [])
+                    'product_details' => $this->skuLastProductDetails(collect($variant['product_details'] ?? [])
                         ->map(fn ($detail): array => [
                             'key' => trim((string) data_get($detail, 'key')),
                             'value' => trim((string) data_get($detail, 'value')),
                         ])
                         ->filter(fn (array $detail): bool => $detail['key'] !== '')
                         ->values()
-                        ->all(),
+                        ->all()),
                     'sku' => trim((string) ($variant['sku'] ?? '')),
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,

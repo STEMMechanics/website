@@ -10,5 +10,5 @@
         </form>
         <a href="{{ route('admin.workshop.edit', $workshop) }}" class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Edit workshop" title="Edit workshop"><i class="fa-solid fa-pencil" aria-hidden="true"></i></a>
     </div>
-    @include('emails.partials.upcoming-workshop-card', ['accent' => $workshop->getLocationName() === 'Online' ? '#16a34a' : '#2563eb', 'showLocationFooter' => false, 'compact' => false, 'showSummary' => true, 'showImage' => true])
+    @include('emails.partials.upcoming-workshop-card', ['accent' => $workshop->getLocationName() === 'Online' ? '#ea580c' : '#2563eb', 'showLocationFooter' => false, 'compact' => false, 'showSummary' => true, 'showImage' => true])
 </article>

@@ -112,6 +112,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;1,400;1,700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" src="{{ \Illuminate\Support\Facades\Vite::asset('node_modules/sweetalert2/dist/sweetalert2.all.min.js') }}"></script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" src="/popup-dismiss-guard.js?v={{ @filemtime(public_path('popup-dismiss-guard.js')) ?: time() }}"></script>
     <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" src="/script.js?v={{ @filemtime(public_path('script.js')) ?: time() }}"></script>
 
     @livewireStyles

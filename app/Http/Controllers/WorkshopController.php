@@ -25,16 +25,22 @@ use App\Models\WorkshopCategory;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
 use App\Services\DocumentNumberService;
+use App\Services\Finance\PricingVersion;
 use App\Services\ManualWorkshopTicketEmailService;
 use App\Services\MediaImageEditor;
 use App\Services\ReminderService;
+use App\Services\SiteListControls;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
+use App\Services\WorkshopBlueprintService;
+use App\Services\WorkshopCourseSettings;
 use App\Services\WorkshopPickListService;
 use App\Services\WorkshopRecommendationService;
+use App\Services\WorkshopSessionAttendance;
 use App\Services\WorkshopTicketService;
 use App\Support\CsvPhoneNumber;
+use App\Support\ListPageSize;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Barryvdh\DomPDF\PDF;
 use Carbon\Carbon;
@@ -46,6 +52,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -129,7 +136,7 @@ class WorkshopController extends Controller
 
         if ($view === 'month') {
             // Calendar navigation must not inherit hidden list filters.
-            $controls = app(\App\Services\SiteListControls::class);
+            $controls = app(SiteListControls::class);
             foreach ([...array_keys($controls->filterFields()), 'search', 'list_sort', 'list_direction', 'page'] as $parameter) {
                 $request->query->remove($parameter);
             }
@@ -143,18 +150,19 @@ class WorkshopController extends Controller
         }
 
         $workshopQuery = $this->buildWorkshopAdminQuery($search);
-        app(\App\Services\SiteListControls::class)->capturePresetCounts($workshopQuery);
+        app(SiteListControls::class)->capturePresetCounts($workshopQuery);
         if ($request->expectsJson() && $request->boolean('select_listing')) {
-            app(\App\Services\SiteListControls::class)->apply($workshopQuery);
+            app(SiteListControls::class)->apply($workshopQuery);
             $ids = $workshopQuery->limit(5001)->pluck('id');
             abort_if($ids->count() > 5000, 422, 'Select up to 5000 workshops at a time. Narrow your filters and try again.');
+
             return response()->json(['names' => $ids])->header('Cache-Control', 'no-store, private');
         }
         $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
 
         $workshops = $workshopQuery
             ->orderBy('starts_at', 'desc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
 
         $tabQuery = array_filter([
@@ -318,7 +326,9 @@ class WorkshopController extends Controller
         DB::transaction(function () use ($workshops, $changes, $addCategoryIds, $removeCategoryIds): void {
             foreach ($workshops as $workshop) {
                 $itemChanges = $changes;
-                if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) { $itemChanges['price_is_automatic'] = false; }
+                if (array_key_exists('price', $itemChanges) || (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets')) {
+                    $itemChanges['price_is_automatic'] = false;
+                }
                 if (isset($itemChanges['type']) && $itemChanges['type'] !== Workshop::TYPE_PHYSICAL && ! $workshop->isCourse()) {
                     $itemChanges['location_id'] = null;
                 }
@@ -512,7 +522,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -574,7 +584,7 @@ class WorkshopController extends Controller
             ->where('starts_at', '<=', $monthEnd)
             ->where('ends_at', '>=', $monthStart)
             ->orderBy('starts_at', 'asc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
         $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
@@ -637,6 +647,7 @@ class WorkshopController extends Controller
                         }
                     }
                 }
+
                 continue;
             }
 
@@ -926,6 +937,10 @@ class WorkshopController extends Controller
 
     private function workshopFeedPriceLabel(Workshop $workshop): string
     {
+        if ($workshop->isPriceHiddenFromPublic()) {
+            return '';
+        }
+
         $priceAmount = $workshop->currentTicketPriceAmount();
         if ($priceAmount <= 0.0001) {
             return 'Free';
@@ -979,14 +994,79 @@ class WorkshopController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function admin_create()
+    public function admin_create(Request $request)
     {
+        $blueprints = PickListTemplate::query()->with('hero')->withCount(['tasks', 'items'])->orderBy('name')->get();
+        $blueprintId = $request->integer('blueprint_id') ?: null;
+        if (! $request->boolean('blank') && $blueprintId === null) {
+            return view('admin.workshop.create', ['blueprints' => $blueprints]);
+        }
+
+        $selectedBlueprint = $blueprintId !== null
+            ? PickListTemplate::query()->with(['tasks', 'items', 'categories'])->findOrFail($blueprintId)
+            : null;
+
         return view('admin.workshop.edit', [
-            'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+            'pickListTemplates' => $blueprints,
+            'selectedBlueprint' => $selectedBlueprint,
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
         ]);
+    }
+
+    /** @return list<array<string, mixed>>|null */
+    private function submittedWorkshopTasks(Request $request, ?Workshop $workshop = null): ?array
+    {
+        if (! $request->exists('workshop_tasks_payload')) {
+            return null;
+        }
+
+        $payload = trim((string) $request->input('workshop_tasks_payload', ''));
+        if ($payload === '') {
+            return [];
+        }
+
+        $tasks = json_decode($payload, true);
+        if (! is_array($tasks)) {
+            throw ValidationException::withMessages(['workshop_tasks_payload' => 'The workshop tasks could not be read. Reload the form and try again.']);
+        }
+
+        $taskIdRules = ['nullable', 'integer'];
+        if ($workshop) {
+            $taskIdRules[] = Rule::exists('workshop_run_sheet_tasks', 'id')
+                ->where(fn ($query) => $query->where('workshop_id', $workshop->id));
+        }
+
+        $validated = Validator::make(['tasks' => $tasks], [
+            'tasks' => ['required', 'array', 'max:100'],
+            'tasks.*' => ['required', 'array'],
+            'tasks.*.id' => $taskIdRules,
+            'tasks.*.blueprint_task_id' => ['nullable', 'integer', 'exists:workshop_template_tasks,id'],
+            'tasks.*.name' => ['required', 'string', 'max:255'],
+            'tasks.*.notes' => ['nullable', 'string', 'max:30000'],
+            'tasks.*.subtasks' => ['nullable', 'array', 'max:50'],
+            'tasks.*.subtasks.*' => ['required', 'array'],
+            'tasks.*.subtasks.*.title' => ['required', 'string', 'max:100'],
+            'tasks.*.subtasks.*.content' => ['nullable', 'string', 'max:12000'],
+            'tasks.*.reminder_enabled' => ['nullable', 'boolean'],
+            'tasks.*.reminder_offset_days' => ['nullable', 'integer', 'between:-365,365'],
+            'tasks.*.reminder_time' => ['nullable', Rule::in(['06:00', '12:00', '16:00'])],
+        ])->validate();
+
+        return collect($validated['tasks'] ?? [])
+            ->map(fn (array $task): array => [
+                'id' => isset($task['id']) ? (int) $task['id'] : null,
+                'blueprint_task_id' => isset($task['blueprint_task_id']) ? (int) $task['blueprint_task_id'] : null,
+                'name' => trim((string) ($task['name'] ?? '')),
+                'notes' => (string) ($task['notes'] ?? ''),
+                'subtasks' => $task['subtasks'] ?? [],
+                'reminder_enabled' => filter_var($task['reminder_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'reminder_offset_days' => $task['reminder_offset_days'] ?? null,
+                'reminder_time' => $task['reminder_time'] ?? null,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -1008,10 +1088,12 @@ class WorkshopController extends Controller
             'publish_at' => 'required',
             'closes_at' => 'required',
             'status' => 'required',
+            'registration' => ['required', Rule::in(['none', 'tickets', 'interest', 'link', 'email', 'message'])],
             'is_private' => 'nullable|boolean',
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'price' => ['nullable', 'string', 'max:255'],
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
@@ -1028,6 +1110,7 @@ class WorkshopController extends Controller
             'early_bird_ends_at' => 'nullable|date',
             'early_bird_ticket_limit' => 'nullable|integer|min:1',
             'tickets_json' => 'nullable|string',
+            'workshop_tasks_payload' => ['nullable', 'string', 'max:60000'],
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -1039,19 +1122,23 @@ class WorkshopController extends Controller
             'publish_at.required' => __('validation.custom_messages.publish_at_required'),
             'closes_at.required' => __('validation.custom_messages.closes_at_required'),
             'status.required' => __('validation.custom_messages.status_required'),
+            'registration.required' => 'Select a registration type.',
+            'registration.in' => 'Choose a valid registration type.',
             'hero_media_name.required' => __('validation.custom_messages.hero_media_name_required'),
             'hero_media_name.exists' => __('validation.custom_messages.hero_media_name_exists'),
             'registration_data.required_if' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
 
+        $submittedWorkshopTasks = $this->submittedWorkshopTasks($request);
+
         $workshopData = $request->all();
-        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request));
+        $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door');
         if ($request->input('registration') === 'tickets') {
-            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
-            $workshopData['pricing_version_id'] = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
+            PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null);
+            $workshopData['pricing_version_id'] = PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: null)->id;
         }
 
         $categoryIds = $this->validatedWorkshopCategoryIds($request);
@@ -1060,7 +1147,7 @@ class WorkshopController extends Controller
             ? (string) $request->input('facilitator_user_id')
             : (string) $workshopData['user_id'];
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
-        unset($workshopData['category_ids'], $workshopData['participant_files']);
+        unset($workshopData['category_ids'], $workshopData['participant_files'], $workshopData['workshop_tasks_payload']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -1091,6 +1178,11 @@ class WorkshopController extends Controller
                 ->where('id', (int) $workshopData['pick_list_template_id'])
                 ->value('description') ?? '');
             $workshopData['pick_list_notes'] = trim($templateNotes) !== '' ? $templateNotes : null;
+        }
+        if (($workshopData['pick_list_template_id'] ?? null) !== null && ! filled($workshopData['workshop_run_sheet'] ?? null)) {
+            $workshopData['workshop_run_sheet'] = PickListTemplate::query()
+                ->whereKey($workshopData['pick_list_template_id'])
+                ->value('run_sheet');
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['link', 'email', 'message'], true)) {
             $workshopData['registration_data'] = null;
@@ -1125,6 +1217,12 @@ class WorkshopController extends Controller
         }
 
         $workshop = Workshop::create($workshopData);
+        $blueprintService = app(WorkshopBlueprintService::class);
+        if ($submittedWorkshopTasks === null) {
+            $blueprintService->copyTasksFromBlueprint($workshop, $workshop->pick_list_template_id ? (int) $workshop->pick_list_template_id : null);
+        } else {
+            $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
+        }
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         if ($request->exists('format')) {
@@ -1138,7 +1236,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Workshop created');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.workshop.edit', $workshop);
     }
 
     /**
@@ -1209,8 +1307,10 @@ class WorkshopController extends Controller
      */
     public function admin_edit(Workshop $workshop, WorkshopTicketService $ticketService)
     {
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
         $workshop->loadCount('interests');
-        $workshop->loadMissing(['categories', 'pickListTemplate', 'requestedBy.organisations', 'hostedFor.parent']);
+        $workshop->loadMissing(['categories', 'pickListTemplate', 'runSheetTasks', 'requestedBy.organisations', 'hostedFor.parent']);
+        $workshopTaskDrafts = app(WorkshopBlueprintService::class)->taskDraftsForWorkshop($workshop);
         $workshop->loadCount([
             'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
             'tickets as attended_tickets_count' => fn ($query) => $query
@@ -1232,6 +1332,7 @@ class WorkshopController extends Controller
 
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
+            'workshopTaskDrafts' => $workshopTaskDrafts,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
@@ -1293,7 +1394,7 @@ class WorkshopController extends Controller
                 });
             })
             ->orderBy('name')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(50))
             ->withQueryString();
 
         return view('admin.workshop.files', [
@@ -1329,7 +1430,7 @@ class WorkshopController extends Controller
         return redirect()->route('admin.workshop.files', $workshop);
     }
 
-    public function admin_files_upload(Request $request, Workshop $workshop): \Illuminate\Http\JsonResponse
+    public function admin_files_upload(Request $request, Workshop $workshop): JsonResponse
     {
         if ($request->filled('upload_token')) {
             $request->files->set('pending_files', [
@@ -1437,7 +1538,9 @@ class WorkshopController extends Controller
                 'storage_disk' => $validated['storage_disk'] ?? null,
                 'visibility' => $validated['visibility'] ?? null,
             ], fn ($value) => $value !== null && $value !== '');
-            if ($changes === []) continue;
+            if ($changes === []) {
+                continue;
+            }
             $file->update($changes);
             if (isset($changes['storage_disk']) && $oldStorageDisk !== $file->storageDiskName()) {
                 $this->moveWorkshopMediaOriginalToStorageDisk($file, $oldStorageDisk);
@@ -1461,7 +1564,9 @@ class WorkshopController extends Controller
         abort_if($zip->open($zipPath, \ZipArchive::OVERWRITE) !== true, 500, 'Could not open zip file.');
         foreach ($files as $file) {
             $path = $file->path();
-            if ($path !== null && is_file($path)) $zip->addFile($path, $file->name);
+            if ($path !== null && is_file($path)) {
+                $zip->addFile($path, $file->name);
+            }
         }
         $zip->close();
 
@@ -1497,7 +1602,7 @@ class WorkshopController extends Controller
             })
             ->orderByDesc('photographed_at')
             ->orderByDesc('media.created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(24))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(24))
             ->withQueryString();
 
         return view('admin.workshop.photos', [
@@ -1807,14 +1912,20 @@ class WorkshopController extends Controller
     private function moveWorkshopMediaOriginalToStorageDisk(Media $media, string $fromDisk): void
     {
         $hash = trim((string) ($media->hash ?? ''));
-        if ($hash === '' || $fromDisk === $media->storageDiskName()) return;
+        if ($hash === '' || $fromDisk === $media->storageDiskName()) {
+            return;
+        }
 
         $source = Storage::disk($fromDisk);
         $target = $media->sourceStorage();
-        if (! $source->exists($hash)) return;
+        if (! $source->exists($hash)) {
+            return;
+        }
         if (! $target->exists($hash)) {
             $stream = $source->readStream($hash);
-            if (is_resource($stream)) $target->put($hash, $stream);
+            if (is_resource($stream)) {
+                $target->put($hash, $stream);
+            }
         }
         if (! Media::query()->where('hash', $hash)->where('storage_disk', $fromDisk)->where('name', '!=', $media->getKey())->exists()) {
             $source->delete($hash);
@@ -2031,6 +2142,7 @@ class WorkshopController extends Controller
             $duplicateMedia = Media::query()->where('hash', $hash)->oldest()->first();
             if ($duplicateMedia instanceof Media) {
                 $pendingNameMap[$pendingId] = $duplicateMedia->name;
+
                 continue;
             }
 
@@ -2123,10 +2235,12 @@ class WorkshopController extends Controller
             'publish_at' => 'required',
             'closes_at' => 'required',
             'status' => 'required',
+            'registration' => ['required', Rule::in(['none', 'tickets', 'interest', 'link', 'email', 'message'])],
             'is_private' => 'nullable|boolean',
             'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
+            'price' => ['nullable', 'string', 'max:255'],
             'participant_information' => 'nullable|string',
             'participant_files' => 'nullable|string',
             'private_code' => 'nullable|string|max:120',
@@ -2158,6 +2272,7 @@ class WorkshopController extends Controller
             'ticket_change_email_bcc' => 'nullable|string|max:5000',
             'ticket_change_email_subject' => 'nullable|string|max:255',
             'ticket_change_email_body' => 'nullable|string|max:50000',
+            'workshop_tasks_payload' => ['nullable', 'string', 'max:60000'],
             'category_ids' => 'nullable|array',
             'category_ids.*' => 'integer|exists:workshop_categories,id',
         ], [
@@ -2169,20 +2284,24 @@ class WorkshopController extends Controller
             'publish_at.required' => __('validation.custom_messages.publish_at_required'),
             'closes_at.required' => __('validation.custom_messages.closes_at_required'),
             'status.required' => __('validation.custom_messages.status_required'),
+            'registration.required' => 'Select a registration type.',
+            'registration.in' => 'Choose a valid registration type.',
             'hero_media_name.required' => __('validation.custom_messages.hero_media_name_required'),
             'hero_media_name.exists' => __('validation.custom_messages.hero_media_name_exists'),
             'registration_data.required_if' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
 
+        $submittedWorkshopTasks = $this->submittedWorkshopTasks($request, $workshop);
+
         $workshopData = $request->all();
-        $workshopData = array_replace(\Illuminate\Support\Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(\App\Services\WorkshopCourseSettings::class)->validated($request, $workshop));
+        $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request, $workshop));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
         $workshopData['allow_pay_at_door'] = $request->boolean('allow_pay_at_door', (bool) $workshop->allow_pay_at_door);
         if ($request->input('registration') === 'tickets') {
-            $savedPlan = \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
-            \App\Services\Finance\PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
-            $workshopData['pricing_version_id'] = $savedPlan ?? \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: ($workshop->pricing_version_id ?? null))->id;
+            $savedPlan = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->value('pricing_version_id');
+            PricingVersion::assertSelectable($request->integer('pricing_version_id') ?: null, $savedPlan ?? $workshop->pricing_version_id);
+            $workshopData['pricing_version_id'] = $savedPlan ?? PricingVersion::forDate(today()->toDateString(), $request->integer('pricing_version_id') ?: ($workshop->pricing_version_id ?? null))->id;
         }
 
         $workshopData['facilitator_user_id'] = $request->filled('facilitator_user_id')
@@ -2207,7 +2326,8 @@ class WorkshopController extends Controller
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
         $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         $participantFiles = $this->validatedParticipantAttachmentNames($request);
-        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['ticket_change_email_to'], $workshopData['ticket_change_email_cc'], $workshopData['ticket_change_email_bcc'], $workshopData['ticket_change_email_subject'], $workshopData['ticket_change_email_body'], $workshopData['participant_files']);
+        unset($workshopData['category_ids'], $workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes'], $workshopData['participant_files'], $workshopData['workshop_tasks_payload']);
+        unset($workshopData['ticket_change_email_to'], $workshopData['ticket_change_email_cc'], $workshopData['ticket_change_email_bcc'], $workshopData['ticket_change_email_subject'], $workshopData['ticket_change_email_body']);
         $this->normalizeWorkshopTypeData($workshopData);
         $this->normalizeWorkshopDeliveryData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -2240,7 +2360,9 @@ class WorkshopController extends Controller
 
         if ($templateChanged) {
             $workshopData['run_sheet_completed_task_ids'] = null;
-            $workshopData['workshop_run_sheet'] = null;
+            $workshopData['workshop_run_sheet'] = $newTemplateId !== null
+                ? PickListTemplate::query()->whereKey($newTemplateId)->value('run_sheet')
+                : null;
         }
 
         if ($resetPickListCustomization) {
@@ -2350,6 +2472,14 @@ class WorkshopController extends Controller
         }
 
         $workshop->update($workshopData);
+        $blueprintService = app(WorkshopBlueprintService::class);
+        if ($templateChanged) {
+            $blueprintService->copyTasksFromBlueprint($workshop, $newTemplateId);
+        } elseif ($submittedWorkshopTasks !== null) {
+            $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
+        } else {
+            $blueprintService->ensureWorkshopTasks($workshop);
+        }
         $workshop->categories()->sync($categoryIds);
         $workshop->updateFiles($participantFiles, Workshop::PARTICIPANT_ATTACHMENT_COLLECTION);
         if ($request->exists('format')) {
@@ -2690,7 +2820,7 @@ class WorkshopController extends Controller
                 [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED]
             )
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
             ->onEachSide(1);
 
         return view('admin.workshop.tickets', [
@@ -2984,7 +3114,7 @@ class WorkshopController extends Controller
         return DomPdf::loadView('pdf.workshop-ticket-roll', [
             'workshop' => $workshop->loadMissing('location'),
             'currentTickets' => $currentTickets,
-            'session' => app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
+            'session' => app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id')),
         ])->setPaper('a4', 'landscape')->setOption([
             'enable_font_subsetting' => true,
         ])->stream($this->workshopExportFilename($workshop, 'Sign-In', 'pdf'));
@@ -3036,12 +3166,12 @@ class WorkshopController extends Controller
 
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
-        $courseSession = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        $courseSession = app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
         request()->attributes->set('course_session', $courseSession);
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
-        app(\App\Services\SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
+        app(SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
 
         $activeTickets = collect();
         $cancelledTickets = collect();
@@ -3077,7 +3207,7 @@ class WorkshopController extends Controller
                 ->orderBy('firstname')
                 ->orderBy('surname')
                 ->orderBy('id')
-                ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+                ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
             if ($showCancelledTickets) {
                 $cancelledTicketsQuery = Ticket::query()
@@ -3090,7 +3220,7 @@ class WorkshopController extends Controller
                     ->orderBy('firstname')
                     ->orderBy('surname')
                     ->orderBy('id')
-                    ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->get();
+                    ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
             }
 
             [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($activeTickets);
@@ -3287,7 +3417,7 @@ class WorkshopController extends Controller
             $activeIds = $workshop->tickets()->whereIn('status', Ticket::activePurchasedStatuses())->pluck('id')->all();
             $selected = array_values(array_intersect($validated['attended_ticket_ids'] ?? [], $activeIds));
             $sessionId = $request->string('session_id')->toString();
-            app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $sessionId, $selected, $activeIds);
+            app(WorkshopSessionAttendance::class)->sync($workshop, $sessionId, $selected, $activeIds);
 
             return $request->expectsJson() ? response()->json([
                 'message' => 'Session attendance saved.', 'attended_ticket_ids' => $selected,
@@ -3546,7 +3676,7 @@ class WorkshopController extends Controller
         }
         $courseAttendance = function () use ($workshop, $request, $selectedTicketIds, $attendedTicketIds): void {
             if ($workshop->isCourse() && ($request->boolean('sync_attendance') || $request->boolean('mark_attended'))) {
-                app(\App\Services\WorkshopSessionAttendance::class)->sync($workshop, $request->string('session_id')->toString(),
+                app(WorkshopSessionAttendance::class)->sync($workshop, $request->string('session_id')->toString(),
                     $request->boolean('sync_attendance') ? $attendedTicketIds : $selectedTicketIds, $selectedTicketIds);
             }
         };
@@ -4092,7 +4222,7 @@ class WorkshopController extends Controller
     private function buildAttendanceExportRows(Workshop $workshop): array
     {
         $rows = [];
-        $session = app(\App\Services\WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
+        $session = app(WorkshopSessionAttendance::class)->selected($workshop, request('session_id'));
         $attendance = $session ? DB::table('workshop_session_attendance')->where('workshop_id', $workshop->id)
             ->where('session_id', $session['id'])->pluck('attended_at', 'ticket_id') : collect();
 
@@ -5360,8 +5490,7 @@ class WorkshopController extends Controller
         array $ccRecipients = [],
         string $subject = '',
         string $body = '',
-    ): int
-    {
+    ): int {
         $recipients = array_values(array_unique([...$additionalBccRecipients]));
         if ($recipients === []) {
             return 0;
@@ -5531,6 +5660,7 @@ class WorkshopController extends Controller
                 'workshop_ids' => ['required', 'array', 'min:1', 'max:5000'],
                 'workshop_ids.*' => ['required', 'string', 'distinct', Rule::exists('workshops', 'id')],
             ]);
+
             return array_values($validated['workshop_ids']);
         }
 

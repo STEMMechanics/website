@@ -11,6 +11,7 @@ use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
 use App\Services\ReminderService;
+use App\Services\WorkshopBlueprintService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -43,6 +44,10 @@ class WorkshopPickListAutosaveTest extends TestCase
             'sort_order' => 2,
         ]);
         $workshop->update(['pick_list_template_id' => $template->id]);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $workshopTasks = $workshop->runSheetTasks()->orderBy('sort_order')->get();
+        $task = $workshopTasks[0];
+        $otherTask = $workshopTasks[1];
 
         $response = $this->actingAs($admin)
             ->postJson(route('admin.workshop.run-sheet.save', $workshop), [
@@ -58,7 +63,10 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->assertOk()
             ->assertViewHas('completedTaskIds', [$task->id])
             ->assertSee('x-model="completedTaskIds"', false)
-            ->assertSeeText($otherTask->name);
+            ->assertSeeText($otherTask->name)
+            ->assertDontSee('Workshop preparation suggestions')
+            ->assertDontSee('data-admin-ai', false)
+            ->assertDontSee('data-ai-widget', false);
     }
 
     public function test_run_sheet_displays_rich_task_notes_and_subtasks(): void
@@ -86,6 +94,53 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->assertSee('Facebook copy', false)
             ->assertSee(app(ReminderService::class)->renderWorkshopPlaceholders('{date-long}', $workshop), false)
             ->assertSee('Instagram copy', false);
+    }
+
+    public function test_blueprint_task_changes_do_not_rewrite_an_existing_workshops_snapshot(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create(['name' => 'Independent blueprint']);
+        $blueprintTask = $template->tasks()->create([
+            'name' => 'Draft social post',
+            'notes' => 'Original blueprint instructions',
+            'sort_order' => 10,
+        ]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $workshopTask = $workshop->runSheetTasks()->sole();
+        $template->tasks()->whereKey($blueprintTask->id)->update([
+            'name' => 'Rewritten blueprint task',
+            'notes' => 'Changed blueprint instructions',
+        ]);
+
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop->fresh());
+
+        $this->assertSame('Draft social post', $workshopTask->fresh()->name);
+        $this->assertSame('Original blueprint instructions', $workshopTask->fresh()->notes);
+    }
+
+    public function test_workshop_plan_pdf_uses_the_workshops_task_snapshot(): void
+    {
+        $workshop = $this->createWorkshop();
+        $template = PickListTemplate::query()->create(['name' => 'PDF blueprint']);
+        $blueprintTask = $template->tasks()->create(['name' => 'Original workshop task', 'sort_order' => 10]);
+        $workshop->update(['pick_list_template_id' => $template->id]);
+        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $template->tasks()->whereKey($blueprintTask->id)->update(['name' => 'Changed blueprint task']);
+
+        $html = view('pdf.workshop-pick-list', [
+            'workshop' => $workshop->fresh()->load(['pickListTemplate', 'runSheetTasks', 'location']),
+            'participants' => 0,
+            'calculatedItems' => collect(),
+            'pickListNotes' => '',
+            'workshopDrawingPath' => null,
+            'generatedAt' => now(),
+        ])->render();
+
+        $this->assertStringContainsString('Original workshop task', $html);
+        $this->assertStringNotContainsString('Changed blueprint task', $html);
     }
 
     public function test_workshop_run_sheet_override_does_not_change_the_template(): void

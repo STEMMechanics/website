@@ -24,7 +24,9 @@
         <sm:endDate>{{ \Illuminate\Support\Carbon::parse($item['endDate'])->toAtomString() }}</sm:endDate>
         @endif
         <sm:location>{{ $item['location'] }}</sm:location>
+        @if($item['price'] !== '')
         <sm:price>{{ $item['price'] }}</sm:price>
+        @endif
         <sm:ages>{{ $item['ages'] !== '' ? $item['ages'] : 'All ages' }}</sm:ages>
         <sm:status>{{ $item['status'] }}</sm:status>
     </item>

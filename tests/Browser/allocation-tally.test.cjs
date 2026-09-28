@@ -39,6 +39,16 @@ test('supplier defaults follow the net amount while overrides retain entered val
     assert.equal(tally.remaining, 0);
 });
 
+test('unallocated expense totals need attention even when automatic allocation is disabled', () => {
+    const { tally } = setup({ values: { 1: '0.00' }, total: 1105, enabled: false, exact: true });
+    assert.equal(tally.needsAttention, true);
+    tally.values[1] = '11.05';
+    assert.equal(tally.needsAttention, false);
+    tally.total = 0;
+    tally.values[1] = '0.00';
+    assert.equal(tally.needsAttention, false);
+});
+
 function expenseGstUpdater(inputs, tally) {
     const source = fs.readFileSync('resources/views/admin/expense/edit.blade.php', 'utf8');
     const updater = source.slice(source.indexOf('const updateGstFromTotal ='), source.indexOf('const resetPreviewVisibility ='));
@@ -105,7 +115,7 @@ test('automatic rounding fills its destination only up to the plan allowance', (
     assert.equal(tally.values[2], '1.00');
 });
 
-test('remaining button adds the exact balance to an existing amount and is safe to repeat', () => {
+test('remaining button adjusts an existing amount to the current total', () => {
     const { tally } = setup({ values: { 1: '10.01', 2: '20.00' }, total: 10001, exact: true });
     tally.allocateRemaining('1');
     assert.equal(tally.values[1], '80.01');
@@ -114,7 +124,8 @@ test('remaining button adds the exact balance to an existing amount and is safe 
     assert.equal(tally.values[1], '80.01');
     tally.total = 9000;
     tally.allocateRemaining('1');
-    assert.equal(tally.values[1], '80.01');
+    assert.equal(tally.values[1], '70.00');
+    assert.equal(tally.remaining, 0);
 });
 
 test('remaining button respects automatic mode and ignores unknown fields', () => {

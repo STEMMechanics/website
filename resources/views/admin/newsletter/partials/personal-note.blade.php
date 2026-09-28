@@ -1,45 +1,53 @@
 @php
     $personalNote = $currentStoreSelection['personal_note'] ?? [];
-    $hasPersonalNote = ($personalNote['enabled'] ?? false) && filled($personalNote['body'] ?? null);
+    $hasPersonalNote = \App\Services\NewsletterNoteContent::hasText([
+        'body' => old('personal_note.body', $personalNote['body'] ?? ''),
+        'format' => old('personal_note.format', $personalNote['format'] ?? 'text'),
+    ]);
 @endphp
 <div class="relative mx-auto mb-8 w-full" data-personal-note-editor>
     @if($hasPersonalNote)
         <div class="relative">
-            <x-ui.button type="button" variant="plain" class="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" onclick="SMNewsletterOpenEditor('newsletter-note-editor')" aria-label="Edit personal note" title="Edit personal note"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
+            <x-ui.button type="button" variant="plain" class="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" onclick="SMNewsletterOpenEditor('newsletter-note-editor')" aria-label="Edit newsletter introduction" title="Edit newsletter introduction"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
             @include('emails.partials.newsletter-personal-note', ['personalNote' => $personalNote])
         </div>
     @else
-        <x-ui.button type="button" color="outline" class="w-full border-dashed" onclick="SMNewsletterOpenEditor('newsletter-note-editor'); document.getElementById('newsletter-note-enabled').value = '1'" aria-label="Add a personal note"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Add a personal note <span class="ml-2 font-normal text-slate-500">Optional</span></x-ui.button>
+        <x-ui.button type="button" color="outline" class="w-full border-dashed" onclick="SMNewsletterOpenEditor('newsletter-note-editor')" aria-label="Add a newsletter introduction"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Add a newsletter introduction <span class="ml-2 font-normal text-slate-500">Optional</span></x-ui.button>
     @endif
 </div>
-<x-admin.newsletter-editor-dialog id="newsletter-note-editor" title="A note from you">
-    <p class="mb-5 text-sm text-slate-500">Add a paragraph or two between the header and the items. A photo is optional; text alone works well here too.</p>
-    <x-ui.select form="newsletter-content-form" id="newsletter-note-enabled" name="personal_note[enabled]" label="Include in this newsletter">
-        <option value="1" @selected(old('personal_note.enabled', $personalNote['enabled'] ?? false))>Yes</option>
-        <option value="0" @selected(!old('personal_note.enabled', $personalNote['enabled'] ?? false))>No — keep as a draft</option>
-    </x-ui.select>
-    <div class="mb-4" x-data="{ noteHtml: @js(\App\Services\NewsletterNoteContent::html(['body' => old('personal_note.body', $personalNote['body'] ?? ''), 'format' => old('personal_note.format', $personalNote['format'] ?? 'text')])) }" x-on:mini-editor-link="SMNewsletterOpenNoteLink($event.detail)">
-        <label class="mb-1 block text-sm">Your message</label>
-        <x-ui.mini-editor x-model="noteHtml" :custom-links="true" />
+<x-admin.newsletter-editor-dialog id="newsletter-note-editor" title="Newsletter introduction" width="w-[min(56rem,calc(100%-2rem))]">
+    <x-admin.ai-status-toast id="newsletter-note-ai-toast" message="Preparing your newsletter introduction…" detail="Your introduction is being drafted from this edition’s recent activity." progress-label="Newsletter introduction generation" />
+    <p class="mb-5 text-sm text-slate-500">Add a short introduction to this edition. The AI draft can use recent workshops, upcoming events, store updates, attendance and configured holiday dates.</p>
+    <div class="mb-4" data-ai-widget x-data="{ noteHtml: @js(\App\Services\NewsletterNoteContent::html(['body' => old('personal_note.body', $personalNote['body'] ?? ''), 'format' => old('personal_note.format', $personalNote['format'] ?? 'text')])) }" x-on:mini-editor-link="SMNewsletterOpenNoteLink($event.detail)" x-on:sm-newsletter-ai-draft.window="if ($event.detail?.mode === 'append' && $event.detail?.html) { noteHtml = noteHtml.trim() ? noteHtml + '<p><br></p>' + $event.detail.html : $event.detail.html } else if ($event.detail?.html) { noteHtml = $event.detail.html }">
+        <label class="mb-1 block text-sm">Introduction</label>
+        <x-ui.mini-editor x-model="noteHtml" :custom-links="true" :max-characters="4000">
+            <x-slot:toolbarActions>
+                <x-ui.button type="button" variant="plain" class="inline-flex h-8 w-8 min-w-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#newsletter-note-ai-toast" data-ai-processing-message="Writing your newsletter introduction…" data-ai-lock-content="#newsletter-note-editor .tiptap" data-ai-lock-controls="#newsletter-note-editor [data-mini-editor-toolbar] button, #newsletter-note-editor button[form=newsletter-content-form]" data-ai-action="newsletter-message" data-ai-mode="replace" data-ai-url="{{ route('admin.ai.newsletter.message') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#newsletter-content-form" data-ai-fields="personal_note[body]" :disabled="blank(config('services.openai.api_key'))" aria-label="Replace introduction with AI" title="Replace introduction with AI">
+                    <span class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i><i class="fa-solid fa-arrows-rotate absolute -bottom-1 -right-1 rounded-full bg-white p-px text-[9px]"></i></span>
+                </x-ui.button>
+                <x-ui.button type="button" variant="plain" class="inline-flex h-8 w-8 min-w-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#newsletter-note-ai-toast" data-ai-processing-message="Adding to your newsletter introduction…" data-ai-lock-content="#newsletter-note-editor .tiptap" data-ai-lock-controls="#newsletter-note-editor [data-mini-editor-toolbar] button, #newsletter-note-editor button[form=newsletter-content-form]" data-ai-action="newsletter-message" data-ai-mode="append" data-ai-url="{{ route('admin.ai.newsletter.message') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#newsletter-content-form" data-ai-fields="personal_note[body]" :disabled="blank(config('services.openai.api_key'))" aria-label="Append AI text" title="Append AI text">
+                    <span class="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i><i class="fa-solid fa-plus absolute -bottom-1 -right-1 rounded-full bg-white p-px text-[9px]"></i></span>
+                </x-ui.button>
+            </x-slot:toolbarActions>
+        </x-ui.mini-editor>
         <input form="newsletter-content-form" type="hidden" name="personal_note[body]" x-model="noteHtml">
         <input form="newsletter-content-form" type="hidden" name="personal_note[format]" value="html">
-        <p class="mt-2 text-xs text-slate-500">Use the link button to find a store item or workshop, or paste a website address. Up to 4,000 characters.</p>
         @error('personal_note.body')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <input form="newsletter-content-form" type="hidden" id="newsletter-note-image" name="personal_note[image_name]" value="{{ old('personal_note.image_name', $personalNote['image_name'] ?? '') }}" oninput="SMNewsletterNotePhotoPreview()">
-    <div class="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div class="relative mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p class="mb-3 text-sm font-medium text-slate-700">Photo (optional)</p>
-        <img id="newsletter-note-image-preview" @if($personalNote['image_url'] ?? null) src="{{ $personalNote['image_url'] }}" @else hidden @endif alt="Selected photo" class="mb-3 h-24 w-24 rounded-xl object-cover">
-        <div class="flex flex-wrap gap-3">
-            <x-ui.button type="button" color="outline" onclick="SMNewsletterChooseNotePhoto()">Choose or upload photo</x-ui.button>
-            <x-ui.button type="button" color="outline" onclick="document.getElementById('newsletter-note-image').value = ''; SMNewsletterNotePhotoPreview()">Remove photo</x-ui.button>
+        <x-ui.button type="button" variant="plain" id="newsletter-note-image-remove" class="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-red-50 hover:text-red-700" onclick="document.getElementById('newsletter-note-image').value = ''; SMNewsletterNotePhotoPreview()" aria-label="Remove photo" title="Remove photo" :hidden="!filled($personalNote['image_url'] ?? null)"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+        <img id="newsletter-note-image-preview" @if($personalNote['image_url'] ?? null) src="{{ $personalNote['image_url'] }}" @else hidden @endif alt="Selected photo" class="mx-auto mb-3 h-24 w-24 rounded-xl object-cover">
+        <div class="flex justify-center">
+            <x-ui.button type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" onclick="SMNewsletterChooseNotePhoto()"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose or upload photo</x-ui.button>
         </div>
         <p class="mt-3 text-xs text-slate-500">A portrait or a photo of what you’ve been making fits nicely. It appears on the left of your message, with the same rounded corners as the header image.</p>
         @error('personal_note.image_name')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
     </div>
     <div class="flex justify-end gap-3">
         <x-ui.button type="button" color="outline" onclick="SMNewsletterCloseEditor(this.closest('dialog'))">Cancel</x-ui.button>
-        <x-ui.button type="submit" form="newsletter-content-form">Save note</x-ui.button>
+        <x-ui.button type="submit" form="newsletter-content-form">Save introduction</x-ui.button>
     </div>
 </x-admin.newsletter-editor-dialog>
 

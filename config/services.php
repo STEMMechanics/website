@@ -50,6 +50,15 @@ return [
         'webhook_secret' => env('SMSFLOW_WEBHOOK_SECRET'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-6-luna'),
+        'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'max'),
+        'copy_reasoning_effort' => env('OPENAI_COPY_REASONING_EFFORT', 'low'),
+        'complex_copy_reasoning_effort' => env('OPENAI_COMPLEX_COPY_REASONING_EFFORT', 'medium'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 180),
+    ],
+
     'deploy' => [
         'script_path' => env('DEPLOY_SCRIPT_PATH', '/app/scripts/deploy.sh'),
         'output_log' => env('DEPLOY_OUTPUT_LOG', '/var/tmp/stemmechanics_deploy.log'),

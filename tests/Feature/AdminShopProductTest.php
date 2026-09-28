@@ -50,6 +50,34 @@ class AdminShopProductTest extends TestCase
         $this->assertMatchesRegularExpression('/aria-label="Archived"\s+aria-current="page"/', $response->getContent());
     }
 
+    public function test_product_editor_has_ai_wands_in_place_of_the_product_copy_panel(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $product = Product::factory()->create();
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.shop.product.edit', $product))
+            ->assertOk();
+
+        $document = new \DOMDocument();
+        $previousLibxmlState = libxml_use_internal_errors(true);
+        $document->loadHTML($response->getContent());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlState);
+        $productForm = $document->getElementById('product-form');
+
+        $this->assertInstanceOf(\DOMElement::class, $productForm);
+        $this->assertStringContainsString('productAiContext()', $productForm->getAttribute('x-data'));
+        $this->assertStringContainsString('init()', $productForm->getAttribute('x-data'));
+        $this->assertStringContainsString('{sku}', $productForm->getAttribute('x-data'));
+        $response
+            ->assertDontSeeText('Improve product copy')
+            ->assertSee('aria-label="Improve product copy with AI"', false)
+            ->assertSee('aria-label="Draft a short product warning"', false)
+            ->assertSee('aria-label="Create or update specifications with AI"', false);
+    }
+
     public function test_empty_inventory_shows_a_red_no_stock_badge(): void
     {
         $admin = User::factory()->create();
@@ -194,6 +222,7 @@ class AdminShopProductTest extends TestCase
         $this->assertSame([
             ['key' => 'Pack size', 'value' => '150 straws'],
             ['key' => 'Material', 'value' => 'Paper'],
+            ['key' => 'SKU', 'value' => '{sku}'],
         ], $product->product_details);
         $this->assertSame('Not suitable for children under 3 years.', $product->caution_message);
         $this->assertDatabaseHas('product_category_product', [
@@ -1180,13 +1209,17 @@ class AdminShopProductTest extends TestCase
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => '10.00',
-                'product_details' => $product->product_details,
+                'product_details' => [
+                    ['key' => 'SKU', 'value' => '{sku}'],
+                    ['key' => 'Pack size', 'value' => '150 straws'],
+                ],
                 'variants' => [[
                     'name' => '500 pack',
                     'sku' => 'STRAWS-500',
                     'sort_order' => '0',
                     'is_active' => '1',
                     'product_details' => [
+                        ['key' => 'SKU', 'value' => '{sku}'],
                         ['key' => 'pack-size', 'value' => '500 straws'],
                         ['key' => 'Bulk packaging', 'value' => 'Yes'],
                     ],
@@ -1195,8 +1228,13 @@ class AdminShopProductTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame([
+            ['key' => 'Pack size', 'value' => '150 straws'],
+            ['key' => 'SKU', 'value' => '{sku}'],
+        ], $product->fresh()->product_details);
+        $this->assertSame([
             ['key' => 'pack-size', 'value' => '500 straws'],
             ['key' => 'Bulk packaging', 'value' => 'Yes'],
+            ['key' => 'SKU', 'value' => '{sku}'],
         ], $product->fresh()->variants()->firstOrFail()->product_details);
     }
 
