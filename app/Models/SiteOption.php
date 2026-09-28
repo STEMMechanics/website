@@ -47,8 +47,8 @@ class SiteOption extends Model
                 'description' => 'Optional notice bar shown across the site.',
             ],
             AnalyticsIpFilter::OPTION => [
-                'value' => '',
-                'description' => 'Exact IPv4 or IPv6 addresses excluded from online visitors and analytics. Separate addresses with spaces, commas, or new lines.',
+                'value' => '125.63.25.220',
+                'description' => 'Exact IPv4 or IPv6 addresses excluded from online visitors and analytics. Defaults to 125.63.25.220. Separate addresses with spaces, commas, or new lines.',
             ],
             'media.upload.non-admin-max-bytes' => [
                 'value' => (string) (25 * 1024 * 1024),
