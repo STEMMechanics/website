@@ -8,12 +8,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('pick_list_template_workshop_category', function (Blueprint $table): void {
-            $table->foreignId('pick_list_template_id')->constrained('pick_list_templates')->cascadeOnDelete();
-            $table->foreignId('workshop_category_id')->constrained('workshop_categories')->cascadeOnDelete();
-            $table->timestamps();
+        $tableName = 'pick_list_template_workshop_category';
 
-            $table->primary(['pick_list_template_id', 'workshop_category_id']);
+        if (! Schema::hasTable($tableName)) {
+            Schema::create($tableName, function (Blueprint $table): void {
+                $table->unsignedBigInteger('pick_list_template_id');
+                $table->unsignedBigInteger('workshop_category_id');
+                $table->timestamps();
+
+                $table->primary(['pick_list_template_id', 'workshop_category_id']);
+            });
+        }
+
+        Schema::table($tableName, function (Blueprint $table): void {
+            $table->foreign('pick_list_template_id', 'pl_tpl_wkshp_cat_template_fk')
+                ->references('id')
+                ->on('pick_list_templates')
+                ->cascadeOnDelete();
+            $table->foreign('workshop_category_id', 'pl_tpl_wkshp_cat_category_fk')
+                ->references('id')
+                ->on('workshop_categories')
+                ->cascadeOnDelete();
         });
     }
 
