@@ -9,7 +9,7 @@
 @endif
 @foreach($allItems as $workshop)
 @php
-    $accent = $workshop->getLocationName() === 'Online' ? '#16a34a' : '#2563eb';
+    $accent = $workshop->getLocationName() === 'Online' ? '#ea580c' : '#2563eb';
     $badgeText = $workshop->getLocationName();
 @endphp
 @include('emails.partials.upcoming-workshop-card', [

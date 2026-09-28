@@ -610,6 +610,9 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertStringContainsString('City Lab Robotics Workshop', $rendered);
         $this->assertStringContainsString('North Hall Robotics Workshop', $rendered);
         $this->assertStringContainsString('Weekly Online Course', $rendered);
+        $this->assertStringContainsString('border-left: 8px solid #ea580c', $rendered);
+        $this->assertStringContainsString('border-left: 8px solid #2563eb', $rendered);
+        $this->assertStringNotContainsString('border-left: 8px solid #16a34a', $rendered);
         $this->assertSame(3, substr_count($rendered, '(2 hours)'));
         $this->assertStringContainsString('Get Tickets', $rendered);
         $this->assertGreaterThanOrEqual(5, substr_count($rendered, '?md'));
