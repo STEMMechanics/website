@@ -1246,7 +1246,7 @@
 
         </x-ui.dynamic-list>
 
-        <div class="">
+        <div class="mt-6">
             <form method="POST" action="{{ route('admin.workshop.attendance.dropin.sync', $workshop) }}" x-data="{
                 entries: @js($seedEntries),
                 submitting: false,
@@ -1370,7 +1370,7 @@
                 @csrf
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
-                    <x-ui.button type="button" color="purple" x-on:click="openBulkAnonymousModal()">
+                    <x-ui.button type="button" color="primary" x-on:click="openBulkAnonymousModal()">
                         <i class="fa-solid fa-user-plus mr-2"></i>Add Bulk Anonymous
                     </x-ui.button>
                 </div>
@@ -1386,18 +1386,18 @@
                     aria-labelledby="bulk-anonymous-title"
                     aria-describedby="bulk-anonymous-description"
                 >
-                    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl">
-                        <div class="bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-700 px-6 py-5 text-white">
+                    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-primary-color/20 bg-white shadow-2xl">
+                        <div class="bg-primary-color px-6 py-5 text-white">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Quick attendance</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">Quick attendance</p>
                                     <h3 id="bulk-anonymous-title" class="mt-1 text-xl font-semibold">Add anonymous attendees</h3>
                                 </div>
-                                <button type="button" class="rounded-full p-2 text-violet-100 transition hover:bg-white/15 hover:text-white" aria-label="Close" x-on:click="closeBulkAnonymousModal()">
+                                <button type="button" class="rounded-full p-2 text-sky-100 transition hover:bg-white/15 hover:text-white" aria-label="Close" x-on:click="closeBulkAnonymousModal()">
                                     <i class="fa-solid fa-xmark"></i>
                                 </button>
                             </div>
-                            <p id="bulk-anonymous-description" class="mt-3 text-sm text-violet-100">Add the number of attendees you counted without entering personal details.</p>
+                            <p id="bulk-anonymous-description" class="mt-3 text-sm text-sky-100">Add the number of attendees you counted without entering personal details.</p>
                         </div>
 
                         <div class="space-y-5 px-6 py-6">
@@ -1413,21 +1413,21 @@
                                     max="1000"
                                     step="1"
                                     inputmode="numeric"
-                                    class="mt-2 block w-full rounded-xl border-gray-300 text-2xl font-semibold text-gray-900 shadow-sm focus:border-violet-500 focus:ring-violet-500"
+                                    class="mt-2 block w-full rounded-xl border-gray-300 text-2xl font-semibold text-gray-900 shadow-sm focus:border-primary-color focus:ring-primary-color"
                                 >
                                 <p class="mt-2 text-xs text-gray-500">You can add up to 1,000 attendees at a time.</p>
                                 <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
                             </div>
 
-                            <div class="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm text-violet-950">
+                            <div class="rounded-xl border border-primary-color/20 bg-sky-50 p-4 text-sm text-primary-color-dark">
                                 <p class="font-semibold">Current list</p>
                                 <p class="mt-1"><span x-text="recordedEntryCount()"></span> attendees: <span x-text="namedEntryCount()"></span> named and <span x-text="anonymousEntryCount()"></span> anonymous.</p>
-                                <p class="mt-3 border-t border-violet-200 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
+                                <p class="mt-3 border-t border-primary-color/20 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
                             </div>
 
                             <div class="flex justify-end gap-2">
                                 <x-ui.button type="button" color="outline" x-on:click="closeBulkAnonymousModal()">Cancel</x-ui.button>
-                                <x-ui.button type="button" color="purple" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
+                                <x-ui.button type="button" color="primary" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
                             </div>
                         </div>
                     </div>
