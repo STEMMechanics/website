@@ -118,12 +118,14 @@ class AdminDashboardActions
         $lookback = $now->copy()->subDays(14);
         $soon = $now->copy()->addDay();
         $workshops = Workshop::query()
-            ->where('registration', 'tickets')
             ->whereNotIn('status', ['draft', 'cancelled'])
             ->whereNotNull('starts_at')
             ->where('starts_at', '<=', $soon)
             ->where(fn (Builder $query): Builder => $query->whereNull('ends_at')->orWhere('ends_at', '>=', $lookback))
-            ->whereHas('tickets', fn (Builder $tickets): Builder => $tickets->whereIn('status', Ticket::activePurchasedStatuses()))
+            ->where(fn (Builder $query): Builder => $query
+                ->where('registration', '!=', 'tickets')
+                ->orWhereHas('tickets', fn (Builder $tickets): Builder => $tickets->whereIn('status', Ticket::activePurchasedStatuses())))
+            ->withCount(['attendances as drop_in_attendees_count' => fn (Builder $attendance): Builder => $attendance->whereNull('ticket_id')])
             ->with(['location', 'tickets' => fn ($tickets) => $tickets
                 ->whereIn('status', Ticket::activePurchasedStatuses())
                 ->select(['id', 'workshop_id', 'attended_at'])])
@@ -149,9 +151,25 @@ class AdminDashboardActions
 
         $actions = [];
         foreach ($workshops as $workshop) {
+            $isTicketedWorkshop = $workshop->registration === 'tickets';
             $tickets = $workshop->tickets;
             $ticketCount = $tickets->count();
-            if ($ticketCount === 0) {
+            if ($isTicketedWorkshop && $ticketCount === 0) {
+                continue;
+            }
+
+            if (! $isTicketedWorkshop) {
+                $startsAt = $workshop->starts_at;
+                $endsAt = $workshop->ends_at ?? $startsAt;
+                if (! $startsAt || ! $endsAt || $startsAt->gt($soon) || $endsAt->lt($lookback)) {
+                    continue;
+                }
+                $attended = (int) ($workshop->drop_in_attendees_count ?? 0);
+                if ($attended > 0) {
+                    continue;
+                }
+                $actions[] = $this->attendanceCard($workshop, $startsAt, $endsAt, 0, $attended);
+
                 continue;
             }
 

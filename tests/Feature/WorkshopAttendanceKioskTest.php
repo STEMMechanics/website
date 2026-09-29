@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\WorkshopController;
 use App\Jobs\SendEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Mail\PaymentReceiptPdf;
@@ -16,7 +17,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
-use App\Http\Controllers\WorkshopController;
+use App\Models\WorkshopAttendance;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -123,7 +124,9 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.attendance', ['workshop' => $workshop]))
             ->assertOk()
-            ->assertSee('Attendance Records');
+            ->assertSee('Attendance Records')
+            ->assertSee('Add Bulk Anonymous')
+            ->assertSee('How many should be added?');
 
         $response = $this->actingAs($admin)
             ->post(route('admin.workshop.attendance.dropin.sync', ['workshop' => $workshop]), [
@@ -149,6 +152,59 @@ class WorkshopAttendanceKioskTest extends TestCase
             'phone' => '0422222222',
             'media_consent' => 1,
         ]);
+    }
+
+    public function test_admin_can_append_bulk_anonymous_attendance_without_replacing_named_records(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('none');
+        $anonymousEntries = collect(range(1, 3))->map(fn () => WorkshopAttendance::query()->create([
+            'workshop_id' => $workshop->id,
+            'source' => 'anonymous',
+            'is_anonymous' => true,
+            'attended_at' => now(),
+            'created_by' => $admin->id,
+        ]));
+        $namedEntries = collect([
+            ['child_name' => 'Ada Lovelace', 'guardian_name' => 'Mary Lovelace'],
+            ['child_name' => 'Katherine Johnson', 'guardian_name' => 'Joylette Johnson'],
+        ])->map(fn (array $details) => WorkshopAttendance::query()->create([
+            'workshop_id' => $workshop->id,
+            'source' => 'dropin',
+            'is_anonymous' => false,
+            'child_name' => $details['child_name'],
+            'guardian_name' => $details['guardian_name'],
+            'attended_at' => now(),
+            'created_by' => $admin->id,
+        ]));
+
+        $entries = $anonymousEntries->concat($namedEntries)->map(fn (WorkshopAttendance $entry): array => [
+            'id' => $entry->id,
+            'is_anonymous' => $entry->is_anonymous,
+            'child_name' => $entry->child_name ?? '',
+            'guardian_name' => $entry->guardian_name ?? '',
+            'email' => '',
+            'phone' => '',
+            'media_consent' => false,
+        ])->concat(collect(range(1, 15))->map(fn (): array => [
+            'id' => 0,
+            'is_anonymous' => true,
+            'child_name' => '',
+            'guardian_name' => '',
+            'email' => '',
+            'phone' => '',
+            'media_consent' => false,
+        ]))->all();
+
+        $this->actingAs($admin)
+            ->post(route('admin.workshop.attendance.dropin.sync', $workshop), ['entries' => $entries])
+            ->assertRedirect(route('admin.workshop.attendance', $workshop));
+
+        $this->assertSame(20, $workshop->attendances()->count());
+        $this->assertSame(18, $workshop->attendances()->where('is_anonymous', true)->count());
+        $this->assertSame(2, $workshop->attendances()->where('is_anonymous', false)->count());
+        $this->assertDatabaseHas('workshop_attendances', ['workshop_id' => $workshop->id, 'child_name' => 'Ada Lovelace']);
+        $this->assertDatabaseHas('workshop_attendances', ['workshop_id' => $workshop->id, 'child_name' => 'Katherine Johnson']);
     }
 
     public function test_admin_can_export_attendance_as_csv(): void

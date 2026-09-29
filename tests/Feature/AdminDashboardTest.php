@@ -175,6 +175,34 @@ class AdminDashboardTest extends TestCase
             ->assertDontSee('0 of 1 marked');
     }
 
+    public function test_dashboard_action_cards_include_attendance_for_a_recent_non_ticketed_workshop(): void
+    {
+        $admin = $this->createAdminUser();
+        $location = Location::factory()->create();
+        $media = Media::factory()->create(['user_id' => $admin->id]);
+        $startsAt = now()->subHours(2);
+        $workshop = Workshop::factory()->create([
+            'title' => 'Rune Lock Machine',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHour(),
+            'status' => 'closed',
+            'registration' => 'none',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+
+        $attendance = collect(app(AdminDashboardActions::class)->build())
+            ->firstWhere('title', 'Mark Attendance');
+
+        $this->assertNotNull($attendance);
+        $this->assertStringContainsString($workshop->title, $attendance['description']);
+        $this->assertSame($workshop->title, $attendance['attendance_details']['workshop']);
+        $this->assertSame(0, $attendance['attendance_details']['attended']);
+        $this->assertSame(0, $attendance['attendance_details']['total']);
+        $this->assertSame(route('admin.workshop.attendance', $workshop), $attendance['url']);
+    }
+
     public function test_course_attendance_action_opens_the_specific_session(): void
     {
         $admin = $this->createAdminUser();
