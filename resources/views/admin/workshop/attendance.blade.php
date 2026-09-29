@@ -1251,10 +1251,24 @@
                 entries: @js($seedEntries),
                 submitting: false,
                 isDesktop: false,
+                bulkAnonymousModalOpen: false,
+                bulkAnonymousCount: 1,
+                bulkAnonymousError: '',
                 newBlankEntry() {
                     return {
                         id: 0,
                         is_anonymous: false,
+                        child_name: '',
+                        guardian_name: '',
+                        email: '',
+                        phone: '',
+                        media_consent: false,
+                    };
+                },
+                newAnonymousEntry() {
+                    return {
+                        id: 0,
+                        is_anonymous: true,
                         child_name: '',
                         guardian_name: '',
                         email: '',
@@ -1311,13 +1325,112 @@
                     }
                     this.handleRowChange(index);
                 },
+                recordedEntryCount() {
+                    return this.entries.filter((entry) => !this.isBlankEntry(entry)).length;
+                },
+                anonymousEntryCount() {
+                    return this.entries.filter((entry) => !this.isBlankEntry(entry) && Boolean(entry?.is_anonymous)).length;
+                },
+                namedEntryCount() {
+                    return this.recordedEntryCount() - this.anonymousEntryCount();
+                },
+                bulkCount() {
+                    const count = Number(this.bulkAnonymousCount);
+                    return Number.isInteger(count) && count > 0 ? count : 0;
+                },
+                openBulkAnonymousModal() {
+                    this.bulkAnonymousCount = 1;
+                    this.bulkAnonymousError = '';
+                    this.bulkAnonymousModalOpen = true;
+                    this.$nextTick(() => this.$refs.bulkAnonymousCount?.focus());
+                },
+                closeBulkAnonymousModal() {
+                    this.bulkAnonymousModalOpen = false;
+                    this.bulkAnonymousError = '';
+                },
+                addBulkAnonymous() {
+                    const count = this.bulkCount();
+                    if (count < 1 || count > 1000) {
+                        this.bulkAnonymousError = 'Enter a number between 1 and 1,000.';
+                        return;
+                    }
+
+                    const nonBlank = this.entries.filter((entry) => !this.isBlankEntry(entry));
+                    this.entries = [
+                        ...nonBlank,
+                        ...Array.from({ length: count }, () => this.newAnonymousEntry()),
+                        this.newBlankEntry(),
+                    ];
+                    this.closeBulkAnonymousModal();
+                },
                 syncViewport() {
                     this.isDesktop = window.innerWidth >= 1024;
                 },
             }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport())" x-on:submit="submitting = true">
                 @csrf
-                <div class="flex items-center justify-between mb-3">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
+                    <x-ui.button type="button" color="purple" x-on:click="openBulkAnonymousModal()">
+                        <i class="fa-solid fa-user-plus mr-2"></i>Add Bulk Anonymous
+                    </x-ui.button>
+                </div>
+
+                <div
+                    x-cloak
+                    x-show="bulkAnonymousModalOpen"
+                    x-on:click.self="closeBulkAnonymousModal()"
+                    x-on:keydown.escape.window="closeBulkAnonymousModal()"
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="bulk-anonymous-title"
+                    aria-describedby="bulk-anonymous-description"
+                >
+                    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-2xl">
+                        <div class="bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-700 px-6 py-5 text-white">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">Quick attendance</p>
+                                    <h3 id="bulk-anonymous-title" class="mt-1 text-xl font-semibold">Add anonymous attendees</h3>
+                                </div>
+                                <button type="button" class="rounded-full p-2 text-violet-100 transition hover:bg-white/15 hover:text-white" aria-label="Close" x-on:click="closeBulkAnonymousModal()">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <p id="bulk-anonymous-description" class="mt-3 text-sm text-violet-100">Add the number of attendees you counted without entering personal details.</p>
+                        </div>
+
+                        <div class="space-y-5 px-6 py-6">
+                            <div>
+                                <label for="bulk-anonymous-count" class="block text-sm font-semibold text-gray-900">How many should be added?</label>
+                                <input
+                                    id="bulk-anonymous-count"
+                                    x-ref="bulkAnonymousCount"
+                                    x-model.number="bulkAnonymousCount"
+                                    x-on:keydown.enter.prevent="addBulkAnonymous()"
+                                    type="number"
+                                    min="1"
+                                    max="1000"
+                                    step="1"
+                                    inputmode="numeric"
+                                    class="mt-2 block w-full rounded-xl border-gray-300 text-2xl font-semibold text-gray-900 shadow-sm focus:border-violet-500 focus:ring-violet-500"
+                                >
+                                <p class="mt-2 text-xs text-gray-500">You can add up to 1,000 attendees at a time.</p>
+                                <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
+                            </div>
+
+                            <div class="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm text-violet-950">
+                                <p class="font-semibold">Current list</p>
+                                <p class="mt-1"><span x-text="recordedEntryCount()"></span> attendees: <span x-text="namedEntryCount()"></span> named and <span x-text="anonymousEntryCount()"></span> anonymous.</p>
+                                <p class="mt-3 border-t border-violet-200 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
+                            </div>
+
+                            <div class="flex justify-end gap-2">
+                                <x-ui.button type="button" color="outline" x-on:click="closeBulkAnonymousModal()">Cancel</x-ui.button>
+                                <x-ui.button type="button" color="purple" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div data-list-results class="space-y-4 lg:hidden">
