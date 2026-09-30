@@ -246,6 +246,21 @@ if (isset($workshop)) {
                 this.pickListTemplateId = nextValue;
                 this.pickListTemplateReset = wasCustom && this.hasCustomPickList;
             },
+            syncRegistrationData() {
+                const form = this.$refs.workshopForm;
+                const registrationData = form?.elements?.namedItem('registration_data');
+                if (!registrationData) {
+                    return;
+                }
+
+                const fieldName = {
+                    link: 'registration_url',
+                    email: 'registration_email',
+                    message: 'registration_message',
+                }[String(this.registration || '')];
+                const source = fieldName ? form.elements.namedItem(fieldName) : null;
+                registrationData.value = source ? String(source.value || '') : '';
+            },
             locations: @js(\App\Models\Location::orderByRaw(" name='Online' DESC, name ASC")->get()->map(fn ($location) => [
             'id' => (string) $location->id,
             'name' => (string) $location->name,
@@ -524,30 +539,40 @@ if (isset($workshop)) {
             || this.normalizedCurrentLocationId() !== this.originalLocationId;
             },
             submitForm() {
+            this.syncRegistrationData();
             const form = this.$refs.workshopForm;
-            if (!(form instanceof HTMLFormElement)) {
+            const nativeSubmit = form?.ownerDocument?.defaultView?.HTMLFormElement?.prototype?.submit;
+            if (typeof nativeSubmit !== 'function') {
             return;
             }
 
-            form.submit();
+            nativeSubmit.call(form);
             },
-            async handleSubmit() {
+            async handleSubmit(event) {
+            this.syncRegistrationData();
+
             if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets'].includes(String(this.registration || ''))) {
+            event.preventDefault();
             this.openCancelWorkshopModal();
             return;
             }
 
-            if (this.shouldConfirmEarlyBirdLimitIncrease() && !await this.confirmEarlyBirdLimitIncrease()) {
+            if (this.shouldConfirmEarlyBirdLimitIncrease()) {
+            event.preventDefault();
+            if (!await this.confirmEarlyBirdLimitIncrease()) {
+                return;
+            }
+            this.submitForm();
             return;
             }
 
             if (!this.hasRelevantTicketHolderChange()) {
             this.notifyTicketHolders = false;
             this.ticketChangeEmailNotes = '';
-            this.submitForm();
             return;
             }
 
+            event.preventDefault();
             this.openTicketChangeEmailModal();
             },
             async submitCreateLocation() {
@@ -625,7 +650,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit.prevent="handleSubmit()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -1112,7 +1137,7 @@ if (isset($workshop)) {
 
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
+                        <x-ui.select label="Registration" name="registration" x-model="registration" x-on:change="$nextTick(() => syncRegistrationData())">
                             <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
                             <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
                             <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
@@ -1126,15 +1151,15 @@ if (isset($workshop)) {
                             <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" x-on:blur="$dispatch('workshop-pricing-changed')" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
                         </span>
                         <span x-show="registration==='link'">
-                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{!! isset($workshop) ? $workshop->registration_data : '' !!}" error="{{ $errors->first('registration_data') }}" />
+                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
                         </span>
                         <span x-show="registration==='email'">
-                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
+                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
                         </span>
                         <span x-show="registration==='message'">
-                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
+                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
                         </span>
-                        <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
+                        <input type="hidden" name="registration_data" id="registration_data" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}">
                     </div>
                 </div>
                 <div class="grid items-start gap-x-8 lg:grid-cols-2" x-show="registration === 'tickets'" x-cloak>
@@ -1541,9 +1566,9 @@ if (isset($workshop)) {
             elementIds.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
-                    elem.addEventListener('change', function(event) {
+                    ['input', 'change'].forEach(eventName => elem.addEventListener(eventName, function(event) {
                         registrationElem.value = event.target.value;
-                    });
+                    }));
                 }
             })
         }
