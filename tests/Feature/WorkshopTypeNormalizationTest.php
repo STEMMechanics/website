@@ -578,6 +578,48 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertSee("['tickets'].includes(String(this.registration || ''))", false);
     }
 
+    public function test_admin_workshop_edit_submits_simple_changes_and_syncs_registration_data(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'none');
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk()
+            ->assertSee('x-on:submit="handleSubmit($event)"', false)
+            ->assertDontSee('x-on:submit.prevent="handleSubmit()"', false)
+            ->assertSee('syncRegistrationData()', false)
+            ->assertSee('nativeSubmit.call(form)', false)
+            ->assertSee('x-on:change="$nextTick(() => syncRegistrationData())"', false);
+    }
+
+    public function test_admin_workshop_update_persists_status_and_registration_changes(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'none');
+
+        $response = $this->actingAs($admin)->put(
+            route('admin.workshop.update', $workshop),
+            $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'status' => 'closed',
+                'registration' => 'message',
+                'registration_data' => 'Contact the organiser to register.',
+            ])
+        );
+
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('closed', (string) $workshop->fresh()->status);
+        $this->assertSame('message', (string) $workshop->fresh()->registration);
+        $this->assertSame('Contact the organiser to register.', (string) $workshop->fresh()->registration_data);
+    }
+
     public function test_cancelling_external_link_workshops_does_not_cancel_internal_tickets(): void
     {
         $admin = $this->createAdminUser();
