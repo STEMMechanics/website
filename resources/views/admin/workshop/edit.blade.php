@@ -215,17 +215,22 @@ if (isset($workshop)) {
             pickListTemplateId: @js((string) $pickListTemplateFieldValue),
             pickListTemplateReset: false,
             workshopSummaryAiContext() {
+                const form = document.getElementById('workshop-form');
                 const value = (name) => {
-                    const field = this.$el.elements.namedItem(name);
+                    const field = form?.elements?.namedItem(name);
                     return field && typeof field.value === 'string' ? field.value : '';
                 };
+                const descriptionEditor = document.querySelector('[data-editor-name=content] .tiptap');
+                const description = descriptionEditor
+                    ? (descriptionEditor.innerText || descriptionEditor.textContent || '')
+                    : value('content').replace(/<[^>]*>/g, ' ');
                 return {
                     source: 'workshop',
                     blueprint_id: value('pick_list_template_id'),
                     workshop: {
                         title: value('title'),
                         summary: value('summary'),
-                        description: value('content').replace(/<[^>]*>/g, ' ').slice(0, 4000),
+                        description: String(description).trim().slice(0, 4000),
                     },
                 };
             },
@@ -1299,6 +1304,10 @@ if (isset($workshop)) {
                     workshopAiContext(taskIndex = null, subtaskIndex = null) {
                         const form = document.getElementById('workshop-form');
                         const value = (name) => { const field = form?.elements?.namedItem(name); return (field && typeof field.value === 'string') ? field.value : ''; };
+                        const descriptionEditor = document.querySelector('[data-editor-name=content] .tiptap');
+                        const description = descriptionEditor
+                            ? (descriptionEditor.innerText || descriptionEditor.textContent || '')
+                            : value('content').replace(/<[^>]*>/g, ' ');
                         const task = taskIndex === null ? null : (this.tasks[taskIndex] || null);
                         const subtask = task && subtaskIndex !== null ? (task.subtasks || [])[subtaskIndex] || null : null;
                         const content = (subtask?.content || task?.notes || '').slice(0, 8000);
@@ -1306,7 +1315,7 @@ if (isset($workshop)) {
                             source: 'workshop',
                             blueprint_id: value('pick_list_template_id'),
                             workshop: {
-                                title: value('title'), summary: value('summary'), description: value('content').replace(/<[^>]*>/g, ' ').slice(0, 4000),
+                                title: value('title'), summary: value('summary'), description: String(description).trim().slice(0, 4000),
                                 public_url: @js($workshopModel ? route('workshop.show', $workshopModel) : ''),
                                 type: value('type'), format: value('format'), ages: value('ages'), starts_at: value('starts_at'), ends_at: value('ends_at'),
                                 location_id: value('location_id'), price: value('price'), status: value('status'), registration: value('registration'),
@@ -1463,7 +1472,7 @@ if (isset($workshop)) {
                     <div class="mb-5">
                         <div class="mb-1 flex items-center gap-1 pl-1">
                             <label for="summary" class="text-sm">Summary</label>
-                            <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="summary" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopSummaryAiContext())" x-bind:data-ai-mode="String($root.elements.namedItem('summary')?.value || '').trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="summary" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopSummaryAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=summary]')?.value || '').trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
                         </div>
                         <x-ui.input type="textarea" noLabel class="mb-0" id="summary" name="summary" value="{{ $workshopSummary }}" rows="3" />
                     </div>

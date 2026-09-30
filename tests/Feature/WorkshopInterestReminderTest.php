@@ -31,7 +31,7 @@ class WorkshopInterestReminderTest extends TestCase
 
         $service = app(WorkshopInterestReminderService::class);
 
-        $this->assertSame(1, $service->queueDue());
+        $this->assertSame(2, $service->queueDue());
         Queue::assertPushed(SendWorkshopInterestReminder::class, fn (SendWorkshopInterestReminder $job): bool => $job->interestId === (int) $interest->id && $job->type === 'two_days');
         $this->assertSame(now()->toDateTimeString(), $interest->fresh()->two_day_reminder_queued_at->toDateTimeString());
         $this->assertNull($interest->fresh()->two_hour_reminder_queued_at);
@@ -39,8 +39,8 @@ class WorkshopInterestReminderTest extends TestCase
 
         $this->travelTo($startsAt->copy()->subHours(2));
 
-        $this->assertSame(1, $service->queueDue());
-        Queue::assertPushed(SendWorkshopInterestReminder::class, 2);
+        $this->assertSame(2, $service->queueDue());
+        Queue::assertPushed(SendWorkshopInterestReminder::class, 4);
         Queue::assertPushed(SendWorkshopInterestReminder::class, fn (SendWorkshopInterestReminder $job): bool => $job->interestId === (int) $interest->id && $job->type === 'two_hours');
         $this->assertSame(now()->toDateTimeString(), $interest->fresh()->two_hour_reminder_queued_at->toDateTimeString());
         $this->assertSame(0, $service->queueDue());
@@ -137,8 +137,8 @@ class WorkshopInterestReminderTest extends TestCase
         $this->assertNull($interest->two_hour_reminder_queued_at);
 
         Queue::fake();
-        $this->assertSame(0, app(WorkshopInterestReminderService::class)->queueDue());
-        Queue::assertNothingPushed();
+        $this->assertSame(1, app(WorkshopInterestReminderService::class)->queueDue());
+        Queue::assertPushed(SendWorkshopInterestReminder::class, fn (SendWorkshopInterestReminder $job): bool => $job->interestId !== (int) $interest->id);
     }
 
     public function test_unsigned_reminder_unsubscribe_link_is_rejected(): void
