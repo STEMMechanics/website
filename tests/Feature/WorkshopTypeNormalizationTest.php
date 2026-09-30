@@ -610,6 +610,7 @@ class WorkshopTypeNormalizationTest extends TestCase
                 'status' => 'closed',
                 'registration' => 'message',
                 'registration_data' => 'Contact the organiser to register.',
+                'workshop_tasks_payload' => '[]',
             ])
         );
 
@@ -618,6 +619,35 @@ class WorkshopTypeNormalizationTest extends TestCase
         $this->assertSame('closed', (string) $workshop->fresh()->status);
         $this->assertSame('message', (string) $workshop->fresh()->registration);
         $this->assertSame('Contact the organiser to register.', (string) $workshop->fresh()->registration_data);
+    }
+
+    public function test_admin_workshop_update_copies_blueprint_tasks_when_the_form_submits_an_empty_task_list(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $blueprint = PickListTemplate::query()->create(['name' => 'Marble Maze']);
+        $blueprint->tasks()->create([
+            'name' => 'Prepare the workshop kit',
+            'sort_order' => 10,
+        ]);
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'none');
+
+        $response = $this->actingAs($admin)->put(
+            route('admin.workshop.update', $workshop),
+            $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'pick_list_template_id' => $blueprint->id,
+                'workshop_tasks_payload' => '[]',
+            ])
+        );
+
+        $response->assertRedirect(route('admin.workshop.edit', $workshop->fresh()));
+        $response->assertSessionHasNoErrors();
+        $freshWorkshop = $workshop->fresh();
+
+        $this->assertSame($blueprint->id, (int) $freshWorkshop->pick_list_template_id);
+        $this->assertSame(['Prepare the workshop kit'], $freshWorkshop->runSheetTasks()->pluck('name')->all());
     }
 
     public function test_cancelling_external_link_workshops_does_not_cancel_internal_tickets(): void
