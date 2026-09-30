@@ -1039,7 +1039,9 @@ class WorkshopController extends Controller
         }
 
         $validated = Validator::make(['tasks' => $tasks], [
-            'tasks' => ['required', 'array', 'max:100'],
+            // The editor submits an empty array for workshops with no task snapshot.
+            // Empty task lists are valid and must not block unrelated workshop edits.
+            'tasks' => ['present', 'array', 'max:100'],
             'tasks.*' => ['required', 'array'],
             'tasks.*.id' => $taskIdRules,
             'tasks.*.blueprint_task_id' => ['nullable', 'integer', 'exists:workshop_template_tasks,id'],
