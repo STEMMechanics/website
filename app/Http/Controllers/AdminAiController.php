@@ -341,6 +341,13 @@ class AdminAiController extends Controller
 
         $kind = (string) $validated['kind'];
         $mode = (string) ($validated['mode'] ?? 'write');
+        if ($kind === 'workshop_summary') {
+            $description = data_get($context, 'workshop.description')
+                ?: data_get($context, 'blueprint.default_description');
+            if (trim(strip_tags((string) $description)) === '') {
+                return response()->json(['message' => 'Enter a workshop description before creating a summary.'], 422);
+            }
+        }
         if ($kind === 'social_post_bundle') {
             // The default task notes are intentionally generic fallbacks. Keep their names
             // so the model understands each post's timing, but do not let the fallback copy

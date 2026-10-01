@@ -114,6 +114,40 @@ class Workshop extends Model
         'pick_list_is_customized' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (Workshop $workshop): void {
+            $workshop->ensureCreatorInterest();
+        });
+
+        static::updated(function (Workshop $workshop): void {
+            if ($workshop->wasChanged('registration') && $workshop->registration === 'interest') {
+                $workshop->ensureCreatorInterest();
+            }
+        });
+    }
+
+    public function ensureCreatorInterest(): ?WorkshopInterest
+    {
+        if ($this->registration !== 'interest' || ! filled($this->user_id)) {
+            return null;
+        }
+
+        $creator = $this->author()->first();
+        if (! $creator instanceof User) {
+            return null;
+        }
+
+        return $this->interests()->firstOrCreate(
+            ['user_id' => (string) $creator->getKey()],
+            [
+                'name' => trim((string) $creator->getName()),
+                'email' => strtolower(trim((string) $creator->email)),
+                'phone' => trim((string) ($creator->phone ?? '')),
+            ],
+        );
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */
