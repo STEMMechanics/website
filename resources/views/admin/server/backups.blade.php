@@ -40,7 +40,7 @@
             </div>
 
 
-            <p class="text-xs text-gray-600 mb-3">Hourly backups are scheduled via Laravel Scheduler command <code>database:backup</code>. When <code>--keep</code> is omitted, retention uses site option <code>backup.database.keep</code> (currently {{ number_format((int) $databaseBackupKeepCount) }} files). Offsite backups can be run with <code>backup:remote</code> using the <code>backup.remote.*</code> site options.</p>
+            <p class="text-xs text-gray-600 mb-3">Hourly backups are scheduled via Laravel Scheduler command <code>database:backup</code>. When <code>--keep</code> is omitted, retention uses site option <code>backup.database.keep</code> (currently {{ number_format((int) $databaseBackupKeepCount) }} files). Offsite backups can be run with <code>backup:remote</code> using the <code>backup.remote.*</code> site options. Database and file backups run through the queue; local development requires <code>php artisan queue:work</code> in another terminal.</p>
 
             <form id="database-import-form" method="POST" action="{{ route('admin.server.database.import') }}" enctype="multipart/form-data" data-sm-confirm="This will overwrite current database data. Continue with import?" data-sm-confirm-button="Import Backup" class="mb-4">
                 @csrf
@@ -79,7 +79,7 @@
                                             @csrf
                                             <x-ui.row-action label="Rollback database to this backup" icon="fa-solid fa-rotate-left" tone="neutral" type="submit" aria-label="Rollback database to this backup" />
                                         </form>
-                                        <x-ui.row-action label="Download backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}" />
+                                        <x-ui.row-action label="Download backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}" download="{{ $backup['filename'] }}" />
                                         <form method="POST" action="{{ route('admin.server.database.delete', ['filename' => $backup['filename']]) }}" data-sm-confirm="Delete this backup file? This cannot be undone." data-sm-confirm-button="Delete Backup">
                                             @csrf
                                             @method('DELETE')

@@ -1399,19 +1399,20 @@
                         <p class="text-sm text-slate-600">Add the number of attendees you counted without entering personal details.</p>
 
                         <div>
-                            <label for="bulk-anonymous-count" class="block text-sm font-semibold text-gray-900">How many should be added?</label>
-                            <input
+                            <x-ui.input
                                 id="bulk-anonymous-count"
+                                type="number"
+                                label="How many should be added?"
                                 x-ref="bulkAnonymousCount"
                                 x-model.number="bulkAnonymousCount"
                                 x-on:keydown.enter.prevent="addBulkAnonymous()"
-                                type="number"
                                 min="1"
                                 max="1000"
                                 step="1"
                                 inputmode="numeric"
-                                class="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-2xl font-semibold text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                            >
+                                class="mb-0"
+                                fieldClasses="mt-1"
+                            />
                             <p class="mt-2 text-xs text-slate-500">You can add up to 1,000 attendees at a time.</p>
                             <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
                         </div>

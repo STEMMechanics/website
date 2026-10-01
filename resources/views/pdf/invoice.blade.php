@@ -240,6 +240,14 @@
                     $lineNotes = trim((string) ($item['notes'] ?? ''));
                     $lineKind = trim((string) ($item['kind'] ?? ''));
                     $lineDescription = (string) ($item['description'] ?? '');
+                    $linkedWorkshopNotes = collect(is_array($item['linked_workshops'] ?? null) ? $item['linked_workshops'] : [])
+                        ->filter(fn ($workshop) => is_array($workshop) && trim((string) ($workshop['label'] ?? '')) !== '')
+                        ->reject(function (array $workshop) use ($lineNotes): bool {
+                            $title = trim((string) ($workshop['title'] ?? ''));
+                            return $title !== '' && str_contains(mb_strtolower($lineNotes), mb_strtolower($title));
+                        })
+                        ->map(fn (array $workshop): string => '- '.trim((string) $workshop['label']))
+                        ->implode("\n");
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
@@ -254,6 +262,9 @@
                             @endif
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
+                            @endif
+                            @if($linkedWorkshopNotes !== '')
+                            {!! $renderLineNotes($linkedWorkshopNotes) !!}
                             @endif
                             @if($lineKind === 'shipping' && $shippingNoteParts !== [])
                             <div class="line-note"><strong>Ship to:</strong> {{ implode(', ', $shippingNoteParts) }}</div>

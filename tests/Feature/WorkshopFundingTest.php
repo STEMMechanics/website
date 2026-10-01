@@ -16,6 +16,7 @@ use App\Services\Finance\InvoiceAllocation;
 use App\Services\Finance\InvoiceAllocationFilters;
 use App\Services\Finance\InvoiceAllocationParts;
 use App\Services\Finance\InvoiceAllocationWorkspace;
+use App\Services\Finance\InvoicePdfLines;
 use App\Services\Finance\WorkshopAllocation;
 use App\Services\Finance\WorkshopFunding;
 use App\Services\Finance\WorkshopLine;
@@ -325,6 +326,39 @@ class WorkshopFundingTest extends TestCase
         $this->assertSame(12500, app(InvoiceAllocationParts::class)->income([$invoice->id], null)['net']);
         $this->assertNotEmpty(app(InvoiceAllocation::class)->context($invoice->fresh())['suggestedTargets']);
         $this->assertSame([], app(WorkshopFunding::class)->invoiceIds($workshops[0]->id));
+    }
+
+    public function test_linked_workshops_are_added_to_the_invoice_pdf_when_notes_are_generic(): void
+    {
+        $this->admin();
+        $workshop = $this->workshop();
+        $workshop->update([
+            'title' => 'Straw Towers',
+            'starts_at' => '2026-09-22 09:00:00',
+            'ends_at' => '2026-09-22 10:00:00',
+        ]);
+
+        $row = $this->line($workshop);
+        $invoice = $this->createInvoice([[
+            'kind' => 'multi_workshop',
+            'description' => 'Workshop Delivery',
+            'notes' => 'Charged per hour, per seat, min 10 per workshop',
+            'workshops' => [$row],
+            'quantity' => 20,
+            'unit_price' => 10,
+            'gst_applicable' => true,
+        ]]);
+        $line = $invoice->fresh()->lines->first()->toArray();
+        $prepared = InvoicePdfLines::prepare([$line]);
+        $html = view('pdf.invoice', [
+            'invoice' => $invoice->fresh(),
+            'itemPages' => [$prepared],
+            'adjustments' => collect(),
+        ])->render();
+
+        $this->assertSame('Straw Towers', $prepared[0]['linked_workshops'][0]['title']);
+        $this->assertStringContainsString('22/09/2026 - Straw Towers - (2 hrs × 20 seats)', $html);
+        $this->assertStringContainsString('Charged per hour, per seat, min 10 per workshop', $html);
     }
 
     public function test_refunds_are_partitioned_and_cancelled_funding_is_not_awaiting_payment(): void
