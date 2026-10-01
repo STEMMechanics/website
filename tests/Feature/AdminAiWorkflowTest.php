@@ -828,6 +828,27 @@ DESCRIPTION;
         $this->assertStringContainsString('Build a cardboard game using foil, wire, lights and buzzers.', $blueprintAmendRequest['input'][0]['content']);
     }
 
+    public function test_workshop_summary_rejects_a_missing_description_before_calling_ai(): void
+    {
+        $admin = $this->createAdminUser();
+        config(['services.openai.api_key' => 'test-openai-key']);
+        Http::preventStrayRequests();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.ai.workshops.copy'), [
+                'kind' => 'workshop_summary',
+                'mode' => 'write',
+                'context' => json_encode([
+                    'source' => 'workshop',
+                    'workshop' => ['description' => ''],
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Enter a workshop description before creating a summary.');
+
+        Http::assertNothingSent();
+    }
+
     public function test_ai_endpoints_fail_clearly_when_no_api_key_is_configured(): void
     {
         config(['services.openai.api_key' => '']);

@@ -45,6 +45,39 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->assertSeeText('3 interested so far', false);
     }
 
+    public function test_interest_workshop_registers_its_creator_and_counts_the_stored_registration(): void
+    {
+        $workshop = $this->createInterestWorkshop();
+
+        $this->assertDatabaseHas('workshop_interests', [
+            'workshop_id' => $workshop->id,
+            'user_id' => $workshop->user_id,
+        ]);
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSeeText('1 interested so far', false);
+    }
+
+    public function test_existing_interest_workshops_are_backfilled_with_the_creator_registration(): void
+    {
+        $workshop = $this->createInterestWorkshop();
+        WorkshopInterest::query()
+            ->where('workshop_id', $workshop->id)
+            ->where('user_id', $workshop->user_id)
+            ->delete();
+
+        $migration = require base_path('database/migrations/2026_09_30_120000_backfill_workshop_creator_interests.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('workshop_interests', [
+            'workshop_id' => $workshop->id,
+            'user_id' => $workshop->user_id,
+            'name' => $workshop->author->getName(),
+            'email' => strtolower((string) $workshop->author->email),
+        ]);
+    }
+
     public function test_logged_in_interest_workshop_page_shows_direct_toggle_without_popup_fields(): void
     {
         $user = User::factory()->create([
@@ -193,7 +226,7 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->assertRedirect(route('workshop.show', $workshop))
             ->assertSessionHas('message', 'Your interest has already been recorded.');
 
-        $this->assertSame(1, WorkshopInterest::query()->where('workshop_id', $workshop->id)->count());
+        $this->assertSame(2, WorkshopInterest::query()->where('workshop_id', $workshop->id)->count());
         $this->assertDatabaseHas('workshop_interests', [
             'workshop_id' => $workshop->id,
             'name' => 'Alex Builder',
@@ -249,7 +282,9 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->assertSeeText('0411000000')
             ->assertSeeText('Guest Example')
             ->assertSeeText('guest@example.com')
-            ->assertSeeText('0400000001');
+            ->assertSeeText('0400000001')
+            ->assertSeeText($workshop->author->getName())
+            ->assertSeeText('Workshop creator');
     }
 
     public function test_admin_workshop_index_shows_interest_count_link(): void
@@ -327,6 +362,10 @@ class WorkshopInterestRegistrationTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame('interest', $workshop->fresh()->registration);
+        $this->assertDatabaseHas('workshop_interests', [
+            'workshop_id' => $workshop->id,
+            'user_id' => $workshop->user_id,
+        ]);
 
         $this->get(route('workshop.show', $workshop))
             ->assertOk()

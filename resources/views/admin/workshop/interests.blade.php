@@ -5,7 +5,7 @@
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">{{ $workshop->title }}</h1>
-                <p class="mt-1 text-sm text-gray-600">People who asked to be notified or contacted about this workshop.</p>
+                <p class="mt-1 text-sm text-gray-600">People recorded as interested in this workshop. The workshop creator is included automatically.</p>
             </div>
             <div class="flex flex-wrap gap-3">
                 <x-ui.button color="primary-outline" href="{{ route('workshop.show', $workshop) }}">View Workshop</x-ui.button>
@@ -55,6 +55,7 @@
                                         $resolvedPhone = trim((string) ($linkedUser?->phone ?? ''));
                                     }
                                     $accountLabel = match (true) {
+                                        (string) ($linkedUser?->getKey() ?? '') === (string) $workshop->user_id => 'Workshop creator',
                                         $linkedUser !== null => 'Linked account',
                                         default => 'No linked account',
                                     };
