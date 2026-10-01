@@ -84,7 +84,7 @@ class InvoicePdfLines
         return collect(self::linkedWorkshopEntries($item))
             ->map(function (array $entry) use ($workshops): array {
                 $workshop = $workshops->get($entry['id']);
-                $title = trim((string) ($workshop?->title ?? $entry['description'] ?? ''));
+                $title = trim((string) (data_get($workshop, 'title') ?? $entry['description'] ?? ''));
                 $date = self::formatDate($entry['date'] ?? null, $workshop);
                 $hours = is_numeric($entry['hours'] ?? null) ? (float) $entry['hours'] : null;
                 $seats = is_numeric($entry['seats'] ?? null) ? (float) $entry['seats'] : null;
@@ -102,7 +102,7 @@ class InvoicePdfLines
 
     private static function formatDate(mixed $value, ?Workshop $workshop): string
     {
-        $raw = trim((string) ($value ?? $workshop?->starts_at ?? ''));
+        $raw = trim((string) ($value ?? data_get($workshop, 'starts_at') ?? ''));
         if ($raw === '') {
             return '';
         }
