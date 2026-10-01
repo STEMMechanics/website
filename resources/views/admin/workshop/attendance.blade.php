@@ -1342,10 +1342,19 @@
                     this.bulkAnonymousCount = 1;
                     this.bulkAnonymousError = '';
                     this.bulkAnonymousModalOpen = true;
+                    const dialog = typeof document !== 'undefined'
+                        ? document.getElementById('bulk-anonymous-dialog')
+                        : null;
+                    if (dialog && !dialog.open) {
+                        dialog.showModal();
+                    }
                     this.$nextTick(() => this.$refs.bulkAnonymousCount?.focus());
                 },
                 closeBulkAnonymousModal() {
                     this.bulkAnonymousModalOpen = false;
+                    if (typeof document !== 'undefined') {
+                        document.getElementById('bulk-anonymous-dialog')?.close();
+                    }
                     this.bulkAnonymousError = '';
                 },
                 addBulkAnonymous() {
@@ -1366,7 +1375,17 @@
                 syncViewport() {
                     this.isDesktop = window.innerWidth >= 1024;
                 },
-            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport())" x-on:submit="submitting = true">
+                initBulkAnonymousDialog() {
+                    if (typeof document === 'undefined') {
+                        return;
+                    }
+
+                    document.getElementById('bulk-anonymous-dialog')?.addEventListener('close', () => {
+                        this.bulkAnonymousModalOpen = false;
+                        this.bulkAnonymousError = '';
+                    });
+                },
+            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport()); initBulkAnonymousDialog()" x-on:submit="submitting = true">
                 @csrf
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
@@ -1375,63 +1394,40 @@
                     </x-ui.button>
                 </div>
 
-                <div
-                    x-cloak
-                    x-show="bulkAnonymousModalOpen"
-                    x-on:click.self="closeBulkAnonymousModal()"
-                    x-on:keydown.escape.window="closeBulkAnonymousModal()"
-                    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="bulk-anonymous-title"
-                    aria-describedby="bulk-anonymous-description"
-                >
-                    <div class="w-full max-w-md overflow-hidden rounded-2xl border border-primary-color/20 bg-white shadow-2xl">
-                        <div class="bg-primary-color px-6 py-5 text-white">
-                            <div class="flex items-start justify-between gap-4">
-                                <div>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">Quick attendance</p>
-                                    <h3 id="bulk-anonymous-title" class="mt-1 text-xl font-semibold">Add anonymous attendees</h3>
-                                </div>
-                                <button type="button" class="rounded-full p-2 text-sky-100 transition hover:bg-white/15 hover:text-white" aria-label="Close" x-on:click="closeBulkAnonymousModal()">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            </div>
-                            <p id="bulk-anonymous-description" class="mt-3 text-sm text-sky-100">Add the number of attendees you counted without entering personal details.</p>
+                <x-ui.list-dialog id="bulk-anonymous-dialog" title="Add anonymous attendees" kind="bulk">
+                    <div class="space-y-5 p-5">
+                        <p class="text-sm text-slate-600">Add the number of attendees you counted without entering personal details.</p>
+
+                        <div>
+                            <label for="bulk-anonymous-count" class="block text-sm font-semibold text-gray-900">How many should be added?</label>
+                            <input
+                                id="bulk-anonymous-count"
+                                x-ref="bulkAnonymousCount"
+                                x-model.number="bulkAnonymousCount"
+                                x-on:keydown.enter.prevent="addBulkAnonymous()"
+                                type="number"
+                                min="1"
+                                max="1000"
+                                step="1"
+                                inputmode="numeric"
+                                class="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-2xl font-semibold text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                            >
+                            <p class="mt-2 text-xs text-slate-500">You can add up to 1,000 attendees at a time.</p>
+                            <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
                         </div>
 
-                        <div class="space-y-5 px-6 py-6">
-                            <div>
-                                <label for="bulk-anonymous-count" class="block text-sm font-semibold text-gray-900">How many should be added?</label>
-                                <input
-                                    id="bulk-anonymous-count"
-                                    x-ref="bulkAnonymousCount"
-                                    x-model.number="bulkAnonymousCount"
-                                    x-on:keydown.enter.prevent="addBulkAnonymous()"
-                                    type="number"
-                                    min="1"
-                                    max="1000"
-                                    step="1"
-                                    inputmode="numeric"
-                                    class="mt-2 block w-full rounded-xl border-gray-300 text-2xl font-semibold text-gray-900 shadow-sm focus:border-primary-color focus:ring-primary-color"
-                                >
-                                <p class="mt-2 text-xs text-gray-500">You can add up to 1,000 attendees at a time.</p>
-                                <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
-                            </div>
-
-                            <div class="rounded-xl border border-primary-color/20 bg-sky-50 p-4 text-sm text-primary-color-dark">
-                                <p class="font-semibold">Current list</p>
-                                <p class="mt-1"><span x-text="recordedEntryCount()"></span> attendees: <span x-text="namedEntryCount()"></span> named and <span x-text="anonymousEntryCount()"></span> anonymous.</p>
-                                <p class="mt-3 border-t border-primary-color/20 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
-                            </div>
-
-                            <div class="flex justify-end gap-2">
-                                <x-ui.button type="button" color="outline" x-on:click="closeBulkAnonymousModal()">Cancel</x-ui.button>
-                                <x-ui.button type="button" color="primary" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
-                            </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                            <p class="font-semibold text-slate-900">Current list</p>
+                            <p class="mt-1"><span x-text="recordedEntryCount()"></span> attendees: <span x-text="namedEntryCount()"></span> named and <span x-text="anonymousEntryCount()"></span> anonymous.</p>
+                            <p class="mt-3 border-t border-slate-200 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
                         </div>
                     </div>
-                </div>
+
+                    <div class="sm-dialog-footer">
+                        <x-ui.button type="button" color="outline" x-on:click="closeBulkAnonymousModal()">Cancel</x-ui.button>
+                        <x-ui.button type="button" color="primary" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
+                    </div>
+                </x-ui.list-dialog>
 
                 <div data-list-results class="space-y-4 lg:hidden">
                     <template x-for="(entry, index) in entries" :key="`mobile-${index}`">
@@ -1462,6 +1458,7 @@
                                     name="mobile_child_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.child_name"
+                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][child_name]` : null"
                                     x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
                                     x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
@@ -1470,6 +1467,7 @@
                                     name="mobile_guardian_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.guardian_name"
+                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][guardian_name]` : null"
                                     x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
                                     x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
@@ -1479,6 +1477,7 @@
                                     name="mobile_email_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.email"
+                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][email]` : null"
                                     x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
                                     x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
@@ -1487,6 +1486,7 @@
                                     name="mobile_phone_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.phone"
+                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][phone]` : null"
                                     x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
                                     x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
@@ -1494,15 +1494,16 @@
                                     <div class="mt-8 mb-4">
                                         <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
                                         <x-ui.checkbox
- label="Media Consent"
- :small="true"
- :noWrapper="true"
- :inline="true"
- x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
- value="1"
- x-model="entry.media_consent"
- x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
- />
+                                            label="Media Consent"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
+                                            x-bind:disabled="entry.is_anonymous"
+                                            value="1"
+                                            x-model="entry.media_consent"
+                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1510,22 +1511,22 @@
                     </template>
                 </div>
 
-                <div class="hidden overflow-x-auto rounded-lg border border-gray-300 lg:block">
+                <div class="hidden overflow-x-auto rounded-lg border border-slate-200 bg-white lg:block">
                     <x-ui.table variant="plain" table-class="min-w-full">
-                        <thead class="bg-gray-50 rounded-md">
+                        <thead class="bg-slate-50">
                             <tr>
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Anonymous" />
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Attendee Name" />
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Parent/Guardian" />
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Email" />
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Phone" />
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-gray-300" label="Media" />
-                                <x-ui.list-heading class="text-center! text-sm px-4 py-2 border-b border-gray-300" label="Actions" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Anonymous" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Attendee Name" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Parent/Guardian" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Email" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Phone" />
+                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Media" />
+                                <x-ui.list-heading class="text-center! text-sm px-4 py-2 border-b border-slate-200" label="Actions" />
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(entry, index) in entries" :key="index">
-                                <tr class="border-b last:border-b-0">
+                                <tr class="border-b border-slate-100 last:border-b-0">
                                     <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
@@ -1546,6 +1547,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.child_name"
+                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][child_name]` : null"
                                             x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
                                             x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
@@ -1557,6 +1559,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.guardian_name"
+                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][guardian_name]` : null"
                                             x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
                                             x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
@@ -1569,6 +1572,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.email"
+                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][email]` : null"
                                             x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
                                             x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
@@ -1580,6 +1584,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.phone"
+                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][phone]` : null"
                                             x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
                                             x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
@@ -1587,16 +1592,17 @@
                                     <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null" value="0">
                                         <x-ui.checkbox
- label="Media consent"
- :labelHidden="true"
- :small="true"
- :noWrapper="true"
- :inline="true"
- x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
- value="1"
- x-model="entry.media_consent"
- x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
- />
+                                            label="Media consent"
+                                            :labelHidden="true"
+                                            :small="true"
+                                            :noWrapper="true"
+                                            :inline="true"
+                                            x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
+                                            x-bind:disabled="entry.is_anonymous"
+                                            value="1"
+                                            x-model="entry.media_consent"
+                                            x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
+                                        />
                                     </td>
                                     <td class="text-center! p-2 align-middle">
                                         <x-ui.row-action label="Delete row" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeEntry(index)" />
