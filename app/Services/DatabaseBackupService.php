@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SiteOption;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -16,12 +17,16 @@ class DatabaseBackupService
     private string $backupDirectory;
     private ?string $dumpCommand;
     private ?string $mysqlImportCommand;
+    private ?string $gzipCommand;
+    private ExecutableFinder $executableFinder;
 
     public function __construct()
     {
         $this->backupDirectory = storage_path('app/backups/database');
+        $this->executableFinder = new ExecutableFinder;
         $this->dumpCommand = $this->resolveAvailableCommand(['mysqldump', 'mariadb-dump']);
         $this->mysqlImportCommand = $this->resolveAvailableCommand(['mysql', 'mariadb']);
+        $this->gzipCommand = $this->resolveAvailableCommand(['gzip']);
     }
 
     public function backupPath(string $filename): string
@@ -29,97 +34,110 @@ class DatabaseBackupService
         return $this->backupDirectory.'/'.ltrim($filename, '/');
     }
 
-    public function createBackup(?string $prefix = null): string
+    public function assertBackupEnvironment(): void
     {
         $this->assertMysqlConnection();
+        $this->requireResolvedCommand($this->dumpCommand, ['mysqldump', 'mariadb-dump']);
+        $this->requireResolvedCommand($this->gzipCommand, ['gzip']);
+        $this->mysqlConfig();
+    }
+
+    public function createBackup(?string $prefix = null): string
+    {
+        $this->assertBackupEnvironment();
         $dumpCommand = $this->requireResolvedCommand($this->dumpCommand, ['mysqldump', 'mariadb-dump']);
-        $this->ensureCommandAvailable('gzip');
+        $gzipCommand = $this->requireResolvedCommand($this->gzipCommand, ['gzip']);
 
         if (! is_dir($this->backupDirectory)) {
             mkdir($this->backupDirectory, 0775, true);
         }
+
+        $this->pruneTemporaryFiles();
 
         $database = (string) config('database.connections.mysql.database');
         $timestamp = now()->format('Ymd_His');
         $safePrefix = trim((string) ($prefix ?? $database));
         $safePrefix = preg_replace('/[^a-zA-Z0-9._-]/', '-', $safePrefix) ?: 'database';
         $filename = $safePrefix.'_'.$timestamp.'.sql.gz';
-        $tmpSqlPath = $this->backupPath('.'.$filename.'.sql.tmp');
-        $tmpGzPath = $this->backupPath('.'.$filename.'.gz.tmp');
+        $temporaryToken = bin2hex(random_bytes(8));
+        $tmpSqlPath = $this->backupPath('.'.$filename.'.'.$temporaryToken.'.sql.tmp');
+        $tmpGzPath = $this->backupPath('.'.$filename.'.'.$temporaryToken.'.gz.tmp');
         $finalPath = $this->backupPath($filename);
 
-        $mysql = $this->mysqlConfig();
+        try {
+            $mysql = $this->mysqlConfig();
 
-        $dumpArgs = [
-            $dumpCommand,
-            '--host='.$mysql['host'],
-            '--port='.(string) $mysql['port'],
-            '--user='.$mysql['username'],
-            '--single-transaction',
-            '--quick',
-            '--routines',
-            '--triggers',
-            '--events',
-            '--hex-blob',
-            '--default-character-set=utf8mb4',
-            '--add-drop-database',
-            '--databases',
-            $mysql['database'],
-            '--result-file='.$tmpSqlPath,
-        ];
+            $dumpArgs = [
+                $dumpCommand,
+                '--host='.$mysql['host'],
+                '--port='.(string) $mysql['port'],
+                '--user='.$mysql['username'],
+                '--single-transaction',
+                '--quick',
+                '--routines',
+                '--triggers',
+                '--events',
+                '--hex-blob',
+                '--default-character-set=utf8mb4',
+                '--add-drop-database',
+                '--databases',
+                $mysql['database'],
+                '--result-file='.$tmpSqlPath,
+            ];
 
-        if ($this->supportsSetGtidPurgedFlag($dumpCommand)) {
-            $dumpArgs[] = '--set-gtid-purged=OFF';
+            if ($this->supportsSetGtidPurgedFlag($dumpCommand)) {
+                $dumpArgs[] = '--set-gtid-purged=OFF';
+            }
+
+            $dumpProcess = new Process($dumpArgs, null, [
+                'MYSQL_PWD' => $mysql['password'],
+            ], null, 300);
+            $dumpProcess->run();
+
+            if (! $dumpProcess->isSuccessful()) {
+                throw new RuntimeException('Database backup failed: '.$dumpProcess->getErrorOutput());
+            }
+
+            if (! is_file($tmpSqlPath) || filesize($tmpSqlPath) === 0) {
+                throw new RuntimeException('Database backup failed: dump output is empty.');
+            }
+
+            $gzipProcess = Process::fromShellCommandline(
+                escapeshellarg($gzipCommand).' -9 -c '.escapeshellarg($tmpSqlPath).' > '.escapeshellarg($tmpGzPath)
+            );
+            $gzipProcess->setTimeout(300);
+            $gzipProcess->run();
+
+            if (! $gzipProcess->isSuccessful()) {
+                throw new RuntimeException('Database backup failed during compression: '.$gzipProcess->getErrorOutput());
+            }
+
+            if (! is_file($tmpGzPath) || filesize($tmpGzPath) === 0) {
+                throw new RuntimeException('Database backup failed: compressed output is empty.');
+            }
+
+            $verifyProcess = new Process([$gzipCommand, '-t', $tmpGzPath]);
+            $verifyProcess->run();
+            if (! $verifyProcess->isSuccessful()) {
+                throw new RuntimeException('Database backup failed: compressed output verification failed.');
+            }
+
+            if ((int) filesize($tmpGzPath) < 100) {
+                throw new RuntimeException('Database backup failed: output appears incomplete (too small).');
+            }
+
+            if (! @rename($tmpGzPath, $finalPath)) {
+                throw new RuntimeException('Database backup failed: unable to finalise compressed output.');
+            }
+
+            return $finalPath;
+        } finally {
+            foreach ([$tmpSqlPath, $tmpGzPath] as $temporaryPath) {
+                if (is_file($temporaryPath)) {
+                    @unlink($temporaryPath);
+                }
+            }
         }
-
-        $dumpProcess = new Process($dumpArgs, null, [
-            'MYSQL_PWD' => $mysql['password'],
-        ], null, 300);
-        $dumpProcess->run();
-
-        if (! $dumpProcess->isSuccessful()) {
-            @unlink($tmpSqlPath);
-            throw new RuntimeException('Database backup failed: '.$dumpProcess->getErrorOutput());
-        }
-
-        if (! is_file($tmpSqlPath) || filesize($tmpSqlPath) === 0) {
-            @unlink($tmpSqlPath);
-            throw new RuntimeException('Database backup failed: dump output is empty.');
-        }
-
-        $gzipProcess = Process::fromShellCommandline(
-            'gzip -9 -c '.escapeshellarg($tmpSqlPath).' > '.escapeshellarg($tmpGzPath)
-        );
-        $gzipProcess->setTimeout(300);
-        $gzipProcess->run();
-
-        @unlink($tmpSqlPath);
-
-        if (! $gzipProcess->isSuccessful()) {
-            @unlink($tmpGzPath);
-            throw new RuntimeException('Database backup failed during compression: '.$gzipProcess->getErrorOutput());
-        }
-
-        if (! is_file($tmpGzPath) || filesize($tmpGzPath) === 0) {
-            @unlink($tmpGzPath);
-            throw new RuntimeException('Database backup failed: compressed output is empty.');
-        }
-
-        $verifyProcess = new Process(['gzip', '-t', $tmpGzPath]);
-        $verifyProcess->run();
-        if (! $verifyProcess->isSuccessful()) {
-            @unlink($tmpGzPath);
-            throw new RuntimeException('Database backup failed: compressed output verification failed.');
-        }
-
-        if ((int) filesize($tmpGzPath) < 100) {
-            @unlink($tmpGzPath);
-            throw new RuntimeException('Database backup failed: output appears incomplete (too small).');
-        }
-
-        rename($tmpGzPath, $finalPath);
-
-        return $finalPath;
     }
 
     public function resolvedKeepCount(int|string|null $keepCount = null): int
@@ -174,6 +192,8 @@ class DatabaseBackupService
             return [];
         }
 
+        $this->pruneTemporaryFiles();
+
         $files = glob($this->backupDirectory.'/*.sql.gz') ?: [];
         rsort($files, SORT_STRING);
 
@@ -193,6 +213,25 @@ class DatabaseBackupService
         return $backups;
     }
 
+    private function pruneTemporaryFiles(): void
+    {
+        $cutoff = now()->subDay()->getTimestamp();
+        $files = glob($this->backupDirectory.'/.'.'*.tmp') ?: [];
+
+        foreach ($files as $path) {
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $modifiedAt = filemtime($path);
+            if ($modifiedAt !== false && $modifiedAt >= $cutoff) {
+                continue;
+            }
+
+            @unlink($path);
+        }
+    }
+
     public function restoreBackup(string $sourcePath): void
     {
         $this->assertMysqlConnection();
@@ -203,17 +242,17 @@ class DatabaseBackupService
         }
 
         $isGzip = str_ends_with(strtolower($sourcePath), '.gz');
-        if ($isGzip) {
-            $this->ensureCommandAvailable('gzip');
-        }
+        $gzipCommand = $isGzip
+            ? $this->requireResolvedCommand($this->gzipCommand, ['gzip'])
+            : null;
 
         $mysql = $this->mysqlConfig();
 
         $inputCommand = $isGzip
-            ? 'gzip -dc '.escapeshellarg($sourcePath)
+            ? escapeshellarg((string) $gzipCommand).' -dc '.escapeshellarg($sourcePath)
             : 'cat '.escapeshellarg($sourcePath);
 
-        $command = $inputCommand.' | '.escapeshellcmd($mysqlImportCommand).' '
+        $command = $inputCommand.' | '.escapeshellarg($mysqlImportCommand).' '
             .'--host='.escapeshellarg($mysql['host']).' '
             .'--port='.escapeshellarg((string) $mysql['port']).' '
             .'--user='.escapeshellarg($mysql['username']);
@@ -259,16 +298,6 @@ class DatabaseBackupService
         ];
     }
 
-    private function ensureCommandAvailable(string $command): void
-    {
-        $process = Process::fromShellCommandline('command -v '.escapeshellarg($command));
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            throw new RuntimeException("Required command '{$command}' is not available on the server.");
-        }
-    }
-
     private function supportsSetGtidPurgedFlag(string $dumpCommand): bool
     {
         $process = new Process([$dumpCommand, '--help']);
@@ -304,12 +333,9 @@ class DatabaseBackupService
                 continue;
             }
 
-            $process = Process::fromShellCommandline('command -v '.escapeshellarg($command));
-            $process->setTimeout(10);
-            $process->run();
-
-            if ($process->isSuccessful()) {
-                return $command;
+            $executable = $this->executableFinder->find($command);
+            if ($executable !== null) {
+                return $executable;
             }
         }
 

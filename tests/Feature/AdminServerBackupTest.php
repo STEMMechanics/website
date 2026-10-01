@@ -9,6 +9,7 @@ use App\Models\UserGroup;
 use App\Services\DatabaseBackupService;
 use App\Services\FileBackupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -109,7 +110,11 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('Site Dependencies')
             ->assertSee('ImageMagick')
             ->assertSee('Poppler PDF text')
-            ->assertSee('Database dump client')
+            ->assertSee('mysqldump')
+            ->assertSee('mariadb-dump')
+            ->assertSee('mysql')
+            ->assertSee('mariadb')
+            ->assertSee('gzip')
             ->assertSee('Feature dependency')
             ->assertSee('OpenAI Responses API')
             ->assertSee('Media Download Offload')
@@ -133,6 +138,9 @@ class AdminServerBackupTest extends TestCase
     {
         Queue::fake();
         $admin = $this->createAdminUser();
+        $this->mock(DatabaseBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('assertBackupEnvironment')->once();
+        });
 
         $databaseResponse = $this->actingAs($admin)->postJson(route('admin.server.database.backup-now'));
         $databaseResponse
@@ -148,6 +156,25 @@ class AdminServerBackupTest extends TestCase
 
         Queue::assertPushed(RunServerBackup::class, 2);
         $this->assertDatabaseCount('server_backup_runs', 2);
+    }
+
+    public function test_database_backup_reports_missing_dependencies_before_queueing(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdminUser();
+        $this->mock(DatabaseBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('assertBackupEnvironment')
+                ->once()
+                ->andThrow(new \RuntimeException('Required command is not available on the server.'));
+        });
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.server.database.backup-now'))
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Database backup unavailable: Required command is not available on the server.');
+
+        Queue::assertNothingPushed();
+        $this->assertDatabaseCount('server_backup_runs', 0);
     }
 
     public function test_backup_status_endpoint_reports_completion_after_the_background_job_runs(): void
@@ -178,6 +205,32 @@ class AdminServerBackupTest extends TestCase
             ->assertJsonPath('run.progress', 100)
             ->assertJsonPath('run.finished', true)
             ->assertJsonPath('run.message', 'Database backup created: website_test.sql.gz');
+    }
+
+    public function test_backup_status_endpoint_recovers_a_stale_run(): void
+    {
+        $admin = $this->createAdminUser();
+        $staleAt = now()->subMinutes(20);
+        $run = ServerBackupRun::query()->create([
+            'type' => ServerBackupRun::TYPE_DATABASE,
+            'status' => ServerBackupRun::STATUS_RUNNING,
+            'progress' => 15,
+            'message' => 'Creating database backup…',
+            'started_at' => $staleAt,
+            'requested_by' => $admin->id,
+        ]);
+        DB::table('server_backup_runs')->where('id', $run->id)->update([
+            'created_at' => $staleAt,
+            'updated_at' => $staleAt,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.server.backups.status', $run))
+            ->assertOk()
+            ->assertJsonPath('run.status', ServerBackupRun::STATUS_FAILED)
+            ->assertJsonPath('run.finished', true)
+            ->assertJsonPath('run.message', 'Backup did not complete.')
+            ->assertJsonPath('run.error_message', 'The queue worker stopped or did not finish this run. Start a queue worker and try again.');
     }
 
     public function test_opening_a_backup_queues_manifest_preparation_instead_of_blocking(): void
@@ -310,6 +363,7 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('20260408_011500_incremental_24h')
             ->assertSee('Incremental')
             ->assertSee('fa-rotate-left', false)
+            ->assertSee('download="website_20260321_140000.sql.gz"', false)
             ->assertSee('Bulk File Download');
     }
 
@@ -458,6 +512,46 @@ class AdminServerBackupTest extends TestCase
             ->assertSessionHas('message', 'Database restored from backup: '.$filename)
             ->assertSessionHas('message-title', 'Rollback complete')
             ->assertSessionHas('message-type', 'warning');
+
+        @unlink($path);
+    }
+
+    public function test_admin_cannot_download_a_database_backup_temporary_file(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->get(route('admin.server.database.download', [
+                'filename' => 'website_20260321_140000.sql.gz.sql.tmp',
+            ]))
+            ->assertNotFound();
+    }
+
+    public function test_admin_database_download_uses_the_final_backup_filename(): void
+    {
+        $admin = $this->createAdminUser();
+        $filename = 'website_20260321_140000.sql.gz';
+        $path = storage_path('framework/testing/'.$filename);
+
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0775, true);
+        }
+        file_put_contents($path, 'test backup');
+
+        $this->mock(DatabaseBackupService::class, function (MockInterface $mock) use ($filename, $path): void {
+            $mock->shouldReceive('backupPath')
+                ->once()
+                ->with($filename)
+                ->andReturn($path);
+        });
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.server.database.download', ['filename' => $filename]));
+
+        $response
+            ->assertOk()
+            ->assertDownload($filename);
+        $this->assertStringContainsString($filename, (string) $response->headers->get('Content-Disposition'));
 
         @unlink($path);
     }

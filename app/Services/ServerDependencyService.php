@@ -31,14 +31,10 @@ class ServerDependencyService
             $this->command('Poppler PDF text', [['pdftotext', '-v']], 'Searchable text extraction from expense PDFs', false),
             $this->command('ZIP command', [['zip', '-v']], 'File, media, and finance backup archives', false),
             $this->command('Unzip command', [['unzip', '-v']], 'ZIP archive inspection and extraction', false),
-            $this->command('Database dump client', [
-                ['mysqldump', '--version'],
-                ['mariadb-dump', '--version'],
-            ], 'MySQL/MariaDB database backups', false),
-            $this->command('Database client', [
-                ['mysql', '--version'],
-                ['mariadb', '--version'],
-            ], 'MySQL/MariaDB database restores', false),
+            $this->command('mysqldump', [['mysqldump', '--version']], 'MySQL database backups', false),
+            $this->command('mariadb-dump', [['mariadb-dump', '--version']], 'MariaDB database backups', false),
+            $this->command('mysql', [['mysql', '--version']], 'MySQL database restores', false),
+            $this->command('mariadb', [['mariadb', '--version']], 'MariaDB database restores', false),
             $this->command('gzip', [['gzip', '--version']], 'Database backup compression and restore', false),
         ];
 

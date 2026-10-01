@@ -46,6 +46,37 @@ class ServerBackupRun extends Model
         return in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_FAILED], true);
     }
 
+    public function staleAfterMinutes(): int
+    {
+        return match ($this->type) {
+            self::TYPE_DATABASE => 15,
+            self::TYPE_INSPECTION => 30,
+            default => 120,
+        };
+    }
+
+    public function recoverIfStale(): bool
+    {
+        if ($this->isFinished()) {
+            return false;
+        }
+
+        $lastActivity = $this->updated_at ?? $this->started_at ?? $this->created_at;
+        if ($lastActivity === null || ! $lastActivity->lt(now()->subMinutes($this->staleAfterMinutes()))) {
+            return false;
+        }
+
+        $this->forceFill([
+            'status' => self::STATUS_FAILED,
+            'progress' => 100,
+            'message' => 'Backup did not complete.',
+            'error_message' => 'The queue worker stopped or did not finish this run. Start a queue worker and try again.',
+            'finished_at' => now(),
+        ])->saveQuietly();
+
+        return true;
+    }
+
     public function payload(): array
     {
         $downloadUrl = $this->status === self::STATUS_COMPLETED && filled($this->result['archive_path'] ?? null)

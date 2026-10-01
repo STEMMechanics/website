@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\FinanceDocumentPdf;
 use App\Models\Invoice;
+use App\Services\Finance\InvoicePdfLines;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -28,7 +29,7 @@ class ScheduledInvoiceDeliveryService
         ])->all();
         $payUrl = (float) $invoice->displayOutstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null;
         $pdf = Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice, 'itemPages' => [$items], 'adjustments' => collect(), 'publicPayUrl' => $payUrl,
+            'invoice' => $invoice, 'itemPages' => [InvoicePdfLines::prepare($items)], 'adjustments' => collect(), 'publicPayUrl' => $payUrl,
         ])->setOption(['enable_font_subsetting' => true])->output();
         $name = trim((string) ($invoice->user?->firstname ?: $invoice->billing_name ?: 'there'));
         foreach ($recipients as $recipient) {
