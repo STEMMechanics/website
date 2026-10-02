@@ -1392,7 +1392,7 @@ if (isset($workshop)) {
                             <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                 <div class="flex items-start gap-2">
                                     <button type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
-                                        <i class="mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                                        <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
                                         <span class="min-w-0 flex-1">
                                             <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
                                             <span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
