@@ -3173,7 +3173,17 @@ class WorkshopController extends Controller
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
-        app(SiteListControls::class)->capturePresetCounts(Ticket::query()->where('workshop_id', $workshop->id)->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]));
+        $attendanceTicketQuery = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]);
+        $dropInAttendanceCount = WorkshopAttendance::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereNull('ticket_id')
+            ->count();
+        request()->attributes->set('collection_preset_counts', [
+            'Current' => (clone $attendanceTicketQuery)->where('status', '!=', Ticket::STATUS_CANCELLED)->count() + $dropInAttendanceCount,
+            'Including cancelled' => (clone $attendanceTicketQuery)->count() + $dropInAttendanceCount,
+        ]);
 
         $activeTickets = collect();
         $cancelledTickets = collect();
@@ -4122,16 +4132,20 @@ class WorkshopController extends Controller
                 ];
             });
 
+        $legacyAnonymousCount = $rawEntries->filter(fn (array $row): bool => $row['is_anonymous'])->count();
         $entries = $rawEntries
-            ->filter(fn (array $row): bool => $row['is_anonymous']
-                || $row['child_name'] !== ''
+            ->filter(fn (array $row): bool => ! $row['is_anonymous']
+                && ($row['child_name'] !== ''
                 || $row['guardian_name'] !== ''
                 || $row['email'] !== ''
-                || $row['phone'] !== '')
+                || $row['phone'] !== ''))
             ->values()
             ->all();
+        $hasAnonymousCount = $request->has('anonymous_count');
+        $anonymousCountInput = $hasAnonymousCount ? $request->input('anonymous_count') : null;
 
-        validator(['entries' => $entries], [
+        validator(['anonymous_count' => $anonymousCountInput, 'entries' => $entries], [
+            'anonymous_count' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'entries' => ['nullable', 'array'],
             'entries.*.id' => ['nullable', 'integer', 'min:0'],
             'entries.*.is_anonymous' => ['nullable', 'boolean'],
@@ -4141,6 +4155,7 @@ class WorkshopController extends Controller
             'entries.*.phone' => ['nullable', 'string', 'max:60'],
             'entries.*.media_consent' => ['nullable', 'boolean'],
         ])->validate();
+        $targetAnonymousCount = $hasAnonymousCount ? (int) $anonymousCountInput : $legacyAnonymousCount;
 
         $existing = WorkshopAttendance::query()
             ->where('workshop_id', $workshop->id)
@@ -4148,68 +4163,115 @@ class WorkshopController extends Controller
             ->get()
             ->keyBy(fn (WorkshopAttendance $entry): int => (int) $entry->id);
 
-        $retainedIds = [];
+        DB::transaction(function () use ($entries, $existing, $targetAnonymousCount, $workshop): void {
+            $retainedNamedIds = [];
 
-        foreach ($entries as $row) {
-            $entryId = (int) $row['id'];
-            $userId = $this->resolveAttendanceUserId(
-                $row['email'],
-                $row['child_name'],
-                '',
-                $row['phone']
-            );
+            foreach ($entries as $row) {
+                $entryId = (int) $row['id'];
+                $userId = $this->resolveAttendanceUserId(
+                    $row['email'],
+                    $row['child_name'],
+                    '',
+                    $row['phone']
+                );
 
-            if ($entryId > 0 && $existing->has($entryId)) {
-                /** @var WorkshopAttendance $entry */
-                $entry = $existing->get($entryId);
-                $entry->is_anonymous = $row['is_anonymous'];
-                $entry->source = $row['is_anonymous'] ? 'anonymous' : 'dropin';
-                $entry->child_name = $row['child_name'];
-                $entry->guardian_name = $row['guardian_name'] !== '' ? $row['guardian_name'] : null;
-                $entry->email = $row['email'] !== '' ? $row['email'] : null;
-                $entry->phone = $row['phone'] !== '' ? $row['phone'] : null;
-                $entry->media_consent = $row['media_consent'];
-                $entry->user_id = $userId;
-                $entry->save();
+                if ($entryId > 0 && $existing->has($entryId)) {
+                    /** @var WorkshopAttendance $entry */
+                    $entry = $existing->get($entryId);
+                    $entry->is_anonymous = false;
+                    $entry->source = 'dropin';
+                    $entry->child_name = $row['child_name'];
+                    $entry->guardian_name = $row['guardian_name'] !== '' ? $row['guardian_name'] : null;
+                    $entry->email = $row['email'] !== '' ? $row['email'] : null;
+                    $entry->phone = $row['phone'] !== '' ? $row['phone'] : null;
+                    $entry->media_consent = $row['media_consent'];
+                    $entry->user_id = $userId;
+                    $entry->save();
 
-                $retainedIds[] = (int) $entry->id;
+                    $retainedNamedIds[] = (int) $entry->id;
 
-                continue;
+                    continue;
+                }
+
+                $created = WorkshopAttendance::query()->create([
+                    'workshop_id' => $workshop->id,
+                    'ticket_id' => null,
+                    'user_id' => $userId,
+                    'created_by' => auth()->id(),
+                    'source' => 'dropin',
+                    'is_anonymous' => false,
+                    'child_name' => $row['child_name'],
+                    'firstname' => null,
+                    'surname' => null,
+                    'guardian_name' => $row['guardian_name'] !== '' ? $row['guardian_name'] : null,
+                    'email' => $row['email'] !== '' ? $row['email'] : null,
+                    'phone' => $row['phone'] !== '' ? $row['phone'] : null,
+                    'media_consent' => $row['media_consent'],
+                    'attended_at' => now(),
+                ]);
+
+                $retainedNamedIds[] = (int) $created->id;
             }
 
-            $created = WorkshopAttendance::query()->create([
-                'workshop_id' => $workshop->id,
-                'ticket_id' => null,
-                'user_id' => $userId,
-                'created_by' => auth()->id(),
-                'source' => $row['is_anonymous'] ? 'anonymous' : 'dropin',
-                'is_anonymous' => $row['is_anonymous'],
-                'child_name' => $row['child_name'],
-                'firstname' => null,
-                'surname' => null,
-                'guardian_name' => $row['guardian_name'] !== '' ? $row['guardian_name'] : null,
-                'email' => $row['email'] !== '' ? $row['email'] : null,
-                'phone' => $row['phone'] !== '' ? $row['phone'] : null,
-                'media_consent' => $row['media_consent'],
-                'attended_at' => now(),
-            ]);
+            $deleteNamedIds = $existing
+                ->filter(fn (WorkshopAttendance $entry): bool => ! $entry->is_anonymous)
+                ->keys()
+                ->map(fn ($id): int => (int) $id)
+                ->reject(fn (int $id): bool => in_array($id, $retainedNamedIds, true))
+                ->values()
+                ->all();
 
-            $retainedIds[] = (int) $created->id;
-        }
+            if ($deleteNamedIds !== []) {
+                WorkshopAttendance::query()
+                    ->where('workshop_id', $workshop->id)
+                    ->whereNull('ticket_id')
+                    ->whereIn('id', $deleteNamedIds)
+                    ->delete();
+            }
 
-        $deleteIds = $existing->keys()
-            ->map(fn ($id): int => (int) $id)
-            ->reject(fn (int $id): bool => in_array($id, $retainedIds, true))
-            ->values()
-            ->all();
-
-        if ($deleteIds !== []) {
-            WorkshopAttendance::query()
+            $anonymousEntries = WorkshopAttendance::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereNull('ticket_id')
-                ->whereIn('id', $deleteIds)
-                ->delete();
-        }
+                ->where('is_anonymous', true)
+                ->orderBy('id')
+                ->get();
+            $currentAnonymousCount = $anonymousEntries->count();
+
+            if ($targetAnonymousCount < $currentAnonymousCount) {
+                WorkshopAttendance::query()
+                    ->where('workshop_id', $workshop->id)
+                    ->whereNull('ticket_id')
+                    ->whereIn('id', $anonymousEntries->slice($targetAnonymousCount)->pluck('id')->all())
+                    ->delete();
+            } elseif ($targetAnonymousCount > $currentAnonymousCount) {
+                $now = now();
+                $rows = [];
+                for ($index = $currentAnonymousCount; $index < $targetAnonymousCount; $index++) {
+                    $rows[] = [
+                        'workshop_id' => $workshop->id,
+                        'ticket_id' => null,
+                        'user_id' => null,
+                        'created_by' => auth()->id(),
+                        'source' => 'anonymous',
+                        'is_anonymous' => true,
+                        'child_name' => null,
+                        'firstname' => null,
+                        'surname' => null,
+                        'guardian_name' => null,
+                        'email' => null,
+                        'phone' => null,
+                        'media_consent' => false,
+                        'attended_at' => $now,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+
+                foreach (array_chunk($rows, 500) as $chunk) {
+                    WorkshopAttendance::query()->insert($chunk);
+                }
+            }
+        });
 
         session()->flash('message', 'Attendance records have been updated.');
         session()->flash('message-title', 'Attendance saved');

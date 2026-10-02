@@ -63,6 +63,7 @@ class WorkshopAllocation
         $source = [
             'workshop' => [$workshop->starts_at?->toIso8601String(), $workshop->ends_at?->toIso8601String(), $workshop->status, $workshop->pricing_version_id, $workshop->hosted_for_organisation_id, $workshop->max_tickets],
             'tickets' => $tickets->map(fn ($ticket) => [$ticket->id, $ticket->status, $ticket->invoice_id, $ticket->invoice_line_id, $ticket->attended_at?->toIso8601String()])->all(),
+            'drop_in_attendance_count' => $workshop->attendances()->whereNull('ticket_id')->count(),
             'invoices' => $invoices->map(fn ($invoice) => [$invoice->id, in_array($invoice->id, $fundingInvoiceIds, true) && in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_PAID, Invoice::STATUS_OVERDUE], true) ? 'issued' : $invoice->status, $invoice->total_amount, $invoice->gst_amount, in_array($invoice->id, $fundingInvoiceIds, true) ? $invoice->lines->map(fn ($line) => $line->only(['line_number', 'kind', 'details_json', 'quantity', 'unit_price_ex_tax', 'tax_rate', 'line_total_ex_tax', 'tax_amount', 'line_total_inc_tax', 'source_type', 'source_id']))->all() : $invoice->lines->toArray(), $invoice->taxAdjustments->toArray()])->all(),
             // Funding receipts/refunds change available cash, not the approved cost plan.
             'events' => array_values(array_filter($events, fn ($event) => ! collect($fundingInvoiceIds)->contains(fn ($id) => str_ends_with((string) $event['id'], '-'.$id)))),

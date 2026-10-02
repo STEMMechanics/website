@@ -275,17 +275,24 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
     },
     get linkedWorkshop() { return this.catalog.find(option => option.id === this.item.details_json.workshop.linked_workshop_id); },
     get seatValue() {
-        if (!this.billingLocked) return this.item.workshop_seats;
         const basis = this.item.details_json.workshop.allocation_basis;
+        if (this.linkedWorkshop && basis === 'attendance') return Number(this.linkedWorkshop.attendance || 0);
+        if (!this.billingLocked) return this.item.workshop_seats;
         if (this.linkedWorkshop && basis === 'capacity') return Number(this.linkedWorkshop.capacity || 0);
         if (this.linkedWorkshop && basis === 'tickets') return Number(this.linkedWorkshop.tickets || 0);
-        if (this.linkedWorkshop && basis === 'attendance') return Number(this.linkedWorkshop.attendance || 0);
         return this.item.details_json.workshop.allocation_seats;
     },
     set seatValue(value) {
         if (!this.billingLocked) this.item.workshop_seats = value;
         this.item.details_json.workshop.allocation_seats = value;
         this.item.details_json.workshop.allocation_basis = 'manual';
+    },
+    syncLiveSeatValue() {
+        if (this.billingLocked || !this.linkedWorkshop || this.item.details_json.workshop.allocation_basis !== 'attendance') return;
+        const value = Number(this.linkedWorkshop.attendance || 0);
+        if (Number(this.item.workshop_seats || 0) === value) return;
+        this.item.workshop_seats = value;
+        this.$nextTick(() => this.$dispatch('workshop-line-changed'));
     },
     get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets', attendance: 'Attendance count' }[this.item.details_json.workshop.allocation_basis]; },
     get matches() {
