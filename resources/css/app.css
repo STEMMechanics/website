@@ -1875,7 +1875,7 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody {
         display: block;
-        margin-bottom: .85rem;
+        margin-bottom: 1rem;
         overflow: hidden;
         border: 1px solid #e2e8f0;
         border-radius: .85rem;
@@ -1883,13 +1883,23 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
         box-shadow: 0 1px 2px rgb(15 23 42 / .05);
     }
 
+    .sm-invoice-line-items .sm-invoice-line-items-table > tbody::before {
+        display: block;
+        padding: .75rem 1rem .35rem;
+        color: #334155;
+        content: 'Line item ' attr(data-line-item);
+        font-size: .75rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+    }
+
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody:last-child { margin-bottom: 0; }
 
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody > tr:first-child {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .9rem 1rem;
-        padding: 1rem;
+        gap: .75rem 1rem;
+        padding: .75rem 1rem 1rem;
     }
 
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody > tr:first-child > td {
@@ -1955,24 +1965,42 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody > tr:nth-child(2) > td {
         display: block;
-        padding: 1rem;
+        padding: .75rem 1rem 1rem;
         border: 0;
         text-align: left !important;
     }
 
     .sm-invoice-line-items .sm-invoice-line-items-table > tbody > tr:nth-child(2) > td::before { content: none; }
-    .sm-invoice-line-items .sm-invoice-line-details { margin-left: 0; }
+    .sm-invoice-line-items .sm-invoice-line-details {
+        display: flex;
+        flex-direction: column;
+        gap: .75rem;
+        margin-left: 0;
+    }
+
+    .sm-invoice-line-items .sm-invoice-line-details > * {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
 
     .sm-invoice-workshops .sm-invoice-workshops-table > tbody {
         display: grid;
-        gap: .75rem;
+        gap: .65rem;
+    }
+
+    .sm-invoice-workshops {
+        overflow: visible;
+        padding: .75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: .75rem;
+        background: #f8fafc;
     }
 
     .sm-invoice-workshops .sm-invoice-workshops-table > tbody > tr {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .85rem 1rem;
-        padding: .9rem;
+        gap: .65rem .85rem;
+        padding: .75rem;
         border: 1px solid #e2e8f0;
         border-radius: .85rem;
         background: white;
