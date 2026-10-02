@@ -530,7 +530,7 @@
                                 @php($fileVisibility = in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true) ? (string) $file->visibility : 'private')
                                 <tr>
                                     <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $file->title }}" value="{{ $file->name }}" :small="true" :noWrapper="true" inputClass="mx-auto" x-model="selected" /></td>
-                                    <td data-label="Media" data-mobile-primary data-mobile-wide class="px-3 py-3">
+                                    <td data-mobile-primary class="px-3 py-3">
                                         <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
                                             <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0"><img src="{{ $file->thumbnail ?: asset('/thumbnails/unknown.webp') }}" onerror="this.onerror=null;this.src='{{ asset('/thumbnails/unknown.webp') }}';" alt="{{ $file->title }}" class="h-12 w-16 rounded bg-white object-contain p-1"></a>
                                             <div class="sm-workshop-media-card-copy min-w-0">
