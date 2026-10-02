@@ -241,6 +241,9 @@ class QuoteWorkflowService
         app(\App\Services\Finance\WorkshopFunding::class)->validateLinks($invoice);
 
         app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
+        if ($issueInvoice) {
+            app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $invoice->created_by);
+        }
 
         return $invoice->fresh('lines');
     }

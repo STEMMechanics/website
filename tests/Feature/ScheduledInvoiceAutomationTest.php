@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Jobs\SendEmail;
 use App\Jobs\SendScheduledInvoiceEmail;
 use App\Mail\FinanceDocumentPdf;
+use App\Mail\ScheduledInvoiceFailure;
 use App\Mail\ScheduledInvoiceReview;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -19,6 +21,29 @@ use Tests\TestCase;
 class ScheduledInvoiceAutomationTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function unbalancedScheduledInvoice(User $customer): Invoice
+    {
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'billing_email' => $customer->email,
+            'issue_date' => today(),
+            'due_date' => today()->addDays(14),
+            'subtotal_amount' => 100,
+            'gst_amount' => 10,
+            'total_amount' => 110,
+            'scheduled_email' => true,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'line_total_ex_tax' => 100,
+            'tax_amount' => 10,
+            'line_total_inc_tax' => 110,
+        ]);
+
+        return $invoice;
+    }
 
     public function test_scheduled_draft_uses_a_scheduled_display_status(): void
     {
@@ -79,6 +104,9 @@ class ScheduledInvoiceAutomationTest extends TestCase
             'billing_email' => 'customer@example.com',
             'issue_date' => today(),
             'due_date' => today()->addDays(14),
+            'subtotal_amount' => 0,
+            'gst_amount' => 0,
+            'total_amount' => 0,
             'scheduled_email' => true,
             'scheduled_email_queued_at' => null,
             'status' => Invoice::STATUS_DRAFT,
@@ -152,6 +180,59 @@ class ScheduledInvoiceAutomationTest extends TestCase
         Queue::assertNotPushed(SendScheduledInvoiceEmail::class);
     }
 
+    public function test_unbalanced_invoice_can_be_scheduled_for_later_review(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $customer = User::factory()->create(['email' => 'customer@example.com']);
+
+        $response = $this->actingAs($admin)->post(route('admin.invoice.store'), [
+            'invoice_number' => 'INV-SCHEDULE-UNBALANCED',
+            'user_id' => $customer->id,
+            'issue_date' => today()->addDay()->toDateString(),
+            'due_date' => today()->addDays(28)->toDateString(),
+            'scheduled_email' => '1',
+            'send_scheduled_now' => '0',
+            'line_items_json' => json_encode([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]),
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $invoice = Invoice::query()->where('invoice_number', 'INV-SCHEDULE-UNBALANCED')->firstOrFail();
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertTrue($invoice->scheduled_email);
+        $this->assertNull($invoice->scheduled_email_queued_at);
+        Queue::assertNotPushed(SendScheduledInvoiceEmail::class);
+    }
+
+    public function test_due_unbalanced_invoice_is_cancelled_when_sent_immediately(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $customer = User::factory()->create(['email' => 'customer@example.com']);
+
+        $response = $this->actingAs($admin)->post(route('admin.invoice.store'), [
+            'invoice_number' => 'INV-SEND-NOW-UNBALANCED',
+            'user_id' => $customer->id,
+            'issue_date' => today()->toDateString(),
+            'due_date' => today()->addDays(28)->toDateString(),
+            'scheduled_email' => '1',
+            'send_scheduled_now' => '1',
+            'line_items_json' => json_encode([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]),
+        ]);
+
+        $response->assertSessionHasNoErrors()
+            ->assertSessionHas('message-title', 'Schedule cancelled')
+            ->assertSessionHas('message-type', 'warning');
+        $invoice = Invoice::query()->where('invoice_number', 'INV-SEND-NOW-UNBALANCED')->firstOrFail();
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertFalse($invoice->scheduled_email);
+        $this->assertStringContainsString('cost centre allocation was not balanced', (string) $invoice->scheduled_email_failure);
+        Queue::assertNotPushed(SendScheduledInvoiceEmail::class);
+        Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof ScheduledInvoiceFailure);
+    }
+
     public function test_scheduled_invoice_job_marks_the_invoice_sent_after_delivery(): void
     {
         Mail::fake();
@@ -161,6 +242,9 @@ class ScheduledInvoiceAutomationTest extends TestCase
             'billing_email' => 'customer@example.com',
             'issue_date' => today(),
             'due_date' => today()->addDays(14),
+            'subtotal_amount' => 0,
+            'gst_amount' => 0,
+            'total_amount' => 0,
             'scheduled_email' => true,
             'scheduled_email_queued_at' => now(),
             'status' => Invoice::STATUS_ISSUED,
@@ -171,6 +255,44 @@ class ScheduledInvoiceAutomationTest extends TestCase
         Mail::assertSent(FinanceDocumentPdf::class, fn (FinanceDocumentPdf $mail): bool => $mail->hasTo('customer@example.com'));
         $this->assertSame(Invoice::STATUS_SENT, $invoice->fresh()->status);
         $this->assertNotNull($invoice->fresh()->scheduled_email_sent_at);
+    }
+
+    public function test_unbalanced_scheduled_invoice_is_cancelled_and_admin_is_notified(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $customer = User::factory()->create(['email' => 'customer@example.com']);
+        $invoice = $this->unbalancedScheduledInvoice($customer);
+
+        $this->artisan('invoices:process-scheduled')->assertSuccessful();
+
+        $invoice->refresh();
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertFalse($invoice->scheduled_email);
+        $this->assertNull($invoice->scheduled_email_queued_at);
+        $this->assertStringContainsString('cost centre allocation was not balanced', (string) $invoice->scheduled_email_failure);
+        Queue::assertNotPushed(SendScheduledInvoiceEmail::class);
+        Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof ScheduledInvoiceFailure);
+    }
+
+    public function test_scheduled_delivery_cancels_before_sending_if_allocation_becomes_unbalanced(): void
+    {
+        Queue::fake();
+        Mail::fake();
+        $admin = User::factory()->create(['email' => 'admin@example.com']);
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $customer = User::factory()->create(['email' => 'customer@example.com']);
+        $invoice = $this->unbalancedScheduledInvoice($customer);
+        $invoice->update(['status' => Invoice::STATUS_ISSUED, 'issued_at' => now(), 'scheduled_email_queued_at' => now()]);
+
+        (new SendScheduledInvoiceEmail((int) $invoice->id))->handle(app(ScheduledInvoiceDeliveryService::class));
+
+        $invoice->refresh();
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->status);
+        $this->assertFalse($invoice->scheduled_email);
+        Mail::assertNotSent(FinanceDocumentPdf::class);
+        Queue::assertPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'admin@example.com' && $job->mailable instanceof ScheduledInvoiceFailure);
     }
 
     public function test_scheduled_invoice_uses_organisation_email_defaults_and_contact_placeholder(): void
@@ -193,6 +315,9 @@ class ScheduledInvoiceAutomationTest extends TestCase
             'purchase_order_number' => 'PO-123',
             'issue_date' => today(),
             'due_date' => today()->addDays(14),
+            'subtotal_amount' => 0,
+            'gst_amount' => 0,
+            'total_amount' => 0,
             'scheduled_email' => true,
             'scheduled_email_queued_at' => now(),
             'status' => Invoice::STATUS_ISSUED,

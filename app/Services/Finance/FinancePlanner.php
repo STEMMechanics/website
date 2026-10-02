@@ -140,7 +140,7 @@ class FinancePlanner
         return ['workshop_id' => $workshopId, 'name' => $name, 'date' => $date, 'invoice_ids' => $invoiceIds, 'assumptions' => $inputs, 'version_id' => $version->id, 'targets' => $targets, 'warning' => $warning, 'income' => $this->income($invoiceIds), 'suggested_price_cents' => $suggested];
     }
 
-    public function apply(array $preview, string $userId, array $selected, array $overrides = []): int
+    public function apply(array $preview, ?string $userId, array $selected, array $overrides = []): int
     {
         return DB::transaction(function () use ($preview, $userId, $selected, $overrides): int {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
