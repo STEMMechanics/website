@@ -1497,9 +1497,9 @@ if (isset($workshop)) {
                     <x-ui.button color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif
                     @isset($workshop)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" class="w-full sm:w-auto" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
                     @endisset
-                    <x-ui.button type="submit">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
+                    <x-ui.button type="submit" class="w-full sm:w-auto">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
                 </x-ui.editor-actions>
         </form>
         @isset($workshop)
