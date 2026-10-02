@@ -174,6 +174,7 @@ class InvoiceController extends Controller
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
+            $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -232,6 +233,12 @@ class InvoiceController extends Controller
         app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->save($invoice->fresh(), $request->input('workshop_allocations'), $request->user()->id, $request->attributes->get('validated_workshop_allocations', []));
     }
 
+    private function finaliseLinkedWorkshopAllocations(Invoice $invoice, string $userId): void
+    {
+        if (! in_array((string) $invoice->status, [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_PAID, Invoice::STATUS_OVERDUE], true)) return;
+        app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $userId);
+    }
+
     private function saveInvoiceAllocation(Request $request, Invoice $invoice, bool $fundingChanged = false): void
     {
         $funding = app(\App\Services\Finance\WorkshopFunding::class);
@@ -287,6 +294,7 @@ class InvoiceController extends Controller
                 $invoice->save();
                 $this->saveInvoiceAllocation($request, $invoice);
                 $this->saveWorkshopAllocations($request, $invoice);
+                $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
             });
             $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
             if ($request->has('private_files')) {
@@ -342,6 +350,7 @@ class InvoiceController extends Controller
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
+            $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -2058,13 +2067,16 @@ class InvoiceController extends Controller
             return false;
         }
 
-        $invoice->update([
-            'status' => Invoice::STATUS_ISSUED,
-            'issued_at' => now(),
-            'scheduled_email_queued_at' => now(),
-            'scheduled_email_failure' => null,
-            'scheduled_email_failed_at' => null,
-        ]);
+        DB::transaction(function () use ($invoice): void {
+            $invoice->update([
+                'status' => Invoice::STATUS_ISSUED,
+                'issued_at' => now(),
+                'scheduled_email_queued_at' => now(),
+                'scheduled_email_failure' => null,
+                'scheduled_email_failed_at' => null,
+            ]);
+            app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $invoice->created_by);
+        });
         SendScheduledInvoiceEmail::dispatch((int) $invoice->id);
 
         return true;
