@@ -1746,6 +1746,7 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     .sm-invoice-mobile-line-items { display: grid; gap: .75rem; }
     .sm-invoice-mobile-line-item { padding: 1rem; border: 1px solid #dbe3ee; border-radius: .9rem; background: white; box-shadow: 0 1px 2px rgb(15 23 42 / .05); }
     .sm-invoice-mobile-line-item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+    .sm-invoice-mobile-line-item-type { display: inline-flex; align-items: center; min-height: 1.5rem; padding: .15rem .5rem; border-radius: 999px; color: #0369a1; background: #e0f2fe; font-size: .6875rem; font-weight: 600; line-height: 1.2; }
     .sm-invoice-mobile-line-item-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin-top: 1rem; padding-top: .9rem; border-top: 1px solid #e2e8f0; }
     .sm-invoice-mobile-line-item-totals dt { color: #64748b; font-size: .75rem; }
     .sm-invoice-mobile-line-item-totals dd { margin-top: .2rem; color: #0f172a; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
