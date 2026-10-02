@@ -69,11 +69,8 @@
                 <article class="sm-invoice-mobile-line-item">
                     <div class="sm-invoice-mobile-line-item-header">
                         <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Line item <span x-text="index + 1"></span></span>
-                                <span class="sm-invoice-mobile-line-item-type" x-text="itemTypeLabel(item.kind)"></span>
-                            </div>
-                            <h4 class="mt-2 break-words text-base font-semibold text-slate-900" x-text="item.description || itemTypeLabel(item.kind)"></h4>
+                            <div class="break-words text-sm leading-snug text-slate-600" x-text="itemTypeLabel(item.kind)"></div>
+                            <div x-show="String(item.description || '').trim() !== ''" class="mt-1 break-words text-sm leading-snug text-slate-500" x-text="item.description"></div>
                         </div>
                         <x-ui.button type="button" color="outline" class="shrink-0 gap-2 px-3! py-2!" x-on:click="openMobileLineItem(index)" x-bind:aria-label="'{{ $isLocked ? 'View' : 'Edit' }} line item ' + (index + 1)">
                             <i class="fa-solid {{ $isLocked ? 'fa-eye' : 'fa-pen-to-square' }}" aria-hidden="true"></i><span>{{ $isLocked ? 'View' : 'Edit' }}</span>
@@ -100,8 +97,7 @@
         <dialog x-ref="mobileLineItemDialog" class="sm-invoice-line-item-dialog" aria-labelledby="sm-invoice-line-item-dialog-title" x-on:cancel.prevent="closeMobileLineItem()" x-on:close="mobileLineItemIndex = null" x-on:click.self="closeMobileLineItem()">
             <div class="sm-invoice-line-item-dialog-header">
                 <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Line item <span x-text="mobileLineItemIndex === null ? '' : mobileLineItemIndex + 1"></span></p>
-                    <h2 id="sm-invoice-line-item-dialog-title" class="mt-1 break-words text-lg font-bold text-slate-900" x-text="mobileLineItemIndex === null ? 'Line item' : itemTypeLabel(lineItems[mobileLineItemIndex]?.kind)"></h2>
+                    <h2 id="sm-invoice-line-item-dialog-title" class="break-words text-sm font-medium leading-snug text-slate-600" x-text="mobileLineItemIndex === null ? 'Line item' : itemTypeLabel(lineItems[mobileLineItemIndex]?.kind)"></h2>
                 </div>
                 <x-ui.button type="button" variant="plain" class="h-11 w-11 shrink-0 rounded-lg p-0! text-slate-500" x-on:click="closeMobileLineItem()" aria-label="Close line item editor"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
             </div>
