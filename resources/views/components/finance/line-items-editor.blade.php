@@ -18,9 +18,9 @@
     <x-ui.table variant="listing" class="{{ $lineItemsWrapperClass }}" table-class="{{ $lineItemsTableClass }}">
         <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
         <template x-for="(item, index) in lineItems" :key="index">
-            <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; item.kind === 'workshop') }" class="[&>tr>td]:bg-white!">
+            <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; item.kind === 'workshop') }" x-bind:data-line-item="index + 1" class="[&>tr>td]:bg-white!">
                 <tr>
-                    <td data-label="Description" data-mobile-wide class="min-w-64">
+                    <td data-label="Item type" data-mobile-wide class="min-w-64">
                         <div class="flex items-center gap-2">
                             <x-ui.button href="#" role="button" variant="plain" class="flex h-11 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-sky-50 hover:text-primary-color" x-on:click.prevent="expanded = !expanded" x-on:keydown.space.prevent="expanded = !expanded" x-bind:aria-expanded="expanded" x-bind:aria-label="expanded ? 'Collapse details and notes' : 'Expand details and notes'">
                                 <i class="fa-solid text-sm" x-bind:class="expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
