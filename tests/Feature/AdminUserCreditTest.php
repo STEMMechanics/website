@@ -710,7 +710,8 @@ class AdminUserCreditTest extends TestCase
         $pageResponse->assertSee('data-view-tabs', false);
         $pageResponse->assertSee('All refunds');
         $pageResponse->assertSee('Unfinished');
-        $pageResponse->assertSee('Alert silenced; refund remains unfinished.');
+        $pageResponse->assertSee('Alert silenced');
+        $pageResponse->assertDontSee('Alert silenced; refund remains unfinished.');
         $pageResponse->assertSee('Resolve refund');
         $pageResponse->assertSee('Restore alert');
 

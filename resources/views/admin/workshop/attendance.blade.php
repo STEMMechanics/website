@@ -20,6 +20,7 @@
     if (request()->filled('list_sort')) {
         $attendanceTickets = $attendanceTickets->sortBy([[request('list_sort'), request('list_direction') ?: 'asc'], ['id', 'asc']])->values();
     }
+    $anonymousEntryCount = (int) old('anonymous_count', $dropIns->where('is_anonymous', true)->count());
     $seedEntries = old('entries');
     $ticketPaymentRows = is_array($ticketPaymentRows ?? null) ? $ticketPaymentRows : [];
     $availableEftposPayments = is_array($availableEftposPayments ?? null) ? $availableEftposPayments : [];
@@ -83,23 +84,29 @@
         })
         ->values();
 
-    if (! is_array($seedEntries)) {
-        $seedEntries = $dropIns->map(function ($entry) {
-            $childName = trim((string) ($entry->child_name ?? ''));
-            if ($childName === '') {
-                $childName = trim((string) (($entry->firstname ?? '').' '.($entry->surname ?? '')));
-            }
+    if (is_array($seedEntries)) {
+        $seedEntries = collect($seedEntries)
+            ->filter(fn ($entry): bool => is_array($entry) && ! filter_var($entry['is_anonymous'] ?? false, FILTER_VALIDATE_BOOLEAN))
+            ->values()
+            ->all();
+    } else {
+        $seedEntries = $dropIns
+            ->filter(fn ($entry): bool => ! $entry->is_anonymous)
+            ->map(function ($entry) {
+                $childName = trim((string) ($entry->child_name ?? ''));
+                if ($childName === '') {
+                    $childName = trim((string) (($entry->firstname ?? '').' '.($entry->surname ?? '')));
+                }
 
-            return [
-                'id' => (int) $entry->id,
-                'is_anonymous' => (bool) ($entry->is_anonymous ?? false),
-                'child_name' => $childName,
-                'guardian_name' => (string) ($entry->guardian_name ?? ''),
-                'email' => (string) ($entry->email ?? ''),
-                'phone' => (string) ($entry->phone ?? ''),
-                'media_consent' => (bool) ($entry->media_consent ?? false),
-            ];
-        })->values()->all();
+                return [
+                    'id' => (int) $entry->id,
+                    'child_name' => $childName,
+                    'guardian_name' => (string) ($entry->guardian_name ?? ''),
+                    'email' => (string) ($entry->email ?? ''),
+                    'phone' => (string) ($entry->phone ?? ''),
+                    'media_consent' => (bool) ($entry->media_consent ?? false),
+                ];
+            })->values()->all();
     }
 @endphp
 
@@ -1249,26 +1256,12 @@
         <div class="mt-6">
             <form method="POST" action="{{ route('admin.workshop.attendance.dropin.sync', $workshop) }}" x-data="{
                 entries: @js($seedEntries),
+                anonymousCount: @js($anonymousEntryCount),
                 submitting: false,
                 isDesktop: false,
-                bulkAnonymousModalOpen: false,
-                bulkAnonymousCount: 1,
-                bulkAnonymousError: '',
                 newBlankEntry() {
                     return {
                         id: 0,
-                        is_anonymous: false,
-                        child_name: '',
-                        guardian_name: '',
-                        email: '',
-                        phone: '',
-                        media_consent: false,
-                    };
-                },
-                newAnonymousEntry() {
-                    return {
-                        id: 0,
-                        is_anonymous: true,
                         child_name: '',
                         guardian_name: '',
                         email: '',
@@ -1277,8 +1270,7 @@
                     };
                 },
                 isBlankEntry(entry) {
-                    return !Boolean(entry?.is_anonymous)
-                        && String(entry?.child_name || '').trim() === ''
+                    return String(entry?.child_name || '').trim() === ''
                         && String(entry?.guardian_name || '').trim() === ''
                         && String(entry?.email || '').trim() === ''
                         && String(entry?.phone || '').trim() === ''
@@ -1314,144 +1306,49 @@
                         this.ensureSingleTrailingBlank();
                     }
                 },
-                handleEntryChange(index) {
-                    const entry = this.entries[index];
-                    const hasDetails = String(entry?.child_name || '').trim() !== ''
-                        || String(entry?.guardian_name || '').trim() !== ''
-                        || String(entry?.email || '').trim() !== ''
-                        || String(entry?.phone || '').trim() !== '';
-                    if (hasDetails) {
-                        entry.is_anonymous = false;
-                    }
-                    this.handleRowChange(index);
-                },
-                recordedEntryCount() {
-                    return this.entries.filter((entry) => !this.isBlankEntry(entry)).length;
-                },
-                anonymousEntryCount() {
-                    return this.entries.filter((entry) => !this.isBlankEntry(entry) && Boolean(entry?.is_anonymous)).length;
-                },
                 namedEntryCount() {
-                    return this.recordedEntryCount() - this.anonymousEntryCount();
-                },
-                bulkCount() {
-                    const count = Number(this.bulkAnonymousCount);
-                    return Number.isInteger(count) && count > 0 ? count : 0;
-                },
-                openBulkAnonymousModal() {
-                    this.bulkAnonymousCount = 1;
-                    this.bulkAnonymousError = '';
-                    this.bulkAnonymousModalOpen = true;
-                    const dialog = typeof document !== 'undefined'
-                        ? document.getElementById('bulk-anonymous-dialog')
-                        : null;
-                    if (dialog && !dialog.open) {
-                        dialog.showModal();
-                    }
-                    this.$nextTick(() => this.$refs.bulkAnonymousCount?.focus());
-                },
-                closeBulkAnonymousModal() {
-                    this.bulkAnonymousModalOpen = false;
-                    if (typeof document !== 'undefined') {
-                        document.getElementById('bulk-anonymous-dialog')?.close();
-                    }
-                    this.bulkAnonymousError = '';
-                },
-                addBulkAnonymous() {
-                    const count = this.bulkCount();
-                    if (count < 1 || count > 1000) {
-                        this.bulkAnonymousError = 'Enter a number between 1 and 1,000.';
-                        return;
-                    }
-
-                    const nonBlank = this.entries.filter((entry) => !this.isBlankEntry(entry));
-                    this.entries = [
-                        ...nonBlank,
-                        ...Array.from({ length: count }, () => this.newAnonymousEntry()),
-                        this.newBlankEntry(),
-                    ];
-                    this.closeBulkAnonymousModal();
+                    return this.entries.filter((entry) => !this.isBlankEntry(entry)).length;
                 },
                 syncViewport() {
                     this.isDesktop = window.innerWidth >= 1024;
                 },
-                initBulkAnonymousDialog() {
-                    if (typeof document === 'undefined') {
-                        return;
-                    }
-
-                    document.getElementById('bulk-anonymous-dialog')?.addEventListener('close', () => {
-                        this.bulkAnonymousModalOpen = false;
-                        this.bulkAnonymousError = '';
-                    });
-                },
-            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport()); initBulkAnonymousDialog()" x-on:submit="submitting = true">
+            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport())" x-on:submit="submitting = true">
                 @csrf
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
-                    <x-ui.button type="button" color="primary" x-on:click="openBulkAnonymousModal()">
-                        <i class="fa-solid fa-user-plus mr-2"></i>Add Bulk Anonymous
-                    </x-ui.button>
+                <div class="mb-3 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
+                        <p class="mt-1 text-sm text-slate-600"><span x-text="namedEntryCount()"></span> named records. Anonymous attendees are managed by the count below.</p>
+                    </div>
+                    <div class="w-full md:max-w-xs">
+                        <x-ui.input
+                            id="anonymous-count"
+                            type="number"
+                            name="anonymous_count"
+                            label="Anonymous attendees"
+                            :value="$anonymousEntryCount"
+                            x-model.number="anonymousCount"
+                            min="0"
+                            max="10000"
+                            step="1"
+                            inputmode="numeric"
+                            class="mb-0"
+                            fieldClasses="mt-1"
+                        />
+                        <p class="mt-2 text-xs text-slate-500">Saving will create or remove anonymous records to match this number.</p>
+                    </div>
                 </div>
-
-                <x-ui.list-dialog id="bulk-anonymous-dialog" title="Add anonymous attendees" kind="bulk">
-                    <div class="space-y-5 p-5">
-                        <p class="text-sm text-slate-600">Add the number of attendees you counted without entering personal details.</p>
-
-                        <div>
-                            <x-ui.input
-                                id="bulk-anonymous-count"
-                                type="number"
-                                label="How many should be added?"
-                                x-ref="bulkAnonymousCount"
-                                x-model.number="bulkAnonymousCount"
-                                x-on:keydown.enter.prevent="addBulkAnonymous()"
-                                min="1"
-                                max="1000"
-                                step="1"
-                                inputmode="numeric"
-                                class="mb-0"
-                                fieldClasses="mt-1"
-                            />
-                            <p class="mt-2 text-xs text-slate-500">You can add up to 1,000 attendees at a time.</p>
-                            <p x-show="bulkAnonymousError" x-text="bulkAnonymousError" class="mt-2 text-sm font-medium text-red-600"></p>
-                        </div>
-
-                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                            <p class="font-semibold text-slate-900">Current list</p>
-                            <p class="mt-1"><span x-text="recordedEntryCount()"></span> attendees: <span x-text="namedEntryCount()"></span> named and <span x-text="anonymousEntryCount()"></span> anonymous.</p>
-                            <p class="mt-3 border-t border-slate-200 pt-3">After adding these rows: <span class="font-semibold" x-text="recordedEntryCount() + bulkCount()"></span> attendees, including <span class="font-semibold" x-text="anonymousEntryCount() + bulkCount()"></span> anonymous.</p>
-                        </div>
-                    </div>
-
-                    <div class="sm-dialog-footer">
-                        <x-ui.button type="button" color="outline" x-on:click="closeBulkAnonymousModal()">Cancel</x-ui.button>
-                        <x-ui.button type="button" color="primary" x-on:click="addBulkAnonymous()">Add Anonymous</x-ui.button>
-                    </div>
-                </x-ui.list-dialog>
 
                 <div data-list-results class="space-y-4 lg:hidden">
                     <template x-for="(entry, index) in entries" :key="`mobile-${index}`">
                         <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div class="flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-3">
-                                    <x-ui.checkbox
- label="Anonymous attendee"
- :small="true"
- :noWrapper="true"
- :inline="true"
- x-model="entry.is_anonymous"
- x-on:change="handleRowChange(index)"
- />
-                                    <h3 class="text-sm font-semibold text-gray-900" x-text="entry.is_anonymous ? 'Anonymous attendee' : (entry.child_name || entry.guardian_name || `Entry ${index + 1}`)"></h3>
-                                </div>
+                                <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || `Entry ${index + 1}`"></h3>
                                 <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
                                     <i class="fa-solid fa-trash"></i>
                                 </x-ui.button>
                             </div>
 
                             <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
-                            <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
 
                             <div class="mt-4 space-y-3">
                                 <x-ui.input
@@ -1459,38 +1356,34 @@
                                     name="mobile_child_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.child_name"
-                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][child_name]` : null"
-                                    x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
-                                    x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
+                                    x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
+                                    x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
                                     label="Parent/Guardian (optional)"
                                     name="mobile_guardian_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.guardian_name"
-                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][guardian_name]` : null"
-                                    x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
-                                    x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
+                                    x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
+                                    x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
                                     type="email"
                                     label="Email"
                                     name="mobile_email_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.email"
-                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][email]` : null"
-                                    x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
-                                    x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
+                                    x-on:input="entry.email = $event.target.value; handleRowChange(index)"
+                                    x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
                                     label="Phone"
                                     name="mobile_phone_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.phone"
-                                    x-bind:disabled="entry.is_anonymous"
                                     x-bind:name="!isDesktop ? `entries[${index}][phone]` : null"
-                                    x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
-                                    x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
+                                    x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
+                                    x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                 <div>
                                     <div class="mt-8 mb-4">
                                         <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
@@ -1500,7 +1393,6 @@
                                             :noWrapper="true"
                                             :inline="true"
                                             x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
-                                            x-bind:disabled="entry.is_anonymous"
                                             value="1"
                                             x-model="entry.media_consent"
                                             x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
@@ -1516,7 +1408,6 @@
                     <x-ui.table variant="plain" table-class="min-w-full">
                         <thead class="bg-slate-50">
                             <tr>
-                                <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Anonymous" />
                                 <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Attendee Name" />
                                 <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Parent/Guardian" />
                                 <x-ui.list-heading class="text-sm text-left px-4 py-2 border-b border-slate-200" label="Email" />
@@ -1528,30 +1419,17 @@
                         <tbody>
                             <template x-for="(entry, index) in entries" :key="index">
                                 <tr class="border-b border-slate-100 last:border-b-0">
-                                    <td class="p-2 align-middle text-center">
-                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
-                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][is_anonymous]` : null" x-bind:value="entry.is_anonymous ? '1' : '0'">
-                                        <x-ui.checkbox
- label="Anonymous attendee"
- :labelHidden="true"
- :small="true"
- :noWrapper="true"
- :inline="true"
- x-model="entry.is_anonymous"
- x-on:change="handleRowChange(index)"
- />
-                                    </td>
                                     <td class="p-2 align-top">
+                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
                                         <x-ui.input
                                             name="child_name_placeholder"
                                             :noLabel="true"
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.child_name"
-                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][child_name]` : null"
-                                            x-on:input="entry.child_name = $event.target.value; handleEntryChange(index)"
-                                            x-on:change="entry.child_name = $event.target.value; handleEntryChange(index)" />
+                                            x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
+                                            x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1560,10 +1438,9 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.guardian_name"
-                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][guardian_name]` : null"
-                                            x-on:input="entry.guardian_name = $event.target.value; handleEntryChange(index)"
-                                            x-on:change="entry.guardian_name = $event.target.value; handleEntryChange(index)" />
+                                            x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
+                                            x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1573,10 +1450,9 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.email"
-                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][email]` : null"
-                                            x-on:input="entry.email = $event.target.value; handleEntryChange(index)"
-                                            x-on:change="entry.email = $event.target.value; handleEntryChange(index)" />
+                                            x-on:input="entry.email = $event.target.value; handleRowChange(index)"
+                                            x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-top">
                                         <x-ui.input
@@ -1585,10 +1461,9 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.phone"
-                                            x-bind:disabled="entry.is_anonymous"
                                             x-bind:name="isDesktop ? `entries[${index}][phone]` : null"
-                                            x-on:input="entry.phone = $event.target.value; handleEntryChange(index)"
-                                            x-on:change="entry.phone = $event.target.value; handleEntryChange(index)" />
+                                            x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
+                                            x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null" value="0">
@@ -1599,7 +1474,6 @@
                                             :noWrapper="true"
                                             :inline="true"
                                             x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
-                                            x-bind:disabled="entry.is_anonymous"
                                             value="1"
                                             x-model="entry.media_consent"
                                             x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"

@@ -125,8 +125,9 @@ class WorkshopAttendanceKioskTest extends TestCase
             ->get(route('admin.workshop.attendance', ['workshop' => $workshop]))
             ->assertOk()
             ->assertSee('Attendance Records')
-            ->assertSee('Add Bulk Anonymous')
-            ->assertSee('How many should be added?');
+            ->assertSee('Anonymous attendees')
+            ->assertSee('name="anonymous_count"', false)
+            ->assertDontSee('Add Bulk Anonymous');
 
         $response = $this->actingAs($admin)
             ->post(route('admin.workshop.attendance.dropin.sync', ['workshop' => $workshop]), [
@@ -154,7 +155,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_append_bulk_anonymous_attendance_without_replacing_named_records(): void
+    public function test_admin_can_reconcile_anonymous_attendance_count_without_replacing_named_records(): void
     {
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop('none');
@@ -178,26 +179,20 @@ class WorkshopAttendanceKioskTest extends TestCase
             'created_by' => $admin->id,
         ]));
 
-        $entries = $anonymousEntries->concat($namedEntries)->map(fn (WorkshopAttendance $entry): array => [
+        $namedPayload = $namedEntries->map(fn (WorkshopAttendance $entry): array => [
             'id' => $entry->id,
-            'is_anonymous' => $entry->is_anonymous,
             'child_name' => $entry->child_name ?? '',
             'guardian_name' => $entry->guardian_name ?? '',
             'email' => '',
             'phone' => '',
             'media_consent' => false,
-        ])->concat(collect(range(1, 15))->map(fn (): array => [
-            'id' => 0,
-            'is_anonymous' => true,
-            'child_name' => '',
-            'guardian_name' => '',
-            'email' => '',
-            'phone' => '',
-            'media_consent' => false,
-        ]))->all();
+        ])->all();
 
         $this->actingAs($admin)
-            ->post(route('admin.workshop.attendance.dropin.sync', $workshop), ['entries' => $entries])
+            ->post(route('admin.workshop.attendance.dropin.sync', $workshop), [
+                'anonymous_count' => 18,
+                'entries' => $namedPayload,
+            ])
             ->assertRedirect(route('admin.workshop.attendance', $workshop));
 
         $this->assertSame(20, $workshop->attendances()->count());
@@ -205,6 +200,17 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->assertSame(2, $workshop->attendances()->where('is_anonymous', false)->count());
         $this->assertDatabaseHas('workshop_attendances', ['workshop_id' => $workshop->id, 'child_name' => 'Ada Lovelace']);
         $this->assertDatabaseHas('workshop_attendances', ['workshop_id' => $workshop->id, 'child_name' => 'Katherine Johnson']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.workshop.attendance.dropin.sync', $workshop), [
+                'anonymous_count' => 1,
+                'entries' => $namedPayload,
+            ])
+            ->assertRedirect(route('admin.workshop.attendance', $workshop));
+
+        $this->assertSame(3, $workshop->attendances()->count());
+        $this->assertSame(1, $workshop->attendances()->where('is_anonymous', true)->count());
+        $this->assertSame(2, $workshop->attendances()->where('is_anonymous', false)->count());
     }
 
     public function test_admin_can_export_attendance_as_csv(): void
@@ -348,6 +354,12 @@ class WorkshopAttendanceKioskTest extends TestCase
             'phone' => '0400123999',
             'attended_at' => null,
         ]);
+        WorkshopAttendance::query()->create([
+            'workshop_id' => $workshop->id,
+            'source' => 'anonymous',
+            'is_anonymous' => true,
+            'attended_at' => now(),
+        ]);
 
         $this->actingAs($admin)
             ->get(route('admin.workshop.attendance', $workshop))
@@ -356,11 +368,19 @@ class WorkshopAttendanceKioskTest extends TestCase
             ->assertSee('Active Attendee')
             ->assertDontSee('Cancelled Attendee')
             ->assertDontSee('Cancelled Tickets');
+        $this->assertSame([
+            'Current' => 2,
+            'Including cancelled' => 3,
+        ], request()->attributes->get('collection_preset_counts'));
 
         $this->actingAs($admin)
             ->get(route('admin.workshop.attendance', ['workshop' => $workshop, 'show_cancelled' => 1]))
             ->assertOk()
             ->assertSee('Cancelled Attendee');
+        $this->assertSame([
+            'Current' => 2,
+            'Including cancelled' => 3,
+        ], request()->attributes->get('collection_preset_counts'));
     }
 
     public function test_admin_can_bulk_cancel_tickets_from_attendance(): void

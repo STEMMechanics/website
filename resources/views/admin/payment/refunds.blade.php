@@ -82,7 +82,12 @@
                                 <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
                                 <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </div>
-                            <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
+                            <div class="flex flex-col items-end gap-1">
+                                <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
+                                @if($alertSilenced)
+                                    <div class="text-right text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced</div>
+                                @endif
+                            </div>
                         </div>
 
                         <div class="mt-4 space-y-3">
@@ -164,10 +169,6 @@
                                 </form>
                             @endif
                         </x-ui.row-actions>
-
-                        @if($alertSilenced)
-                            <p class="mt-3 text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced; refund remains unfinished.</p>
-                        @endif
 
                         <div
                             x-cloak
@@ -351,7 +352,12 @@
                                 @endif
                                 </td>
                                 <td class="align-top text-center!">
-                                    <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
+                                    <div class="flex flex-col items-center gap-1">
+                                        <x-ui.badge :color="$statusTone" size="xs">{{ $statusLabel }}</x-ui.badge>
+                                        @if($alertSilenced)
+                                            <div class="text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced</div>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="align-top">
                                     <x-ui.row-actions class="whitespace-nowrap">
@@ -377,10 +383,6 @@
                                             </form>
                                         @endif
                                     </x-ui.row-actions>
-                                    @if($alertSilenced)
-                                        <div class="mt-2 text-xs text-slate-500"><i class="fa-solid fa-bell-slash mr-1" aria-hidden="true"></i>Alert silenced; refund remains unfinished.</div>
-                                    @endif
-
                                     <div
                                         x-cloak
                                         x-show="refundModalOpen"

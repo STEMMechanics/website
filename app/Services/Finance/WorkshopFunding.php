@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Ticket;
 use App\Models\Workshop;
+use App\Models\WorkshopAttendance;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -180,9 +181,16 @@ class WorkshopFunding
             ->selectRaw('COUNT(DISTINCT workshop_session_attendance.ticket_id) AS attended_count')
             ->groupBy('workshop_session_attendance.workshop_id')
             ->pluck('attended_count', 'workshop_id');
+        $dropInAttendanceCounts = WorkshopAttendance::query()
+            ->whereNull('ticket_id')
+            ->select('workshop_id')
+            ->selectRaw('COUNT(*) AS attended_count')
+            ->groupBy('workshop_id')
+            ->pluck('attended_count', 'workshop_id');
 
-        return $workshops->map(function ($workshop) use ($ticketAttendanceCounts, $sessionAttendanceCounts): array {
-            $attendanceCount = $sessionAttendanceCounts->get($workshop->id) ?? $ticketAttendanceCounts->get($workshop->id, 0);
+        return $workshops->map(function ($workshop) use ($ticketAttendanceCounts, $sessionAttendanceCounts, $dropInAttendanceCounts): array {
+            $ticketAttendanceCount = $sessionAttendanceCounts->get($workshop->id) ?? $ticketAttendanceCounts->get($workshop->id, 0);
+            $attendanceCount = (int) $ticketAttendanceCount + (int) $dropInAttendanceCounts->get($workshop->id, 0);
 
             return [
                 'id' => (string) $workshop->id,
@@ -199,18 +207,26 @@ class WorkshopFunding
 
     private function attendanceCount(Workshop $workshop): int
     {
+        $dropInCount = (int) $workshop->attendances()
+            ->whereNull('ticket_id')
+            ->count();
+
         if ($workshop->isCourse()) {
-            return (int) DB::table('workshop_session_attendance')
+            $ticketAttendanceCount = (int) DB::table('workshop_session_attendance')
                 ->join('tickets', 'tickets.id', '=', 'workshop_session_attendance.ticket_id')
                 ->where('workshop_session_attendance.workshop_id', $workshop->id)
                 ->whereIn('tickets.status', Ticket::activePurchasedStatuses())
                 ->distinct('workshop_session_attendance.ticket_id')
                 ->count('workshop_session_attendance.ticket_id');
+
+            return $ticketAttendanceCount + $dropInCount;
         }
 
-        return (int) $workshop->tickets()
+        $ticketAttendanceCount = (int) $workshop->tickets()
             ->whereIn('status', Ticket::activePurchasedStatuses())
             ->whereNotNull('attended_at')
             ->count();
+
+        return $ticketAttendanceCount + $dropInCount;
     }
 }

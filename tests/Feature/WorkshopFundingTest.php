@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopAttendance;
 use App\Services\Finance\FinancePlanner;
 use App\Services\Finance\FinanceReportData;
 use App\Services\Finance\InvoiceAllocation;
@@ -141,14 +142,30 @@ class WorkshopFundingTest extends TestCase
             'status' => Ticket::STATUS_PAID,
             'attended_at' => null,
         ]);
+        WorkshopAttendance::factory()->count(2)->create([
+            'workshop_id' => $workshop->id,
+            'ticket_id' => null,
+            'is_anonymous' => true,
+            'source' => 'anonymous',
+            'attended_at' => now(),
+        ]);
 
         $catalogOption = collect(app(WorkshopFunding::class)->catalog())
             ->firstWhere('id', (string) $workshop->id);
-        $this->assertSame(2, $catalogOption['attendance']);
+        $this->assertSame(4, $catalogOption['attendance']);
 
         $invoice = $this->createInvoice([$this->line($workshop, 'attendance')]);
-        $this->assertSame(2, app(WorkshopAllocation::class)->context($workshop)['assumptions']['participants']);
+        $this->assertSame(4, app(WorkshopAllocation::class)->context($workshop)['assumptions']['participants']);
         $this->assertSame('40.00', $invoice->lines->first()->quantity);
+        $initialHash = app(WorkshopAllocation::class)->state($workshop)['hash'];
+        WorkshopAttendance::factory()->create([
+            'workshop_id' => $workshop->id,
+            'ticket_id' => null,
+            'is_anonymous' => true,
+            'source' => 'anonymous',
+            'attended_at' => now(),
+        ]);
+        $this->assertNotSame($initialHash, app(WorkshopAllocation::class)->state($workshop)['hash']);
     }
 
     public function test_existing_issued_invoice_can_be_linked_and_unlinked_without_changing_price(): void
