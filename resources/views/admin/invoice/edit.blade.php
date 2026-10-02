@@ -897,6 +897,7 @@
                 label="Linked User"
                 info="Search by name/organisation/email. Select a suggestion to link the invoice."
                 :disabled="$isLocked"
+                :mobile-stacked="true"
             />
 
             <div class="grid gap-x-6 sm:grid-cols-2">
@@ -934,7 +935,7 @@
                 </div>
             </div>
 
-            <x-finance.line-items-editor :is-locked="$isLocked" />
+            <x-finance.line-items-editor :is-locked="$isLocked" :invoice-layout="true" />
             @unless($isLocked)
                 <p class="mb-4 text-xs text-slate-500" x-show="lineItems.some(item => item.kind === 'product')" x-cloak>Saving reserves stock for selected store products, including draft invoices. Changing quantities adjusts the reservation; deleting a draft or cancelling the invoice releases it.</p>
             @endunless
