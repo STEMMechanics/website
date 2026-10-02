@@ -225,16 +225,35 @@ class WorkshopFundingTest extends TestCase
         $workshop = $this->workshop();
         $line = $this->line($workshop);
         $invoice = $this->createInvoice([$line]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
 
         $this->put(route('admin.invoice.update', $invoice), [
             'invoice_number' => $invoice->invoice_number,
             'issue_date' => today()->toDateString(),
             'issue_now' => '1',
             'line_items_json' => json_encode([$line]),
+            'workshop_allocations' => [$workshop->id => ['source_hash' => $service->state($workshop)['hash'], 'override' => 1, 'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')]]],
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(Invoice::STATUS_ISSUED, $invoice->fresh()->status);
         $this->assertTrue(app(WorkshopAllocation::class)->state($workshop)['current']);
+    }
+
+    public function test_unbalanced_invoice_cannot_be_finalised(): void
+    {
+        $this->admin();
+        $invoice = $this->createInvoice([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]);
+
+        $this->put(route('admin.invoice.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number,
+            'issue_date' => today()->toDateString(),
+            'issue_now' => '1',
+            'line_items_json' => json_encode([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]),
+        ])->assertSessionHasErrors('allocation');
+
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->fresh()->status);
+        $this->assertNull($invoice->fresh()->issued_at);
     }
 
     public function test_scheduled_issuance_finalises_linked_funding_workshops(): void
@@ -242,6 +261,14 @@ class WorkshopFundingTest extends TestCase
         $this->admin();
         $workshop = $this->workshop();
         $invoice = $this->createInvoice([$this->line($workshop)]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
+        $this->put(route('admin.invoice.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number,
+            'issue_date' => today()->toDateString(),
+            'line_items_json' => json_encode([$this->line($workshop)]),
+            'workshop_allocations' => [$workshop->id => ['source_hash' => $service->state($workshop)['hash'], 'override' => 1, 'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')]]],
+        ])->assertSessionHasNoErrors();
         $invoice->update(['scheduled_email' => true, 'issue_date' => today()]);
         Queue::fake();
 

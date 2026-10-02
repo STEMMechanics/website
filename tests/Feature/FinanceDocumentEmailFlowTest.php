@@ -244,6 +244,9 @@ class FinanceDocumentEmailFlowTest extends TestCase
                     'unit_price' => 10,
                     'gst_applicable' => true,
                 ]]),
+                'allocation' => [
+                    'targets' => [1 => '10.00'],
+                ],
                 'save_and_email' => 1,
             ]);
 

@@ -27,6 +27,15 @@ class SendScheduledInvoiceEmail implements ShouldQueue
     public function handle(ScheduledInvoiceDeliveryService $delivery): void
     {
         $invoice = Invoice::query()->findOrFail($this->invoiceId);
+        if ((string) $invoice->status !== Invoice::STATUS_ISSUED || ! $invoice->scheduled_email) {
+            return;
+        }
+        $fresh = $invoice->fresh(['lines', 'tickets']);
+        if (! $fresh || ! app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->isBalanced($fresh)) {
+            app(\App\Services\ScheduledInvoiceCancellationService::class)->cancelForUnbalancedAllocation($invoice);
+
+            return;
+        }
         $delivery->deliverCustomerEmail($invoice);
         $invoice->update([
             'status' => Invoice::STATUS_SENT,
