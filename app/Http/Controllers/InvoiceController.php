@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\UnbalancedInvoiceAllocation;
 use App\Jobs\SendEmail;
 use App\Jobs\SendScheduledInvoiceEmail;
 use App\Mail\FinanceDocumentPdf;
@@ -174,6 +175,10 @@ class InvoiceController extends Controller
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
+            if ((string) $invoice->status === Invoice::STATUS_ISSUED) {
+                app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
+            }
+            $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -181,11 +186,16 @@ class InvoiceController extends Controller
             $invoice->updateFiles($request->input('private_files'), 'private');
         }
 
-        $sentScheduledNow = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
+        $scheduledInvoiceResult = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
+        $message = match ($scheduledInvoiceResult) {
+            'queued' => 'Invoice has been finalised and its scheduled email has been queued.',
+            'cancelled' => 'Scheduled invoice cancelled because its cost centre allocation was not balanced.',
+            default => 'Invoice has been created',
+        };
 
-        session()->flash('message', $sentScheduledNow ? 'Invoice has been finalised and its scheduled email has been queued.' : 'Invoice has been created');
-        session()->flash('message-title', $sentScheduledNow ? 'Invoice queued' : 'Invoice created');
-        session()->flash('message-type', 'success');
+        session()->flash('message', $message);
+        session()->flash('message-title', $scheduledInvoiceResult === 'queued' ? 'Invoice queued' : ($scheduledInvoiceResult === 'cancelled' ? 'Schedule cancelled' : 'Invoice created'));
+        session()->flash('message-type', $scheduledInvoiceResult === 'cancelled' ? 'warning' : 'success');
 
         return redirect()->route('admin.invoice.index');
     }
@@ -230,6 +240,12 @@ class InvoiceController extends Controller
         if (! $request->has('workshop_allocations')) return;
         $request->validate(['workshop_allocations' => 'array']);
         app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->save($invoice->fresh(), $request->input('workshop_allocations'), $request->user()->id, $request->attributes->get('validated_workshop_allocations', []));
+    }
+
+    private function finaliseLinkedWorkshopAllocations(Invoice $invoice, string $userId): void
+    {
+        if (! in_array((string) $invoice->status, [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_PAID, Invoice::STATUS_OVERDUE], true)) return;
+        app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $userId);
     }
 
     private function saveInvoiceAllocation(Request $request, Invoice $invoice, bool $fundingChanged = false): void
@@ -287,6 +303,7 @@ class InvoiceController extends Controller
                 $invoice->save();
                 $this->saveInvoiceAllocation($request, $invoice);
                 $this->saveWorkshopAllocations($request, $invoice);
+                $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
             });
             $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
             if ($request->has('private_files')) {
@@ -342,6 +359,10 @@ class InvoiceController extends Controller
             app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
+            if ((string) $invoice->status === Invoice::STATUS_ISSUED) {
+                app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
+            }
+            $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
         $this->saveSubmittedInvoiceEmailTemplate($request, $invoice);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
@@ -349,15 +370,20 @@ class InvoiceController extends Controller
             $invoice->updateFiles($request->input('private_files'), 'private');
         }
 
-        $sentScheduledNow = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
+        $scheduledInvoiceResult = $this->queueScheduledInvoiceNowIfRequested($request, $invoice);
 
         if ($request->boolean('save_and_email') && (string) $invoice->status !== Invoice::STATUS_DRAFT) {
             session()->flash('invoice-email-open', true);
         }
 
-        session()->flash('message', $sentScheduledNow ? 'Invoice has been finalised and its scheduled email has been queued.' : 'Invoice has been updated');
-        session()->flash('message-title', $sentScheduledNow ? 'Invoice queued' : 'Invoice updated');
-        session()->flash('message-type', 'success');
+        $message = match ($scheduledInvoiceResult) {
+            'queued' => 'Invoice has been finalised and its scheduled email has been queued.',
+            'cancelled' => 'Scheduled invoice cancelled because its cost centre allocation was not balanced.',
+            default => 'Invoice has been updated',
+        };
+        session()->flash('message', $message);
+        session()->flash('message-title', $scheduledInvoiceResult === 'queued' ? 'Invoice queued' : ($scheduledInvoiceResult === 'cancelled' ? 'Schedule cancelled' : 'Invoice updated'));
+        session()->flash('message-type', $scheduledInvoiceResult === 'cancelled' ? 'warning' : 'success');
 
         return redirect()->back();
     }
@@ -2049,25 +2075,38 @@ class InvoiceController extends Controller
         return User::query()->find($userId)?->accountTermsDays() ?? 28;
     }
 
-    private function queueScheduledInvoiceNowIfRequested(Request $request, Invoice $invoice): bool
+    private function queueScheduledInvoiceNowIfRequested(Request $request, Invoice $invoice): string
     {
         if (! $request->boolean('send_scheduled_now')
             || ! $invoice->scheduled_email
             || ! $invoice->issue_date?->lte(today())
             || (string) $invoice->status !== Invoice::STATUS_DRAFT) {
-            return false;
+            return 'none';
         }
 
-        $invoice->update([
-            'status' => Invoice::STATUS_ISSUED,
-            'issued_at' => now(),
-            'scheduled_email_queued_at' => now(),
-            'scheduled_email_failure' => null,
-            'scheduled_email_failed_at' => null,
-        ]);
+        try {
+            DB::transaction(function () use ($invoice): void {
+                $fresh = $invoice->fresh(['lines', 'tickets']);
+                if (! $fresh || ! app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->isBalanced($fresh)) {
+                    throw new UnbalancedInvoiceAllocation();
+                }
+                $invoice->update([
+                    'status' => Invoice::STATUS_ISSUED,
+                    'issued_at' => now(),
+                    'scheduled_email_queued_at' => now(),
+                    'scheduled_email_failure' => null,
+                    'scheduled_email_failed_at' => null,
+                ]);
+                app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $invoice->created_by);
+            });
+        } catch (UnbalancedInvoiceAllocation) {
+            app(\App\Services\ScheduledInvoiceCancellationService::class)->cancelForUnbalancedAllocation($invoice);
+
+            return 'cancelled';
+        }
         SendScheduledInvoiceEmail::dispatch((int) $invoice->id);
 
-        return true;
+        return 'queued';
     }
 
     private function saveSubmittedInvoiceEmailTemplate(Request $request, Invoice $invoice): void

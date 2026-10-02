@@ -31,8 +31,8 @@
             @if($interestRegistrations->isEmpty())
                 <p class="mt-4 text-sm text-gray-600">No one has registered interest for this workshop yet.</p>
             @else
-                <div class="mt-4 overflow-auto rounded-lg border border-gray-200">
-                    <x-ui.table variant="plain" table-class="w-full min-w-3xl text-sm">
+                <div class="mt-4">
+                    <x-ui.table variant="listing" :mobile-cards="true" table-class="w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-2 text-left">Name</th>
@@ -61,20 +61,20 @@
                                     };
                                 @endphp
                                 <tr class="border-t border-gray-100 align-top">
-                                    <td class="px-4 py-3">
+                                    <td data-label="Name" data-mobile-primary class="px-4 py-3">
                                         <div class="font-semibold text-gray-900">{{ $resolvedName }}</div>
                                     </td>
-                                    <td class="px-4 py-3">
+                                    <td data-label="Contact" data-mobile-wide class="px-4 py-3">
                                         <div>{{ $resolvedEmail !== '' ? $resolvedEmail : '-' }}</div>
                                         <div class="mt-1 text-xs text-gray-500">{{ $resolvedPhone !== '' ? $resolvedPhone : '-' }}</div>
                                     </td>
-                                    <td class="px-4 py-3">
+                                    <td data-label="Account" data-mobile-wide class="px-4 py-3">
                                         <x-ui.badge color="gray" size="xs">{{ $accountLabel }}</x-ui.badge>
                                         @if($linkedUser !== null)
                                             <div class="mt-2 text-xs text-gray-500">{{ $linkedUser->getName() }}</div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-gray-600">
+                                    <td data-label="Registered" data-mobile-wide class="px-4 py-3 text-gray-600">
                                         <x-ui.date-time>{{ $interest->created_at?->format('j M Y g:i a') ?? '-' }}</x-ui.date-time>
                                     </td>
                                 </tr>

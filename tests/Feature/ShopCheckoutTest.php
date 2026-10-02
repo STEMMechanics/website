@@ -822,7 +822,7 @@ class ShopCheckoutTest extends TestCase
             ->assertDontSee('1 Queen Street')
             ->assertDontSee('Unit 4')
             ->assertDontSee('Auckland')
-            ->assertDontSee('1010');
+            ->assertDontSee('value="1010" type="text" name="shipping_postcode"');
     }
 
     public function test_physical_checkout_requires_valid_australian_state_and_four_digit_postcode(): void

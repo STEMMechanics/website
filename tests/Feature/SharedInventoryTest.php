@@ -150,7 +150,11 @@ class SharedInventoryTest extends TestCase
         UserGroup::create(['user_id' => $admin->id, 'slug' => 'admin']);
         $this->actingAs($admin);
         [$product, $variant] = $this->product();
-        $this->post(route('admin.invoice.store'), $this->payload($product, null, 3) + ['user_id' => $admin->id, 'issue_now' => 1])->assertSessionHasNoErrors();
+        $this->post(route('admin.invoice.store'), $this->payload($product, null, 3) + [
+            'user_id' => $admin->id,
+            'issue_now' => 1,
+            'allocation' => ['targets' => [1 => '27.27']],
+        ])->assertSessionHasNoErrors();
         $invoice = Invoice::where('invoice_number', 'SHARED-TEST')->firstOrFail();
         $this->assertSame(45, $product->fresh()->inventory_quantity);
         $this->delete(route('admin.invoice.destroy', $invoice))->assertSessionHasNoErrors();

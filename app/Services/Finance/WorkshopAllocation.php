@@ -12,6 +12,48 @@ use Illuminate\Validation\ValidationException;
 
 class WorkshopAllocation
 {
+    public function finaliseFundingInvoice(Invoice $invoice, ?string $userId): void
+    {
+        $invoice->loadMissing('lines');
+        $funding = app(WorkshopFunding::class);
+        $workshopIds = $invoice->lines
+            ->flatMap(fn ($line) => $funding->entries($line)->pluck('details_json.workshop.linked_workshop_id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        Workshop::whereIn('id', $workshopIds)->get()->each(fn (Workshop $workshop): bool => $this->finaliseIfReady($workshop, $userId));
+    }
+
+    private function finaliseIfReady(Workshop $workshop, ?string $userId): bool
+    {
+        $state = $this->state($workshop);
+        if (! $state['ready'] || $state['current']) {
+            return false;
+        }
+        $context = $this->context($workshop);
+        if (! $context['budget'] && $context['suggestedTargets'] === []) {
+            return false;
+        }
+
+        $budget = $context['budget'];
+        $manual = (bool) ($budget->manual ?? false);
+        $data = [
+            'source_hash' => $state['hash'],
+            'revision' => $budget ? hash('sha256', json_encode((array) $budget)) : '',
+            'override' => $manual,
+        ];
+        if ($manual) {
+            $data['targets'] = collect($context['targets'])
+                ->mapWithKeys(fn ($cents, $category): array => [$category => number_format((int) $cents / 100, 2, '.', '')])
+                ->all();
+        }
+
+        $this->finalise($workshop, $data, $userId);
+
+        return true;
+    }
+
     public function context(Workshop $workshop, ?array $supplied = null): array
     {
         $invoice = Invoice::whereIn('id', app(WorkshopFunding::class)->invoiceIds($workshop->id))->first()
@@ -136,7 +178,7 @@ class WorkshopAllocation
         });
     }
 
-    public function finalise(Workshop $workshop, array $data, string $userId): void
+    public function finalise(Workshop $workshop, array $data, ?string $userId): void
     {
         $data = \Illuminate\Support\Facades\Validator::make($data, ['source_hash' => 'required|string|size:64', 'revision' => 'nullable|string', 'override' => 'nullable|boolean', 'supplied_categories' => 'sometimes|array|max:100', 'supplied_categories.*' => 'boolean', 'targets' => 'required_if:override,1|array|min:1', 'targets.*' => 'required|numeric|min:0|max:10000000'])->validate();
         DB::transaction(function () use ($workshop, $data, $userId) {

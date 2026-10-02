@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendScheduledInvoiceEmail;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
@@ -24,6 +25,7 @@ use App\Services\Finance\WorkshopLine;
 use App\Services\QuoteWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class WorkshopFundingTest extends TestCase
@@ -120,7 +122,11 @@ class WorkshopFundingTest extends TestCase
         $this->put(route('admin.invoice.update', $invoice), $payload)->assertSessionHasNoErrors();
         Ticket::factory()->count(3)->create(['workshop_id' => $workshop->id, 'status' => Ticket::STATUS_PAID, 'invoice_id' => null]);
         $this->assertSame(3, $service->context($workshop)['assumptions']['participants']);
-        $service->finalise($workshop, ['source_hash' => $service->state($workshop)['hash']], $user->id);
+        $budget = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first();
+        $service->finalise($workshop, [
+            'source_hash' => $service->state($workshop)['hash'],
+            'revision' => hash('sha256', json_encode((array) $budget)),
+        ], $user->id);
         Ticket::factory()->create(['workshop_id' => $workshop->id, 'status' => Ticket::STATUS_PAID, 'invoice_id' => null]);
         $this->assertFalse($service->state($workshop)['current']);
         $this->assertSame(4, $service->context($workshop)['assumptions']['participants']);
@@ -198,6 +204,79 @@ class WorkshopFundingTest extends TestCase
         $this->assertSame($workshop->id, $invoice->lines->first()->details_json['workshop']['linked_workshop_id']);
         $this->assertSame(20, app(WorkshopAllocation::class)->context($workshop)['assumptions']['participants']);
         $this->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('Seats options');
+    }
+
+    public function test_issued_quote_with_linked_workshop_finalises_its_allocation(): void
+    {
+        $user = $this->admin();
+        $workshop = $this->workshop();
+        $line = WorkshopLine::normalize($this->line($workshop, 'capacity'));
+        $quote = Quote::factory()->create(['user_id' => $user->id, 'line_items' => [$line], 'subtotal_amount' => 400, 'gst_amount' => 40, 'total_amount' => 440]);
+
+        $invoice = app(QuoteWorkflowService::class)->createInvoiceFromQuote($quote, true);
+
+        $this->assertSame(Invoice::STATUS_ISSUED, $invoice->status);
+        $this->assertTrue(app(WorkshopAllocation::class)->state($workshop)['current']);
+    }
+
+    public function test_issuing_a_linked_funding_invoice_finalises_its_workshop_allocation(): void
+    {
+        $this->admin();
+        $workshop = $this->workshop();
+        $line = $this->line($workshop);
+        $invoice = $this->createInvoice([$line]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
+
+        $this->put(route('admin.invoice.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number,
+            'issue_date' => today()->toDateString(),
+            'issue_now' => '1',
+            'line_items_json' => json_encode([$line]),
+            'workshop_allocations' => [$workshop->id => ['source_hash' => $service->state($workshop)['hash'], 'override' => 1, 'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')]]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(Invoice::STATUS_ISSUED, $invoice->fresh()->status);
+        $this->assertTrue(app(WorkshopAllocation::class)->state($workshop)['current']);
+    }
+
+    public function test_unbalanced_invoice_cannot_be_finalised(): void
+    {
+        $this->admin();
+        $invoice = $this->createInvoice([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]);
+
+        $this->put(route('admin.invoice.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number,
+            'issue_date' => today()->toDateString(),
+            'issue_now' => '1',
+            'line_items_json' => json_encode([['kind' => 'custom', 'description' => 'Unallocated service', 'quantity' => 1, 'unit_price' => 100, 'gst_applicable' => true]]),
+        ])->assertSessionHasErrors('allocation');
+
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->fresh()->status);
+        $this->assertNull($invoice->fresh()->issued_at);
+    }
+
+    public function test_scheduled_issuance_finalises_linked_funding_workshops(): void
+    {
+        $this->admin();
+        $workshop = $this->workshop();
+        $invoice = $this->createInvoice([$this->line($workshop)]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
+        $this->put(route('admin.invoice.update', $invoice), [
+            'invoice_number' => $invoice->invoice_number,
+            'issue_date' => today()->toDateString(),
+            'line_items_json' => json_encode([$this->line($workshop)]),
+            'workshop_allocations' => [$workshop->id => ['source_hash' => $service->state($workshop)['hash'], 'override' => 1, 'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')]]],
+        ])->assertSessionHasNoErrors();
+        $invoice->update(['scheduled_email' => true, 'issue_date' => today()]);
+        Queue::fake();
+
+        $this->artisan('invoices:process-scheduled')->assertSuccessful();
+
+        $this->assertSame(Invoice::STATUS_ISSUED, $invoice->fresh()->status);
+        $this->assertTrue(app(WorkshopAllocation::class)->state($workshop)['current']);
+        Queue::assertPushed(SendScheduledInvoiceEmail::class);
     }
 
     public function test_draft_funding_invoice_can_save_linked_workshop_plans_without_receiving_cash(): void

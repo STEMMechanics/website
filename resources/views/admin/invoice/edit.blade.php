@@ -788,6 +788,9 @@
                             >Edit scheduled email details</x-ui.button>
                         </div>
                     </div>
+                    @if($errors->has('allocation'))
+                        <p class="mt-3 text-sm text-red-700" role="alert">{{ $errors->first('allocation') }}</p>
+                    @endif
                 @endif
             </div>
 
