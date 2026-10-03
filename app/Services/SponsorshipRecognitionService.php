@@ -23,7 +23,12 @@ class SponsorshipRecognitionService
             $sponsor = $this->representative($members);
             $total = $this->completedTotalFor($members);
             $level = $this->assignedLevelFor($members, $levels) ?? $levels->first(fn (SponsorshipRecognitionLevel $row) => $total >= (float) $row->minimum_total);
-            $name = $level?->name ?? ($levels->last()?->name ?? 'Sponsors');
+            $name = 'Sponsors';
+            if ($level !== null) {
+                $name = $level->name;
+            } elseif ($levels->last() !== null) {
+                $name = $levels->last()->name;
+            }
             if ($sponsor->publicLabel() !== '') $groups[$name][] = $sponsor;
         }
 
@@ -149,7 +154,7 @@ class SponsorshipRecognitionService
                     return true;
                 }
 
-                $effectiveEnd = $sponsorship->square_cancel_at?->copy()->endOfDay() ?? $sponsorship->cancelled_at;
+                $effectiveEnd = $sponsorship->cancelled_at;
                 if ($startedAt && $startedAt->lte($monthEnd)
                     && $sponsorship->status === 'cancelled'
                     && $effectiveEnd && $effectiveEnd->gte($monthStart)) {
@@ -167,6 +172,7 @@ class SponsorshipRecognitionService
         return false;
     }
 
+    /** @return Collection<int, SponsorshipRecognitionLevel> */
     private function levels(): Collection
     {
         return SponsorshipRecognitionLevel::query()
@@ -177,6 +183,7 @@ class SponsorshipRecognitionService
             ->get();
     }
 
+    /** @return Collection<int, Sponsor> */
     private function eligibleSponsors(): Collection
     {
         return Sponsor::query()
@@ -190,11 +197,13 @@ class SponsorshipRecognitionService
             ->get();
     }
 
+    /** @return \Illuminate\Support\Collection<int, Collection<int, Sponsor>> */
     private function eligibleSponsorGroups(): \Illuminate\Support\Collection
     {
         return $this->eligibleSponsors()
             ->groupBy(fn (Sponsor $sponsor) => $sponsor->entityIdentityKey())
-            ->values();
+            ->values()
+            ->toBase();
     }
 
     private function representative(\Illuminate\Support\Collection $members): Sponsor

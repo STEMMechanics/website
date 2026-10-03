@@ -11,6 +11,7 @@ class SponsorshipRecognitionLevel extends Model
 
     protected $casts = ['minimum_total' => 'decimal:2', 'sort_order' => 'integer', 'enabled' => 'boolean'];
 
+    /** @return BelongsTo<SponsorshipProject, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(SponsorshipProject::class, 'project_id');

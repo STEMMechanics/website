@@ -48,9 +48,9 @@ class CostCentreController extends Controller
         $centres = $centres->sortBy($data['list_sort'] ?? 'priority', SORT_REGULAR, ($data['list_direction'] ?? 'asc') === 'desc')->values();
         $centres = $centres->sortBy(fn ($centre) => match ($centre->kind) {
             'cash' => -1,
-            'sponsorship' => 0,
-            'contributions' => 1,
-            'gst' => 2,
+            'contributions' => 0,
+            'gst' => 1,
+            'sponsorship' => 2,
             default => 3,
         })->values();
         $centres = $this->paginate($centres);

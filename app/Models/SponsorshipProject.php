@@ -18,21 +18,25 @@ class SponsorshipProject extends Model
         'custom_amount_min' => 'decimal:2', 'custom_amount_max' => 'decimal:2',
     ];
 
+    /** @return HasMany<SponsorshipOption, $this> */
     public function options(): HasMany
     {
         return $this->hasMany(SponsorshipOption::class, 'project_id')->orderBy('frequency')->orderBy('sort_order')->orderBy('amount');
     }
 
+    /** @return HasMany<Sponsorship, $this> */
     public function sponsorships(): HasMany
     {
         return $this->hasMany(Sponsorship::class, 'project_id');
     }
 
+    /** @return HasMany<ManualSponsorSupport, $this> */
     public function manualSupports(): HasMany
     {
         return $this->hasMany(ManualSponsorSupport::class, 'project_id');
     }
 
+    /** @return HasMany<SponsorshipRecognitionLevel, $this> */
     public function recognitionLevels(): HasMany
     {
         return $this->hasMany(SponsorshipRecognitionLevel::class, 'project_id')->orderByDesc('minimum_total')->orderBy('sort_order');

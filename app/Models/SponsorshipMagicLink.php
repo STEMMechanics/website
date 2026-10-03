@@ -11,6 +11,7 @@ class SponsorshipMagicLink extends Model
 
     protected $casts = ['expires_at' => 'datetime', 'used_at' => 'datetime'];
 
+    /** @return BelongsTo<Sponsor, $this> */
     public function sponsor(): BelongsTo
     {
         return $this->belongsTo(Sponsor::class, 'sponsor_id');

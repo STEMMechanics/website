@@ -6,6 +6,7 @@ use App\Jobs\SendEmail;
 use App\Mail\SponsorshipInvoiceRequestConfirmation;
 use App\Mail\SponsorshipManageLink;
 use App\Models\Invoice;
+use App\Models\Organisation;
 use App\Models\SiteOption;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
@@ -15,6 +16,7 @@ use App\Models\SponsorshipOption;
 use App\Models\SponsorshipPayment;
 use App\Models\SponsorshipProject;
 use App\Models\SponsorshipRecognitionLevel;
+use App\Models\User;
 use App\Providers\QRCodeProvider;
 use App\Services\SquareApiService;
 use App\Services\SponsorshipRecognitionService;
@@ -244,14 +246,21 @@ class SponsorshipController extends Controller
 
         $user = $request->user();
         $defaults = [
-            'email' => (string) ($user?->email ?? ''),
-            'contact_name' => (string) ($user?->getName() ?? ''),
-            'company_name' => (string) ($user?->primaryOrganisation?->name ?? ''),
+            'email' => '',
+            'contact_name' => '',
+            'company_name' => '',
             'country' => 'Australia',
             'display_name' => '',
             'recognition_public' => false,
             'website_url' => '',
         ];
+        if ($user instanceof User) {
+            $defaults['email'] = (string) ($user->email ?? '');
+            $defaults['contact_name'] = (string) $user->getName();
+            if ($user->primaryOrganisation instanceof Organisation) {
+                $defaults['company_name'] = (string) ($user->primaryOrganisation->name ?? '');
+            }
+        }
 
         return view('sponsorship.details', [
             'details' => array_merge($defaults, (array) ($checkout['details'] ?? [])),
@@ -285,7 +294,7 @@ class SponsorshipController extends Controller
         $country = trim((string) $validated['country']);
         $isAustralia = $this->isAustralianCountry($country);
         $abn = preg_replace('/\s+/', '', (string) ($validated['abn'] ?? ''));
-        if ($isAustralia && $sponsorType === 'organisation' && $abn !== '' && ! preg_match('/^[0-9]{11}$/', $abn)) {
+        if ($isAustralia && $abn !== '' && ! preg_match('/^[0-9]{11}$/', $abn)) {
             return back()->withInput()->withErrors(['abn' => 'Enter an 11-digit ABN.']);
         }
         if (! $isAustralia
@@ -295,9 +304,9 @@ class SponsorshipController extends Controller
         }
 
         $validated['country'] = $country;
-        $validated['abn'] = $isAustralia && $sponsorType === 'organisation' && $abn !== '' ? $abn : null;
+        $validated['abn'] = $isAustralia && $abn !== '' ? $abn : null;
         $validated['foreign_tax_id'] = $isAustralia ? null : ($validated['foreign_tax_id'] ?? null);
-        $validated['company_name'] = $sponsorType === 'organisation' ? trim((string) $validated['company_name']) : null;
+        $validated['company_name'] = trim((string) $validated['company_name']);
         $previousDetails = (array) data_get($checkout, 'details', []);
         foreach (['recognition_public', 'display_name', 'website_url', 'recognition_logo_temp_path'] as $recognitionField) {
             if (array_key_exists($recognitionField, $previousDetails)) {
@@ -725,7 +734,7 @@ class SponsorshipController extends Controller
             $sponsorship = Sponsorship::query()->create([
                 'sponsor_id' => $sponsor->id,
                 'project_id' => $project->id,
-                'option_id' => $option?->id ?? $benefitOption?->id,
+                'option_id' => $option !== null ? $option->id : $benefitOption?->id,
                 'checkout_type' => $checkoutType,
                 'invoice_recipient_customized' => false,
                 'frequency' => $validated['frequency'],
@@ -1128,7 +1137,7 @@ class SponsorshipController extends Controller
         $sponsorships = $sponsorships
             ->reject(fn (Sponsorship $record) => $record->status === Sponsorship::STATUS_FAILED
                 && $record->payments->isEmpty())
-            ->sortByDesc(fn (Sponsorship $record) => $record->started_at?->timestamp ?? $record->created_at?->timestamp ?? 0)
+            ->sortByDesc(fn (Sponsorship $record): int => ($record->started_at ?? $record->created_at)->timestamp)
             ->values();
         $sponsor->setRelation('sponsorships', $sponsorships);
 
@@ -1149,7 +1158,7 @@ class SponsorshipController extends Controller
                 'payment' => $payment,
                 'sponsorship' => $record,
             ]))
-            ->sortByDesc(fn (array $item) => $item['payment']->paid_at?->timestamp ?? $item['payment']->created_at?->timestamp ?? 0)
+            ->sortByDesc(fn (array $item): int => ($item['payment']->paid_at ?? $item['payment']->created_at)->timestamp)
             ->values();
 
         return view('sponsorship.manage', compact('sponsor', 'recognitionSponsorshipIds', 'paymentHistory', 'recognitionLogoAvailable'));
@@ -1164,7 +1173,9 @@ class SponsorshipController extends Controller
     public function updateRecognition(Request $request, SponsorshipService $service): RedirectResponse
     {
         $sponsor = $this->currentSponsor();
-        abort_unless($sponsor, 403);
+        if ($sponsor === null) {
+            abort(403);
+        }
         abort_unless($sponsor->sponsorships()
             ->whereHas('option', fn ($query) => $query->where('recognition_enabled', true))
             ->whereHas('payments', fn ($query) => $query->where('status', SponsorshipPayment::STATUS_COMPLETED))
@@ -1209,7 +1220,7 @@ class SponsorshipController extends Controller
                 'recognition_public' => (bool) $validated['recognition_public'],
                 'website_url' => $validated['website_url'] ?? null,
             ], $sponsor->user_id, true);
-            abort_unless($organisation, 422, 'Add an organisation name before enabling public recognition.');
+            abort_unless($organisation !== null, 422, 'Add an organisation name before enabling public recognition.');
             if ($recognitionLogoAvailable && $request->hasFile('logo')) {
                 $old = $organisation->logo_path;
                 $organisation->logo_path = $request->file('logo')->store('sponsorship-assets/sponsors', 'local');

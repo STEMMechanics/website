@@ -302,6 +302,7 @@ class User extends Authenticatable implements MustVerifyEmail
             ->withTimestamps();
     }
 
+    /** @return BelongsTo<Organisation, $this> */
     public function primaryOrganisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class, 'primary_organisation_id');

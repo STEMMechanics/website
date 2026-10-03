@@ -23,26 +23,31 @@ class ManualSponsorSupport extends Model
         'support_description', 'value_amount', 'currency', 'starts_on', 'ends_on', 'internal_note', 'created_by',
     ];
 
+    /** @return BelongsTo<Sponsor, $this> */
     public function sponsor(): BelongsTo
     {
         return $this->belongsTo(Sponsor::class, 'sponsor_id');
     }
 
+    /** @return BelongsTo<Sponsorship, $this> */
     public function sponsorship(): BelongsTo
     {
         return $this->belongsTo(Sponsorship::class, 'sponsorship_id');
     }
 
+    /** @return BelongsTo<SponsorshipProject, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(SponsorshipProject::class, 'project_id');
     }
 
+    /** @return BelongsTo<SponsorshipRecognitionLevel, $this> */
     public function recognitionLevel(): BelongsTo
     {
         return $this->belongsTo(SponsorshipRecognitionLevel::class, 'recognition_level_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

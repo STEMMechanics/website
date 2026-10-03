@@ -264,7 +264,7 @@ class FinancePlanner
 
         foreach ($sponsorshipPayments as $sponsorshipPayment) {
             $invoiceId = (int) $sponsorshipPayment->invoice_id;
-            foreach (app(InvoiceAllocationParts::class)->incomeEvents([$invoiceId]) as $event) {
+            foreach (app(InvoiceAllocationParts::class)->events([$invoiceId], null) as $event) {
                 if ($from !== null && substr((string) $event['date'], 0, 10) < $from) {
                     continue;
                 }

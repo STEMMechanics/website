@@ -19,11 +19,13 @@ class SponsorshipOption extends Model
 
     protected $casts = ['amount' => 'decimal:2', 'recognition_enabled' => 'boolean', 'enabled' => 'boolean', 'sort_order' => 'integer'];
 
+    /** @return BelongsTo<SponsorshipProject, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(SponsorshipProject::class, 'project_id');
     }
 
+    /** @return HasMany<Sponsorship, $this> */
     public function sponsorships(): HasMany
     {
         return $this->hasMany(Sponsorship::class, 'option_id');

@@ -31,26 +31,31 @@ class Sponsor extends Model
         'recognition_approval_notified_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Organisation, $this> */
     public function organisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class, 'organisation_id');
     }
 
+    /** @return HasMany<Sponsorship, $this> */
     public function sponsorships(): HasMany
     {
         return $this->hasMany(Sponsorship::class, 'sponsor_id');
     }
 
+    /** @return HasMany<ManualSponsorSupport, $this> */
     public function manualSupports(): HasMany
     {
         return $this->hasMany(ManualSponsorSupport::class, 'sponsor_id');
     }
 
+    /** @return HasMany<SponsorshipMagicLink, $this> */
     public function magicLinks(): HasMany
     {
         return $this->hasMany(SponsorshipMagicLink::class, 'sponsor_id');

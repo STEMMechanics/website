@@ -17,6 +17,7 @@ use App\Models\SponsorshipProject;
 use App\Models\User;
 use App\Services\Finance\SponsorshipTaxService;
 use App\Support\InvoiceDueDate;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
@@ -99,12 +100,14 @@ class SponsorshipService
             return null;
         }
 
-        $name = preg_replace('/\s+/u', ' ', trim((string) ($data['company_name'] ?? $sponsor->organisation?->name ?? $sponsor->getRawOriginal('company_name') ?? ''))) ?: '';
+        $linkedOrganisation = $sponsor->getRelationValue('organisation');
+        $linkedOrganisationName = $linkedOrganisation instanceof Organisation ? $linkedOrganisation->name : null;
+        $name = preg_replace('/\s+/u', ' ', trim((string) ($data['company_name'] ?? $linkedOrganisationName ?? $sponsor->getRawOriginal('company_name') ?? ''))) ?: '';
         if ($name === '') return null;
 
-        $organisation = $sponsor->organisation
-            ?? Organisation::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first()
-            ?? new Organisation();
+        $organisation = $linkedOrganisation instanceof Organisation
+            ? $linkedOrganisation
+            : Organisation::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first() ?? new Organisation();
 
         $values = ['name' => $name];
         if (! $organisation->exists || $organisation->type === 'other') $values['type'] = 'business';
@@ -198,8 +201,8 @@ class SponsorshipService
             CarbonImmutable::parse($anchorDate, SponsorshipBillingScheduleService::TIMEZONE),
         );
         $sponsorship->local_recurring_billing = true;
-        $sponsorship->billing_anchor_date = $initialPayment['billing_anchor_date'];
-        $sponsorship->next_payment_date = $initialPayment['next_payment_date'];
+        $sponsorship->billing_anchor_date = Carbon::parse((string) $initialPayment['billing_anchor_date'], SponsorshipBillingScheduleService::TIMEZONE);
+        $sponsorship->next_payment_date = Carbon::parse((string) $initialPayment['next_payment_date'], SponsorshipBillingScheduleService::TIMEZONE);
         $sponsorship->save();
 
         $attempt = $this->createBillingAttempt(
@@ -429,8 +432,8 @@ class SponsorshipService
                 || $sponsorship->local_recurring_billing
                 || $sponsorship->created_at?->gt(now()->subMinutes(5))
                 || $sponsorship->payments()->exists()
-                || blank($sponsorship->sponsor?->square_customer_id)
-                || blank($sponsorship->sponsor?->square_card_id)) {
+                || blank($sponsorship->sponsor->square_customer_id)
+                || blank($sponsorship->sponsor->square_card_id)) {
                 return null;
             }
 
@@ -438,10 +441,10 @@ class SponsorshipService
                 (float) $sponsorship->amount,
                 $now,
             );
-            $sponsorship->started_at = $now;
+            $sponsorship->started_at = $now->toMutable();
             $sponsorship->local_recurring_billing = true;
-            $sponsorship->billing_anchor_date = $initialPayment['billing_anchor_date'];
-            $sponsorship->next_payment_date = $initialPayment['next_payment_date'];
+            $sponsorship->billing_anchor_date = Carbon::parse((string) $initialPayment['billing_anchor_date'], SponsorshipBillingScheduleService::TIMEZONE);
+            $sponsorship->next_payment_date = Carbon::parse((string) $initialPayment['next_payment_date'], SponsorshipBillingScheduleService::TIMEZONE);
             $sponsorship->save();
 
             return $this->createBillingAttempt(
@@ -517,7 +520,7 @@ class SponsorshipService
                 return null;
             }
 
-            if (blank($sponsorship->sponsor?->square_card_id) || blank($sponsorship->sponsor?->square_customer_id)) {
+            if (blank($sponsorship->sponsor->square_card_id) || blank($sponsorship->sponsor->square_customer_id)) {
                 $sponsorship->status = Sponsorship::STATUS_FAILED;
                 $sponsorship->next_payment_date = null;
                 $sponsorship->save();
@@ -566,7 +569,7 @@ class SponsorshipService
 
     private function chargeMonthlyAttempt(Sponsorship $sponsorship, SponsorshipPayment $attempt): string
     {
-        if (blank($sponsorship->sponsor?->square_card_id) || blank($sponsorship->sponsor?->square_customer_id)) {
+        if (blank($sponsorship->sponsor->square_card_id) || blank($sponsorship->sponsor->square_customer_id)) {
             $this->markBillingAttemptFailed($sponsorship, $attempt, new \RuntimeException('A saved Square card is not available.'));
             return 'failed';
         }
@@ -787,14 +790,15 @@ class SponsorshipService
         }
 
         if ($paymentStatus !== SponsorshipPayment::STATUS_COMPLETED) {
-            return DB::transaction(function () use ($sponsorship, $squarePayment, $squarePaymentId, $squareOrderId, $squareInvoiceId, $paymentStatus, $existing, $billingAttempt): SponsorshipPayment {
+            return DB::transaction(function () use ($sponsorship, $squarePaymentId, $squareOrderId, $squareInvoiceId, $paymentStatus, $existing, $billingAttempt): SponsorshipPayment {
                 $lockedSponsorship = Sponsorship::query()->whereKey($sponsorship->id)->lockForUpdate()->firstOrFail();
-                $record = null;
-                if (! $record && $squarePaymentId) $record = SponsorshipPayment::query()->where('square_payment_id', $squarePaymentId)->lockForUpdate()->first();
-                if (! $record && $squareInvoiceId) $record = SponsorshipPayment::query()->where('square_invoice_id', $squareInvoiceId)->lockForUpdate()->first();
-                if (! $record && $squareOrderId) $record = SponsorshipPayment::query()->where('square_order_id', $squareOrderId)->lockForUpdate()->first();
-                if (! $record && $existing) $record = SponsorshipPayment::query()->whereKey($existing->id)->lockForUpdate()->first();
-                if (! $record && $billingAttempt) $record = SponsorshipPayment::query()->whereKey($billingAttempt->id)->lockForUpdate()->first();
+                $record = $squarePaymentId !== null
+                    ? SponsorshipPayment::query()->where('square_payment_id', $squarePaymentId)->lockForUpdate()->first()
+                    : null;
+                if ($record === null && $squareInvoiceId !== null) $record = SponsorshipPayment::query()->where('square_invoice_id', $squareInvoiceId)->lockForUpdate()->first();
+                if ($record === null && $squareOrderId !== null) $record = SponsorshipPayment::query()->where('square_order_id', $squareOrderId)->lockForUpdate()->first();
+                if ($record === null && $existing !== null) $record = SponsorshipPayment::query()->whereKey($existing->id)->lockForUpdate()->first();
+                if ($record === null && $billingAttempt !== null) $record = SponsorshipPayment::query()->whereKey($billingAttempt->id)->lockForUpdate()->first();
                 $record ??= new SponsorshipPayment(['sponsorship_id' => $lockedSponsorship->id]);
                 $alreadyCompleted = $record->status === SponsorshipPayment::STATUS_COMPLETED || $record->invoice_id !== null;
                 $alreadyFailed = $record->status === SponsorshipPayment::STATUS_FAILED
@@ -813,11 +817,11 @@ class SponsorshipService
                 if ($alreadyCompleted && $record->billing_period && $lockedSponsorship->isRecurring()
                     && $lockedSponsorship->status !== Sponsorship::STATUS_CANCELLED) {
                     $lockedSponsorship->status = Sponsorship::STATUS_ACTIVE;
-                    $lockedSponsorship->next_payment_date = app(SponsorshipBillingScheduleService::class)
+                    $lockedSponsorship->next_payment_date = Carbon::parse(app(SponsorshipBillingScheduleService::class)
                         ->nextPaymentDate(
                             $record->billing_period->toDateString(),
                             $lockedSponsorship->billing_anchor_date?->toDateString() ?? $lockedSponsorship->started_at?->toDateString(),
-                        );
+                        ), SponsorshipBillingScheduleService::TIMEZONE);
                     $lockedSponsorship->save();
                 } elseif ($paymentStatus === SponsorshipPayment::STATUS_FAILED && $lockedSponsorship->isRecurring()
                     && $lockedSponsorship->status !== Sponsorship::STATUS_CANCELLED) {
@@ -830,7 +834,8 @@ class SponsorshipService
         }
 
         $grossCents = (int) data_get($squarePayment, 'amount_money.amount', 0);
-        $gross = $grossCents > 0 ? round($grossCents / 100, 2) : round((float) ($existing?->total_amount ?? $sponsorship->amount), 2);
+        $existingTotal = $existing instanceof SponsorshipPayment ? $existing->total_amount : null;
+        $gross = $grossCents > 0 ? round($grossCents / 100, 2) : round((float) ($existingTotal ?? $sponsorship->amount), 2);
         $billingAttempt ??= $existing && $existing->billing_period ? $existing : null;
         $breakdown = $billingAttempt && $billingAttempt->billing_period
             ? [
@@ -844,22 +849,21 @@ class SponsorshipService
             : $this->tax->breakdown($gross, (string) $sponsorship->sponsor->country, (bool) $sponsorship->sponsor->non_resident_declaration);
         $paidAt = $this->squareDateTime($squarePayment['updated_at'] ?? $squarePayment['created_at'] ?? null) ?? now();
 
-        $sponsorshipPayment = DB::transaction(function () use ($sponsorship, $squarePayment, $squarePaymentId, $squareInvoiceId, $squareOrderId, $grossCents, $gross, $breakdown, $paidAt, $existing, $paymentMethod, $gatewayProvider, $paymentReference, $sendEmail, $billingAttempt): SponsorshipPayment {
+        $sponsorshipPayment = DB::transaction(function () use ($sponsorship, $squarePayment, $squarePaymentId, $squareInvoiceId, $squareOrderId, $grossCents, $breakdown, $paidAt, $existing, $paymentMethod, $gatewayProvider, $paymentReference, $sendEmail, $billingAttempt): SponsorshipPayment {
             $lockedSponsorship = Sponsorship::query()->whereKey($sponsorship->id)->lockForUpdate()->firstOrFail();
-            $payment = null;
-            if (! $payment && $squarePaymentId) {
-                $payment = SponsorshipPayment::query()->where('square_payment_id', $squarePaymentId)->lockForUpdate()->first();
-            }
-            if (! $payment && $squareInvoiceId) {
+            $payment = $squarePaymentId !== null
+                ? SponsorshipPayment::query()->where('square_payment_id', $squarePaymentId)->lockForUpdate()->first()
+                : null;
+            if ($payment === null && $squareInvoiceId !== null) {
                 $payment = SponsorshipPayment::query()->where('square_invoice_id', $squareInvoiceId)->lockForUpdate()->first();
             }
-            if (! $payment && $squareOrderId) {
+            if ($payment === null && $squareOrderId !== null) {
                 $payment = SponsorshipPayment::query()->where('square_order_id', $squareOrderId)->lockForUpdate()->first();
             }
-            if (! $payment && $billingAttempt) {
+            if ($payment === null && $billingAttempt !== null) {
                 $payment = SponsorshipPayment::query()->whereKey($billingAttempt->id)->lockForUpdate()->first();
             }
-            if (! $payment && $existing) {
+            if ($payment === null && $existing !== null) {
                 $payment = SponsorshipPayment::query()->whereKey($existing->id)->lockForUpdate()->first();
             }
 
@@ -892,11 +896,11 @@ class SponsorshipService
 
                 if ($lockedSponsorship->isRecurring() && $payment->billing_period && $lockedSponsorship->status !== Sponsorship::STATUS_CANCELLED) {
                     $lockedSponsorship->status = Sponsorship::STATUS_ACTIVE;
-                    $lockedSponsorship->next_payment_date = app(SponsorshipBillingScheduleService::class)
+                    $lockedSponsorship->next_payment_date = Carbon::parse(app(SponsorshipBillingScheduleService::class)
                         ->nextPaymentDate(
                             $payment->billing_period->toDateString(),
                             $lockedSponsorship->billing_anchor_date?->toDateString() ?? $lockedSponsorship->started_at?->toDateString(),
-                        );
+                        ), SponsorshipBillingScheduleService::TIMEZONE);
                     $lockedSponsorship->save();
                 }
 
@@ -1004,11 +1008,11 @@ class SponsorshipService
                 $lockedSponsorship->status = $lockedSponsorship->isRecurring() ? Sponsorship::STATUS_ACTIVE : Sponsorship::STATUS_COMPLETED;
                     $lockedSponsorship->started_at = $lockedSponsorship->started_at ?? $paidAt;
                 if ($lockedSponsorship->isRecurring() && $payment->billing_period) {
-                    $lockedSponsorship->next_payment_date = app(SponsorshipBillingScheduleService::class)
+                    $lockedSponsorship->next_payment_date = Carbon::parse(app(SponsorshipBillingScheduleService::class)
                         ->nextPaymentDate(
                             $payment->billing_period->toDateString(),
                             $lockedSponsorship->billing_anchor_date?->toDateString() ?? $lockedSponsorship->started_at?->toDateString(),
-                        );
+                        ), SponsorshipBillingScheduleService::TIMEZONE);
                 }
                 $lockedSponsorship->save();
             }
@@ -1143,7 +1147,7 @@ class SponsorshipService
                 ->map(fn ($allocation) => $allocation->customerPayment)
                 ->filter(fn ($payment) => $payment && $payment->kind === Payment::KIND_PAYMENT)
                 ->first();
-            $paidAt = $financePayment?->received_on ?? now();
+            $paidAt = $financePayment instanceof Payment ? ($financePayment->received_on ?? now()) : now();
 
             $sponsorshipPayment->fill([
                 'payment_id' => $financePayment?->id,
@@ -1160,11 +1164,11 @@ class SponsorshipService
                     : Sponsorship::STATUS_COMPLETED;
                 $sponsorship->started_at = $sponsorship->started_at ?? $paidAt;
                 if ($sponsorship->isRecurring() && $sponsorshipPayment->billing_period) {
-                    $sponsorship->next_payment_date = app(SponsorshipBillingScheduleService::class)
+                    $sponsorship->next_payment_date = Carbon::parse(app(SponsorshipBillingScheduleService::class)
                         ->nextPaymentDate(
                             $sponsorshipPayment->billing_period->toDateString(),
                             $sponsorship->billing_anchor_date?->toDateString() ?? $sponsorship->started_at?->toDateString(),
-                        );
+                        ), SponsorshipBillingScheduleService::TIMEZONE);
                 }
                 $sponsorship->save();
             }
@@ -1323,7 +1327,8 @@ class SponsorshipService
             throw new \RuntimeException('A sponsorship receipt requires its invoice and payment record.');
         }
 
-        $processedAt = $payment->square_gateway_updated_at ?? $payment->square_gateway_created_at;
+        $processedAt = $this->squareDateTime($payment->square_gateway_updated_at)
+            ?? $this->squareDateTime($payment->square_gateway_created_at);
         $processedAtLabel = $processedAt?->format('M j, Y g:i a') ?? '';
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payment-receipt', [

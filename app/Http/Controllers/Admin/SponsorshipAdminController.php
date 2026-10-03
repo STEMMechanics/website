@@ -282,7 +282,7 @@ class SponsorshipAdminController extends Controller
             'support' => $support,
             'sponsor' => $support->sponsor,
             'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
-            'selectedUserId' => old('user_id', $support->sponsor?->user_id ?? ''),
+            'selectedUserId' => old('user_id', $support->sponsor->user_id ?? ''),
             'primaryProjectId' => $this->primaryProject()->id,
             'levels' => SponsorshipRecognitionLevel::query()->whereNull('project_id')->where('enabled', true)->orderByDesc('minimum_total')->get(),
             'recipientThreshold' => (float) SiteOption::value('sponsorship.invoice.recipient-details-threshold', '1000'),
@@ -660,8 +660,12 @@ class SponsorshipAdminController extends Controller
                 ->concat(collect($supports->pluck('starts_on')->all()))
                 ->filter();
 
+            $representativeSponsor = $records->first() !== null
+                ? $records->first()->sponsor
+                : $supports->first()->sponsor;
+
             return (object) [
-                'sponsor' => $records->first()?->sponsor ?? $supports->first()?->sponsor,
+                'sponsor' => $representativeSponsor,
                 'records' => $records,
                 'supports' => $supports,
                 'payments_count' => (int) $records->sum('payments_count'),
@@ -697,11 +701,10 @@ class SponsorshipAdminController extends Controller
                     ->orWhere('square_payment_id', 'like', '%'.$search.'%')
                     ->orWhere('square_order_id', 'like', '%'.$search.'%')
                     ->orWhere('square_invoice_id', 'like', '%'.$search.'%')
-                    ->orWhereHas('sponsorship.sponsor', fn (Builder $sponsor) => $sponsor->where(function (Builder $sponsor) use ($search): void {
-                        $sponsor->where('email', 'like', '%'.$search.'%')
-                            ->orWhere('company_name', 'like', '%'.$search.'%')
-                            ->orWhereHas('organisation', fn (Builder $organisation) => $organisation->where('name', 'like', '%'.$search.'%'));
-                    }));
+                    ->orWhereHas('sponsorship.sponsor', fn (Builder $sponsor) => $sponsor
+                        ->where('email', 'like', '%'.$search.'%')
+                        ->orWhere('company_name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('sponsorship.sponsor.organisation', fn (Builder $organisation) => $organisation->where('name', 'like', '%'.$search.'%'));
             });
         }
 

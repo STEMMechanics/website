@@ -17,6 +17,7 @@ class SponsorshipInvoiceRequest extends Model
 
     protected $hidden = ['email', 'token_hash', 'payload'];
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);

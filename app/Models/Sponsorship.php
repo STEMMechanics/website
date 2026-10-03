@@ -25,21 +25,25 @@ class Sponsorship extends Model
 
     protected $casts = ['amount' => 'decimal:2', 'invoice_recipient_customized' => 'boolean', 'local_recurring_billing' => 'boolean', 'started_at' => 'datetime', 'cancelled_at' => 'datetime', 'billing_anchor_date' => 'date', 'next_payment_date' => 'date'];
 
+    /** @return BelongsTo<Sponsor, $this> */
     public function sponsor(): BelongsTo
     {
         return $this->belongsTo(Sponsor::class, 'sponsor_id');
     }
 
+    /** @return BelongsTo<SponsorshipProject, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(SponsorshipProject::class, 'project_id');
     }
 
+    /** @return BelongsTo<SponsorshipOption, $this> */
     public function option(): BelongsTo
     {
         return $this->belongsTo(SponsorshipOption::class, 'option_id');
     }
 
+    /** @return HasMany<SponsorshipPayment, $this> */
     public function payments(): HasMany
     {
         return $this->hasMany(SponsorshipPayment::class, 'sponsorship_id')->orderByDesc('paid_at')->orderByDesc('id');

@@ -27,16 +27,19 @@ class SponsorshipPayment extends Model
 
     protected $hidden = ['invoice_pdf_path', 'payment_id', 'invoice_id', 'square_payment_id', 'square_order_id', 'square_invoice_id', 'square_idempotency_key'];
 
+    /** @return BelongsTo<Sponsorship, $this> */
     public function sponsorship(): BelongsTo
     {
         return $this->belongsTo(Sponsorship::class, 'sponsorship_id');
     }
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    /** @return BelongsTo<Payment, $this> */
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);

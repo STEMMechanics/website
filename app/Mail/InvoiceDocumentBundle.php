@@ -76,7 +76,9 @@ class InvoiceDocumentBundle extends Mailable
     {
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
 
-        $subject = InvoiceEmailSubject::forInvoice($this->invoiceNumber, $this->documentTypes);
+        $subject = $this->orderNumber !== null
+            ? 'Your order '.$this->orderNumber.' and invoice '.$this->invoiceNumber.' from STEMMechanics'
+            : InvoiceEmailSubject::forInvoice($this->invoiceNumber, $this->documentTypes);
 
         $mail = $this
             ->subject($subject)

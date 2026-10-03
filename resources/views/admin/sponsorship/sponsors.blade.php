@@ -105,7 +105,7 @@
                             @if($sponsorship->isRecurring())<p class="mt-1 text-xs text-gray-500">Billing: {{ $sponsorship->billing_method === 'invoice' ? 'Monthly invoice by email' : 'STEMMechanics schedule using the saved Square card' }}{{ $sponsorship->next_payment_date ? ' · next payment '.$sponsorship->next_payment_date->format('j M Y') : '' }}</p>@endif
                         </div>
                         @if($sponsorship->isRecurring() && in_array($sponsorship->status, [\App\Models\Sponsorship::STATUS_ACTIVE, \App\Models\Sponsorship::STATUS_PAST_DUE], true))
-                            <form method="POST" action="{{ route('admin.sponsorship.cancel', $sponsorship) }}" onsubmit="return confirm('Cancel this monthly sponsorship? No further monthly payments will be scheduled.')">@csrf<x-ui.button color="outline" type="submit">Cancel monthly sponsorship</x-ui.button></form>
+                            <form method="POST" action="{{ route('admin.sponsorship.cancel', $sponsorship) }}" x-data x-on:submit.prevent="SM.confirm('Cancel this monthly sponsorship?', 'No further monthly payments will be scheduled.', 'Cancel sponsorship', confirmed => { if (confirmed) $el.submit() })">@csrf<x-ui.button color="outline" type="submit">Cancel monthly sponsorship</x-ui.button></form>
                         @endif
                     </div>
                     <div class="mt-4 overflow-x-auto border-t border-gray-100 pt-4">
