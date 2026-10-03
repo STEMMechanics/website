@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast description="Professional STEM workshops and creative technology programs delivered with a practical, human approach.">About STEMMechanics</x-mast>
+    <x-mast description="Hands-on STEM workshops and creative technology programs for schools, libraries, organisations and community groups.">About STEMMechanics</x-mast>
 
     <x-container inner-class="max-w-6xl" class="py-8">
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_22rem]">
@@ -13,11 +13,11 @@
                 </div>
 
                 <div class="mt-8 max-w-3xl">
-                    <x-ui.badge color="primary" variant="solid">Independent and based in Cairns</x-ui.badge>
-                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">Practical STEM learning, delivered with care, clarity, and real-world experience.</h2>
-                    <p class="mt-4 text-base leading-7 text-gray-600">STEMMechanics is an education studio created by James Collins to deliver STEM workshops and creative technology programs for schools, libraries, community organisations, and events. The aim is to make technology learning feel structured, approachable, and genuinely engaging, with programs that are well planned without becoming rigid or impersonal.</p>
-                    <p class="mt-4 text-base leading-7 text-gray-600">That approach comes from years of experience delivering digital literacy programs, workshop series, ICT support, eSports events, media projects, and regional STEM initiatives across Queensland. STEMMechanics brings that experience together in a way that is organised enough for partners to rely on and human enough for learners to feel comfortable participating.</p>
-                    <p class="mt-4 text-base leading-7 text-gray-600">Whether the format is a one-off workshop, a multi-day program, or a custom community project, the focus stays the same: practical learning, clear outcomes, and real room for curiosity.</p>
+                    <x-ui.badge color="primary" variant="solid">Independent business based in Cairns</x-ui.badge>
+                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">Hands-on STEM learning with clear outcomes.</h2>
+                    <p class="mt-4 text-base leading-7 text-gray-600">STEMMechanics is an independently operated education business based in Cairns. We deliver STEM workshops and creative technology programs for schools, libraries, community organisations and events.</p>
+                    <p class="mt-4 text-base leading-7 text-gray-600">The work draws on years of experience delivering digital literacy programs, workshop series, ICT support, eSports events, media projects and regional STEM initiatives across Queensland.</p>
+                    <p class="mt-4 text-base leading-7 text-gray-600">From one-off workshops to multi-day programs and custom community projects, the focus is practical learning, clear outcomes and room for curiosity.</p>
                 </div>
 
                 <div class="mt-8 grid gap-4 md:grid-cols-3">
@@ -43,7 +43,7 @@
                     <div class="mt-4 space-y-4 text-sm leading-6 text-gray-600">
                         <div>
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">STEM workshops</div>
-                            <p class="mt-1">Coding, robotics, electronics, Micro:bit, mechanical motion, cardboard engineering, and other build-based learning experiences.</p>
+                            <p class="mt-1">Coding, robotics, electronics, micro:bit, mechanical motion, cardboard engineering and other build-based learning experiences.</p>
                         </div>
                         <div>
                             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Creative technology</div>
@@ -84,9 +84,9 @@
         <section class="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
             <div class="max-w-4xl">
                 <x-ui.badge color="gray" uppercase>The overall approach</x-ui.badge>
-                <h2 class="mt-4 text-2xl font-semibold text-gray-900">At the centre of it all is a simple idea: people understand technology better when they can explore it for themselves.</h2>
-                <p class="mt-4 text-base leading-7 text-gray-600">That is why STEMMechanics leans so heavily into direct experience. When learners can build, test, troubleshoot, and revise their ideas, technology becomes less abstract and far more meaningful. It also helps confidence grow in a way that feels earned rather than forced.</p>
-                <p class="mt-4 text-base leading-7 text-gray-600">For the schools, organisations, and communities that book these programs, that philosophy translates into delivery that is thoughtful, practical, and reliable. For participants, it means workshops that feel active, creative, and welcoming. If that sounds like the right fit, the contact page is the best next step for bookings, collaborations, or support questions.</p>
+                <h2 class="mt-4 text-2xl font-semibold text-gray-900">Learning works best when people can explore.</h2>
+                <p class="mt-4 text-base leading-7 text-gray-600">Our workshops give learners time to build, test, troubleshoot and revise. That makes technology practical and leaves room for curiosity.</p>
+                <p class="mt-4 text-base leading-7 text-gray-600">For organisers, that means thoughtful, reliable delivery shaped around their setting and goals. The contact page is the best next step for bookings and collaborations.</p>
             </div>
         </section>
 

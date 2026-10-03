@@ -1,6 +1,6 @@
 <x-layout title="Download Starting - Order {{ $order->order_number }}">
-    <x-mast :back-url="$backUrl" backTitle="Back to Order">
-        Download Starting
+    <x-mast :back-url="$backUrl" backTitle="Back to order">
+        Download starting
     </x-mast>
 
     <x-container class="max-w-3xl py-10 mx-auto">
@@ -18,10 +18,10 @@
             <div class="flex flex-col gap-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="space-y-2">
-                        <div class="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">Download File</div>
-                        <h1 class="text-3xl font-bold text-gray-900">Your Download Is Starting</h1>
+                        <div class="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">Download file</div>
+                        <h1 class="text-3xl font-bold text-gray-900">Your download is starting</h1>
                         <p class="max-w-2xl text-sm leading-7 text-gray-600">
-                            The file should begin downloading automatically. If it does not, use the Download Now button below.
+                            The file should begin downloading automatically. If it does not, use the Download now button below.
                         </p>
                     </div>
 
@@ -30,7 +30,7 @@
                             <i class="fa-solid fa-download text-base"></i>
                         </div>
                         <div>
-                            <div class="text-sm font-semibold text-emerald-950">Download Ready</div>
+                            <div class="text-sm font-semibold text-emerald-950">Download ready</div>
                             <div class="text-xs leading-5 text-emerald-800">The file is ready to open.</div>
                         </div>
                     </div>
@@ -62,10 +62,10 @@
                         If the browser blocks the automatic download, use the button below.
                     </div>
                     <div class="flex flex-wrap gap-3">
-                        <x-ui.button color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
+                        <x-ui.button color="outline" href="{{ $backUrl }}">Back to order</x-ui.button>
                         <x-ui.button href="{{ $downloadUrl }}">
                             <i class="fa-solid fa-download mr-2"></i>
-                            Download Now
+                            Download now
                         </x-ui.button>
                     </div>
                 </div>

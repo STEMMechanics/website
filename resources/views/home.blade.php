@@ -39,7 +39,7 @@
     <section id="events" class="bg-gray-50">
         <x-container class="relative py-16">
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <h2 class="-ml-2 text-xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
+                <h2 class="-ml-2 rounded-3xl bg-primary-color px-5 py-2 text-xl font-bold text-white">Upcoming workshops</h2>
                 <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start hidden sm:block">View all workshops</x-ui.button>
             </div>
             @if($workshops->isEmpty())
@@ -61,19 +61,10 @@
                     <i class="fa-solid fa-arrow-right text-sm" aria-hidden="true"></i>
                 </a>
             </div>
-
-            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
-                <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
-                    <path
-                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
-                            fill="#fff1f2"
-                    />
-                </svg>
-            </div>
         </x-container>
     </section>
     <section id="audiences">
-        <x-container class="relative py-16 px-12 bg-rose-50">
+        <x-container class="relative bg-gray-50 px-12 py-16">
             <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
                 <div class="overflow-hidden sm:min-h-80 lg:order-2 lg:min-h-80 rounded-lg">
                     <img
@@ -87,25 +78,17 @@
                 </div>
 
                 <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-rose-500 mt-4 sm:mt-0">Workshops for groups</p>
+                    <p class="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-primary-color sm:mt-0">Workshops for groups</p>
                     <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">We run workshops for schools, organisations, and community groups.</h2>
                     <div class="flex-1">
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Whether you are planning something for a school, an organisation, an OSHC program, or another group setting, we can tailor a workshop to suit the audience, the venue, and the learning goals you want to achieve.</p>
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Tell us what you are looking for and we can shape the session around your group, from hands-on creative tech to STEM activities that are practical, engaging, and easy to run.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Planning a session for a school, organisation, OSHC program or community group? We can shape the workshop around your audience, venue and learning goals.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Choose from hands-on creative technology and STEM activities that are practical, engaging and easy to run.</p>
                     </div>
 
                     <div class="mt-8 mx-auto flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                        <x-ui.button href="{{ route('contact') }}" class="font-normal py-4" color="rose">Enquire about a workshop</x-ui.button>
+                        <x-ui.button href="{{ route('contact') }}" class="font-normal py-4" color="primary">Enquire about a workshop</x-ui.button>
                     </div>
                 </div>
-            </div>
-            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
-                <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
-                    <path
-                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
-                            fill="#ecfdf5"
-                    />
-                </svg>
             </div>
         </x-container>
     </section>
@@ -124,7 +107,7 @@
 {{--        </x-container>--}}
 {{--    </section>--}}
     <section id="skills">
-        <x-container class="py-16 px-12 bg-emerald-50">
+        <x-container class="bg-gray-50 px-12 py-16">
             <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
                 <div class="overflow-hidden order-0 sm:min-h-80 lg:min-h-80 rounded-lg">
                     <img
@@ -136,15 +119,15 @@
                 </div>
 
                 <div class="order-1 px-6 sm:px-8 lg:px-12 flex flex-col">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-500 mt-4 sm:mt-0">Skill development</p>
-                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Build skills while having a great time.</h2>
+                    <p class="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-primary-color sm:mt-0">Skill development</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Build skills by making, testing and solving problems.</h2>
                     <div class="flex-1">
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Each workshop blends coding, robotics, creative making, and practical problem-solving so learners can build confidence while creating something they are proud of. Activities are set up to be approachable first, then stretched with just enough challenge to keep everyone engaged.</p>
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">We keep the pace friendly and hands-on, with room for curiosity, teamwork, and the kind of experimentation that helps ideas stick. That usually means plenty of trying, tweaking, and celebrating the small wins along the way.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Workshops combine coding, robotics, creative making and practical problem-solving. Learners build confidence by creating something, testing it and improving it.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">The pace stays friendly and hands-on, with room for teamwork, curiosity and the small experiments that make ideas stick.</p>
                     </div>
 
                     <div class="mt-8 mx-auto flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                        <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal py-4">Explore Workshops</x-ui.button>
+                        <x-ui.button color="primary" href="{{ route('workshop.index') }}" class="font-normal py-4">Browse workshops</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -156,7 +139,7 @@
                 <svg viewBox="0 0 1440 80" class="block w-full h-20" preserveAspectRatio="none">
                     <defs>
                         <pattern id="blocks-random-top" width="480" height="80" patternUnits="userSpaceOnUse">
-                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#ecfdf5" />
+                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#F9FAFB" />
                         </pattern>
                     </defs>
                     <rect width="1440" height="80" fill="url(#blocks-random-top)" />
@@ -176,7 +159,7 @@
                 </div>
 
                 <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                    <x-ui.button color="yellow" href="{{ route('stemcraft.index') }}" class="font-normal py-4">STEMCraft Overview</x-ui.button>
+                    <x-ui.button color="yellow" href="{{ route('stemcraft.index') }}" class="font-normal py-4">Explore STEMCraft</x-ui.button>
                 </div>
             </div>
 
@@ -184,7 +167,7 @@
                 <svg viewBox="0 0 1440 80" class="block w-full h-20" preserveAspectRatio="none">
                     <defs>
                         <pattern id="blocks-random-bottom" width="480" height="80" patternUnits="userSpaceOnUse">
-                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#f5f3ff" />
+                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#F9FAFB" />
                         </pattern>
                     </defs>
                     <rect width="1440" height="80" fill="url(#blocks-random-bottom)" />
@@ -193,19 +176,19 @@
         </x-container>
     </section>
     <section id="support" class="relative">
-        <x-container class="py-32 px-12 bg-violet-50">
+        <x-container class="bg-gray-50 px-12 py-32">
             <div class="grid gap-y-6 lg:gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] mb-4">
                 <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-violet-500">Stay connected</p>
-                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">And the support doesn't stop!</h2>
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-primary-color">Stay connected</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Keep exploring after the workshop.</h2>
                     <div class="flex-1">
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Though the workshop has come to a close, we remain available to assist you via email and Discord with any projects you undertake at home. We are always happy to help.</p>
-                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">If you get stuck, contact us and we’ll help you work through it.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Keep working on projects at home, share what you make in Discord or email us with a question.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">We are happy to help you work through the next step.</p>
                     </div>
 
                     <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                        <x-ui.button color="purple" href="https://discord.gg/yNzk4x7mpD" class="font-normal py-4">Join Discord</x-ui.button>
-                        <x-ui.button color="purple-outline" href="{{ route('contact') }}" class="font-normal py-4">Contact Us</x-ui.button>
+                        <x-ui.button color="primary" href="https://discord.gg/yNzk4x7mpD" class="font-normal py-4">Join Discord</x-ui.button>
+                        <x-ui.button color="primary-outline" href="{{ route('contact') }}" class="font-normal py-4">Contact us</x-ui.button>
                     </div>
                 </div>
 
@@ -224,8 +207,8 @@
     <section id="subscribe">
         <x-container class="pt-16 pb-24 px-12 -mb-12 bg-sky-700 relative" inner-class="flex justify-center">
             <div class="max-w-208">
-                <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
-                <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
+                <h2 class="mb-0 text-3xl text-white">Get workshop updates</h2>
+                <p class="mb-6 text-left text-white">Sign up for updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
                 <livewire:email-subscribe />
             </div>
         </x-container>

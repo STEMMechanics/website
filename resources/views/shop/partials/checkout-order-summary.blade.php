@@ -29,7 +29,7 @@
     $canCheckout = (bool) ($resolvedSummary['can_checkout'] ?? false);
     $requiresManualQuote = (bool) ($resolvedSummary['shipping_quote']['requires_manual_quote'] ?? false);
     if ($requiresManualQuote) {
-        $resolvedSubmitLabel = 'Request Quote';
+        $resolvedSubmitLabel = 'Request quote';
     }
     $shippingLabel = trim((string) (($resolvedSummary['shipping_quote']['method'] ?? ''))) ?: 'Shipping';
     $blockedReason = trim((string) ($resolvedSummary['shipping_quote']['reason'] ?? ''));
@@ -41,7 +41,7 @@
 @endphp
 
 <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-bold text-gray-900">Order Summary</h2>
+    <h2 class="text-xl font-bold text-gray-900">Order summary</h2>
 
     @if($resolvedShowLineItems)
         <div class="mt-5">
@@ -114,7 +114,7 @@
 
     <div class="{{ $resolvedShowLineItems ? 'mt-5 border-t border-gray-200 pt-5' : 'mt-4' }} space-y-3 text-sm text-gray-700">
         <div class="flex items-center justify-between gap-4">
-            <span x-text="`Sub Total (${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'})`">Sub Total ({{ $resolvedItemCount }} item{{ $resolvedItemCount === 1 ? '' : 's' }})</span>
+            <span x-text="`Subtotal (${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'})`">Subtotal ({{ $resolvedItemCount }} item{{ $resolvedItemCount === 1 ? '' : 's' }})</span>
             <span class="font-semibold text-gray-900" x-text="formatMoney(cartState?.summary?.subtotal || 0)">${{ number_format((float) ($resolvedSummary['subtotal'] ?? 0), 2) }}</span>
         </div>
 
@@ -201,7 +201,7 @@
             <span x-show="!isSubmitting" x-cloak x-text="checkoutSubmitLabel()">{{ $resolvedSubmitLabel }}</span>
             <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
                 <span class="altcha-inline-spinner" aria-hidden="true"></span>
-                <span x-text="requiresManualQuote() ? 'Requesting Quote...' : 'Processing...'">Processing...</span>
+                <span x-text="requiresManualQuote() ? 'Requesting quote...' : 'Processing...'">Processing...</span>
             </span>
         </x-ui.button>
     @endif

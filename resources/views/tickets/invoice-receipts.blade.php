@@ -3,7 +3,7 @@
         backUrl="{{ route('tickets.magic', ['token' => $accessToken]) }}"
         backTitle="Tickets"
     >
-        Invoice Receipts
+        Invoice receipts
     </x-mast>
 
     <x-container>
@@ -17,7 +17,7 @@
 
         <div class="flex my-4 items-center gap-4">
             <div class="flex-1">
-                <x-ui.search name="search" label="Search Receipts" />
+                <x-ui.search name="search" label="Search receipts" />
             </div>
         </div>
 

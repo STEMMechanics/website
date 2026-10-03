@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast>My Tickets</x-mast>
+    <x-mast>My tickets</x-mast>
 
     <x-container class="mt-4 max-w-xl mx-auto">
 
@@ -12,7 +12,7 @@
             <x-altcha-proof />
             <x-ui.input type="email" label="Email" name="email" value="{{ old('email') }}" />
             <div class="flex justify-end mt-6">
-                <x-ui.button type="submit">Send Link</x-ui.button>
+                <x-ui.button type="submit">Send link</x-ui.button>
             </div>
         </form>
     </x-container>

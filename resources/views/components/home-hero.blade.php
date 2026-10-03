@@ -23,6 +23,7 @@
                                 @endforeach
                             @endif
                         </div>
+                        <x-ui.button href="{{ route('workshop.index') }}" color="mast" class="mt-6 w-60 mx-auto text-lg py-2 hover:bg-transparent hover:text-white">Browse workshops</x-ui.button>
                     </div>
                 </div>
             </div>

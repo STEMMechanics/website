@@ -13,7 +13,7 @@
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 {{ !empty($holdExpiresAt) ? 'pt-20 md:pt-5' : '' }} flex gap-6">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $holdExpiresAt ?? null])
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">Get Tickets</h2>
+                <h2 class="text-2xl font-bold mb-3">Get tickets</h2>
                 <p class="text-sm text-gray-600 mb-4">Complete this checkout to reserve your tickets.</p>
                 @if($requiresPrivateCode ?? false)
                     <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-4">
@@ -32,7 +32,7 @@
                         ['label' => 'Price', 'value' => $ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per ticket' : 'Free'],
                     ];
                     if ($earlyBirdStatus) {
-                        $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdStatus];
+                        $summaryRows[] = ['label' => 'Early bird', 'value' => $earlyBirdStatus];
                     }
                     $summaryRows[] = is_int($earlyBirdPlacesRemaining) && $earlyBirdPlacesRemaining > 0
                         ? ['label' => 'Places', 'value_html' => $placesHtml]
@@ -58,16 +58,16 @@
                     <x-altcha-proof />
 
                     @if($requiresPrivateCode ?? false)
-                        <x-ui.input name="private_code" label="Access Code" value="{{ old('private_code') }}" required />
+                        <x-ui.input name="private_code" label="Access code" value="{{ old('private_code') }}" required />
                     @endif
-                    <x-ui.input type="number" name="quantity" label="Number of Tickets" min="1" max="{{ $availableTickets ?? 10 }}" value="{{ old('quantity', $ticketQuantity ?? 1) }}" />
-                    <x-ui.input name="firstname" label="Purchaser First Name" value="{{ old('firstname', $prefill['firstname']) }}" required />
-                    <x-ui.input name="surname" label="Purchaser Surname" value="{{ old('surname', $prefill['surname']) }}" required />
-                    <x-ui.input type="email" name="email" label="Purchaser Email" value="{{ old('email', $prefill['email']) }}" required />
-                    <x-ui.input name="phone" label="Purchaser Phone" value="{{ old('phone', $prefill['phone']) }}" required />
+                    <x-ui.input type="number" name="quantity" label="Number of tickets" min="1" max="{{ $availableTickets ?? 10 }}" value="{{ old('quantity', $ticketQuantity ?? 1) }}" />
+                    <x-ui.input name="firstname" label="Purchaser first name" value="{{ old('firstname', $prefill['firstname']) }}" required />
+                    <x-ui.input name="surname" label="Purchaser surname" value="{{ old('surname', $prefill['surname']) }}" required />
+                    <x-ui.input type="email" name="email" label="Purchaser email" value="{{ old('email', $prefill['email']) }}" required />
+                    <x-ui.input name="phone" label="Purchaser phone" value="{{ old('phone', $prefill['phone']) }}" required />
 
                     <div class="flex justify-end mt-6">
-                        <x-ui.button type="submit">{{ $equipmentProducts->isNotEmpty() ? 'Continue' : ($ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets') }}</x-ui.button>
+                        <x-ui.button type="submit">{{ $equipmentProducts->isNotEmpty() ? 'Continue' : ($ticketPriceAmount > 0 ? 'Continue to payment' : 'Reserve tickets') }}</x-ui.button>
                     </div>
                 </form>
             </div>

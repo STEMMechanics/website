@@ -1,10 +1,10 @@
 <x-layout>
-    <x-mast>Tickets Confirmed</x-mast>
+    <x-mast>Tickets confirmed</x-mast>
 
     <x-container class="mt-6 mx-auto">
         <div class="max-w-3xl mx-auto bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
+                <h2 class="text-2xl font-bold mb-3">Checkout complete</h2>
                 @php
                     $completionPricing = collect($ticketPricing['items'] ?? [])->map(fn ($item) => [
                         'workshop_id' => $item['workshop_id'],
@@ -18,11 +18,11 @@
                 $creditAppliedAmount = round((float) ($session['credit_applied_amount'] ?? 0), 2);
                 $paymentAmount = isset($payment) && $payment instanceof \App\Models\Payment ? round((float) $payment->total_amount, 2) : 0.0;
                 $paymentMethodLabel = match ((string) ($session['payment_method'] ?? '')) {
-                'credit_card' => 'Credit Card',
-                'pay_at_door' => 'Pay at Door',
-                'bank_transfer' => 'Bank Transfer',
-                'account_terms' => 'Account Terms',
-                'credit' => 'Account Credit',
+                'credit_card' => 'Credit card',
+                'pay_at_door' => 'Pay at door',
+                'bank_transfer' => 'Bank transfer',
+                'account_terms' => 'Account terms',
+                'credit' => 'Account credit',
                 'free' => 'Free',
                 default => ucwords(str_replace('_', ' ', (string) ($session['payment_method'] ?? '-'))),
                 };
@@ -43,22 +43,22 @@
                 }
                 $equipmentOrder = !empty($session['equipment_order_id']) ? \App\Models\StoreOrder::find($session['equipment_order_id']) : null;
                 $summaryRows = [
-                ['label' => 'Payment Method', 'value' => $paymentMethodLabel],
+                ['label' => 'Payment method', 'value' => $paymentMethodLabel],
                 ];
                 if ($orderEarlyBirdSummary) {
                 $summaryRows[] = [
-                'label' => 'Early Bird',
+                'label' => 'Early bird',
                 'value' => $orderEarlyBirdSummary,
                 ];
                 }
                 if ($creditAppliedAmount > 0.0001) {
                 $summaryRows[] = [
-                'label' => 'Account Credit Applied',
+                'label' => 'Account credit applied',
                 'value' => '$'.number_format($creditAppliedAmount, 2),
                 ];
                 if ($paymentAmount > 0.0001) {
                 $summaryRows[] = [
-                'label' => 'Card Charged',
+                'label' => 'Card charged',
                 'value' => '$'.number_format($paymentAmount, 2),
                 ];
                 }
@@ -126,7 +126,7 @@
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         class="hover:text-primary-color"
-                                        title="Download Ticket PDF">
+                                        title="Download ticket PDF">
                                         <i class="fa-regular fa-file-pdf text-lg"></i>
                                     </a>
                                 </td>
@@ -139,9 +139,9 @@
 
                 @if($invoice && $tickets->isNotEmpty())
                 <div class="mt-6 text-sm leading-8">
-                    <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.pdf', ['ticket' => $tickets->first(), 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View Invoice (PDF)</a></div>
+                    <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.pdf', ['ticket' => $tickets->first(), 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View invoice (PDF)</a></div>
                     @if($hasReceipt)
-                        <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.receipt.pdf', ['ticket' => $tickets->first(), 'payment' => $payment, 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View Receipt (PDF)</a></div>
+                        <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.receipt.pdf', ['ticket' => $tickets->first(), 'payment' => $payment, 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View receipt (PDF)</a></div>
                     @endif
                 </div>
                 @endif
@@ -151,9 +151,9 @@
                         href="{{ route('workshop.ticket.flow.complete.download-all', $workshop) }}"
                         color="secondary"
                         target="_blank">
-                        Download All
+                        Download all
                     </x-ui.button>
-                    <x-ui.button href="{{ route('workshop.show', $workshop) }}">Back to Workshop</x-ui.button>
+                    <x-ui.button href="{{ route('workshop.show', $workshop) }}">Back to workshop</x-ui.button>
                 </div>
             </div>
             @include('workshop.tickets.partials.pattern-sidebar')

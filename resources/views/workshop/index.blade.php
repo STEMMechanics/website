@@ -118,7 +118,7 @@
 
                                                     if ($workshop->status === 'scheduled') {
                                                         $statusClass = 'soon';
-                                                        $statusTitle = 'Opens Soon';
+                                                        $statusTitle = 'Opens soon';
                                                         $statusShortTitle = 'Soon';
                                                     }
                                                 @endphp
@@ -222,7 +222,7 @@
 
                                                         if ($workshop->status === 'scheduled') {
                                                             $statusClass = 'soon';
-                                                            $statusTitle = 'Opens Soon';
+                                                            $statusTitle = 'Opens soon';
                                                             $statusShortTitle = 'Soon';
                                                         }
                                                     @endphp

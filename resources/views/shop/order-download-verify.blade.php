@@ -1,12 +1,12 @@
 <x-layout title="Verify Download Access - Order {{ $order->order_number }}">
-    <x-mast :back-url="$backUrl" backTitle="Back to Order">
-        Verify Download Access
+    <x-mast :back-url="$backUrl" backTitle="Back to order">
+        Verify download access
     </x-mast>
 
     <x-container class="max-w-2xl py-10 mx-auto">
         <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
             <div class="space-y-3">
-                <div class="text-sm uppercase tracking-[0.16em] text-gray-500">Download File</div>
+                <div class="text-sm uppercase tracking-[0.16em] text-gray-500">Download file</div>
                 <h1 class="text-3xl font-bold text-gray-900">Confirm the order email</h1>
                 <p class="text-sm leading-7 text-gray-600">
                     To protect digital files, downloads require the email address linked to order <span class="font-bold">{{ $order->order_number }}</span>.
@@ -63,8 +63,8 @@
                 </div>
 
                 <div class="flex flex-wrap gap-3 justify-between">
-                    <x-ui.button color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
-                    <x-ui.button type="submit">Unlock Download</x-ui.button>
+                    <x-ui.button color="outline" href="{{ $backUrl }}">Back to order</x-ui.button>
+                    <x-ui.button type="submit">Unlock download</x-ui.button>
                 </div>
             </form>
         </section>

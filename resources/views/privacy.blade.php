@@ -20,10 +20,8 @@
         </p>
         <p class="mb-2">
             By using the Website and our online services, you agree to accept
-            the Privacy Policy and the Site's Terms and Conditions
-            <router-link :to="{ name: 'terms-and-conditions' }"
-            >https://www.stemmechanics.com.au/terms-and-conditions</router-link
-            >
+            the Privacy Policy and the Site's
+            <a href="{{ route('terms-conditions') }}" class="link">Terms and Conditions</a>
             (Terms and Conditions). Where the Privacy Policy uses a word
             starting with a capital letter, that term will be defined in the
             Terms and Conditions or elsewhere in this Privacy Policy. If you do
@@ -40,7 +38,7 @@
         <x-heading class="mt-8">1.1. Individually identifiable information</x-heading>
         <p class="mb-2">
             The types of individually identifiable information we collect will
-            depend on the purposes(s) for which we are collecting it. For
+            depend on the purposes for which we are collecting it. For
             example, we may ask for:
         </p>
         <ul class="mb-2 list-disc pl-8">
@@ -53,7 +51,7 @@
                 us;
             </li>
             <li class="mb-2">
-                details or history of preference, interests and behaviour
+                details or history of preference, interests and behaviour in
                 relation to transactions, products, services and activities on
                 our Site;
             </li>
@@ -102,7 +100,7 @@
         </p>
         <x-heading class="mt-8">2. How we collect your information</x-heading>
         <p class="mb-2">We may collect your information in a number of ways, including:</p>
-        <p class="mb-2">(a) Directly from you, including but not limited when you:</p>
+        <p class="mb-2">(a) Directly from you, including, but not limited to, when you:</p>
         <ul class="mb-2 list-disc pl-8">
             <li class="mb-2">browse our Site;</li>
             <li class="mb-2">save an item;</li>
@@ -149,7 +147,7 @@
         </ul>
         <p class="mb-2">
             To further secure your credit card, we also don't keep details of
-            your credit card information, including the security code (or CCV
+            your credit card information, including the security code (or CVV
             number) that you need to input in order to complete an order using
             your credit card.
         </p>
@@ -242,40 +240,10 @@
         </p>
         <x-heading class="mt-8">6. Cookies</x-heading>
         <p class="mb-2">
-            We use "cookies" when you visit our Site. It is a technology that
-            enables us to operate an efficient service and track the patterns of
-            behaviour of visitors to the Site. There are four main types of
-            cookies - here's how and why we use them.
-        </p>
-        <p class="mb-2">
-            (a) Site functionality cookies - these cookies allow you to navigate
-            the Site and use our features, such as "Add to Bag" and "Add to
-            Wishlist".
-        </p>
-        <p class="mb-2">
-            (b) Site analytics cookies - these cookies allow us to measure and
-            analyse how our customers use the Site, to improve both its
-            functionality and your shopping experience.
-        </p>
-        <p class="mb-2">
-            (c) Customer preference cookies - when you are browsing, these
-            cookies will remember your preferences (like your language or
-            location), so we can make your shopping experience as seamless as
-            possible, and more personal to you.
-        </p>
-        <p class="mb-2">
-            (d) Targeting or advertising cookies - these cookies are used to
-            deliver marketing and advertising materials that are relevant to
-            you. They also limit the number of times that you see an ad and help
-            us measure the effectiveness of our marketing campaigns.
-        </p>
-        <p class="mb-2">
-            By using our Site, you agree to us placing these sorts of cookies on
-            your device and accessing them when you visit the Site in the
-            future. You can modify the settings on your device to prevent cookie
-            use. Please note by disabling cookies, you user experience may be
-            affected and you might not be able to take advantage of certain
-            functions of our Site.
+            We use strictly necessary cookies for sessions, security checks and
+            features such as the cart and checkout. We also use first-party,
+            server-side analytics to understand site usage. We do not currently
+            use wishlist or advertising cookies.
         </p>
         <x-heading class="mt-8">7. How to access or correct your Personal Information</x-heading>
         <p class="mb-2">

@@ -84,7 +84,7 @@
 
                     <div class="{{ $isDigitalOnly ? 'mt-6 grid gap-3 md:grid-cols-3 xl:grid-cols-6' : 'mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4' }}">
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Order Status</div>
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Order status</div>
                             <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->statusLabel() }}</div>
                         </div>
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
@@ -187,7 +187,7 @@
                                                 <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
                                             </span>
                                             <div class="min-w-0">
-                                                <div class="text-sm font-semibold text-gray-900 group-hover:text-sky-900">Download Tax Invoice</div>
+                                                <div class="text-sm font-semibold text-gray-900 group-hover:text-sky-900">Download tax invoice</div>
                                                 <div class="mt-1 text-xs text-gray-500">PDF including any issued tax adjustment notes.</div>
                                             </div>
                                         </div>
@@ -222,7 +222,7 @@
                                             type="submit"
                                             class="inline-flex whitespace-nowrap items-center justify-center rounded bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
                                         >
-                                            Email Documents to Order Owner
+                                            Email documents to order owner
                                         </x-ui.button>
                                     </form>
                                 @elseif($documentLinks === [])
@@ -256,7 +256,7 @@
                             <div>
                                 <h2 class="text-2xl font-bold text-emerald-950">Downloads</h2>
                                 <p class="mt-1 text-sm text-emerald-900">
-                                    {{ $isAccountView ? 'Open your files directly from this order.' : 'Verify Email to Download. Each unlocked download link expires after 15 minutes.' }}
+                                    {{ $isAccountView ? 'Open your files directly from this order.' : 'Verify your email to download. Each unlocked download link expires after 15 minutes.' }}
                                 </p>
                             </div>
                             <x-ui.badge color="success" variant="outline" class="tracking-[0.16em]">
@@ -280,7 +280,7 @@
                                                 </div>
                                                 <div class="flex flex-col items-start gap-2 sm:items-end">
                                                     @unless($isAccountView)
-                                                        <div class="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Verify Email to Download</div>
+                                                        <div class="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Verify your email to download</div>
                                                     @endunless
                                                     <x-ui.button
                                                         type="link"
@@ -301,7 +301,7 @@
 
                 @if(trim((string) ($order->public_notes ?? '')) !== '')
                     <section class="rounded-3xl border border-sky-200 bg-sky-50 p-6 shadow-sm">
-                        <h2 class="text-xl font-bold text-sky-950 mb-3">Order Updates</h2>
+                        <h2 class="text-xl font-bold text-sky-950 mb-3">Order updates</h2>
                         <div class="text-sm leading-7 text-sky-900">{!! nl2br(e((string) $order->public_notes)) !!}</div>
                     </section>
                 @endif
@@ -542,7 +542,7 @@
                                                     href="{{ $isAccountView ? route('account.order.download', ['storeOrder' => $order, 'storeOrderItemDownload' => $download]) : route('shop.order.tracking.download', ['accessToken' => $accessToken, 'storeOrderItemDownload' => $download]) }}"
                                                     class="px-5!"
                                                 >
-                                                    {{ $isAccountView ? 'Download' : 'Verify Email to Download' }}
+                                                    {{ $isAccountView ? 'Download' : 'Verify your email to download' }}
                                                 </x-ui.button>
                                             </div>
                                         @endforeach
@@ -558,7 +558,7 @@
             @if($showPaymentPanel)
             <aside class="space-y-6 xl:sticky xl:top-24 xl:self-start">
                 <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">Complete Payment</h2>
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">Complete payment</h2>
 
                     @if(!$squareEnabled)
                         <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -576,7 +576,7 @@
                             <div x-init="initSquareCard()">
                                 <x-square-apple-pay :amount="(string) (float) ($order->invoice?->outstandingAmount() ?? 0)" />
                                 <div class="mb-2 flex items-center justify-between">
-                                    <label class="block text-sm">Card Details</label>
+                                    <label class="block text-sm">Card details</label>
                                     <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                         Secure payment by Square
                                     </x-ui.badge>
