@@ -1054,7 +1054,7 @@ body.image-resize-active {
         @apply border text-sm px-3 py-2 rounded-lg my-4 mx-auto max-w-2xl relative pl-8;
 
         &.success {
-            @apply bg-green-100 text-green-900 border-green-600;
+            @apply bg-emerald-50 text-emerald-800 border-emerald-200;
 
             &:after {
                 content: '\f058';
@@ -1068,7 +1068,7 @@ body.image-resize-active {
         }
 
         &.info {
-            @apply bg-blue-100 text-blue-900 border-blue-600;
+            @apply bg-sky-50 text-sky-800 border-sky-200;
 
             &:after {
                 content: '\f05a';
@@ -1082,7 +1082,7 @@ body.image-resize-active {
         }
 
         &.warning {
-            @apply bg-yellow-100 text-yellow-900 border-yellow-600;
+            @apply bg-amber-50 text-amber-800 border-amber-200;
 
             &:after {
                 content: '\f071';
@@ -1096,7 +1096,7 @@ body.image-resize-active {
         }
 
         &.danger {
-            @apply bg-red-100 text-red-900 border-red-600;
+            @apply bg-rose-50 text-rose-800 border-rose-200;
 
             &:after {
                 content: '\f057';
@@ -1110,7 +1110,7 @@ body.image-resize-active {
         }
 
         &.bug {
-            @apply bg-purple-100 text-purple-900 border-purple-600;
+            @apply bg-violet-50 text-violet-800 border-violet-200;
 
             &:after {
                 content: '\f188';

@@ -73,8 +73,8 @@
                     </div>{{ $workshop->ages ? 'Ages ' . $workshop->ages : 'All ages' }}
                 </div>
             @endif
-            @if(! $workshop->isPriceHiddenFromPublic())
-                <div class="text-gray-600 text-sm mb-1 flex gap-2">
+            <div class="text-gray-600 text-sm mb-1 flex min-h-6 gap-2" @if($workshop->isPriceHiddenFromPublic()) aria-hidden="true" @endif>
+                @if(! $workshop->isPriceHiddenFromPublic())
                     <div class="w-6 flex items-center justify-center">
                         <i class="fa-solid fa-dollar-sign"></i>
                     </div>
@@ -87,12 +87,15 @@
                                 @endif
                             </span>
                         </div>
+                        @if(filled($workshop->price_info))
+                            <div class="mt-0.5 text-xs leading-4 text-gray-500">{{ $workshop->price_info }}</div>
+                        @endif
                         @if(!$showEarlyBirdBadgeOnly && $earlyBirdStatus)
                             <div class="text-xs text-gray-500 mt-0.5">{{ $earlyBirdStatus }}</div>
                         @endif
                     </div>
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
     </div>
 </a>
