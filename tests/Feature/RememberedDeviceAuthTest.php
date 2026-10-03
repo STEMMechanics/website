@@ -359,7 +359,8 @@ class RememberedDeviceAuthTest extends TestCase
             ->first();
 
         $this->assertNotNull($token);
-        $this->assertNull($token->expires_at);
+        $this->assertNotNull($token->expires_at);
+        $this->assertTrue($token->expires_at->isFuture());
 
         $destroyResponse = $this->actingAs($user)
             ->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
@@ -374,6 +375,48 @@ class RememberedDeviceAuthTest extends TestCase
             'id' => $token->id,
             'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE,
         ]);
+    }
+
+    public function test_remembered_device_cookie_and_server_token_expire_after_90_days(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->post(route('account.update'), [
+                '_token' => 'test-csrf-token',
+                'email' => $user->email,
+                'keep_signed_in_device' => 'on',
+            ]);
+
+        $token = Token::query()
+            ->where('user_id', $user->id)
+            ->where('type', RememberedDeviceManager::DEVICE_TOKEN_TYPE)
+            ->sole();
+        $this->assertEqualsWithDelta(now()->addDays(RememberedDeviceManager::DEVICE_LIFETIME_DAYS)->timestamp, $token->expires_at->timestamp, 2);
+
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie): bool => $cookie->getName() === RememberedDeviceManager::DEVICE_COOKIE);
+        $this->assertNotNull($cookie);
+        $this->assertLessThanOrEqual($token->expires_at->timestamp, $cookie->getExpiresTime());
+        $this->assertGreaterThanOrEqual($token->expires_at->timestamp - 65, $cookie->getExpiresTime());
+    }
+
+    public function test_expired_remembered_device_cannot_bypass_privileged_mfa(): void
+    {
+        config(['security.admin_mfa_required' => true]);
+        $admin = User::factory()->create(['tfa_secret' => 'JBSWY3DPEHPK3PXP']);
+        UserGroup::query()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $token = $admin->tokens()->create([
+            'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE,
+            'data' => ['privileged_mfa_fingerprint' => RequirePrivilegedMfa::fingerprint($admin)],
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($admin)
+            ->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
+            ->get(route('admin.dashboard'))
+            ->assertRedirect(route('security.mfa.show'));
     }
 
     public function test_account_device_destroy_returns_json_for_ajax_request(): void

@@ -8,6 +8,7 @@ return [
     'indexable' => env('SITE_INDEXABLE', env('APP_ENV') === 'production'),
     'canonical_redirect' => env('CANONICAL_HOST_REDIRECT', env('APP_ENV') === 'production'),
     'csp_report_only' => env('CSP_REPORT_ONLY', true),
+    'csp_enforce' => env('CSP_ENFORCE', false),
     'error_recipients' => env('SECURITY_ERROR_RECIPIENTS', ''),
     'altcha_enabled' => env('ALTCHA_ENABLED', true),
     'altcha_trust_minutes' => env('ALTCHA_TRUST_MINUTES', 5),

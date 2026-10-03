@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Http\Middleware\RequirePrivilegedMfa;
 use App\Models\Token;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -17,8 +18,7 @@ class RememberedDeviceManager
 
     public const EMAIL_COOKIE = 'sm_last_login_email';
 
-    // Long-lived browser cookie. Server-side token has no expiry for trusted devices.
-    private const DEVICE_COOKIE_TTL_MINUTES = 60 * 24 * 3650;
+    public const DEVICE_LIFETIME_DAYS = 90;
 
     private const EMAIL_TTL_MINUTES = 60 * 24 * 365;
 
@@ -76,10 +76,10 @@ class RememberedDeviceManager
         }
 
         $token->data = $data;
-        $token->expires_at = null;
+        $token->expires_at ??= now()->addDays(self::DEVICE_LIFETIME_DAYS);
         $token->save();
 
-        $this->queueDeviceCookie($token->id);
+        $this->queueDeviceCookie($token);
 
         return $token;
     }
@@ -120,10 +120,7 @@ class RememberedDeviceManager
         $token = Token::query()
             ->where('id', $tokenId)
             ->where('type', self::DEVICE_TOKEN_TYPE)
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
+            ->where('expires_at', '>', now())
             ->first();
 
         $user = $token?->user;
@@ -144,10 +141,7 @@ class RememberedDeviceManager
 
         return $user->tokens()
             ->where('type', self::DEVICE_TOKEN_TYPE)
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
+            ->where('expires_at', '>', now())
             ->orderByDesc('created_at')
             ->get()
             ->map(function (Token $token) use ($currentTokenId): array {
@@ -269,21 +263,26 @@ class RememberedDeviceManager
             ->where('id', $tokenId)
             ->where('type', self::DEVICE_TOKEN_TYPE)
             ->where('user_id', $user->id)
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
+            ->where('expires_at', '>', now())
             ->first();
 
         return $token;
     }
 
-    private function queueDeviceCookie(string $tokenId): void
+    private function queueDeviceCookie(Token $token): void
     {
+        $expiresAt = $token->expires_at;
+        if (! $expiresAt instanceof CarbonInterface || ! $expiresAt->isFuture()) {
+            cookie()->queue(cookie()->forget(self::DEVICE_COOKIE, $this->cookiePath(), $this->cookieDomain()));
+
+            return;
+        }
+
+        $ttlMinutes = max(1, (int) now()->diffInMinutes($expiresAt));
         cookie()->queue(cookie(
             self::DEVICE_COOKIE,
-            $tokenId,
-            self::DEVICE_COOKIE_TTL_MINUTES,
+            (string) $token->id,
+            $ttlMinutes,
             $this->cookiePath(),
             $this->cookieDomain(),
             $this->cookieSecure(),

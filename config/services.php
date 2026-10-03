@@ -48,6 +48,7 @@ return [
         'from' => env('SMSFLOW_FROM'),
         'callback_url' => env('SMSFLOW_CALLBACK_URL'),
         'webhook_secret' => env('SMSFLOW_WEBHOOK_SECRET'),
+        'allow_query_secret' => env('SMSFLOW_ALLOW_QUERY_SECRET', true),
     ],
 
     'openai' => [

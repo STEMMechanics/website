@@ -12,7 +12,10 @@ class SmsFlowWebhookController extends Controller
     public function handle(Request $request, SmsFlowInboundService $smsFlowInboundService): JsonResponse
     {
         $secret = (string) config('services.smsflow.webhook_secret', '');
-        $provided = $request->bearerToken() ?? $request->query('webhook_secret', '');
+        $provided = $request->bearerToken();
+        if (! is_string($provided) && config('services.smsflow.allow_query_secret', true)) {
+            $provided = $request->query('webhook_secret', '');
+        }
         if (strlen($secret) < 32 || $secret === (string) config('services.smsflow.api_key') || ! is_string($provided) || ! hash_equals($secret, $provided)) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }

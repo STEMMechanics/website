@@ -47,8 +47,12 @@ class SecurityHeaders
             $response->headers->set('Referrer-Policy', 'no-referrer');
         }
 
+        $scriptPolicy = $this->scriptPolicy($nonce);
         if (config('security.csp_report_only', true)) {
-            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-{$nonce}'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+            $response->headers->set('Content-Security-Policy-Report-Only', $scriptPolicy);
+        }
+        if (config('security.csp_enforce', false)) {
+            $response->headers->set('Content-Security-Policy', $scriptPolicy);
         }
 
         // Hide PHP runtime/version details from response headers.
@@ -109,6 +113,21 @@ class SecurityHeaders
     private function formActionDirective(): string
     {
         return "form-action 'self'";
+    }
+
+    private function scriptPolicy(string $nonce): string
+    {
+        // Vite and application assets are same-origin. Checkout pages load
+        // Square from one of these two CDN hosts. Inline event attributes and
+        // dynamic evaluation are intentionally excluded; the policy remains
+        // opt-in until those existing views are migrated and browser-tested.
+        return implode('; ', [
+            "script-src 'self' 'nonce-{$nonce}' https://web.squarecdn.com https://sandbox.web.squarecdn.com",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            'report-uri /security/csp-reports',
+        ]);
     }
 
     private function replaceFormActionDirective(string $csp): string

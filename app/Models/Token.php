@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RememberedDeviceManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -53,8 +54,10 @@ class Token extends Model
                 $model->{$model->getKeyName()} = $newToken;
             }
 
-            if (empty($model->expires_at) && (string) $model->type !== 'remember-device') {
-                $model->expires_at = now()->addMinutes(10);
+            if (empty($model->expires_at)) {
+                $model->expires_at = (string) $model->type === RememberedDeviceManager::DEVICE_TOKEN_TYPE
+                    ? now()->addDays(RememberedDeviceManager::DEVICE_LIFETIME_DAYS)
+                    : now()->addMinutes(10);
             }
         });
     }

@@ -54,6 +54,26 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-
 
+      - name: Build image for vulnerability scan
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: .docker/production/Dockerfile
+          tags: stemmechanics/website:ci-scan
+          load: true
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          cache-from: type=gha
+
+      - name: Scan production image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: stemmechanics/website:ci-scan
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
       - name: Build and publish production image
         uses: docker/build-push-action@v7
         with:

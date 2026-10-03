@@ -134,6 +134,27 @@ class AdminSubscriptionNewsletterTest extends TestCase
         ]);
     }
 
+    public function test_get_unsubscribe_endpoint_only_displays_confirmation(): void
+    {
+        $subscription = EmailSubscriptions::query()->create([
+            'email' => 'subscriber@example.com',
+            'confirmed' => now()->toDateTimeString(),
+        ]);
+        $sentEmail = SentEmail::query()->create([
+            'recipient' => 'subscriber@example.com',
+            'mailable_class' => UserWelcome::class,
+            'status' => SentEmail::STATUS_SENT,
+            'sent_at' => now(),
+        ]);
+
+        $response = $this->get(route('unsubscribe', ['email' => $sentEmail->id]));
+
+        $response->assertOk()
+            ->assertViewIs('unsubscribe')
+            ->assertSeeText('Unsubscribe from STEMMechanics updates?');
+        $this->assertDatabaseHas('email_subscriptions', ['id' => $subscription->id]);
+    }
+
     public function test_admin_test_newsletter_requires_valid_email(): void
     {
         Queue::fake();

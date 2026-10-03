@@ -58,7 +58,7 @@ class DeploymentConfigurationTest extends TestCase
         $this->assertSame('pass', $checks['Analytics migration']['status']);
         config(['services.smsflow.callback_url' => rtrim(config('app.url'), '/').'/webhooks/smsflow?webhook_secret='.str_repeat('s', 40)]);
         $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');
-        $this->assertSame('pass', $checks['SMSFlow outbound callback URL']['status']);
+        $this->assertSame('review', $checks['SMSFlow outbound callback URL']['status']);
         $this->assertStringNotContainsString(str_repeat('s', 40), json_encode($checks, JSON_THROW_ON_ERROR));
         config(['services.smsflow.callback_url' => 'https://other.example/webhooks/smsflow?webhook_secret=wrong']);
         $checks = collect(app(DeploymentConfigurationService::class)->checks())->keyBy('label');

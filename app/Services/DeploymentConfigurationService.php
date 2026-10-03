@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Schema;
+
 class DeploymentConfigurationService
 {
     /** @return array<int, array{label: string, status: string, setting: string, instruction: string, blocking: bool}> */
@@ -32,7 +34,7 @@ class DeploymentConfigurationService
             'HTTP-only session cookie' => ['SESSION_HTTP_ONLY', 'Keep session.http_only enabled so JavaScript cannot read the session cookie.'],
             'Shared cache store' => ['CACHE_STORE', 'Use a configured shared redis, database, memcached or dynamodb store for throttles, replay protection and snapshots.'],
             'Durable asynchronous queue' => ['QUEUE_CONNECTION', 'Use a configured database, redis, sqs or beanstalkd connection. Run workers for mail and analytics; sync and null are unsuitable for deployment.'],
-            'Dedicated SMSFlow callback secret (32+ characters)' => ['SMSFLOW_WEBHOOK_SECRET', 'Generate a dedicated random secret of at least 32 characters, different from SMSFLOW_API_KEY. Configure the same bearer credential or webhook_secret query parameter at SMSFlow. Suppress query credentials in all proxy access logs.'],
+            'Dedicated SMSFlow callback secret (32+ characters)' => ['SMSFLOW_WEBHOOK_SECRET', 'Generate a dedicated random secret of at least 32 characters, different from SMSFLOW_API_KEY. Prefer an Authorization: Bearer callback credential. Keep SMSFLOW_ALLOW_QUERY_SECRET=true only during the provider transition, and suppress query credentials in all proxy access logs.'],
             'No proxy wildcard trust' => ['TRUSTED_PROXIES', 'List only the immediate ingress IPs/CIDRs, comma-separated. Do not use wildcards or REMOTE_ADDR. Empty trusts no proxies and is only appropriate for direct connections.'],
             'Explicit trusted hosts' => ['TRUSTED_HOSTS', 'List exact accepted hostnames, including the APP_URL hostname and any redirect aliases. Do not include schemes, paths or wildcards.'],
             'Administrator MFA required' => ['ADMIN_MFA_REQUIRED', 'Set ADMIN_MFA_REQUIRED=true. Administrators must enrol an authenticator; passwordless accounts retain direct TOTP or backup-code sign-in.'],
@@ -72,7 +74,7 @@ class DeploymentConfigurationService
             ['Push notification public key', trim((string) config('webpush.public_key')) !== '' ? 'pass' : 'fail', 'VAPID_PUBLIC_KEY', 'Set VAPID_PUBLIC_KEY to your existing push public key. If no key pair exists, run php artisan push:generate-keys once and store both generated keys in the server environment. Keep the same pair across deployments so existing devices remain subscribed.', false],
             ['Push notification private key', trim((string) config('webpush.private_key')) !== '' ? 'pass' : 'fail', 'VAPID_PRIVATE_KEY', 'Set VAPID_PRIVATE_KEY to the private key paired with VAPID_PUBLIC_KEY. After updating the environment, run php artisan config:cache and php artisan queue:restart. Keep the private key secret. Key presence alone does not verify delivery; use Test on a subscribed device.', false],
             ['Push notification contact', $validPushSubject ? 'pass' : 'fail', 'VAPID_SUBJECT', 'Set VAPID_SUBJECT to a monitored mailto: address or an HTTPS contact URL. When omitted, this site uses APP_URL. Refresh cached configuration and restart workers after changes. Push delivery needs a worker processing the mail queue.', false],
-            ['SMSFlow outbound callback URL', $this->callbackStatus(), 'SMSFLOW_CALLBACK_URL', 'Configure the intended HTTPS /webhooks/smsflow URL for outgoing-message callbacks. If using a query credential, webhook_secret must match SMSFLOW_WEBHOOK_SECRET. Otherwise verify that the provider sends the bearer header. An unset URL may be intentional when callbacks are configured directly at the provider.', false],
+            ['SMSFlow outbound callback URL', $this->callbackStatus(), 'SMSFLOW_CALLBACK_URL', 'Configure the intended HTTPS /webhooks/smsflow URL for outgoing-message callbacks. Prefer a URL without credentials and confirm the provider sends Authorization: Bearer. If the provider still requires webhook_secret in the URL, keep the temporary query fallback enabled and suppress query strings in proxy access logs.', false],
             ['Analytics queue connection', $this->durableQueue((string) (config('analytics.queue_connection') ?: config('queue.default'))) ? 'pass' : 'fail', 'ANALYTICS_QUEUE_CONNECTION', 'Use a durable configured queue connection, or leave unset to use QUEUE_CONNECTION. Run a worker listening on the analytics queue.', true],
             ['Analytics migration', $this->analyticsSchemaReady() ? 'pass' : 'fail', 'Database migrations', 'Run php artisan migrate --force before restarting workers. Analytics needs the event_uuid column for retry protection.', true],
             ['Cached configuration', app()->configurationIsCached() ? 'pass' : 'review', 'Configuration cache', 'After changing environment settings, run php artisan config:cache and restart queue workers. This page reports effective loaded configuration, not raw .env contents. Local development may intentionally leave configuration uncached.', false],
@@ -93,8 +95,10 @@ class DeploymentConfigurationService
         foreach ($extra as [$label, $status, $setting, $instruction, $blocking]) {
             $rows[] = compact('label', 'status', 'setting', 'instruction', 'blocking');
         }
+
         return $rows;
     }
+
     private function durableQueue(string $connection): bool
     {
         return in_array(config('queue.connections.'.$connection.'.driver'), ['database', 'redis', 'sqs', 'beanstalkd'], true);
@@ -108,6 +112,7 @@ class DeploymentConfigurationService
                 return false;
             }
         }
+
         return true;
     }
 
@@ -122,12 +127,14 @@ class DeploymentConfigurationService
                 return false;
             }
         }
+
         return true;
     }
 
     private function validRecipients(): bool
     {
         $recipients = preg_split('/[;,]+/', (string) config('security.error_recipients')) ?: [];
+
         return count($recipients) > 0 && count(array_filter($recipients, fn ($email) => filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false)) === count($recipients);
     }
 
@@ -142,6 +149,7 @@ class DeploymentConfigurationService
                 return false;
             }
         }
+
         return true;
     }
 
@@ -159,6 +167,7 @@ class DeploymentConfigurationService
             }
             $hasRemote = true;
         }
+
         return $hasRemote;
     }
 
@@ -178,16 +187,22 @@ class DeploymentConfigurationService
             return 'review';
         }
         $secret = (string) config('services.smsflow.webhook_secret');
-        return is_string($query['webhook_secret']) && strlen($secret) >= 32 && hash_equals($secret, $query['webhook_secret']) ? 'pass' : 'fail';
+        $validQuerySecret = is_string($query['webhook_secret'])
+            && strlen($secret) >= 32
+            && hash_equals($secret, $query['webhook_secret']);
+
+        // A valid query credential is still a deployment review because it can
+        // be copied into an ingress access log. Move the provider to bearer
+        // callbacks before disabling the compatibility fallback.
+        return $validQuerySecret && config('services.smsflow.allow_query_secret', true) ? 'review' : 'fail';
     }
 
     private function analyticsSchemaReady(): bool
     {
         try {
-            return \Illuminate\Support\Facades\Schema::hasColumn('analytics_events', 'event_uuid');
+            return Schema::hasColumn('analytics_events', 'event_uuid');
         } catch (\Throwable) {
             return false;
         }
     }
-
 }

@@ -152,7 +152,8 @@ Route::redirect('/stemcraft/leaderboards', '/stemcraft', 301)->name('stemcraft.l
 Route::redirect('/stemcraft/punishments', '/stemcraft', 301)->name('stemcraft.punishments');
 Route::redirect('/account/stemcraft', '/stemcraft/join', 301);
 Route::get('/cairns-minecraft', [CairnsMinecraftController::class, 'index'])->name('cairns.minecraft');
-Route::match(['GET', 'POST'], 'unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
+Route::get('unsubscribe/{email}', [SubscribeController::class, 'show'])->name('unsubscribe');
+Route::post('unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe.submit');
 Route::get('/tickets', [TicketController::class, 'showRequest'])->name('tickets.request');
 Route::post('/tickets', [TicketController::class, 'sendMagicLink'])->middleware('throttle:magic-link')->name('tickets.send');
 Route::get('/tickets/magic', [TicketController::class, 'showByMagicToken'])->name('tickets.magic');

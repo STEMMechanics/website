@@ -275,4 +275,5 @@ phpcbf.phar
 /*.pdf
 
 # Runtime verification files managed through the admin interface
-/public/.well-known/
+/public/.well-known/*
+!/public/.well-known/security.txt

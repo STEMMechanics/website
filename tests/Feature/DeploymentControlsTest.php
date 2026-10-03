@@ -40,6 +40,25 @@ class DeploymentControlsTest extends TestCase
         $this->postJson('/webhooks/smsflow', [])->assertUnauthorized();
     }
 
+    public function test_sms_callbacks_prefer_bearer_headers_and_can_disable_query_fallback(): void
+    {
+        $secret = str_repeat('b', 40);
+        config(['services.smsflow.webhook_secret' => $secret, 'services.smsflow.allow_query_secret' => true]);
+
+        $queryUrl = '/webhooks/smsflow?webhook_secret='.urlencode($secret);
+        $this->postJson($queryUrl, [])
+            ->assertOk();
+
+        $this->withHeader('Authorization', 'Bearer wrong')
+            ->postJson($queryUrl, [])
+            ->assertUnauthorized();
+
+        config(['services.smsflow.allow_query_secret' => false]);
+        $this->postJson($queryUrl, [])
+            ->assertUnauthorized();
+        $this->withToken($secret)->postJson('/webhooks/smsflow', [])->assertOk();
+    }
+
     public function test_proxy_headers_are_only_used_from_configured_ingress(): void
     {
         config(['security.trusted_proxies' => ['10.1.2.3']]);
@@ -66,8 +85,12 @@ class DeploymentControlsTest extends TestCase
     public function test_staging_noindex_and_report_only_policy_preserve_existing_csp(): void
     {
         config(['security.indexable' => false]);
-        $this->get('/')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow')
-            ->assertHeader('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-".\Illuminate\Support\Facades\Vite::cspNonce()."'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+        $response = $this->get('/')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $reportOnly = (string) $response->headers->get('Content-Security-Policy-Report-Only');
+        $this->assertStringContainsString("script-src 'self' 'nonce-", $reportOnly);
+        $this->assertStringContainsString('https://web.squarecdn.com', $reportOnly);
+        $this->assertStringNotContainsString("'unsafe-inline'", $reportOnly);
+        $this->assertStringNotContainsString("'unsafe-eval'", $reportOnly);
         $this->postJson('/security/csp-reports', ['csp-report' => ['blocked-uri' => 'https://secret.example?token=private', 'effective-directive' => 'script-src-elem']])->assertNoContent();
     }
 
