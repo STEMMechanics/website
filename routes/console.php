@@ -169,6 +169,44 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
     ->everyTenMinutes()
     ->withoutOverlapping();
 
+Artisan::command('media:cleanup-upload-temp {--minutes=120}', function () {
+    $minutes = max(10, (int) $this->option('minutes'));
+    $threshold = now()->subMinutes($minutes)->getTimestamp();
+    $patterns = [
+        sys_get_temp_dir().DIRECTORY_SEPARATOR.'chunk-*',
+        sys_get_temp_dir().DIRECTORY_SEPARATOR.'media-deferred-*',
+        sys_get_temp_dir().DIRECTORY_SEPARATOR.'public-image-*',
+    ];
+    $paths = [];
+
+    foreach ($patterns as $pattern) {
+        $matches = glob($pattern);
+        if (is_array($matches)) {
+            $paths = array_merge($paths, $matches);
+        }
+    }
+
+    $removed = 0;
+    foreach (array_unique($paths) as $path) {
+        if (! is_file($path)) {
+            continue;
+        }
+
+        $modifiedAt = @filemtime($path);
+        if ($modifiedAt === false || $modifiedAt >= $threshold) {
+            continue;
+        }
+
+        if (@unlink($path)) {
+            $removed++;
+        }
+    }
+
+    $this->info('Removed '.$removed.' abandoned upload temporary file'.($removed === 1 ? '' : 's').'.');
+})->purpose('Remove abandoned chunk and deferred upload temporary files')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('database:backup')
     ->hourly()
     ->withoutOverlapping();

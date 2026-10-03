@@ -57,6 +57,42 @@ class PublicInvoicePortalTest extends TestCase
         $response->assertDontSee('Pat Client Pty Ltd');
     }
 
+    public function test_public_invoice_document_email_has_an_independent_four_minute_cooldown(): void
+    {
+        Queue::fake();
+
+        $invoice = Invoice::factory()->create([
+            'status' => Invoice::STATUS_ISSUED,
+            'billing_email' => 'billing@example.com',
+        ]);
+
+        $this->post(route('invoice.public.email-documents', $invoice))
+            ->assertRedirect(route('invoice.public.pay.show', $invoice));
+
+        $this->post(route('invoice.public.email-documents', $invoice))
+            ->assertRedirect(route('invoice.public.pay.show', $invoice))
+            ->assertSessionHas('message', 'Documents were requested recently. Please wait a few minutes before trying again.');
+
+        Queue::assertPushed(SendEmail::class, 1);
+
+        $otherInvoice = Invoice::factory()->create([
+            'status' => Invoice::STATUS_ISSUED,
+            'billing_email' => 'other-billing@example.com',
+        ]);
+
+        $this->post(route('invoice.public.email-documents', $otherInvoice))
+            ->assertRedirect(route('invoice.public.pay.show', $otherInvoice));
+
+        Queue::assertPushed(SendEmail::class, 2);
+
+        $this->travel(241)->seconds();
+
+        $this->post(route('invoice.public.email-documents', $invoice))
+            ->assertRedirect(route('invoice.public.pay.show', $invoice));
+
+        Queue::assertPushed(SendEmail::class, 3);
+    }
+
     public function test_signed_invoice_receipt_pdf_route_resolves_for_linked_payment(): void
     {
         $user = User::factory()->create();

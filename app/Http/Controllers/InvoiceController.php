@@ -26,11 +26,14 @@ use App\Services\StoreOrderService;
 use App\Support\EmailSignatureFormatter;
 use App\Support\InvoiceDueDate;
 use Barryvdh\DomPDF\PDF;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
@@ -41,6 +44,10 @@ use Throwable;
 
 class InvoiceController extends Controller
 {
+    private const PUBLIC_DOCUMENT_EMAIL_COOLDOWN_SECONDS = 240;
+
+    private const PUBLIC_DOCUMENT_EMAIL_IN_FLIGHT_SECONDS = 300;
+
     public function __construct(
         private readonly DocumentNumberService $documentNumbers,
         private readonly StoreOrderService $storeOrders
@@ -688,9 +695,18 @@ class InvoiceController extends Controller
 
         $recipient = $this->resolveInvoiceContactEmail($invoice);
         if ($recipient === '') {
-            session()->flash('message', 'Unable to email documents: this invoice does not have a contact email.');
+            session()->flash('message', 'Unable to email documents right now.');
             session()->flash('message-title', 'Email failed');
             session()->flash('message-type', 'danger');
+
+            return redirect()->to($returnUrl);
+        }
+
+        $cache = Cache::store(config('cache.default'));
+        $cooldownKey = $this->publicDocumentEmailCooldownKey($invoice);
+        $inFlightKey = $cooldownKey.':in-flight';
+        if ($this->publicDocumentEmailCacheHas($cache, $cooldownKey) || $this->publicDocumentEmailCacheHas($cache, $inFlightKey)) {
+            $this->flashPublicDocumentEmailCooldown();
 
             return redirect()->to($returnUrl);
         }
@@ -737,8 +753,21 @@ class InvoiceController extends Controller
             ->sortByDesc(fn (StoreOrder $order) => optional($order->created_at)->timestamp ?? (int) $order->id)
             ->first();
 
+        if (! $cache->add($inFlightKey, true, self::PUBLIC_DOCUMENT_EMAIL_IN_FLIGHT_SECONDS)) {
+            $this->flashPublicDocumentEmailCooldown();
+
+            return redirect()->to($returnUrl);
+        }
+
+        if ($this->publicDocumentEmailCacheHas($cache, $cooldownKey)) {
+            $cache->forget($inFlightKey);
+            $this->flashPublicDocumentEmailCooldown();
+
+            return redirect()->to($returnUrl);
+        }
+
         try {
-            dispatch(new SendEmail($recipient, new InvoiceDocumentBundle(
+            $emailJob = new SendEmail($recipient, new InvoiceDocumentBundle(
                 recipientName: $invoice->user?->getName() ?: (string) ($invoice->billing_name ?: $recipient),
                 invoiceNumber: (string) $invoice->invoice_number,
                 orderNumber: $linkedStoreOrder instanceof StoreOrder ? (string) $linkedStoreOrder->order_number : null,
@@ -747,8 +776,15 @@ class InvoiceController extends Controller
                 payUrl: $this->invoiceCanAcceptPublicPayment($invoice) ? route('invoice.public.pay.show', $invoice) : null,
                 initiatedByEmail: $initiatedByEmail,
                 initiatedByName: $initiatedByName,
-            )))->onQueue('mail');
+            ));
+            $emailJob->onQueue('mail');
+            Bus::dispatch($emailJob);
         } catch (Throwable $e) {
+            try {
+                $cache->forget($inFlightKey);
+            } catch (Throwable $cacheException) {
+                report($cacheException);
+            }
             report($e);
 
             session()->flash('message', 'Unable to email documents right now.');
@@ -758,11 +794,41 @@ class InvoiceController extends Controller
             return redirect()->to($returnUrl);
         }
 
-        session()->flash('message', 'Invoice, tax adjustment, and receipt documents have been emailed.');
+        try {
+            if ($cache->put($cooldownKey, true, self::PUBLIC_DOCUMENT_EMAIL_COOLDOWN_SECONDS)) {
+                $cache->forget($inFlightKey);
+            } else {
+                report(new RuntimeException('The invoice document email cooldown could not be stored.'));
+            }
+        } catch (Throwable $e) {
+            // Keep the in-flight marker until it expires if the configured
+            // shared cache cannot record the final cooldown.
+            report($e);
+        }
+
+        session()->flash('message', 'Invoice documents have been queued for email.');
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
 
         return redirect()->to($returnUrl);
+    }
+
+    private function publicDocumentEmailCooldownKey(Invoice $invoice): string
+    {
+        return 'invoice:public-document-email:'.((string) $invoice->getKey());
+    }
+
+    /** @phpstan-impure */
+    private function publicDocumentEmailCacheHas(Repository $cache, string $key): bool
+    {
+        return $cache->has($key);
+    }
+
+    private function flashPublicDocumentEmailCooldown(): void
+    {
+        session()->flash('message', 'Documents were requested recently. Please wait a few minutes before trying again.');
+        session()->flash('message-title', 'Please wait');
+        session()->flash('message-type', 'warning');
     }
 
     public function accountPdf(Request $request, Invoice $invoice)

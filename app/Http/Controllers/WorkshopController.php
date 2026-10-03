@@ -2058,9 +2058,12 @@ class WorkshopController extends Controller
 
     private function consumeChunkUpload(Request $request, string $uploadToken, string $originalName): UploadedFile
     {
-        $chunkUploads = $request->session()->get('chunk_uploads', []);
+        $chunkUploads = $this->pruneChunkUploadSession($request);
         $path = $chunkUploads[$uploadToken] ?? null;
         if (! is_string($path) || ! is_file($path)) {
+            unset($chunkUploads[$uploadToken]);
+            $request->session()->put('chunk_uploads', $chunkUploads);
+
             throw ValidationException::withMessages([
                 'upload_token' => 'The uploaded file could not be found. Please select it again.',
             ]);
@@ -2069,8 +2072,10 @@ class WorkshopController extends Controller
         unset($chunkUploads[$uploadToken]);
         $request->session()->put('chunk_uploads', $chunkUploads);
         app()->terminating(static function () use ($path): void {
-            if (is_file($path)) {
-                @unlink($path);
+            $realPath = realpath($path);
+            $tempDir = realpath(sys_get_temp_dir());
+            if ($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir.DIRECTORY_SEPARATOR)) {
+                @unlink($realPath);
             }
         });
 
@@ -2081,6 +2086,46 @@ class WorkshopController extends Controller
         $mimeType = mime_content_type($path) ?: 'application/octet-stream';
 
         return new UploadedFile($path, $fileName, $mimeType, null, true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pruneChunkUploadSession(Request $request): array
+    {
+        $chunkUploads = $request->session()->get('chunk_uploads', []);
+        if (! is_array($chunkUploads)) {
+            return [];
+        }
+
+        $cutoff = now()->subMinutes(max(10, (int) config('media.chunk_upload_ttl_minutes', 120)))->getTimestamp();
+        $changed = false;
+
+        foreach ($chunkUploads as $token => $path) {
+            if (! is_string($token) || ! is_string($path) || ! is_file($path)) {
+                unset($chunkUploads[$token]);
+                $changed = true;
+
+                continue;
+            }
+
+            $modifiedAt = @filemtime($path);
+            if ($modifiedAt === false || $modifiedAt < $cutoff) {
+                $realPath = realpath($path);
+                $tempDir = realpath(sys_get_temp_dir());
+                if ($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir.DIRECTORY_SEPARATOR)) {
+                    @unlink($realPath);
+                }
+                unset($chunkUploads[$token]);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $request->session()->put('chunk_uploads', $chunkUploads);
+        }
+
+        return $chunkUploads;
     }
 
     private function ensureWorkshopPhoto(Workshop $workshop, Media $media): void

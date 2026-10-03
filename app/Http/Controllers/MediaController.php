@@ -17,6 +17,7 @@ use App\Services\MediaImageEditor;
 use App\Services\MediaUsageService;
 use App\Services\MediaListFilters;
 use App\Services\ImagePerceptualHash;
+use App\Services\PublicImageUploadService;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -728,11 +729,13 @@ class MediaController extends Controller
                 }
 
                 if(!$request->has('title')) {
-                    $chunkUploads = session()->get('chunk_uploads', []);
+                    $chunkUploads = $this->activeChunkUploads();
                     $deferredToken = bin2hex(random_bytes(16));
                     $sourcePath = $file->getRealPath();
                     $deferredPath = tempnam(sys_get_temp_dir(), 'media-deferred-');
                     if($sourcePath === false || !is_string($deferredPath) || !@copy($sourcePath, $deferredPath)) {
+                        $this->cleanupDeferredUpload($deferredPath);
+
                         return response()->json([
                             'message' => 'Could not persist uploaded file for form submission.',
                             'errors' => [
@@ -755,7 +758,7 @@ class MediaController extends Controller
                         ]
                     ]);
                 }
-            } catch(\Exception $e) {
+            } catch(\Throwable $e) {
                 return response()->json([
                     'message' => $e->getMessage(),
                     'errors' => [
@@ -767,7 +770,7 @@ class MediaController extends Controller
         // else check if it received a file name of a previous upload...
         } else if($request->has('upload_token') || $request->has('file')) {
             $uploadToken = $request->input('upload_token', $request->input('file'));
-            $chunkUploads = session()->get('chunk_uploads', []);
+            $chunkUploads = $this->activeChunkUploads();
 
             if(!is_string($uploadToken) || !isset($chunkUploads[$uploadToken])) {
                 return response()->json([
@@ -800,6 +803,7 @@ class MediaController extends Controller
 
             $file = new UploadedFile($tempFileName, $fileName, $fileMime, null, true);
             $cleanupPath = $tempFileName;
+            $this->registerTemporaryUploadCleanup($cleanupPath);
             unset($chunkUploads[$uploadToken]);
             session()->put('chunk_uploads', $chunkUploads);
         }
@@ -812,6 +816,21 @@ class MediaController extends Controller
                     'file' => 'A file is required.'
                 ]
             ], 422);
+        }
+
+        $visibility = $this->normalizeVisibility((string) $request->input('visibility', 'private'));
+        if (! Auth::user()?->isAdmin() && $visibility === 'public') {
+            try {
+                $file = app(PublicImageUploadService::class)->sanitize($file);
+            } catch (FileInvalidException $exception) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'errors' => [
+                        'file' => $exception->getMessage(),
+                    ],
+                ], 422);
+            }
+            $this->registerTemporaryUploadCleanup($file->getRealPath());
         }
 
         $fileName = $file->getClientOriginalName();
@@ -859,7 +878,9 @@ class MediaController extends Controller
             ->first();
 
         if ($existingMedia instanceof Media) {
-            $this->syncWorkshopLinks($existingMedia, $request->input('workshop_links', []));
+            if ($request->has('workshop_links')) {
+                $this->syncWorkshopLinks($existingMedia, $request->input('workshop_links', []));
+            }
             $this->cleanupDeferredUpload($cleanupPath);
 
             if ($request->wantsJson()) {
@@ -908,8 +929,6 @@ class MediaController extends Controller
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         }
 
-        $visibility = $this->normalizeVisibility((string) $request->input('visibility', 'private'));
-
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
             'user_id' => $ownerId !== '' ? $ownerId : auth()->id(),
@@ -926,7 +945,9 @@ class MediaController extends Controller
             'photographed_at' => $request->input('photographed_at') ?: null,
         ]);
 
-        $this->syncWorkshopLinks($media, $request->input('workshop_links', []));
+        if ($request->has('workshop_links')) {
+            $this->syncWorkshopLinks($media, $request->input('workshop_links', []));
+        }
 
         if(!$exists) {
             $media->generateVariants(false);
@@ -967,6 +988,53 @@ class MediaController extends Controller
         if ($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir.DIRECTORY_SEPARATOR)) {
             @unlink($realPath);
         }
+    }
+
+    private function registerTemporaryUploadCleanup(?string $cleanupPath): void
+    {
+        if (! is_string($cleanupPath)) {
+            return;
+        }
+
+        app()->terminating(function () use ($cleanupPath): void {
+            $this->cleanupDeferredUpload($cleanupPath);
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function activeChunkUploads(): array
+    {
+        $chunkUploads = session()->get('chunk_uploads', []);
+        if (! is_array($chunkUploads)) {
+            return [];
+        }
+
+        $cutoff = now()->subMinutes(max(10, (int) config('media.chunk_upload_ttl_minutes', 120)))->getTimestamp();
+        $changed = false;
+
+        foreach ($chunkUploads as $token => $path) {
+            if (! is_string($token) || ! is_string($path) || ! is_file($path)) {
+                unset($chunkUploads[$token]);
+                $changed = true;
+
+                continue;
+            }
+
+            $modifiedAt = @filemtime($path);
+            if ($modifiedAt === false || $modifiedAt < $cutoff) {
+                $this->cleanupDeferredUpload($path);
+                unset($chunkUploads[$token]);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            session()->put('chunk_uploads', $chunkUploads);
+        }
+
+        return $chunkUploads;
     }
 
     /**
@@ -1757,13 +1825,17 @@ class MediaController extends Controller
         }
 
         if(($request->has('filestart') || $request->has('fileappend')) && $request->has('filesize')) {
-            $fileSize = $request->get('filesize');
+            $fileSize = (int) $request->get('filesize');
+
+            if ($fileSize <= 0) {
+                throw new FileInvalidException('The uploaded file size is invalid.');
+            }
 
             if($fileSize > $max_size) {
                 throw new FileTooLargeException('The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size));
             }
 
-            $chunkUploads = session()->get('chunk_uploads', []);
+            $chunkUploads = $this->activeChunkUploads();
             $uploadToken = $request->input('upload_token');
 
             if($request->has('filestart')) {
@@ -1788,11 +1860,37 @@ class MediaController extends Controller
                 $filemode = 'w';
             }
 
-            // Append the chunk to the temporary file
+            // Append the chunk to the temporary file.
+            $chunkContents = file_get_contents($file->getRealPath());
+            if ($chunkContents === false) {
+                $this->cleanupDeferredUpload($tempFilePath);
+                unset($chunkUploads[$uploadToken]);
+                session()->put('chunk_uploads', $chunkUploads);
+
+                throw new FileInvalidException('Unable to store the uploaded file chunk.');
+            }
+
             $fp = fopen($tempFilePath, $filemode);
-            if ($fp) {
-                fwrite($fp, file_get_contents($file->getRealPath()));
-                fclose($fp);
+            if ($fp === false) {
+                $this->cleanupDeferredUpload($tempFilePath);
+                unset($chunkUploads[$uploadToken]);
+                session()->put('chunk_uploads', $chunkUploads);
+
+                throw new FileInvalidException('Unable to store the uploaded file chunk.');
+            }
+
+            try {
+                $written = fwrite($fp, $chunkContents);
+            } catch (\Throwable) {
+                $written = false;
+            }
+            fclose($fp);
+            if ($written !== strlen($chunkContents)) {
+                $this->cleanupDeferredUpload($tempFilePath);
+                unset($chunkUploads[$uploadToken]);
+                session()->put('chunk_uploads', $chunkUploads);
+
+                throw new FileInvalidException('Unable to store the uploaded file chunk.');
             }
 
             // Check if the upload is complete
@@ -1806,6 +1904,8 @@ class MediaController extends Controller
                     unset($chunkUploads[$uploadToken]);
                     session()->put('chunk_uploads', $chunkUploads);
                 }
+
+                $this->registerTemporaryUploadCleanup($tempFilePath);
 
                 return new UploadedFile($tempFilePath, $fileName, $fileMime, null, true);
             } else {
@@ -1883,7 +1983,7 @@ class MediaController extends Controller
             }
         }
 
-        $mime_type = $media->mime_type;
+        $mime_type = (string) $media->mime_type;
         $name = $media->name;
 
         if($variant !== '') {
@@ -1894,6 +1994,11 @@ class MediaController extends Controller
             $file = $variantFile['file'];
             $mime_type = $variantFile['mime_type'];
             $name = $variantFile['name'];
+        } else {
+            $detectedMime = @mime_content_type($file);
+            if (is_string($detectedMime) && $detectedMime !== '') {
+                $mime_type = $detectedMime;
+            }
         }
 
         if ($download) {
@@ -1909,9 +2014,15 @@ class MediaController extends Controller
             }
         }
 
+        $normalizedMime = strtolower(trim(explode(';', $mime_type, 2)[0]));
+        $safeInlineMime = in_array($normalizedMime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true);
+        $forceDownload = $download || ! $safeInlineMime;
+        $safeName = str_replace(["\r", "\n", '"'], '', basename((string) $name));
+
         $headers = [
             'Content-Type' => $mime_type,
-            'Content-Disposition' => ($download ? 'attachment; ' : '') . 'filename="' . $name . '"',
+            'Content-Disposition' => ($forceDownload ? 'attachment; ' : '') . 'filename="' . $safeName . '"',
+            'X-Content-Type-Options' => 'nosniff',
         ];
 
         if (Helpers::isNginxXAccelEnabled() && $media->storageDiskName() === 'media') {
@@ -2104,15 +2215,38 @@ class MediaController extends Controller
             ->unique('workshop_id')
             ->values();
 
-        DB::transaction(function () use ($media, $links): void {
-            DB::table('mediables')
+        $isAdmin = Auth::user()?->isAdmin() === true;
+        $authorizedWorkshopIds = [];
+        if (! $isAdmin) {
+            $userId = (string) (Auth::id() ?? '');
+            $authorizedWorkshopIds = Workshop::query()
+                ->where(function ($query) use ($userId): void {
+                    $query->where('user_id', $userId)
+                        ->orWhere('facilitator_user_id', $userId);
+                })
+                ->pluck('id')
+                ->map(fn ($id): string => (string) $id)
+                ->all();
+
+            $links = $links
+                ->whereIn('workshop_id', $authorizedWorkshopIds)
+                ->values();
+        }
+
+        DB::transaction(function () use ($media, $links, $isAdmin, $authorizedWorkshopIds): void {
+            $existingLinks = DB::table('mediables')
                 ->where('media_name', (string) $media->name)
                 ->where('mediable_type', Workshop::class)
                 ->where(function ($query) {
                     $query->whereNull('collection')
                         ->orWhere('collection', 'workshop_photos');
-                })
-                ->delete();
+                });
+
+            if ($isAdmin) {
+                $existingLinks->delete();
+            } elseif ($authorizedWorkshopIds !== []) {
+                $existingLinks->whereIn('mediable_id', $authorizedWorkshopIds)->delete();
+            }
 
             foreach ($links as $link) {
                 $media->workshops()->attach($link['workshop_id'], [
