@@ -1,6 +1,6 @@
 @props(['budget' => null, 'workshop' => null])
 @php
-    $categories = \Illuminate\Support\Facades\DB::table('finance_categories')->orderBy('priority')->get();
+    $categories = \Illuminate\Support\Facades\DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->get();
 @endphp
 <x-ui.collapsible-section title="Estimated cost centre allocation" variant="panel">
     <x-slot:summary>

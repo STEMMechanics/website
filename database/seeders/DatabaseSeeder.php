@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(SponsorshipProjectSeeder::class);
+
         // User::factory(10)->create();
 
         $adminUser = User::factory()->create([

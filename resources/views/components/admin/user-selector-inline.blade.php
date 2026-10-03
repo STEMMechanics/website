@@ -8,10 +8,13 @@
 'disabled' => false,
 'allowCreate' => true,
 'mobileStacked' => false,
+'includeContactDetails' => false,
+'submitLabelAs' => null,
+'submitLabelValue' => '',
 ])
 
 @php
-$userLookupOptions = collect($users ?? [])->map(function ($user) {
+$userLookupOptions = collect($users ?? [])->map(function ($user) use ($includeContactDetails) {
 $name = trim((string) $user->getName());
 $email = trim((string) ($user->email ?? ''));
 $company = trim((string) ($user->primaryOrganisation?->name ?? ''));
@@ -24,16 +27,41 @@ if ($email !== '') {
 $displayLabel .= ' ('.$email.')';
 }
 
+$contactDetails = null;
+if ($includeContactDetails) {
+    $address = $user->resolvedBillingAddress();
+    $contactDetails = [
+        'contact_name' => $name,
+        'email' => $email,
+        'sponsor_type' => $company !== '' ? 'organisation' : 'individual',
+        'company_name' => $company,
+        'country' => trim((string) ($address['country'] ?? '')) ?: 'Australia',
+        'billing_address' => trim((string) ($address['address'] ?? '')),
+        'billing_address2' => trim((string) ($address['address2'] ?? '')),
+        'billing_city' => trim((string) ($address['city'] ?? '')),
+        'billing_state' => trim((string) ($address['state'] ?? '')),
+        'billing_postcode' => trim((string) ($address['postcode'] ?? '')),
+    ];
+}
+
 return [
-'id' => (string) $user->id,
-'label' => $displayLabel,
-'account_terms_days' => $user->accountTermsDays(),
+    'id' => (string) $user->id,
+    'label' => $displayLabel,
+    'account_terms_days' => $user->accountTermsDays(),
+    'prefill' => $contactDetails,
 ];
 })->values();
 $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] => $item['id']])->all();
 $resolvedSelectedUserId = (string) $selectedUserId;
 $selectedUser = $userLookupOptions->first(fn ($item) => $item['id'] === $resolvedSelectedUserId);
 $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : '';
+$resolvedSubmissionValue = trim((string) $submitLabelValue);
+if ($resolvedSubmissionValue === '' && is_array($selectedUser)) {
+    $resolvedSubmissionValue = trim((string) data_get($selectedUser, 'prefill.contact_name', ''));
+}
+$resolvedLookupLabel = $selectedUserLabel !== ''
+    ? $selectedUserLabel
+    : (is_string($submitLabelAs) && trim($submitLabelAs) !== '' ? $resolvedSubmissionValue : '');
 $layoutClass = $mobileStacked
     ? 'invoice-linked-user mb-4 sm:mb-2'
     : 'mb-2';
@@ -53,7 +81,8 @@ $errorClass = $mobileStacked
 @endphp
 
 <div class="{{ $layoutClass }}" x-data="{
-    linkedUserLabel: @js($selectedUserLabel),
+    linkedUserLabel: @js($resolvedLookupLabel),
+    linkedUserSubmissionValue: @js($resolvedSubmissionValue),
     linkedUserMap: @js($userLookupMap),
     linkedUsers: @js($userLookupOptions->all()),
     linkedUserOpen: false,
@@ -88,6 +117,9 @@ $errorClass = $mobileStacked
         const userId = matched?.id || this.linkedUserMap[this.linkedUserLabel] || '';
         this.$refs.linkedUserId.value = userId;
     },
+    syncSubmittedLabel() {
+        this.linkedUserSubmissionValue = this.linkedUserLabel;
+    },
     refreshLinkedUsers() {
         const needle = String(this.linkedUserLabel || '').toLowerCase().trim();
         if (needle === '') {
@@ -115,6 +147,7 @@ $errorClass = $mobileStacked
     },
     chooseLinkedUser(option) {
         this.linkedUserLabel = option?.label || '';
+        this.linkedUserSubmissionValue = option?.prefill?.contact_name || option?.label || '';
         this.$refs.linkedUserId.value = option?.id || '';
         this.linkedUserOpen = false;
         this.linkedUserSelectedIndex = -1;
@@ -123,6 +156,7 @@ $errorClass = $mobileStacked
                 userId: option?.id || '',
                 label: option?.label || '',
                 accountTermsDays: Number(option?.account_terms_days || 0),
+                user: option?.prefill || null,
             },
         }));
     },
@@ -209,6 +243,7 @@ $errorClass = $mobileStacked
                     userId: user.id,
                     label: user.label,
                     accountTermsDays: 0,
+                    user: null,
                 },
             }));
         } catch (error) {
@@ -229,7 +264,7 @@ $errorClass = $mobileStacked
                         class="disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 border-gray-300 focus:border-indigo-300 focus:ring-indigo-300"
                         x-model="linkedUserLabel"
                         x-on:focus="linkedUserOpen = false"
-                        x-on:input="syncLinkedUserId(); refreshLinkedUsers()"
+                        x-on:input="syncSubmittedLabel(); syncLinkedUserId(); refreshLinkedUsers()"
                         x-on:keydown.arrow-down.prevent="moveLinkedUser(1)"
                         x-on:keydown.arrow-up.prevent="moveLinkedUser(-1)"
                         x-on:keydown.enter.prevent="confirmLinkedUser()"
@@ -260,6 +295,9 @@ $errorClass = $mobileStacked
                 <div class="{{ $errorClass }}">{{ $errors->first($fieldName) }}</div>
             @endif
             <input type="hidden" name="{{ $fieldName }}" x-ref="linkedUserId" value="{{ $resolvedSelectedUserId }}">
+            @if(is_string($submitLabelAs) && trim($submitLabelAs) !== '')
+                <input type="hidden" name="{{ $submitLabelAs }}" x-bind:value="linkedUserSubmissionValue">
+            @endif
         </div>
     </div>
 

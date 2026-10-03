@@ -4136,12 +4136,21 @@ class StoreOrderService
     {
         return $invoice->lines->map(function (InvoiceLine $line): array {
             return [
+                'id' => $line->id,
+                'kind' => (string) $line->kind,
                 'description' => (string) $line->description,
                 'notes' => (string) ($line->notes ?? ''),
+                'details_json' => is_array($line->details_json) ? $line->details_json : [],
                 'quantity' => (float) $line->quantity,
                 'unit_price_ex_tax' => (float) $line->unit_price_ex_tax,
                 'tax_rate' => (float) $line->tax_rate,
                 'line_total_ex_tax' => (float) $line->line_total_ex_tax,
+                'tax_amount' => (float) $line->tax_amount,
+                'line_total_inc_tax' => (float) $line->line_total_inc_tax,
+                'source_type' => $line->source_type,
+                'source_id' => $line->source_id,
+                'original_invoice_line_id' => $line->original_invoice_line_id,
+                'gst_applicable' => (float) $line->tax_rate > 0.0001,
             ];
         })->all();
     }

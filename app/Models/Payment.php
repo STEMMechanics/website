@@ -56,6 +56,7 @@ class Payment extends Model
     ];
 
     public const PAYMENT_METHOD_CASH = 'cash';
+    public const PAYMENT_METHOD_CHEQUE = 'cheque';
     public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
     public const PAYMENT_METHOD_CREDIT = 'credit';
     public const PAYMENT_METHOD_CREDIT_CARD = 'credit_card';
@@ -65,6 +66,7 @@ class Payment extends Model
 
     public const PAYMENT_METHODS = [
         self::PAYMENT_METHOD_CASH,
+        self::PAYMENT_METHOD_CHEQUE,
         self::PAYMENT_METHOD_BANK_TRANSFER,
         self::PAYMENT_METHOD_CREDIT,
         self::PAYMENT_METHOD_CREDIT_CARD,
@@ -202,6 +204,7 @@ class Payment extends Model
     {
         return match ($paymentMethod) {
             self::PAYMENT_METHOD_CASH => 'Cash',
+            self::PAYMENT_METHOD_CHEQUE => 'Cheque',
             self::PAYMENT_METHOD_BANK_TRANSFER => 'Bank Transfer',
             self::PAYMENT_METHOD_CREDIT => 'Credit',
             self::PAYMENT_METHOD_CREDIT_CARD => 'Credit Card',

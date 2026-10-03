@@ -189,11 +189,10 @@ class TicketController extends Controller
             dispatch(new SendEmail($email, new TicketNoTickets($email)))->onQueue('mail');
         }
 
-        session()->flash('message', 'If tickets were found, a secure link has been sent to your email.');
-        session()->flash('message-title', 'Check your inbox');
-        session()->flash('message-type', 'success');
-
-        return redirect()->route('index');
+        return redirect()->route('tickets.request')->with([
+            'ticket_link_requested' => true,
+            'ticket_link_email' => $email,
+        ]);
     }
 
     public function showByMagicToken(Request $request): View|RedirectResponse

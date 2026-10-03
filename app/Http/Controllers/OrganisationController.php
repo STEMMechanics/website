@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Organisation;
 use App\Models\User;
 use App\Services\InvoiceEmailTemplateService;
+use App\Support\WebsiteUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 class OrganisationController extends Controller
 {
@@ -104,9 +107,11 @@ class OrganisationController extends Controller
     {
         $validated = $this->validated($request);
         $contactIds = $validated['contact_ids'] ?? [];
-        unset($validated['contact_ids']);
+        $logo = $request->file('logo');
+        unset($validated['contact_ids'], $validated['logo']);
         $organisation = Organisation::create($validated);
         $organisation->contacts()->sync($contactIds);
+        $this->saveOrganisationLogo($organisation, $logo);
 
         return redirect()->route('admin.organisation.edit', $organisation)
             ->with('message', 'Organisation has been created')
@@ -126,9 +131,11 @@ class OrganisationController extends Controller
     {
         $validated = $this->validated($request, $organisation);
         $contactIds = $validated['contact_ids'] ?? [];
-        unset($validated['contact_ids']);
+        $logo = $request->file('logo');
+        unset($validated['contact_ids'], $validated['logo']);
         $organisation->update($validated);
         $organisation->contacts()->sync($contactIds);
+        $this->saveOrganisationLogo($organisation, $logo);
 
         User::query()
             ->where('primary_organisation_id', $organisation->id)
@@ -171,14 +178,41 @@ class OrganisationController extends Controller
         return view('admin.organisation.edit', compact('organisation', 'organisations', 'invoiceEmailSiteDefaults'));
     }
 
+    public function sponsorshipLogo(Organisation $organisation): Response
+    {
+        $path = trim((string) $organisation->logo_path);
+        abort_unless($path !== '' && str_starts_with($path, 'sponsorship-assets/'), 404);
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return response()->file(Storage::disk('local')->path($path), ['Cache-Control' => 'private, no-store']);
+    }
+
+    private function saveOrganisationLogo(Organisation $organisation, mixed $file): void
+    {
+        if (! $file) return;
+
+        $previousPath = $organisation->logo_path;
+        $organisation->logo_path = $file->store('sponsorship-assets/sponsors', 'local');
+        $organisation->save();
+
+        if ($previousPath && $previousPath !== $organisation->logo_path) {
+            Storage::disk('local')->delete($previousPath);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function validated(Request $request, ?Organisation $organisation = null): array
     {
+        $request->merge(['website_url' => WebsiteUrl::normalize($request->input('website_url'))]);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', Rule::in(array_keys(Organisation::TYPES))],
+            'website_url' => WebsiteUrl::validationRules(),
+            'abn' => ['nullable', 'string', 'max:20'],
+            'foreign_tax_id' => ['nullable', 'string', 'max:100'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'parent_id' => [
                 'nullable',
                 'exists:organisations,id',

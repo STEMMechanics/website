@@ -14,7 +14,7 @@ class SitemapController extends Controller
 {
     public function index(): Response
     {
-        $static = collect(['index', 'workshop.index', 'workshop.past.index', 'stemcraft.index', 'stemcraft.join', 'stemcraft.rules', 'stemcraft.faqs', 'about', 'contact', 'privacy', 'terms-conditions', 'code-of-conduct'])
+        $static = collect(['index', 'workshop.index', 'workshop.past.index', 'stemcraft.index', 'stemcraft.join', 'stemcraft.rules', 'stemcraft.faqs', 'about', 'contact', 'privacy', 'terms-conditions', 'code-of-conduct', 'sponsor.index', 'sponsors.index'])
             ->map(fn (string $route) => ['loc' => route($route), 'lastmod' => null]);
         $suburbs = Location::query()->whereNotNull('suburb')->where('suburb', '!=', '')
             ->whereIn('id', Workshop::query()->publiclyVisible()->where('is_private', false)->select('location_id'))
