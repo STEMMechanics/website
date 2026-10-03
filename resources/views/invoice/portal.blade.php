@@ -6,6 +6,7 @@
             $grossPaidAmount = (float) ($grossAllocatedAmount ?? $allocatedAmount ?? 0);
             $refundedPaidAmount = (float) ($refundedAllocatedAmount ?? 0);
             $netPaidAmount = (float) ($netAllocatedAmount ?? max(0, $grossPaidAmount - $refundedPaidAmount));
+            $gstIsNotIncluded = in_array((string) ($invoice->tax_treatment_code ?? ''), ['gst_free_export', 'no_gst'], true);
         @endphp
 
         <div class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
@@ -76,9 +77,14 @@
                             </div>
                         @endif
                         <div class="mt-2 flex items-center justify-between gap-4">
-                            <div class="font-medium text-gray-700">GST included</div>
+                            <div class="font-medium text-gray-700">{{ $gstIsNotIncluded ? 'GST' : 'GST included' }}</div>
                             <div class="font-semibold text-gray-950">${{ number_format((float) ($adjustedGstAmount ?? $invoice->gst_amount), 2) }}</div>
                         </div>
+                        @if((string) ($invoice->tax_treatment_code ?? '') === 'gst_free_export')
+                            <p class="mt-2 text-xs leading-5 text-gray-600">GST-free export supply. GST has not been charged.</p>
+                        @elseif((string) ($invoice->tax_treatment_code ?? '') === 'no_gst')
+                            <p class="mt-2 text-xs leading-5 text-gray-600">No GST has been charged for this supply.</p>
+                        @endif
                         <div class="mt-2 flex items-center justify-between gap-4">
                             <div class="font-medium text-gray-700">Invoice total</div>
                             <div class="font-semibold text-gray-950">${{ number_format((float) ($adjustedTotalAmount ?? $invoice->total_amount), 2) }}</div>
@@ -112,7 +118,7 @@
             <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 px-6 py-4">
                     <div class="text-lg font-semibold text-gray-950">Line Items</div>
-                    <div class="mt-1 text-sm text-gray-500">Unit prices and line totals include GST where applicable.</div>
+                    <div class="mt-1 text-sm text-gray-500">{{ $gstIsNotIncluded ? 'Amounts shown do not include GST.' : 'Unit prices and line totals include GST where applicable.' }}</div>
                 </div>
                 @php
                     $combinedLineItems = collect();
@@ -157,9 +163,9 @@
                                 <tr class="text-left text-gray-600">
                                     <th class="px-6 py-3 font-medium">Description</th>
                                     <th class="px-6 py-3 font-medium text-right">Qty</th>
-                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-right">Unit <span class="whitespace-nowrap text-xs font-normal">{{ $gstIsNotIncluded ? '(amount)' : '(inc GST)' }}</span></th>
                                     <th class="px-6 py-3 font-medium text-center!">GST</th>
-                                    <th class="px-6 py-3 font-medium text-center!">Total <span class="whitespace-nowrap text-xs font-normal">(inc GST)</span></th>
+                                    <th class="px-6 py-3 font-medium text-center!">Total <span class="whitespace-nowrap text-xs font-normal">{{ $gstIsNotIncluded ? '(amount)' : '(inc GST)' }}</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">

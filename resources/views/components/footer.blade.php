@@ -14,8 +14,8 @@
             />
         </svg>
     </div>
-    <section class="grid gap-8 mb-12 sm:grid-cols-3 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
-        <div class="text-center lg:text-left text-sm self-center lg:pr-8 flex flex-col gap-3 sm:col-span-3 lg:col-span-1">
+    <section class="grid gap-8 mb-12 sm:grid-cols-2 lg:grid-cols-6">
+        <div class="text-center lg:text-left text-sm self-center lg:pr-8 flex flex-col gap-3 sm:col-span-2 lg:col-span-2">
             <p class="font-semibold">Build • Experiment • Create.</p>
             <p>STEMMechanics delivers hands-on STEM experiences that inspire curiosity through engineering, coding and creative technology. Based in Cairns, Queensland.</p>
         </div>
@@ -28,7 +28,15 @@
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
             <li><a href="https://instagram.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Instagram</a></li>
             <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">YouTube</a></li>
-            <li class="mb-3"><a href="https://linkedin.com/company/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Linked-In</a></li>
+            <li><a href="https://linkedin.com/company/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Linked-In</a></li>
+        </ul>
+        <ul class="flex flex-col gap-0.5 text-center lg:text-left">
+            <li>
+                <h3 class="font-bold mb-2">Sponsorships</h3>
+            </li>
+            <li><a href="{{ route('sponsor.index') }}" class="text-sm hover:text-primary-color">Sponsor us</a></li>
+            <li><a href="{{ route('sponsors.index') }}" class="text-sm hover:text-primary-color">Our sponsors</a></li>
+            <li><a href="{{ route('sponsor.manage.request') }}" class="text-sm hover:text-primary-color">Manage</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>

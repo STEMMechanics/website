@@ -27,6 +27,14 @@ class Organisation extends Model
         'name',
         'type',
         'parent_id',
+        'website_url',
+        'logo_path',
+        'abn',
+        'foreign_tax_id',
+        'sponsorship_recognition_public',
+        'sponsorship_recognition_approved_at',
+        'sponsorship_recognition_approved_by',
+        'sponsorship_recognition_approval_notified_at',
         'billing_address',
         'billing_address2',
         'billing_city',
@@ -47,7 +55,12 @@ class Organisation extends Model
         'notes',
     ];
 
-    protected $casts = ['account_terms_days' => 'integer'];
+    protected $casts = [
+        'account_terms_days' => 'integer',
+        'sponsorship_recognition_public' => 'boolean',
+        'sponsorship_recognition_approved_at' => 'datetime',
+        'sponsorship_recognition_approval_notified_at' => 'datetime',
+    ];
 
     public function accountTermsDays(): int
     {
@@ -82,6 +95,12 @@ class Organisation extends Model
             ->withTimestamps()
             ->orderBy('firstname')
             ->orderBy('surname');
+    }
+
+    /** @return HasMany<Sponsor, $this> */
+    public function sponsorshipProfiles(): HasMany
+    {
+        return $this->hasMany(Sponsor::class, 'organisation_id');
     }
 
     /**

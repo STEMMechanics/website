@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SquareWebhookEvent;
 use App\Services\SquareApiService;
 use App\Services\SquareWebhookSyncService;
+use App\Services\SponsorshipWebhookService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class SquareWebhookController extends Controller
     public function handle(
         Request $request,
         SquareApiService $squareApi,
-        SquareWebhookSyncService $syncService
+        SquareWebhookSyncService $syncService,
+        SponsorshipWebhookService $sponsorshipWebhookService
     ): JsonResponse
     {
         if (! $squareApi->isEnabled()) {
@@ -60,18 +62,40 @@ class SquareWebhookController extends Controller
         }
 
         try {
-            $event = SquareWebhookEvent::query()->create([
+            $event = SquareWebhookEvent::query()->where('event_id', $eventId)->first();
+            if ($event && $event->processed_at !== null) {
+                return response()->json(['ok' => true, 'duplicate' => true]);
+            }
+            if (! $event) {
+                $event = SquareWebhookEvent::query()->create([
                 'event_id' => $eventId,
                 'event_type' => $eventType,
                 'payment_id' => null,
                 'payload' => $payload,
-                'processed_at' => now(),
-            ]);
+                'processed_at' => null,
+                ]);
+            }
         } catch (UniqueConstraintViolationException) {
-            return response()->json(['ok' => true, 'duplicate' => true]);
+            $event = SquareWebhookEvent::query()->where('event_id', $eventId)->first();
+            if (! $event || $event->processed_at !== null) {
+                return response()->json(['ok' => true, 'duplicate' => true]);
+            }
         }
 
-        $syncService->syncPayload($payload, $event);
+        try {
+            $syncService->syncPayload($payload, $event, false);
+            $sponsorshipWebhookService->handle($payload);
+            $event->refresh();
+            $event->processed_at = now();
+            $event->save();
+        } catch (\Throwable $exception) {
+            Log::error('Square webhook processing failed.', [
+                'event_id' => $eventId,
+                'type' => $eventType,
+                'error' => $exception->getMessage(),
+            ]);
+            return response()->json(['ok' => false, 'message' => 'Webhook processing failed'], 500);
+        }
 
         return response()->json(['ok' => true]);
     }

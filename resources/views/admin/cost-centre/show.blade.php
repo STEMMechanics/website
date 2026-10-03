@@ -1,8 +1,8 @@
 <x-layout>
     <x-mast :title="$category->name" backRoute="admin.cost-centre.index" backTitle="Cost centres">
         <x-slot:actions>
-            @if(in_array($category->kind, ['cost', 'owner'], true))<x-ui.button color="mast" data-record-editor href="{{ route('admin.cost-centre.transfer.edit', ['from' => $category->kind === 'owner' ? 'remuneration' : $category->id]) }}">Transfer funds</x-ui.button>@endif
-            <x-ui.button color="mast" data-record-editor href="{{ route('admin.cost-centre.edit', ['id' => $category->id]) }}">Edit cost centre</x-ui.button>
+            @if(in_array($category->kind, ['cost', 'owner', 'sponsorship'], true))<x-ui.button color="mast" data-record-editor href="{{ route('admin.cost-centre.transfer.edit', ['from' => $category->kind === 'owner' ? 'remuneration' : $category->id]) }}">Transfer funds</x-ui.button>@endif
+            @if(in_array($category->kind, ['cost', 'owner'], true))<x-ui.button color="mast" data-record-editor href="{{ route('admin.cost-centre.edit', ['id' => $category->id]) }}">Edit cost centre</x-ui.button>@endif
         </x-slot:actions>
     </x-mast>
     <x-container class="py-5 sm:py-8">

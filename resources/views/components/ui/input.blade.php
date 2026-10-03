@@ -629,7 +629,7 @@
             @endif
         </div>
     @endif
-    @if(isset($info) && $info !== '')
+    @if(!$isFileInput && isset($info) && $info !== '')
         <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
     @endif
     @if(!$isFileInput)

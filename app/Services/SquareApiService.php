@@ -22,11 +22,15 @@ class SquareApiService
             'GENERIC_DECLINE', 'CARD_DECLINED' => 'Your card has been declined. Please try another card or contact your bank.',
             'INSUFFICIENT_FUNDS' => 'Your card has insufficient funds. Please try another payment method.',
             'CVV_FAILURE' => 'Your card security code (CVV) did not match. Please check and try again.',
-            'ADDRESS_VERIFICATION_FAILURE' => 'Your billing address did not match your card details. Please check and try again.',
+            'ADDRESS_VERIFICATION_FAILURE', 'INVALID_POSTAL_CODE' => 'The postal code entered with your card could not be accepted. Please check and try again.',
             'EXPIRATION_FAILURE' => 'Your card expiry details appear incorrect. Please check and try again.',
+            'INVALID_CARD_DATA' => config('services.square.environment') === 'sandbox'
+                ? 'Square could not save this Sandbox card. For monthly testing, use 94103 as the card postal code and check the card details.'
+                : 'Square could not save this card. Please check the card details or try another payment method.',
             'INVALID_ACCOUNT', 'INVALID_CARD' => 'Your card details appear invalid. Please check and try again.',
             'CARD_NOT_SUPPORTED' => 'This card is not supported for this payment. Please try a different card.',
             'TRANSACTION_LIMIT' => 'This payment exceeds your card limit. Please try a smaller amount or another card.',
+            'NOT_FOUND' => 'This sponsorship option is unavailable in the current payment setup. Please choose another option or contact us.',
             default => 'We could not process your card payment right now. Please try again or use another payment method.',
         };
     }
@@ -43,11 +47,39 @@ class SquareApiService
         return $this->parseResponse($response, 'Square create payment failed');
     }
 
+    public function retrievePayment(string $paymentId): array
+    {
+        return $this->parseResponse(
+            $this->request()->get('/payments/'.rawurlencode($paymentId)),
+            'Square retrieve payment failed'
+        );
+    }
+
+    public function createOrder(array $payload): array
+    {
+        return $this->parseResponse($this->request()->post('/orders', $payload), 'Square create order failed');
+    }
+
+    public function retrieveOrder(string $orderId): array
+    {
+        return $this->parseResponse($this->request()->get('/orders/'.rawurlencode($orderId)), 'Square retrieve order failed');
+    }
+
     public function createRefund(array $payload): array
     {
         $response = $this->request()->post('/refunds', $payload);
 
         return $this->parseResponse($response, 'Square create refund failed');
+    }
+
+    public function createCustomer(array $payload): array
+    {
+        return $this->parseResponse($this->request()->post('/customers', $payload), 'Square create customer failed');
+    }
+
+    public function createCard(array $payload): array
+    {
+        return $this->parseResponse($this->request()->post('/cards', $payload), 'Square create card failed');
     }
 
     public function validateWebhookSignature(string $payload, string $signatureHeader, string $requestUrl): bool

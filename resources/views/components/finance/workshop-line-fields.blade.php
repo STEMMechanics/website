@@ -1,7 +1,7 @@
 @props(['inclusive' => false, 'invoiceLayout' => false])
 @php
     $plan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString());
-    $supplyCategories = \Illuminate\Support\Facades\DB::table('finance_categories')->pluck('name', 'id');
+    $supplyCategories = \Illuminate\Support\Facades\DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->pluck('name', 'id');
     $supplyRules = collect(json_decode($plan->rules, true))->filter(fn ($rule) => ($rule['suppliable'] ?? false) || $rule['basis'] === 'venue_hour')->unique('category_id');
     $planPricing = array_merge(json_decode($plan->prices, true), ['rules' => json_decode($plan->rules, true)]);
 @endphp
