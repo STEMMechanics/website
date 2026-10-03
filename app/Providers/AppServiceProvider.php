@@ -10,6 +10,7 @@ use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Observers\AuditLogObserver;
+use App\Observers\SponsorshipInvoiceObserver;
 use App\Policies\AuditLogPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PaymentPolicy;
@@ -157,6 +158,7 @@ class AppServiceProvider extends ServiceProvider
 
         User::observe(AuditLogObserver::class);
         Invoice::observe(AuditLogObserver::class);
+        Invoice::observe(SponsorshipInvoiceObserver::class);
         Payment::observe(AuditLogObserver::class);
         Ticket::observe(AuditLogObserver::class);
 

@@ -1,3 +1,5 @@
+@props(['submitLabel' => 'Verifying...'])
+
 @if(\App\Support\AltchaTrust::shouldRequire(request()))
 @php($altchaError = $errors->first('altcha'))
 <div class="my-2">
@@ -18,9 +20,10 @@
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" type="module" src="{{ asset('vendor/altcha/altcha.min.js') }}"></script>
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     const initAltchaForms = () => {
+        const submitLabel = @js($submitLabel);
         const setFormProcessing = (form, isProcessing) => {
             if (window.SM && typeof window.SM.setFormProcessing === 'function') {
-                window.SM.setFormProcessing(form, isProcessing, { submitLabel: 'Verifying...' });
+                window.SM.setFormProcessing(form, isProcessing, { submitLabel });
             }
         };
 
@@ -115,7 +118,7 @@
             }
 
             if (window.SM && typeof window.SM.bindFormProcessingOnSubmit === 'function') {
-                window.SM.bindFormProcessingOnSubmit(form, { submitLabel: 'Verifying...' });
+                window.SM.bindFormProcessingOnSubmit(form, { submitLabel });
             }
 
             if (form.dataset.altchaSubmitWatchBound !== '1') {

@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Support\InvoiceEmailSubject;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -150,10 +151,17 @@ class TicketOrderConfirmation extends Mailable
     {
         $hasTicketContent = count($this->tickets) > 0 || $this->ticketAttachmentCount > 0;
         $workshopTitle = (string) ($this->workshop['title'] ?? 'your STEMMechanics order');
-        $receiptAttachmentCount = $this->receiptAttachmentCount + $this->creditReceiptAttachmentCount;
-        $subject = $hasTicketContent
-            ? 'Your ticket'.($this->ticketCount > 1 ? 's' : '').($receiptAttachmentCount > 0 ? ' and receipt'.($receiptAttachmentCount > 1 ? 's' : '') : '').' for '.$workshopTitle
-            : 'Your order details for '.$workshopTitle;
+        $documentTypes = collect($this->attachmentFiles)
+            ->pluck('type')
+            ->filter()
+            ->values()
+            ->all();
+        $subject = InvoiceEmailSubject::forTicketOrder(
+            $this->invoice['number'] ?? null,
+            $documentTypes,
+            $this->ticketCount,
+            $workshopTitle
+        );
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
         $fromKey = $hasTicketContent ? 'ticket_from' : 'order_from';
         $fromAddress = trim((string) config('mail.'.$fromKey.'.address', (string) config('mail.from.address', '')));

@@ -113,6 +113,7 @@ class SiteListControls
                 'no_attachment' => ['label' => 'Without attachment', 'type' => 'boolean'],
             ],
             'admin.payment.index' => ['unallocated_only' => ['label' => 'Allocation', 'type' => 'select', 'options' => ['1' => 'Unallocated payments']]],
+            'admin.sponsorship.index' => ['ref' => ['label' => 'Referral source', 'type' => 'text']],
             'admin.server.audit' => ['event' => ['label' => 'Event', 'type' => 'text']],
             'admin.payment.refunds' => ['hide_completed' => ['label' => 'Hide completed', 'type' => 'boolean']],
             'account.order.index' => ['order_scope' => ['label' => 'Orders', 'type' => 'select', 'options' => ['current' => 'Current orders', 'cancelled' => 'Cancelled', 'all' => 'All orders'], 'clear' => 'all']],

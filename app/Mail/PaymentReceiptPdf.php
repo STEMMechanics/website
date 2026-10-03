@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Support\InvoiceEmailSubject;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -108,7 +109,10 @@ class PaymentReceiptPdf extends Mailable
         $fromName = trim((string) config('mail.'.$fromKey.'.name', (string) config('mail.from.name', '')));
 
         $mail = $this
-            ->subject(($this->isRefund ? 'Your refund receipt for invoice ' : 'Your payment receipt for invoice ').$this->invoiceNumber)
+            ->subject(InvoiceEmailSubject::forInvoice(
+                $this->invoiceNumber,
+                [$this->isRefund ? 'refund_receipt' : 'receipt']
+            ))
             ->markdown('emails.payment-receipt');
 
         $pdfBinary = base64_decode($this->pdfContentBase64, true);

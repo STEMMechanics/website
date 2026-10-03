@@ -5,12 +5,14 @@ use App\Mail\UpcomingWorkshops;
 use App\Models\Invoice;
 use App\Models\Media;
 use App\Models\Ticket;
+use App\Models\SponsorshipInvoiceRequest;
 use App\Services\DashboardSnapshot;
 use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The scheduler is run from a cronjob on the server every minute.
@@ -78,6 +80,19 @@ Artisan::command('cleanup', function () {
         ->where('created_at', '<', now()->subMinutes(10))
         ->delete();
 
+    SponsorshipInvoiceRequest::query()
+        ->where('expires_at', '<', now())
+        ->orderBy('id')
+        ->limit(100)
+        ->get()
+        ->each(function (SponsorshipInvoiceRequest $invoiceRequest): void {
+            $temporaryLogo = data_get($invoiceRequest->payload, 'details.recognition_logo_temp_path');
+            if (is_string($temporaryLogo) && str_starts_with($temporaryLogo, 'sponsorship-assets/pending/')) {
+                Storage::disk('local')->delete($temporaryLogo);
+            }
+            $invoiceRequest->delete();
+        });
+
 })->purpose('Clean up expired data')->everyMinute();
 
 Artisan::command('regenerate-thumbnails', function () {
@@ -99,6 +114,14 @@ Artisan::command('invoices:mark-overdue', function () {
         ->update([
             'status' => Invoice::STATUS_OVERDUE,
         ]);
+
+    \App\Models\SponsorshipPayment::query()
+        ->where('status', \App\Models\SponsorshipPayment::STATUS_PENDING)
+        ->whereHas('sponsorship', fn ($query) => $query->where('frequency', 'monthly')->where('billing_method', 'invoice'))
+        ->whereHas('invoice', fn ($query) => $query->where('status', Invoice::STATUS_OVERDUE))
+        ->with('invoice')
+        ->get()
+        ->each(fn ($payment) => app(\App\Services\SponsorshipService::class)->syncOverdueInvoice($payment->invoice));
 
     $this->info('Marked '.$updated.' invoice'.($updated === 1 ? '' : 's').' as overdue.');
 })->purpose('Mark overdue invoices as overdue')
@@ -204,6 +227,26 @@ Schedule::command('payments:send-pending-bank-transfer-reminders')
 Schedule::command('invoices:process-scheduled')
     ->dailyAt('08:00')
     ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
+
+Artisan::command('sponsorships:process-monthly', function () {
+    $result = app(\App\Services\SponsorshipService::class)->processDueMonthlyPayments();
+    $this->info('Monthly sponsorship billing actions processed: '.$result['processed'].'. Failed: '.$result['failed'].'. Skipped: '.$result['skipped'].'.');
+})->purpose('Charge saved cards and send recurring sponsorship invoices');
+
+Schedule::command('sponsorships:process-monthly')
+    ->dailyAt('08:00')
+    ->timezone(\App\Services\SponsorshipBillingScheduleService::TIMEZONE)
+    ->withoutOverlapping();
+
+Artisan::command('sponsorships:reconcile-pending', function () {
+    $result = app(\App\Services\SponsorshipService::class)->reconcilePendingMonthlyPayments();
+    $this->info('Pending monthly sponsorship payments reconciled: '.$result['processed'].'. Failed: '.$result['failed'].'. Still pending or skipped: '.$result['skipped'].'.');
+})->purpose('Reconcile pending monthly sponsorship payments');
+
+Schedule::command('sponsorships:reconcile-pending')
+    ->everyFiveMinutes()
+    ->timezone(\App\Services\SponsorshipBillingScheduleService::TIMEZONE)
     ->withoutOverlapping();
 
 Schedule::command('workplan:send-fortnightly')

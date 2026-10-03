@@ -13,7 +13,7 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
     $customer = $invoice->user;
-    $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '';
+    $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '' || trim((string) ($invoice->tax_treatment_code ?? '')) !== '';
     $billingAddress = $invoiceHasBillingSnapshot ? [
         'address' => trim((string) $invoice->billing_address),
         'address2' => trim((string) $invoice->billing_address2),
@@ -34,7 +34,12 @@
     $dueDate = $invoice->due_date?->format('M d, Y') ?? '-';
     $purchaseOrder = trim((string) ($invoice->purchase_order_number ?? ''));
     $allLineItems = collect($pages)->flatten(1)->all();
-    $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ((float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0))) <= 0.0001);
+        $lineTaxRates = collect($allLineItems)->map(fn ($item) => (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0)));
+        $hasNonTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate <= 0.0001);
+        $hasTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate > 0.0001);
+        $hasMixedTaxTreatment = $hasNonTaxableItems && $hasTaxableItems;
+        $taxTreatmentCode = trim((string) ($invoice->tax_treatment_code ?? ''));
+        $gstIsNotIncluded = in_array($taxTreatmentCode, ['gst_free_export', 'no_gst'], true);
         $subtotalEx=(float) $invoice->subtotal_amount;
         $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
         $billToCompany = trim((string) ($invoice->billing_company ?: $customer?->primaryOrganisation?->name ?? ''));
@@ -44,6 +49,18 @@
         if ($billToPersonName === '') {
         $billToPersonName = trim((string) ($invoice->billing_name ?? ''));
         }
+    $hasBillToDetails = collect([
+        $billToCompany,
+        $billToPersonName,
+        $billingAddress['address'],
+        $billingAddress['address2'],
+        $billingAddress['city'],
+        $billingAddress['state'],
+        $billingAddress['postcode'],
+        $billingAddress['country'],
+        $invoice->recipient_abn,
+        $invoice->recipient_foreign_tax_id,
+    ])->contains(fn ($value) => trim((string) $value) !== '');
     $billingCountry = $billingAddress['country'];
     $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
     $storeOrder = $invoice->relationLoaded('storeOrders')
@@ -178,6 +195,7 @@
             <table class="meta-wrap">
                 <tr>
                     <td class="bill-to">
+                        @if($hasBillToDetails)
                         @if($billToCompany !== '')
                         <div style="font-size:14px; font-weight:700;">{{ $billToCompany }}</div>
                         @if($billToPersonName !== '' && strcasecmp($billToPersonName, $billToCompany) !== 0)
@@ -192,8 +210,11 @@
                         <div>{{ trim(implode(', ', array_filter([$billingAddress['city'], $billingAddress['state'], $billingAddress['postcode']]))) }}</div>
                         @endif
                         @if($showBillingCountry)<div>{{ $billingCountry }}</div>@endif
+                        @if(trim((string) ($invoice->recipient_abn ?? '')) !== '')<div>Recipient ABN: {{ $invoice->recipient_abn }}</div>@endif
+                        @if(trim((string) ($invoice->recipient_foreign_tax_id ?? '')) !== '')<div>Recipient tax ID: {{ $invoice->recipient_foreign_tax_id }}</div>@endif
                         @if($purchaseOrder !== '')
                         <div class="po"><strong>Purchase Order:</strong> {{ $purchaseOrder }}</div>
+                        @endif
                         @endif
 
                     </td>
@@ -227,8 +248,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="center" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -256,7 +277,7 @@
                     <tr>
                         <td>
 
-                            <div class="line-desc"><strong>{{ $typeLabel !== '' ? $typeLabel : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</strong></div>
+                            <div class="line-desc"><strong>{{ $typeLabel !== '' ? $typeLabel : $lineDescription }}{{ $hasMixedTaxTreatment && ! $gstApplicable ? '*' : '' }}</strong></div>
                             @if($typeLabel !== '' && trim($lineDescription) !== '' && (in_array($lineKind, ['workshop', 'multi_workshop'], true) || strcasecmp(trim($lineDescription), $typeLabel) !== 0))
                                 <div class="line-note">{{ $lineDescription }}</div>
                             @endif
@@ -293,8 +314,17 @@
                     </tr>
                     <tr>
                         <td class="label">
-                            @if($hasNonTaxableItems)
-                            <div class="tax-note">"*" indicates non taxable item(s)</div>
+                            @if($hasMixedTaxTreatment || in_array($taxTreatmentCode, ['gst_free_export', 'no_gst'], true))
+                            <div class="tax-notes">
+                                @if($hasMixedTaxTreatment)
+                                <div class="tax-note">"*" indicates non taxable item(s)</div>
+                                @endif
+                                @if($taxTreatmentCode === 'gst_free_export')
+                                <div class="tax-note">GST-free export supply. GST has not been charged.</div>
+                                @elseif($taxTreatmentCode === 'no_gst')
+                                <div class="tax-note">No GST has been charged for this supply.</div>
+                                @endif
+                            </div>
                             @endif
                             GST
                         </td>
@@ -404,6 +434,7 @@
             <table class="meta-wrap">
                 <tr>
                     <td class="bill-to">
+                        @if($hasBillToDetails)
                         @if($billToCompany !== '')
                         <div style="font-size:14px; font-weight:700;">{{ $billToCompany }}</div>
                         @if($billToPersonName !== '' && strcasecmp($billToPersonName, $billToCompany) !== 0)
@@ -418,6 +449,7 @@
                         <div>{{ trim(implode(', ', array_filter([$billingAddress['city'], $billingAddress['state'], $billingAddress['postcode']]))) }}</div>
                         @endif
                         @if($showBillingCountry)<div>{{ $billingCountry }}</div>@endif
+                        @endif
                         <div class="po"><strong>Original Invoice:</strong> {{ $invoice->invoice_number }}</div>
                     </td>
                     <td class="summary-wrap">
@@ -442,8 +474,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="right" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
                     </tr>
                 </thead>
                 <tbody>

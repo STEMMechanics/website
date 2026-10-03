@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\StoreOrder;
 use App\Models\StoreShippingMethod;
 use App\Models\TaxAdjustment;
+use App\Services\StoreOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -137,6 +138,68 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertSame(0.0, $invoice->fresh()->displayOutstandingAmount());
     }
 
+    public function test_taxable_invoice_line_uses_saved_gross_amount_without_rounding_up_the_displayed_price(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'subtotal_amount' => 454.55,
+            'gst_amount' => 45.45,
+            'total_amount' => 500.00,
+        ]);
+        $line = $invoice->lines()->create([
+            'line_number' => 1,
+            'kind' => 'sponsorship',
+            'description' => 'STEMMechanics Sponsorship - Monthly',
+            'quantity' => 1,
+            'unit_price_ex_tax' => 454.55,
+            'tax_rate' => 0.10,
+            'line_total_ex_tax' => 454.55,
+            'tax_amount' => 45.45,
+            'line_total_inc_tax' => 500.00,
+        ]);
+
+        $html = view('pdf.invoice', [
+            'invoice' => $invoice->fresh(['user', 'lines']),
+            'itemPages' => [[$line->toArray()]],
+            'adjustments' => collect(),
+        ])->render();
+
+        $this->assertStringContainsString('<td class="right">$ 500.00</td>', $html);
+        $this->assertStringNotContainsString('$ 500.01', $html);
+    }
+
+    public function test_store_order_invoice_pdf_payload_preserves_saved_line_amounts(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'subtotal_amount' => 454.55,
+            'gst_amount' => 45.45,
+            'total_amount' => 500.00,
+        ]);
+        $invoice->lines()->create([
+            'line_number' => 1,
+            'kind' => 'sponsorship',
+            'description' => 'STEMMechanics Sponsorship - Monthly',
+            'quantity' => 1,
+            'unit_price_ex_tax' => 454.55,
+            'tax_rate' => 0.10,
+            'line_total_ex_tax' => 454.55,
+            'tax_amount' => 45.45,
+            'line_total_inc_tax' => 500.00,
+        ]);
+
+        $payloadMethod = new \ReflectionMethod(StoreOrderService::class, 'invoiceLineItemsForPayload');
+        $items = $payloadMethod->invoke(app(StoreOrderService::class), $invoice->fresh('lines'));
+        $html = view('pdf.invoice', [
+            'invoice' => $invoice->fresh(['user', 'lines']),
+            'itemPages' => [$items],
+            'adjustments' => collect(),
+        ])->render();
+
+        $this->assertSame(45.45, (float) $items[0]['tax_amount']);
+        $this->assertSame(500.00, (float) $items[0]['line_total_inc_tax']);
+        $this->assertStringContainsString('<td class="right">$ 500.00</td>', $html);
+        $this->assertStringNotContainsString('$ 500.01', $html);
+    }
+
     public function test_tax_credit_is_included_in_totals_and_invoice_activity(): void
     {
         $invoice = Invoice::factory()->create([
@@ -216,6 +279,33 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertStringContainsString('<td class="value">$ 0.00</td>', $html);
         $this->assertStringNotContainsString('- $ 0.00', $html);
         $this->assertStringNotContainsString('TRANSACTION ID', $html);
+    }
+
+    public function test_pure_export_invoice_shows_the_export_note_without_a_redundant_asterisk_note(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'tax_treatment_code' => 'gst_free_export',
+            'gst_amount' => 0,
+            'subtotal_amount' => 100,
+            'total_amount' => 100,
+        ]);
+
+        $html = view('pdf.invoice', [
+            'invoice' => $invoice->fresh(['user']),
+            'itemPages' => [[[
+                'kind' => 'sponsorship',
+                'description' => 'STEMMechanics Sponsorship',
+                'quantity' => 1,
+                'unit_price_ex_tax' => 100,
+                'tax_rate' => 0,
+                'line_total_ex_tax' => 100,
+            ]]],
+            'adjustments' => collect(),
+        ])->render();
+
+        $this->assertStringContainsString('GST-free export supply. GST has not been charged.', $html);
+        $this->assertStringNotContainsString('"*" indicates non taxable item(s)', $html);
+        $this->assertStringNotContainsString('STEMMechanics Sponsorship*', $html);
     }
 
     public function test_payment_receipt_shows_reference_without_itemised_purchases(): void

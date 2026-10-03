@@ -48,9 +48,10 @@ class CostCentreController extends Controller
         $centres = $centres->sortBy($data['list_sort'] ?? 'priority', SORT_REGULAR, ($data['list_direction'] ?? 'asc') === 'desc')->values();
         $centres = $centres->sortBy(fn ($centre) => match ($centre->kind) {
             'cash' => -1,
-            'contributions' => 0,
-            'gst' => 1,
-            default => 2,
+            'sponsorship' => 0,
+            'contributions' => 1,
+            'gst' => 2,
+            default => 3,
         })->values();
         $centres = $this->paginate($centres);
 
@@ -78,7 +79,7 @@ class CostCentreController extends Controller
     public function allocations(Request $request, FinancePlanner $planner): View
     {
         $data = $request->validate(['tab' => ['nullable', Rule::in(['allocations', 'versions', 'editor'])], 'edit_id' => 'nullable|integer|exists:finance_pricing_versions,id', 'template_id' => 'nullable|integer|exists:finance_pricing_versions,id', 'q' => 'nullable|string|max:100', 'sort' => ['nullable', Rule::in(['date', 'name'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])]]);
-        $categories = DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get();
+        $categories = DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->orderBy('id')->get();
         $versions = DB::table('finance_pricing_versions')->where('is_snapshot', false)->orderByDesc('effective_from')->orderByDesc('id')->get();
         $defaultVersionId = DB::table('finance_settings')->where('id', 1)->value('default_pricing_version_id');
         $selectedVersionId = \App\Services\Finance\PricingVersion::forDate(today()->toDateString())->id;
@@ -146,6 +147,9 @@ class CostCentreController extends Controller
             $ids = collect(json_decode($version->rules, true))->filter(fn ($rule) => $rule['rate_cents'] > 0)->pluck('category_id')->unique();
             $roundingCategory = json_decode($version->prices, true)['rounding_category_id'] ?? null;
             if ($roundingCategory) { $ids->push($roundingCategory); }
+            if ($roundingCategory && ! DB::table('finance_categories')->where('id', $roundingCategory)->whereIn('kind', ['cost', 'owner'])->exists()) {
+                throw ValidationException::withMessages(['version_id' => 'This allocation plan uses a system cost centre for rounding. Edit it before making it the default.']);
+            }
             if (DB::table('finance_categories')->whereIn('id', $ids)->where('active', false)->exists()) {
                 throw ValidationException::withMessages(['version_id' => 'This allocation plan uses archived cost centres. Edit it before making it the default.']);
             }
@@ -159,6 +163,7 @@ class CostCentreController extends Controller
     {
         $data = $request->validate(['id' => 'nullable|integer|exists:finance_categories,id']);
         $centre = isset($data['id']) ? DB::table('finance_categories')->where('id', $data['id'])->first() : null;
+        abort_if($centre?->kind === 'sponsorship', 404);
 
         return view('admin.cost-centre.edit', compact('centre'));
     }
@@ -169,6 +174,9 @@ class CostCentreController extends Controller
         DB::transaction(function () use ($data): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $centre = isset($data['id']) ? DB::table('finance_categories')->where('id', $data['id'])->first() : null;
+            if ($centre?->kind === 'sponsorship') {
+                throw ValidationException::withMessages(['name' => 'The Sponsorships system cost centre is managed automatically.']);
+            }
             if ($centre && ! $data['active']) {
                 if ($centre->kind !== 'cost') {
                     throw ValidationException::withMessages(['active' => 'This system cost centre cannot be archived.']);
@@ -218,9 +226,9 @@ class CostCentreController extends Controller
 
     public function transferEditor(Request $request, FinancePlanner $planner): View
     {
-        $data = $request->validate(['from' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())]]);
+        $data = $request->validate(['from' => ['nullable', Rule::in(DB::table('finance_categories')->whereIn('kind', ['cost', 'sponsorship'])->pluck('id')->push('remuneration')->all())]]);
         $from = $data['from'] ?? null;
-        $categories = DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->get();
+        $categories = DB::table('finance_categories')->whereIn('kind', ['cost', 'sponsorship'])->orderBy('name')->get();
 
         $cash = $planner->cash();
         foreach ($categories as $category) {
@@ -234,7 +242,7 @@ class CostCentreController extends Controller
 
     public function transfer(Request $request, FinancePlanner $planner): JsonResponse|RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'nullable|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::in(DB::table('finance_categories')->whereIn('kind', ['cost', 'sponsorship'])->pluck('id')->push('remuneration')->all())], 'token' => 'required_if:from_category_id,remuneration|nullable|uuid', 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'nullable|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $request->expectsJson() ? response()->json(['message' => 'Funds transferred. Transaction history is unchanged.']) : redirect()->route('admin.cost-centre.index')->with('message', 'Funds transferred.')->with('message-type', 'success');

@@ -14,7 +14,7 @@ class SquareWebhookSyncService
      * @param array<string, mixed> $payload
      * @return array{payment: Payment|null, created_payment: bool, event_updated: bool, ignored: bool}
      */
-    public function syncPayload(array $payload, ?SquareWebhookEvent $event = null): array
+    public function syncPayload(array $payload, ?SquareWebhookEvent $event = null, bool $markProcessed = true): array
     {
         $eventType = trim((string) ($payload['type'] ?? ''));
         $eventId = trim((string) ($payload['event_id'] ?? ''));
@@ -71,7 +71,7 @@ class SquareWebhookSyncService
                 $event->payment_id = $newPaymentId;
                 $eventUpdated = true;
             }
-            if ($event->processed_at === null) {
+            if ($markProcessed && $event->processed_at === null) {
                 $event->processed_at = now();
                 $eventUpdated = true;
             }
