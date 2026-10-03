@@ -50,6 +50,7 @@ class Workshop extends Model
         'closes_at',
         'status',
         'price',
+        'price_info',
         'price_is_automatic',
         'allow_pay_at_door',
         'pricing_version_id',
