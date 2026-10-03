@@ -340,6 +340,9 @@
                             </span>
                         </span>
                     </h2>
+                    @if(filled($workshop->price_info))
+                        <p class="pl-6 text-gray-500 text-xs leading-4">{{ $workshop->price_info }}</p>
+                    @endif
                     @if($earlyBirdStatus)
                         <p class="text-gray-600 text-xs pl-6 mb-6">{{ $earlyBirdStatus }}</p>
                     @endif

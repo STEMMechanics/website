@@ -1129,6 +1129,15 @@ if (isset($workshop)) {
                             </div>
                             @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
+                            <x-ui.input
+                                label="Price information"
+                                name="price_info"
+                                :value="old('price_info', $workshopModel?->price_info ?? '')"
+                                maxlength="255"
+                                placeholder="Complete 8-week course • $16.50 per session"
+                                info="Optional small text shown underneath the price on public workshop cards."
+                                error="{{ $errors->first('price_info') }}"
+                            />
                             <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
                                 <input type="hidden" name="allow_pay_at_door" value="0">
                                 <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />
@@ -1390,12 +1399,16 @@ if (isset($workshop)) {
                     <div class="space-y-4">
                         <template x-for="(task, taskIndex) in tasks" :key="task.id || `new-workshop-task-${taskIndex}`">
                             <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                <div class="flex items-center gap-2">
-                                    <button type="button" class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
-                                        <i class="fa-solid shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
-                                        <span class="min-w-0 font-medium text-gray-900" x-text="task.name || 'Untitled task'"></span>
-                                        <span x-show="String(task.notes || '').trim() !== ''" class="inline-flex items-center gap-1 text-xs text-gray-500"><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Notes</span>
-                                        <span class="inline-flex items-center gap-1 text-xs text-gray-500"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
+                                <div class="flex items-start gap-2">
+                                    <button type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
+                                        <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
+                                            <span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                <span x-show="String(task.notes || '').trim() !== ''" class="inline-flex items-center gap-1"><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Notes</span>
+                                                <span class="inline-flex items-center gap-1"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
+                                            </span>
+                                        </span>
                                     </button>
                                     <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash"></i></x-ui.button>
                                 </div>
@@ -1497,9 +1510,9 @@ if (isset($workshop)) {
                     <x-ui.button color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif
                     @isset($workshop)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" class="w-full sm:w-auto" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
                     @endisset
-                    <x-ui.button type="submit">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
+                    <x-ui.button type="submit" class="w-full sm:w-auto">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
                 </x-ui.editor-actions>
         </form>
         @isset($workshop)

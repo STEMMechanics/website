@@ -10,6 +10,52 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceAllocationWorkspace
 {
+    /**
+     * @return array{balanced: bool, plans: array<string, array{label: string, allocated: int, total: int, remaining: int}>, issues: array<string, array{label: string, allocated: int, total: int, remaining: int}>}
+     */
+    public function balance(Invoice $invoice): array
+    {
+        $invoice->loadMissing('lines', 'tickets');
+        $invoiceAllocation = app(InvoiceAllocation::class)->context($invoice);
+        $plans = [
+            'invoice' => [
+                'label' => 'Invoice items',
+                'allocated' => (int) array_sum($invoiceAllocation['editorTargets']),
+                'total' => (int) $invoiceAllocation['total'],
+            ],
+        ];
+
+        foreach ($this->contexts($invoice) as $context) {
+            $allocation = $context['allocation'];
+            if ($allocation['fundingLines']->isEmpty()) {
+                continue;
+            }
+
+            $plans['workshop-'.$context['workshop']->id] = [
+                'label' => (string) $context['workshop']->title,
+                'allocated' => (int) array_sum($allocation['targets']),
+                'total' => (int) max($allocation['total'], $allocation['invoicedFunding']),
+            ];
+        }
+
+        $plans = array_map(fn (array $plan): array => $plan + ['remaining' => $plan['total'] - $plan['allocated']], $plans);
+        $issues = array_filter($plans, fn (array $plan): bool => $plan['remaining'] !== 0);
+
+        return ['balanced' => $issues === [], 'plans' => $plans, 'issues' => $issues];
+    }
+
+    public function isBalanced(Invoice $invoice): bool
+    {
+        return $this->balance($invoice)['balanced'];
+    }
+
+    public function assertBalanced(Invoice $invoice): void
+    {
+        if (! $this->isBalanced($invoice)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['allocation' => \App\Exceptions\UnbalancedInvoiceAllocation::MESSAGE]);
+        }
+    }
+
     public function workshops(Invoice $invoice): Collection
     {
         $ids = $invoice->lines()->get()->flatMap(fn ($line) => app(WorkshopFunding::class)->entries($line))->pluck('details_json.workshop.linked_workshop_id')

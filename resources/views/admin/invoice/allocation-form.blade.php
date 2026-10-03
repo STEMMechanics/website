@@ -15,7 +15,7 @@
             <div class="rounded-lg bg-slate-50 p-3">
                 <a class="font-medium text-primary-color underline" href="{{ route('admin.workshop.allocation.edit', $linkedWorkshop) }}">{{ $linkedWorkshop->title }}</a>
                 <dl class="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                    <div><dt class="text-slate-500">Allocation participants</dt><dd>{{ $workshopContext['assumptions']['participants'] }} · {{ ['manual' => 'Manual', 'capacity' => 'Capacity', 'tickets' => 'Registered tickets'][$workshopContext['assumptions']['allocation_basis'] ?? 'tickets'] }}</dd></div>
+                    <div><dt class="text-slate-500">Allocation participants</dt><dd>{{ $workshopContext['assumptions']['participants'] }} · {{ ['manual' => 'Manual', 'capacity' => 'Capacity', 'tickets' => 'Registered tickets', 'attendance' => 'Attendance count'][$workshopContext['assumptions']['allocation_basis'] ?? 'tickets'] }}</dd></div>
                     <div><dt class="text-slate-500">Workshop costs</dt><dd>${{ number_format(array_sum($workshopContext['targets']) / 100, 2) }}</dd></div>
                     <div><dt class="text-slate-500">Received excl. GST</dt><dd>${{ number_format($workshopContext['income']['net'] / 100, 2) }}</dd></div>
                 </dl>

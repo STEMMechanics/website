@@ -7,6 +7,7 @@
 'info' => 'Search by name/organisation/email. Select a suggestion to link this record.',
 'disabled' => false,
 'allowCreate' => true,
+'mobileStacked' => false,
 ])
 
 @php
@@ -33,9 +34,25 @@ $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] =
 $resolvedSelectedUserId = (string) $selectedUserId;
 $selectedUser = $userLookupOptions->first(fn ($item) => $item['id'] === $resolvedSelectedUserId);
 $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : '';
+$layoutClass = $mobileStacked
+    ? 'invoice-linked-user mb-4 sm:mb-2'
+    : 'mb-2';
+$layoutInnerClass = $mobileStacked
+    ? 'rounded-xl border border-slate-200 bg-slate-50 p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0'
+    : 'flex items-end gap-2';
+$lookupGroupClass = $mobileStacked
+    ? 'flex flex-col gap-3 sm:flex-row sm:items-center'
+    : 'flex items-center gap-4';
+$newUserClass = $mobileStacked ? 'w-full shrink-0 sm:w-auto' : '';
+$infoClass = $mobileStacked
+    ? 'mt-2 max-w-prose text-xs text-gray-500 sm:ml-2 sm:mt-1'
+    : 'text-xs text-gray-500 ml-2 mt-1';
+$errorClass = $mobileStacked
+    ? 'mt-1 text-xs text-red-600 sm:ml-2'
+    : 'text-xs text-red-600 ml-2 mt-1';
 @endphp
 
-<div class="mb-2" x-data="{
+<div class="{{ $layoutClass }}" x-data="{
     linkedUserLabel: @js($selectedUserLabel),
     linkedUserMap: @js($userLookupMap),
     linkedUsers: @js($userLookupOptions->all()),
@@ -201,11 +218,11 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
         }
     },
 }" x-init="syncLinkedUserId()">
-    <div class="flex items-end gap-2">
+    <div class="{{ $layoutInnerClass }}">
         <div class="flex-1">
             <label for="{{ $lookupName }}" class="block text-sm pl-1">{{ $label }}</label>
             <div class="relative mt-1" x-on:click.away="linkedUserOpen = false">
-                <div class="flex items-center gap-4">
+                <div class="{{ $lookupGroupClass }}">
                     <input
                         id="{{ $lookupName }}"
                         type="text"
@@ -222,7 +239,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
                         placeholder="Search by name/organisation/email"
                         @if($disabled) disabled @endif />
                     @if(! $disabled && $allowCreate)
-                    <x-ui.button type="button" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
+                    <x-ui.button type="button" class="{{ $newUserClass }}" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
                     @endif
                 </div>
                 <div x-show="linkedUserOpen" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
@@ -238,9 +255,9 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
                     </ul>
                 </div>
             </div>
-            <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
+            <div class="{{ $infoClass }}">{{ $info }}</div>
             @if($errors->has($fieldName))
-                <div class="text-xs text-red-600 ml-2 mt-1">{{ $errors->first($fieldName) }}</div>
+                <div class="{{ $errorClass }}">{{ $errors->first($fieldName) }}</div>
             @endif
             <input type="hidden" name="{{ $fieldName }}" x-ref="linkedUserId" value="{{ $resolvedSelectedUserId }}">
         </div>

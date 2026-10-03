@@ -1,4 +1,4 @@
-@props(['inclusive' => false])
+@props(['inclusive' => false, 'invoiceLayout' => false])
 @php
     $plan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString());
     $supplyCategories = \Illuminate\Support\Facades\DB::table('finance_categories')->pluck('name', 'id');
@@ -6,7 +6,7 @@
     $planPricing = array_merge(json_decode($plan->prices, true), ['rules' => json_decode($plan->rules, true)]);
 @endphp
 <div class="col-span-full space-y-3" x-data="{ planPricing: @js($planPricing), priceInclusive: @js($inclusive) }" x-init="if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.registerLinePlan(item, planPricing, priceInclusive); if (item.kind === 'multi_workshop') SM.updateWorkshopLine(item)">
-    <x-finance.multi-workshop-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" />
+    <x-finance.multi-workshop-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" :invoice-layout="$invoiceLayout" />
     <div x-show="item.kind !== 'multi_workshop'" class="flex flex-wrap items-end gap-3">
         <label x-show="item.kind === 'workshop'" class="w-24 text-sm">Hours
             <x-ui.input-control class="mt-1 h-11" type="number" min="0.01" max="24" step="0.01" x-model="item.workshop_hours" x-bind:required="item.kind === 'workshop' &amp;&amp; (!item.legacy_workshop || !!item.workshop_seats)" x-on:input="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />

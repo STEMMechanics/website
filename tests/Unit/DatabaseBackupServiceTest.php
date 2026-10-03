@@ -37,4 +37,22 @@ class DatabaseBackupServiceTest extends TestCase
         $this->assertSame(12, $service->resolvedKeepCount(12));
         $this->assertSame(18, $service->resolvedKeepCount('18'));
     }
+
+    public function test_it_removes_stale_temporary_files_when_listing_backups(): void
+    {
+        $service = new DatabaseBackupService();
+        $filename = 'test_'.bin2hex(random_bytes(4)).'.sql.gz';
+        $temporaryPath = $service->backupPath('.'.$filename.'.sql.tmp');
+
+        if (! is_dir(dirname($temporaryPath))) {
+            mkdir(dirname($temporaryPath), 0775, true);
+        }
+
+        file_put_contents($temporaryPath, 'partial dump');
+        touch($temporaryPath, now()->subDay()->subMinute()->getTimestamp());
+
+        $service->listBackups();
+
+        $this->assertFileDoesNotExist($temporaryPath);
+    }
 }

@@ -70,6 +70,8 @@ class ServerController extends Controller
 
     public function admin_backups(): View
     {
+        $this->recoverStaleBackupRuns();
+
         return view('admin.server.backups', $this->backupViewData(request()));
     }
 
@@ -206,16 +208,35 @@ class ServerController extends Controller
 
         return response()->download($path, $filename, [
             'Content-Type' => 'application/gzip',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 
     public function admin_database_backup_now(Request $request): RedirectResponse|JsonResponse
     {
+        try {
+            $this->databaseBackupService->assertBackupEnvironment();
+        } catch (\Throwable $e) {
+            $message = 'Database backup unavailable: '.$e->getMessage();
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Backup unavailable');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.backups');
+        }
+
         return $this->queueBackup($request, ServerBackupRun::TYPE_DATABASE);
     }
 
     public function admin_backup_status(ServerBackupRun $backupRun): JsonResponse
     {
+        $backupRun->recoverIfStale();
+
         return response()->json(['run' => $backupRun->fresh()->payload()]);
     }
 
@@ -250,6 +271,7 @@ class ServerController extends Controller
 
         return response()->download($path, $safeFilename, [
             'Content-Type' => 'application/gzip',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 
@@ -2136,6 +2158,16 @@ class ServerController extends Controller
         return $this->queueTrackedOperation($request, $type);
     }
 
+    private function recoverStaleBackupRuns(): void
+    {
+        ServerBackupRun::query()
+            ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])
+            ->get()
+            ->each(function (ServerBackupRun $run): void {
+                $run->recoverIfStale();
+            });
+    }
+
     /** @param array<string, mixed> $parameters */
     private function queueTrackedOperation(Request $request, string $type, array $parameters = []): RedirectResponse|JsonResponse
     {
@@ -2155,6 +2187,8 @@ class ServerController extends Controller
     /** @param array<string, mixed> $parameters */
     private function findOrCreateBackupRun(Request $request, string $type, array $parameters = []): ServerBackupRun
     {
+        $this->recoverStaleBackupRuns();
+
         $run = ServerBackupRun::query()
             ->where('type', $type)
             ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])

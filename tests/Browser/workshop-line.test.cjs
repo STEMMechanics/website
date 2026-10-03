@@ -452,6 +452,20 @@ test('linking fills workshop hours and date while custom description edits retai
     assert.equal(item.description, 'Morning - Straw Towers');
 });
 
+test('editable attendance-based links refresh seats from the current workshop attendance', () => {
+    const item = { kind: 'workshop', workshop_hours: 1, workshop_seats: 0, quantity: 0, details_json: { workshop: { linked_workshop_id: 'straw', allocation_basis: 'attendance', allocation_seats: 0 } } };
+    const editor = context.window.SM.workshopFundingEditor(item, [{ id: 'straw', attendance: 27 }]);
+    editor.init();
+    editor.$nextTick = callback => callback();
+    editor.$dispatch = () => {};
+    editor.syncLiveSeatValue();
+    update(item);
+
+    assert.equal(editor.seatValue, 27);
+    assert.equal(item.workshop_seats, 27);
+    assert.equal(item.quantity, 27);
+});
+
 test('zero registrations replace seats with zero and clear the previous billed quantity', () => {
     const item = { kind: 'workshop', workshop_hours: 2, workshop_seats: 20, quantity: 40, details_json: { workshop: { linked_workshop_id: 'empty' } } };
     const editor = context.window.SM.workshopFundingEditor(item, [{ id: 'empty', tickets: 0 }]);

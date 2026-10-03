@@ -19,6 +19,7 @@ use App\Models\Workshop;
 use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
 
@@ -686,6 +687,7 @@ class AdminUserCreditTest extends TestCase
     public function test_admin_can_silence_and_restore_an_unfinished_manual_refund_alert(): void
     {
         $admin = $this->createAdminUser();
+        $this->assertNotSame('integer', Schema::getColumnType('square_refund_operations', 'notification_silenced_by'));
         $manualRefund = SquareRefundOperation::query()->create([
             'idempotency_key' => 'manual-refund-alert-silence-1',
             'requested_cents' => 2500,
@@ -708,7 +710,8 @@ class AdminUserCreditTest extends TestCase
         $pageResponse->assertSee('data-view-tabs', false);
         $pageResponse->assertSee('All refunds');
         $pageResponse->assertSee('Unfinished');
-        $pageResponse->assertSee('Alert silenced; refund remains unfinished.');
+        $pageResponse->assertSee('Alert silenced');
+        $pageResponse->assertDontSee('Alert silenced; refund remains unfinished.');
         $pageResponse->assertSee('Resolve refund');
         $pageResponse->assertSee('Restore alert');
 
