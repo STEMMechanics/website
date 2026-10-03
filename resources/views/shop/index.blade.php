@@ -12,7 +12,7 @@
         'title_asc' => 'Product name (A - Z)',
         'title_desc' => 'Product name (Z - A)',
     ];
-    $mobileSelectedCategoryLabel = $selectedCategoryRecord?->name ?? ($selectedCategory !== '' ? ucfirst($selectedCategory) : 'All Products');
+    $mobileSelectedCategoryLabel = $selectedCategoryRecord?->name ?? ($selectedCategory !== '' ? ucfirst($selectedCategory) : 'All products');
     $clearCategoryUrl = route('shop.index', request()->except('page', 'category', 'view'));
     $clearSearchUrl = route('shop.index', request()->except('page', 'search', 'view'));
 @endphp
@@ -391,7 +391,7 @@
                                     data-shop-view-base="{{ $clearCategoryUrl }}"
                                     class="flex items-center justify-between rounded px-3 py-2 text-sm font-medium transition {{ $selectedCategorySlug === '' ? 'border-primary-color bg-primary-color text-white' : 'text-gray-700 hover:border-primary-color hover:text-primary-color' }}"
                                 >
-                                    All Products
+                                    All products
                                 </a>
                                 @foreach($categories as $category)
                                     @php
@@ -439,7 +439,7 @@
                                             data-shop-view-base="{{ $clearCategoryUrl }}"
                                             class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategorySlug === '' ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
                                         >
-                                            <span>All Products</span>
+                                            <span>All products</span>
                                         </a>
                                         @foreach($categories as $category)
                                             @php
@@ -480,7 +480,7 @@
                                 <x-ui.select
                                     id="shop-sort"
                                     name="sort"
-                                    label="Sort By"
+                                    label="Sort by"
                                     :value="$selectedSort"
                                     class="mb-0 sm:w-64 w-full"
                                     inline-label
@@ -618,7 +618,7 @@
                                                     'cartPayload' => $cartPayload,
                                                 ])
                                             @else
-                                                <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link px-5!">{{ $variantCount > 1 ? 'View Product' : 'View' }}</x-ui.button>
+                                            <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link px-5!">{{ $variantCount > 1 ? 'View product' : 'View' }}</x-ui.button>
                                             @endif
                                         </div>
                                     </div>

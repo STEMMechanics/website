@@ -754,7 +754,7 @@
                                     @endif
                                     <input type="hidden" name="quantity" value="1">
                                     <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
+                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
                                         <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
                                         @if($hasOptionChoices)
                                                 <span x-show="!canAddSelection() && selectedOption" x-cloak>Sold out</span>

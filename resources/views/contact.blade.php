@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast description="Questions, workshop enquiries, partnerships, and support requests all start here.">Contact STEMMechanics</x-mast>
+    <x-mast description="Workshop bookings, partnerships and general enquiries.">Contact STEMMechanics</x-mast>
 
     <x-container inner-class="max-w-6xl" class="py-8">
         <div class="grid gap-6 2xl:grid-cols-[minmax(0,1.15fr)_22rem]">
@@ -7,7 +7,7 @@
                 <div class="max-w-3xl">
                     <x-ui.badge color="primary" variant="solid">Send a message</x-ui.badge>
                     <h2 class="mt-4 text-3xl font-semibold text-gray-900">Tell us what you need</h2>
-                    <p class="mt-3 text-base leading-7 text-gray-600">Use the form below for workshop bookings, school or community programs, technical questions, invoice support, or general enquiries. If your request is time-sensitive, include the best way to reach you.</p>
+                    <p class="mt-3 text-base leading-7 text-gray-600">Use the form for workshop bookings, school or community programs, technical questions, invoice questions or other enquiries. If your request is time-sensitive, include the best way to reach you.</p>
                 </div>
 
                 <form method="POST" action="{{ route('contact.send') }}" class="mt-8 space-y-5">

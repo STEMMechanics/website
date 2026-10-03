@@ -18,7 +18,7 @@
         <div x-show="cartState.is_empty" x-cloak class="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center">
             <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $workshopBookings !== [] ? 'Your store cart is empty' : 'Your cart is empty' }}</h2>
             <p class="text-gray-600 mb-6">Browse the store and add a few items to get started.</p>
-            <x-ui.button type="link" href="{{ route('shop.index') }}">Browse Store</x-ui.button>
+            <x-ui.button type="link" href="{{ route('shop.index') }}">Browse store</x-ui.button>
         </div>
 
         <div x-show="!cartState.is_empty" x-cloak class="grid gap-6 xl:grid-cols-[1.35fr,0.65fr]">
@@ -89,7 +89,7 @@
                 </div>
 
                 <div class="mt-6 flex flex-wrap gap-3">
-                    <x-ui.button href="{{ route('shop.index') }}" color="outline">Continue Browsing</x-ui.button>
+                    <x-ui.button href="{{ route('shop.index') }}" color="outline">Continue browsing</x-ui.button>
                 </div>
             </section>
 
@@ -239,7 +239,7 @@
                         <input type="hidden" name="shipping_country" x-bind:value="shippingCountry">
                         <input type="hidden" name="return_to" value="{{ route('shop.cart.show') }}">
                         <x-ui.input name="coupon_code" label="Add voucher" :value="old('coupon_code', '')" x-model="couponDraft" x-bind:disabled="couponBusy" />
-                        <x-ui.button type="submit" color="outline" class="w-full" x-bind:disabled="couponBusy || couponDraft.trim() === ''">Apply Voucher</x-ui.button>
+                        <x-ui.button type="submit" color="outline" class="w-full" x-bind:disabled="couponBusy || couponDraft.trim() === ''">Apply voucher</x-ui.button>
                     </form>
                 </div>
 

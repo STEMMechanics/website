@@ -151,7 +151,7 @@
                         @if((int) $availableTickets > 0)
                             <form method="POST" action="{{ route('workshop.ticket.flow.join', $workshop) }}" class="mb-2">
                                 @csrf
-                                <x-ui.button type="submit" class="w-full">{{ $activeWorkshopBooking ? 'Add to booking' : 'Get Tickets' }}</x-ui.button>
+                                <x-ui.button type="submit" class="w-full">{{ $activeWorkshopBooking ? 'Add to booking' : 'Get tickets' }}</x-ui.button>
                             </form>
                             @if($workshop->requiresPrivateTicketCode())
                                 <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>
@@ -169,7 +169,7 @@
                     @elseif($workshop->registration === 'link')
                         @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
                             <div x-data="{ privateAccessModalOpen: {{ $errors->has('private_code') ? 'true' : 'false' }} }" class="flex flex-col mb-4">
-                                <x-ui.button type="button" x-on:click="privateAccessModalOpen = true">Register for Event</x-ui.button>
+                                <x-ui.button type="button" x-on:click="privateAccessModalOpen = true">Register for event</x-ui.button>
 
                                 <div
                                         x-show="privateAccessModalOpen"
@@ -179,24 +179,24 @@
                                 >
                                     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="privateAccessModalOpen = false"></div>
                                     <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
-                                        <h3 class="text-lg font-bold text-gray-900">Private Event Registration</h3>
+                                        <h3 class="text-lg font-bold text-gray-900">Private event registration</h3>
                                         <p class="mt-2 text-sm text-gray-700">
                                             This is a private event. Enter your access code to register.<br>If you don’t have a code, contact the organiser.
                                         </p>
 
                                         <form method="POST" action="{{ route('workshop.private-access', $workshop) }}" class="mt-6">
                                             @csrf
-                                            <x-ui.input name="private_code" label="Access Code" value="{{ old('private_code') }}" required autofocus />
+                                            <x-ui.input name="private_code" label="Access code" value="{{ old('private_code') }}" required autofocus />
                                             <div class="pt-2 flex justify-end gap-3">
                                                 <x-ui.button type="button" color="primary-outline" x-on:click="privateAccessModalOpen = false">Cancel</x-ui.button>
-                                                <x-ui.button type="submit">Unlock Registration</x-ui.button>
+                                                <x-ui.button type="submit">Unlock registration</x-ui.button>
                                             </div>
                                         </form>
                                     </div>
                                 </div>
                             </div>
                         @elseif(!$workshop->isPrivate())
-                            <x-ui.button href="{{ route('workshop.registration.redirect', $workshop) }}" class="my-4">Register for Event</x-ui.button>
+                            <x-ui.button href="{{ route('workshop.registration.redirect', $workshop) }}" class="my-4">Register for event</x-ui.button>
                         @endif
                     @elseif($workshop->registration === 'email')
                         <div class="sm-registration-email">Registration for this event by emailing <a href="mailto:{{ $workshop->registration_data }}" class="link">{{ $workshop->registration_data }}</a>.</div>
@@ -207,12 +207,12 @@
                                     @csrf
                                     <input type="hidden" name="action" value="{{ $userHasInterest ? 'remove' : 'add' }}">
                                     <x-ui.button type="submit" class="w-full" color="{{ $userHasInterest ? 'primary-outline' : 'primary' }}">
-                                        {{ $userHasInterest ? 'Cancel Interest' : "I'm Interested" }}
+                                        {{ $userHasInterest ? 'Cancel interest' : "I'm interested" }}
                                     </x-ui.button>
                                 </form>
                             @else
                                 <div x-data="{ interestModalOpen: {{ $interestModalOpen ? 'true' : 'false' }} }">
-                                    <x-ui.button type="button" class="w-full" x-on:click="interestModalOpen = true">I'm Interested</x-ui.button>
+                                    <x-ui.button type="button" class="w-full" x-on:click="interestModalOpen = true">I'm interested</x-ui.button>
 
                                     <div
                                         x-show="interestModalOpen"
@@ -224,7 +224,7 @@
                                         <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
                                             <div class="flex items-start justify-between gap-4">
                                                 <div>
-                                                    <h3 class="text-lg font-bold text-gray-900">I'm Interested</h3>
+                                                    <h3 class="text-lg font-bold text-gray-900">I'm interested</h3>
                                                     <p class="mt-2 text-sm text-gray-700">Leave your details and we’ll record your interest for this workshop.</p>
                                                 </div>
                                                 <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="interestModalOpen = false" aria-label="Close">
@@ -239,7 +239,7 @@
                                                 <x-ui.input label="Phone" name="interest_phone" value="{{ $interestPrefillPhone }}" error="{{ $errors->first('interest_phone') }}" />
                                                 <div class="pt-2 flex justify-end gap-3">
                                                     <x-ui.button type="button" color="primary-outline" x-on:click="interestModalOpen = false">Cancel</x-ui.button>
-                                                    <x-ui.button type="submit">Submit Interest</x-ui.button>
+                                                    <x-ui.button type="submit">Submit interest</x-ui.button>
                                                 </div>
                                             </form>
                                         </div>
@@ -258,7 +258,7 @@
                     @endif
                 @endif
                 @if($isStemcraftWorkshop)
-                    <x-ui.button href="{{ route('stemcraft.join') }}" class="mb-4">How to Join</x-ui.button>
+                    <x-ui.button href="{{ route('stemcraft.join') }}" class="mb-4">How to join</x-ui.button>
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
@@ -289,7 +289,7 @@
                 @if($workshop->isPrivate() && !empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
                     <i class="mr-1 fa-solid fa-building w-5 text-center"></i>
-                    Hosted For
+                    Hosted for
                 </h2>
                 <div class="text-gray-600 text-sm pl-6 mb-6">
                     <p>{{ $hostedFor }}</p>

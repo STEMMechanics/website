@@ -3,7 +3,7 @@
         $tabs = [
             ['title' => 'Overview', 'route' => route('stemcraft.index')],
             ['title' => 'Join', 'route' => route('stemcraft.join')],
-            ['title' => 'Player Handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
+            ['title' => 'Player handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
             ['title' => 'Rules', 'route' => route('stemcraft.rules')],
             ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
         ];
@@ -59,13 +59,13 @@
     <x-container class="pt-12">
         <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_32rem] lg:items-center">
             <div class="order-2 flex h-full flex-col lg:order-1">
-                <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Continue Building Beyond the Workshop</h1>
+                <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Continue building beyond the workshop</h1>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">STEMCraft is the online world of STEMMechanics, giving young makers a place to continue building, experimenting and creating long after a workshop ends.</p>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">Built around Minecraft, STEMCraft lets young makers explore engineering ideas, solve design challenges and create imaginative projects together in a safe, respectful environment.</p>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600 flex-1">Rather than focusing on competition or rankings, STEMCraft encourages creativity, curiosity and practical problem-solving through play.</p>
                 <div class="mt-8 flex justify-center gap-8">
                     <x-ui.button href="{{ route('stemcraft.join') }}">Join STEMCraft</x-ui.button>
-                    <x-ui.button color="outline" href="{{ route('workshop.index', ['category' => 'minecraft']) }}">View Workshops</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('workshop.index', ['category' => 'minecraft']) }}">View workshops</x-ui.button>
                 </div>
             </div>
             <img src="{{ asset('stemcraft-hero.webp') }}" alt="A creative Minecraft-style STEMCraft build" class="order-1 h-full min-h-72 w-full rounded-lg object-cover shadow-sm lg:order-2">
@@ -88,7 +88,7 @@
                                 <div class="flex size-11 items-center justify-center rounded-full bg-amber-50 text-amber-500">
                                     <i class="fa-solid fa-hammer" aria-hidden="true"></i>
                                 </div>
-                                <h3 class="text-xl font-semibold text-gray-900">Build Amazing Worlds</h3>
+                                <h3 class="text-xl font-semibold text-gray-900">Build amazing worlds</h3>
                             </div>
                             <p class="mt-2 text-base text-gray-600">Create structures, machines and imaginative worlds using your own ideas.</p>
                         </article>
@@ -98,7 +98,7 @@
                                 <div class="flex size-11 items-center justify-center rounded-full bg-amber-50 text-amber-500">
                                     <i class="fa-solid fa-compass" aria-hidden="true"></i>
                                 </div>
-                                <h3 class="text-xl font-semibold text-gray-900">Explore Together</h3>
+                                <h3 class="text-xl font-semibold text-gray-900">Explore together</h3>
                             </div>
                             <p class="mt-2 text-base text-gray-600">Discover community builds, new locations and different ways to solve challenges.</p>
                         </article>
@@ -108,7 +108,7 @@
                                 <div class="flex size-11 items-center justify-center rounded-full bg-amber-50 text-amber-500">
                                     <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
                                 </div>
-                                <h3 class="text-xl font-semibold text-gray-900">Create New Ideas</h3>
+                                <h3 class="text-xl font-semibold text-gray-900">Create new ideas</h3>
                             </div>
 
                             <p class="mt-2 text-base text-gray-600">Personalise your builds and turn simple ideas into something uniquely yours.</p>
@@ -119,7 +119,7 @@
                                 <div class="flex size-11 items-center justify-center rounded-full bg-amber-50 text-amber-500">
                                     <i class="fa-solid fa-lightbulb" aria-hidden="true"></i>
                                 </div>
-                                <h3 class="text-xl font-semibold text-gray-900">Learn Through Play</h3>
+                                <h3 class="text-xl font-semibold text-gray-900">Learn through play</h3>
                             </div>
 
                             <p class="mt-2 text-base text-gray-600">Experiment with engineering, redstone and problem-solving through practical building.</p>

@@ -265,12 +265,12 @@
         x-bind:disabled="Boolean(busyCartLineKey)"
         @click="openDialog()"
     >
-        Add to Cart
+        Add to cart
     </x-ui.button>
 
     <noscript>
         <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full px-5!">
-            View Product
+            View product
         </x-ui.button>
     </noscript>
 
@@ -387,7 +387,7 @@
                                     <input type="hidden" name="product_variant_id" :value="selectedOption?.variant_id ?? ''">
                                     <input type="hidden" name="quantity" value="1">
                                     <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
+                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
                                         <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
                                         <span x-show="!canAddSelection()" x-cloak>Sold out</span>
                                     </x-ui.button>

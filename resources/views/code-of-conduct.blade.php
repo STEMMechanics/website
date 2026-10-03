@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast>Code of Conduct</x-mast>
     <x-container class="pt-8">
-        <p class="mb-2">STEMMechanics supports the international community open to everyone without discrimination. We want this community to be a safe and welcoming place for both newcomers and current members. Everyone should feel comfortable and accepted regardless of their personal background and affiliation our projects and workshops.</p>
+        <p class="mb-2">STEMMechanics supports an international community open to everyone without discrimination. We want this community to be a safe and welcoming place for both newcomers and current members. Everyone should feel comfortable and accepted regardless of their personal background and affiliation with our projects and workshops.</p>
 
         <x-heading class="mt-8">Philosophy</x-heading>
         <p class="mb-2">In the STEMMechanics community, participants from all over the world come together to create and work on STEM projects. This is made possible by the support, hard work, and enthusiasm of people who collaborate towards the common goal of creating great ideas. Cooperation at such a scale requires common guidelines to ensure a positive and inspiring atmosphere in the community.</p>

@@ -49,7 +49,7 @@
                 <p class="text-sm text-gray-600 mb-4">Your order is created only after this payment step succeeds.</p>
 
                 @include('shop.partials.flow-summary', [
-                    'heading' => 'Order Summary',
+                    'heading' => 'Order summary',
                     'rows' => $summaryRows,
                 ])
 
@@ -180,7 +180,7 @@
                         <div x-init="initSquareCard()">
                             <x-square-apple-pay :amount="(string) (float) ($summary['total'] ?? 0)" />
                             <div class="flex items-center justify-between mb-2">
-                                <label class="block text-sm">Card Details</label>
+                                <label class="block text-sm">Card details</label>
                                 <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                     Secure payment by Square
                                 </x-ui.badge>
@@ -205,7 +205,7 @@
                             <x-ui.button variant="plain" type="button" disabled class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Payment unavailable</x-ui.button>
                         @else
                             <x-ui.button type="submit" x-bind:disabled="isSubmitting || isCardLoading">
-                                <span x-show="!isSubmitting" x-cloak>{{ $hasAmountDue ? 'Pay $'.number_format((float) ($summary['total'] ?? 0), 2) : 'Complete Order' }}</span>
+                                <span x-show="!isSubmitting" x-cloak>{{ $hasAmountDue ? 'Pay $'.number_format((float) ($summary['total'] ?? 0), 2) : 'Complete order' }}</span>
                                 <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
                                     <span class="altcha-inline-spinner" aria-hidden="true"></span>
                                     <span>Processing...</span>

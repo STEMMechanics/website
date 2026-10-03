@@ -26,7 +26,7 @@
         foreach ($pricingItems as $item) {
             $count = (int) ($item['count'] ?? 0);
             $unitPrice = round((float) ($item['unit_price'] ?? 0), 2);
-            $label = ($checkoutWorkshops ?? collect())->count() > 1 ? \Illuminate\Support\Str::beforeLast($item['label'], ' · ') : (!empty($item['is_early_bird']) ? 'Early Bird' : 'Tickets');
+            $label = ($checkoutWorkshops ?? collect())->count() > 1 ? \Illuminate\Support\Str::beforeLast($item['label'], ' · ') : (!empty($item['is_early_bird']) ? 'Early bird' : 'Tickets');
             $value = $count.' @ '.($unitPrice > 0 ? '$'.number_format($unitPrice, 2).' per ticket' : 'Free');
 
             if (! empty($item['is_early_bird'])) {
@@ -44,7 +44,7 @@
         $summaryRows[] = ['label' => 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per ticket' : 'Free')];
     }
     if ($earlyBirdSummary && count($pricingItems) <= 1) {
-        $summaryRows[] = ['label' => 'Early Bird', 'value' => $earlyBirdSummary];
+        $summaryRows[] = ['label' => 'Early bird', 'value' => $earlyBirdSummary];
     }
     if ($equipmentQuoteRequired ?? false) { $summaryRows[] = ['label' => 'Equipment', 'value' => 'Quote requested separately; not charged now']; }
     if (($hasEquipment ?? false) && !($equipmentQuoteRequired ?? false)) {
@@ -61,13 +61,13 @@
         $summaryRows[] = ['type' => 'spacer'];
     }
     $summaryRows[] = [
-        'label' => 'Total Cost',
+        'label' => 'Total cost',
         'value' => $ticketTotal > 0 ? '$'.number_format($ticketTotal, 2) : 'Free',
     ];
 @endphp
 
 <x-layout>
-    <x-mast>Ticket Checkout</x-mast>
+    <x-mast>Ticket checkout</x-mast>
 
     <x-container class="max-w-4xl mt-6 mx-auto">
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6 relative"
@@ -163,7 +163,7 @@
                     >
                     <div x-show="!expired && !isFullyCoveredByCredit()" x-cloak>
                         <x-ui.select
-                            label="Payment Method"
+                            label="Payment method"
                             name="payment_method"
                             error=""
                             x-model="paymentMethod"
@@ -195,7 +195,7 @@
                     <div x-show="!expired && !isFullyCoveredByCredit() && paymentMethod === 'credit_card' && remainingAfterCredit() > 0.0001" x-cloak x-init="initSquareCard()">
                         <x-square-apple-pay amount="remainingAfterCredit()" eligible="!expired && paymentMethod === 'credit_card'" />
                         <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm">Card Details</label>
+                            <label class="block text-sm">Card details</label>
                             <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank"  rel="noopener noreferrer">
                                 Secure payment by Square
                             </x-ui.badge>
@@ -286,7 +286,7 @@
 
                                     <div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                                         <x-ui.button type="button" color="outline" x-bind:disabled="voucherBusy" x-on:click="closeVoucherDialog()">Cancel</x-ui.button>
-                                        <x-ui.button type="submit" x-bind:disabled="voucherBusy || (voucherDraft.trim() === '' && voucherCode === '')">Apply Voucher</x-ui.button>
+                                        <x-ui.button type="submit" x-bind:disabled="voucherBusy || (voucherDraft.trim() === '' && voucherCode === '')">Apply voucher</x-ui.button>
                                     </div>
                                 </form>
                             </div>
@@ -416,7 +416,7 @@
 
             submitButtonLabel() {
                 if (this.totalAmount <= 0.0001) {
-                    return 'Complete Order';
+                    return 'Complete order';
                 }
 
                 if (this.paymentMethod === 'account_terms') {
@@ -424,12 +424,12 @@
                 }
 
                 if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
-                    return 'Complete Purchase';
+                    return 'Complete purchase';
                 }
                 if (this.paymentMethod === 'credit_card') {
-                    return 'Purchase Tickets';
+                    return 'Purchase tickets';
                 }
-                return 'Reserve Tickets';
+                return 'Reserve tickets';
             },
 
             onPaymentMethodChange() {

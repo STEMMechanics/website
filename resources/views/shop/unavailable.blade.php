@@ -10,11 +10,11 @@
                         {{ $reason }}
                     </p>
                     <p class="mt-3 text-sm text-gray-500">
-                        If you need help with a existing product or an order, please contact us.
+                        If you need help with an existing product or an order, please contact us.
                     </p>
                     <div class="mt-8 flex flex-wrap gap-3 justify-between">
-                        <x-ui.button color="outline" href="{{ route('workshop.index') }}">Browse Workshops</x-ui.button>
-                        <x-ui.button href="{{ route('contact') }}">Contact Us</x-ui.button>
+                        <x-ui.button color="outline" href="{{ route('workshop.index') }}">Browse workshops</x-ui.button>
+                        <x-ui.button href="{{ route('contact') }}">Contact us</x-ui.button>
                     </div>
                 </div>
             </div>

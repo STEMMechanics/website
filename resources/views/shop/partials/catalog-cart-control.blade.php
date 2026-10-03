@@ -101,7 +101,7 @@
             <input type="hidden" name="product_variant_id" value="{{ $defaultVariant->id }}">
         @endif
         <x-ui.button type="submit" color="primary" class="shop-catalog-add-button w-full" x-bind:disabled="busy">
-            <span x-show="!busy">Add to Cart</span>
+            <span x-show="!busy">Add to cart</span>
             <span x-show="busy" x-cloak>Adding...</span>
         </x-ui.button>
     </form>

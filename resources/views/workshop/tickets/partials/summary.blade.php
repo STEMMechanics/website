@@ -24,7 +24,7 @@
     </tr>
     @if($workshop->isPrivate() && !empty($workshop->hostedFor))
     <tr>
-        <th class="text-left pr-4 align-top">Hosted For</th>
+        <th class="text-left pr-4 align-top">Hosted for</th>
         <td>
             {{ $workshop->hostedFor->name }}
         </td>

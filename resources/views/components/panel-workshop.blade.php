@@ -83,7 +83,7 @@
                             <span>
                                 {{ $ticketPriceAmount > 0.0001 ? number_format($ticketPriceAmount, 2) : 'Free' }}
                                 @if($showEarlyBirdBadgeOnly && $earlyBirdSummary)
-                                    <span class="text-gray-500 text-xs">- Early Bird Pricing</span>
+                                    <span class="text-gray-500 text-xs">- Early bird pricing</span>
                                 @endif
                             </span>
                         </div>
