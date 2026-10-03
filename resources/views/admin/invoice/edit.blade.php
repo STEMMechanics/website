@@ -996,9 +996,15 @@
         @isset($invoice)
             @if($isLocked) @include('admin.invoice.workshop-funding') @endif
             @foreach($errors->get('workshop_funding*') as $messages) @foreach($messages as $message)<p class="mt-3 text-sm text-red-600">{{ $message }}</p>@endforeach @endforeach
-            <section class="mt-5 min-w-0">
-                @include('admin.invoice.allocation-panel')
-            </section>
+            @if($invoice->lines->contains('kind', 'sponsorship'))
+                <section class="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900">
+                    Sponsorship income is allocated to the Sponsorships cost centre automatically. It is not included in workshop cost-centre allocation plans.
+                </section>
+            @else
+                <section class="mt-5 min-w-0">
+                    @include('admin.invoice.allocation-panel')
+                </section>
+            @endif
         @endisset
             @if(isset($invoice))
                 <x-ui.editor-actions>

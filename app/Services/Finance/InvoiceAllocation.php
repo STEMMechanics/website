@@ -130,7 +130,7 @@ class InvoiceAllocation
             $id = $rounding['category_id'];
             $editorTargets[$id] = ($editorTargets[$id] ?? 0) + $roundingAmount;
         }
-        $categories = DB::table('finance_categories')->where(fn ($query) => $query->where('active', true)->orWhereIn('id', array_keys($editorTargets)))->orderBy('priority')->get();
+        $categories = DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->where(fn ($query) => $query->where('active', true)->orWhereIn('id', array_keys($editorTargets)))->orderBy('priority')->get();
 
         return compact('budget', 'categories', 'targets', 'income', 'funding', 'total', 'ids', 'workshopId', 'workshop', 'version', 'assumptions', 'date', 'warning', 'suggestedTargets', 'automaticWarning', 'editorTargets', 'roundingAmount');
     }

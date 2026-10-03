@@ -90,6 +90,9 @@ td, th { padding: 0; margin: 0; }
 .totals .total-row td { font-size: 14px; font-weight: 700; color: #1da1e6; }
 
 .tax-note { float: left; margin-top: 2px; font-size: 9px; color: #555; }
+.tax-notes { float: left; text-align: left; }
+.tax-notes .tax-note { float: none; }
+.tax-notes .tax-note + .tax-note { margin-top: 4px; }
 
 .footer { margin-top: 12px; font-size: 10px; }
 .footer td { width: 33.33%; vertical-align: top; padding: 0 3px; }

@@ -44,6 +44,7 @@ class AdminBadgeCache
         $group = match ($table) {
             'invoices', 'expenses', 'finance_supplier_rules', 'finance_expense_splits', 'finance_budgets', 'finance_budget_invoices', 'tickets', 'workshops', 'invoice_lines', 'payments', 'invoice_payment_allocations', 'tax_adjustments', 'tax_adjustment_lines' => 'finance',
             'store_orders', 'square_refund_operations', 'inbound_sms' => 'operations',
+            'sponsors', 'organisations', 'sponsorships', 'sponsorship_payments', 'manual_sponsor_supports' => 'sponsorships',
             default => null,
         };
         $groups = $group === null ? [] : [$group];

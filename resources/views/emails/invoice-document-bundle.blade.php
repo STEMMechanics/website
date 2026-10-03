@@ -4,7 +4,7 @@ $recipientFirstName = trim((string) strtok((string) ($recipientName ?? ''), ' ')
 @endphp
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
-Attached are your invoice and related documents for invoice **{{ $invoiceNumber }}**. This includes the invoice itself, any linked tax adjustment notes, and any receipts that have been issued for it.
+{{ $attachmentSummary }}
 
 @php
     $owing = max(0, (float) ($outstandingAmount ?? 0));

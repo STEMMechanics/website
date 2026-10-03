@@ -47,8 +47,8 @@ class FinanceController extends Controller
     public function pricing(Request $request, FinancePlanner $planner): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
-            'travel_rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where('active', true)], 'pricing_participants' => 'nullable|integer|min:1|max:10000', 'edit_id' => 'nullable|integer|exists:finance_pricing_versions,id', 'make_default' => 'nullable|boolean', 'return_to' => 'nullable|in:versions', 'travel_price' => 'nullable|numeric|min:0|max:100000', 'travel_free_minutes' => 'nullable|integer|min:0|max:10000', 'name' => 'required|string|max:100', 'effective_from' => 'sometimes|date_format:Y-m-d', 'rules' => 'required|array|min:1|max:100',
-            'rules.*.category_id' => ['required', 'integer', Rule::exists('finance_categories', 'id')->where('active', true)], 'rules.*.basis' => ['required', Rule::in(['workshop', 'participant', 'hour', 'venue_hour', 'travel'])],
+            'travel_rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where(fn ($query) => $query->where('active', true)->whereIn('kind', ['cost', 'owner']))], 'pricing_participants' => 'nullable|integer|min:1|max:10000', 'edit_id' => 'nullable|integer|exists:finance_pricing_versions,id', 'make_default' => 'nullable|boolean', 'return_to' => 'nullable|in:versions', 'travel_price' => 'nullable|numeric|min:0|max:100000', 'travel_free_minutes' => 'nullable|integer|min:0|max:10000', 'name' => 'required|string|max:100', 'effective_from' => 'sometimes|date_format:Y-m-d', 'rules' => 'required|array|min:1|max:100',
+            'rules.*.category_id' => ['required', 'integer', Rule::exists('finance_categories', 'id')->where(fn ($query) => $query->where('active', true)->whereIn('kind', ['cost', 'owner']))], 'rules.*.basis' => ['required', Rule::in(['workshop', 'participant', 'hour', 'venue_hour', 'travel'])],
             'rules.*.suppliable' => 'nullable|boolean', 'rules.*.venue_default' => 'nullable|boolean', 'rules.*.rate' => 'required|numeric|min:0|max:100000',
             'public' => 'sometimes|array|size:4', 'public.*' => 'required|numeric|min:0|max:100000', 'organisation' => 'sometimes|array|size:4', 'organisation.*' => 'required|numeric|min:0|max:100000',
         ]);
@@ -56,8 +56,12 @@ class FinanceController extends Controller
         DB::transaction(function () use ($request, $data, $rules, $planner): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $ids = array_unique(array_column($rules, 'category_id'));
-            if (DB::table('finance_categories')->whereIn('id', $ids)->where('active', true)->count() !== count($ids)) {
+            if (DB::table('finance_categories')->whereIn('id', $ids)->where('active', true)->whereIn('kind', ['cost', 'owner'])->count() !== count($ids)) {
                 throw ValidationException::withMessages(['rules' => 'Choose active cost centres for the allocation plan.']);
+            }
+            $roundingCategory = $data['rounding_category_id'] ?? null;
+            if ($roundingCategory && ! DB::table('finance_categories')->where('id', $roundingCategory)->where('active', true)->whereIn('kind', ['cost', 'owner'])->exists()) {
+                throw ValidationException::withMessages(['rounding_category_id' => 'Choose an active cost centre for rounding.']);
             }
             $wasDefault = false;
             $archived = false;
@@ -92,7 +96,7 @@ class FinanceController extends Controller
 
     public function transfer(Request $request, FinancePlanner $planner): RedirectResponse
     {
-        $data = $request->validate(['from_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where('kind', 'cost')], 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'budget_id' => 'nullable|integer|exists:finance_budgets,id', 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'nullable|string|max:255']);
+        $data = $request->validate(['from_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->whereIn('kind', ['cost', 'sponsorship'])], 'category_id' => ['required', Rule::in(DB::table('finance_categories')->where('kind', 'cost')->where('active', true)->pluck('id')->push('cash')->all())], 'budget_id' => 'nullable|integer|exists:finance_budgets,id', 'amount' => 'required|numeric|min:0.01|max:10000000', 'reason' => 'nullable|string|max:255']);
         $planner->transfer($data, $request->user()->id);
 
         return $this->back('overview', 'Funds transferred. Workshop revenue and its shortfall remain unchanged.');

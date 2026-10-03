@@ -22,6 +22,9 @@ class InvoiceBulkAllocationController extends Controller
             'version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
             'review' => 'nullable|boolean',
         ]);
+        if (Invoice::query()->whereIn('id', $data['invoice_ids'])->whereHas('lines', fn ($lines) => $lines->where('kind', 'sponsorship'))->exists()) {
+            throw ValidationException::withMessages(['invoice_ids' => 'Sponsorship invoices are allocated to the Sponsorships cost centre automatically and cannot be included in bulk allocation.']);
+        }
         PricingVersion::assertSelectable(isset($data['version_id']) ? (int) $data['version_id'] : null);
         $version = PricingVersion::forDate(today()->toDateString(), $data['version_id'] ?? null);
         $preview = null;
@@ -33,7 +36,7 @@ class InvoiceBulkAllocationController extends Controller
         return view('admin.invoice.bulk-allocation', [
             'invoiceIds' => $data['invoice_ids'], 'version' => $version, 'preview' => $preview,
             'plans' => DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $version->id)->orderBy('name')->get(),
-            'categories' => DB::table('finance_categories')->orderBy('priority')->get(),
+            'categories' => DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->get(),
         ]);
     }
 

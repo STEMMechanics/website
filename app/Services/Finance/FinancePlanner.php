@@ -5,9 +5,11 @@ namespace App\Services\Finance;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\SponsorshipPayment;
 use App\Models\Ticket;
 use App\Models\Workshop;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -239,6 +241,44 @@ class FinancePlanner
         return ['gross' => $gross, 'gst' => $gst, 'net' => $gross - $gst];
     }
 
+    /**
+     * Sponsorship invoices are not workshop budgets. Their received net amount
+     * is reserved directly in the Sponsorships system cost centre instead.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function sponsorshipIncomeEvents(?string $from = null): array
+    {
+        if (! Schema::hasTable('sponsorship_payments')) {
+            return [];
+        }
+
+        $sponsorshipPayments = SponsorshipPayment::query()
+            ->whereIn('status', [SponsorshipPayment::STATUS_COMPLETED, SponsorshipPayment::STATUS_REFUNDED])
+            ->whereNotNull('invoice_id')
+            ->with('invoice:id,invoice_number')
+            ->get()
+            ->filter(fn (SponsorshipPayment $payment): bool => $payment->invoice !== null)
+            ->unique('invoice_id');
+        $events = [];
+
+        foreach ($sponsorshipPayments as $sponsorshipPayment) {
+            $invoiceId = (int) $sponsorshipPayment->invoice_id;
+            foreach (app(InvoiceAllocationParts::class)->events([$invoiceId], null) as $event) {
+                if ($from !== null && substr((string) $event['date'], 0, 10) < $from) {
+                    continue;
+                }
+
+                $events[] = $event + [
+                    'invoice_id' => $invoiceId,
+                    'invoice_number' => (string) $sponsorshipPayment->invoice->invoice_number,
+                ];
+            }
+        }
+
+        return collect($events)->sortBy([['date', 'asc'], ['id', 'asc']])->values()->all();
+    }
+
     public function incomeEvents(array $invoiceIds, ?FinanceReportData $data = null): array
     {
         $events = [];
@@ -328,7 +368,7 @@ class FinancePlanner
         }
         $remaining = max(0, $net);
         $funded = [];
-        foreach ($categories ?? DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get() as $category) {
+        foreach (($categories ?? DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->orderBy('id')->get())->filter(fn ($category) => in_array($category->kind, ['cost', 'owner'], true)) as $category) {
             $amount = min($remaining, $targets[$category->id] ?? 0);
             $funded[$category->id] = $amount;
             $remaining -= $amount;
@@ -354,7 +394,7 @@ class FinancePlanner
         $settings = DB::table('finance_settings')->where('id', 1)->first();
         $from = $settings->opening_date ?? self::HISTORY_START;
         $rows = collect();
-        $fundingCategories = DB::table('finance_categories')->orderBy('priority')->orderBy('id')->get();
+        $fundingCategories = DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->orderBy('id')->get();
         $add = function ($key, $date, $type, $description, $amount, $links = []) use ($rows) {
             if ($amount) $rows->push(compact('key', 'date', 'type', 'description', 'amount', 'links'));
         };
@@ -382,6 +422,26 @@ class FinancePlanner
                     $add('payment-'.$event['id'].'-'.$budget->id, $event['date'], $event['type'], $budget->name.' · '.($event['type'] === 'refund' ? 'Refund' : 'Payment received'), $funded - $previous, $links);
                 }
                 $previous = $funded;
+            }
+        }
+        if ($category->kind === 'sponsorship') {
+            foreach ($this->sponsorshipIncomeEvents($from) as $event) {
+                $isRefund = $event['type'] === 'refund';
+                $description = $isRefund ? 'Sponsorship refund' : 'Sponsorship payment';
+                if (($event['invoice_number'] ?? '') !== '') {
+                    $description .= ' · Invoice '.$event['invoice_number'];
+                }
+                $links = ! empty($event['invoice_id'])
+                    ? [['label' => 'View invoice '.$event['invoice_number'], 'url' => route('admin.invoice.edit', $event['invoice_id'])]]
+                    : [];
+                $add(
+                    'sponsorship-'.$event['invoice_id'].'-'.$event['id'],
+                    $event['date'],
+                    $isRefund ? 'refund' : 'invoice',
+                    $description,
+                    (int) $event['gross'] - (int) $event['gst'],
+                    $links,
+                );
             }
         }
         $names = DB::table('finance_categories')->pluck('name', 'id');
@@ -535,6 +595,12 @@ class FinancePlanner
                 $reserves[$id] = ($reserves[$id] ?? 0) + $amount - ($before['categories'][$id] ?? 0);
             }
         }
+        $sponsorshipEvents = $this->sponsorshipIncomeEvents($from);
+        $sponsorshipNet = (int) collect($sponsorshipEvents)->sum(fn (array $event): int => (int) $event['gross'] - (int) $event['gst']);
+        if ($sponsorshipCategory = $categories->firstWhere('kind', 'sponsorship')) {
+            $reserves[$sponsorshipCategory->id] = ($reserves[$sponsorshipCategory->id] ?? 0) + $sponsorshipNet;
+        }
+        $allocatedNet += $sponsorshipNet;
         $gst += $this->gst($from, $today)['net'];
         $settled = (int) DB::table('finance_gst_settlements')->whereBetween('paid_on', [$from, $today])->sum('cents');
         $gst -= $settled;
@@ -600,7 +666,7 @@ class FinancePlanner
             if ($remuneration && empty($data['token'])) {
                 throw ValidationException::withMessages(['token' => 'Reopen the transfer form and try again.']);
             }
-            if (! $remuneration && ! empty($data['from_category_id']) && ! DB::table('finance_categories')->where('id', $data['from_category_id'])->where('kind', 'cost')->exists()) {
+            if (! $remuneration && ! empty($data['from_category_id']) && ! DB::table('finance_categories')->where('id', $data['from_category_id'])->whereIn('kind', ['cost', 'sponsorship'])->exists()) {
                 throw ValidationException::withMessages(['from_category_id' => 'System funds cannot be transferred.']);
             }
             $cash = $this->cash();

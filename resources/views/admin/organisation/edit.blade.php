@@ -34,6 +34,7 @@
 
         <form
             method="POST"
+            enctype="multipart/form-data"
             action="{{ $editing ? route('admin.organisation.update', $organisation) : route('admin.organisation.store') }}"
             x-data="{
                 contacts: @js($initialContacts),
@@ -90,6 +91,25 @@
                         <option value="{{ $value }}" @selected(old('type', $organisation->type ?? '') === $value)>{{ $label }}</option>
                     @endforeach
                 </x-ui.select>
+            </div>
+
+            <div class="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+                <div class="mb-3">
+                    <h3 class="font-semibold text-gray-900">Organisation profile</h3>
+                    <p class="text-xs text-gray-500">These details are shared with sponsorship records and can be used for public recognition when permission is given.</p>
+                </div>
+                <div class="grid gap-x-4 md:grid-cols-2">
+                    <x-ui.input label="Website" name="website_url" type="text" inputmode="url" placeholder="example.com.au" value="{{ old('website_url', $organisation->website_url ?? '') }}" />
+                    <x-ui.input label="ABN (optional)" name="abn" value="{{ old('abn', $organisation->abn ?? '') }}" maxlength="20" inputmode="numeric" />
+                    <x-ui.input class="md:col-span-2" label="Overseas tax ID (optional)" name="foreign_tax_id" value="{{ old('foreign_tax_id', $organisation->foreign_tax_id ?? '') }}" maxlength="100" />
+                    @if($editing && $organisation->logo_path)
+                        <div class="mb-4 flex items-center gap-3 md:col-span-2">
+                            <img src="{{ route('admin.organisation.sponsorship-logo', $organisation) }}" class="h-14 w-14 rounded-lg border border-gray-200 bg-white object-contain p-1" alt="Organisation logo">
+                            <span class="text-sm text-gray-600">Current organisation logo</span>
+                        </div>
+                    @endif
+                    <x-ui.input class="md:col-span-2" label="Organisation logo (optional)" name="logo" type="file" accept="image/png,image/jpeg,image/webp" info="Supported formats: PNG, JPEG or WebP." />
+                </div>
             </div>
 
             <x-ui.select label="Parent organisation" name="parent_id" info="Use this for a service or branch belonging to a larger organisation.">

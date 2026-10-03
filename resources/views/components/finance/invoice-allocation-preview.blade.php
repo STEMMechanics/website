@@ -1,6 +1,6 @@
 @php
     $plan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString());
-    $categories = \Illuminate\Support\Facades\DB::table('finance_categories')->orderBy('priority')->get();
+    $categories = \Illuminate\Support\Facades\DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->orderBy('priority')->get();
 @endphp
 <x-finance.panel title="Estimated cost centre allocation">
     <div x-data="{ allocationRules: @js(json_decode($plan->rules, true)) }">

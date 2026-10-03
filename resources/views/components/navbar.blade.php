@@ -15,6 +15,7 @@
         $hasMyQuotes = $navUser ? $navUser->quotes()->visibleToCustomer()->exists() : false;
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
+        $hasMySponsorships = $navUser ? \App\Models\Sponsor::query()->where('user_id', $navUser->id)->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
@@ -31,6 +32,9 @@
         ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
         $manualRefundQueueCount = $operationCounts['refunds'];
         $financeAttention = $isAdmin ? app(\App\Services\Finance\FinanceAttention::class)->counts() : ['invoices' => 0, 'expenses' => 0];
+        $sponsorshipApprovalCount = $isAdmin
+            ? app(\App\Support\AdminBadgeCache::class)->remember('sponsorships', fn () => app(\App\Services\SponsorshipRecognitionService::class)->pendingApprovalCount())
+            : 0;
         $storeOrderActionCount = $operationCounts['orders'];
         $productAttentionCount = $isAdmin ? app(\App\Services\ProductAttention::class)->counts()['total'] : 0;
         $mediaDuplicateCount = $isAdmin
@@ -82,6 +86,7 @@
                     ['label' => 'Refunds', 'route' => route('admin.payment.refunds'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.payment.refunds*'], 'badge' => $manualRefundQueueCount],
                     ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*'], 'badge' => $financeAttention['invoices']],
                     ['label' => 'Payments', 'route' => route('admin.payment.index'), 'icon' => 'fa-solid fa-money-check-dollar', 'active' => ['admin.payment.index', 'admin.payment.create', 'admin.payment.edit', 'admin.payment.receipt', 'admin.payment.square.*', 'admin.payment.refund.manual']],
+                    ['label' => 'Sponsorships', 'route' => route('admin.sponsorship.index'), 'icon' => 'fa-solid fa-heart', 'active' => ['admin.sponsorship.*'], 'badge' => $sponsorshipApprovalCount, 'badge_title' => $sponsorshipApprovalCount.' sponsorship recognition '.($sponsorshipApprovalCount === 1 ? 'approval' : 'approvals').' pending'],
                     ['label' => 'Quotes', 'route' => route('admin.quote.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.quote.*']],
                     ['label' => 'Cost centres', 'route' => route('admin.cost-centre.index'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.cost-centre.*']],
                     ['label' => 'Workshop costings', 'route' => route('admin.workshop-costing.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.workshop-costing.*']],
@@ -266,6 +271,9 @@
                 @endif
                 @if($hasMyInvoices)
                     <a href="{{ route('account.invoice.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-file-invoice-dollar w-4 mr-2"></i>Invoices</a>
+                @endif
+                @if($hasMySponsorships)
+                    <a href="{{ route('sponsor.account.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-heart w-4 mr-2"></i>Sponsorships</a>
                 @endif
                 @if($hasMyMedia)
                     <a href="{{ route('account.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>Media</a>
