@@ -14,7 +14,7 @@ class AboutPageTest extends TestCase
         $response = $this->get(route('about'));
 
         $response->assertOk();
-        $response->assertSee('Practical STEM learning, delivered with care, clarity, and real-world experience.');
+        $response->assertSee('Hands-on STEM learning with clear outcomes.');
         $response->assertSee('What STEMMechanics does');
         $response->assertSee('James Collins');
         $response->assertSee('Alex Rivera');

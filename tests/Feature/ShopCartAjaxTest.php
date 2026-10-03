@@ -53,7 +53,7 @@ class ShopCartAjaxTest extends TestCase
         $this->get(route('shop.index'))
             ->assertOk()
             ->assertSeeText('Class Kit')
-            ->assertSeeText('Add to Cart')
+            ->assertSeeText('Add to cart')
             ->assertSeeText('Choose a variant')
             ->assertSeeText('View Cart')
             ->assertSee('href="'.route('shop.cart.show').'"', false)

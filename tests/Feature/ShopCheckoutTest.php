@@ -181,12 +181,12 @@ class ShopCheckoutTest extends TestCase
 
         $this->get(route('shop.checkout'))
             ->assertOk()
-            ->assertSee('Order Details')
+            ->assertSee('Order details')
             ->assertSee('Step 2 of 2')
-            ->assertSee('Payment Details')
+            ->assertSee('Payment details')
             ->assertSee('Add voucher')
             ->assertSee('GST Included')
-            ->assertSee('Place Order')
+            ->assertSee('Place order')
             ->assertSee('Pay with Apple Pay')
             ->assertSee('remainingDueAfterCredit()')
             ->assertDontSee('label="Payment Method"', false)
@@ -409,7 +409,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Organisation Licence')
             ->assertSeeText('For one classroom.')
             ->assertSeeText('For one school.')
-            ->assertSeeText('Add to Cart')
+            ->assertSeeText('Add to cart')
             ->assertSeeText('Instant download after checkout')
             ->assertDontSee('type="radio"', false)
             ->assertDontSee('id="product-variant-select"', false);
@@ -499,7 +499,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Microbit Base')
             ->assertSeeText('$24.95')
             ->assertSeeText('In stock')
-            ->assertSeeText('Add to Cart')
+            ->assertSeeText('Add to cart')
             ->assertDontSee('id="product-quantity"', false);
     }
 
@@ -597,7 +597,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Request quote')
             ->assertSeeText('Pickup')
             ->assertSeeText('Step 1 of 1')
-            ->assertSeeText('Request Quote')
+            ->assertSeeText('Request quote')
             ->assertSeeText('Requires pickup or a manual shipping quote')
             ->assertSeeText('This item requires pickup or a manual shipping quote.')
             ->assertDontSeeText('Regular shipping')
@@ -881,7 +881,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSee("markRecipientFieldEdited('shipping_name', 'billing_name')", false)
             ->assertSee("markRecipientFieldEdited('shipping_phone', 'billing_phone')", false)
             ->assertSeeText('Same as billing address')
-            ->assertSeeInOrder(['Billing Address', 'Shipping Address', 'Same as billing address'])
+            ->assertSeeInOrder(['Billing address', 'Shipping address', 'Same as billing address'])
             ->assertSee('class="sm-ui-checkbox', false)
             ->assertSee('name="shipping_same_as_billing"', false)
             ->assertSee('checked', false)
@@ -931,8 +931,8 @@ class ShopCheckoutTest extends TestCase
             ->assertOk()
             ->assertSee('x-text="checkoutContinueLabel()"', false)
             ->assertSee('x-text="checkoutSubmitLabel()"', false)
-            ->assertSee("return this.requiresPayment ? 'Enter Payment Details' : 'Complete Order';", false)
-            ->assertSee("return this.requiresPayment ? 'Place Order' : 'Complete Order';", false)
+            ->assertSee("return this.requiresPayment ? 'Enter payment details' : 'Complete order';", false)
+            ->assertSee("return this.requiresPayment ? 'Place order' : 'Complete order';", false)
             ->assertSee('if (this.checkoutStep !== \'payment\' && this.requiresPayment)', false)
             ->assertSee('has_selected_shipping_method: true', false);
     }

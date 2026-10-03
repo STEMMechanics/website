@@ -41,7 +41,7 @@ class WorkshopInterestRegistrationTest extends TestCase
 
         $this->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSeeText("I'm Interested", false)
+            ->assertSeeText("I'm interested", false)
             ->assertSeeText('3 interested so far', false);
     }
 
@@ -91,7 +91,7 @@ class WorkshopInterestRegistrationTest extends TestCase
         $this->actingAs($user)
             ->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSee('I&#039;m Interested', false)
+            ->assertSee('I&#039;m interested', false)
             ->assertDontSee('name="interest_name"', false)
             ->assertDontSee('name="interest_email"', false)
             ->assertDontSee('name="interest_phone"', false);
@@ -369,7 +369,7 @@ class WorkshopInterestRegistrationTest extends TestCase
 
         $this->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSee('I&#039;m Interested', false)
+            ->assertSee('I&#039;m interested', false)
             ->assertDontSeeText('Registration not required for this event.');
     }
 

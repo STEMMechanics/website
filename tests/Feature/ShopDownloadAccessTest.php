@@ -71,7 +71,7 @@ class ShopDownloadAccessTest extends TestCase
             ->assertSee('Downloads')
             ->assertSee('Worksheet')
             ->assertSee('Unlock Worksheet')
-            ->assertSee('Verify Email to Download');
+            ->assertSee('Verify your email to download');
 
         $this->get(route('shop.order.tracking.download', [
             'accessToken' => $order->access_token,
@@ -79,7 +79,7 @@ class ShopDownloadAccessTest extends TestCase
         ]))
             ->assertOk()
             ->assertSee('Confirm the order email')
-            ->assertSee('Unlock Download');
+            ->assertSee('Unlock download');
 
         $response = $this->post(route('shop.order.tracking.download.verify', [
             'accessToken' => $order->access_token,
@@ -90,8 +90,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your Download Is Starting')
-            ->assertSee('Download Now');
+            ->assertSee('Your download is starting')
+            ->assertSee('Download now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,
@@ -188,8 +188,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your Download Is Starting')
-            ->assertSee('Download Now');
+            ->assertSee('Your download is starting')
+            ->assertSee('Download now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,
@@ -280,8 +280,8 @@ class ShopDownloadAccessTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Your Download Is Starting')
-            ->assertSee('Download Now');
+            ->assertSee('Your download is starting')
+            ->assertSee('Download now');
 
         $signedDownloadUrl = URL::temporarySignedRoute('shop.order.tracking.download', now()->addMinutes(15), [
             'accessToken' => $order->access_token,

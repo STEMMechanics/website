@@ -63,7 +63,7 @@
             </tr>
             @continue
         @endif
-        @if($label === 'Total Cost' && $resolvedTotalActionLabel !== '')
+        @if(strcasecmp($label, 'Total Cost') === 0 && $resolvedTotalActionLabel !== '')
             <tr>
                 <td colspan="2" class="pt-3">
                     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-3">

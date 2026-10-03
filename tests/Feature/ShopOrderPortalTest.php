@@ -128,7 +128,7 @@ class ShopOrderPortalTest extends TestCase
             ->assertSee('Ready for partial collection')
             ->assertSee('1 ready to collect')
             ->assertSee('1 still to be prepared')
-            ->assertSee('Order Updates')
+            ->assertSee('Order updates')
             ->assertSee('Packed and waiting at the studio.')
             ->assertSee('Bring photo ID for collection.')
             ->assertDontSee('123 Hidden Street')
@@ -705,9 +705,9 @@ class ShopOrderPortalTest extends TestCase
             'accessToken' => $order->access_token,
         ]))
             ->assertOk()
-            ->assertSee('Documents')
-            ->assertSee('Email Documents to Order Owner')
-            ->assertDontSee('Download Tax Invoice')
+            ->assertSee('Invoices / Receipts')
+            ->assertSee('Email documents to order owner')
+            ->assertDontSee('Download tax invoice')
             ->assertDontSee('Download Receipt #'.$payment->id)
             ->assertDontSee('/invoices/'.$invoice->invoice_number.'/pdf', false)
             ->assertDontSee('/invoices/'.$invoice->invoice_number.'/receipts/'.$payment->id.'/pdf', false);
@@ -758,7 +758,7 @@ class ShopOrderPortalTest extends TestCase
             'accessToken' => $order->access_token,
         ]))
             ->assertOk()
-            ->assertSee('Download Tax Invoice')
+            ->assertSee('Download tax invoice')
             ->assertSee('Download Receipt #'.$payment->id);
     }
 
@@ -1064,8 +1064,8 @@ class ShopOrderPortalTest extends TestCase
                 'accessToken' => $order->access_token,
             ]))
             ->assertOk()
-            ->assertSee('Email Documents to Order Owner')
-            ->assertDontSee('Download Tax Invoice')
+            ->assertSee('Email documents to order owner')
+            ->assertDontSee('Download tax invoice')
             ->assertDontSee('Download Receipt #'.$payment->id);
     }
 
