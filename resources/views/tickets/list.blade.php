@@ -65,10 +65,10 @@
             <x-ui.table>
                 <x-slot:header>
                     <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Ticket #</th>
-                    <th>Workshop Details</th>
+                    <th>Workshop details</th>
                     <th class="hidden md:table-cell text-center!">Status</th>
-                    <th class="hidden lg:table-cell">Purchased At</th>
-                    <th class="hidden lg:table-cell">Ticket Holder Details</th>
+                    <th class="hidden lg:table-cell">Purchased at</th>
+                    <th class="hidden lg:table-cell">Ticket holder details</th>
                     <th class="text-center!">Actions</th>
                 </x-slot:header>
                 <x-slot:body>
@@ -121,13 +121,13 @@
                             <td class="text-center!">
                                 <x-ui.row-actions class="whitespace-nowrap">
                                     @if($canOpenTicketPdf)
-                                        <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', ['ticket' => $ticket, 'token' => $accessToken]) }}" target="_blank" />
+                                        <x-ui.row-action label="Open ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', ['ticket' => $ticket, 'token' => $accessToken]) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                                     @endif
                                     @if($ticket->invoice_id)
-                                        <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', ['ticket' => $ticket, 'token' => $accessToken]) }}" target="_blank" />
-                                        <x-ui.row-action label="View Receipts" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('tickets.invoice.receipts', ['ticket' => $ticket, 'token' => $accessToken]) }}" />
+                                        <x-ui.row-action label="Open linked invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', ['ticket' => $ticket, 'token' => $accessToken]) }}" target="_blank" />
+                                        <x-ui.row-action label="View receipts" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('tickets.invoice.receipts', ['ticket' => $ticket, 'token' => $accessToken]) }}" />
                                     @else
                                         <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                                         <span class="text-gray-300" title="No receipts"><i class="fa-regular fa-file-lines"></i></span>
@@ -184,7 +184,7 @@
         >
             <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="closeEditModal()"></div>
             <div class="relative z-10 w-full max-w-xl rounded-xl bg-white shadow-xl border border-gray-200 p-6">
-                <h3 class="text-lg font-bold text-gray-900">Update Attendee Details</h3>
+                <h3 class="text-lg font-bold text-gray-900">Update attendee details</h3>
                 <p class="mt-2 text-sm text-gray-700">
                     Updating
                     <span class="font-semibold" x-text="editTicketLabel || 'this ticket'"></span>
@@ -193,14 +193,14 @@
 
                 <form method="POST" x-bind:action="editFormAction" class="mt-6 space-y-3">
                     @csrf
-                    <x-ui.input name="firstname" label="First Name" x-model="editFirstname" required />
+                    <x-ui.input name="firstname" label="First name" x-model="editFirstname" required />
                     <x-ui.input name="surname" label="Surname" x-model="editSurname" required />
                     <x-ui.participant-age name="age" x-model="editAge" />
                     <x-ui.input name="email" type="email" label="Email" x-model="editEmail" required />
                     <x-ui.input name="phone" label="Phone" x-model="editPhone" required />
                     <div class="pt-2 flex justify-end gap-3">
                         <x-ui.button type="button" color="primary-outline" x-on:click="closeEditModal()">Cancel</x-ui.button>
-                        <x-ui.button type="submit">Reissue Ticket</x-ui.button>
+                    <x-ui.button type="submit">Reissue ticket</x-ui.button>
                     </div>
                 </form>
             </div>
@@ -214,7 +214,7 @@
         >
             <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="closeCancelModal()"></div>
             <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
-                <h3 class="text-lg font-bold text-gray-900">Cancel Ticket?</h3>
+                <h3 class="text-lg font-bold text-gray-900">Cancel ticket?</h3>
                 <p class="mt-2 text-sm text-gray-700">
                     You are about to cancel
                     <span class="font-semibold" x-text="cancelTicketLabel || 'this ticket'"></span>.
@@ -225,8 +225,8 @@
 
                 <form method="POST" x-bind:action="cancelFormAction" class="mt-6 flex justify-end gap-3">
                     @csrf
-                    <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelModal()">Keep Ticket</x-ui.button>
-                    <x-ui.button type="submit" color="danger">Yes, Cancel Ticket</x-ui.button>
+                    <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelModal()">Keep ticket</x-ui.button>
+                    <x-ui.button type="submit" color="danger">Yes, cancel ticket</x-ui.button>
                 </form>
             </div>
         </div>

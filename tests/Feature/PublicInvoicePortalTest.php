@@ -51,7 +51,7 @@ class PublicInvoicePortalTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeText('Invoice '.$invoice->invoice_number);
-        $response->assertSeeText('Issued Date');
+        $response->assertSeeText('Issued date');
         $response->assertSeeText('Outstanding');
         $response->assertDontSee('pat.client@example.com');
         $response->assertDontSee('Pat Client Pty Ltd');

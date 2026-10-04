@@ -15,8 +15,8 @@ class HomeHero
             'image' => '',
             'caption' => 'Steady Hand Game in Ravenshoe',
             'eyebrow' => 'Join the fun',
-            'heading' => 'Workshops that feel playful, practical, and a little unexpected.',
-            'body' => "To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.\n\nOur fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills they need to solve any problem that comes their way.",
+            'heading' => 'Build, test and create in hands-on STEM workshops.',
+            'body' => "Explore coding, robotics, engineering and creative technology through practical workshops for families, schools and community groups.\n\nEvery session gives young people room to make something, try an idea and learn by doing.",
         ];
     }
 

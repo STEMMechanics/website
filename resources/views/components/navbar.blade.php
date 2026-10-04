@@ -335,7 +335,7 @@
                     <div class="text-lg font-semibold text-gray-900">Your cart is empty</div>
                     <p class="mt-2 text-sm text-gray-600">Add a few items from the store and they will appear here.</p>
                     <div class="mt-4">
-                        <x-ui.button type="link" href="{{ route('shop.index') }}" x-on:click="cartOpen=false">Browse Store</x-ui.button>
+                        <x-ui.button type="link" href="{{ route('shop.index') }}" x-on:click="cartOpen=false">Browse store</x-ui.button>
                     </div>
                 </div>
 

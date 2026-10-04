@@ -304,7 +304,7 @@ class ShopPreorderShippingTest extends TestCase
 
         $this->followRedirects($this->get(route('shop.checkout.payment')))
             ->assertOk()
-            ->assertSee('Payment Details')
+            ->assertSee('Payment details')
             ->assertSee('Shipment 2: Ships later - Estimated April 22nd 2026')
             ->assertSee('1 ships now, 1 ships later from April 22nd 2026');
     }

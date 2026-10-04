@@ -13,12 +13,12 @@
             }
         }
     @endphp
-    <x-mast>Ticket Details</x-mast>
+    <x-mast>Ticket details</x-mast>
 
     <x-container class="max-w-4xl mt-6 mx-auto">
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">Add Ticket Holder Details</h2>
+                <h2 class="text-2xl font-bold mb-3">Add ticket holder details</h2>
                 <p class="text-sm text-gray-600 mb-2">
                     Congrats, you're in. Your ticket{{ $tickets->count() === 1 ? '' : 's' }} {{ $tickets->count() === 1 ? 'is' : 'are' }} reserved for <strong>{{ ($checkoutWorkshops ?? collect([$workshop]))->pluck('title')->join(', ') }}</strong>.
                 </p>
@@ -34,7 +34,7 @@
                 @php($participantAttachments = $informationWorkshop->participantAttachments()->get())
                 @if(trim((string) ($informationWorkshop->participant_information ?? '')) !== '' || $participantAttachments->isNotEmpty())
                     <div class="mb-5 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                        <div class="mb-2 text-base font-semibold">Additional Information · {{ $informationWorkshop->title }}</div>
+                        <div class="mb-2 text-base font-semibold">Additional information · {{ $informationWorkshop->title }}</div>
                         @if(trim((string) ($informationWorkshop->participant_information ?? '')) !== '')
                             <div class="participant-information-content prose prose-sm max-w-none [&_a]:font-normal [&_a]:text-primary-color [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-primary-color-dark">{!! $informationWorkshop->participant_information !!}</div>
                         @endif
@@ -58,14 +58,14 @@
                 @endforeach
                 @if((string) ($session['payment_method'] ?? '') === 'bank_transfer' && is_array($bankTransferDetails ?? null))
                     <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                        <div class="font-semibold text-base mb-2">Bank Transfer Details</div>
+                        <div class="font-semibold text-base mb-2">Bank transfer details</div>
                         <div class="mb-3">Use the invoice number below as the payment reference so the transfer can be matched to your booking.</div>
                         <div class="grid gap-2 sm:grid-cols-[10rem_1fr]">
-                            <div class="font-semibold">Account Name</div>
+                            <div class="font-semibold">Account name</div>
                             <div>{{ (string) ($bankTransferDetails['account_name'] ?? '-') }}</div>
                             <div class="font-semibold">BSB</div>
                             <div>{{ (string) ($bankTransferDetails['bsb'] ?? '-') }}</div>
-                            <div class="font-semibold">Account Number</div>
+                            <div class="font-semibold">Account number</div>
                             <div>{{ (string) ($bankTransferDetails['account_number'] ?? '-') }}</div>
                             <div class="font-semibold">Reference</div>
                             <div class="font-mono font-semibold tracking-wide">{{ (string) ($bankTransferDetails['reference'] ?? '-') }}</div>
@@ -90,7 +90,7 @@
                         </div>
                         <input type="hidden" name="tickets[{{ $index }}][id]" value="{{ $ticket->id }}">
                         <x-ui.grid class="sm:grid-cols-2 gap-3">
-                            <x-ui.input name="tickets[{{ $index }}][firstname]" label="First Name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
+                            <x-ui.input name="tickets[{{ $index }}][firstname]" label="First name" value="{{ old('tickets.'.$index.'.firstname', $ticket->firstname) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][surname]" label="Surname" value="{{ old('tickets.'.$index.'.surname', $ticket->surname) }}" required />
                             <x-ui.input type="email" name="tickets[{{ $index }}][email]" label="Email" value="{{ old('tickets.'.$index.'.email', $ticket->email) }}" required />
                             <x-ui.input name="tickets[{{ $index }}][phone]" label="Phone" value="{{ old('tickets.'.$index.'.phone', $ticket->phone) }}" required />
@@ -109,7 +109,7 @@
                     @endunless
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-end">
-                        <x-ui.button type="submit">Save Ticket Details</x-ui.button>
+                        <x-ui.button type="submit">Save ticket details</x-ui.button>
                     </div>
                 </form>
             </div>

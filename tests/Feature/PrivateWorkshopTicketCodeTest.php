@@ -18,7 +18,7 @@ class PrivateWorkshopTicketCodeTest extends TestCase
 
         $this->get(route('workshop.ticket.flow.start', $workshop))
             ->assertOk()
-            ->assertSee('Access Code')
+            ->assertSee('Access code')
             ->assertSee('private workshop', false);
     }
 

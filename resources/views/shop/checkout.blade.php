@@ -12,8 +12,8 @@
     $amountDueAfterCredit = round((float) ($amountDueAfterCredit ?? $checkoutTotal), 2);
     $hasAmountDue = $amountDueAfterCredit > 0.0001;
     $requiresManualQuote = (bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false);
-    $submitLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Place Order' : 'Complete Order');
-    $continueLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Enter Payment Details' : 'Complete Order');
+    $submitLabel = $requiresManualQuote ? 'Request quote' : ($hasAmountDue ? 'Place order' : 'Complete order');
+    $continueLabel = $requiresManualQuote ? 'Request quote' : ($hasAmountDue ? 'Enter payment details' : 'Complete order');
     $showPaymentStep = ! $requiresManualQuote && (session('shop_checkout_step') === 'payment' || $errors->has('source_id') || $errors->has('cart'));
     $accountTermsDays = (int) ($accountTermsDays ?? 0);
     $canUseAccountTerms = (bool) ($canUseAccountTerms ?? ($accountTermsDays > 0));
@@ -91,7 +91,7 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <div class="text-sm uppercase tracking-[0.18em] text-gray-500" x-text="requiresManualQuote() ? 'Step 1 of 1' : 'Step 1 of 2'">{{ $requiresManualQuote ? 'Step 1 of 1' : 'Step 1 of 2' }}</div>
-                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Order Details</h3>
+                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Order details</h3>
                             <p class="mt-2 text-sm text-gray-600">Contact details, delivery settings, item review, and order notes.</p>
                         </div>
                         <x-ui.button variant="plain"
@@ -142,13 +142,13 @@
 {{--                        </div>--}}
 
                         <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
-                            <h4 class="text-lg font-bold text-gray-900">Contact Details</h4>
+                            <h4 class="text-lg font-bold text-gray-900">Contact details</h4>
                             <p class="mt-1 text-sm text-gray-600">We use these details for order updates and payment confirmations.</p>
 
                             <div class="mt-5 grid gap-0 sm:gap-4 md:grid-cols-2">
                                 <x-ui.input
                                     name="billing_name"
-                                    label="Full Name"
+                                    label="Full name"
                                     :value="$prefill['billing_name']"
                                     required
                                     x-on:input="syncRecipientField('billing_name', 'shipping_name')"
@@ -171,12 +171,12 @@
 
                         <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                             <div>
-                                <h4 class="text-lg font-bold text-gray-900">Billing Address</h4>
+                                <h4 class="text-lg font-bold text-gray-900">Billing address</h4>
                                 <p class="mt-1 text-sm text-gray-600">This address appears on your tax invoice.</p>
                             </div>
                             <div class="mt-5">
-                                <x-ui.input name="billing_address" label="Address Line 1" :value="$prefill['billing_address']" required />
-                                <x-ui.input name="billing_address2" label="Address Line 2" :value="$prefill['billing_address2']" />
+                                <x-ui.input name="billing_address" label="Address line 1" :value="$prefill['billing_address']" required />
+                                <x-ui.input name="billing_address2" label="Address line 2" :value="$prefill['billing_address2']" />
                                 <div class="grid gap-0 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <x-ui.input name="billing_city" label="City" :value="$prefill['billing_city']" required />
                                     <x-ui.select name="billing_state" label="State" required>
@@ -194,7 +194,7 @@
                         <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                             <div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                                 <div>
-                                    <h4 class="text-lg font-bold text-gray-900">Shipping Address</h4>
+                                    <h4 class="text-lg font-bold text-gray-900">Shipping address</h4>
                                     <p class="mt-1 text-sm text-gray-600" x-text="hasPhysicalItems() ? 'Shipping is only available within Australia.' : 'This order only contains digital items, so no shipping address is required.'">Shipping is only available within Australia.</p>
                                     <div class="mt-4" x-show="needsShippingAddress()" x-cloak>
                                         <x-ui.checkbox name="shipping_same_as_billing" label="Same as billing address" :checked="$prefill['shipping_same_as_billing']" :noWrapper="true" x-model="shippingSameAsBilling" />
@@ -208,11 +208,11 @@
 
                             <div x-show="needsShippingAddress() && !shippingSameAsBilling" x-cloak class="mt-5">
                                 <div class="grid gap-0 sm:gap-4 md:grid-cols-2">
-                                    <x-ui.input name="shipping_name" label="Recipient Name" :value="$prefill['shipping_name']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_name', 'billing_name')" x-on:change="markRecipientFieldEdited('shipping_name', 'billing_name')" />
-                                    <x-ui.input name="shipping_phone" label="Recipient Phone" :value="$prefill['shipping_phone']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_phone', 'billing_phone')" x-on:change="markRecipientFieldEdited('shipping_phone', 'billing_phone')" />
+                                    <x-ui.input name="shipping_name" label="Recipient name" :value="$prefill['shipping_name']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_name', 'billing_name')" x-on:change="markRecipientFieldEdited('shipping_name', 'billing_name')" />
+                                    <x-ui.input name="shipping_phone" label="Recipient phone" :value="$prefill['shipping_phone']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" x-on:input="markRecipientFieldEdited('shipping_phone', 'billing_phone')" x-on:change="markRecipientFieldEdited('shipping_phone', 'billing_phone')" />
                                 </div>
-                                <x-ui.input name="shipping_address" label="Address Line 1" :value="$prefill['shipping_address']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
-                                <x-ui.input name="shipping_address2" label="Address Line 2" :value="$prefill['shipping_address2']" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
+                                <x-ui.input name="shipping_address" label="Address line 1" :value="$prefill['shipping_address']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
+                                <x-ui.input name="shipping_address2" label="Address line 2" :value="$prefill['shipping_address2']" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
                                 <div class="grid gap-0 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
                                     <x-ui.input name="shipping_city" label="City" :value="$prefill['shipping_city']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" />
                                     <x-ui.select name="shipping_state" label="State" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling">
@@ -230,7 +230,7 @@
                         <div class="hidden rounded-2xl border border-gray-200 p-5 lg:block">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
-                                    <h4 class="text-lg font-bold text-gray-900">List of Items</h4>
+                                    <h4 class="text-lg font-bold text-gray-900">List of items</h4>
                                 </div>
                                 <div class="text-sm font-medium text-gray-500" x-text="`${Number(cartState?.summary?.item_count || {{ $itemCount }})} item${Number(cartState?.summary?.item_count || {{ $itemCount }}) === 1 ? '' : 's'}`">{{ $itemCount }} items</div>
                             </div>
@@ -300,7 +300,7 @@
                         </div>
 
                         <div x-show="hasPhysicalItems()" x-cloak class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
-                            <h4 class="text-lg font-bold text-gray-900">Shipping Options</h4>
+                            <h4 class="text-lg font-bold text-gray-900">Shipping options</h4>
 
                             <div class="mt-5 space-y-3">
                                 <template x-for="method in cartState.summary.shipping_methods" :key="method.code">
@@ -370,7 +370,7 @@
                         </div>
 
                         <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
-                            <h4 class="text-lg font-bold text-gray-900">Order Notes</h4>
+                            <h4 class="text-lg font-bold text-gray-900">Order notes</h4>
                             <p class="mt-1 text-sm text-gray-600">Add any delivery or packing notes that should travel with this order.</p>
                             <div class="mt-5">
                                 <x-ui.input type="textarea" name="notes" label="Anything we should know?" :value="$prefill['notes']" />
@@ -394,7 +394,7 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <div class="text-sm uppercase tracking-[0.18em] text-gray-500">Step 2 of 2</div>
-                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Payment Details</h3>
+                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Payment details</h3>
                         </div>
                     </div>
 
@@ -454,7 +454,7 @@
 
                         @if(!$hasAmountDue)
                             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                                No payment is required for this checkout. Place Order is now available.
+                                No payment is required for this checkout. Place order is now available.
                             </div>
                         @elseif(!$squareEnabled && ! $canUseAccountTerms)
                             <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -464,7 +464,7 @@
                             <div class="rounded-2xl border-0 sm:border border-gray-200 p-0 sm:p-5">
                                 @if($canUseAccountTerms && $squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '')
                                 <x-ui.select
-                                    label="Payment Method"
+                                    label="Payment method"
                                     name="payment_method"
                                     error=""
                                     x-model="paymentMethod"
@@ -492,7 +492,7 @@
                                 <div class="mt-5" x-show="requiresPayment && paymentMethod === 'credit_card'" x-cloak x-init="initSquareCard()">
                                     <x-square-apple-pay amount="remainingDueAfterCredit()" eligible="checkoutStep === 'payment' && paymentMethod === 'credit_card' && canCheckout() && !requiresManualQuote() && !deliveryUpdateBusy && !quoteDirty && deliveryUpdateTimer === null && !couponBusy && !busyLineKey" />
                                     <div class="flex items-center justify-between gap-4">
-                                        <label class="block text-sm font-semibold text-gray-900">Card Details</label>
+                                        <label class="block text-sm font-semibold text-gray-900">Card details</label>
                                         <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                             Secure payment by Square
                                         </x-ui.badge>
@@ -515,7 +515,7 @@
                                 <span x-show="!isSubmitting" x-cloak x-text="checkoutSubmitLabel()">{{ $submitLabel }}</span>
                                 <span x-show="isSubmitting" x-cloak class="inline-flex items-center gap-2">
                                     <span class="altcha-inline-spinner" aria-hidden="true"></span>
-                                    <span>{{ $requiresManualQuote ? 'Requesting Quote...' : 'Processing...' }}</span>
+                                    <span>{{ $requiresManualQuote ? 'Requesting quote...' : 'Processing...' }}</span>
                                 </span>
                             </x-ui.button>
                         </div>
@@ -629,18 +629,18 @@
 
             checkoutContinueLabel() {
                 if (this.requiresManualQuote()) {
-                    return 'Request Quote';
+                    return 'Request quote';
                 }
 
-                return this.requiresPayment ? 'Enter Payment Details' : 'Complete Order';
+                return this.requiresPayment ? 'Enter payment details' : 'Complete order';
             },
 
             checkoutSubmitLabel() {
                 if (this.requiresManualQuote()) {
-                    return 'Request Quote';
+                    return 'Request quote';
                 }
 
-                return this.requiresPayment ? 'Place Order' : 'Complete Order';
+                return this.requiresPayment ? 'Place order' : 'Complete order';
             },
 
             shipmentIconClass(shipment) {
@@ -1392,7 +1392,7 @@
                     this.errorMessage = '';
                     this.isSubmitting = true;
                     if (window.SM && typeof window.SM.setFormProcessing === 'function') {
-                        window.SM.setFormProcessing(form, true, { submitLabel: 'Requesting Quote...' });
+                        window.SM.setFormProcessing(form, true, { submitLabel: 'Requesting quote...' });
                     }
 
                     if (this.deliveryUpdateTimer !== null || this.quoteDirty) {

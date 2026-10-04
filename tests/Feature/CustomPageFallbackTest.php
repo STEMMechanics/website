@@ -87,7 +87,7 @@ class CustomPageFallbackTest extends TestCase
         $response = $this->get('/stemcraft/join');
 
         $response->assertOk();
-        $response->assertSee('Get Ready to Build Online');
+        $response->assertSee('Get ready to build online');
         $response->assertSee('play.stemcraft.com.au');
         $response->assertDontSee('Old custom content', false);
     }

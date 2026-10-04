@@ -920,7 +920,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->get(route('workshop.show', $workshop))
             ->assertOk()
             ->assertSee('No registration required. Simply join the STEMCraft server at the workshop date and time.', false)
-            ->assertSee('How to Join', false)
+            ->assertSee('How to join', false)
             ->assertSee(route('stemcraft.join'), false)
             ->assertSee('<a href="'.route('stemcraft.join').'" class="link">STEMCraft</a>', false)
             ->assertSee('STEMMechanics Minecraft Server', false);

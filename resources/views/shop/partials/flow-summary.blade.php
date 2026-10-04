@@ -1,5 +1,5 @@
 @php
-    $heading = trim((string) ($heading ?? 'Order Summary'));
+    $heading = trim((string) ($heading ?? 'Order summary'));
     $rows = is_iterable($rows ?? null) ? $rows : [];
 @endphp
 

@@ -3,7 +3,7 @@
         $tabs = [
             ['title' => 'Overview', 'route' => route('stemcraft.index')],
             ['title' => 'Join', 'route' => route('stemcraft.join')],
-            ['title' => 'Player Handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
+            ['title' => 'Player handbook', 'route' => 'https://www.stemcraft.com.au/', 'external' => true],
             ['title' => 'Rules', 'route' => route('stemcraft.rules')],
             ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
         ];
@@ -22,12 +22,12 @@
         ];
     @endphp
 
-    <x-mast image="/stemcraft-short-logo.webp" :tabs="$tabs" description="Community expectations">STEMCraft Rules</x-mast>
+    <x-mast image="/stemcraft-short-logo.webp" :tabs="$tabs" description="Community expectations">STEMCraft rules</x-mast>
 
     <x-container class="pt-12">
         <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_30rem] lg:items-center">
             <div>
-                <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Build Kindly and Responsibly</h1>
+                <h1 class="mt-3 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Build kindly and responsibly</h1>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600">STEMCraft is a shared creative space connected to STEMMechanics workshops and programs. These expectations help keep it calm, welcoming and useful for young makers.</p>
                 <p class="mt-5 max-w-3xl text-lg text-gray-600">The goal is not competition or rankings. The goal is to experiment, create, learn from others, play fairly and treat shared spaces with care.</p>
             </div>
@@ -67,7 +67,7 @@
             <h2 class="text-3xl font-semibold tracking-tight">If something goes wrong</h2>
             <p class="mx-auto mt-4 max-w-2xl text-lg text-white/90">Pause, ask for help, and contact STEMMechanics if a participant needs support. We want everyone to keep learning and creating respectfully.</p>
             <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <x-ui.button href="{{ route('contact') }}" color="outline">Contact support</x-ui.button>
+                <x-ui.button href="{{ route('contact') }}" color="outline">Contact us</x-ui.button>
                 <x-ui.button href="{{ route('stemcraft.faqs') }}" color="outline">Read the FAQs</x-ui.button>
             </div>
         </section>

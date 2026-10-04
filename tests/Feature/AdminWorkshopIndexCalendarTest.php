@@ -234,11 +234,11 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         ]));
 
         $defaultResponse->assertOk();
-        $defaultResponse->assertDontSee('All workshops');
         $dom = new \DOMDocument;
         @$dom->loadHTML($defaultResponse->getContent());
         $xpath = new \DOMXPath($dom);
         $this->assertSame(0, $xpath->query('//section[@data-dynamic-list="admin-workshop-index"]//input[@name="search"]')->length);
+        $this->assertSame(0, $xpath->query('//section[@data-dynamic-list="admin-workshop-index"]//input[starts-with(@name, "list_")] | //section[@data-dynamic-list="admin-workshop-index"]//select[starts-with(@name, "list_")]')->length);
         $defaultResponse->assertSee('Visible workshop');
         $defaultResponse->assertSee('Cancelled workshop');
         $this->get(route('admin.workshop.index', [

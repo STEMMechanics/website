@@ -407,7 +407,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
         $this->get(route('workshop.ticket.flow.payment', $workshop))
             ->assertOk()
-            ->assertSee('Early Bird', false)
+            ->assertSee('Early bird', false)
             ->assertSee('2 @ $8.00 per ticket (Early bird)', false)
             ->assertSee('Tickets', false)
             ->assertSee('1 @ $10.00 per ticket', false)

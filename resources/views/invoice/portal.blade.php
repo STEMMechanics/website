@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My Invoices">{{ 'Invoice '.$invoice->invoice_number }}</x-mast>
+    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My invoices">{{ 'Invoice '.$invoice->invoice_number }}</x-mast>
 
     <x-container class="max-w-5xl mx-auto mt-6 space-y-8">
         @php
@@ -19,11 +19,11 @@
                                 <div class="mt-1 text-base font-semibold text-gray-950">{{ \App\Models\Invoice::statusLabel((string) $invoice->status) }}</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Issued Date</div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Issued date</div>
                                 <div class="mt-1 text-base font-semibold text-gray-950">{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Due Date</div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Due date</div>
                                 <div class="mt-1 text-base font-semibold text-gray-950">{{ $invoice->due_date?->format('M j, Y') ?? '-' }}</div>
                             </div>
                             @if(($linkedQuote ?? null) !== null && !empty($linkedQuoteUrl))
@@ -46,17 +46,17 @@
                         @if($isPublic)
                             <form method="POST" action="{{ route('invoice.public.email-documents', $invoice) }}">
                                 @csrf
-                                <x-ui.button type="submit">Email Invoice & Receipts</x-ui.button>
+                                <x-ui.button type="submit">Email invoice and receipts</x-ui.button>
                             </form>
                         @elseif(!empty($receiptLinks))
-                            <x-ui.button href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" color="outline">Download Invoice</x-ui.button>
+                            <x-ui.button href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" color="outline">Download invoice</x-ui.button>
                             @if($isAccountView && !empty($accountReceiptsUrl))
-                                <a href="{{ $accountReceiptsUrl }}" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View All Receipts</a>
+                                <a href="{{ $accountReceiptsUrl }}" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View all receipts</a>
                             @else
                                 @foreach($receiptLinks as $receiptLink)
                                     <x-ui.button
                                             href="{{ $receiptLink['download_url'] }}"
-                                             target="_blank" color="outline">Download Receipt</x-ui.button>
+                                             target="_blank" color="outline">Download receipt</x-ui.button>
                                 @endforeach
                             @endif
                         @endif
@@ -142,7 +142,7 @@
                         foreach (($adjustment->lines ?? collect()) as $line) {
                             $combinedLineItems->push([
                                 'kind' => 'adjustment',
-                                'label' => 'Tax Adjustment Note '.$adjustment->adjustment_number,
+                                'label' => 'Tax adjustment note '.$adjustment->adjustment_number,
                                 'description' => (string) ($line->description ?? ''),
                                 'notes' => (string) ($line->notes ?? ''),
                                 'quantity' => abs((float) ($line->quantity ?? 0)),
@@ -203,7 +203,7 @@
         @if((float) $outstandingAmount >= 0.0001)
             <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 px-6 py-4">
-                    <div class="text-lg font-semibold text-gray-950">Make a Payment</div>
+                    <div class="text-lg font-semibold text-gray-950">Make a payment</div>
                 </div>
 
                 <div class="px-6 py-5">
@@ -224,7 +224,7 @@
                         <div x-init="initSquareCard()">
                             <x-square-apple-pay :amount="(string) (float) $outstandingAmount" />
                             <div class="mb-2 flex items-center justify-between">
-                                <label class="block text-sm">Card Details</label>
+                                <label class="block text-sm">Card details</label>
                                 <x-ui.badge href="https://squareup.com/au/en" color="sky" target="_blank" rel="noopener noreferrer">
                                     Secure payment by Square
                                 </x-ui.badge>
