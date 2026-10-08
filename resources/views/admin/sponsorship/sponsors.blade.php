@@ -12,10 +12,10 @@
                     <h2 class="text-lg font-semibold text-gray-900">Sponsor details</h2>
                     <div class="flex flex-wrap gap-2">
                         @if($sponsor->user)
-                            <x-ui.button color="outline" href="{{ route('admin.user.edit', $sponsor->user) }}">Edit linked user</x-ui.button>
+                            <x-ui.button color="primary-outline" size="compact" href="{{ route('admin.user.edit', $sponsor->user) }}">Edit linked user</x-ui.button>
                         @endif
                         @if($sponsor->organisation)
-                            <x-ui.button color="outline" href="{{ route('admin.organisation.edit', $sponsor->organisation) }}">Edit organisation</x-ui.button>
+                            <x-ui.button color="primary-outline" size="compact" href="{{ route('admin.organisation.edit', $sponsor->organisation) }}">Edit organisation</x-ui.button>
                         @endif
                     </div>
                 </div>

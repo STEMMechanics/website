@@ -21,9 +21,9 @@
                         @endforeach
                     </td>
                     @if($invoiceLayout)
-                        <td data-mobile-actions class="text-right sm-invoice-workshop-actions"><x-ui.row-action label="Remove workshop" icon="fa-trash" tone="danger" class="sm-invoice-remove-workshop" x-on:click.prevent="item.workshops.splice(rowIndex, 1); SM.updateWorkshopLine(item); serializeLineItems()" /></td>
+                        <td data-mobile-actions class="text-right sm-invoice-workshop-actions"><x-ui.row-action label="Remove" icon="fa-trash" tone="danger" class="sm-invoice-remove-workshop" x-on:click.prevent="item.workshops.splice(rowIndex, 1); SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     @else
-                        <td data-label="Actions" data-mobile-actions class="text-center"><x-ui.row-action label="Remove workshop" icon="fa-trash" tone="danger" x-on:click.prevent="item.workshops.splice(rowIndex, 1); SM.updateWorkshopLine(item); serializeLineItems()" /></td>
+                        <td data-label="Actions" data-mobile-actions class="text-center"><x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="item.workshops.splice(rowIndex, 1); SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     @endif
                 </tr>
             </template>

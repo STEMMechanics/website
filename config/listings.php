@@ -30,6 +30,22 @@ $lists = [
         'price' => ['label' => 'Price', 'type' => 'number'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
+    'admin.shop.stock.index' => ['model' => \App\Models\StockItem::class, 'fields' => [
+        'name' => ['label' => 'Stock item', 'type' => 'text'],
+        'sku' => ['label' => 'SKU', 'type' => 'text'],
+        'status' => ['label' => 'Status', 'type' => 'select', 'options' => ['active' => 'Active', 'archived' => 'Archived']],
+        'on_hand_quantity' => ['label' => 'On hand', 'type' => 'number'],
+        'reorder_point' => ['label' => 'Reorder point', 'type' => 'number'],
+        'replacement_unit_cost_ex_tax' => ['label' => 'Replacement cost', 'type' => 'number'],
+        'created_at' => ['label' => 'Created', 'type' => 'date'],
+    ]],
+    'admin.shop.stock.kits' => ['model' => \App\Models\StockItem::class, 'fields' => [
+        'name' => ['label' => 'Kit', 'type' => 'text'],
+        'sku' => ['label' => 'SKU', 'type' => 'text'],
+        'status' => ['label' => 'Status', 'type' => 'select', 'options' => ['active' => 'Active', 'archived' => 'Archived']],
+        'on_hand_quantity' => ['label' => 'Ready-made quantity', 'type' => 'number'],
+        'created_at' => ['label' => 'Created', 'type' => 'date'],
+    ]],
     'admin.shop.category.index' => ['model' => \App\Models\ProductCategory::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'slug' => ['label' => 'Slug', 'type' => 'text'],

@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Product Categories
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.category.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.category.create') }}">Create product category</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="mt-4">

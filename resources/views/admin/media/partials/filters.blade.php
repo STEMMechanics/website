@@ -36,6 +36,14 @@
                 <summary><i class="fa-solid fa-hard-drive"></i><span>File size</span></summary>
                 <div class="grid grid-cols-2 gap-3"><x-ui.input type="number" min="0" step="any" name="size_min" label="Minimum (MB)" :value="request('size_min')" class="mb-0"  aria-label="Minimum (MB)" /><x-ui.input type="number" min="0" step="any" name="size_max" label="Maximum (MB)" :value="request('size_max')" class="mb-0"  aria-label="Maximum (MB)" /></div>
             </details>
+            <details @if(request()->filled('downloads_min') || request()->filled('downloads_max')) open @endif>
+                <summary><i class="fa-solid fa-download"></i><span>Downloads</span></summary>
+                <div class="grid grid-cols-2 gap-3">
+                    <x-ui.input type="number" min="0" step="1" name="downloads_min" label="Minimum" :value="request('downloads_min')" class="mb-0" aria-label="Minimum downloads" />
+                    <x-ui.input type="number" min="0" step="1" name="downloads_max" label="Maximum" :value="request('downloads_max')" class="mb-0" aria-label="Maximum downloads" />
+                </div>
+                <p class="mt-2 text-sm text-slate-500">Counts all tracked downloads for each file.</p>
+            </details>
             <details @if(request()->filled('uploaded_from') || request()->filled('uploaded_to')) open @endif>
                 <summary><i class="fa-solid fa-calendar"></i><span>Upload date</span></summary>
                 <div class="grid grid-cols-2 gap-3"><x-ui.input type="date" name="uploaded_from" label="From" :value="request('uploaded_from')" class="mb-0"  aria-label="From" /><x-ui.input type="date" name="uploaded_to" label="To" :value="request('uploaded_to')" class="mb-0"  aria-label="To" /></div>

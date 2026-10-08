@@ -5,6 +5,7 @@ namespace App\Services\Finance;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\StockInventoryService;
 use Illuminate\Validation\ValidationException;
 
 class InvoiceInventory
@@ -16,6 +17,8 @@ class InvoiceInventory
         if ($invoice->storeOrders()->exists()) {
             return;
         }
+
+        app(StockInventoryService::class)->syncInvoiceReservations($invoice, $release);
 
         $previous = $invoice->inventory_reservations ?? [];
         $next = [];
@@ -32,6 +35,9 @@ class InvoiceInventory
                 $variant = $variantId ? $product->variants()->find($variantId) : null;
                 if ($variantId && ! $variant) {
                     throw ValidationException::withMessages(['line_items' => 'The selected product variant is no longer available.']);
+                }
+                if ($product->hasLinkedStock($variant)) {
+                    continue;
                 }
                 if (! $product->tracksInventory($variant)) {
                     continue;

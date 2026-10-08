@@ -3,7 +3,7 @@
 @endphp
 
 <x-layout>
-    <x-mast title="Workshops" :tabs="$tabs"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop.create') }}" >Create</x-ui.button>
+    <x-mast title="Workshops" :tabs="$tabs"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop.create') }}" >Create workshop</x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ route('admin.workshop-flyer.create') }}"
                                     class="w-8.5 shrink-0 px-0!"
@@ -43,7 +43,9 @@
                             </x-ui.button></x-slot:actions></x-mast>
 
     <x-container class="py-5 sm:py-8">
-        <x-finance.attention-notice kind="workshops" />
+        @if($view === 'month')
+            <x-finance.attention-notice kind="workshops" />
+        @endif
         <x-ui.dynamic-list name="admin-workshop-index" :show-presets="$view === 'list'">
 
         <div x-on:open-workshop-materials.window="openDialog()" x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
@@ -196,6 +198,13 @@
                                     @forelse($day['workshops'] as $workshop)
                                         @php
                                             $status = $adminCalendarStatus($workshop);
+                                            $continuation = $workshop->calendarContinuationForDate($day['date']);
+                                            $calendarStartsAt = $workshop->calendarStartsAtForDate($day['date']);
+                                            $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
+                                            $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
+                                            $calendarTimeLabel = $continuation['before']
+                                                ? ($continuation['ends'] ? 'Ends '.($calendarEndsAt?->format('g:i a') ?? '-') : 'Continues')
+                                                : ($calendarStartsAt?->format('g:i a') ?? '-');
                                         @endphp
                                         <a
                                             href="{{ route('admin.workshop.edit', $workshop) }}"
@@ -204,8 +213,9 @@
                                         >
                                             <div class="flex items-start justify-between gap-3">
                                                 <div class="min-w-0">
-                                                    <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->toDateString() === $day['date'] ? $workshop->starts_at->format('g:i a') : 'Continues' }}</div>
+                                                    <div class="font-semibold text-gray-900">{{ $calendarTimeLabel }}</div>
                                                     <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                    @if($calendarSessionLabel)<div class="mt-0.5 text-[11px] font-medium text-primary-color">{{ $calendarSessionLabel }}</div>@endif
                                                     <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                 </div>
                                                 <x-ui.workshop-status-badge :status="$status['class']" class="shrink-0" title="{{ $status['title'] }}">{{ $status['short_title'] }}</x-ui.workshop-status-badge>
@@ -261,6 +271,9 @@
                                                 @php
                                                     $status = $adminCalendarStatus($workshop);
                                                     $continuation = $workshop->calendarContinuationForDate($day['date']);
+                                                    $calendarStartsAt = $workshop->calendarStartsAtForDate($day['date']);
+                                                    $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
+                                                    $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
                                                 @endphp
                                                 <a
                                                     href="{{ route('admin.workshop.edit', $workshop) }}"
@@ -281,17 +294,18 @@
                                                         <div class="w-full">
                                                             <div class="flex justify-between items-center">
                                                                 @if(! $continuation['before'])
-                                                                    <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
+                                                                    <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $calendarStartsAt?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                 @elseif($continuation['ends'])
-                                                                    <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $workshop->ends_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
+                                                                    <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $calendarEndsAt?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                 @endif
                                                                 @if(! $continuation['before'])
                                                                     <x-ui.workshop-status-badge :status="$status['class']" class="shrink-0" title="{{ $status['title'] }}">{{ $status['short_title'] }}</x-ui.workshop-status-badge>
                                                                 @endif
                                                             </div>
-                                                            @if($continuation['show_details'])
-                                                                <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                                <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
+                                                                @if($continuation['show_details'])
+                                                                    <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                                    @if($calendarSessionLabel)<div class="mt-0.5 text-[10px] font-medium text-primary-color">{{ $calendarSessionLabel }}</div>@endif
+                                                                    <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                             @endif
                                                         </div>
                                                     </div>
@@ -347,6 +361,23 @@
                                                     <i class="fa-solid fa-eye-slash shrink-0 text-xs text-gray-400" title="Hidden workshop" aria-label="Hidden workshop"></i>
                                                 @endif
                                             </div>
+                                            @php($workshopAttention = $workshopAttentionById[(string) $workshop->getKey()] ?? [])
+                                            @if($workshopAttention !== [])
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    @if($workshopAttention['allocation_review'] ?? false)
+                                                        <a href="{{ route('admin.workshop.allocation.edit', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Workshop allocation needs review"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Allocation review</a>
+                                                    @endif
+                                                    @if($workshopAttention['stock_shortage'] ?? false)
+                                                        <a href="{{ route('admin.workshop.run-sheet', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Pick list stock is short"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Stock short</a>
+                                                    @endif
+                                                    @if($workshopAttention['attendance'] ?? false)
+                                                        <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Attendance still needs recording"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Attendance</a>
+                                                    @endif
+                                                    @if($workshopAttention['stock_reconciliation'] ?? false)
+                                                        <a href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Workshop stock still needs reconciliation"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Reconcile stock</a>
+                                                    @endif
+                                                </div>
+                                            @endif
                                             <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->adminStatusLabel() }})</div>
                                             <div class="md:hidden text-xs text-gray-500"><x-ui.date-time>{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</x-ui.date-time></div>
                                         </div>
@@ -366,9 +397,13 @@
                                     @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
                                         <x-ui.row-action label="View interest registrations" icon="fa-solid fa-thumbs-up" tone="neutral" href="{{ route('admin.workshop.interests', $workshop) }}" />
                                     @endif
+                                    @php($workshopEndAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at)
+                                    @if(! in_array((string) $workshop->status, ['draft', 'cancelled'], true) && $workshopEndAt?->isPast())
+                                    <x-ui.row-action :label="$workshop->stock_reconciled_at ? 'View stock reconciliation' : 'Reconcile stock'" icon="fa-solid fa-box-open" :tone="$workshop->stock_reconciled_at ? 'neutral' : 'primary'" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" />
+                                    @endif
                                     <x-ui.row-action label="Attendance" icon="fa-solid fa-user-check" tone="neutral" href="{{ route('admin.workshop.attendance', $workshop) }}" />
-                                    <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
-                                    <x-ui.row-action label="Photos" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.photos', $workshop) }}" />
+                                    <x-ui.row-action label="Run sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
+                                    <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
                                         <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))" />
                                     @endif

@@ -11,6 +11,7 @@ class PickListTemplateItem extends Model
     use HasFactory;
 
     public const TYPE_FIXED = 'fixed';
+
     public const TYPE_PER_PARTICIPANT = 'per_participant';
 
     public const TYPES = [
@@ -21,13 +22,17 @@ class PickListTemplateItem extends Model
     protected $fillable = [
         'pick_list_template_id',
         'item_name',
+        'stock_item_id',
         'quantity_type',
         'quantity_value',
+        'stock_quantity',
         'sort_order',
     ];
 
     protected $casts = [
         'quantity_value' => 'integer',
+        'stock_item_id' => 'integer',
+        'stock_quantity' => 'decimal:3',
         'sort_order' => 'integer',
     ];
 
@@ -37,6 +42,12 @@ class PickListTemplateItem extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(PickListTemplate::class, 'pick_list_template_id');
+    }
+
+    /** @return BelongsTo<StockItem, $this> */
+    public function stockItem(): BelongsTo
+    {
+        return $this->belongsTo(StockItem::class);
     }
 
     public function computedQuantity(int $participants): int

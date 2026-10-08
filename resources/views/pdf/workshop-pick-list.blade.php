@@ -16,10 +16,12 @@
         .value { display: inline-block; color: #333; font-size: 12px; margin-bottom: 0 }
         .section-title { color: #1da1e6; font-weight: 700; font-size: 14px; margin: 14px 0 8px; text-transform: uppercase; }
         .items-grid { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; }
-        .items-grid td { width: 33.33%; vertical-align: middle; padding: 0 10px 0 0; }
-        .line { height: 40px; font-size: 12px; }
+        .items-grid td { width: 33.33%; vertical-align: top; padding: 0 10px 0 0; }
+        .line { min-height: 40px; height: auto; margin-bottom: 7px; font-size: 12px; page-break-inside: avoid; }
         .box { display: inline-block; width: 12px; height: 12px; border: 1px solid #666; margin-right: 8px; margin-top: -2px; vertical-align: text-top }
         .type-note { margin: -6px 0 0 22px; font-size: 9px; color: #666; line-height: 1.25; }
+        .kit-contents { margin: 3px 0 0 22px; font-size: 9px; color: #555; line-height: 1.25; }
+        .kit-contents-title { font-weight: 700; }
         .type-note p, .notes-body p { margin: 0 0 3px; }
         .type-note ul, .notes-body ul { margin: 0 0 3px 14px; padding: 0; }
         .type-note li, .notes-body li { margin: 0 0 2px; }

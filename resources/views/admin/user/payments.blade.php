@@ -118,7 +118,7 @@
                             </td>
                     <td class="text-center! align-top">
                                 <div x-data="{ createRefundOpen: false, isSubmitting: false }" class="flex flex-wrap items-center gap-2">
-                                    <x-ui.row-action label="Open payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $payment) }}" />
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $payment) }}" />
                                     <x-ui.row-action label="Open receipt" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('admin.payment.receipt', $payment) }}" target="_blank" />
                                     @if($isRefundableSquare)
                                         <form
@@ -257,7 +257,7 @@
                                 </td>
                                 <td class="align-top">
                                     <x-ui.row-actions>
-                                        <x-ui.row-action label="Open refund record" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
+                                        <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
                                         <x-ui.row-action label="Open refund receipt" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" />
                                     </x-ui.row-actions>
                                 </td>

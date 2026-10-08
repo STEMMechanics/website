@@ -28,7 +28,7 @@
         </div>
             <x-ui.dynamic-list name="admin-media-index">
                 @php
-                    $filterLabels = ['search' => 'Search', 'type' => 'Type', 'usage' => 'Usage', 'mime_type' => 'MIME', 'name_pattern' => 'Name matches', 'tags_include' => 'Has all tags', 'tags_exclude' => 'Without tags', 'visibility' => 'Visibility', 'storage_disk' => 'Storage', 'workshop' => 'Workshop', 'location' => 'Location', 'size_min' => 'Min MB', 'size_max' => 'Max MB', 'uploaded_from' => 'From', 'uploaded_to' => 'To', 'user_id' => 'Owner'];
+                    $filterLabels = ['search' => 'Search', 'type' => 'Type', 'usage' => 'Usage', 'mime_type' => 'MIME', 'name_pattern' => 'Name matches', 'tags_include' => 'Has all tags', 'tags_exclude' => 'Without tags', 'visibility' => 'Visibility', 'storage_disk' => 'Storage', 'workshop' => 'Workshop', 'location' => 'Location', 'size_min' => 'Min MB', 'size_max' => 'Max MB', 'downloads_min' => 'Min downloads', 'downloads_max' => 'Max downloads', 'uploaded_from' => 'From', 'uploaded_to' => 'To', 'user_id' => 'Owner'];
                     $activeFilters = collect(request()->only(array_keys($filterLabels)))->filter(fn ($value) => is_scalar($value) && (string) $value !== '');
                     $presetFilters = ['all' => [], 'images' => ['type' => 'image'], 'unused' => ['usage' => 'unused']];
                     $presetItems = collect(['all' => 'All media', 'images' => 'Images', 'unused' => 'Unused'])->map(fn ($title, $key) => ['title' => $title, 'count' => $presetCounts[$key], 'active' => $activeFilters->all() == $presetFilters[$key], 'route' => route('admin.media.index', array_merge(request()->only(['view', 'sort', 'direction', 'per_page']), $presetFilters[$key]))])->values()->all();
@@ -69,6 +69,7 @@
                             <x-slot:header>
                                 <th class="sm-selection-cell"><x-ui.checkbox id="admin-media-select-page" label="Select all media on this page" aria-label="Select all media on this page" labelHidden bare small /></th>
                                 <x-ui.sort-heading field="title" label="File" />
+                                <x-ui.sort-heading field="downloads" label="Downloads" center class="hidden sm:table-cell" />
                                 <th class="hidden xl:table-cell">Owner</th>
                                 <x-ui.sort-heading field="mime_type" label="Type" center class="hidden lg:table-cell" />
                                 <x-ui.sort-heading field="size" label="Size" center class="hidden sm:table-cell" />
@@ -80,7 +81,22 @@
                                 @foreach($media as $medium)
                                     <tr>
                                         <td class="sm-selection-cell"><x-ui.checkbox :value="$medium->name" :label="'Select '.$medium->title" :aria-label="'Select '.$medium->title" labelHidden bare small class="admin-media-select-item" /></td>
-                                        <td><div class="flex min-w-0 items-center gap-3"><img src="{{ $medium->thumbnail }}" alt="" class="h-12 w-12 shrink-0 rounded-lg bg-slate-50 object-contain" @if(in_array($medium->status, ['processing', 'queued'])) data-thumbnail="{{ $medium->name }}" @endif loading="lazy"><div class="min-w-0"><a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a><div class="sm-media-filename">{{ $medium->name }}</div><div class="mt-1 flex flex-wrap items-center gap-2 lg:hidden"><x-ui.media-visibility :media="$medium" />@if($medium->is_private && $medium->visibility !== 'public')<x-ui.badge color="slate">Private owner</x-ui.badge>@endif<span class="text-xs text-slate-500 sm:hidden">{{ \App\Helpers::bytesToString($medium->size) }}</span></div></div></div></td>
+                                        <td>
+                                            <div class="flex min-w-0 items-center gap-3">
+                                                <img src="{{ $medium->thumbnail }}" alt="" class="h-12 w-12 shrink-0 rounded-lg bg-slate-50 object-contain" @if(in_array($medium->status, ['processing', 'queued'])) data-thumbnail="{{ $medium->name }}" @endif loading="lazy">
+                                                <div class="min-w-0">
+                                                    <a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a>
+                                                    <div class="sm-media-filename">{{ $medium->name }}</div>
+                                                    <div class="mt-1 text-xs text-slate-500 sm:hidden">{{ number_format((int) $medium->download_count) }} downloads</div>
+                                                    <div class="mt-1 flex flex-wrap items-center gap-2 lg:hidden">
+                                                        <x-ui.media-visibility :media="$medium" />
+                                                        @if($medium->is_private && $medium->visibility !== 'public')<x-ui.badge color="slate">Private owner</x-ui.badge>@endif
+                                                        <span class="text-xs text-slate-500 sm:hidden">{{ \App\Helpers::bytesToString($medium->size) }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="hidden sm:table-cell text-center!">{{ number_format((int) $medium->download_count) }}</td>
                                         <td class="hidden xl:table-cell text-sm text-slate-600">{{ $medium->user?->getName() ?: $medium->user?->email ?: 'Unassigned' }}</td>
                                         <td class="hidden lg:table-cell text-center!">{{ $medium->file_type }}</td>
                                         <td class="hidden sm:table-cell text-center!"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString($medium->size) }}</x-ui.nonbreaking></td>
@@ -98,7 +114,7 @@
                                 <article class="min-w-0 rounded-xl border border-slate-200 bg-white p-2">
                                     <div class="sm-selection-cell pb-2"><x-ui.checkbox :id="'admin-media-select-photos-'.md5($medium->name)" :value="$medium->name" :label="'Select '.$medium->title" :aria-label="'Select '.$medium->title" labelHidden bare small class="admin-media-select-item" /></div>
                                     <a href="{{ route('admin.media.edit', $medium) }}" class="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-slate-50"><img src="{{ str_starts_with($medium->mime_type, 'image/') ? $medium->url('md', true) : $medium->thumbnail }}" alt="{{ $medium->title }}" class="h-full w-full object-contain" loading="lazy" @if(in_array($medium->status, ['processing', 'queued'])) data-thumbnail="{{ $medium->name }}" @endif></a>
-                                    <div class="mt-2 flex items-center gap-2"><div class="min-w-0 flex-1"><a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a><div class="text-xs text-slate-500">{{ \App\Helpers::bytesToString($medium->size) }}</div></div>@include('admin.media.partials.actions')</div>
+                                    <div class="mt-2 flex items-center gap-2"><div class="min-w-0 flex-1"><a href="{{ route('admin.media.edit', $medium) }}" class="sm-media-title">{{ $medium->title }}</a><div class="text-xs text-slate-500">{{ number_format((int) $medium->download_count) }} downloads · {{ \App\Helpers::bytesToString($medium->size) }}</div></div>@include('admin.media.partials.actions')</div>
                                 </article>
                             @endforeach
                         </div>

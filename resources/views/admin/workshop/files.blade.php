@@ -1,40 +1,27 @@
 @php
     $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
-    $dateLabel = $workshop->starts_at
-        ? $workshop->starts_at->format('D j M Y, g:ia').($workshop->ends_at ? ' – '.$workshop->ends_at->format('g:ia') : '')
-        : 'No date set';
-    $locationLabel = $workshop->getLocationDisplay();
     $attachedFiles = $files ?? $workshop->files()->orderBy('name')->paginate(50);
     $attachedFilesValue = $attachedFiles instanceof \Illuminate\Contracts\Pagination\Paginator
         ? collect($attachedFiles->items())
         : collect($attachedFiles);
 @endphp
 
-<x-layout title="Workshop Files - {{ $workshop->title }}">
-    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Files<x-slot:actions>
-        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-upload', { id: 'workshop_files_pending' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
-        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-browse', { id: 'workshop_files_pending' })">Browse media</x-ui.button>
-    </x-slot:actions></x-mast>
+<x-layout title="Workshop Media - {{ $workshop->title }}">
+    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
+        <x-slot:actions>
+            <div class="flex w-full flex-col gap-2 sm:w-56">
+                <x-admin.workshop-public-page-action :workshop="$workshop" />
+                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-upload', { id: 'workshop_files_pending' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
+                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-browse', { id: 'workshop_files_pending' })">Browse media</x-ui.button>
+            </div>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container class="py-5 sm:py-8">
-        <div class="mb-4">
-            <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
-                <div>
-                    <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
-                    <div class="mt-2 grid gap-1 text-sm text-gray-700">
-                        <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
-                        <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
-                    </div>
-                </div>
-                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:flex" role="note">
-                    <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
-                    <p>All public files are displayed on the workshop page.</p>
-                </div>
-            </div>
-            <div class="mt-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:hidden" role="note">
-                <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
-                <p>All public files are displayed on the workshop page.</p>
-            </div>
+        <div class="mb-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900" role="note">
+            <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+            <p>All public files are displayed on the workshop page.</p>
         </div>
 
         <div data-workshop-upload-controller>
@@ -356,7 +343,7 @@
                         this.workshopFilesUploadMessage = `Attaching ${attachNames.length} existing file${attachNames.length === 1 ? '' : 's'}…`;
                         try {
                             await axios.post(@js(route('admin.workshop.files.attach', $workshop)), { media_names: attachNames }, { headers: { Accept: 'application/json' } });
-                            window.location.href = @js(route('admin.workshop.files', $workshop));
+                            window.location.href = @js(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'files']));
                         } catch (error) {
                             this.workshopFilesUploading = false;
                             this.workshopFilesUploadError = error?.response?.data?.message || 'The selected files could not be attached.';
@@ -443,7 +430,7 @@
                                     confirmButtonColor: '#0284c7',
                                 });
                             }
-                            window.location.href = @js(route('admin.workshop.files', $workshop));
+                            window.location.href = @js(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'files']));
                         } catch (error) {
                             this.workshopFilesUploading = false;
                             const payload = error?.response?.data;
@@ -546,7 +533,7 @@
                                     </td>
                                     <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
                                     <td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></td>
-                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit file" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download file" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from this workshop only" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.row-actions></td>
+                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.row-actions></td>
                                 </tr>
                             @endforeach
                         </tbody>

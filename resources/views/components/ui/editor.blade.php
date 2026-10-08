@@ -268,7 +268,7 @@
                         </button>
                         <button type="button" @click.prevent="deleteRow(); open = false" x-bind:disabled="!canTable('deleteRow', updatedAt)">
                             <i class="fa-solid fa-trash"></i>
-                            <span>Delete row</span>
+                            <span>Delete</span>
                         </button>
                         <button type="button" @click.prevent="toggleHeaderRow(); open = false" x-bind:disabled="!canTable('toggleHeaderRow', updatedAt)">
                             <i class="fa-solid fa-heading"></i>
@@ -343,8 +343,8 @@
                     </button>
                     <button
                         @click.prevent="deleteRow()"
-                        title="Delete row"
-                        aria-label="Delete row"
+                        title="Delete"
+                        aria-label="Delete"
                         x-bind:disabled="!canTable('deleteRow', updatedAt)">
                         <i class="fa-solid fa-table-columns"></i>
                         <i class="fa-solid fa-trash text-[10px] align-top"></i>

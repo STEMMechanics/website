@@ -13,7 +13,7 @@
 @endphp
 <x-layout>
     <x-admin.sponsorship-mast title="Sponsorships" description="View financial and in-kind support together. Open a sponsor to see their full history.">
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.sponsorship.sponsor.manual-support.create') }}">Add Sponsor</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.sponsorship.sponsor.manual-support.create') }}">Add sponsor</x-ui.button></x-slot:actions>
     </x-admin.sponsorship-mast>
     <x-container class="py-5 sm:py-8">
         @error('cancellation')<p class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{{ $message }}</p>@enderror
@@ -94,7 +94,7 @@
                                     <div class="text-xs text-gray-500"><span>Payments:</span> {{ $sponsorGroup->payments_count }}</div>
                                 </div>
                             </td>
-                            <td data-mobile-actions class="text-center! whitespace-nowrap"><x-ui.row-actions :menu="false"><x-ui.row-action label="View sponsor details" icon="fa-eye" tone="primary" href="{{ route('admin.sponsorship.sponsor.show', $sponsor) }}" /></x-ui.row-actions></td>
+                            <td data-mobile-actions class="text-center! whitespace-nowrap"><x-ui.row-actions :menu="false"><x-ui.row-action label="View" icon="fa-eye" tone="primary" href="{{ route('admin.sponsorship.sponsor.show', $sponsor) }}" /></x-ui.row-actions></td>
                         </tr>
                     @empty
                         <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No sponsors match this view.</td></tr>

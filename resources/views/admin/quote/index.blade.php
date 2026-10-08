@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Quotes
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.quote.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.quote.create') }}">Create quote</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
@@ -65,28 +65,28 @@
                         </div>
                         <div class="mt-2 text-sm font-semibold text-gray-950">${{ number_format((float) $quote->total_amount, 2) }}</div>
                         <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <x-ui.row-action label="Edit quote" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.quote.edit', $quote) }}" />
+                            <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.quote.edit', $quote) }}" />
                             <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
                                 @csrf
-                                <x-ui.row-action label="Duplicate Quote" icon="fa-solid fa-copy" tone="neutral" type="submit" />
+                                <x-ui.row-action label="Duplicate" icon="fa-solid fa-copy" tone="neutral" type="submit" />
                             </form>
                             <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.quote.pdf', $quote) }}" target="_blank" />
                             <form method="POST" action="{{ route('admin.quote.email', $quote) }}">
                                 @csrf
-                                <x-ui.row-action label="Email Quote PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
+                                <x-ui.row-action label="Email PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
                             </form>
                             @if($quoteInvoiceCount === 1)
-                                <x-ui.row-action label="Open linked invoice {{ $firstLinkedInvoice->invoice_number }}" icon="fa-solid fa-file-invoice" tone="neutral" href="{{ route('admin.invoice.edit', $firstLinkedInvoice) }}" />
+                                <x-ui.row-action label="Open invoice {{ $firstLinkedInvoice->invoice_number }}" icon="fa-solid fa-file-invoice" tone="neutral" href="{{ route('admin.invoice.edit', $firstLinkedInvoice) }}" />
                             @elseif($quoteInvoiceCount > 1)
                                 <div class="relative" x-data="{ open: false }">
                                     <x-ui.button variant="plain"
                                         type="button"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                        title="View linked invoices"
+                                        title="View invoices"
                                         x-on:click.prevent="open = true"
                                     >
                                         <i class="fa-solid fa-file-invoice"></i>
-                                        <span class="sr-only">View linked invoices</span>
+                                        <span class="sr-only">View invoices</span>
                                     </x-ui.button>
                                     <div
                                         x-cloak
@@ -125,9 +125,9 @@
                             @endif
                             <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
                                 @csrf
-                                <x-ui.button variant="plain" type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Create Invoice From Quote">
+                                <x-ui.button variant="plain" type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Create invoice">
                                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                                    <span class="sr-only">Create Invoice From Quote</span>
+                                    <span class="sr-only">Create invoice</span>
                                 </x-ui.button>
                             </form>
                             <a href="#" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-600" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')" title="Delete quote">
@@ -200,18 +200,18 @@
                                         <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.quote.edit', $quote) }}" />
                                         <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
                                             @csrf
-                                            <x-ui.row-action label="Duplicate Quote" icon="fa-solid fa-copy" tone="neutral" type="submit" />
+                                        <x-ui.row-action label="Duplicate" icon="fa-solid fa-copy" tone="neutral" type="submit" />
                                         </form>
                                         <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.quote.pdf', $quote) }}" target="_blank" />
                                         <form method="POST" action="{{ route('admin.quote.email', $quote) }}">
                                             @csrf
-                                            <x-ui.row-action label="Email Quote PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
+                                            <x-ui.row-action label="Email PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
                                         </form>
                                         @if($quoteInvoiceCount === 1)
-                                            <x-ui.row-action label="Open linked invoice {{ $firstLinkedInvoice->invoice_number }}" icon="fa-solid fa-file-invoice" tone="neutral" href="{{ route('admin.invoice.edit', $firstLinkedInvoice) }}" />
+                                            <x-ui.row-action label="Open invoice {{ $firstLinkedInvoice->invoice_number }}" icon="fa-solid fa-file-invoice" tone="neutral" href="{{ route('admin.invoice.edit', $firstLinkedInvoice) }}" />
                                         @elseif($quoteInvoiceCount > 1)
                                             <div class="relative" x-data="{ open: false }">
-                                                <x-ui.row-action label="View linked invoices" icon="fa-solid fa-file-invoice" tone="neutral" type="button" x-on:click.prevent="open = true" />
+                                                <x-ui.row-action label="View invoices" icon="fa-solid fa-file-invoice" tone="neutral" type="button" x-on:click.prevent="open = true" />
                                                 <div
                                                     x-cloak
                                                     x-show="open"
@@ -247,7 +247,7 @@
                                         @endif
                                         <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
                                             @csrf
-                                            <x-ui.row-action label="Create Invoice From Quote" icon="fa-solid fa-file-invoice-dollar" tone="neutral" type="submit" />
+                                            <x-ui.row-action label="Create invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" type="submit" />
                                         </form>
                                         <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')" />
                                     </x-ui.row-actions>

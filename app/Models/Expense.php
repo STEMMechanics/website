@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Storage;
 
 class Expense extends Model
@@ -47,6 +48,12 @@ class Expense extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return HasManyThrough<StockReceiptLine, StockReceipt, $this> */
+    public function stockReceiptLines(): HasManyThrough
+    {
+        return $this->hasManyThrough(StockReceiptLine::class, StockReceipt::class, 'expense_id', 'stock_receipt_id');
     }
 
     public function hasReceiptDocument(): bool

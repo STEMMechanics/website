@@ -131,6 +131,8 @@ class StoreCartService
         $contents = $this->contents();
         $rawLines = (array) ($contents['lines'] ?? []);
         $sharedRemaining = [];
+        $stockAllocated = [];
+        $stockInventory = app(StockInventoryService::class);
 
         if ($rawLines === []) {
             $this->resolvedLines = collect();
@@ -210,8 +212,11 @@ class StoreCartService
                 continue;
             }
 
-            $actualInventory = $product->availableInventory($variant);
-            if ($product->shared_inventory && $product->inventory_quantity !== null) {
+            $stockManaged = $stockInventory->isStockManaged($product, $variant);
+            $actualInventory = $stockManaged
+                ? $stockInventory->availableProductQuantity($product, $variant, $stockAllocated)
+                : $product->availableInventory($variant);
+            if (! $stockManaged && $product->shared_inventory && $product->inventory_quantity !== null) {
                 $sharedRemaining[$product->id] ??= max(0, (int) $product->inventory_quantity);
                 $actualInventory = intdiv($sharedRemaining[$product->id], $product->inventoryUnits($variant));
             }
@@ -240,6 +245,14 @@ class StoreCartService
             }
 
             $fulfilment = $this->resolveFulfilmentDetails($product, $variant, $quantity, $actualInventory);
+            if ($stockManaged && (int) $fulfilment['available_now_quantity'] > 0) {
+                $stockInventory->planProductStockUsage(
+                    $product,
+                    $variant,
+                    (int) $fulfilment['available_now_quantity'],
+                    $stockAllocated,
+                );
+            }
             if (isset($sharedRemaining[$product->id])) {
                 $sharedRemaining[$product->id] -= $fulfilment['available_now_quantity'] * $product->inventoryUnits($variant);
             }

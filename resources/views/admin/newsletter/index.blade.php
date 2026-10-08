@@ -10,7 +10,7 @@
         <x-slot:actions>
                     <form class="w-full" method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="SM.confirm('Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                         @csrf
-                        <x-ui.button color="mast" type="submit">Send All Now</x-ui.button>
+                        <x-ui.button color="mast" type="submit">Send all now</x-ui.button>
                     </form>
         </x-slot:actions>
     </x-mast>

@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Models\ServerBackupRun;
 use App\Services\DatabaseBackupService;
 use App\Services\FileBackupService;
+use App\Services\FileBackupImportService;
+use App\Services\FileBackupUploadService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,16 +27,29 @@ class RunServerBackup implements ShouldQueue
 
     public function __construct(public string $runId) {}
 
-    public function handle(DatabaseBackupService $databases, FileBackupService $files): void
+    public function handle(
+        DatabaseBackupService $databases,
+        FileBackupService $files,
+        FileBackupImportService $fileImports,
+        FileBackupUploadService $fileUploads
+    ): void
     {
+        $claimed = ServerBackupRun::query()
+            ->whereKey($this->runId)
+            ->where('status', ServerBackupRun::STATUS_QUEUED)
+            ->update([
+                'status' => ServerBackupRun::STATUS_RUNNING,
+                'progress' => 15,
+                'message' => 'Starting backup operation…',
+                'started_at' => now(),
+            ]);
+        if ($claimed !== 1) {
+            return;
+        }
+
         $run = ServerBackupRun::query()->findOrFail($this->runId);
         $request = is_array($run->result) ? $run->result : [];
-        $run->update([
-            'status' => ServerBackupRun::STATUS_RUNNING,
-            'progress' => 15,
-            'message' => $this->runningMessage($run->type),
-            'started_at' => now(),
-        ]);
+        $run->update(['message' => $this->runningMessage($run->type)]);
 
         if ($run->type === ServerBackupRun::TYPE_DATABASE) {
             $path = $databases->createBackup();
@@ -50,10 +65,42 @@ class RunServerBackup implements ShouldQueue
             $files->prepareInspectionManifest();
             $result = $request;
             $message = 'File backup is ready to view.';
+        } elseif ($run->type === ServerBackupRun::TYPE_FILE_IMPORT) {
+            $uploadId = (string) ($request['upload_id'] ?? '');
+            $upload = $fileUploads->sessionForImport($uploadId, (string) $run->requested_by);
+            $lastProgress = 14;
+            $summary = $fileImports->importArchive(
+                (string) $upload['archive_path'],
+                (string) ($upload['filename'] ?? $request['filename'] ?? 'file-backup.zip'),
+                function (int $progress, string $message) use ($run, &$lastProgress): void {
+                    $progress = max(15, min(100, $progress));
+                    if ($progress <= $lastProgress && $progress < 100) {
+                        return;
+                    }
+                    $run->update([
+                        'progress' => $progress,
+                        'message' => $message,
+                    ]);
+                    $lastProgress = $progress;
+                }
+            );
+            $result = [
+                'mode' => (string) $summary['mode'],
+                'filename' => (string) $summary['filename'],
+                'run_path' => (string) $summary['run_path'],
+                'uploaded_files' => (int) $summary['uploaded_files'],
+                'deleted_files' => (int) $summary['deleted_files'],
+                'size' => (int) $summary['size'],
+            ];
+            $message = 'File backup validated and ready to review.';
         } else {
             [$rootPath, $archiveName] = $this->archiveSource($run->type, $request, $files);
             $result = $this->createArchive($rootPath, $archiveName, (string) $run->id);
             $message = 'Download is ready: '.$result['archive_name'];
+        }
+
+        if ($run->type === ServerBackupRun::TYPE_FILE_IMPORT) {
+            $fileUploads->markImportCompleted((string) ($request['upload_id'] ?? ''));
         }
 
         $run->update([
@@ -71,6 +118,7 @@ class RunServerBackup implements ShouldQueue
             ServerBackupRun::TYPE_DATABASE => 'Creating database backup…',
             ServerBackupRun::TYPE_FILES => 'Creating full file backup…',
             ServerBackupRun::TYPE_INSPECTION => 'Indexing and comparing backup files…',
+            ServerBackupRun::TYPE_FILE_IMPORT => 'Validating uploaded file backup…',
             default => 'Preparing ZIP download…',
         };
     }
@@ -125,6 +173,11 @@ class RunServerBackup implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
+        $run = ServerBackupRun::query()->find($this->runId);
+        if ($run instanceof ServerBackupRun && $run->type === ServerBackupRun::TYPE_FILE_IMPORT) {
+            app(FileBackupUploadService::class)->cleanupUpload((string) ($run->result['upload_id'] ?? ''));
+        }
+
         ServerBackupRun::query()->whereKey($this->runId)->update([
             'status' => ServerBackupRun::STATUS_FAILED,
             'progress' => 100,

@@ -186,7 +186,7 @@
 <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                             <x-ui.button color="mast" type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
-                            <x-ui.button color="mast" type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email Invoice</x-ui.button>
+                            <x-ui.button color="mast" type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email invoice</x-ui.button>
                             @if($invoiceCanAcceptPayment)
                                 <x-ui.button
                                     type="button"
@@ -214,7 +214,7 @@
                                     "
                                     class="w-full sm:w-auto"
                                 >Copy Payment Link</x-ui.button>
-                                <x-ui.button color="mast" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record Payment</x-ui.button>
+                                <x-ui.button color="mast" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record payment</x-ui.button>
                             @endif
                             @endif
                         </div>
@@ -354,7 +354,7 @@
                 isLocked: @js($isLocked),
                 invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
                 issueNow: @js((bool) old('issue_now', false)),
-                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->scheduled_email : false)),
+                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->isScheduledDraft() : false)),
                 scheduledSendModalOpen: false,
                 scheduledSendNow: true,
                 scheduledSendSubmitter: null,
@@ -691,7 +691,9 @@
                 if (!$el.dataset.scheduledSendConfirmed) {
                     $refs.sendScheduledNow.value = '0';
                 }
-                if (scheduledEmail
+                if (!isLocked
+                    && invoiceStatus === @js(\App\Models\Invoice::STATUS_DRAFT)
+                    && scheduledEmail
                     && (issueDate < @js(today()->toDateString()) || (issueDate === @js(today()->toDateString()) && @js(now()->format('H:i') >= '08:00')))
                     && !$el.dataset.scheduledSendConfirmed
                 ) {

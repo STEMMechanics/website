@@ -10,6 +10,36 @@
             ? route('admin.expense.document.view', $expense)
             : null;
         $documentName = isset($expense) ? (string) ($expense->receipt_document_name ?? '') : '';
+        $stockItemOptions = collect($stockItems ?? []);
+        $stockItemOptionsById = $stockItemOptions->keyBy('id');
+        $stockRowsForEditor = old('stock_items', $stockItemRows ?? []);
+        $stockRowsForEditor = is_array($stockRowsForEditor) ? $stockRowsForEditor : [];
+        $stockRowsForEditor = collect($stockRowsForEditor)
+            ->filter(fn ($row): bool => is_array($row))
+            ->map(function (array $row) use ($stockItemOptionsById): array {
+                $stockItemId = (int) ($row['stock_item_id'] ?? 0);
+                $stockItem = $stockItemOptionsById->get($stockItemId);
+
+                return [
+                    'stock_receipt_line_id' => $row['stock_receipt_line_id'] ?? '',
+                    'stock_item_id' => $row['stock_item_id'] ?? '',
+                    'item_name' => $row['item_name'] ?? $stockItem?->linkLabel() ?? '',
+                    'quantity' => $row['quantity'] ?? '',
+                    'total_cost_ex_tax' => $row['total_cost_ex_tax'] ?? '',
+                ];
+            })
+            ->values()
+            ->all();
+        $stockItemCatalog = $stockItemOptions
+            ->map(fn ($stockItem): array => [
+                'id' => (int) $stockItem->id,
+                'name' => (string) $stockItem->linkLabel(),
+                'sku' => (string) ($stockItem->sku ?? ''),
+                'unit' => (string) $stockItem->unit,
+                'status' => (string) $stockItem->status,
+                'is_kit' => (bool) $stockItem->is_kit,
+            ])
+            ->all();
     @endphp
 
     <x-container class="mt-4">
@@ -26,30 +56,32 @@
                 info="Start typing to choose an existing supplier or enter a new one."
             />
             <x-ui.input label="Description" name="description" id="expense-description" value="{{ $expense->description ?? '' }}" required />
-            <x-ui.input
-                label="Invoice / Receipt ID"
-                name="invoice_id"
-                value="{{ $expense->invoice_id ?? '' }}"
-                required
-                info="Supplier invoice or receipt reference used in BAS exports and document naming."
-            />
-            <div data-validation-field="paid_on" class="mb-4">
-                <label for="expense-paid-on" class="flex text-sm pl-1 items-center">Expense Date</label>
-                <input
-                    id="expense-paid-on"
-                    name="paid_on"
-                    type="date"
-                    value="{{ old('paid_on', $defaultPaidOn) }}"
-                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-auto focus:outline-none focus:ring-0 focus:border-blue-600 {{ $errors->has('paid_on') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                    @if($errors->has('paid_on')) aria-invalid="true" aria-describedby="expense-paid-on-error" @endif
-                    @if(!isset($expense))
-                        data-ai-replace-default
-                        data-ai-default-value="{{ $defaultPaidOn }}"
-                    @endif
+            <div class="grid gap-x-6 sm:grid-cols-2">
+                <x-ui.input
+                    label="Invoice / Receipt ID"
+                    name="invoice_id"
+                    value="{{ $expense->invoice_id ?? '' }}"
+                    required
+                    info="Supplier invoice or receipt reference used in BAS exports and document naming."
                 />
-                @if($errors->has('paid_on'))
-                    <p data-validation-error id="expense-paid-on-error" role="alert" class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('paid_on') }}</p>
-                @endif
+                <div data-validation-field="paid_on" class="mb-4">
+                    <label for="expense-paid-on" class="flex text-sm pl-1 items-center">Expense Date</label>
+                    <input
+                        id="expense-paid-on"
+                        name="paid_on"
+                        type="date"
+                        value="{{ old('paid_on', $defaultPaidOn) }}"
+                        class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-auto focus:outline-none focus:ring-0 focus:border-blue-600 {{ $errors->has('paid_on') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                        @if($errors->has('paid_on')) aria-invalid="true" aria-describedby="expense-paid-on-error" @endif
+                        @if(!isset($expense))
+                            data-ai-replace-default
+                            data-ai-default-value="{{ $defaultPaidOn }}"
+                        @endif
+                    />
+                    @if($errors->has('paid_on'))
+                        <p data-validation-error id="expense-paid-on-error" role="alert" class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('paid_on') }}</p>
+                    @endif
+                </div>
             </div>
 
             <div class="grid gap-x-6 sm:grid-cols-2">
@@ -101,6 +133,7 @@
                 data-ai-file="#expense-receipt-file"
                 data-ai-fill-scope="#expense-form"
                 data-ai-fill-fields="supplier,description,invoice_id,paid_on,total_amount,gst_amount"
+                data-ai-stock-items="true"
                 aria-hidden="true"
             >
                 <div data-ai-status class="overflow-hidden rounded-xl border border-sky-200 bg-white text-sm font-medium shadow-lg" role="status" aria-live="polite">
@@ -188,6 +221,126 @@
                 <div id="expense-receipt-preview-note" class="mt-2 hidden text-xs text-gray-500" aria-live="polite"></div>
                 </div>
             </details>
+
+            <section
+                id="expense-stock-items"
+                class="mb-6 rounded-xl border border-slate-200 bg-white p-4"
+                data-expense-stock-items
+                x-data="SM.expenseStockItems(@js($stockItemCatalog), @js($stockRowsForEditor), @js(route('admin.shop.stock.quick-store')))"
+                x-init="expanded = rows.length > 0 || @js($errors->has('stock_items'))"
+                x-on:sm-expense-stock-items-ai="event.detail.appliedCount = applyAiItems(event.detail.items); if (event.detail.appliedCount > 0) expanded = true"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" x-on:click="expanded = !expanded" x-bind:aria-expanded="expanded" aria-controls="expense-stock-items-content">
+                        <i class="fa-solid fa-chevron-right shrink-0 text-sm text-slate-500 transition-transform" x-bind:class="expanded ? 'rotate-90' : ''" aria-hidden="true"></i>
+                        <span class="font-semibold text-slate-900">Stock items on this expense <span class="text-sm font-normal text-slate-500">(optional)</span></span>
+                        <span x-show="rows.length > 0" x-cloak class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            <span x-text="rows.length"></span> <span x-text="rows.length === 1 ? 'item' : 'items'"></span>
+                        </span>
+                    </button>
+                    <div class="flex shrink-0 flex-wrap items-center gap-2">
+                        <x-ui.button type="button" color="primary-outline" size="compact" aria-haspopup="dialog" aria-controls="expense-stock-item-create-dialog" x-on:click="openCreateItemDialog()">
+                            <i class="fa-solid fa-box-open mr-2" aria-hidden="true"></i>Create stock item
+                        </x-ui.button>
+                        <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="expanded = true; addRow()">
+                            <i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Add row
+                        </x-ui.button>
+                    </div>
+                </div>
+
+                <div id="expense-stock-items-content" x-show="expanded" x-cloak class="mt-4 border-t border-slate-200 pt-4">
+                    <input type="hidden" name="stock_items_changed" x-bind:value="changed ? '1' : '0'">
+
+                    <div data-validation-field="stock_items" class="mt-3">
+                        @if($errors->has('stock_items'))
+                            <p data-validation-error id="expense-stock-items-error" role="alert" class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{{ $errors->first('stock_items') }}</p>
+                        @else
+                            <p data-validation-error id="expense-stock-items-error" role="alert" class="mb-2 text-sm text-red-600" hidden></p>
+                        @endif
+                        @foreach($errors->getMessages() as $stockErrorField => $stockErrorMessages)
+                            @if(\Illuminate\Support\Str::startsWith($stockErrorField, 'stock_items.') && $stockErrorMessages !== [])
+                                <p role="alert" class="mb-2 text-sm text-red-600">{{ implode(' ', $stockErrorMessages) }}</p>
+                            @endif
+                        @endforeach
+                    </div>
+
+                    <p x-cloak x-show="rows.length === 0" class="mt-4 rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">No stock items added to this expense.</p>
+                    <div x-show="rows.length > 0" x-cloak class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="w-full min-w-[48rem] border-collapse text-sm">
+                            <caption class="sr-only">Stock items purchased on this expense</caption>
+                            <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2.5">Stock item</th>
+                                    <th scope="col" class="w-36 px-3 py-2.5">Quantity</th>
+                                    <th scope="col" class="w-56 px-3 py-2.5">Line total (AUD, ex GST)</th>
+                                    <th scope="col" class="w-14 px-2 py-2.5"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 bg-white">
+                                <template x-for="(row, index) in rows" :key="row.key">
+                                    <tr class="align-top" x-on:input="markChanged(row)" x-on:stock-item-link-changed="markChanged(row)">
+                                        <td class="px-3 py-2.5" x-bind:data-validation-field="'stock_items.' + index + '.stock_item_id'">
+                                            <input type="hidden" x-bind:name="'stock_items[' + index + '][stock_receipt_line_id]'" x-model="row.stock_receipt_line_id">
+                                            <x-admin.stock-item-link-field model="row" stock-items-expression="catalog" placeholder="Find a stock item" ariaLabel="Stock item" noMatchesText="No matching active items. Use Create stock item above." />
+                                            <input type="hidden" x-bind:name="'stock_items[' + index + '][stock_item_id]'" x-model="row.stock_item_id">
+                                            <p x-bind:id="'expense-stock-item-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
+                                            <p x-show="row.stock_receipt_line_id && !row.aiSuggested" class="mt-1 text-xs text-slate-500">Saved receipt</p>
+                                            <p x-show="row.aiSuggested" class="mt-1 text-xs font-medium text-sky-700">AI suggestion · review</p>
+                                            <p x-show="row.aiSuggested && row.evidence?.text" class="mt-1 text-xs text-slate-600">
+                                                Receipt evidence: “<span x-text="row.evidence?.text"></span>”<span x-show="row.evidence?.page" x-text="' · page ' + row.evidence.page"></span>
+                                            </p>
+                                        </td>
+                                        <td class="px-3 py-2.5" x-bind:data-validation-field="'stock_items.' + index + '.quantity'">
+                                            <label class="sr-only" x-bind:for="'expense-stock-quantity-' + index">Quantity <span x-text="unitFor(row.stock_item_id)"></span></label>
+                                            <x-ui.input-control class="h-11" type="number" min="0.001" step="0.001" x-bind:id="'expense-stock-quantity-' + index" x-bind:name="'stock_items[' + index + '][quantity]'" x-model="row.quantity" required />
+                                            <p x-show="unitFor(row.stock_item_id)" class="mt-1 pl-1 text-xs text-slate-500" x-text="unitFor(row.stock_item_id)"></p>
+                                            <p x-bind:id="'expense-stock-quantity-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
+                                        </td>
+                                        <td class="px-3 py-2.5" x-bind:data-validation-field="'stock_items.' + index + '.total_cost_ex_tax'">
+                                            <label class="sr-only" x-bind:for="'expense-stock-total-' + index">Line total (AUD, ex GST)</label>
+                                            <x-ui.input-control class="h-11" type="number" min="0" step="0.01" x-bind:id="'expense-stock-total-' + index" x-bind:name="'stock_items[' + index + '][total_cost_ex_tax]'" x-model="row.total_cost_ex_tax" x-on:blur="formatTotal(row, $el)" required />
+                                            <p x-bind:id="'expense-stock-total-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
+                                        </td>
+                                        <td class="px-2 py-2.5 text-right">
+                                            <x-ui.button type="button" variant="plain" color="danger" class="h-10 w-10 p-0! text-red-600" x-bind:aria-label="'Remove ' + (row.item_name || 'stock item')" title="Remove stock item" x-on:click="removeRow(row.key)">
+                                                <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                                            </x-ui.button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <x-ui.list-dialog id="expense-stock-item-create-dialog" title="Create stock item" kind="edit" centered>
+                    <div class="space-y-4 px-5 py-4" x-on:keydown.enter.prevent="createStockItem()">
+                        <p class="text-sm text-slate-600">Create an item and add it to this expense. The quantity and line total below will become its receipt when you save the expense.</p>
+                        <div>
+                            <label for="expense-stock-item-create-name" class="mb-1 block pl-1 text-sm">Name</label>
+                            <x-ui.input-control id="expense-stock-item-create-name" x-model="quickCreateName" x-on:blur="generateQuickCreateSkuFromName()" maxlength="255" required />
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="expense-stock-item-create-unit" class="mb-1 block pl-1 text-sm">Unit</label>
+                                <x-ui.input-control id="expense-stock-item-create-unit" x-model="quickCreateUnit" maxlength="32" required />
+                            </div>
+                            <div>
+                                <label for="expense-stock-item-create-sku" class="mb-1 block pl-1 text-sm">SKU <span class="text-slate-500">(optional)</span></label>
+                                <x-ui.input-control id="expense-stock-item-create-sku" x-model="quickCreateSku" x-on:input="handleQuickCreateSkuInput()" maxlength="120" />
+                            </div>
+                        </div>
+                        <p x-cloak x-show="quickCreateError" class="text-sm text-red-700" role="alert" x-text="quickCreateError"></p>
+                    </div>
+                    <div class="sm-dialog-footer">
+                        <x-ui.button type="button" color="outline" data-close-dialog x-bind:disabled="quickCreateSaving">Cancel</x-ui.button>
+                        <x-ui.button type="button" x-bind:disabled="quickCreateSaving" x-on:click="createStockItem()">
+                            <span x-show="!quickCreateSaving">Create and add item</span>
+                            <span x-cloak x-show="quickCreateSaving"><i class="fa-solid fa-circle-notch mr-2 animate-spin" aria-hidden="true"></i>Creating…</span>
+                        </x-ui.button>
+                    </div>
+                </x-ui.list-dialog>
+            </section>
 
             <x-finance.expense-allocation :expense="$expense ?? null" />
 

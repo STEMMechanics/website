@@ -56,6 +56,30 @@
     ])->values()->all();
     $satchelOptions = \App\Models\Product::satchelOptions();
     $defaultSatchelRank = (int) ($satchelOptions->first()['rank'] ?? 1);
+    $stockItemOptions = collect($stockItems ?? [])->map(fn ($stockItem) => [
+        'id' => (int) $stockItem->id,
+        'name' => (string) $stockItem->linkLabel(),
+        'sku' => (string) ($stockItem->sku ?? ''),
+        'unit' => (string) ($stockItem->unit ?? 'unit'),
+        'is_kit' => (bool) $stockItem->is_kit,
+        'group_name' => (string) ($stockItem->group?->name ?? ''),
+        'variant_name' => (string) ($stockItem->variant_name ?? ''),
+        'replacement_unit_cost_ex_tax' => $stockItem->replacementCost() !== null ? (float) $stockItem->replacementCost() : null,
+    ])->values()->all();
+    $baseStockItemId = old('stock_item_id');
+    if ($baseStockItemId === null) {
+        $baseStockItemId = isset($product) ? (string) ($product->stock_item_id ?? '') : '';
+        if ($baseStockItemId === '' && isset($product)) {
+            $legacyVariantStockItemIds = $product->variants
+                ->pluck('stock_item_id')
+                ->filter()
+                ->unique()
+                ->values();
+            if ($legacyVariantStockItemIds->count() === 1) {
+                $baseStockItemId = (string) $legacyVariantStockItemIds->first();
+            }
+        }
+    }
     $productBackorderEstimateType = old('backorder_shipping_estimate_type', isset($product)
         ? ($product->backorder_shipping_estimate_type ?? ($product->backorder_shipping_offset_days !== null ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC))
         : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC);
@@ -78,6 +102,7 @@
                     'price' => $variant->price !== null ? number_format((float) $variant->price, 2, '.', '') : '',
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
+                    'stock_quantity_per_sale' => $variant->stock_quantity_per_sale,
                     'inventory_units' => $variant->inventory_units ?? 1,
                     'weight_grams' => $variant->weight_grams,
                     'length_mm' => $variant->length_mm,
@@ -156,6 +181,8 @@
                 title: @js(old('title', $product->title ?? '')),
                 slug: @js(old('slug', $product->slug ?? '')),
                 baseSku: @js(old('sku', $product->sku ?? '')),
+                baseStockItem: { stock_item_id: @js((string) $baseStockItemId), item_name: '' },
+                baseStockUnitsPerSale: @js(old('stock_quantity_per_sale', $product->stock_quantity_per_sale ?? '1')),
                 baseSkuTouched: @js(trim((string) old('sku', $product->sku ?? '')) !== ''),
                 slugTouched: @js(trim((string) old('slug', $product->slug ?? '')) !== ''),
                 allowBackorder: @js($productAllowsBackorder),
@@ -166,6 +193,7 @@
                 basePackedHeight: @js(old('height_mm', $product->height_mm ?? '')),
                 basePackedWeight: @js(old('weight_grams', $product->weight_grams ?? '')),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
+                productTaxRate: @js((float) ($product->tax_rate ?? 0.1)),
                 baseCompareAtPrice: @js(old('compare_at_price', isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : '')),
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
@@ -173,9 +201,81 @@
                 productBackorderEstimateType: @js($productBackorderEstimateType),
                 productBackorderOffsetDays: @js((string) $productBackorderOffsetDays),
                 variants: @js($variantRows),
+                stockItems: @js($stockItemOptions),
                 productDetails: @js($productDetailRows),
                 variantInputClasses: 'disabled:bg-gray-100 bg-white block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
                 variantTextareaClasses: 'disabled:bg-gray-100 bg-white block min-h-28 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
+                formatAud(value) {
+                    const amount = Number(value);
+                    if (!Number.isFinite(amount)) return '—';
+
+                    return new Intl.NumberFormat('en-AU', {
+                        style: 'currency',
+                        currency: 'AUD',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    }).format(amount);
+                },
+                stockItemOption(stockItemId) {
+                    return this.stockItems.find((item) => String(item.id) === String(stockItemId ?? '')) || null;
+                },
+                stockItemUnitCost(stockItemId) {
+                    const value = this.stockItemOption(stockItemId)?.replacement_unit_cost_ex_tax;
+                    if (value === null || value === undefined || value === '') return null;
+                    const cost = Number(value);
+
+                    return Number.isFinite(cost) && cost >= 0 ? cost : null;
+                },
+                baseStockCostExTax(quantityOverride = null) {
+                    if (this.baseStockItem.stock_item_id) {
+                        const unitCost = this.stockItemUnitCost(this.baseStockItem.stock_item_id);
+                        const quantityValue = quantityOverride ?? this.baseStockUnitsPerSale;
+                        const quantity = Number.parseFloat(String(quantityValue ?? ''));
+                        if (unitCost === null) return null;
+
+                        return Math.round(unitCost * (Number.isFinite(quantity) && quantity > 0 ? quantity : 1) * 10000) / 10000;
+                    }
+
+                    return null;
+                },
+                hasStockCostSetup() {
+                    return Boolean(this.baseStockItem.stock_item_id);
+                },
+                variantStockCostExTax(variant) {
+                    if (this.baseStockItem.stock_item_id) {
+                        const override = String(variant?.stock_quantity_per_sale ?? '').trim();
+                        return this.baseStockCostExTax(override !== '' ? override : this.baseStockUnitsPerSale);
+                    }
+
+                    return this.baseStockCostExTax();
+                },
+                salePriceExTax(priceIncTax) {
+                    const price = Number.parseFloat(String(priceIncTax ?? ''));
+                    if (!Number.isFinite(price)) return null;
+                    const taxRate = Number(this.productTaxRate);
+
+                    return price / (1 + (Number.isFinite(taxRate) && taxRate >= 0 ? taxRate : 0));
+                },
+                variantSalePrice(variant) {
+                    const variantPrice = String(variant?.price ?? '').trim();
+                    const price = Number.parseFloat(variantPrice !== '' ? variantPrice : String(this.basePrice ?? ''));
+
+                    return Number.isFinite(price) ? price : null;
+                },
+                stockMarginAmountLabel(priceIncTax, stockCostExTax) {
+                    const saleExTax = this.salePriceExTax(priceIncTax);
+                    if (saleExTax === null || stockCostExTax === null) return 'Unavailable';
+                    if (saleExTax <= 0) return 'Set a sale price';
+
+                    return this.formatAud(saleExTax - stockCostExTax);
+                },
+                stockMarginPercentLabel(priceIncTax, stockCostExTax) {
+                    const saleExTax = this.salePriceExTax(priceIncTax);
+                    if (saleExTax === null || stockCostExTax === null || saleExTax <= 0) return '';
+                    const percentage = ((saleExTax - stockCostExTax) / saleExTax) * 100;
+
+                    return `(${percentage.toFixed(2)}%)`;
+                },
                 defaultBaseOptionLabel() {
                     return this.productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Home' : 'Base';
                 },
@@ -332,6 +432,7 @@
                         price: '',
                         compare_at_price: '',
                         inventory_quantity: '',
+                        stock_quantity_per_sale: '',
                         inventory_units: 1,
                         weight_grams: '',
                         length_mm: '',
@@ -711,7 +812,7 @@
                             <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-specifications" data-ai-kind="specifications" data-ai-result-key="product_details" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Drafting product specifications…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(productAiContext())" :disabled="blank(config('services.openai.api_key'))" aria-label="Create or update specifications with AI" title="Create or update supported specifications with AI">
                                 <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
                             </x-ui.button>
-                            <x-ui.button type="button" color="outline" x-on:click="addProductDetail()">Add Detail</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addProductDetail()">Add Detail</x-ui.button>
                         </div>
                     </div>
 
@@ -758,10 +859,42 @@
                     <x-ui.input name="price" label="Base Price" labelInfo="(inc GST)" moneyFormat="true" :value="isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00'" x-model="basePrice" class="mb-0" />
                     <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(inc GST, optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" class="mb-0" />
                     <div class="md:col-span-2" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
-                        <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" />
-                        <p class="mb-3 text-xs text-gray-500" x-show="sharedInventory" x-cloak>Enter the total number of individual units below. Set the units in each pack in the Variants panel below.</p>
+                        <div x-show="!baseStockItem.stock_item_id" x-cloak>
+                            <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" />
+                            <p class="mb-3 text-xs text-gray-500" x-show="sharedInventory" x-cloak>Enter the total number of individual units below. Set the units in each pack in the Variants panel below.</p>
+                        </div>
                         <div class="grid items-start gap-4 md:grid-cols-2">
-                            <x-ui.input name="inventory_quantity" label="Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" info="Leave blank for unlimited." class="mb-0" />
+                            <div>
+                                <input type="hidden" name="stock_item_id" x-bind:value="baseStockItem.stock_item_id">
+                                <x-admin.stock-item-link-field model="baseStockItem" stock-items-expression="stockItems" label="Linked stock item" placeholder="Search name or SKU" aria-label="Linked stock item" no-matches-text="No matching active stock items." />
+                                <p class="mt-1 text-xs text-gray-500">Link a part or kit. Variants share this item; set their quantities below.</p>
+                                @error('stock_item_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                            <div x-show="!baseStockItem.stock_item_id" x-cloak>
+                                <x-ui.input name="inventory_quantity" label="Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" x-bind:disabled="Boolean(baseStockItem.stock_item_id)" info="Manual product inventory. Leave blank for unlimited." class="mb-0" />
+                            </div>
+                            <div x-show="baseStockItem.stock_item_id" x-cloak class="space-y-4">
+                                <x-ui.input name="stock_quantity_per_sale" label="Stock units per base unit" type="number" min="0.001" step="0.001" :value="old('stock_quantity_per_sale', $product->stock_quantity_per_sale ?? '1')" x-model="baseStockUnitsPerSale" x-bind:disabled="!baseStockItem.stock_item_id" info="Stock units used in the base variant." class="mb-0" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}' && hasStockCostSetup()" x-cloak>
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Estimated cost (ex GST)</p>
+                                <p class="mt-1 text-lg font-semibold text-slate-900" x-text="baseStockCostExTax() === null ? 'Cost not available' : formatAud(baseStockCostExTax())"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Sale price (ex GST)</p>
+                                <p class="mt-1 text-lg font-semibold text-slate-900" x-text="salePriceExTax(basePrice) === null ? 'Not set' : formatAud(salePriceExTax(basePrice))"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Margin after stock cost (ex GST)</p>
+                                <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                    <span class="text-lg font-semibold text-slate-900" x-text="stockMarginAmountLabel(basePrice, baseStockCostExTax())"></span>
+                                    <span class="text-sm font-normal text-slate-700" x-text="stockMarginPercentLabel(basePrice, baseStockCostExTax())"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                         <div class="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
@@ -854,7 +987,7 @@
                         <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak class="text-sm text-gray-600">Use variants for pack sizes, colours, or other options. Leave price, weight, or dimensions blank to inherit the base product values.</p>
                         <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Add only the extra tiers you want to offer.</p>
                     </div>
-                    <x-ui.button type="button" color="outline" x-on:click="addVariant()" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add Custom Tier' : 'Add Variant'">Add Variant</x-ui.button>
+                    <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addVariant()" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add Custom Tier' : 'Add Variant'">Add Variant</x-ui.button>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4" x-show="variants.length > 0 || (sharedInventory && productType === 'physical')" x-cloak>
@@ -978,12 +1111,35 @@
                                 <div x-show="sharedInventory" x-cloak data-variant-pack-units>
                                     <x-ui.input label="Units in this pack" type="number" min="1" x-bind:name="`variants[${index}][inventory_units]`" x-model="variant.inventory_units" info="Deducted from the shared stock for each pack sold." class="mb-0" />
                                 </div>
-                                <div x-show="!sharedInventory" x-cloak>
-                                    <x-ui.input label="Inventory Quantity" type="number" min="0" class="mb-0" x-bind:name="`variants[${index}][inventory_quantity]`" x-model="variant.inventory_quantity" info="Leave blank for unlimited stock. Enter 0 when this variant is sold out." />
+                                <div x-show="!sharedInventory && !baseStockItem.stock_item_id" x-cloak>
+                                    <x-ui.input label="Inventory Quantity" type="number" min="0" class="mb-0" x-bind:name="`variants[${index}][inventory_quantity]`" x-model="variant.inventory_quantity" x-bind:disabled="Boolean(baseStockItem.stock_item_id)" info="Manual variant inventory. Leave blank for unlimited stock. Enter 0 when this variant is sold out." />
                                 </div>
-                                <div x-show="!sharedInventory" x-cloak>
+                                <div x-show="baseStockItem.stock_item_id" x-cloak>
+                                    <x-ui.input label="Stock units per variant sale" type="number" min="0.001" step="0.001" class="mb-0" x-bind:name="`variants[${index}][stock_quantity_per_sale]`" x-model="variant.stock_quantity_per_sale" x-bind:disabled="!baseStockItem.stock_item_id" info="Uses the same stock item as the product. Leave blank to use the base amount." />
+                                </div>
+                                <div x-show="!sharedInventory && !baseStockItem.stock_item_id" x-cloak>
                                     <x-ui.input label="Low-stock alert threshold" type="number" min="1" class="mb-0" x-bind:name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" placeholder="Inherit base threshold" info="Leave blank to use the base product threshold." />
                                 </div>
+                            </div>
+                            <div class="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}' && hasStockCostSetup()" x-cloak>
+                                <div class="grid gap-3 sm:grid-cols-3">
+                                    <div>
+                                        <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Estimated cost (ex GST)</p>
+                                        <p class="mt-1 font-semibold text-slate-900" x-text="variantStockCostExTax(variant) === null ? 'Cost not available' : formatAud(variantStockCostExTax(variant))"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Sale price (ex GST)</p>
+                                        <p class="mt-1 font-semibold text-slate-900" x-text="variantSalePrice(variant) === null ? 'Not set' : formatAud(salePriceExTax(variantSalePrice(variant)))"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-medium uppercase tracking-wide text-sky-800">Margin after stock cost (ex GST)</p>
+                                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                            <span class="font-semibold text-slate-900" x-text="stockMarginAmountLabel(variantSalePrice(variant), variantStockCostExTax(variant))"></span>
+                                            <span class="text-sm font-normal text-slate-700" x-text="stockMarginPercentLabel(variantSalePrice(variant), variantStockCostExTax(variant))"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="mt-2 text-xs text-sky-900">Uses this variant’s stock quantity and sale price. Excludes labour, fees, packaging and other costs.</p>
                             </div>
 
                             <div class="rounded-2xl border border-gray-200 bg-white p-4" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
@@ -1072,7 +1228,7 @@
                 <x-slot:summary>{{ filled($product->private_notes ?? null) ? 'Private notes added' : 'No private notes' }} · Low-stock alerts</x-slot:summary>
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p class="text-sm text-gray-600">Private notes stay in admin only. Low-stock alerts help surface products that need ordering attention.</p>
+                        <p class="text-sm text-gray-600">Private notes stay in admin only. Low-stock alerts apply to manually managed product stock; linked stock items use their own reorder alert.</p>
                     </div>
                 </div>
 
@@ -1084,14 +1240,14 @@
                             :value="$product->private_notes ?? ''"
                     />
 
-                    <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
+                    <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}' && !baseStockItem.stock_item_id" x-cloak>
                         <x-ui.input
                                 name="low_stock_threshold"
                                 label="Low-stock alert threshold"
                                 type="number"
                                 min="1"
                                 :value="old('low_stock_threshold', $product->low_stock_threshold ?? 5)"
-                                info="Leave blank to disable low-stock warning emails for this product."
+                                info="For manually managed product stock. Leave blank to disable low-stock warning emails."
                         />
                         @if(isset($product) && $product->low_stock_alert_sent_at)
                             <div class="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950">
@@ -1100,6 +1256,7 @@
                             </div>
                         @endif
                     </div>
+                    <p class="text-sm text-slate-600" x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}' && baseStockItem.stock_item_id" x-cloak>Set reorder alerts on the linked stock item.</p>
                 </div>
             </x-ui.collapsible-section>
 

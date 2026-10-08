@@ -1,14 +1,10 @@
 <x-layout>
     <x-mast>Invoices
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.invoice.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.invoice.create') }}">Create invoice</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="mt-4">
         <x-ui.dynamic-list name="admin-invoice-index">
-        <x-slot:beforePresets>
-            <x-finance.attention-notice kind="invoices" />
-        </x-slot:beforePresets>
-
         <div
             x-data="{
             invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
@@ -124,17 +120,17 @@
                         </x-ui.grid>
 
                         <x-ui.row-actions class="mt-4">
-                            <x-ui.row-action label="Edit invoice" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.invoice.edit', $invoice) }}" />
+                            <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.invoice.edit', $invoice) }}" />
                             @include('admin.invoice.workshop-actions')
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                                 <x-ui.row-action label="Download PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.invoice.pdf', $invoice) }}" />
-                                <x-ui.row-action label="Email Invoice PDF" icon="fa-regular fa-envelope" tone="neutral"
+                                <x-ui.row-action label="Email PDF" icon="fa-regular fa-envelope" tone="neutral"
                                     type="button"
                                     x-data
                                     x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailPayload) }})"
                                  />
                                 @if($canAcceptPayment)
-                                    <x-ui.row-action label="Copy Payment Link" icon="fa-solid fa-link" tone="neutral"
+                                    <x-ui.row-action label="Copy payment link" icon="fa-solid fa-link" tone="neutral"
                                         x-data
                                         x-on:click.prevent="
                                             fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
@@ -160,7 +156,7 @@
                                 @endif
                             @endif
                             @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
-                                <x-ui.row-action label="Delete Draft" icon="fa-solid fa-trash" tone="danger"
+                                <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                     type="button"
                                     x-data
                                     x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
@@ -170,10 +166,10 @@
                                     @php
                                         $invoiceCancelWarning = 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
                                     @endphp
-                                    <x-ui.row-action label="Cancel Invoice" icon="fa-solid fa-ban" tone="warning"
+                                    <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                         type="button"
                                         x-data
-                                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
+                                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                      />
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}">
@@ -183,7 +179,7 @@
                             @endif
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                                 @if($canWriteOffInvoice)
-                                    <x-ui.row-action label="Write Off Invoice" icon="fa-solid fa-file-circle-minus" tone="neutral"
+                                    <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                         type="button"
                                         x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                      />
@@ -211,11 +207,11 @@
                                 <div class="text-sm font-semibold text-gray-950">${{ number_format((float) $adjustment->total_amount, 2) }}</div>
                             </div>
                             <x-ui.row-actions class="mt-4">
-                                <x-ui.row-action label="Open Tax Adjustment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
+                                <x-ui.row-action label="Open tax adjustment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
                                 <x-ui.row-action label="Download PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.tax_adjustment.pdf', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
                                 <form method="POST" action="{{ route('admin.tax_adjustment.email', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}">
                                     @csrf
-                                    <x-ui.row-action label="Email Tax Adjustment PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
+                                    <x-ui.row-action label="Email tax adjustment PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
                                 </form>
                             </x-ui.row-actions>
                         </article>
@@ -298,13 +294,13 @@
                                             @php
                                                 $invoiceEmailPayload = $invoiceEmailDefaults[(string) $invoice->id] ?? [];
                                             @endphp
-                                            <x-ui.row-action label="Email Invoice PDF" icon="fa-regular fa-envelope" tone="neutral"
+                                            <x-ui.row-action label="Email PDF" icon="fa-regular fa-envelope" tone="neutral"
                                                 type="button"
                                                 x-data
                                                 x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailPayload) }})"
                                              />
                                             @if($canAcceptPayment)
-                                                <x-ui.row-action label="Copy Payment Link" icon="fa-solid fa-link" tone="neutral"
+                                                <x-ui.row-action label="Copy payment link" icon="fa-solid fa-link" tone="neutral"
                                                     x-data
                                                     x-on:click.prevent="
                                                     fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
@@ -329,7 +325,7 @@
                                             @endif
                                         @endif
                                         @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
-                                            <x-ui.row-action label="Delete Draft" icon="fa-solid fa-trash" tone="danger"
+                                            <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                                 type="button"
                                                 x-data
                                                 x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
@@ -339,10 +335,10 @@
                                                 @php
                                                     $invoiceCancelWarning = 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
                                                 @endphp
-                                                <x-ui.row-action label="Cancel Invoice" icon="fa-solid fa-ban" tone="warning"
+                                                <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                                     type="button"
                                                     x-data
-                                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
+                                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                                  />
                                             @else
                                                 <x-ui.row-action label="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}" icon="fa-solid fa-ban" tone="warning"
@@ -353,7 +349,7 @@
                                         @endif
                                         @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                                             @if($canWriteOffInvoice)
-                                                <x-ui.row-action label="Write Off Invoice" icon="fa-solid fa-file-circle-minus" tone="neutral"
+                                                <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                                     type="button"
                                                     x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                                  />
@@ -382,11 +378,11 @@
                                     <td class="text-center!">${{ number_format((float) $adjustment->total_amount, 2) }}</td>
                                     <td class="text-center!">
                                         <x-ui.row-actions class="whitespace-nowrap text-sm">
-                                            <x-ui.row-action label="Open Tax Adjustment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
+                                            <x-ui.row-action label="Open tax adjustment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
                                             <x-ui.row-action label="Download PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.tax_adjustment.pdf', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" />
                                             <form method="POST" action="{{ route('admin.tax_adjustment.email', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}">
                                                 @csrf
-                                                <x-ui.row-action label="Email Tax Adjustment PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
+                                                <x-ui.row-action label="Email tax adjustment PDF" icon="fa-regular fa-envelope" tone="neutral" type="submit" />
                                             </form>
                                         </x-ui.row-actions>
                                     </td>

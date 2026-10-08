@@ -17,6 +17,8 @@ class ServerBackupRun extends Model
 
     public const TYPE_BACKUP_ARCHIVE = 'backup_archive';
 
+    public const TYPE_FILE_IMPORT = 'file_import';
+
     public const TYPE_MEDIA_ARCHIVE = 'media_archive';
 
     public const TYPE_FINANCE_ARCHIVE = 'finance_archive';
@@ -51,6 +53,7 @@ class ServerBackupRun extends Model
         return match ($this->type) {
             self::TYPE_DATABASE => 15,
             self::TYPE_INSPECTION => 30,
+            self::TYPE_FILE_IMPORT => 360,
             default => 120,
         };
     }

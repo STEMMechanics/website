@@ -12,6 +12,6 @@
             <button type="button" data-push-later class="rounded-lg bg-gray-100 px-4 py-2 text-gray-800">Not now</button>
             <button type="button" data-push-enable class="rounded-lg bg-primary-color px-4 py-2 text-white disabled:opacity-50">Enable</button>
         </div>
-        <button type="button" data-push-disable class="mt-3 w-full text-center text-sm text-gray-500">Don't remind me again</button>
+        <button type="button" data-push-disable class="mt-3 w-full text-center text-xs text-gray-500">Don't remind me again</button>
     </aside>
 </div>

@@ -3,7 +3,7 @@
     $card = 'rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6';
 @endphp
 <x-layout>
-    <x-admin.sponsorship-mast :title="$editing ? 'Edit sponsor support' : 'Add Sponsor'" :description="$sponsor->exists ? 'For '.($sponsor->company_name ?: $sponsor->contact_name) : 'Add a person or organisation supporting STEMMechanics.'">
+    <x-admin.sponsorship-mast :title="$editing ? 'Edit sponsor support' : 'Add sponsor'" :description="$sponsor->exists ? 'For '.($sponsor->company_name ?: $sponsor->contact_name) : 'Add a person or organisation supporting STEMMechanics.'">
         @if($sponsor->exists)
             <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.sponsorship.sponsor.show', $sponsor) }}">Sponsor history</x-ui.button></x-slot:actions>
         @endif
@@ -155,7 +155,7 @@
 
             <x-ui.editor-actions class="justify-end gap-3">
                 <x-ui.button color="outline" href="{{ $sponsor->exists ? route('admin.sponsorship.sponsor.show', $sponsor) : route('admin.sponsorship.index') }}">Cancel</x-ui.button>
-                <x-ui.button type="submit">{{ $editing ? 'Save changes' : 'Add Sponsor' }}</x-ui.button>
+                <x-ui.button type="submit">{{ $editing ? 'Save changes' : 'Add sponsor' }}</x-ui.button>
             </x-ui.editor-actions>
         </form>
     </x-container>

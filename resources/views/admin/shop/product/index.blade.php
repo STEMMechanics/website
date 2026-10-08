@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Store Products
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create product</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
@@ -9,10 +9,6 @@
             $selectedFilter = $selectedFilter ?? 'all';
             $baseIndexQuery = request()->except('page', 'filter');
         @endphp
-        <div class="mt-4 grid gap-x-4 {{ $allocationAttentionCount > 0 && $inventoryAttentionCount > 0 ? 'lg:grid-cols-2' : '' }}">
-            <x-finance.attention-notice kind="products" :total="$allocationAttentionCount" />
-            <x-finance.attention-notice kind="product-stock" :total="$inventoryAttentionCount" />
-        </div>
         <x-ui.collection-controls class="mb-5" />
 
         @if($products->isEmpty())

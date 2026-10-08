@@ -52,7 +52,7 @@
                     <td data-label="Unit price (inc GST)"><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price including GST" type="number" step="any" class="h-11 pl-6! pr-11!" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div></td>
                     <td data-label="GST" class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     <td data-label="Total (inc GST)" class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></td>
-                    <td data-label="Actions" data-mobile-actions class="text-center">@if(! $isLocked)<x-ui.row-action label="Remove line item" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />@endif</td>
+                    <td data-label="Actions" data-mobile-actions class="text-center">@if(! $isLocked)<x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />@endif</td>
                 </tr>
                 <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
                     <x-finance.line-item-details :invoice-layout="$invoiceLayout" class="ml-10" />

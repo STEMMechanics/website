@@ -15,7 +15,7 @@
             <td data-label="Amount" class="text-center!">{{ $project->currency }} {{ number_format((float) $project->custom_amount_min, 2) }}–{{ number_format((float) $project->custom_amount_max, 2) }}</td>
             <td data-label="Recognition" class="text-center!"><x-ui.badge color="gray">Not available</x-ui.badge></td>
             <td data-label="Status" class="text-center!">@if($project->allow_custom_amount)<x-ui.badge color="success">Available</x-ui.badge>@else<x-ui.badge color="gray">Disabled</x-ui.badge>@endif</td>
-            <td data-mobile-actions class="text-center!"><x-ui.row-actions :menu="false"><x-ui.row-action label="Edit custom amount and checkout settings" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Checkout settings" href="{{ route('admin.sponsorship.checkout.edit') }}" /></x-ui.row-actions></td>
+            <td data-mobile-actions class="text-center!"><x-ui.row-actions :menu="false"><x-ui.row-action label="Edit checkout settings" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Checkout settings" href="{{ route('admin.sponsorship.checkout.edit') }}" /></x-ui.row-actions></td>
         </tr>
         @forelse($activeOptions as $option)
             <tr>
@@ -29,10 +29,10 @@
                 </td>
                 <td data-mobile-actions class="text-center! whitespace-nowrap">
                     <x-ui.row-actions :menu="false">
-                        <x-ui.row-action label="Edit sponsorship amount" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
+                        <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
                         <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="SM.confirm('Archive sponsorship amount?', 'This removes it from checkout and keeps existing sponsorship records intact. You can restore it later.', 'Archive amount', confirmed => { if (confirmed) $el.submit() })">
                             @csrf @method('DELETE')
-                            <x-ui.row-action type="submit" label="Archive sponsorship amount" icon="fa-trash-can" tone="danger" />
+                            <x-ui.row-action type="submit" label="Archive" icon="fa-trash-can" tone="danger" />
                         </form>
                     </x-ui.row-actions>
                 </td>
@@ -63,11 +63,11 @@
                             <td data-label="Status" class="text-center!"><x-ui.badge color="gray">Archived</x-ui.badge></td>
                             <td data-mobile-actions class="text-center! whitespace-nowrap">
                                 <x-ui.row-actions :menu="false">
-                                    <x-ui.row-action label="Edit or restore sponsorship amount" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit or restore sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
+                                    <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit or restore sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
                                     @if((int) $option->sponsorships_count === 0)
                                         <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="SM.confirm('Delete archived amount permanently?', 'This amount has no sponsorship history and will be removed permanently.', 'Delete amount', confirmed => { if (confirmed) $el.submit() })">
                                             @csrf @method('DELETE')
-                                            <x-ui.row-action type="submit" label="Delete unused archived amount" icon="fa-trash-can" tone="danger" />
+                                            <x-ui.row-action type="submit" label="Delete" icon="fa-trash-can" tone="danger" />
                                         </form>
                                     @endif
                                 </x-ui.row-actions>

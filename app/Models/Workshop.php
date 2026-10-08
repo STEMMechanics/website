@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Helpers;
+use App\Services\WorkshopTicketService;
 use App\Traits\HasFiles;
 use App\Traits\Slug;
 use Carbon\CarbonInterface;
@@ -12,8 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -66,6 +67,7 @@ class Workshop extends Model
         'is_private',
         'is_hidden',
         'max_tickets',
+        'max_attendance',
         'ticket_group_slug',
         'pick_list_template_id',
         'pick_list_participants',
@@ -79,6 +81,9 @@ class Workshop extends Model
         'pick_list_notes',
         'pick_list_canvas_data',
         'pick_list_canvas_thumbnail_path',
+        'stock_reconciled_at',
+        'stock_reconciled_by',
+        'attendance_no_attendees_confirmed_at',
         'location_id',
         'hosted_for_organisation_id',
         'requested_by_user_id',
@@ -105,6 +110,7 @@ class Workshop extends Model
         'is_private' => 'boolean',
         'is_hidden' => 'boolean',
         'max_tickets' => 'integer',
+        'max_attendance' => 'integer',
         'early_bird_ticket_limit' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
@@ -113,6 +119,8 @@ class Workshop extends Model
         'workplan_checked' => 'boolean',
         'pick_list_custom_items' => 'array',
         'pick_list_is_customized' => 'boolean',
+        'stock_reconciled_at' => 'datetime',
+        'attendance_no_attendees_confirmed_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -147,6 +155,12 @@ class Workshop extends Model
                 'phone' => trim((string) ($creator->phone ?? '')),
             ],
         );
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function stockReconciledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'stock_reconciled_by');
     }
 
     /**
@@ -494,7 +508,7 @@ class Workshop extends Model
 
         $holdMinutes = ! empty($this->optional_product_ids) ? 20 : 10;
         try {
-            $holdMinutes = app(\App\Services\WorkshopTicketService::class)->holdWindowMinutes($this);
+            $holdMinutes = app(WorkshopTicketService::class)->holdWindowMinutes($this);
         } catch (\Throwable) {
             // Keep the default for this workshop when site settings are unavailable.
         }
@@ -671,7 +685,7 @@ class Workshop extends Model
     public function getTicketTimeRangeLabel(): string
     {
         if ($this->isCourse()) {
-            return $this->courseWeeklySummary() ?? implode("; ", $this->courseScheduleDisplayLines());
+            return $this->courseWeeklySummary() ?? implode('; ', $this->courseScheduleDisplayLines());
         }
 
         if ($this->usesClassroomRegistration()) {
@@ -736,8 +750,7 @@ class Workshop extends Model
     public function teachingHours(): float
     {
         if ($this->isCourse()) {
-            return array_reduce($this->effectiveScheduleEntries(), fn (float $hours, array $session): float =>
-                $hours + max(0, Carbon::parse($session['starts_at'])->diffInMinutes(Carbon::parse($session['ends_at']))) / 60, 0.0);
+            return array_reduce($this->effectiveScheduleEntries(), fn (float $hours, array $session): float => $hours + max(0, Carbon::parse($session['starts_at'])->diffInMinutes(Carbon::parse($session['ends_at']))) / 60, 0.0);
         }
 
         return $this->starts_at && $this->ends_at ? max(0, $this->starts_at->diffInMinutes($this->ends_at)) / 60 : 0;
@@ -774,16 +787,23 @@ class Workshop extends Model
     public function courseWeeklySummary(): ?string
     {
         $sessions = $this->effectiveScheduleEntries();
-        if (count($sessions) < 2) return null;
+        if (count($sessions) < 2) {
+            return null;
+        }
         $first = Carbon::parse($sessions[0]['starts_at']);
         $firstEnd = Carbon::parse($sessions[0]['ends_at']);
-        if (! $first->isSameDay($firstEnd)) return null;
+        if (! $first->isSameDay($firstEnd)) {
+            return null;
+        }
         foreach ($sessions as $index => $session) {
             $start = Carbon::parse($session['starts_at']);
             $end = Carbon::parse($session['ends_at']);
-            if (! $start->equalTo($first->copy()->addWeeks($index)) || ! $end->equalTo($firstEnd->copy()->addWeeks($index))) return null;
+            if (! $start->equalTo($first->copy()->addWeeks($index)) || ! $end->equalTo($firstEnd->copy()->addWeeks($index))) {
+                return null;
+            }
         }
         $last = Carbon::parse($sessions[array_key_last($sessions)]['starts_at']);
+
         return $first->format('j M Y').' – '.$last->format('j M Y').' · '.count($sessions).' weekly sessions, every '.$first->format('l').' '.$first->format('g:i a').'–'.$firstEnd->format('g:i a');
     }
 
@@ -897,23 +917,94 @@ class Workshop extends Model
     }
 
     /**
+     * Return the schedule entry that covers one calendar date.
+     *
+     * @return array{starts_at: Carbon, ends_at: Carbon, session_position?: int, session_total?: int}|null
+     */
+    public function calendarScheduleForDate(string $date): ?array
+    {
+        $calendarDate = Carbon::parse($date, config('app.timezone'))->toDateString();
+        $sessions = $this->effectiveScheduleEntries();
+        $entries = $this->isCourse() && $sessions !== []
+            ? $sessions
+            : [[
+                'starts_at' => $this->starts_at,
+                'ends_at' => $this->ends_at ?? $this->starts_at,
+            ]];
+
+        foreach ($entries as $index => $entry) {
+            if (empty($entry['starts_at'])) {
+                continue;
+            }
+
+            $start = Carbon::parse($entry['starts_at']);
+            $end = Carbon::parse($entry['ends_at'] ?? $entry['starts_at']);
+            if ($end->lessThan($start)) {
+                $end = $start->copy();
+            }
+
+            $visibleEnd = $end->copy();
+            if ($visibleEnd->greaterThan($start) && $visibleEnd->isStartOfDay()) {
+                $visibleEnd->subSecond();
+            }
+
+            if ($start->toDateString() <= $calendarDate && $visibleEnd->toDateString() >= $calendarDate) {
+                $schedule = ['starts_at' => $start, 'ends_at' => $end];
+                if ($this->isCourse() && $sessions !== []) {
+                    $schedule['session_position'] = $index + 1;
+                    $schedule['session_total'] = count($sessions);
+                }
+
+                return $schedule;
+            }
+        }
+
+        return null;
+    }
+
+    public function calendarSessionLabelForDate(string $date): ?string
+    {
+        if (! $this->isCourse() || count($this->effectiveScheduleEntries()) < 2) {
+            return null;
+        }
+
+        $schedule = $this->calendarScheduleForDate($date);
+        if ($schedule === null || ! isset($schedule['session_position'], $schedule['session_total'])) {
+            return null;
+        }
+
+        return 'Session '.$schedule['session_position'].' of '.$schedule['session_total'];
+    }
+
+    public function calendarStartsAtForDate(string $date): ?Carbon
+    {
+        return $this->calendarScheduleForDate($date)['starts_at'] ?? null;
+    }
+
+    public function calendarEndsAtForDate(string $date): ?Carbon
+    {
+        return $this->calendarScheduleForDate($date)['ends_at'] ?? null;
+    }
+
+    /**
      * @return array{before: bool, after: bool, show_details: bool, ends: bool}
      */
     public function calendarContinuationForDate(string $date): array
     {
         $calendarDate = Carbon::parse($date, config('app.timezone'))->startOfDay();
-        $workshopStart = $this->starts_at?->copy();
-        $workshopEnd = ($this->ends_at ?? $this->starts_at)?->copy();
+        $schedule = $this->calendarScheduleForDate($date);
 
-        if ($workshopStart === null || $workshopEnd === null) {
+        if ($schedule === null) {
             return ['before' => false, 'after' => false, 'show_details' => true, 'ends' => false];
         }
 
+        $workshopStart = $schedule['starts_at'];
+        $workshopEnd = $schedule['ends_at']->copy();
         if ($workshopEnd->greaterThan($workshopStart) && $workshopEnd->isStartOfDay()) {
             $workshopEnd->subSecond();
         }
 
-        $before = $workshopStart->startOfDay()->lessThan($calendarDate);
+        $before = $workshopStart->copy()->startOfDay()->lessThan($calendarDate);
         $after = $workshopEnd->startOfDay()->greaterThan($calendarDate);
 
         return [

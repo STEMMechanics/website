@@ -47,9 +47,9 @@
                             <td class="hidden md:table-cell text-center!"><x-ui.date-time>{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</x-ui.date-time></td>
                             <td class="text-center!">
                                 <x-ui.row-actions>
-                                    <x-ui.row-action label="Copy media link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')" />
-                                    <x-ui.row-action label="Download media" icon="fa-solid fa-download" tone="neutral" href="{{ $medium->url }}?download" />
-                                    <x-ui.row-action label="Delete media item" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('account.media.destroy', $medium) }}')" />
+                                <x-ui.row-action label="Copy link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')" />
+                                <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ $medium->url }}?download" />
+                                <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('account.media.destroy', $medium) }}')" />
                                 </x-ui.row-actions>
                             </td>
                         </tr>

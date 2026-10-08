@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Email Subscriptions
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.subscription.create') }}">Register</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.subscription.create') }}">Add subscriber</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

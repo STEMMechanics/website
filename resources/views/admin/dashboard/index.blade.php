@@ -34,10 +34,10 @@
                                             $attendanceDetails = $action['attendance_details'];
                                         @endphp
                                         <span class="mt-1.5 block text-sm font-semibold leading-snug text-gray-900">{{ $attendanceDetails['workshop'] }}</span>
-                                        <span class="mt-1.5 block text-sm leading-snug text-gray-700">{{ $attendanceDetails['schedule'] }}</span>
-                                        <span class="mt-1 block text-sm leading-snug text-gray-700">{{ $attendanceDetails['location'] }}</span>
+                                        <span class="mt-1.5 block text-xs leading-snug text-gray-700">{{ $attendanceDetails['schedule'] }}</span>
+                                        <span class="mt-1 block text-xs leading-snug text-gray-700">{{ $attendanceDetails['location'] }}</span>
                                     @else
-                                        <span class="mt-1.5 block text-sm leading-snug text-gray-700">{{ $action['description'] }}</span>
+                                        <span class="mt-1.5 block text-xs leading-snug text-gray-700">{{ $action['description'] }}</span>
                                     @endif
                                 </span>
                             </a>
@@ -74,7 +74,7 @@
                     <div class="flex flex-col items-start justify-between gap-4 sm:flex-row">
                         <div>
                             <h2 class="text-lg font-semibold text-gray-900">{{ $card['title'] }}</h2>
-                            <p class="mt-1 text-sm text-gray-500">{{ $card['description'] }}</p>
+                            <p class="mt-1 text-xs text-gray-500">{{ $card['description'] }}</p>
                         </div>
                         <div class="flex flex-wrap justify-end gap-2">
                             @foreach(($card['links'] ?? []) as $link)
@@ -111,8 +111,39 @@
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Media Downloads</h2>
+                    <p class="mt-1 text-xs text-gray-500">Files with the most explicit download requests in the selected period.</p>
+                </div>
+                <a href="{{ route('admin.media.downloads', ['from' => $periodStart->toDateString(), 'to' => $periodEnd->copy()->subSecond()->toDateString(), 'limit' => 100]) }}" class="text-sm font-semibold text-primary-color hover:underline">View top 100</a>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                <x-ui.table variant="listing">
+                    <x-slot:header>
+                        <x-ui.list-heading label="File" />
+                        <x-ui.list-heading label="Type" />
+                        <x-ui.list-heading class="text-right" label="Requests" />
+                    </x-slot:header>
+                    <x-slot:body>
+                        @forelse($mediaDownloadRows as $row)
+                            <tr>
+                                <td><a href="{{ route('admin.media.edit', ['media' => $row->media_name]) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $row->title }}</a><div class="text-xs text-gray-500">{{ $row->media_name }}</div></td>
+                                <td>{{ $row->mime_type }}</td>
+                                <td class="text-right font-semibold">{{ number_format((int) $row->downloads) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="text-center text-gray-500">No media downloads in this period.</td></tr>
+                        @endforelse
+                    </x-slot:body>
+                </x-ui.table>
+            </div>
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
                     <h2 class="text-lg font-semibold text-gray-900">Top 10 Traffic Sources</h2>
-                    <p class="mt-1 text-sm text-gray-500">First-touch sources for sessions in the selected period.</p>
+                    <p class="mt-1 text-xs text-gray-500">First-touch sources for sessions in the selected period.</p>
                 </div>
                 <a href="{{ route('admin.analytics.index') }}" class="text-sm font-semibold text-primary-color hover:underline">View full analytics report</a>
             </div>
@@ -153,41 +184,10 @@
         </div>
 
         <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Top 10 Media Downloads</h2>
-                    <p class="mt-1 text-sm text-gray-500">Files with the most explicit download requests in the selected period.</p>
-                </div>
-                <a href="{{ route('admin.media.downloads', ['from' => $periodStart->toDateString(), 'to' => $periodEnd->copy()->subSecond()->toDateString(), 'limit' => 100]) }}" class="text-sm font-semibold text-primary-color hover:underline">View top 100</a>
-            </div>
-
-            <div class="mt-4 overflow-hidden rounded-xl border border-gray-200">
-                <x-ui.table variant="listing">
-                    <x-slot:header>
-                        <x-ui.list-heading label="File" />
-                        <x-ui.list-heading label="Type" />
-                        <x-ui.list-heading class="text-right" label="Requests" />
-                    </x-slot:header>
-                    <x-slot:body>
-                        @forelse($mediaDownloadRows as $row)
-                            <tr>
-                                <td><a href="{{ route('admin.media.edit', ['media' => $row->media_name]) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $row->title }}</a><div class="text-xs text-gray-500">{{ $row->media_name }}</div></td>
-                                <td>{{ $row->mime_type }}</td>
-                                <td class="text-right font-semibold">{{ number_format((int) $row->downloads) }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3" class="text-center text-gray-500">No media downloads in this period.</td></tr>
-                        @endforelse
-                    </x-slot:body>
-                </x-ui.table>
-            </div>
-        </div>
-
-        <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Top 10 Workshop Activity</h2>
-                    <p class="mt-1 text-sm text-gray-500">Workshop views and registration activity in the selected period.</p>
+                    <p class="mt-1 text-xs text-gray-500">Workshop views and registration activity in the selected period.</p>
                 </div>
             </div>
 
@@ -248,7 +248,7 @@
                 <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Top 10 Store Item Views and Sales</h2>
-                        <p class="mt-1 text-sm text-gray-500">Store item views and item sales in the selected period.</p>
+                        <p class="mt-1 text-xs text-gray-500">Store item views and item sales in the selected period.</p>
                     </div>
                 </div>
 

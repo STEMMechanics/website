@@ -49,14 +49,14 @@
                                     </td>
                                     <td data-label="Actions" data-mobile-actions class="text-center!">
                                         @if($canEditRecognition || $canCancel)
-                                            <x-ui.action-menu :id="'sponsorship-actions-'.$sponsorship->id" :title="$sponsorship->option?->label ?: 'STEMMechanics sponsorship'">
+                                            <x-ui.action-menu :id="'sponsorship-actions-'.$sponsorship->id" title="Actions">
                                                 @if($canEditRecognition)
                                                     <x-ui.row-action label="Public recognition" icon="fa-solid fa-pen-to-square" tone="neutral" x-on:click="$refs.recognitionDialog.showModal()" />
                                                 @endif
                                                 @if($canCancel)
                                                     <form method="POST" action="{{ route('sponsor.manage.cancel', $sponsorship->id) }}" class="contents" x-on:submit.prevent="SM.confirm(@js($sponsorship->billing_method === 'invoice' ? 'Cancel future monthly sponsorship invoices?' : 'Cancel future monthly sponsorship payments?'), @js($sponsorship->billing_method === 'invoice' ? 'No new invoices will be sent. Any invoice already issued can still be paid.' : 'No new recurring payments will be scheduled after the current billing period.'), 'Cancel sponsorship', confirmed => { if (confirmed) $el.submit() })">
                                                         @csrf
-                                                        <x-ui.row-action type="submit" label="Cancel monthly sponsorship" icon="fa-solid fa-ban" tone="danger" />
+                                                        <x-ui.row-action type="submit" label="Cancel" icon="fa-solid fa-ban" tone="danger" />
                                                     </form>
                                                 @endif
                                             </x-ui.action-menu>
@@ -113,7 +113,7 @@
                                     </td>
                                     <td data-label="Actions" data-mobile-actions class="text-center!">
                                         @if($canEditRecognition)
-                                            <x-ui.action-menu :id="'sponsorship-payment-actions-'.$payment->id" :title="'Payment actions for '.$payment->invoice_number">
+                                            <x-ui.action-menu :id="'sponsorship-payment-actions-'.$payment->id" title="Actions">
                                                 <x-ui.row-action label="Public recognition" icon="fa-solid fa-pen-to-square" tone="neutral" x-on:click="$refs.recognitionDialog.showModal()" />
                                             </x-ui.action-menu>
                                         @else

@@ -206,6 +206,11 @@ Schedule::command('files:backup --full')
     ->timezone((string) config('app.timezone', 'UTC'))
     ->withoutOverlapping();
 
+Artisan::command('file-backups:cleanup-uploads', function () {
+    app(\App\Services\FileBackupUploadService::class)->cleanupAbandonedUploads();
+    $this->info('Expired file-backup upload staging has been cleaned up.');
+})->purpose('Remove abandoned file-backup upload chunks')->hourly()->withoutOverlapping();
+
 Schedule::command('store:orders:send-update-digests')
     ->dailyAt('20:00')
     ->timezone((string) config('app.timezone', 'UTC'))
@@ -213,6 +218,15 @@ Schedule::command('store:orders:send-update-digests')
 
 Schedule::command('store:products:send-low-stock-alerts')
     ->hourly()
+    ->withoutOverlapping();
+
+Artisan::command('stock:release-expired-workshop-reservations', function () {
+    $released = app(\App\Services\StockInventoryService::class)->releaseExpiredWorkshopReservations();
+    $this->info("Released {$released} abandoned workshop stock reservations.");
+})->purpose('Release stock reservations for cancelled, draft, unscheduled, reconciled, or deleted workshops');
+
+Schedule::command('stock:release-expired-workshop-reservations')
+    ->everyTenMinutes()
     ->withoutOverlapping();
 
 Schedule::command('reminders:send-due')

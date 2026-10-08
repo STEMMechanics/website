@@ -16,7 +16,10 @@ class AdminDashboardActions
     public function build(?string $userId = null): array
     {
         $now = now();
-        $dynamic = $this->attendanceActions($now);
+        $dynamic = [
+            ...$this->workshopFollowUpActions($now),
+            ...$this->attendanceActions($now),
+        ];
 
         $orderCount = StoreOrder::query()->where(function (Builder $query) use ($now): void {
             $query->whereIn('status', StoreOrder::ACTION_REQUIRED_STATUSES)
@@ -113,6 +116,40 @@ class AdminDashboardActions
     }
 
     /** @return list<array<string, mixed>> */
+    private function workshopFollowUpActions(Carbon $now): array
+    {
+        $actions = [];
+        foreach (app(WorkshopFollowUp::class)->pendingTasks($now) as $task) {
+            /** @var Workshop $workshop */
+            $workshop = $task['workshop'];
+            $endedAt = $task['ended_at'];
+            $description = $workshop->title.' · '.$endedAt->format('D j M Y').' · '.$workshop->getLocationName();
+
+            if ($task['attendance']) {
+                $actions[] = $this->card(
+                    'Record workshop attendance',
+                    $description,
+                    route('admin.workshop.attendance', $workshop),
+                    'fa-solid fa-user-check',
+                    'violet',
+                );
+            }
+
+            if ($task['stock']) {
+                $actions[] = $this->card(
+                    'Reconcile workshop stock',
+                    $description,
+                    route('admin.workshop.stock-reconciliation', $workshop),
+                    'fa-solid fa-box-open',
+                    'amber',
+                );
+            }
+        }
+
+        return array_slice($actions, 0, 6);
+    }
+
+    /** @return list<array<string, mixed>> */
     private function attendanceActions(Carbon $now): array
     {
         $lookback = $now->copy()->subDays(14);
@@ -161,7 +198,7 @@ class AdminDashboardActions
             if (! $isTicketedWorkshop) {
                 $startsAt = $workshop->starts_at;
                 $endsAt = $workshop->ends_at ?? $startsAt;
-                if (! $startsAt || ! $endsAt || $startsAt->gt($soon) || $endsAt->lt($lookback)) {
+                if (! $startsAt || ! $endsAt || $startsAt->gt($soon) || $endsAt->lt($lookback) || $endsAt->lte($now)) {
                     continue;
                 }
                 $attended = (int) ($workshop->drop_in_attendees_count ?? 0);
@@ -174,6 +211,11 @@ class AdminDashboardActions
             }
 
             if ($workshop->isCourse()) {
+                $courseEndsAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at;
+                if ($courseEndsAt?->lte($now)) {
+                    continue;
+                }
+
                 foreach ($workshop->effectiveScheduleEntries() as $session) {
                     if (! isset($session['starts_at'], $session['ends_at'], $session['id'])) {
                         continue;
@@ -195,7 +237,7 @@ class AdminDashboardActions
 
             $startsAt = $workshop->starts_at;
             $endsAt = $workshop->ends_at ?? $startsAt;
-            if (! $startsAt || ! $endsAt || $startsAt->gt($soon) || $endsAt->lt($lookback)) {
+            if (! $startsAt || ! $endsAt || $startsAt->gt($soon) || $endsAt->lt($lookback) || $endsAt->lte($now)) {
                 continue;
             }
             $attended = $tickets->filter(fn (Ticket $ticket): bool => $ticket->attended_at !== null)->count();

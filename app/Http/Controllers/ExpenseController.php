@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Helpers;
 use App\Models\Expense;
+use App\Models\StockItem;
 use App\Models\Supplier;
 use App\Services\Finance\ExpenseAllocation;
 use App\Services\Finance\FinancePlanner;
 use App\Services\PdfTextExtractor;
 use App\Services\SiteListControls;
+use App\Services\StockInventoryService;
+use App\Services\StoreInventoryAllocatorService;
 use App\Support\ListPageSize;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +22,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
@@ -74,6 +79,17 @@ class ExpenseController extends Controller
         $expenses->getCollection()->each(function (Expense $expense): void {
             $expense->setAttribute('receipt_document_exists', $expense->hasReceiptDocument());
         });
+
+        if ($supplier === null) {
+            $unallocatedExpenseCount = (int) app(\App\Services\Finance\FinanceAttention::class)->counts()['expenses'];
+            $request->attributes->set('collection_preset_counts', [
+                'All expenses' => Expense::query()->count(),
+                'Needs allocation' => $unallocatedExpenseCount,
+            ]);
+            $request->attributes->set('collection_preset_attention', [
+                'Needs allocation' => $unallocatedExpenseCount > 0,
+            ]);
+        }
 
         return view('admin.expense.index', [
             'expenses' => $expenses,
@@ -132,17 +148,25 @@ class ExpenseController extends Controller
         return view('admin.expense.edit', [
             'supplierSuggestions' => $this->supplierSuggestions(),
             'supplierName' => $data['supplier'] ?? '',
+            'stockItems' => $this->stockItemOptions(),
+            'stockItemRows' => [],
         ]);
     }
 
-    public function store(Request $request)
+    public function store(
+        Request $request,
+        StockInventoryService $stockInventory,
+        StoreInventoryAllocatorService $stockAllocator,
+    )
     {
         $validated = $this->validateRequest($request);
+        $stockItems = $this->validateStockItems($request);
+        $syncStockItems = $this->shouldSyncStockItems($request, $stockItems);
 
         $expense = new Expense;
         $expense->fill($validated);
         $expense->created_by = Auth::id();
-        DB::transaction(function () use ($request, $expense): void {
+        $stockItemIds = DB::transaction(function () use ($request, $expense, $stockInventory, $stockItems, $syncStockItems): array {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $supplier = Supplier::forName($expense->supplier);
             $expense->save();
@@ -158,11 +182,16 @@ class ExpenseController extends Controller
                     ]);
                 }
             }
+
+            return $syncStockItems
+                ? $stockInventory->syncExpenseStockItems($expense, $stockItems, $request->user())
+                : [];
         });
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
         $this->renameDocumentToCurrentConvention($expense);
         $expense->save();
+        $this->allocateStockItems($stockItemIds, $stockAllocator);
 
         session()->flash('message', 'Expense has been recorded');
         session()->flash('message-title', 'Expense recorded');
@@ -180,26 +209,51 @@ class ExpenseController extends Controller
 
     public function edit(Expense $expense)
     {
+        $expense->load(['stockReceiptLines.stockItem.group', 'stockReceiptLines.receipt']);
+
         return view('admin.expense.edit', [
             'expense' => $expense,
             'supplierSuggestions' => $this->supplierSuggestions(),
+            'stockItems' => $this->stockItemOptions($expense),
+            'stockItemRows' => $expense->stockReceiptLines
+                ->map(fn ($line): array => [
+                    'stock_receipt_line_id' => (int) $line->id,
+                    'stock_item_id' => (int) $line->stock_item_id,
+                    'item_name' => (string) ($line->stockItem?->linkLabel() ?? ''),
+                    'quantity' => (string) $line->quantity,
+                    'total_cost_ex_tax' => (string) $line->total_cost_ex_tax,
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 
-    public function update(Request $request, Expense $expense)
+    public function update(
+        Request $request,
+        Expense $expense,
+        StockInventoryService $stockInventory,
+        StoreInventoryAllocatorService $stockAllocator,
+    )
     {
         $validated = $this->validateRequest($request);
+        $stockItems = $this->validateStockItems($request);
+        $syncStockItems = $this->shouldSyncStockItems($request, $stockItems);
 
         $expense->fill($validated);
-        DB::transaction(function () use ($request, $expense): void {
+        $stockItemIds = DB::transaction(function () use ($request, $expense, $stockInventory, $stockItems, $syncStockItems): array {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $expense->save();
             app(ExpenseAllocation::class)->save($request, $expense);
+
+            return $syncStockItems
+                ? $stockInventory->syncExpenseStockItems($expense, $stockItems, $request->user())
+                : [];
         });
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
         $this->renameDocumentToCurrentConvention($expense);
         $expense->save();
+        $this->allocateStockItems($stockItemIds, $stockAllocator);
 
         session()->flash('message', 'Expense has been updated');
         session()->flash('message-title', 'Expense updated');
@@ -274,6 +328,83 @@ class ExpenseController extends Controller
             'gst_amount' => ['required', 'numeric', 'min:0', 'lte:total_amount'],
             'receipt_document_file' => ['nullable', 'file', 'max:'.$maxSize],
         ]);
+    }
+
+    /** @return array<int, array{stock_receipt_line_id: int|null, stock_item_id: int, quantity: float, total_cost_ex_tax: float}> */
+    private function validateStockItems(Request $request): array
+    {
+        $validated = $request->validate([
+            'stock_items_changed' => ['nullable', 'boolean'],
+            'stock_items' => ['nullable', 'array', 'max:100'],
+            'stock_items.*.stock_receipt_line_id' => ['nullable', 'integer'],
+            'stock_items.*.stock_item_id' => [
+                'required',
+                'integer',
+                Rule::exists('stock_items', 'id')->where(fn ($query) => $query->where('is_kit', false)),
+            ],
+            'stock_items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:100000'],
+            'stock_items.*.total_cost_ex_tax' => ['required', 'numeric', 'min:0', 'max:1000000000'],
+        ], [
+            'stock_items.*.stock_item_id.required' => 'Choose a stock item for each stock row.',
+            'stock_items.*.quantity.required' => 'Enter the quantity purchased for each stock row.',
+            'stock_items.*.quantity.gt' => 'Each stock quantity must be greater than zero.',
+            'stock_items.*.total_cost_ex_tax.required' => 'Enter the total cost for each stock row.',
+        ]);
+
+        $rows = array_values($validated['stock_items'] ?? []);
+        $receiptLineIds = collect($rows)
+            ->map(fn (array $row): int => (int) ($row['stock_receipt_line_id'] ?? 0))
+            ->filter(fn (int $id): bool => $id > 0);
+        if ($receiptLineIds->duplicates()->isNotEmpty()) {
+            throw ValidationException::withMessages(['stock_items' => 'Each existing receipt can only appear once.']);
+        }
+
+        return collect($rows)
+            ->map(fn (array $row): array => [
+                'stock_receipt_line_id' => isset($row['stock_receipt_line_id']) ? (int) $row['stock_receipt_line_id'] : null,
+                'stock_item_id' => (int) $row['stock_item_id'],
+                'quantity' => (float) $row['quantity'],
+                'total_cost_ex_tax' => (float) $row['total_cost_ex_tax'],
+            ])
+            ->all();
+    }
+
+    /** @param array<int, array{stock_receipt_line_id: int|null, stock_item_id: int, quantity: float, total_cost_ex_tax: float}> $stockItems */
+    private function shouldSyncStockItems(Request $request, array $stockItems): bool
+    {
+        return $request->boolean('stock_items_changed') || $request->exists('stock_items') || $stockItems !== [];
+    }
+
+    /** @return \Illuminate\Support\Collection<int, StockItem> */
+    private function stockItemOptions(?Expense $expense = null): Collection
+    {
+        $linkedItemIds = $expense?->stockReceiptLines
+            ->pluck('stock_item_id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all() ?? [];
+
+        return StockItem::query()
+            ->with('group')
+            ->where('is_kit', false)
+            ->where(function ($query) use ($linkedItemIds): void {
+                $query->where('status', StockItem::STATUS_ACTIVE);
+                if ($linkedItemIds !== []) {
+                    $query->orWhereIn('id', $linkedItemIds);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'unit', 'status', 'is_kit', 'stock_item_group_id', 'variant_name']);
+    }
+
+    /** @param array<int, int> $stockItemIds */
+    private function allocateStockItems(array $stockItemIds, StoreInventoryAllocatorService $allocator): void
+    {
+        $stockItems = StockItem::query()->whereIn('id', array_unique($stockItemIds))->get()->keyBy('id');
+        foreach ($stockItems as $stockItem) {
+            $allocator->allocateForStockItem($stockItem);
+        }
     }
 
     private function applyAdvancedSearch(Builder $query, Request $request): void

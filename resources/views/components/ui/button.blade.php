@@ -1,4 +1,4 @@
-@props(['type' => 'button', 'class', 'href', 'target', 'color' => 'primary', 'variant' => 'default', 'buttonAttributes' => []])
+@props(['type' => 'button', 'class', 'href', 'target', 'color' => 'primary', 'variant' => 'default', 'size' => 'default', 'buttonAttributes' => []])
 
 @php
     $forwardedAttributes = $buttonAttributes instanceof \Illuminate\View\ComponentAttributeBag
@@ -28,17 +28,18 @@
         'rose' => "hover:bg-rose-800 focus-visible:outline-rose-600 bg-rose-600 text-white {$disabledClasses}",
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
-    $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
+    $sizeClasses = $size === 'compact' ? 'px-3 py-1.5 text-xs leading-4 shadow-none' : '';
+    $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''), $sizeClasses);
     $hrefValue = html_entity_decode((string) ($href ?? '#'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
     if((isset($type) && $type === 'link')) {
         $colorClasses = '';
-        $commonClasses = 'cursor-pointer text-sky-700 hover:text-sky-900';
+        $commonClasses = twMerge('cursor-pointer text-sky-700 hover:text-sky-900', $sizeClasses);
     }
 
-    if ($variant === 'plain') {
+if ($variant === 'plain') {
         $colorClasses = $disabledClasses;
-        $commonClasses = twMerge('cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color', $class ?? '');
+        $commonClasses = twMerge('cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color', $class ?? '', $sizeClasses);
     }
 
     if(isset($href) && $href !== '') $type = 'link';

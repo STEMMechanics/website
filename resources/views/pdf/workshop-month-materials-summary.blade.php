@@ -84,12 +84,13 @@
                     @foreach($workshopColumns as $summary)
                         @php
                             $workshopId = (string) $summary['workshop']->getKey();
-                            $quantity = (int) ($breakdowns->get($workshopId)['quantity'] ?? 0);
+                            $quantity = (float) ($breakdowns->get($workshopId)['quantity'] ?? 0);
                         @endphp
-                        <td class="workshop-value">{{ $quantity > 0 ? $quantity : '-' }}</td>
+                        <td class="workshop-value">{{ $quantity > 0 ? rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.') : '-' }}</td>
                     @endforeach
                     <td class="total">
-                        <div class="total-value">{{ (int) ($row['total_quantity'] ?? 0) }}</div>
+                        @php($totalQuantity = (float) ($row['total_quantity'] ?? 0))
+                        <div class="total-value">{{ $totalQuantity > 0 ? rtrim(rtrim(number_format($totalQuantity, 3, '.', ''), '0'), '.') : '-' }}</div>
                     </td>
                 </tr>
             @empty

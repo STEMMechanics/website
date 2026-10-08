@@ -32,11 +32,18 @@
         ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
         $manualRefundQueueCount = $operationCounts['refunds'];
         $financeAttention = $isAdmin ? app(\App\Services\Finance\FinanceAttention::class)->counts() : ['invoices' => 0, 'expenses' => 0];
+        $workshopFollowUpCount = $isAdmin
+            ? (int) app(\App\Support\AdminBadgeCache::class)->remember('workshop-follow-up', fn () => app(\App\Services\WorkshopFollowUp::class)->pendingTaskCount())
+            : 0;
+        $workshopAttentionCount = $isAdmin
+            ? (int) app(\App\Support\AdminBadgeCache::class)->remember('workshop-attention', fn () => app(\App\Services\WorkshopActionAttention::class)->count())
+            : 0;
         $sponsorshipApprovalCount = $isAdmin
             ? app(\App\Support\AdminBadgeCache::class)->remember('sponsorships', fn () => app(\App\Services\SponsorshipRecognitionService::class)->pendingApprovalCount())
             : 0;
         $storeOrderActionCount = $operationCounts['orders'];
         $productAttentionCount = $isAdmin ? app(\App\Services\ProductAttention::class)->counts()['total'] : 0;
+        $stockAttentionCount = $isAdmin ? app(\App\Services\StockAttention::class)->count() : 0;
         $mediaDuplicateCount = $isAdmin
             ? app(\App\Services\MediaDuplicateService::class)->attentionCount(app(\App\Services\ImagePerceptualHash::class))
             : 0;
@@ -47,6 +54,7 @@
                     'items' => [
                     ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*'], 'badge' => $storeOrderActionCount, 'badge_title' => $storeOrderActionCount.' store '.($storeOrderActionCount === 1 ? 'order requires' : 'orders require').' action'],
                     ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*'], 'badge' => $productAttentionCount, 'badge_title' => $productAttentionCount.' '.($productAttentionCount === 1 ? 'product needs' : 'products need').' stock or allocation attention'],
+                    ['label' => 'Stock items', 'route' => route('admin.shop.stock.index'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.stock.*'], 'badge' => $stockAttentionCount, 'badge_title' => $stockAttentionCount.' '.($stockAttentionCount === 1 ? 'stock item needs' : 'stock items need').' attention'],
                     ['label' => 'Categories', 'route' => route('admin.shop.category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.category.*']],
                     ['label' => 'Vouchers', 'route' => route('admin.shop.coupon.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.coupon.*']],
                     ['label' => 'Settings', 'route' => route('admin.shop.settings.edit'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.settings.*']],
@@ -67,7 +75,8 @@
                 [
                     'title' => 'Workshops & Community',
                     'items' => [
-                    ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*'], 'badge' => $financeAttention['workshops'] ?? 0],
+                    ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*'], 'badge' => $workshopAttentionCount, 'badge_title' => $workshopAttentionCount.' '.($workshopAttentionCount === 1 ? 'workshop needs' : 'workshops need').' attention'],
+                    ['label' => 'Workshop follow-up', 'route' => route('admin.dashboard'), 'icon' => 'fa-solid fa-list-check', 'active' => ['admin.dashboard'], 'badge' => $workshopFollowUpCount, 'badge_title' => $workshopFollowUpCount.' workshop follow-up '.($workshopFollowUpCount === 1 ? 'task needs' : 'tasks need').' attention'],
                     ['label' => 'Workshop Flyers', 'route' => route('admin.workshop-flyer.create'), 'icon' => 'fa-solid fa-print', 'active' => ['admin.workshop-flyer.*']],
                     ['label' => 'Workshop History', 'route' => route('admin.workshop.history'), 'icon' => 'fa-solid fa-clock-rotate-left', 'active' => ['admin.workshop.history*']],
                     ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],
@@ -933,7 +942,14 @@
                 this.refreshWorkshopBookings();
                 this.bookingTimer = setInterval(() => this.refreshWorkshopBookings(), 1000);
                 this.$watch('showSearch', () => this.syncScrollLock());
-                this.$watch('pageMenuOpen', () => this.syncScrollLock());
+                this.$watch('pageMenuOpen', isOpen => {
+                    this.syncScrollLock();
+                    if (isOpen) {
+                        this.$nextTick(() => this.$el.querySelector('[data-sidebar-search] input[name="q"]')?.focus());
+                    } else {
+                        this.$el.querySelector('[data-sidebar-search] input[name="q"]')?.blur();
+                    }
+                });
                 this.$watch('userMenuOpen', () => this.syncScrollLock());
                 this.$watch('cartOpen', () => this.syncScrollLock());
                 this.syncScrollLock();

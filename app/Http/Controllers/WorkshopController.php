@@ -33,8 +33,10 @@ use App\Services\SiteListControls;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
+use App\Services\StockInventoryService;
 use App\Services\WorkshopBlueprintService;
 use App\Services\WorkshopCourseSettings;
+use App\Services\WorkshopFollowUp;
 use App\Services\WorkshopPickListService;
 use App\Services\WorkshopRecommendationService;
 use App\Services\WorkshopSessionAttendance;
@@ -151,6 +153,18 @@ class WorkshopController extends Controller
 
         $workshopQuery = $this->buildWorkshopAdminQuery($search);
         app(SiteListControls::class)->capturePresetCounts($workshopQuery);
+        if ($view === 'list') {
+            $presetCounts = $request->attributes->get('collection_preset_counts', []);
+            $allocationReviewCount = (int) ($presetCounts['Ready for review'] ?? 0);
+            $request->attributes->set('collection_preset_counts', $presetCounts);
+            $request->attributes->set('collection_preset_attention', [
+                'Needs attention' => (int) ($presetCounts['Needs attention'] ?? 0) > 0,
+                'Stock shortage' => (int) ($presetCounts['Stock shortage'] ?? 0) > 0,
+                'Attendance' => (int) ($presetCounts['Attendance'] ?? 0) > 0,
+                'Reconcile stock' => (int) ($presetCounts['Reconcile stock'] ?? 0) > 0,
+                'Ready for review' => $allocationReviewCount > 0,
+            ]);
+        }
         if ($request->expectsJson() && $request->boolean('select_listing')) {
             app(SiteListControls::class)->apply($workshopQuery);
             $ids = $workshopQuery->limit(5001)->pluck('id');
@@ -164,6 +178,9 @@ class WorkshopController extends Controller
             ->orderBy('starts_at', 'desc')
             ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
+        $workshopAttentionById = $view === 'list'
+            ? app(\App\Services\WorkshopActionAttention::class)->forWorkshops($workshops->getCollection())
+            : [];
 
         $tabQuery = array_filter([
             'search' => $search !== '' ? $search : null,
@@ -214,6 +231,7 @@ class WorkshopController extends Controller
             ],
             'view' => $view,
             'workshops' => $workshops,
+            'workshopAttentionById' => $workshopAttentionById,
         ]);
     }
 
@@ -338,8 +356,13 @@ class WorkshopController extends Controller
                 if (isset($itemChanges['registration']) && $itemChanges['registration'] !== 'tickets') {
                     $itemChanges['max_tickets'] = null;
                 }
+                if (isset($itemChanges['registration']) && $itemChanges['registration'] === 'tickets') {
+                    $itemChanges['max_attendance'] = null;
+                }
                 if ($itemChanges !== []) {
                     $workshop->update($itemChanges);
+                    $freshWorkshop = $workshop->fresh();
+                    app(StockInventoryService::class)->syncWorkshopReservations($freshWorkshop, (string) $freshWorkshop->status === 'cancelled');
                 }
                 if ($removeCategoryIds->isNotEmpty()) {
                     $workshop->categories()->detach($removeCategoryIds->all());
@@ -525,7 +548,7 @@ class WorkshopController extends Controller
             ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
-        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
+        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops, $calendarStart, $calendarEnd);
         $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
@@ -587,7 +610,7 @@ class WorkshopController extends Controller
             ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
 
         $workshopsByDate = $this->groupWorkshopsAcrossDateRange($monthWorkshops, $calendarStart, $calendarEnd);
-        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops);
+        $workshopLanes = $this->assignWorkshopCalendarLanes($monthWorkshops, $calendarStart, $calendarEnd);
         $schoolHolidayDates = $this->schoolHolidayDateLookup($calendarStart, $calendarEnd);
 
         /** @var Collection<int, array<string, mixed>> $calendarDays */
@@ -679,10 +702,10 @@ class WorkshopController extends Controller
      * @param  Collection<int, Workshop>  $workshops
      * @return array<string, int>
      */
-    private function assignWorkshopCalendarLanes(Collection $workshops): array
+    private function assignWorkshopCalendarLanes(Collection $workshops, Carbon $rangeStart, Carbon $rangeEnd): array
     {
-        /** @var array<int, Carbon> $laneEndDates */
-        $laneEndDates = [];
+        /** @var array<int, array<string, true>> $laneDates */
+        $laneDates = [];
         $assignments = [];
 
         foreach ($workshops->sortBy('starts_at') as $workshop) {
@@ -690,20 +713,63 @@ class WorkshopController extends Controller
                 continue;
             }
 
-            $startDate = $workshop->starts_at->copy()->startOfDay();
-            $endDate = ($workshop->ends_at ?? $workshop->starts_at)->copy();
-            if ($endDate->greaterThan($workshop->starts_at) && $endDate->isStartOfDay()) {
-                $endDate->subSecond();
+            $entries = $workshop->isCourse()
+                ? $workshop->effectiveScheduleEntries()
+                : [[
+                    'starts_at' => $workshop->starts_at,
+                    'ends_at' => $workshop->ends_at ?? $workshop->starts_at,
+                ]];
+            $occupiedDates = [];
+
+            foreach ($entries as $entry) {
+                if (empty($entry['starts_at'])) {
+                    continue;
+                }
+
+                $start = Carbon::parse($entry['starts_at']);
+                $end = Carbon::parse($entry['ends_at'] ?? $entry['starts_at']);
+                if ($end->lessThan($start)) {
+                    $end = $start->copy();
+                } elseif ($end->greaterThan($start) && $end->isStartOfDay()) {
+                    $end->subSecond();
+                }
+
+                $firstDate = $start->copy()->startOfDay();
+                if ($firstDate->lessThan($rangeStart)) {
+                    $firstDate = $rangeStart->copy()->startOfDay();
+                }
+                $lastDate = $end->copy()->startOfDay();
+                if ($lastDate->greaterThan($rangeEnd)) {
+                    $lastDate = $rangeEnd->copy()->startOfDay();
+                }
+
+                for ($date = $firstDate; $date->lessThanOrEqualTo($lastDate); $date->addDay()) {
+                    $occupiedDates[$date->toDateString()] = true;
+                }
             }
-            $endDate->startOfDay();
+
+            if ($occupiedDates === []) {
+                continue;
+            }
 
             $lane = 0;
-            while (isset($laneEndDates[$lane]) && $laneEndDates[$lane]->greaterThanOrEqualTo($startDate)) {
-                $lane++;
+            $hasConflict = true;
+            while ($hasConflict) {
+                $hasConflict = false;
+                foreach (array_keys($occupiedDates) as $date) {
+                    if (isset($laneDates[$lane][$date])) {
+                        $hasConflict = true;
+                        $lane++;
+                        break;
+                    }
+                }
+            }
+
+            foreach (array_keys($occupiedDates) as $date) {
+                $laneDates[$lane][$date] = true;
             }
 
             $assignments[(string) $workshop->getKey()] = $lane;
-            $laneEndDates[$lane] = $endDate;
         }
 
         return $assignments;
@@ -1106,6 +1172,7 @@ class WorkshopController extends Controller
             'optional_product_ids' => 'nullable|array|max:30',
             'optional_product_ids.*' => 'integer|distinct|exists:products,id',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'max_attendance' => 'nullable|integer|min:1|max:5000',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -1135,6 +1202,7 @@ class WorkshopController extends Controller
         $submittedWorkshopTasks = $this->submittedWorkshopTasks($request);
 
         $workshopData = $request->all();
+        unset($workshopData['editor_step']);
         $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
@@ -1167,6 +1235,7 @@ class WorkshopController extends Controller
             $workshopData['max_tickets'] = null;
             $workshopData['ticket_group_slug'] = null;
         } else {
+            $workshopData['max_attendance'] = null;
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
@@ -1219,9 +1288,17 @@ class WorkshopController extends Controller
             $workshopData['status'] = 'closed';
         }
 
-        $workshop = Workshop::create($workshopData);
+        $workshop = DB::transaction(function () use ($workshopData): Workshop {
+            $workshop = Workshop::create($workshopData);
+            $freshWorkshop = $workshop->fresh();
+            app(StockInventoryService::class)->syncWorkshopReservations($freshWorkshop, (string) $freshWorkshop->status === 'cancelled');
+
+            return $workshop;
+        });
         $blueprintService = app(WorkshopBlueprintService::class);
-        if ($submittedWorkshopTasks === null) {
+        $hasSubmittedWorkshopTasks = collect($submittedWorkshopTasks ?? [])
+            ->contains(fn (array $task): bool => trim((string) ($task['name'] ?? '')) !== '');
+        if (! $hasSubmittedWorkshopTasks) {
             $blueprintService->copyTasksFromBlueprint($workshop, $workshop->pick_list_template_id ? (int) $workshop->pick_list_template_id : null);
         } else {
             $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
@@ -1336,7 +1413,7 @@ class WorkshopController extends Controller
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
             'workshopTaskDrafts' => $workshopTaskDrafts,
-            'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+            'pickListTemplates' => PickListTemplate::query()->withCount(['tasks', 'items'])->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
@@ -1367,7 +1444,23 @@ class WorkshopController extends Controller
         ]);
     }
 
-    public function admin_files(Workshop $workshop): View
+    public function admin_media(Request $request, Workshop $workshop): View
+    {
+        return $request->query('section') === 'photos'
+            ? $this->renderWorkshopPhotos($request, $workshop)
+            : $this->renderWorkshopFiles($workshop);
+    }
+
+    public function admin_files(Workshop $workshop): RedirectResponse
+    {
+        return redirect()->route('admin.workshop.media', array_merge(
+            request()->query(),
+            ['workshop' => $workshop],
+            ['section' => 'files'],
+        ));
+    }
+
+    private function renderWorkshopFiles(Workshop $workshop): View
     {
         $attachedFileNames = $workshop->files()
             ->pluck('media.name')
@@ -1404,6 +1497,7 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'files' => $files,
             'attachedFileNames' => $attachedFileNames,
+            'mediaSection' => 'files',
         ]);
     }
 
@@ -1430,7 +1524,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Workshop files updated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.files', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'files']);
     }
 
     public function admin_files_upload(Request $request, Workshop $workshop): JsonResponse
@@ -1522,7 +1616,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Workshop file removed');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.files', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'files']);
     }
 
     public function admin_files_bulk_update(Request $request, Workshop $workshop): JsonResponse
@@ -1576,7 +1670,16 @@ class WorkshopController extends Controller
         return response()->download($zipPath, 'workshop-'.$workshop->id.'-files.zip')->deleteFileAfterSend(true);
     }
 
-    public function admin_photos(Request $request, Workshop $workshop): View
+    public function admin_photos(Request $request, Workshop $workshop): RedirectResponse
+    {
+        return redirect()->route('admin.workshop.media', array_merge(
+            $request->query(),
+            ['workshop' => $workshop],
+            ['section' => 'photos'],
+        ));
+    }
+
+    private function renderWorkshopPhotos(Request $request, Workshop $workshop): View
     {
         $attachedPhotoNames = $workshop->photos()
             ->pluck('media.name')
@@ -1613,6 +1716,7 @@ class WorkshopController extends Controller
             'photos' => $photos,
             'attachedPhotoNames' => $attachedPhotoNames,
             'tagOptions' => $this->mediaTagOptions(),
+            'mediaSection' => 'photos',
         ]);
     }
 
@@ -1811,7 +1915,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Media added');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.photos', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']);
     }
 
     public function admin_photos_update(Request $request, Workshop $workshop, Media $media): RedirectResponse|JsonResponse
@@ -1856,7 +1960,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Photo updated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.photos', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']);
     }
 
     public function admin_photos_bulk_update(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
@@ -1909,7 +2013,7 @@ class WorkshopController extends Controller
             return response()->json(['updated' => $updated]);
         }
 
-        return redirect()->route('admin.workshop.photos', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']);
     }
 
     private function moveWorkshopMediaOriginalToStorageDisk(Media $media, string $fromDisk): void
@@ -1944,7 +2048,7 @@ class WorkshopController extends Controller
         session()->flash('message-title', 'Photo removed');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.photos', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']);
     }
 
     public function admin_photos_delete(Workshop $workshop, Media $media): RedirectResponse|JsonResponse
@@ -1959,11 +2063,11 @@ class WorkshopController extends Controller
         if (request()->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'redirect' => route('admin.workshop.photos', $workshop),
+                'redirect' => route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']),
             ]);
         }
 
-        return redirect()->route('admin.workshop.photos', $workshop);
+        return redirect()->route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']);
     }
 
     public function admin_photos_media(Request $request, Workshop $workshop, Media $media): BinaryFileResponse
@@ -2254,6 +2358,7 @@ class WorkshopController extends Controller
             'optional_product_ids' => 'nullable|array|max:30',
             'optional_product_ids.*' => 'integer|distinct|exists:products,id',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'max_attendance' => 'nullable|integer|min:1|max:5000',
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
@@ -2298,6 +2403,7 @@ class WorkshopController extends Controller
         $submittedWorkshopTasks = $this->submittedWorkshopTasks($request, $workshop);
 
         $workshopData = $request->all();
+        unset($workshopData['editor_step']);
         $workshopData = array_replace(Arr::except($workshopData, ['format', 'course_sessions', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at']), app(WorkshopCourseSettings::class)->validated($request, $workshop));
         $workshopData['optional_product_ids'] = $request->input('optional_product_ids', []);
         $workshopData['price_is_automatic'] = $request->input('registration') === 'tickets' && $request->boolean('price_is_automatic');
@@ -2351,6 +2457,7 @@ class WorkshopController extends Controller
             $workshopData['max_tickets'] = null;
             $workshopData['ticket_group_slug'] = null;
         } else {
+            $workshopData['max_attendance'] = null;
             $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
             $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
@@ -2475,9 +2582,19 @@ class WorkshopController extends Controller
             }
         }
 
-        $workshop->update($workshopData);
+        DB::transaction(function () use ($workshop, $workshopData): void {
+            $workshop->update($workshopData);
+            $freshWorkshop = $workshop->fresh();
+            app(StockInventoryService::class)->syncWorkshopReservations(
+                $freshWorkshop,
+                (string) $freshWorkshop->status === 'cancelled',
+                refreshAfterStart: true,
+            );
+        });
         $blueprintService = app(WorkshopBlueprintService::class);
-        if ($templateChanged) {
+        $hasSubmittedWorkshopTasks = collect($submittedWorkshopTasks ?? [])
+            ->contains(fn (array $task): bool => trim((string) ($task['name'] ?? '')) !== '');
+        if ($templateChanged && ! $hasSubmittedWorkshopTasks) {
             $blueprintService->copyTasksFromBlueprint($workshop, $newTemplateId);
         } elseif ($submittedWorkshopTasks !== null) {
             $blueprintService->saveWorkshopTasks($workshop, $submittedWorkshopTasks);
@@ -3175,18 +3292,6 @@ class WorkshopController extends Controller
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
-        $attendanceTicketQuery = Ticket::query()
-            ->where('workshop_id', $workshop->id)
-            ->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]);
-        $dropInAttendanceCount = WorkshopAttendance::query()
-            ->where('workshop_id', $workshop->id)
-            ->whereNull('ticket_id')
-            ->count();
-        request()->attributes->set('collection_preset_counts', [
-            'Current' => (clone $attendanceTicketQuery)->where('status', '!=', Ticket::STATUS_CANCELLED)->count() + $dropInAttendanceCount,
-            'Including cancelled' => (clone $attendanceTicketQuery)->count() + $dropInAttendanceCount,
-        ]);
-
         $activeTickets = collect();
         $cancelledTickets = collect();
         $attendanceInvoiceMeta = [];
@@ -3270,6 +3375,9 @@ class WorkshopController extends Controller
             ->orderByDesc('attended_at')
             ->orderByDesc('id')
             ->get();
+        $hasTicketAttendance = Ticket::query()->where('workshop_id', $workshop->id)->whereNotNull('attended_at')->exists()
+            || DB::table('workshop_session_attendance')->where('workshop_id', $workshop->id)->exists();
+        $canConfirmNoAttendees = app(WorkshopFollowUp::class)->hasEnded($workshop);
 
         $view = $isKiosk ? 'admin.workshop.attendance-kiosk' : 'admin.workshop.attendance';
 
@@ -3283,6 +3391,8 @@ class WorkshopController extends Controller
             'availableEftposPayments' => $availableEftposPayments,
             'paymentMethodLabels' => $paymentMethodLabels,
             'dropIns' => $dropIns,
+            'hasTicketAttendance' => $hasTicketAttendance,
+            'canConfirmNoAttendees' => $canConfirmNoAttendees,
             'isKiosk' => $isKiosk,
         ]);
     }
@@ -3424,6 +3534,11 @@ class WorkshopController extends Controller
             session()->flash('message-type', 'warning');
 
             return redirect()->route('admin.workshop.attendance', $workshop);
+        }
+
+        if ($workshop->attendance_no_attendees_confirmed_at !== null) {
+            $workshop->attendance_no_attendees_confirmed_at = null;
+            $workshop->save();
         }
 
         if ($workshop->isCourse()) {
@@ -3696,6 +3811,11 @@ class WorkshopController extends Controller
         };
         $syncAttendance = ! $workshop->isCourse() && $request->boolean('sync_attendance', false);
         $markAttended = ! $workshop->isCourse() && $request->boolean('mark_attended', false);
+        $attendanceWasMarked = $workshop->isCourse()
+            ? (($request->boolean('sync_attendance') && $attendedTicketIds !== [])
+                || ($request->boolean('mark_attended') && $selectedTicketIds !== []))
+            : (($syncAttendance && $attendedTicketIds !== [])
+                || ($markAttended && $selectedTicketIds !== []));
         $emailReceipt = $request->boolean('email_receipt', false);
         $now = now();
         $syncInvoiceIds = array_keys($outstandingByInvoiceId);
@@ -3988,6 +4108,11 @@ class WorkshopController extends Controller
             });
         }
 
+        if ($attendanceWasMarked && $workshop->attendance_no_attendees_confirmed_at !== null) {
+            $workshop->attendance_no_attendees_confirmed_at = null;
+            $workshop->save();
+        }
+
         $receiptEmailPayloads = collect($receiptEmailPayloads)
             ->filter(fn (array $payload): bool => $payload['payment_id'] > 0)
             ->unique('payment_id')
@@ -4092,7 +4217,10 @@ class WorkshopController extends Controller
             'media_consent' => $mediaConsent,
             'attended_at' => now(),
         ]);
-
+        if ($workshop->attendance_no_attendees_confirmed_at !== null) {
+            $workshop->attendance_no_attendees_confirmed_at = null;
+            $workshop->save();
+        }
         session()->flash('message', 'Your attendance has been recorded. Thank you.');
         session()->flash('message-title', 'Attendance saved');
         session()->flash('message-type', 'success');
@@ -4146,9 +4274,15 @@ class WorkshopController extends Controller
         $hasAnonymousCount = $request->has('anonymous_count');
         $anonymousCountInput = $hasAnonymousCount ? $request->input('anonymous_count') : null;
 
-        validator(['anonymous_count' => $anonymousCountInput, 'entries' => $entries], [
+        $confirmNoAttendees = $request->boolean('confirm_no_attendees');
+        validator([
+            'anonymous_count' => $anonymousCountInput,
+            'entries' => $entries,
+            'confirm_no_attendees' => $request->input('confirm_no_attendees'),
+        ], [
             'anonymous_count' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'entries' => ['nullable', 'array'],
+            'confirm_no_attendees' => ['nullable', 'boolean'],
             'entries.*.id' => ['nullable', 'integer', 'min:0'],
             'entries.*.is_anonymous' => ['nullable', 'boolean'],
             'entries.*.child_name' => ['nullable', 'string', 'max:180'],
@@ -4158,6 +4292,28 @@ class WorkshopController extends Controller
             'entries.*.media_consent' => ['nullable', 'boolean'],
         ])->validate();
         $targetAnonymousCount = $hasAnonymousCount ? (int) $anonymousCountInput : $legacyAnonymousCount;
+
+        if ($confirmNoAttendees) {
+            if (! app(WorkshopFollowUp::class)->hasEnded($workshop)) {
+                throw ValidationException::withMessages([
+                    'confirm_no_attendees' => 'Attendance can only be completed after the workshop has ended.',
+                ]);
+            }
+
+            if ($entries !== [] || $targetAnonymousCount > 0) {
+                throw ValidationException::withMessages([
+                    'confirm_no_attendees' => 'Remove the attendee records before confirming no attendees.',
+                ]);
+            }
+
+            $hasTicketAttendance = Ticket::query()->where('workshop_id', $workshop->id)->whereNotNull('attended_at')->exists()
+                || DB::table('workshop_session_attendance')->where('workshop_id', $workshop->id)->exists();
+            if ($hasTicketAttendance) {
+                throw ValidationException::withMessages([
+                    'confirm_no_attendees' => 'Ticket attendance is already recorded for this workshop.',
+                ]);
+            }
+        }
 
         $existing = WorkshopAttendance::query()
             ->where('workshop_id', $workshop->id)
@@ -4274,9 +4430,17 @@ class WorkshopController extends Controller
                 }
             }
         });
-
-        session()->flash('message', 'Attendance records have been updated.');
-        session()->flash('message-title', 'Attendance saved');
+        if ($confirmNoAttendees) {
+            $workshop->attendance_no_attendees_confirmed_at = now();
+            $workshop->save();
+        } elseif ($workshop->attendance_no_attendees_confirmed_at !== null) {
+            $workshop->attendance_no_attendees_confirmed_at = null;
+            $workshop->save();
+        }
+        session()->flash('message', $confirmNoAttendees
+            ? 'Attendance is marked complete with no attendees.'
+            : 'Attendance records have been updated.');
+        session()->flash('message-title', $confirmNoAttendees ? 'Attendance complete' : 'Attendance saved');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.attendance', $workshop);
@@ -5093,7 +5257,6 @@ class WorkshopController extends Controller
         $attendance->phone = $phone !== '' ? $phone : null;
         $attendance->media_consent = $mediaConsent;
         $attendance->save();
-
         session()->flash('message', 'Attendance entry updated.');
         session()->flash('message-title', 'Attendance saved');
         session()->flash('message-type', 'success');
@@ -5125,6 +5288,8 @@ class WorkshopController extends Controller
         $newWorkshop = $workshop->replicate();
         $newWorkshop->title = $newWorkshop->title.' (copy)';
         $newWorkshop->status = 'draft';
+        $newWorkshop->stock_reconciled_at = null;
+        $newWorkshop->stock_reconciled_by = null;
         $newWorkshop->save();
         $newWorkshop->categories()->sync($workshop->categories->modelKeys());
 

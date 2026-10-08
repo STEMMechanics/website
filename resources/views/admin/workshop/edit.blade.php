@@ -39,6 +39,12 @@ $pickListTemplateMode = old('pick_list_template_id') !== null
     ? $pickListTemplateFieldValue
     : (($workshopModel?->pick_list_is_customized) ? 'custom' : $pickListTemplateFieldValue);
 $hasCustomPickList = (bool) ($workshopModel?->pick_list_is_customized);
+$hasCustomPickListItems = collect($workshopModel?->pick_list_custom_items ?? [])
+    ->contains(function ($item): bool {
+        $item = is_array($item) ? $item : (array) $item;
+
+        return (int) ($item['stock_item_id'] ?? 0) > 0 || trim((string) ($item['item_name'] ?? '')) !== '';
+    });
 $providedWorkshopTaskDrafts = $workshopTaskDrafts ?? null;
 $submittedTaskDrafts = old('workshop_tasks_payload');
 $decodedTaskDrafts = is_string($submittedTaskDrafts) ? json_decode($submittedTaskDrafts, true) : null;
@@ -131,6 +137,34 @@ if (isset($workshop) && in_array((string) $workshop->registration, ['tickets'], 
     }
 }
 
+$workshopEditorSteps = [
+    ['id' => 'details', 'label' => 'Details', 'description' => 'Set the workshop title, format, venue and schedule.'],
+    ['id' => 'registration', 'label' => 'Registration', 'description' => 'Choose how people book and set pricing and capacity.'],
+    ['id' => 'public', 'label' => 'Public page', 'description' => 'Add the image, categories and information shown to visitors.'],
+    ['id' => 'delivery', 'label' => 'Delivery plan', 'description' => 'Choose a blueprint and prepare workshop tasks and materials.'],
+    ['id' => 'review', 'label' => 'Review & publish', 'description' => 'Check the key details and choose when the workshop is published.'],
+];
+$workshopEditorStepFields = [
+    'details' => ['title', 'facilitator_user_id', 'type', 'format', 'location_id', 'requested_by_user_id', 'hosted_for_organisation_id', 'starts_at', 'ends_at', 'course_sessions'],
+    'registration' => ['is_private', 'is_hidden', 'closes_at', 'private_code', 'price', 'price_info', 'registration', 'registration_data', 'max_tickets', 'max_attendance', 'early_bird_price', 'early_bird_ends_at', 'early_bird_ticket_limit', 'participant_information', 'participant_files', 'ticket_group_slug', 'optional_product_ids', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'welcome_send_at', 'welcome_files'],
+    'public' => ['hero_media_name', 'category_ids', 'summary', 'content'],
+    'delivery' => ['pick_list_template_id', 'workshop_tasks_payload'],
+    'review' => ['status', 'publish_at'],
+];
+$workshopEditorStep = (string) old('editor_step', 'details');
+foreach ($workshopEditorStepFields as $step => $fieldNames) {
+    $hasStepError = collect($errors->keys())->contains(fn (string $errorKey): bool => collect($fieldNames)->contains(
+        fn (string $fieldName): bool => $errorKey === $fieldName || str_starts_with($errorKey, $fieldName.'.')
+    ));
+    if ($hasStepError) {
+        $workshopEditorStep = $step;
+        break;
+    }
+}
+if (! collect($workshopEditorSteps)->contains(fn (array $step): bool => $step['id'] === $workshopEditorStep)) {
+    $workshopEditorStep = 'details';
+}
+
 $workshopTabs = null;
 if (isset($workshop)) {
     $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
@@ -141,11 +175,7 @@ if (isset($workshop)) {
         <x-slot>{{ isset($workshop) ? $workshop->title : 'Create Workshop' }}</x-slot>
         @isset($workshop)
             <x-slot:actions>
-                <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
-                    View public page
-                    <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
-                    <span class="sr-only">(opens in a new tab)</span>
-                </x-ui.button>
+                <x-admin.workshop-public-page-action :workshop="$workshop" />
             </x-slot:actions>
         @endisset
     </x-mast>
@@ -155,6 +185,51 @@ if (isset($workshop)) {
         @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <form id="workshop-form" x-data="{
             ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
+            editorStep: @js($workshopEditorStep),
+            editorStepDefinitions: @js($workshopEditorSteps),
+            editorStepOrder: @js(collect($workshopEditorSteps)->pluck('id')->values()),
+            editorStepIndex() { return this.editorStepOrder.indexOf(this.editorStep); },
+            editorStepLabel() { return this.editorStepDefinitions.find((step) => step.id === this.editorStep)?.label || 'Workshop details'; },
+            editorStepDescription() { return this.editorStepDefinitions.find((step) => step.id === this.editorStep)?.description || ''; },
+            setEditorStep(step) {
+                if (!this.editorStepOrder.includes(step)) return;
+                this.editorStep = step;
+                this.$nextTick(() => document.getElementById('workshop-editor-steps')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            },
+            previousEditorStep() {
+                const index = this.editorStepIndex();
+                if (index > 0) this.setEditorStep(this.editorStepOrder[index - 1]);
+            },
+            nextEditorStep() {
+                const index = this.editorStepIndex();
+                if (index >= 0 && index < this.editorStepOrder.length - 1) this.setEditorStep(this.editorStepOrder[index + 1]);
+            },
+            reviewValue(name) {
+                const field = this.$refs.workshopForm?.elements?.namedItem(name);
+                return field && typeof field.value === 'string' ? field.value : '';
+            },
+            reviewDate(value) {
+                if (!value) return 'Not set';
+                const date = new Date(value);
+                return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+            },
+            reviewLocation() {
+                if (this.type !== 'physical' && this.workshopFormat !== 'course') return 'Online';
+                return this.locations.find((location) => String(location.id) === String(this.selectedLocationId))?.name || 'Location not selected';
+            },
+            validateWorkshopEditor(event) {
+                const form = this.$refs.workshopForm;
+                const invalidField = Array.from(form?.elements || []).find((field) => field.willValidate && !field.checkValidity());
+                if (!invalidField) return true;
+                const panel = invalidField.closest('[data-workshop-step-panel]');
+                if (panel) this.editorStep = panel.dataset.workshopStepPanel;
+                event.preventDefault();
+                this.$nextTick(() => {
+                    invalidField.focus({ preventScroll: true });
+                    invalidField.reportValidity();
+                });
+                return false;
+            },
             workshopTaskPreviewRevision: 0,
             type: @js($workshopTypeForForm),
             status: @js($workshopStatusForForm),
@@ -163,6 +238,7 @@ if (isset($workshop)) {
             isPrivate: @js((bool) old('is_private', isset($workshopModel) ? $workshopModel->isPrivate() : false)),
             isHidden: @js((bool) old('is_hidden', isset($workshopModel) ? (bool) $workshopModel->is_hidden : false)),
             registration: @js(old('registration', $workshopModel?->registration ?? 'none')),
+            maxAttendance: @js(old('max_attendance', $workshopModel?->max_attendance ?? '')),
             participantInformationOpen: @js($errors->hasAny(['participant_information', 'participant_files', 'ticket_group_slug'])),
             participantFiles: @js($participantAttachmentNames),
             openParticipantFilePicker() {
@@ -204,16 +280,95 @@ if (isset($workshop)) {
             ticketChangeEmailSubject: @js((string) old('ticket_change_email_subject', $ticketChangeEmailDefaultSubject)),
             ticketChangeEmailBody: @js((string) old('ticket_change_email_body', '')),
             ticketChangeEmailOpen: false,
-            workshopTitle: @js($workshopModel?->title ?? 'Workshop'),
+            workshopTitle: @js(old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '')),
             supportEmail: @js($ticketChangeEmailDefaultTo),
             originalLocationLabel: @js(isset($workshopModel) ? $workshopModel->getLocationName() : 'Online'),
             workshopCancelReasonDefault: @js("We're sorry, but this workshop has been cancelled. Please see below for your refund or credit details."),
             workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
             hasCustomPickList: @js($hasCustomPickList),
+            hasCustomPickListItems: @js($hasCustomPickListItems),
             originalPickListTemplateId: @js((string) ($workshopModel?->pick_list_template_id ?? '')),
             pickListTemplateMode: @js((string) $pickListTemplateMode),
             pickListTemplateId: @js((string) $pickListTemplateFieldValue),
             pickListTemplateReset: false,
+            blueprintOptions: @js(collect($pickListTemplates ?? [])->map(fn ($blueprint) => [
+                'id' => (string) $blueprint->id,
+                'name' => (string) $blueprint->name,
+                'tasks_count' => (int) ($blueprint->tasks_count ?? 0),
+                'items_count' => (int) ($blueprint->items_count ?? 0),
+                'data_url' => route('admin.workshop-blueprint.data', $blueprint),
+                'edit_url' => route('admin.workshop-blueprint.edit', $blueprint),
+            ])->values()->all()),
+            blueprintPickerOpen: false,
+            blueprintSearch: '',
+            blueprintOptionIndex: 0,
+            blueprintDataCache: {},
+            blueprintDataRequests: {},
+            currentBlueprintSelectorLabel() {
+                if (this.pickListTemplateMode === 'custom') return 'Custom pick list';
+                if (!String(this.pickListTemplateId || '')) return 'No blueprint';
+                return this.blueprintOptions.find((option) => option.id === String(this.pickListTemplateId))?.name || 'Select a blueprint';
+            },
+            filteredBlueprintOptions() {
+                const options = [
+                    { id: '', label: 'No blueprint', kind: 'blueprint' },
+                    ...(this.hasCustomPickList ? [{ id: 'custom', label: 'Custom pick list', kind: 'custom' }] : []),
+                    ...this.blueprintOptions.map((option) => ({ ...option, label: option.name, kind: 'blueprint' })),
+                ];
+                const query = String(this.blueprintSearch || '').trim().toLocaleLowerCase();
+                return query ? options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : options;
+            },
+            openBlueprintPicker() {
+                this.blueprintPickerOpen = true;
+                this.blueprintSearch = '';
+                this.blueprintOptionIndex = 0;
+                this.$nextTick(() => this.$refs.blueprintSearch?.focus());
+            },
+            toggleBlueprintPicker() {
+                if (this.blueprintPickerOpen) {
+                    this.blueprintPickerOpen = false;
+                    return;
+                }
+                this.openBlueprintPicker();
+            },
+            moveBlueprintOption(direction) {
+                const count = this.filteredBlueprintOptions().length;
+                if (count === 0) return;
+                this.blueprintOptionIndex = Math.max(0, Math.min(count - 1, this.blueprintOptionIndex + direction));
+            },
+            chooseBlueprintOption(option) {
+                if (!option) return;
+                this.updatePickListTemplateSelection(option.id);
+                this.blueprintPickerOpen = false;
+                this.blueprintSearch = '';
+            },
+            blueprintEditUrl() {
+                return this.blueprintOptions.find((option) => option.id === String(this.pickListTemplateId || ''))?.edit_url || '#';
+            },
+            async loadBlueprintData(id) {
+                const key = String(id || '');
+                if (!key) throw new Error('Choose a workshop blueprint first.');
+                if (this.blueprintDataCache[key]) return this.blueprintDataCache[key];
+                if (this.blueprintDataRequests[key]) return this.blueprintDataRequests[key];
+
+                const option = this.blueprintOptions.find((item) => item.id === key);
+                if (!option?.data_url) throw new Error('Workshop blueprint could not be found.');
+                const request = fetch(option.data_url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+                    .then(async (response) => {
+                        if (!response.ok) throw new Error('Workshop blueprint could not be loaded.');
+                        return response.json();
+                    })
+                    .then((data) => {
+                        this.blueprintDataCache[key] = data;
+                        return data;
+                    });
+                this.blueprintDataRequests[key] = request;
+                try {
+                    return await request;
+                } finally {
+                    delete this.blueprintDataRequests[key];
+                }
+            },
             workshopSummaryAiContext() {
                 const form = document.getElementById('workshop-form');
                 const value = (name) => {
@@ -244,12 +399,16 @@ if (isset($workshop)) {
                         this.pickListTemplateId = this.originalPickListTemplateId;
                     }
                     this.pickListTemplateReset = false;
-                    return;
+                } else {
+                    this.pickListTemplateMode = nextValue;
+                    this.pickListTemplateId = nextValue;
+                    this.pickListTemplateReset = wasCustom && this.hasCustomPickList && !this.hasCustomPickListItems;
                 }
 
-                this.pickListTemplateMode = nextValue;
-                this.pickListTemplateId = nextValue;
-                this.pickListTemplateReset = wasCustom && this.hasCustomPickList;
+                this.$dispatch('workshop-blueprint-selected', {
+                    blueprintId: String(this.pickListTemplateId || ''),
+                    mode: this.pickListTemplateMode,
+                });
             },
             syncRegistrationData() {
                 const form = this.$refs.workshopForm;
@@ -556,6 +715,10 @@ if (isset($workshop)) {
             async handleSubmit(event) {
             this.syncRegistrationData();
 
+            if (!this.validateWorkshopEditor(event)) {
+                return;
+            }
+
             if (this.status === 'cancelled' && this.originalStatus !== 'cancelled' && ['tickets'].includes(String(this.registration || ''))) {
             event.preventDefault();
             this.openCancelWorkshopModal();
@@ -655,7 +818,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" novalidate x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -666,55 +829,51 @@ if (isset($workshop)) {
                 <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
                 <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
                 <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
-                <div class="mb-4">
-                    <x-ui.input label="Title" name="title" value="{{ old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '') }}" />
-                </div>
-                <div class="mb-4">
-                    <x-ui.select
-                        label="Facilitator"
-                        name="facilitator_user_id"
-                        value="{{ old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) }}"
-                        info="Workshop task reminders are sent to this person. New workshops default to their creator."
-                    >
-                        @foreach(($facilitatorOptions ?? collect()) as $facilitator)
-                            <option value="{{ $facilitator->id }}" @selected((string) old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) === (string) $facilitator->id)>
-                                {{ $facilitator->getName() }} · {{ $facilitator->email }}
-                            </option>
-                        @endforeach
-                    </x-ui.select>
-                </div>
-                <div class="mb-4">
-                    <x-ui.media label="Image" name="hero_media_name" value="{{ old('hero_media_name', $workshopModel?->hero_media_name ?? $selectedBlueprint?->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" />
-                </div>
-                <div class="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
-                            <p class="text-xs text-gray-500">Optional public workshop filters. A workshop can have more than one category.</p>
-                        </div>
-                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
-                    </div>
+                <input type="hidden" name="editor_step" x-model="editorStep">
 
-                    @if(($workshopCategories ?? collect())->isEmpty())
-                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
-                    @else
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach($workshopCategories as $category)
-                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
-                                    <x-ui.checkbox
- name="category_ids[]"
- value="{{ $category->id }}"
- :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
- :noWrapper="true"
- />
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
-                                        <i class="{{ $category->iconClass() }}"></i>
-                                    </span>
-                                    <span class="font-medium">{{ $category->name }}</span>
-                                </label>
+                <nav id="workshop-editor-steps" aria-label="Workshop editor steps" class="mb-6 scroll-mt-24">
+                    <ol class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                @foreach($workshopEditorSteps as $stepIndex => $step)
+                            <li class="min-w-0">
+                                <button type="button" class="block w-full text-left" x-on:click="setEditorStep('{{ $step['id'] }}')" x-bind:aria-current="editorStep === '{{ $step['id'] }}' ? 'step' : null">
+                                    <span class="block h-1.5 rounded-full transition-colors" x-bind:class="editorStepIndex() >= {{ $stepIndex }} ? 'bg-primary-color' : 'bg-gray-200'"></span>
+                                    <span class="mt-2 block truncate text-xs" x-bind:class="editorStep === '{{ $step['id'] }}' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ $stepIndex + 1 }}. {{ $step['label'] }}</span>
+                                </button>
+                    </li>
+                @endforeach
+                    </ol>
+                </nav>
+                <div class="mb-5">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-color" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></p>
+                    <h2 class="mt-1 text-xl font-semibold text-gray-950" tabindex="-1" x-ref="editorStepHeading" x-text="editorStepLabel()"></h2>
+                    <p class="mt-1 text-sm text-gray-600" x-text="editorStepDescription()"></p>
+                </div>
+
+                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.input label="Title" name="title" x-model="workshopTitle" value="{{ old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '') }}" />
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.select
+                            label="Facilitator"
+                            name="facilitator_user_id"
+                            value="{{ old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) }}"
+                            info="Workshop task reminders are sent to this person. New workshops default to their creator."
+                        >
+                            @foreach(($facilitatorOptions ?? collect()) as $facilitator)
+                                <option value="{{ $facilitator->id }}" @selected((string) old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) === (string) $facilitator->id)>
+                                    {{ $facilitator->getName() }} · {{ $facilitator->email }}
+                                </option>
                             @endforeach
-                        </div>
-                    @endif
+                        </x-ui.select>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
@@ -857,6 +1016,7 @@ if (isset($workshop)) {
                         @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
                     </div>
                 </div>
+                </div>
             <div
                 x-cloak
                 x-show="createLocationOpen"
@@ -892,6 +1052,13 @@ if (isset($workshop)) {
                     </div>
                 </div>
             </div>
+                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.input
@@ -920,23 +1087,8 @@ if (isset($workshop)) {
                         />
                     </div>
                 </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.select label="Status" name="status" x-model="status">
-                            <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
-                            <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
-                            <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
-                            <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
-                            <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
-                            <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" onchange="updatedPublishAt()" />
-                    </div>
-                </div>
-
             @include('admin.workshop.partials.course-settings')
+                </div>
 
             <div
                 x-cloak
@@ -1044,6 +1196,13 @@ if (isset($workshop)) {
                 </div>
             </div>
 
+                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
             <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1 content-center flex gap-8">
                         <x-ui.checkbox
@@ -1104,19 +1263,33 @@ if (isset($workshop)) {
                         }" x-effect="const r = registration; $nextTick(() => reprice());" x-on:workshop-pricing-changed.window="reprice()">
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                            <div x-show="registration === 'tickets'" x-cloak>
-                                <x-ui.select label="Allocation plan" name="pricing_version_id" x-model="planId" x-on:blur="reprice()" :disabled="(bool) $ticketBudget">
-                                    @foreach($ticketPlans as $option)
-                                        <option value="{{ $option->id }}">{{ $option->name }}{{ $option->archived ? ' (archived)' : '' }}</option>
-                                    @endforeach
-                                </x-ui.select>
-                                @if($ticketBudget)
-                                    <input type="hidden" name="pricing_version_id" value="{{ $ticketPlan->id }}">
-                                    <p class="mb-3 text-xs text-slate-500">This workshop already has saved allocations using this plan.</p>
-                                @endif
-                            </div>
+                        <x-ui.select label="Registration" name="registration" x-model="registration" x-on:change="$nextTick(() => syncRegistrationData())">
+                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
+                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
+                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
+                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
+                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
+                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
+                        </x-ui.select>
+                    </div>
+                    <div class="flex-1">
+                        <div x-show="registration === 'tickets'" x-cloak>
+                            <x-ui.select label="Allocation plan" name="pricing_version_id" x-model="planId" x-on:blur="reprice()" :disabled="(bool) $ticketBudget">
+                                @foreach($ticketPlans as $option)
+                                    <option value="{{ $option->id }}">{{ $option->name }}{{ $option->archived ? ' (archived)' : '' }}</option>
+                                @endforeach
+                            </x-ui.select>
+                            @if($ticketBudget)
+                                <input type="hidden" name="pricing_version_id" value="{{ $ticketPlan->id }}">
+                                <p class="mb-3 text-xs text-slate-500">This workshop already has saved allocations using this plan.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
                             <input type="hidden" name="price_is_automatic" x-bind:value="registration === 'tickets' && automatic ? 1 : 0">
-                            <label class="block text-sm" for="workshop-price">Price</label>
+                            <label class="block text-sm pl-1" for="workshop-price">Price</label>
                             <div class="relative mt-1">
                                 <x-ui.input-control id="workshop-price" name="price" x-model="price" x-bind:class="registration === 'tickets' ? 'pr-11' : ''"
                                     x-on:input="automatic = false" x-on:blur="reprice()" />
@@ -1128,16 +1301,7 @@ if (isset($workshop)) {
                                 </x-ui.button>
                             </div>
                             @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
-                            <x-ui.input
-                                label="Price information"
-                                name="price_info"
-                                :value="old('price_info', $workshopModel?->price_info ?? '')"
-                                maxlength="255"
-                                placeholder="Complete 8-week course • $16.50 per session"
-                                info="Optional small text shown underneath the price on public workshop cards."
-                                error="{{ $errors->first('price_info') }}"
-                            />
+                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'" class="ml-2 mt-1">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
                             <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
                                 <input type="hidden" name="allow_pay_at_door" value="0">
                                 <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />
@@ -1149,21 +1313,29 @@ if (isset($workshop)) {
                     </div>
                 </div>
 
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.select label="Registration" name="registration" x-model="registration" x-on:change="$nextTick(() => syncRegistrationData())">
-                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
-                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
-                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
-                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
-                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
-                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
-                        </x-ui.select>
-                    </div>
+                <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <span x-show="registration==='tickets'">
                             <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" x-on:blur="$dispatch('workshop-pricing-changed')" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
                         </span>
+                        <span x-show="registration!=='tickets'" x-cloak>
+                            <x-ui.input type="number" min="1" step="1" label="Maximum Attendance" name="max_attendance" x-model="maxAttendance" value="{{ old('max_attendance', $workshop->max_attendance ?? '') }}" info="Used to reserve stock and calculate pick-list quantities for workshops without ticket registration." error="{{ $errors->first('max_attendance') }}" />
+                        </span>
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.input
+                            label="Price information"
+                            name="price_info"
+                            :value="old('price_info', $workshopModel?->price_info ?? '')"
+                            maxlength="255"
+                            placeholder="Complete 8-week course • $16.50 per session"
+                            info="Optional small text shown underneath the price on public workshop cards."
+                            error="{{ $errors->first('price_info') }}"
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-4">
                         <span x-show="registration==='link'">
                             <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
                         </span>
@@ -1174,7 +1346,6 @@ if (isset($workshop)) {
                             <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
                         </span>
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}">
-                    </div>
                 </div>
                 <div class="grid items-start gap-x-8 lg:grid-cols-2" x-show="registration === 'tickets'" x-cloak>
                 <x-ui.collapsible-section
@@ -1223,6 +1394,7 @@ if (isset($workshop)) {
                             :options="\App\Models\Product::query()->active()->orderBy('title')->pluck('title', 'id')->all()" />
                         <p class="text-sm text-gray-600">Customers can choose equipment and use the store’s delivery options during ticket checkout.</p>
                     </x-ui.collapsible-section>
+                </div>
                 </div>
                 <input type="hidden" name="participant_files" x-bind:value="JSON.stringify(participantFiles)">
                 <div
@@ -1283,7 +1455,15 @@ if (isset($workshop)) {
                         </div>
                     </div>
                 </div>
+                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
                 @include('admin.workshop.partials.welcome-settings')
+                </div>
                 <div x-data="{
                     ...SM.workshopTaskCopy({ publicUrl: @js($workshopModel ? route('workshop.show', $workshopModel) : '') }),
                     previewTask: null,
@@ -1298,6 +1478,87 @@ if (isset($workshop)) {
                             copy_status: '',
                         };
                     }),
+                    blueprintTasksImporting: false,
+                    blueprintTaskImportMessage: '',
+                    blueprintTaskDraft(task) {
+                        const reminderOffset = Number(task.reminder_offset_days || 0);
+                        return {
+                            id: null,
+                            blueprint_task_id: Number(task.id) || null,
+                            name: String(task.name || ''),
+                            notes: String(task.notes || ''),
+                            subtasks: (Array.isArray(task.subtasks) ? task.subtasks : []).map((subtask) => ({
+                                title: String(subtask?.title || ''),
+                                content: String(subtask?.content || ''),
+                            })),
+                            reminder_enabled: Boolean(task.reminder_enabled),
+                            reminder_days: Math.abs(reminderOffset),
+                            reminder_direction: reminderOffset < 0 ? 'before' : 'after',
+                            reminder_offset_days: reminderOffset,
+                            reminder_time: task.reminder_time || '12:00',
+                            expanded: false,
+                            copy_status: '',
+                            sort_order: Number(task.sort_order || 0),
+                        };
+                    },
+                    hasWorkshopTasks() {
+                        return this.tasks.some((task) => String(task.name || '').trim() !== '');
+                    },
+                    async handleBlueprintSelection(detail) {
+                        const blueprintId = String(detail?.blueprintId || '');
+                        if (!blueprintId || detail?.mode === 'custom' || this.hasWorkshopTasks()) return;
+
+                        this.blueprintTaskImportMessage = '';
+                        this.blueprintTasksImporting = true;
+                        try {
+                            const data = await this.loadBlueprintData(blueprintId);
+                            if (
+                                String(this.pickListTemplateId || '') !== blueprintId
+                                || this.pickListTemplateMode === 'custom'
+                                || this.hasWorkshopTasks()
+                            ) return;
+                            this.tasks = (Array.isArray(data.tasks) ? data.tasks : []).map((task) => this.blueprintTaskDraft(task));
+                        } catch (error) {
+                            if (String(this.pickListTemplateId || '') === blueprintId) {
+                                this.blueprintTaskImportMessage = 'Could not load tasks from this blueprint. Use the import button to retry.';
+                            }
+                        } finally {
+                            this.blueprintTasksImporting = false;
+                        }
+                    },
+                    async addMissingBlueprintTasks() {
+                        const blueprintId = String(this.pickListTemplateId || '');
+                        if (!blueprintId || this.blueprintTasksImporting) return;
+
+                        this.blueprintTasksImporting = true;
+                        this.blueprintTaskImportMessage = '';
+                        try {
+                            const data = await this.loadBlueprintData(blueprintId);
+                            if (String(this.pickListTemplateId || '') !== blueprintId) return;
+
+                            const existingIds = new Set(this.tasks.map((task) => Number(task.blueprint_task_id || 0)).filter((id) => id > 0));
+                            const existingNames = new Set(this.tasks.map((task) => String(task.name || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ')).filter(Boolean));
+                            const missing = [];
+                            for (const task of (Array.isArray(data.tasks) ? data.tasks : [])) {
+                                const id = Number(task.id || 0);
+                                const name = String(task.name || '').trim();
+                                const normalizedName = name.toLocaleLowerCase().replace(/\s+/g, ' ');
+                                if (!name || existingIds.has(id) || existingNames.has(normalizedName)) continue;
+                                missing.push(this.blueprintTaskDraft(task));
+                                if (id > 0) existingIds.add(id);
+                                existingNames.add(normalizedName);
+                            }
+
+                            this.tasks.push(...missing);
+                            this.blueprintTaskImportMessage = missing.length
+                                ? `Added ${missing.length} missing task${missing.length === 1 ? '' : 's'} from the blueprint.`
+                                : 'There are no missing tasks to add.';
+                        } catch (error) {
+                            this.blueprintTaskImportMessage = 'Could not load tasks from this blueprint. Try again.';
+                        } finally {
+                            this.blueprintTasksImporting = false;
+                        }
+                    },
                     addTask() { this.tasks.push({ id: null, blueprint_task_id: null, name: 'New task', notes: '', subtasks: [], reminder_enabled: false, reminder_days: 0, reminder_direction: 'before', reminder_offset_days: null, reminder_time: '12:00', expanded: true, copy_status: '', sort_order: (this.tasks.length + 1) * 10 }); },
                     removeTask(index) { this.tasks.splice(index, 1); },
                     addSubtask(task) { task.subtasks ||= []; task.subtasks.push({ title: `Detail ${task.subtasks.length + 1}`, content: '' }); },
@@ -1328,7 +1589,7 @@ if (isset($workshop)) {
                                 public_url: @js($workshopModel ? route('workshop.show', $workshopModel) : ''),
                                 type: value('type'), format: value('format'), ages: value('ages'), starts_at: value('starts_at'), ends_at: value('ends_at'),
                                 location_id: value('location_id'), price: value('price'), status: value('status'), registration: value('registration'),
-                                registration_data: value('registration_data'), max_tickets: value('max_tickets'), hero_media_name: value('hero_media_name'),
+                                registration_data: value('registration_data'), max_tickets: value('max_tickets'), max_attendance: value('max_attendance'), hero_media_name: value('hero_media_name'),
                                 publish_at: value('publish_at'), closes_at: value('closes_at'), is_private: value('is_private'), is_hidden: value('is_hidden'),
                                 allow_pay_at_door: value('allow_pay_at_door'), early_bird_price: value('early_bird_price'),
                                 early_bird_ends_at: value('early_bird_ends_at'), early_bird_ticket_limit: value('early_bird_ticket_limit'),
@@ -1359,41 +1620,97 @@ if (isset($workshop)) {
                             reminder_time: task.reminder_time || null, sort_order: (index + 1) * 10,
                         })));
                     },
-                }" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)">
-                <div class="flex flex-col sm:flex-row sm:gap-8">
+                }" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-blueprint-selected.window="handleBlueprintSelection($event.detail)">
+                <div data-workshop-step-panel="delivery" x-show="editorStep === 'delivery'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="mb-5 flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select
-                            label="Workshop Blueprint"
-                            name="pick_list_template_mode"
-                            x-model="pickListTemplateMode"
-                            x-on:change="updatePickListTemplateSelection($event.target.value)"
-                        >
-                            <x-slot name="labelRight">
-                                <a href="{{ route('admin.workshop-blueprint.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage blueprints</a>
-                                @if(isset($workshop) && $workshop->pick_list_template_id)
-                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop-blueprint.edit', $workshop->pick_list_template_id) }}">Open selected blueprint</a>
-                                @endif
-                                @isset($workshop)
-                                    <span class="mx-2">|</span><a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open Run Sheet</a>
-                                @endisset
-                            </x-slot>
-                            @if($hasCustomPickList)
-                                <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>
-                                <option value="" disabled>──────────</option>
-                            @endif
-                            <option value="" @selected((string) $pickListTemplateMode === '')>No blueprint</option>
-                            @foreach(($pickListTemplates ?? collect()) as $pickListTemplate)
-                                <option value="{{ $pickListTemplate->id }}" @selected((string) $pickListTemplateMode !== 'custom' && (string) $pickListTemplateFieldValue === (string) $pickListTemplate->id)>{{ $pickListTemplate->name }}</option>
-                            @endforeach
-                        </x-ui.select>
+                        <div x-id="['workshop-blueprint-option']" x-on:click.outside="blueprintPickerOpen = false" class="relative">
+                            <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                <label class="pl-1 text-sm font-medium text-gray-700">Workshop Blueprint</label>
+                                <div class="flex flex-wrap items-center gap-x-2 text-xs">
+                                    <div class="flex items-center gap-x-2">
+                                        <a href="{{ route('admin.workshop-blueprint.index') }}" class="text-primary-color hover:underline" target="_blank" rel="noopener noreferrer">Manage blueprints</a>
+                                        <a x-show="pickListTemplateId" x-cloak class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" x-bind:href="blueprintEditUrl()">Open selected blueprint</a>
+                                    </div>
+                                    @isset($workshop)
+                                        <a class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open run sheet</a>
+                                    @endisset
+                                </div>
+                            </div>
+                            <div class="relative flex items-center">
+                                <x-ui.input-control
+                                    type="text"
+                                    readonly
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-haspopup="listbox"
+                                    aria-label="Workshop Blueprint"
+                                    aria-controls="workshop-blueprint-option-list"
+                                    x-bind:aria-expanded="blueprintPickerOpen"
+                                    x-bind:value="currentBlueprintSelectorLabel()"
+                                    class="h-11 bg-white! pr-10! cursor-pointer"
+                                    x-on:click="openBlueprintPicker()"
+                                />
+                                <x-ui.button type="button" variant="plain" class="absolute right-0 size-11 p-0! text-slate-500" aria-label="Choose a workshop blueprint" x-bind:aria-expanded="blueprintPickerOpen" x-on:click="toggleBlueprintPicker()">
+                                    <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                                </x-ui.button>
+                            </div>
+                            <div x-show="blueprintPickerOpen" x-cloak class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                                <x-ui.input-control
+                                    type="search"
+                                    x-ref="blueprintSearch"
+                                    x-model="blueprintSearch"
+                                    x-on:input="blueprintOptionIndex = 0"
+                                    x-on:keydown.arrow-down.prevent="moveBlueprintOption(1)"
+                                    x-on:keydown.arrow-up.prevent="moveBlueprintOption(-1)"
+                                    x-on:keydown.enter.prevent="chooseBlueprintOption(filteredBlueprintOptions()[blueprintOptionIndex])"
+                                    x-on:keydown.escape.prevent="blueprintPickerOpen = false"
+                                    placeholder="Search workshop blueprints"
+                                    aria-label="Search workshop blueprints"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="workshop-blueprint-option-list"
+                                    x-bind:aria-expanded="blueprintPickerOpen"
+                                    x-bind:aria-activedescendant="filteredBlueprintOptions().length ? $id('workshop-blueprint-option') + '-' + blueprintOptionIndex : null"
+                                    class="mb-2"
+                                />
+                                <div id="workshop-blueprint-option-list" role="listbox" class="max-h-72 overflow-y-auto">
+                                    <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="`${option.kind}-${option.id}`">
+                                        <button
+                                            type="button"
+                                            role="option"
+                                            class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
+                                            x-bind:class="optionIndex === blueprintOptionIndex ? 'bg-sky-50 text-sky-800' : 'text-slate-700 hover:bg-slate-50'"
+                                            x-bind:id="$id('workshop-blueprint-option') + '-' + optionIndex"
+                                            x-bind:aria-selected="option.kind === 'custom' ? pickListTemplateMode === 'custom' : pickListTemplateMode !== 'custom' && String(option.id) === String(pickListTemplateId || '')"
+                                            x-on:mouseenter="blueprintOptionIndex = optionIndex"
+                                            x-on:click="chooseBlueprintOption(option)"
+                                        >
+                                            <span class="min-w-0 truncate" x-text="option.label"></span>
+                                            <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="`${option.tasks_count || 0} tasks · ${option.items_count || 0} items`"></span>
+                                        </button>
+                                    </template>
+                                    <p x-show="filteredBlueprintOptions().length === 0" class="px-3 py-2 text-sm text-slate-500">No matching blueprints.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <input type="hidden" name="workshop_tasks_payload" x-bind:value="serializedTasks()">
                 @error('workshop_tasks_payload')<div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
                 <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
                     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">These tasks belong to this workshop. Blueprint changes will not overwrite them.</p></div>
-                        <x-ui.button type="button" color="outline" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1"></i>Add task</x-ui.button>
+                        <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">Existing tasks are kept when you change blueprints.</p><p x-show="blueprintTaskImportMessage" x-cloak class="mt-1 text-sm text-sky-800" role="status" x-text="blueprintTaskImportMessage"></p></div>
+                        <div class="flex items-center gap-1">
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" x-show="pickListTemplateId" x-cloak x-bind:disabled="blueprintTasksImporting" x-on:click="addMissingBlueprintTasks()" aria-label="Add missing tasks from blueprint" title="Add missing tasks from blueprint"><i class="fa-solid" x-bind:class="blueprintTasksImporting ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" aria-hidden="true"></i></x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1"></i>Add task</x-ui.button>
+                        </div>
                     </div>
                     <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
                     <div class="space-y-4">
@@ -1481,6 +1798,42 @@ if (isset($workshop)) {
                         </div>
                     </x-ui.list-dialog>
                 </section>
+                </div>
+                <div data-workshop-step-panel="public" x-show="editorStep === 'public'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="mb-4">
+                    <x-ui.media label="Image" name="hero_media_name" value="{{ old('hero_media_name', $workshopModel?->hero_media_name ?? $selectedBlueprint?->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" />
+                </div>
+                <div class="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">Optional public workshop filters. A workshop can have more than one category.</p>
+                        </div>
+                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
+                    </div>
+
+                    @if(($workshopCategories ?? collect())->isEmpty())
+                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
+                    @else
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach($workshopCategories as $category)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                    <x-ui.checkbox name="category_ids[]" value="{{ $category->id }}" :checked="in_array((string) $category->id, $selectedCategoryIds, true)" :noWrapper="true" />
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="font-medium">{{ $category->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
                 <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
                     <div class="mb-5">
                         <div class="mb-1 flex items-center gap-1 pl-1">
@@ -1505,15 +1858,107 @@ if (isset($workshop)) {
                     </x-ui.editor>
                 </section>
                 </div>
-                <x-ui.editor-actions>
-                    @if(isset($workshop) && ($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0))
-                    <x-ui.button color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
-                    @endif
+                </div>
+                <section data-workshop-step-panel="review" x-show="editorStep === 'review'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold text-gray-950">Review and publish</h2>
+                        <p class="mt-1 text-sm text-gray-600">Check the workshop details, then save. You can return to any step before saving.</p>
+                    </div>
+                    <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Workshop</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopTitle || 'Untitled workshop'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Type</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopFormat === 'course' ? 'Course' : ({ physical: 'In-person workshop', online: 'Online workshop', stemcraft: 'STEMCraft workshop' }[type] || type)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Starts</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualStartsAt)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Ends</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualEndsAt)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Location</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewLocation()"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Registration</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="({ none: 'None', tickets: 'Tickets', interest: 'Interest', link: 'External link', email: 'External email', message: 'Custom message' }[registration] || registration)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Capacity</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="registration === 'tickets' ? (maxTickets ? `${maxTickets} tickets` : 'No ticket limit set') : (maxAttendance ? `${maxAttendance} attendees` : 'No attendance limit set')"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Price</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewValue('price') || 'No price set'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Status</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="({ draft: 'Draft', scheduled: 'Opens soon', open: 'Open', full: 'Full', closed: 'Closed', cancelled: 'Cancelled' }[status] || status)"></dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-ui.select label="Status" name="status" x-model="status">
+                                <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
+                                <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
+                                <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
+                                <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
+                                <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
+                                <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </x-ui.select>
+                        </div>
+                        <div>
+                            <x-ui.input type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" onchange="updatedPublishAt()" />
+                        </div>
+                    </div>
                     @isset($workshop)
-                    <x-ui.button data-editor-delete type="button" color="danger" class="w-full sm:w-auto" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                        <div class="mt-4">
+                            <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
+                                Preview saved public page <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
+                            </x-ui.button>
+                        </div>
                     @endisset
-                    <x-ui.button type="submit" class="w-full sm:w-auto">{{ isset($workshop) ? 'Save' : 'Create' }}</x-ui.button>
-                </x-ui.editor-actions>
+                </section>
+
+                <div class="sm-workshop-step-footer {{ isset($workshop) ? 'sm-workshop-step-footer--existing' : 'sm-workshop-step-footer--new' }}">
+                    @isset($workshop)
+                        <div class="sm-workshop-step-footer__delete">
+                            @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
+                                <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__interests" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
+                            @endif
+                            <x-ui.button data-editor-delete type="button" color="danger" class="sm-workshop-step-control sm-workshop-step-footer__delete-button" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                        </div>
+                    @endisset
+                    <div class="sm-workshop-step-footer__progress" x-bind:aria-label="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`">
+                        <span class="sm:hidden" x-text="`${editorStepIndex() + 1} / ${editorStepOrder.length}`"></span>
+                        <span class="hidden sm:inline" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></span>
+                    </div>
+                    <div class="sm-workshop-step-footer__navigation">
+                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__previous" type="button" color="outline" x-show="editorStepIndex() > 0" x-cloak x-on:click="previousEditorStep()">
+                            <span class="sm:hidden">Back</span>
+                            <span class="hidden sm:inline">Previous</span>
+                        </x-ui.button>
+                        @isset($workshop)
+                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__save" type="submit">Save</x-ui.button>
+                        @else
+                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__create" type="submit" x-show="editorStep === 'review'" x-cloak>Create</x-ui.button>
+                        @endisset
+                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__next" type="button" x-show="editorStepIndex() < editorStepOrder.length - 1" x-cloak x-on:click="nextEditorStep()">Next <i class="fa-solid fa-arrow-right ml-2" aria-hidden="true"></i></x-ui.button>
+                    </div>
+                </div>
         </form>
         @isset($workshop)
             <form id="send-workshop-welcome" method="POST" action="{{ route('admin.workshop.welcome.send', $workshop) }}">@csrf</form>

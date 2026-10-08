@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Locations
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.location.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.location.create') }}">Create location</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

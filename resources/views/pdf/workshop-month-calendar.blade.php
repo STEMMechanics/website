@@ -140,6 +140,16 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .event-session {
+            color: #1d4ed8;
+            font-size: 7px;
+            font-weight: 700;
+            line-height: 1.05;
+            margin-top: 1px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .footer {
             margin-top: 6px;
             color: #6b7280;
@@ -211,15 +221,21 @@
                                 @if($workshop === null)
                                     <div class="event-placeholder"></div>
                                 @else
-                                    @php($continuation = $workshop->calendarContinuationForDate($day['date']))
+                                    @php
+                                        $continuation = $workshop->calendarContinuationForDate($day['date']);
+                                        $calendarStartsAt = $workshop->calendarStartsAtForDate($day['date']);
+                                        $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
+                                        $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
+                                    @endphp
                                     <div @class(['event', 'continues-before' => $continuation['before'], 'continues-after' => $continuation['after']])>
                                     @if(! $continuation['before'])
-                                        <div class="event-time">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                        <div class="event-time">{{ $calendarStartsAt?->format('g:i a') ?? '-' }}</div>
                                     @elseif($continuation['ends'])
-                                        <div class="event-time event-end">Ends {{ $workshop->ends_at?->format('g:i a') ?? '-' }}</div>
+                                        <div class="event-time event-end">Ends {{ $calendarEndsAt?->format('g:i a') ?? '-' }}</div>
                                     @endif
                                     @if($continuation['show_details'])
                                         <div @class(['event-title', 'recap' => $continuation['before']])>{{ $workshop->title }}</div>
+                                        @if($calendarSessionLabel)<div class="event-session">{{ $calendarSessionLabel }}</div>@endif
                                         <div class="event-location">{{ $workshop->getLocationName() }}</div>
                                     @endif
                                     </div>

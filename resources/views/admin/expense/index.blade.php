@@ -8,7 +8,7 @@
         </x-mast>
     @else
         <x-mast>Expenses
-            <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.expense.create') }}">Record</x-ui.button></x-slot:actions>
+            <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.expense.create') }}">Record expense</x-ui.button></x-slot:actions>
         </x-mast>
     @endif
 
@@ -22,7 +22,9 @@
             <p data-expense-drop-error role="alert" class="text-sm text-red-600" hidden></p>
         </div>
         <x-ui.dynamic-list name="admin-expense-index">
-        <x-finance.attention-notice kind="expenses" />
+        @if(isset($selectedSupplier))
+            <x-finance.attention-notice kind="expenses" />
+        @endif
         @if(isset($selectedSupplier))
             <p class="my-4 first:mt-0 text-sm">Default cost centre: <x-ui.badge :color="$supplierCostCentre ? 'slate' : 'amber'">{{ $supplierCostCentre ? $supplierCostCentre : 'Choose cost centre' }}</x-ui.badge></p>
         @endif
@@ -70,11 +72,11 @@
                             @else
                                 <x-ui.row-action label="No attachment" icon="fa-paperclip" disabled />
                             @endif
-                            <x-ui.row-action label="Edit expense" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
+                            <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
                             <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
                                 @method('DELETE')
                                 @csrf
-                                <x-ui.row-action label="Delete expense" icon="fa-solid fa-trash" tone="danger" type="submit" />
+                                <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="submit" />
                             </form>
                         </x-ui.row-actions>
                     </article>
@@ -125,7 +127,7 @@
                                 <td class="text-center!">
                                     <x-ui.row-actions class="whitespace-nowrap">
                                         @if($expense->receipt_document_exists)
-                                            <x-ui.row-action label="View Attachment" icon="fa-solid fa-paperclip" tone="neutral" href="{{ route('admin.expense.document.view', $expense) }}" target="_blank" />
+                                            <x-ui.row-action label="View attachment" icon="fa-solid fa-paperclip" tone="neutral" href="{{ route('admin.expense.document.view', $expense) }}" target="_blank" />
                                         @else
                                             <span class="text-gray-300" title="No Attachment"><i class="fa-solid fa-paperclip"></i></span>
                                         @endif

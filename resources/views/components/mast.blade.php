@@ -71,6 +71,9 @@
                         $tabPath = parse_url((string) ($tab['route'] ?? ''), PHP_URL_PATH) ?: '';
                         $tabPath = '/'.trim($tabPath, '/');
                         $tabMatch = (string) ($tab['match'] ?? 'exact');
+                        $tabAttentionLabel = !empty($tab['attention']) ? trim((string) ($tab['attention_label'] ?? '')) : '';
+                        $tabBadgeLabel = trim((string) ($tab['badge_label'] ?? ''));
+                        $tabAriaLabel = $tab['title'].($tabBadgeLabel !== '' ? ' — '.$tabBadgeLabel : ($tabAttentionLabel !== '' ? ' — '.$tabAttentionLabel : ''));
                         $isActive = array_key_exists('active', $tab)
                             ? (bool) $tab['active']
                             : ($tabMatch === 'starts_with'
@@ -78,19 +81,28 @@
                                 : $currentPath === $tabPath);
                     @endphp
                     <a href="{{ $tab['route'] }}"
+                       @if(!empty($tab['icon_only'])) aria-label="{{ $tabAriaLabel }}" title="{{ $tabAriaLabel }}" @endif
+                       @if(!empty($tab['active'])) aria-current="page" @endif
                        @if(!empty($tab['external'])) target="_blank" rel="noopener noreferrer" @endif
-                       class="shrink-0 rounded-t-md px-4 py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
+                       class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-t-md {{ !empty($tab['icon_only']) ? 'min-w-12 px-3' : 'px-4' }} py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
                         <span class="inline-flex items-center {{ !empty($tab['attention']) ? 'gap-1' : 'gap-2' }}">
-                            <span>{{ $tab['title'] }}</span>
+                            @if(!empty($tab['icon']))<i class="{{ $tab['icon'] }} {{ !empty($tab['icon_only']) ? 'text-lg' : '' }}" aria-hidden="true"></i>@endif
+                            @if(!empty($tab['icon_only']))
+                                <span class="sr-only">{{ $tab['title'] }}</span>
+                            @else
+                                <span>{{ $tab['title'] }}</span>
+                            @endif
                             @if(!empty($tab['external']))
                                 <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
                                 <span class="sr-only">(opens in a new tab)</span>
                             @endif
                             @if(!empty($tab['attention']))
-                                <i class="fa-solid fa-circle-exclamation shrink-0 rounded-full bg-white text-amber-600 leading-none" role="img" aria-label="Allocation needs review"></i>
+                                <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-800" aria-hidden="true">
+                                    <i class="fa-solid fa-exclamation text-[10px] leading-none"></i>
+                                </span>
                             @endif
                             @if(isset($tab['badge']) && (int) $tab['badge'] > 0)
-                                <x-ui.badge color="success" aria-label="{{ (int) $tab['badge'] }} unread items" class="min-w-5 justify-center leading-none">{{ number_format((int) $tab['badge']) }}</x-ui.badge>
+                                <x-ui.badge :color="$tab['badge_color'] ?? 'success'" :aria-label="$tab['badge_label'] ?? ((int) $tab['badge'].' unread items')" class="min-w-5 justify-center leading-none">{{ number_format((int) $tab['badge']) }}</x-ui.badge>
                             @endif
                         </span>
                     </a>

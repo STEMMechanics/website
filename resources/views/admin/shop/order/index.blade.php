@@ -32,7 +32,7 @@
                             <td class="text-center!">${{ number_format((float) $order->total_amount, 2) }}</td>
                             <td class="">
                                 <x-ui.row-actions class="whitespace-nowrap">
-                                    <x-ui.row-action label="Edit order" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.order.edit', $order) }}" aria-label="Edit order {{ $order->order_number }}" />
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.order.edit', $order) }}" aria-label="Edit order {{ $order->order_number }}" />
                                     @if($order->invoice)
                                         <x-ui.row-action label="View invoice PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.invoice.pdf', $order->invoice) }}" target="_blank" aria-label="View invoice PDF for order {{ $order->order_number }}" />
                                     @endif

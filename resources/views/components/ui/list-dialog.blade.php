@@ -1,5 +1,5 @@
-@props(['id', 'title', 'kind' => 'filters', 'draggable' => false])
-<dialog id="{{ $id }}" data-list-dialog class="sm-list-dialog sm-list-dialog-{{ $kind }}" aria-labelledby="{{ $id }}-title">
+@props(['id', 'title', 'kind' => 'filters', 'draggable' => false, 'centered' => false])
+<dialog id="{{ $id }}" data-list-dialog class="sm-list-dialog sm-list-dialog-{{ $kind }} {{ $centered ? 'sm-list-dialog-centered' : '' }}" aria-labelledby="{{ $id }}-title">
     <div class="sm-list-dialog-header" @if($draggable) data-dialog-drag-handle @endif>
         <h2 tabindex="-1" autofocus id="{{ $id }}-title" class="text-lg font-bold text-slate-900">{{ $title }}</h2>
         <div class="flex shrink-0 items-center gap-1">

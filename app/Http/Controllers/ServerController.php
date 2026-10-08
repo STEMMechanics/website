@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
 use App\Services\FileBackupService;
+use App\Services\FileBackupUploadService;
 use App\Services\DatabaseBackupService;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
@@ -71,6 +72,7 @@ class ServerController extends Controller
     public function admin_backups(): View
     {
         $this->recoverStaleBackupRuns();
+        app(FileBackupUploadService::class)->cleanupAbandonedUploads();
 
         return view('admin.server.backups', $this->backupViewData(request()));
     }
@@ -78,6 +80,116 @@ class ServerController extends Controller
     public function admin_file_backup_now(Request $request): RedirectResponse|JsonResponse
     {
         return $this->queueBackup($request, ServerBackupRun::TYPE_FILES);
+    }
+
+    public function admin_file_backup_upload_start(Request $request, FileBackupUploadService $uploads): JsonResponse
+    {
+        $validated = $request->validate([
+            'filename' => ['required', 'string', 'max:255'],
+            'size' => ['required', 'integer', 'min:1'],
+            'fingerprint' => ['required', 'string', 'max:160'],
+        ]);
+
+        try {
+            return response()->json([
+                'upload' => $uploads->begin(
+                    (string) $validated['filename'],
+                    (string) $validated['size'],
+                    (string) $validated['fingerprint'],
+                    (string) $request->user()->id
+                ),
+            ], 201);
+        } catch (\Throwable $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function admin_file_backup_upload_status(Request $request, string $uploadId, FileBackupUploadService $uploads): JsonResponse
+    {
+        try {
+            return response()->json([
+                'upload' => $uploads->status($uploadId, (string) $request->user()->id),
+            ]);
+        } catch (\Throwable) {
+            abort(404);
+        }
+    }
+
+    public function admin_file_backup_upload_cancel(Request $request, string $uploadId, FileBackupUploadService $uploads): JsonResponse
+    {
+        try {
+            $uploads->cancelUpload($uploadId, (string) $request->user()->id);
+
+            return response()->json(['cancelled' => true]);
+        } catch (\Throwable $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function admin_file_backup_upload_chunk(Request $request, string $uploadId, FileBackupUploadService $uploads): JsonResponse
+    {
+        $range = (string) $request->header('Content-Range', '');
+        if (! preg_match('/^bytes (\d+)-(\d+)\/(\d+)$/D', $range, $matches)) {
+            return response()->json(['message' => 'The upload chunk range is invalid.'], 422);
+        }
+
+        try {
+            $stream = $request->getContent(true);
+            $status = $uploads->appendChunk(
+                $uploadId,
+                (string) $request->user()->id,
+                (int) $matches[1],
+                (int) $matches[2],
+                (int) $matches[3],
+                $stream
+            );
+
+            return response()->json(['upload' => $status]);
+        } catch (\Throwable $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function admin_file_backup_upload_finish(Request $request, string $uploadId, FileBackupUploadService $uploads): JsonResponse
+    {
+        try {
+            $queued = $uploads->queueCompletedUpload(
+                $uploadId,
+                (string) $request->user()->id,
+                function (array $upload) use ($request): string {
+                    $alreadyRunning = ServerBackupRun::query()
+                        ->where('type', ServerBackupRun::TYPE_FILE_IMPORT)
+                        ->whereIn('status', [ServerBackupRun::STATUS_QUEUED, ServerBackupRun::STATUS_RUNNING])
+                        ->exists();
+                    if ($alreadyRunning) {
+                        throw new \RuntimeException('Another file backup is being validated. Wait for it to finish before starting another import.');
+                    }
+
+                    $run = ServerBackupRun::query()->create([
+                        'type' => ServerBackupRun::TYPE_FILE_IMPORT,
+                        'status' => ServerBackupRun::STATUS_QUEUED,
+                        'progress' => 5,
+                        'message' => 'File backup validation queued…',
+                        'result' => [
+                            'upload_id' => (string) $upload['upload_id'],
+                            'filename' => (string) $upload['filename'],
+                        ],
+                        'requested_by' => $request->user()?->id,
+                    ]);
+
+                    return (string) $run->id;
+                }
+            );
+
+            $run = ServerBackupRun::query()->findOrFail($queued['run_id']);
+            if ($queued['created']) {
+                RunServerBackup::dispatch((string) $run->id);
+            }
+
+            return response()->json(['run' => $run->fresh()->payload()], 202);
+        } catch (\Throwable $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
     }
 
     public function admin_file_backup_show(Request $request, string $mode, string $filename): View

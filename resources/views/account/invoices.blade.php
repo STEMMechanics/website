@@ -50,11 +50,11 @@
                     <td class="text-center!">
                         <x-ui.row-actions class="whitespace-nowrap">
                             @if(!$isCreditDocument && $outstanding > 0.0001)
-                            <x-ui.row-action label="View / Pay Invoice" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
+                            <x-ui.row-action label="View and pay" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                             @else
-                            <x-ui.row-action label="View Invoice" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
+                            <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                             @endif
-                            <x-ui.row-action label="View Invoice Payments" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('account.invoice.receipts', $invoice) }}" />
+                            <x-ui.row-action label="View payments" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('account.invoice.receipts', $invoice) }}" />
                             <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
                         </x-ui.row-actions>
                     </td>
@@ -73,7 +73,7 @@
                         <td class="text-center!">${{ number_format((float) $adjustment->total_amount, 2) }}</td>
                         <td class="text-center!">
                             <x-ui.row-actions class="whitespace-nowrap">
-                                <x-ui.row-action label="Open Invoice PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
+                                <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" />
                             </x-ui.row-actions>
                         </td>
                     </tr>
