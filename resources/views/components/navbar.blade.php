@@ -32,9 +32,6 @@
         ]) : ['refunds' => 0, 'orders' => 0, 'sms' => 0];
         $manualRefundQueueCount = $operationCounts['refunds'];
         $financeAttention = $isAdmin ? app(\App\Services\Finance\FinanceAttention::class)->counts() : ['invoices' => 0, 'expenses' => 0];
-        $workshopFollowUpCount = $isAdmin
-            ? (int) app(\App\Support\AdminBadgeCache::class)->remember('workshop-follow-up', fn () => app(\App\Services\WorkshopFollowUp::class)->pendingTaskCount())
-            : 0;
         $workshopAttentionCount = $isAdmin
             ? (int) app(\App\Support\AdminBadgeCache::class)->remember('workshop-attention', fn () => app(\App\Services\WorkshopActionAttention::class)->count())
             : 0;
@@ -76,7 +73,6 @@
                     'title' => 'Workshops & Community',
                     'items' => [
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*'], 'badge' => $workshopAttentionCount, 'badge_title' => $workshopAttentionCount.' '.($workshopAttentionCount === 1 ? 'workshop needs' : 'workshops need').' attention'],
-                    ['label' => 'Workshop follow-up', 'route' => route('admin.dashboard'), 'icon' => 'fa-solid fa-list-check', 'active' => ['admin.dashboard'], 'badge' => $workshopFollowUpCount, 'badge_title' => $workshopFollowUpCount.' workshop follow-up '.($workshopFollowUpCount === 1 ? 'task needs' : 'tasks need').' attention'],
                     ['label' => 'Workshop Flyers', 'route' => route('admin.workshop-flyer.create'), 'icon' => 'fa-solid fa-print', 'active' => ['admin.workshop-flyer.*']],
                     ['label' => 'Workshop History', 'route' => route('admin.workshop.history'), 'icon' => 'fa-solid fa-clock-rotate-left', 'active' => ['admin.workshop.history*']],
                     ['label' => 'Categories', 'route' => route('admin.workshop-category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.workshop-category.*']],

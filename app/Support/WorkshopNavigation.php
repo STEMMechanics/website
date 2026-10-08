@@ -23,7 +23,10 @@ class WorkshopNavigation
         $mediaSection = (string) request()->query('section', 'files');
         $followUp = app(WorkshopFollowUp::class);
         $needsAttendance = $followUp->needsAttendance($workshop);
-        $needsStock = $followUp->needsStock($workshop);
+        $hasStockPlan = $workshop->stock_reconciled_at !== null || $followUp->hasStockPlan($workshop);
+        $needsStock = $workshop->stock_reconciled_at === null
+            && $followUp->hasEnded($workshop)
+            && $hasStockPlan;
         $hasReservationShortages = app(StockInventoryService::class)->workshopReservationShortages($workshop) !== [];
         $routes = [
             'Create' => ['route' => 'edit', 'icon' => 'fa-solid fa-pen-to-square', 'active' => $routeName === 'admin.workshop.edit'],
@@ -32,8 +35,10 @@ class WorkshopNavigation
             'Attendance' => ['route' => 'attendance', 'icon' => 'fa-solid fa-user-check', 'active' => $routeName === 'admin.workshop.attendance', 'attention' => $needsAttendance, 'attention_label' => 'Attendance still needs recording'],
             'Files' => ['route' => 'media', 'section' => 'files', 'icon' => 'fa-regular fa-file-lines', 'active' => $isMediaPage && ($routeName === 'admin.workshop.files' || $mediaSection !== 'photos')],
             'Photos' => ['route' => 'media', 'section' => 'photos', 'icon' => 'fa-solid fa-images', 'active' => $isMediaPage && ($routeName === 'admin.workshop.photos' || $mediaSection === 'photos')],
-            'Reconcile stock' => ['route' => 'stock-reconciliation', 'icon' => 'fa-solid fa-box-open', 'active' => $routeName === 'admin.workshop.stock-reconciliation', 'attention' => $needsStock, 'attention_label' => 'Workshop stock still needs reconciliation'],
         ];
+        if ($hasStockPlan) {
+            $routes['Reconcile stock'] = ['route' => 'stock-reconciliation', 'icon' => 'fa-solid fa-box-open', 'active' => $routeName === 'admin.workshop.stock-reconciliation', 'attention' => $needsStock, 'attention_label' => 'Workshop stock still needs reconciliation'];
+        }
 
         return collect($routes)
             ->map(function ($definition, $title) use ($workshop): array {
