@@ -7,7 +7,7 @@
 @endphp
 
     <x-mast :tabs="$newsletterTabs" backRoute="admin.newsletter.index" backTitle="Newsletter">Newsletter themes
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.subscription.theme.create') }}">Create Theme</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.subscription.theme.create') }}">Create newsletter theme</x-ui.button></x-slot:actions>
     </x-mast>
     <x-container class="mt-4">
 <x-ui.dynamic-list name="admin-subscription-theme-index">

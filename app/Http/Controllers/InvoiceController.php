@@ -81,6 +81,16 @@ class InvoiceController extends Controller
             });
         }
 
+        $invoiceAttention = app(\App\Services\Finance\FinanceAttention::class)->counts();
+        $request->attributes->set('collection_preset_counts', [
+            'Overdue' => (int) $invoiceAttention['overdue'],
+            'Needs allocation' => (int) $invoiceAttention['unallocated_invoices'],
+        ]);
+        $request->attributes->set('collection_preset_attention', [
+            'Overdue' => (int) $invoiceAttention['overdue'] > 0,
+            'Needs allocation' => (int) $invoiceAttention['unallocated_invoices'] > 0,
+        ]);
+
         app(\App\Services\SiteListControls::class)->apply($query);
         if ($request->boolean('allocation_selection')) {
             $ids = (clone $query)->reorder()->limit(201)->pluck('invoices.id');

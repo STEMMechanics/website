@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast description="Public files for domain verification and automated services.">Verification files
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.well-known.create') }}">Add file</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.well-known.create') }}">Create verification file</x-ui.button></x-slot:actions>
     </x-mast>
     <x-container class="py-6">
         <p class="mb-5 text-sm text-gray-600">Files are published at <code>/.well-known/</code>. Existing verification files are included below.</p>

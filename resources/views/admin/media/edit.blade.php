@@ -531,8 +531,8 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                             'label' => (string) ($workshopOption->title.' · '.$locationLabel.' · '.$dateLabel),
                             'search' => strtolower(trim((string) ($workshopOption->title.' '.$locationLabel.' '.$dateLabel))),
                             'edit_url' => route('admin.workshop.edit', $workshopOption),
-                            'files_url' => route('admin.workshop.files', $workshopOption),
-                            'photos_url' => route('admin.workshop.photos', $workshopOption),
+                            'files_url' => route('admin.workshop.media', ['workshop' => $workshopOption, 'section' => 'files']),
+                            'photos_url' => route('admin.workshop.media', ['workshop' => $workshopOption, 'section' => 'photos']),
                         ];
                     })->values()->all()),
                     filtered() {
@@ -737,9 +737,9 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         <h3 class="text-base font-semibold">Stored Variants</h3>
                         <div class="flex items-center gap-2">
                             @if($variantFilesInfo->isNotEmpty())
-                            <x-ui.button type="button" color="outline" x-data x-on:click.prevent="confirmDeleteVariants()">Delete Variants</x-ui.button>
+                            <x-ui.button type="button" color="outline" size="compact" x-data x-on:click.prevent="confirmDeleteVariants()">Delete Variants</x-ui.button>
                             @endif
-                            <x-ui.button type="button" color="outline" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="compact" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
                         </div>
                     </div>
                     @if($variantFilesInfo->isNotEmpty())
@@ -776,7 +776,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                                         <i class="fa-solid fa-up-right-from-square"></i>
                                                     </span>
                                                 @endif
-                                                <x-ui.row-action label="Delete this variant" icon="fa-solid fa-trash" tone="danger"
+                                                <x-ui.row-action label="Delete variant" icon="fa-solid fa-trash" tone="danger"
 
                                                     x-data
                                                     x-on:click.prevent="confirmDeleteSingleVariant('{{ (string) ($fileInfo['variant'] ?? '') }}')" />

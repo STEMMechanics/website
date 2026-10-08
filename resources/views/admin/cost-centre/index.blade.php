@@ -29,7 +29,7 @@
                             @if(in_array($centre->kind, ['cost', 'owner', 'sponsorship', 'cash'], true))
                                 <x-ui.row-action label="Transfer funds" icon="fa-solid fa-right-left" data-record-editor data-record-title="Transfer funds" href="{{ route('admin.cost-centre.transfer.edit', ['from' => $centre->kind === 'owner' ? 'remuneration' : ($centre->kind === 'cash' ? null : $centre->id)]) }}" />
                             @endif
-                            @if(in_array($centre->kind, ['cost', 'owner'], true))<x-ui.row-action label="Edit cost centre" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.cost-centre.edit', ['id' => $centre->id]) }}" />@endif
+                            @if(in_array($centre->kind, ['cost', 'owner'], true))<x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.cost-centre.edit', ['id' => $centre->id]) }}" />@endif
                         </x-ui.row-actions></td>
                     </tr>
                 @empty<tr><td colspan="5">No cost centres match this view.</td></tr>@endforelse</tbody>

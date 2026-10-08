@@ -6,7 +6,9 @@
         $seedItems = $editing
             ? $template->items->map(fn ($item) => [
                 'id' => (int) $item->id,
-                'item_name' => (string) $item->item_name,
+                'item_name' => (string) ($item->stockItem?->linkLabel() ?? $item->item_name),
+                'stock_item_id' => $item->stock_item_id !== null ? (int) $item->stock_item_id : null,
+                'stock_quantity' => $item->stock_quantity !== null ? (float) $item->stock_quantity : null,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
                 'sort_order' => (int) ($item->sort_order ?? 0),
@@ -64,6 +66,8 @@
         <x-admin.ai-status-toast id="workshop-blueprint-ai-toast" message="Preparing workshop copy…" detail="Blueprint details are being used to draft this content." progress-label="Workshop blueprint copy generation" />
         <form id="workshop-blueprint-form" method="POST" action="{{ route('admin.workshop-blueprint.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
             items: @js($seedItems),
+            itemRowKeySequence: 0,
+            stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => ['id' => (int) $stockItem->id, 'name' => (string) $stockItem->linkLabel(), 'sku' => (string) ($stockItem->sku ?? '')])->values()->all()),
             tasks: @js($seedTasks),
             attachments: @js($seedAttachments),
             attachmentDetails: @js($seedAttachmentDetails),
@@ -307,16 +311,35 @@
                 const previousType = String(previousItem?.quantity_type ?? '');
 
                 return {
+                    _rowKey: `new-pick-list-item-${++this.itemRowKeySequence}`,
                     id: null,
                     item_name: '',
+                    stock_item_id: null,
+                    stock_quantity: null,
                     quantity_type: ['per_participant', 'fixed'].includes(previousType) ? previousType : 'per_participant',
                     quantity_value: 1,
                     sort_order: 0,
                 };
             },
+            stockItemLabel(item) {
+                const stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
+                const stockItem = this.stockItems.find((option) => Number(option.id) === stockItemId);
+
+                return stockItem?.name || '';
+            },
+            selectStockItem(index) {
+                const item = this.items[index];
+                if (!item) {
+                    return;
+                }
+
+                item.stock_quantity = null;
+                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : '';
+                this.handleRowChange(index);
+            },
             isBlankItem(item) {
                 const name = String(item?.item_name || '').trim();
-                return name === '';
+                return name === '' && !item?.stock_item_id;
             },
             hasSingleTrailingBlank() {
                 if (this.items.length === 0) {
@@ -325,7 +348,15 @@
                 const blankCount = this.items.filter((item) => this.isBlankItem(item)).length;
                 return blankCount === 1 && this.isBlankItem(this.items[this.items.length - 1]);
             },
+            assignItemRowKeys() {
+                this.items.forEach((item) => {
+                    if (!item._rowKey) {
+                        item._rowKey = item.id ? `pick-list-item-${item.id}` : `new-pick-list-item-${++this.itemRowKeySequence}`;
+                    }
+                });
+            },
             ensureSingleTrailingBlank() {
+                this.assignItemRowKeys();
                 const nonBlank = this.items.filter((item) => !this.isBlankItem(item));
                 const previousItem = nonBlank.length > 0 ? nonBlank[nonBlank.length - 1] : null;
                 this.items = [...nonBlank, this.seededBlankItem(previousItem)];
@@ -354,7 +385,9 @@
                     this.ensureSingleTrailingBlank();
                 }
             },
-            removeItem(index) {
+            removeItem(rowKey) {
+                const index = this.items.findIndex((item) => item._rowKey === rowKey);
+                if (index < 0) return;
                 this.items.splice(index, 1);
                 this.ensureSingleTrailingBlank();
             },
@@ -568,37 +601,34 @@
 
                 <div x-show="items.length > 0">
                     <x-ui.table variant="plain" table-class="min-w-full border border-gray-200 rounded-md">
-                        <thead class="bg-gray-50">
+                        <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
                             <tr>
-                                <th class="text-left p-2 border-b border-gray-300">Item</th>
-                                <th class="p-2 border-b border-gray-300 hidden md:table-cell text-center!">Type</th>
-                                <th class="text-left p-2 border-b border-gray-300 hidden md:table-cell">Quantity</th>
-                                <th class="text-center! p-2 border-b border-gray-300">Actions</th>
+                                <th class="px-3 py-2 border-b border-gray-300">Item</th>
+                                <th class="hidden px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Type</th>
+                                <th class="hidden w-24 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Quantity</th>
+                                <th class="px-3 py-2 border-b border-gray-300 text-center!">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <template x-for="(item, index) in items" :key="index">
+                            <template x-for="(item, index) in items" :key="item._rowKey">
                                 <tr class="border-b border-gray-300 last:border-b-0">
                                     <td class="p-2 align-top">
                                         <input type="hidden" x-model="item.id" :name="!isBlankItem(item) && item.id ? `items[${index}][id]` : null">
                                         <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
                                         <input type="hidden" x-model="item.item_name" x-bind:name="!isBlankItem(item) ? `items[${index}][item_name]` : null">
+                                        <input type="hidden" x-model="item.stock_item_id" x-bind:name="!isBlankItem(item) ? `items[${index}][stock_item_id]` : null">
                                         <input type="hidden" x-model="item.quantity_type" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null">
                                         <input type="hidden" x-model="item.quantity_value" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_value]` : null">
+                                        <input type="hidden" x-model="item.stock_quantity" x-bind:name="!isBlankItem(item) ? `items[${index}][stock_quantity]` : null">
 
                                         <x-ui.grid class="md:hidden gap-2">
-                                            <div>
-                                                <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Item</label>
-                                                <x-ui.input
-                                                    name="item_name_placeholder"
-                                                    label="Item"
-                                                    :noLabel="true"
-                                                    class="mb-0"
-                                                    fieldClasses="mt-0"
-                                                    :suggestions="$itemSuggestions ?? []"
-                                                    x-model="item.item_name"
-                                                    x-on:input="item.item_name = $event.target.value; handleRowChange(index)"
-                                                    x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
+                                            <div
+                                                class="sm:col-span-2"
+                                                x-on:stock-item-link-changed="selectStockItem(index)"
+                                                x-on:input="handleRowChange(index)"
+                                                x-on:change="handleRowChange(index)"
+                                            >
+                                                <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
                                             </div>
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div>
@@ -634,16 +664,13 @@
                                         </x-ui.grid>
 
                                         <div class="hidden md:block">
-                                            <x-ui.input
-                                                name="item_name_placeholder_desktop"
-                                                label="Item"
-                                                :noLabel="true"
-                                                class="mb-0"
-                                                fieldClasses="mt-0"
-                                                :suggestions="$itemSuggestions ?? []"
-                                                x-model="item.item_name"
-                                                x-on:input="item.item_name = $event.target.value; handleRowChange(index)"
-                                                x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
+                                            <div
+                                                x-on:stock-item-link-changed="selectStockItem(index)"
+                                                x-on:input="handleRowChange(index)"
+                                                x-on:change="handleRowChange(index)"
+                                            >
+                                                <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="p-2 align-top hidden md:table-cell text-center!">
@@ -658,7 +685,7 @@
                                             <option value="fixed">Fixed amount</option>
                                         </x-ui.select>
                                     </td>
-                                    <td class="p-2 align-top hidden md:table-cell">
+                                    <td class="hidden w-24 p-2 align-top md:table-cell">
                                         <x-ui.input
                                             type="number"
                                             name="quantity_value_placeholder_desktop"
@@ -677,7 +704,7 @@
                                         <x-ui.row-actions :menu="false" class="h-full">
                                             <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveUp(index)" x-bind:disabled="index === 0 || isBlankItem(item)" />
                                             <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveDown(index)" x-bind:disabled="index >= (items.length - 2) || isBlankItem(item)" />
-                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeItem(index)" />
+                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeItem(item._rowKey)" />
                                         </x-ui.row-actions>
                                     </td>
                                 </tr>
@@ -689,23 +716,21 @@
 
             <div id="workshop-template-tasks"></div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
-                <h2 class="text-lg font-semibold mb-4">Run Sheet Instructions</h2>
+            <x-ui.collapsible-section title="Run Sheet Instructions" class="mb-6">
                 <x-ui.editor
                     name="run_sheet"
                     label="Instructions"
                     class="workshop-template-editor"
                     value="{!! old('run_sheet', $template->run_sheet ?? '') !!}"
                 />
+            </x-ui.collapsible-section>
 
-                <div class="mt-6">
-                    <h3 class="mb-1 font-semibold">Drawing</h3>
-                    <p class="mb-3 text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
-                    <input type="hidden" name="run_sheet_canvas_data" x-ref="canvasDataInput" value="{{ old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '') }}">
-                    <input type="hidden" name="run_sheet_drawing_data" x-ref="canvasImageInput" value="{{ old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '') }}">
-                    @include('admin.shared.drawing-canvas', ['heightClass' => 'h-[60vh] min-h-[420px]'])
-                </div>
-            </div>
+            <x-ui.collapsible-section title="Drawing" class="mb-6">
+                <p class="mb-3 text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
+                <input type="hidden" name="run_sheet_canvas_data" x-ref="canvasDataInput" value="{{ old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '') }}">
+                <input type="hidden" name="run_sheet_drawing_data" x-ref="canvasImageInput" value="{{ old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '') }}">
+                @include('admin.shared.drawing-canvas', ['heightClass' => 'h-[60vh] min-h-[420px]'])
+            </x-ui.collapsible-section>
 
             <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
                 <div class="flex items-center justify-between gap-3 mb-3">

@@ -6,10 +6,15 @@ use App\Helpers;
 use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\StockItem;
 use App\Models\WorkshopCategory;
 use App\Models\WorkshopTemplateTask;
 use App\Services\PdfAttachmentAppender;
+use App\Services\SiteListControls;
+use App\Services\StockInventoryService;
+use App\Support\ListPageSize;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -37,7 +42,7 @@ class PickListTemplateController extends Controller
             });
         }
 
-        $templates = $query->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $templates = $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
 
         return view('admin.pick-list-template.index', [
             'templates' => $templates,
@@ -48,6 +53,7 @@ class PickListTemplateController extends Controller
     {
         return view('admin.pick-list-template.edit', [
             'itemSuggestions' => $this->itemSuggestions(),
+            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
         ]);
@@ -81,13 +87,43 @@ class PickListTemplateController extends Controller
 
     public function edit(PickListTemplate $pickListTemplate)
     {
-        $pickListTemplate->load(['items', 'tasks', 'attachments', 'categories']);
+        $pickListTemplate->load(['items.stockItem.group', 'tasks', 'attachments', 'categories']);
 
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
             'itemSuggestions' => $this->itemSuggestions(),
+            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
+        ]);
+    }
+
+    public function data(PickListTemplate $pickListTemplate): JsonResponse
+    {
+        $pickListTemplate->load(['items.stockItem.group', 'tasks']);
+
+        return response()->json([
+            'id' => (int) $pickListTemplate->id,
+            'name' => (string) $pickListTemplate->name,
+            'tasks' => $pickListTemplate->tasks->map(fn (WorkshopTemplateTask $task): array => [
+                'id' => (int) $task->id,
+                'name' => (string) $task->name,
+                'notes' => (string) ($task->notes ?? ''),
+                'subtasks' => $task->subtasks ?? [],
+                'reminder_enabled' => (bool) $task->reminder_enabled,
+                'reminder_offset_days' => $task->reminder_offset_days,
+                'reminder_time' => (string) ($task->reminder_time ?? ''),
+                'sort_order' => (int) ($task->sort_order ?? 0),
+            ])->values(),
+            'items' => $pickListTemplate->items->map(fn (PickListTemplateItem $item): array => [
+                'id' => (int) $item->id,
+                'item_name' => (string) ($item->stockItem?->linkLabel() ?: $item->item_name),
+                'stock_item_id' => $item->stock_item_id ? (int) $item->stock_item_id : null,
+                'stock_quantity' => $item->stock_quantity,
+                'quantity_type' => (string) $item->quantity_type,
+                'quantity_value' => (int) $item->quantity_value,
+                'sort_order' => (int) ($item->sort_order ?? 0),
+            ])->values(),
         ]);
     }
 
@@ -103,6 +139,7 @@ class PickListTemplateController extends Controller
             $this->fillTemplate($pickListTemplate, $validated);
             $this->syncItems($pickListTemplate, $validated['items'] ?? []);
             $this->syncTasks($pickListTemplate, $validated['tasks'] ?? []);
+            app(StockInventoryService::class)->syncWorkshopReservationsForTemplate($pickListTemplate);
             $pickListTemplate->categories()->sync($validated['category_ids'] ?? []);
             $pickListTemplate->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
         });
@@ -126,7 +163,7 @@ class PickListTemplateController extends Controller
 
     public function duplicate(PickListTemplate $pickListTemplate): RedirectResponse
     {
-        $pickListTemplate->load(['items', 'tasks', 'attachments', 'categories']);
+        $pickListTemplate->load(['items.stockItem', 'tasks', 'attachments', 'categories']);
 
         $copy = new PickListTemplate;
         $copy->name = trim((string) $pickListTemplate->name).' (Copy)';
@@ -145,9 +182,11 @@ class PickListTemplateController extends Controller
 
         foreach ($pickListTemplate->items as $item) {
             $copy->items()->create([
-                'item_name' => (string) $item->item_name,
+                'item_name' => (string) ($item->stockItem?->linkLabel() ?? $item->item_name),
+                'stock_item_id' => $item->stock_item_id,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
+                'stock_quantity' => $item->stock_quantity,
                 'sort_order' => (int) ($item->sort_order ?? 0),
             ]);
         }
@@ -275,23 +314,41 @@ class PickListTemplateController extends Controller
                     fn ($query) => $query->where('pick_list_template_id', $template->id)
                 ) : null,
             ]),
-            'items.*.item_name' => ['required', 'string', 'max:255'],
+            'items.*.item_name' => ['nullable', 'string', 'max:255'],
+            'items.*.stock_item_id' => ['nullable', 'integer', Rule::exists('stock_items', 'id')->where('status', StockItem::STATUS_ACTIVE)],
             'items.*.quantity_type' => ['required', 'string', 'in:'.implode(',', PickListTemplateItem::TYPES)],
             'items.*.quantity_value' => ['required', 'integer', 'min:1'],
+            'items.*.stock_quantity' => ['nullable', 'numeric', 'gt:0'],
             'items.*.sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
+        $stockItemIds = collect($validated['items'] ?? [])
+            ->pluck('stock_item_id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+        $stockItems = $stockItemIds->isNotEmpty()
+            ? StockItem::query()->with('group')->whereIn('id', $stockItemIds)->get()->keyBy('id')
+            : collect();
+
         $validated['items'] = collect($validated['items'] ?? [])
-            ->map(function (array $row): array {
+            ->map(function (array $row) use ($stockItems): array {
+                $stockItemId = isset($row['stock_item_id']) && (int) $row['stock_item_id'] > 0 ? (int) $row['stock_item_id'] : null;
+
                 return [
                     'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
-                    'item_name' => trim((string) ($row['item_name'] ?? '')),
+                    'item_name' => $stockItemId !== null && $stockItems->get($stockItemId) instanceof StockItem
+                        ? $stockItems->get($stockItemId)->linkLabel()
+                        : trim((string) ($row['item_name'] ?? '')),
+                    'stock_item_id' => $stockItemId,
                     'quantity_type' => (string) ($row['quantity_type'] ?? PickListTemplateItem::TYPE_PER_PARTICIPANT),
                     'quantity_value' => max(1, (int) ($row['quantity_value'] ?? 1)),
+                    'stock_quantity' => ($row['stock_quantity'] ?? '') !== '' ? max(0.001, (float) $row['stock_quantity']) : null,
                     'sort_order' => max(0, (int) ($row['sort_order'] ?? 0)),
                 ];
             })
-            ->filter(fn (array $row): bool => $row['item_name'] !== '')
+            ->filter(fn (array $row): bool => $row['item_name'] !== '' || $row['stock_item_id'] !== null)
             ->values()
             ->all();
 
@@ -353,8 +410,10 @@ class PickListTemplateController extends Controller
         foreach ($items as $index => $row) {
             $payload = [
                 'item_name' => $row['item_name'],
+                'stock_item_id' => $row['stock_item_id'],
                 'quantity_type' => $row['quantity_type'],
                 'quantity_value' => $row['quantity_value'],
+                'stock_quantity' => $row['stock_quantity'],
                 'sort_order' => $row['sort_order'] ?: (($index + 1) * 10),
             ];
             $itemId = isset($row['id']) ? (int) $row['id'] : null;

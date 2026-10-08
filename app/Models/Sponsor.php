@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $recognition_approved_at
+ * @property string|null $recognition_approved_by
+ * @property \Illuminate\Support\Carbon|null $recognition_approval_notified_at
+ */
 class Sponsor extends Model
 {
     protected $fillable = [

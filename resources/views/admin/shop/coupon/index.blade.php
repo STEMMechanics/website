@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Store Vouchers
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.coupon.create') }}">Create voucher</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

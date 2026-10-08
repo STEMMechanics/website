@@ -1,36 +1,23 @@
 @php
     $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
-    $dateLabel = $workshop->starts_at
-        ? $workshop->starts_at->format('D j M Y, g:ia').($workshop->ends_at ? ' – '.$workshop->ends_at->format('g:ia') : '')
-        : 'No date set';
-    $locationLabel = $workshop->getLocationDisplay();
 @endphp
 
 <x-layout title="Workshop Media - {{ $workshop->title }}">
-    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Media<x-slot:actions>
-        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-upload', { id: 'photos' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
-        <x-ui.button color="mast" x-data x-on:click="$dispatch('workshop-browse', { id: 'photos' })">Browse media</x-ui.button>
-    </x-slot:actions></x-mast>
+    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
+        <x-slot:actions>
+            <div class="flex w-full flex-col gap-2 sm:w-56">
+                <x-admin.workshop-public-page-action :workshop="$workshop" />
+                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-upload', { id: 'photos' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
+                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-browse', { id: 'photos' })">Browse media</x-ui.button>
+            </div>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container class="py-5 sm:py-8">
-        <div class="mb-4">
-            <div class="rounded-b-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:flex lg:items-start lg:justify-between lg:gap-4">
-                <div>
-                    <div class="text-lg font-semibold text-gray-900">{{ $workshop->title }}</div>
-                    <div class="mt-2 grid gap-1 text-sm text-gray-700">
-                        <div><span class="font-semibold">Date:</span> {{ $dateLabel }}</div>
-                        <div><span class="font-semibold">Location:</span> {{ $locationLabel }}</div>
-                    </div>
-                </div>
-                <div class="hidden max-w-lg items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:flex" role="note">
-                    <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
-                    <p>Photos are not displayed on the workshop page.</p>
-                </div>
-            </div>
-            <div class="mt-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900 lg:hidden" role="note">
-                <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
-                <p>Photos are not displayed on the workshop page.</p>
-            </div>
+        <div class="mb-4 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900" role="note">
+            <i class="fa-solid fa-circle-info mt-0.5" aria-hidden="true"></i>
+            <p>Photos are not displayed on the workshop page.</p>
         </div>
 
         <div data-workshop-upload-controller>
@@ -878,7 +865,7 @@
                                 type: 'success',
                             }));
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
-                            window.location.href = @js(route('admin.workshop.photos', $workshop));
+                            window.location.href = @js(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']));
                         } catch (error) {
                             this.uploadError = error?.response?.status === 413
                                 ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
@@ -1058,8 +1045,8 @@
                             <td class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"><span data-photo-tags-label x-text="tags.join(', ') || 'No tags'" :class="tags.length ? '' : 'italic text-gray-400'"></span></td><td class="hidden px-3 py-3 text-center capitalize md:table-cell" data-photo-storage-label x-text="storage"></td><td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></td>
                             <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
                                         <x-ui.row-action label="Open media editor" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" />
-                                        <x-ui.row-action label="Download media" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
-                                        <x-ui.row-action label="Remove from this workshop only" icon="fa-solid fa-ban" tone="warning"
+                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
+                                        <x-ui.row-action label="Remove from workshop" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-data
                                             x-on:click.prevent="SM.confirmDelete(
@@ -1070,7 +1057,7 @@
                                                 'Remove from workshop'
                                             )"
                                          />
-                                        <x-ui.row-action label="Permanently delete photo" icon="fa-solid fa-trash" tone="danger"
+                                        <x-ui.row-action label="Delete permanently" icon="fa-solid fa-trash" tone="danger"
                                             type="button"
                                             x-data
                                             x-on:click.prevent="SM.confirmDelete(

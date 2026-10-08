@@ -124,7 +124,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4" x-data="{ copyState: '', async copyPayload() { try { await navigator.clipboard.writeText(this.$refs.payload.textContent); this.copyState = 'Copied'; } catch { this.copyState = 'Copy failed. Select the payload and copy it manually.'; } } }">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <h3 class="text-lg font-bold">Payload</h3>
-                <x-ui.button color="outline" class="px-3" x-on:click="copyPayload()" aria-label="Copy payload"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i>Copy</x-ui.button>
+                <x-ui.button color="primary-outline" size="compact" x-on:click="copyPayload()" aria-label="Copy payload"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i>Copy</x-ui.button>
             </div>
             <p role="status" class="mb-2 text-sm text-gray-600" x-show="copyState" x-text="copyState" x-cloak></p>
             <pre x-ref="payload" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-152 whitespace-pre-wrap">{{ $payloadPretty ?: '{}' }}</pre>

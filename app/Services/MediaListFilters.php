@@ -8,7 +8,7 @@ use Illuminate\Validation\Rule;
 
 class MediaListFilters
 {
-    public const SORTS = ['title' => 'Name', 'name' => 'Filename', 'mime_type' => 'Type', 'size' => 'Size', 'visibility' => 'Visibility', 'created_at' => 'Uploaded'];
+    public const SORTS = ['title' => 'Name', 'name' => 'Filename', 'mime_type' => 'Type', 'size' => 'Size', 'downloads' => 'Downloads', 'visibility' => 'Visibility', 'created_at' => 'Uploaded'];
     public const TYPES = ['image' => 'Images', 'video' => 'Videos', 'audio' => 'Audio', 'pdf' => 'PDFs', 'other' => 'Other files'];
 
     public function validate(Request $request): void
@@ -32,6 +32,8 @@ class MediaListFilters
             'storage_disk' => ['nullable', Rule::in(['media', 'archive'])],
             'size_min' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'size_max' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'downloads_min' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'downloads_max' => ['nullable', 'integer', 'min:0', 'max:100000000'],
             'uploaded_from' => ['nullable', 'date_format:Y-m-d'],
             'uploaded_to' => ['nullable', 'date_format:Y-m-d'],
         ]);
@@ -84,8 +86,14 @@ class MediaListFilters
         if ($request->filled('storage_disk')) $query->where('storage_disk', $request->query('storage_disk'));
         if ($request->filled('size_min')) $query->where('size', '>=', (float) $request->query('size_min') * 1048576);
         if ($request->filled('size_max')) $query->where('size', '<=', (float) $request->query('size_max') * 1048576);
+        foreach (['downloads_min' => '>=', 'downloads_max' => '<='] as $field => $operator) {
+            if ($request->filled($field)) {
+                $query->whereRaw('(SELECT COUNT(*) FROM media_downloads WHERE media_downloads.media_name = media.name) '.$operator.' ?', [(int) $request->query($field)]);
+            }
+        }
         if ($request->filled('uploaded_from')) $query->where('created_at', '>=', $request->query('uploaded_from').' 00:00:00');
         if ($request->filled('uploaded_to')) $query->where('created_at', '<', \Carbon\Carbon::parse($request->query('uploaded_to'))->addDay()->startOfDay());
-        $query->orderBy($request->query('sort') ?: 'created_at', $request->query('direction') ?: 'desc')->orderBy('name');
+        $sort = $request->query('sort') ?: 'created_at';
+        $query->orderBy($sort === 'downloads' ? 'download_count' : $sort, $request->query('direction') ?: 'desc')->orderBy('name');
     }
 }

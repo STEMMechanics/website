@@ -261,15 +261,33 @@
                     <x-ui.button href="{{ route('stemcraft.join') }}" class="mb-4">How to join</x-ui.button>
                 @endif
                 @if(auth()->user()?->isAdmin())
-                    <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                    @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
-                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
-                    @endif
-                    <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Run Sheet</x-ui.button>
-                    @if($adminCanViewTickets ?? false)
-                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
-                    @endif
-                    <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
+                    <section class="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="workshop-admin-actions-title">
+                        <h2 id="workshop-admin-actions-title" class="text-sm font-semibold text-slate-800">Workshop admin</h2>
+                        <div class="mt-3 grid grid-cols-2 gap-2">
+                            <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.edit', $workshop) }}">
+                                <i class="fa-solid fa-pen-to-square mr-1.5" aria-hidden="true"></i>Details
+                            </x-ui.button>
+                            <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.allocation.edit', $workshop) }}">
+                                <i class="fa-solid fa-coins mr-1.5" aria-hidden="true"></i>Allocate
+                            </x-ui.button>
+                            <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.run-sheet', $workshop) }}">
+                                <i class="fa-solid fa-list-check mr-1.5" aria-hidden="true"></i>Manage
+                            </x-ui.button>
+                            <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" aria-label="Reconcile stock">
+                                <i class="fa-solid fa-box-open mr-1.5" aria-hidden="true"></i>Reconcile
+                            </x-ui.button>
+                        </div>
+                        @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0 || ($adminCanViewTickets ?? false))
+                            <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200 pt-3 text-sm">
+                                @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
+                                    <a class="font-medium text-primary-color hover:underline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</a>
+                                @endif
+                                @if($adminCanViewTickets ?? false)
+                                    <a class="font-medium text-primary-color hover:underline" href="{{ route('admin.workshop.tickets', $workshop) }}">Tickets</a>
+                                @endif
+                            </div>
+                        @endif
+                    </section>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
                 @if($workshop->isCourse())

@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast title="Workshop Blueprints" description="Reusable workshop details, hero images, materials, run sheets, and social tasks.">
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-blueprint.create') }}">Create blueprint</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-blueprint.create') }}">Create workshop blueprint</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

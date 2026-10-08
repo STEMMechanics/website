@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
+use App\Models\StockItem;
 use App\Models\StoreOrderItem;
 use App\Services\Finance\ProductAllocationEditor;
 use App\Services\ProductAttention;
@@ -48,8 +49,13 @@ class ShopProductController extends Controller
         $request->attributes->set('collection_preset_counts', [
             'Current products' => Product::query()->where('status', Product::STATUS_ACTIVE)->count(),
             'Drafts' => Product::query()->where('status', Product::STATUS_DRAFT)->count(),
+            'Needs allocation' => $allocationAttentionCount,
             'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
             'Actionable' => $actionableCount,
+        ]);
+        $request->attributes->set('collection_preset_attention', [
+            'Needs allocation' => $allocationAttentionCount > 0,
+            'Actionable' => $actionableCount > 0,
         ]);
         $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
         if ($scope === 'archived') {
@@ -105,6 +111,7 @@ class ShopProductController extends Controller
     {
         return view('admin.shop.product.edit', [
             'categories' => $this->availableCategories(),
+            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
         ]);
     }
 
@@ -122,12 +129,13 @@ class ShopProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants', 'categories'])->loadExists('storeOrderItems');
+        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants.stockItem', 'categories', 'stockItem'])->loadExists('storeOrderItems');
 
         return view('admin.shop.product.edit', [
             'product' => $product,
             'categories' => $this->availableCategories(),
             'inventoryContexts' => $this->inventoryContexts($product),
+            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
         ]);
     }
 
@@ -164,6 +172,7 @@ class ShopProductController extends Controller
             $copy->updateFiles($product->galleryMedia()->pluck('media.name')->all(), 'gallery');
             $copy->updateFiles($product->downloadMedia()->pluck('media.name')->all(), 'downloads');
 
+            $variantCopies = [];
             foreach ($product->variants as $variant) {
                 $variantCopy = $variant->replicate();
                 $variantCopy->product_id = $copy->id;
@@ -172,6 +181,7 @@ class ShopProductController extends Controller
                     : null;
                 $variantCopy->low_stock_alert_sent_at = null;
                 $variantCopy->save();
+                $variantCopies[(int) $variant->id] = $variantCopy;
             }
 
             return $copy;
@@ -285,6 +295,8 @@ class ShopProductController extends Controller
             'shared_inventory' => ['sometimes', 'boolean'],
             'inventory_units' => ['nullable', 'integer', 'min:1'],
             'inventory_quantity' => ['nullable', 'integer', 'min:0'],
+            'stock_item_id' => ['nullable', 'integer', Rule::exists('stock_items', 'id')->where('status', StockItem::STATUS_ACTIVE)],
+            'stock_quantity_per_sale' => ['nullable', 'numeric', 'gt:0'],
             'shipping_units' => ['nullable', 'numeric', 'min:0'],
             'min_satchel_rank' => ['nullable', 'integer', Rule::in($satchelRanks)],
             'weight_grams' => ['nullable', 'integer', 'min:0'],
@@ -309,6 +321,7 @@ class ShopProductController extends Controller
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_units' => ['nullable', 'integer', 'min:1'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
+            'variants.*.stock_quantity_per_sale' => ['nullable', 'numeric', 'gt:0'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
             'variants.*.length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'variants.*.width_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
@@ -419,9 +432,11 @@ class ShopProductController extends Controller
             'compare_at_price' => ($validated['compare_at_price'] ?? null) !== null ? round((float) $validated['compare_at_price'], 2) : null,
             'shipping_rate' => 0,
             'tax_rate' => 0.10,
-            'shared_inventory' => ! $isDigital && $request->boolean('shared_inventory'),
+            'shared_inventory' => ! $isDigital && empty($validated['stock_item_id']) && $request->boolean('shared_inventory'),
             'inventory_units' => (int) ($validated['inventory_units'] ?? 1),
             'inventory_quantity' => $isDigital ? null : ($validated['inventory_quantity'] ?? null),
+            'stock_item_id' => $isDigital ? null : ($validated['stock_item_id'] ?? null),
+            'stock_quantity_per_sale' => $isDigital ? null : (($validated['stock_quantity_per_sale'] ?? null) !== null ? round((float) $validated['stock_quantity_per_sale'], 3) : null),
             'shipping_units' => $isDigital ? 0 : round((float) ($validated['shipping_units'] ?? 0), 3),
             'min_satchel_rank' => $isDigital ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
             'weight_grams' => $isDigital ? null : ($validated['weight_grams'] ?? null),
@@ -680,6 +695,7 @@ class ShopProductController extends Controller
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
                     'inventory_units' => max(1, (int) ($variant['inventory_units'] ?? 1)),
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
+                    'stock_quantity_per_sale' => ($variant['stock_quantity_per_sale'] ?? '') !== '' ? round((float) $variant['stock_quantity_per_sale'], 3) : null,
                     'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
                     'length_mm' => ($variant['length_mm'] ?? '') !== '' ? (int) $variant['length_mm'] : null,
                     'width_mm' => ($variant['width_mm'] ?? '') !== '' ? (int) $variant['width_mm'] : null,
@@ -705,6 +721,7 @@ class ShopProductController extends Controller
                     || $variant['price'] !== null
                     || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
+                    || $variant['stock_quantity_per_sale'] !== null
                     || $variant['weight_grams'] !== null
                     || $variant['length_mm'] !== null
                     || $variant['width_mm'] !== null
@@ -800,6 +817,8 @@ class ShopProductController extends Controller
             $variant->shipping_units = null;
             $variant->inventory_units = $variantData['inventory_units'];
             $variant->inventory_quantity = $isDigital ? null : $variantData['inventory_quantity'];
+            $variant->stock_item_id = null;
+            $variant->stock_quantity_per_sale = $isDigital ? null : $variantData['stock_quantity_per_sale'];
             $variant->weight_grams = $isDigital ? null : $variantData['weight_grams'];
             $variant->is_preorder = false;
             $variant->preorder_shipping_estimate = null;
@@ -854,6 +873,10 @@ class ShopProductController extends Controller
         array $previousVariantInventory,
         StoreInventoryAllocatorService $allocator,
     ): void {
+        if ($product->hasLinkedStock()) {
+            return;
+        }
+
         $currentProductInventory = $product->inventory_quantity !== null ? (int) $product->inventory_quantity : null;
         if ($currentProductInventory !== null && $currentProductInventory > ($previousProductInventory ?? 0)) {
             $allocator->allocateForProduct($product);
@@ -864,6 +887,9 @@ class ShopProductController extends Controller
             : $product->variants()->get();
 
         foreach ($variants as $variant) {
+            if ($product->hasLinkedStock($variant)) {
+                continue;
+            }
             $currentInventory = $variant->inventory_quantity !== null ? (int) $variant->inventory_quantity : null;
             $previousInventory = array_key_exists((int) $variant->id, $previousVariantInventory)
                 ? $previousVariantInventory[(int) $variant->id]

@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Store Products
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create product</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">

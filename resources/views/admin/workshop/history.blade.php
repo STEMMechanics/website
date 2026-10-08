@@ -13,7 +13,7 @@
         :tabs="$tabs"
     />
 
-    <x-container>
+    <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-workshop-history">
 
         <x-ui.collection-controls class="my-4">

@@ -145,7 +145,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $f = $this->fixture();
         $url = route('admin.workshop.allocation.edit', $f['workshop']);
         $this->get(route('admin.dashboard'))->assertOk()->assertViewHas('allocationTasks', fn ($tasks) => count($tasks) === 1)->assertSee($url);
-        foreach (['edit', 'attendance', 'files', 'photos', 'allocation.edit'] as $page) {
+        foreach (['edit', 'attendance', 'media', 'allocation.edit'] as $page) {
             $response = $this->get(route('admin.workshop.'.$page, $f['workshop']))->assertOk()->assertSee($url);
             if ($page === 'edit') {
                 $response->assertSee('Allocation ready for review')->assertDontSee('>Review allocation</a>', false);
@@ -287,9 +287,9 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $other->title = 'Unrelated workshop';
         $other->save();
         $url = route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']);
-        $this->get(route('admin.workshop.index'))->assertOk()->assertSee($url)
+        $this->get(route('admin.workshop.index', ['view' => 'list']))->assertOk()->assertSeeText('Ready for review')
             ->assertViewHas('workshops', fn ($rows) => $rows->total() === 2);
-        $this->get($url)->assertOk()->assertSee('Workshop allocation: Ready for review')->assertSee('Clear filters')
+        $this->get($url)->assertOk()->assertSee('Allocation review')->assertSee('Clear filters')
             ->assertViewHas('workshops', fn ($rows) => $rows->pluck('id')->all() === [$f['workshop']->id]);
         $this->getJson($url.'&select_listing=1')->assertOk()->assertJsonPath('names', [$f['workshop']->id]);
         $this->get($url.'&search=Unrelated')->assertOk()->assertViewHas('workshops', fn ($rows) => $rows->isEmpty());

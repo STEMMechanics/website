@@ -2,48 +2,28 @@
     @push('head')
         @vite('resources/js/workshop-pick-list.js')
     @endpush
-    <x-mast backRoute="workshop.index" backTitle="Workshops">
-        <x-slot>Run Sheet</x-slot>
+    @php
+        $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
+    @endphp
+    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+        <x-slot>Run sheet</x-slot>
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
         <x-slot:actions>
-            <x-ui.button color="mast" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
-                View public page
-                <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
-                <span class="sr-only">(opens in a new tab)</span>
-            </x-ui.button>
+            <div class="flex w-full flex-col gap-2 sm:w-56">
+                <x-admin.workshop-public-page-action :workshop="$workshop" />
+                @if($workshop->pick_list_template_id || $workshop->pick_list_is_customized)
+                    <x-ui.button color="mast" class="w-full" href="{{ route('admin.workshop.run-sheet.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
+                @endif
+            </div>
         </x-slot:actions>
     </x-mast>
 
-    <x-container>
-        <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
-            <x-slot:left>
-                <div class="flex flex-col">
-                    <div class="text-lg font-semibold mb-2">{{ $workshop->title }}</div>
-                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
-                    <div class="text-sm text-gray-600">
-                        <span class="font-bold w-20 inline-block">Blueprint:</span>
-                        @if($workshop->pick_list_is_customized)
-                            Custom{{ $workshop->pickListTemplate?->name ? ' (Originally '.$workshop->pickListTemplate?->name.')' : '' }}
-                        @else
-                            {{ $workshop->pickListTemplate?->name ?? 'Custom' }}
-                        @endif
-                    </div>
-                </div>
-            </x-slot:left>
-            <x-slot:right>
-                <x-ui.button class="mr-2" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                @if($workshop->pick_list_template_id || $workshop->pick_list_is_customized)
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.run-sheet.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
-                @endif
-            </x-slot:right>
-        </x-ui.toolbar>
-    </x-container>
-
-    <x-container>
+    <x-container class="pt-5 sm:pt-8">
         @php
+            $pickListParticipantsMax = (int) ($maxParticipants ?? 5000);
             $pickListParticipantsInput = $workshop->registration === 'tickets'
                 ? (string) $participants
-                : (string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants);
+                : (string) min($pickListParticipantsMax, max(1, (int) old('pick_list_participants', $workshop->pick_list_participants ?? $participants)));
         @endphp
 
         <form
@@ -55,19 +35,24 @@
                 csrfToken: @js(csrf_token()),
                 templateItems: @js($templateItems ?? []),
                 customItems: @js($customItems ?? []),
+                shelfPickRows: @js($shelfPickRows ?? []),
+                kitSummaries: @js($kitSummaries ?? []),
+                stockShortageCount: @js((int) ($stockShortageCount ?? 0)),
                 itemSuggestions: @js($itemSuggestions ?? []),
+                stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => ['id' => (int) $stockItem->id, 'name' => (string) $stockItem->linkLabel(), 'sku' => (string) ($stockItem->sku ?? '')])->values()->all()),
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 participantsInput: @js($pickListParticipantsInput),
                 notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
-                defaultParticipants: @js((int) $participants),
+                maxParticipants: @js($pickListParticipantsMax),
                 pickListCanvasDataJson: @js((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')),
                 pickListCanvasThumbnailUrl: @js((string) ($pickListCanvasThumbnailUrl ?? '')),
                 lastSavedAtIso: @js($lastSavedAt?->toIso8601String()),
                 lastSavedAbsolute: @js($lastSavedAt?->format('M j, Y g:i a')),
             })"
             x-init="init()"
+            x-on:resize.window.debounce.100ms="pickListViewportWidth = window.innerWidth"
             x-on:submit.prevent="submitForm($event)"
             x-on:sm-editor-updated.window="if ($event.detail?.name === 'workshop_run_sheet') scheduleAutosave()"
         >
@@ -148,7 +133,7 @@
                                                         @if($taskReminder)
                                                             @php($reminderRecipient = trim((string) ($taskReminder->recipient?->getName() ?: $taskReminder->recipient_email)))
                                                             <div class="text-xs text-gray-500" title="Email reminder{{ $reminderRecipient !== '' ? ' for '.$reminderRecipient : '' }}">
-                                                                <i class="fa-regular fa-bell mr-1"></i>{{ $taskReminder->scheduled_at?->format('D j M, g:ia') ?? 'Date unavailable' }}
+                                                                <i class="fa-regular fa-bell mr-1" aria-hidden="true"></i>{{ $taskReminder->scheduled_at?->format('D j M, g:ia') ?? 'Date unavailable' }}
                                                                 @if($reminderRecipient !== '')
                                                                     <span>· {{ $reminderRecipient }}</span>
                                                                 @endif
@@ -156,9 +141,21 @@
                                                         @elseif($task->reminder_enabled)
                                                             @php($offsetDays = (int) ($task->reminder_offset_days ?? 0))
                                                             @php($offsetLabel = $offsetDays === 0 ? 'on the workshop date' : abs($offsetDays).' day'.(abs($offsetDays) === 1 ? '' : 's').' '.($offsetDays < 0 ? 'before' : 'after'))
-                                                            @php($timeLabel = filled($task->reminder_time) ? \Illuminate\Support\Carbon::createFromFormat('H:i', (string) $task->reminder_time)->format('g:ia') : 'time not set')
-                                                            <div class="text-xs text-gray-500" title="This reminder is configured on the template but has not been scheduled for this workshop.">
-                                                                <i class="fa-regular fa-bell-slash mr-1"></i>Reminder configured: {{ $offsetLabel }} at {{ $timeLabel }} · Not scheduled
+                                                            @php($reminderTime = (string) ($task->reminder_time ?? ''))
+                                                            @php($validReminderTime = in_array($reminderTime, ['06:00', '12:00', '16:00'], true))
+                                                            @php($timeLabel = $validReminderTime ? \Illuminate\Support\Carbon::createFromFormat('H:i', $reminderTime)->format('g:ia') : 'time not set')
+                                                            @php($reminderScheduledAt = $workshop->starts_at && $task->reminder_offset_days !== null && $validReminderTime
+                                                                ? $workshop->starts_at->copy()->startOfDay()->addDays((int) $task->reminder_offset_days)->setTimeFromTimeString($reminderTime)
+                                                                : null)
+                                                            @php($reminderHasPassed = $reminderScheduledAt?->lt(now()->subMinutes(5)) ?? false)
+                                                            <div class="text-xs text-gray-500" title="{{ $reminderHasPassed ? 'The reminder date has passed; it will not be sent.' : 'Configured on the blueprint, but not scheduled for this workshop.' }}">
+                                                                <i class="fa-regular {{ $reminderHasPassed ? 'fa-bell-slash' : 'fa-bell' }} mr-1" aria-hidden="true"></i>
+                                                                <span @class(['line-through text-gray-400' => $reminderHasPassed])>{{ $offsetLabel }} at {{ $timeLabel }}</span>
+                                                                @if($reminderHasPassed)
+                                                                    <span class="sr-only">Reminder date passed; it will not be sent.</span>
+                                                                @else
+                                                                    <span>· Not scheduled</span>
+                                                                @endif
                                                             </div>
                                                         @endif
                                                     </div>
@@ -191,12 +188,23 @@
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Pick List</h2>
+                    <span x-show="stockShortageCount > 0" x-cloak class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900" role="status">
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        <span x-text="stockShortageCount === 1 ? '1 stock shortage' : `${stockShortageCount} stock shortages`"></span>
+                    </span>
                 </summary>
+
+                @if(($workshopStockCost ?? null) !== null && (float) $workshopStockCost > 0)
+                    <div class="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                        <span class="font-semibold">Estimated linked material cost:</span>
+                        ${{ number_format((float) $workshopStockCost, 2) }} ex GST
+                    </div>
+                @endif
 
                 <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between" x-show="!itemsEditMode" x-cloak>
                         <x-ui.checkbox
  label="Select all"
  :noWrapper="true"
@@ -207,7 +215,7 @@
  x-on:change="setAllItemsChecked($event.target.checked)"
  />
                     </div>
-                    <div class="border-gray-300 border-r h-8"></div>
+                    <div class="border-gray-300 border-r h-8" x-show="!itemsEditMode" x-cloak></div>
 
                     @if($workshop->registration !== 'tickets')
                         <div class="flex gap-3 items-center">
@@ -216,6 +224,7 @@
                                     noLabel="true"
                                     type="number"
                                     min="1"
+                                    max="{{ $pickListParticipantsMax }}"
                                     step="1"
                                     name="pick_list_participants"
                                     class="mb-0 w-12"
@@ -227,39 +236,97 @@
                         </div>
                         <div class="border-gray-300 border-r h-8"></div>
                     @else
-                        <div class="flex gap-2 items-center">
-                            <span>Participants: </span>
-                            <span class="font-semibold">{{ $activeTicketCount }}</span>
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span class="text-sm font-medium text-gray-700"><span class="font-semibold text-gray-900">{{ $activeTicketCount }}/{{ $participants }}</span> tickets</span>
                         </div>
                     @endif
 
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
+                        <x-ui.button
+                            type="button"
+                            variant="plain"
+                            class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            x-show="isCustomized && templateItems.length > 0 && !itemsEditMode"
+                            x-cloak
+                            x-bind:disabled="saving"
+                            x-on:click="addMissingBlueprintItems()"
+                            aria-label="Add missing items from blueprint"
+                            title="Add missing items from blueprint"
+                        ><i class="fa-solid fa-arrow-down-to-bracket" aria-hidden="true"></i></x-ui.button>
+                        <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-bind:disabled="saving" x-on:click="startItemEditing()">Edit Items</x-ui.button>
                     </div>
                 </div>
+                <p x-show="blueprintMergeMessage" x-cloak class="mt-2 text-right text-sm text-sky-800" role="status" x-text="blueprintMergeMessage"></p>
             </div>
 
             <div class="mt-4" x-show="!itemsEditMode">
-                <template x-if="currentItems().length > 0">
-                    <x-ui.grid class="md:grid-cols-2 xl:grid-cols-3 gap-3">
-                        <template x-for="item in currentItems()" :key="item.id">
-                            <label class="flex items-center gap-3 p-3 select-none">
-                                <x-ui.checkbox
- :noWrapper="true"
- :inline="true"
- x-model="checkedIds"
- x-bind:value="String(item.id)"
- x-on:change="scheduleAutosave()"
- />
-                                <div class="min-w-0">
-                                    <div class="font-semibold" x-text="itemLabel(item)"></div>
-                                    <div class="text-xs text-gray-500" x-text="typeNote(item)"></div>
-                                </div>
-                            </label>
+                <template x-if="kitSummaries.length > 0 || shelfPickRows.length > 0">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <template x-for="(column, columnIndex) in pickListEntryColumns()" :key="`pick-list-column-${columnIndex}`">
+                            <div class="flex min-w-0 flex-col gap-3">
+                                <template x-for="entry in column" :key="entry.key">
+                                    <div x-bind:class="entry.kind === 'component'
+                                        ? 'ml-4 rounded-lg border border-gray-200 border-l-2 border-l-sky-300 bg-white p-3'
+                                        : 'rounded-lg border border-gray-200 bg-white p-3'">
+                                        <template x-if="entry.kind === 'kit' || entry.kind === 'item'">
+                                            <div class="flex items-center gap-3">
+                                                <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                                                    <x-ui.checkbox
+                                                        :noWrapper="true"
+                                                        :inline="true"
+                                                        x-model="checkedIds"
+                                                        x-bind:value="String(entry.item.key)"
+                                                        x-on:change="scheduleAutosave()"
+                                                    />
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="block font-semibold text-gray-900" x-text="entry.kind === 'kit' ? kitChecklistLabel(entry.item) : shelfRowLabel(entry.item)"></span>
+                                                        <template x-if="Number(entry.item.shortage_quantity ?? 0) > 0.0005">
+                                                            <span class="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                                                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                                                <span x-text="stockShortageLabel(entry.item)"></span>
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="entry.kind === 'kit'">
+                                                            <span class="mt-0.5 block text-xs font-medium text-slate-600" x-text="kitAssemblyStatus(entry.item)"></span>
+                                                        </template>
+                                                        <template x-if="entry.kind === 'kit' && entry.item.assembly_url">
+                                                            <button type="button" class="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950" x-on:click.stop="$dispatch('open-workshop-assembly', { url: entry.item.assembly_url })">
+                                                                <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>Assemble for workshop
+                                                            </button>
+                                                        </template>
+                                                    </span>
+                                                </label>
+                                                <template x-if="entry.item.admin_url">
+                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open stock item in admin" title="Open stock item in admin"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="entry.kind === 'component'">
+                                            <div class="flex items-start gap-2 text-sm text-gray-600">
+                                                <div class="min-w-0 flex-1">
+                                                    <span class="block" x-text="kitComponentLabel(entry.item)"></span>
+                                                    <template x-if="Number(entry.item.shortage_quantity ?? 0) > 0.0005">
+                                                        <span class="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                                                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                                            <span x-text="stockShortageLabel(entry.item)"></span>
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="kitComponentNote(entry.item) !== ''">
+                                                        <span class="mt-0.5 block text-xs text-slate-500" x-text="kitComponentNote(entry.item)"></span>
+                                                    </template>
+                                                </div>
+                                                <template x-if="entry.item.admin_url">
+                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open stock item in admin" title="Open stock item in admin"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
                         </template>
-                    </x-ui.grid>
+                    </div>
                 </template>
-                <template x-if="currentItems().length === 0">
+                <template x-if="shelfPickRows.length === 0 && kitSummaries.length === 0">
                     <div class="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
                         No items yet. Click <span class="font-semibold">Edit Items</span> to add materials directly to this workshop.
                     </div>
@@ -274,14 +341,13 @@
                                 <th class="px-3 py-2">Item</th>
                                 <th class="px-3 py-2 text-center!">Type</th>
                                 <th class="px-3 py-2">Quantity</th>
-                                <th class="px-3 py-2">Checked</th>
                                 <th class="text-center! px-3 py-2">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="block md:table-row-group">
                             <template x-if="customItems.length === 0">
                                 <tr class="block border border-dashed border-gray-200 bg-gray-50 md:table-row md:border-0 md:bg-transparent">
-                                    <td colspan="5" class="px-3 py-4 text-sm text-gray-600">
+                                    <td colspan="4" class="px-3 py-4 text-sm text-gray-600">
                                         No custom items yet. Add one to start building the pick list.
                                     </td>
                                 </tr>
@@ -290,16 +356,13 @@
                                 <tr class="mb-3 block rounded-xl border border-gray-200 bg-white shadow-sm md:mb-0 md:table-row md:rounded-none md:border-0 md:bg-transparent md:shadow-none align-top">
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Item</div>
-                                        <x-ui.input
-                                            name="custom_item_name"
-                                            label="Item"
-                                            :noLabel="true"
-                                            class="mb-0"
-                                            fieldClasses="mt-0"
-                                            :suggestions="$itemSuggestions ?? []"
-                                            x-model="item.item_name"
-                                            x-on:input="item.item_name = $event.target.value; handleCustomItemChange(index)"
-                                        />
+                                        <div
+                                            x-on:stock-item-link-changed="selectCustomStockItem(index)"
+                                            x-on:input="handleCustomItemChange(index)"
+                                            x-on:change="handleCustomItemChange(index)"
+                                        >
+                                            <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
+                                        </div>
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3 text-center!">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Type</div>
@@ -329,18 +392,6 @@
                                             x-on:input="item.quantity_value = $event.target.value; handleCustomItemChange(index)"
                                             x-on:blur="normalizeCustomItemQuantity(index); handleCustomItemChange(index)"
                                         />
-                                    </td>
-                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
-                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Checked</div>
-                                        <x-ui.checkbox
- label="Include on list"
- :small="true"
- :noWrapper="true"
- :inline="true"
- x-model="checkedIds"
- x-bind:value="String(item.id)"
- x-on:change="scheduleAutosave()"
- />
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Actions</div>
@@ -437,5 +488,7 @@
                 </x-ui.button>
             </div>
         </form>
+
+        @include('admin.workshop.partials.stock-assembly-dialog')
     </x-container>
 </x-layout>

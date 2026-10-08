@@ -210,10 +210,10 @@
                                     @if($entryType === 'folder')
                                         <x-ui.row-action label="Open folder" icon="fa-solid fa-folder-open" tone="neutral" href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
                                     @elseif($isMediaGroup)
-                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
+                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
                                         <x-ui.row-action label="Show variants" icon="fa-solid fa-chevron-down" tone="neutral" type="button" data-file-backup-group-toggle data-file-backup-group-target="{{ $entry['path'] }}" aria-expanded="false" />
                                     @else
-                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
+                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" />
                                     @endif
                                 </x-ui.row-actions>
                             </td>
@@ -269,7 +269,7 @@
                                                                 -
                                                             @endif
                                                         </span>
-                                                        <x-ui.row-action label="Download from backup" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $child['path']]) }}" />
+                                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.server.files.download', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $child['path']]) }}" />
                                                     </x-ui.row-actions>
                                                 </div>
                                             @endforeach

@@ -418,7 +418,7 @@ class WorkshopVisibilityRulesTest extends TestCase
 
             $response->assertOk();
             $this->assertSame(6, substr_count($response->getContent(), 'Multi-day public workshop'));
-            $this->assertSame(3, substr_count($response->getContent(), 'Continues'));
+            $this->assertSame(2, substr_count($response->getContent(), 'Continues'));
             $response->assertSeeText('Ends 4:00 pm');
             $response->assertSee('lg:rounded-l-none lg:border-l-0', false);
             $response->assertSee('lg:rounded-r-none lg:border-r-0', false);

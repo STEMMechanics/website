@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Users
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.user.create') }}">Create User</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.user.create') }}">Create user</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
@@ -81,13 +81,13 @@
                         </div>
                     </td>
                     <td class="text-center!">
-                        <x-ui.row-actions :title="$user->getName()" class="whitespace-nowrap">
+                        <x-ui.row-actions class="whitespace-nowrap">
                             <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.user.edit', $user) }}" />
                             @if($accountCredit > 0.0001)
                                 <x-ui.row-action label="View financials" icon="fa-solid fa-coins" tone="neutral" href="{{ route('admin.user.payments', $user) }}" />
                             @endif
                             @if(($user->media_count ?? 0) > 0)
-                                <x-ui.row-action label="View user media" icon="fa-solid fa-photo-film" tone="neutral" href="{{ route('admin.media.index', ['user_id' => $user->id]) }}" />
+                                <x-ui.row-action label="View media" icon="fa-solid fa-photo-film" tone="neutral" href="{{ route('admin.media.index', ['user_id' => $user->id]) }}" />
                             @endif
                             @if($user->id !== '1')
                             <form method="POST" action="{{ route('admin.user.destroy', $user) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', $el)">

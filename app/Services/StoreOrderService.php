@@ -29,6 +29,8 @@ use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
 use App\Models\User;
+use App\Services\Finance\InvoiceAllocation;
+use App\Services\Finance\LinePricing;
 use App\Support\InvoiceDueDate;
 use App\Support\ShopShippingSettings;
 use Barryvdh\DomPDF\PDF;
@@ -48,6 +50,7 @@ class StoreOrderService
         private readonly StoreShippingService $shipping,
         private readonly StoreCouponService $coupons,
         private readonly StoreInventoryAllocatorService $allocator,
+        private readonly StockInventoryService $stockInventory,
         private readonly StoreOrderUpdateService $orderUpdates,
         private readonly AccountCreditService $accountCredit,
     ) {}
@@ -315,11 +318,11 @@ class StoreOrderService
                     'unit_length_mm' => $product->lengthMmForVariant($variant) ?? ($storeContext['unit_length_mm'] ?? null),
                     'unit_width_mm' => $product->widthMmForVariant($variant) ?? ($storeContext['unit_width_mm'] ?? null),
                     'unit_height_mm' => $product->heightMmForVariant($variant) ?? ($storeContext['unit_height_mm'] ?? null),
-                    'unit_price_inc_tax' => \App\Services\Finance\LinePricing::inclusiveUnit($lineItem),
+                    'unit_price_inc_tax' => LinePricing::inclusiveUnit($lineItem),
                     'unit_price_ex_tax' => $unitPriceExTax,
-                    'line_total_inc_tax' => \App\Services\Finance\LinePricing::savedAmounts($lineItem)['gross'],
+                    'line_total_inc_tax' => LinePricing::savedAmounts($lineItem)['gross'],
                     'line_total_ex_tax' => $lineTotalExTax,
-                    'line_gst_amount' => \App\Services\Finance\LinePricing::savedAmounts($lineItem)['tax'],
+                    'line_gst_amount' => LinePricing::savedAmounts($lineItem)['tax'],
                     'tax_rate' => $taxRate,
                 ];
             }
@@ -447,6 +450,14 @@ class StoreOrderService
                 $orderItem->line_gst_amount = round((float) $payload['line_gst_amount'], 2);
                 $orderItem->line_total_amount = round((float) $payload['line_total_inc_tax'], 2);
                 $orderItem->save();
+
+                if ($this->usesStockInventory($orderItem)) {
+                    $orderItem->inventory_reserved_quantity = $this->stockInventory->reserveForStoreOrderItem(
+                        $orderItem,
+                        (int) $payload['available_now_quantity'],
+                    );
+                    $orderItem->save();
+                }
 
                 if ($product->isDigital()) {
                     foreach ($product->downloadMedia()->get() as $index => $media) {
@@ -955,6 +966,9 @@ class StoreOrderService
             }
 
             if ($shipmentType === StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE) {
+                if ($this->usesStockInventory($lockedItem)) {
+                    $this->stockInventory->consumeForStoreOrderItem($lockedItem, $quantity);
+                }
                 $lockedItem->inventory_reserved_quantity = max(
                     0,
                     (int) $lockedItem->inventory_reserved_quantity - min($quantity, max(0, (int) $lockedItem->inventory_reserved_quantity))
@@ -1141,6 +1155,9 @@ class StoreOrderService
                     }
 
                     $releasedReservedQuantity = min($consumeQuantity, max(0, (int) $lockedItem->inventory_reserved_quantity));
+                    if ($this->usesStockInventory($lockedItem) && $releasedReservedQuantity > 0) {
+                        $this->stockInventory->consumeForStoreOrderItem($lockedItem, $releasedReservedQuantity);
+                    }
                     $lockedItem->inventory_reserved_quantity = max(0, (int) $lockedItem->inventory_reserved_quantity - $releasedReservedQuantity);
                     $lockedItem->save();
                     $remainingToCollect -= $consumeQuantity;
@@ -1955,6 +1972,9 @@ class StoreOrderService
                 }
 
                 $releasedReservedQuantity = min($consumeQuantity, max(0, (int) $item->inventory_reserved_quantity));
+                if ($this->usesStockInventory($item) && $releasedReservedQuantity > 0) {
+                    $this->stockInventory->consumeForStoreOrderItem($item, $releasedReservedQuantity);
+                }
                 $item->inventory_reserved_quantity = max(0, (int) $item->inventory_reserved_quantity - $releasedReservedQuantity);
                 $item->save();
                 $remainingToCollect -= $consumeQuantity;
@@ -2027,6 +2047,9 @@ class StoreOrderService
         }
 
         if ($shipmentType === StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE) {
+            if ($this->usesStockInventory($item)) {
+                $this->stockInventory->consumeForStoreOrderItem($item, $quantity);
+            }
             $item->inventory_reserved_quantity = max(
                 0,
                 (int) $item->inventory_reserved_quantity - min($quantity, max(0, (int) $item->inventory_reserved_quantity))
@@ -3158,8 +3181,6 @@ class StoreOrderService
                 $invoiceLine->save();
             }
 
-            $reservedQuantity = $reserveInventory ? $this->reserveInventoryForPreparedLine($line) : 0;
-
             $orderItem = new StoreOrderItem;
             $orderItem->store_order_id = $order->id;
             $orderItem->product_id = $line->product->id;
@@ -3183,7 +3204,7 @@ class StoreOrderService
             $orderItem->delayed_shipping_estimate = $line->delayed_shipping_estimate;
             $orderItem->shared_inventory = (bool) $line->product->shared_inventory;
             $orderItem->inventory_units = $line->product->inventoryUnits($line->variant);
-            $orderItem->inventory_reserved_quantity = $reservedQuantity;
+            $orderItem->inventory_reserved_quantity = 0;
             $orderItem->unit_shipping_units = round((float) $line->unit_shipping_units, 3);
             $orderItem->unit_min_satchel_rank = $line->unit_min_satchel_rank;
             $orderItem->unit_price = round((float) $line->unit_price, 2);
@@ -3198,6 +3219,18 @@ class StoreOrderService
             $orderItem->line_gst_amount = round((float) $line->line_gst, 2);
             $orderItem->line_total_amount = round((float) $line->line_price, 2);
             $orderItem->save();
+
+            if ($reserveInventory) {
+                if ($this->usesStockInventory($orderItem)) {
+                    $orderItem->inventory_reserved_quantity = $this->stockInventory->reserveForStoreOrderItem(
+                        $orderItem,
+                        (int) $line->available_now_quantity,
+                    );
+                } else {
+                    $orderItem->inventory_reserved_quantity = $this->reserveInventoryForPreparedLine($line);
+                }
+                $orderItem->save();
+            }
 
             if ($line->product->isDigital()) {
                 foreach ($line->product->downloadMedia()->get() as $index => $media) {
@@ -3248,7 +3281,7 @@ class StoreOrderService
 
         $invoice?->unsetRelation('lines');
         if ($invoice instanceof Invoice && $invoice->lines()->where('kind', 'product')->get()->contains(fn ($line) => ! empty($line->product_allocation_snapshot))) {
-            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, null);
+            app(InvoiceAllocation::class)->sync($invoice, null);
         }
 
         return $order->load(['invoice', 'items.downloads.media', 'coupon']);
@@ -3389,7 +3422,7 @@ class StoreOrderService
 
                 $quantity = max(1, (int) $line->quantity);
                 $actualInventory = $product->availableInventory($variant);
-                if ($product->shared_inventory && $product->inventory_quantity !== null) {
+                if ($product->shared_inventory && ! $product->hasLinkedStock($variant) && $product->inventory_quantity !== null) {
                     $sharedRemaining[$product->id] ??= max(0, (int) $product->inventory_quantity);
                     $actualInventory = intdiv($sharedRemaining[$product->id], $product->inventoryUnits($variant));
                 }
@@ -3441,6 +3474,10 @@ class StoreOrderService
     {
         $quantityToReserve = max(0, (int) ($line->available_now_quantity ?? 0));
         if ($quantityToReserve <= 0) {
+            return 0;
+        }
+
+        if ($this->stockInventory->isStockManaged($line->product, $line->variant)) {
             return 0;
         }
 
@@ -3500,6 +3537,13 @@ class StoreOrderService
 
             $quantity = $this->reservationQuantityForOrderItem($item);
             if ($quantity <= 0) {
+                continue;
+            }
+
+            if ($this->usesStockInventory($item)) {
+                $item->inventory_reserved_quantity = $this->stockInventory->reserveForStoreOrderItem($item, $quantity);
+                $item->save();
+
                 continue;
             }
 
@@ -3604,6 +3648,12 @@ class StoreOrderService
             return;
         }
 
+        if ($this->usesStockInventory($item)) {
+            $this->stockInventory->releaseForStoreOrderItem($item, $quantity);
+
+            return;
+        }
+
         if ($item->shared_inventory) {
             $product = Product::query()->whereKey($item->product_id)->lockForUpdate()->first();
             if ($product && $product->inventory_quantity !== null) {
@@ -3633,6 +3683,20 @@ class StoreOrderService
             $product->inventory_quantity = (int) $product->inventory_quantity + $quantity;
             $product->save();
         }
+    }
+
+    private function usesStockInventory(StoreOrderItem $item): bool
+    {
+        $product = $item->relationLoaded('product') ? $item->product : $item->product()->first();
+        if (! $product instanceof Product) {
+            return false;
+        }
+
+        $variant = $item->product_variant_id
+            ? ($item->relationLoaded('variant') ? $item->variant : $item->variant()->first())
+            : null;
+
+        return $this->stockInventory->isStockManaged($product, $variant);
     }
 
     /**

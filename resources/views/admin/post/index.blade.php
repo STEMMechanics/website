@@ -5,7 +5,7 @@
         <x-ui.dynamic-list name="admin-post">
         <div class="my-4 flex flex-wrap items-center gap-3">
 
-                <x-ui.button href="{{ route('admin.post.create') }}">Create Post</x-ui.button>
+                <x-ui.button href="{{ route('admin.post.create') }}">Create post</x-ui.button>
 
 
 

@@ -106,7 +106,7 @@
                         </div>
 
                         <x-ui.row-actions class="mt-4">
-                            <x-ui.row-action label="Edit payment" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $customerPayment) }}" />
+                            <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $customerPayment) }}" />
                             @if(! empty($replacementDialogData['candidates'] ?? []))
                                 <x-ui.row-action label="Review matches" icon="fa-solid fa-right-left" tone="neutral"
                                     type="button"
@@ -146,7 +146,7 @@
                             </div>
                             <div class="mt-3 text-xs text-gray-600">Refund</div>
                             <x-ui.row-actions class="mt-4">
-                                <x-ui.row-action label="Edit refund" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
+                                <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.payment.edit', $refund) }}" />
                                 <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ $refundViewUrl }}" target="_blank" />
                                 <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ $refundDownloadUrl }}" />
                             </x-ui.row-actions>

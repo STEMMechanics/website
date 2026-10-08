@@ -392,7 +392,7 @@
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
                         <div class="flex flex-wrap gap-2">
-                            <x-ui.button variant="plain" type="button" class="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color" x-on:click.prevent="addAllocation()">Add Allocation</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click.prevent="addAllocation()">Add Allocation</x-ui.button>
                         </div>
                     @endif
                 </div>
@@ -741,9 +741,9 @@
                                                     <td class="py-2 pr-3">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
                                                     <td class="py-2 pr-3 text-center!">${{ number_format((float) $refund->total_amount, 2) }}</td>
                                                     <td class="text-center! py-2">
-                                                        <x-ui.row-action label="Open refund record" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.payment.edit', $refund) }}" />
-                                                        <x-ui.row-action label="View refund receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" />
-                                                        <x-ui.row-action label="Download refund receipt" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" />
+                                                        <x-ui.row-action label="Edit" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.payment.edit', $refund) }}" />
+                                                        <x-ui.row-action label="View receipt" icon="fa-regular fa-file-lines" tone="neutral" href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" />
+                                                        <x-ui.row-action label="Download receipt" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" />
                                                     </td>
                                                 </tr>
                                             @endforeach

@@ -54,7 +54,7 @@
                                 @if($reminder->failure_message)<div class="mx-auto mt-1 max-w-xs text-xs text-red-600">{{ $reminder->failure_message }}</div>@endif
                             </td>
                             <td class="text-center! whitespace-nowrap">
-                                <x-ui.action-menu id="reminder-actions-{{ $reminder->id }}" title="Reminder actions">
+                                <x-ui.action-menu id="reminder-actions-{{ $reminder->id }}" title="Actions">
                                 @if(in_array($reminder->status, [\App\Models\Reminder::STATUS_PENDING, \App\Models\Reminder::STATUS_QUEUED, \App\Models\Reminder::STATUS_FAILED, \App\Models\Reminder::STATUS_SENT], true))
                                     @php
                                         $sendActionLabel = match ($reminder->status) {

@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property bool $sponsorship_recognition_public
+ * @property \Illuminate\Support\Carbon|null $sponsorship_recognition_approved_at
+ * @property string|null $sponsorship_recognition_approved_by
+ * @property \Illuminate\Support\Carbon|null $sponsorship_recognition_approval_notified_at
+ */
 class Organisation extends Model
 {
     use HasFactory, UUID;

@@ -31,7 +31,7 @@
                             <td class="text-center!"><x-ui.date-time>{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</x-ui.date-time></td>
                             <td class="text-center!">${{ number_format((float) $quote->total_amount, 2) }}</td>
                             <td><x-ui.row-actions>
-                                <x-ui.row-action label="View Quote" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.quote.show', $quote) }}" />
+                                <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.quote.show', $quote) }}" />
                                 <x-ui.row-action label="Open PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.quote.pdf', $quote) }}" target="_blank" />
                             </x-ui.row-actions></td>
                         </tr>

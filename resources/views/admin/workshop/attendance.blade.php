@@ -111,30 +111,24 @@
 @endphp
 
 <x-layout>
-    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">Workshop Attendance</x-mast>
+    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+        Workshop Attendance
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
+        <x-slot:actions>
+            <div class="flex w-full flex-col gap-2 sm:w-56">
+                <x-admin.workshop-public-page-action :workshop="$workshop" />
+                <x-ui.button color="mast" class="w-full" href="{{ route('admin.workshop.attendance.csv', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}">Export CSV</x-ui.button>
+                @if($isTicketedWorkshop)
+                    <x-ui.button color="mast" class="w-full gap-2" href="{{ route('admin.workshop.tickets.pdf', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}" target="_blank"><i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet</x-ui.button>
+                    <x-ui.button color="mast" class="w-full" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
+                @else
+                    <x-ui.button color="mast" class="w-full" href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
+                @endif
+            </div>
+        </x-slot:actions>
+    </x-mast>
 
     <x-container class="py-5 sm:py-8">
-        <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <x-slot:left>
-                <div class="flex flex-col">
-                    <div class="text-lg font-semibold mb-2">{{ $workshop->title }}</div>
-                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
-                </div>
-            </x-slot:left>
-            <x-slot:right>
-                <div class="flex flex-wrap gap-2">
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.attendance.csv', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}">Export CSV</x-ui.button>
-                    @if($isTicketedWorkshop)
-                        <x-ui.button color="outline" class="gap-2" href="{{ route('admin.workshop.tickets.pdf', [$workshop, 'session_id' => $courseSession['id'] ?? null]) }}" target="_blank"><i class="fa-solid fa-print" aria-hidden="true"></i> Print sign-in sheet</x-ui.button>
-                        <x-ui.button color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
-                    @else
-                        <x-ui.button href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
-                    @endif
-                </div>
-            </x-slot:right>
-        </x-ui.toolbar>
-
         <x-ui.dynamic-list name="admin-workshop-attendance">
         @if($isTicketedWorkshop)
             <div
@@ -738,7 +732,7 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <h2 class="mt-5 mb-3 text-lg font-semibold">Ticketed Attendance</h2>
+                <h2 class="mb-3 text-lg font-semibold">Ticketed Attendance</h2>
                 @if($courseSession)
                     <form method="GET" class="max-w-xl">
                         <x-ui.select label="Course session" name="session_id" onchange="this.form.submit()">
@@ -1253,12 +1247,13 @@
 
         </x-ui.dynamic-list>
 
-        <div class="mt-6">
+        <div @class(['mt-6' => $isTicketedWorkshop])>
             <form method="POST" action="{{ route('admin.workshop.attendance.dropin.sync', $workshop) }}" x-data="{
                 entries: @js($seedEntries),
                 anonymousCount: @js($anonymousEntryCount),
                 submitting: false,
                 isDesktop: false,
+                confirmNoAttendees: @js((bool) old('confirm_no_attendees', $workshop->attendance_no_attendees_confirmed_at !== null)),
                 newBlankEntry() {
                     return {
                         id: 0,
@@ -1312,12 +1307,12 @@
                 syncViewport() {
                     this.isDesktop = window.innerWidth >= 1024;
                 },
-            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport())" x-on:submit="submitting = true">
+            }" x-init="ensureSingleTrailingBlank(); syncViewport(); window.addEventListener('resize', () => syncViewport())" x-effect="if (namedEntryCount() > 0 || Number(anonymousCount || 0) > 0) confirmNoAttendees = false" x-on:submit="submitting = true">
                 @csrf
                 <div class="mb-3 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
-                        <p class="mt-1 text-sm text-slate-600"><span x-text="namedEntryCount()"></span> named records. Anonymous attendees are managed by the count below.</p>
+                        <p class="mt-1 text-sm text-slate-600"><span x-text="namedEntryCount()"></span> named records.</p>
                     </div>
                     <div class="w-full md:max-w-xs">
                         <x-ui.input
@@ -1327,6 +1322,7 @@
                             label="Anonymous attendees"
                             :value="$anonymousEntryCount"
                             x-model.number="anonymousCount"
+                            x-on:input="if (Number($event.target.value || 0) > 0) confirmNoAttendees = false"
                             min="0"
                             max="10000"
                             step="1"
@@ -1334,7 +1330,6 @@
                             class="mb-0"
                             fieldClasses="mt-1"
                         />
-                        <p class="mt-2 text-xs text-slate-500">Saving will create or remove anonymous records to match this number.</p>
                     </div>
                 </div>
 
@@ -1343,7 +1338,7 @@
                         <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || `Entry ${index + 1}`"></h3>
-                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
+                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete">
                                     <i class="fa-solid fa-trash"></i>
                                 </x-ui.button>
                             </div>
@@ -1480,7 +1475,7 @@
                                         />
                                     </td>
                                     <td class="text-center! p-2 align-middle">
-                                        <x-ui.row-action label="Delete row" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeEntry(index)" />
+                                        <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeEntry(index)" />
                                     </td>
                                 </tr>
                             </template>
@@ -1488,7 +1483,20 @@
                     </x-ui.table>
                 </div>
 
-                <div class="mt-4 flex justify-end">
+                <div class="mt-4 flex items-center justify-end gap-3">
+                    @if(($canConfirmNoAttendees ?? false) && !($hasTicketAttendance ?? false))
+                        <div>
+                            <x-ui.checkbox
+                                name="confirm_no_attendees"
+                                label="Confirm no attendees"
+                                :checked="old('confirm_no_attendees', $workshop->attendance_no_attendees_confirmed_at !== null)"
+                                :small="true"
+                                :noWrapper="true"
+                                x-model="confirmNoAttendees"
+                                x-bind:disabled="namedEntryCount() > 0 || Number(anonymousCount || 0) > 0"
+                            />
+                        </div>
+                    @endif
                     <x-ui.button type="submit" x-bind:disabled="submitting">
                         <span x-show="!submitting">Save</span>
                         <span x-show="submitting" class="inline-flex items-center gap-2">
@@ -1497,6 +1505,9 @@
                         </span>
                     </x-ui.button>
                 </div>
+                @if($errors->has('confirm_no_attendees'))
+                    <p class="mt-1 text-right text-sm text-red-600">{{ $errors->first('confirm_no_attendees') }}</p>
+                @endif
             </form>
         </div>
     </x-container>

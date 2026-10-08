@@ -68,12 +68,12 @@
                             <td class="text-center!">
                                 <x-ui.row-actions class="whitespace-nowrap">
                                     @if($canPay)
-                                        <x-ui.row-action label="Pay order" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
+                                    <x-ui.row-action label="Pay" icon="fa-solid fa-credit-card" tone="neutral" href="{{ route('account.invoice.show', $invoice) }}" />
                                     @elseif($invoice)
                                         <span class="text-gray-300" title="Order is already paid or closed"><i class="fa-solid fa-credit-card"></i></span>
                                     @endif
 
-                                    <x-ui.row-action label="View order" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.order.show', $order) }}" />
+                                    <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('account.order.show', $order) }}" />
 
                                     @if($invoice)
                                         <x-ui.row-action label="View invoice payments" icon="fa-solid fa-receipt" tone="neutral" href="{{ route('account.invoice.receipts', $invoice) }}" />

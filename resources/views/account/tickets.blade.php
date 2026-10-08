@@ -129,12 +129,12 @@
                     <td class="text-center!">
                         <x-ui.row-actions class="whitespace-nowrap">
                             @if($canOpenTicketPdf)
-                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.ticket.pdf', $ticket) }}" target="_blank" />
+                            <x-ui.row-action label="Open ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('account.ticket.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                             @endif
                             @if($ticket->invoice_id)
-                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('account.ticket.invoice.pdf', $ticket) }}" target="_blank" />
+                            <x-ui.row-action label="Open invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('account.ticket.invoice.pdf', $ticket) }}" target="_blank" />
                             @else
                             <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                             @endif
@@ -161,7 +161,7 @@
                             <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
                             @endif
                             @if($canCancel)
-                            <x-ui.row-action label="Cancel ticket" icon="fa-solid fa-ban" tone="warning"
+                            <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                 type="button"
                                 x-on:click="openCancelModal({{ \Illuminate\Support\Js::from(route('account.ticket.cancel', $ticket)) }}, {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }})" />
                             @else

@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Custom Pages
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.custom-page.create') }}">Create Custom Page</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.custom-page.create') }}">Create custom page</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
@@ -29,9 +29,9 @@
                             <td class="hidden lg:table-cell text-center!"><x-ui.date-time>{{ $page->updated_at?->format('j M Y g:i a') ?? '-' }}</x-ui.date-time></td>
                             <td class="text-center!">
                                 <x-ui.row-actions class="whitespace-nowrap">
-                                    <x-ui.row-action label="View page" icon="fa-solid fa-arrow-up-right-from-square" tone="neutral" href="{{ url($page->path) }}" target="_blank" />
+                                    <x-ui.row-action label="View" icon="fa-solid fa-arrow-up-right-from-square" tone="neutral" href="{{ url($page->path) }}" target="_blank" />
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.custom-page.edit', $page) }}" />
-                                    <x-ui.row-action label="Delete page" icon="fa-solid fa-trash" tone="danger"
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger"
 
                                         x-data
                                         x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this custom page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')"

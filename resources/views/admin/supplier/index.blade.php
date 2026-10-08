@@ -28,7 +28,7 @@
                             <td data-label="Total incl GST" class="text-center whitespace-nowrap">{{ money((float) $supplier->expenses_sum_total_amount) }}</td>
                             <td data-mobile-actions class="text-center whitespace-nowrap">
                                 <x-ui.row-actions :menu="false">
-                                    <x-ui.row-action label="Edit supplier" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.supplier.edit', $supplier) }}" />
+                                    <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.supplier.edit', $supplier) }}" />
                                 <x-ui.row-action label="View expenses" icon="fa-solid fa-receipt" href="{{ route('admin.expense.index', ['supplier_id' => $supplier->id]) }}" />
                                 </x-ui.row-actions>
                             </td>

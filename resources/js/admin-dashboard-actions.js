@@ -39,15 +39,15 @@ const renderActionCard = (action) => {
         workshop.className = 'mt-1.5 block text-sm font-semibold leading-snug text-gray-900';
         workshop.textContent = details.workshop;
         const schedule = document.createElement('span');
-        schedule.className = 'mt-1.5 block text-sm leading-snug text-gray-700';
+        schedule.className = 'mt-1.5 block text-xs leading-snug text-gray-700';
         schedule.textContent = details.schedule;
         const location = document.createElement('span');
-        location.className = 'mt-1 block text-sm leading-snug text-gray-700';
+        location.className = 'mt-1 block text-xs leading-snug text-gray-700';
         location.textContent = details.location;
         copy.append(title, workshop, schedule, location);
     } else {
         const description = document.createElement('span');
-        description.className = 'mt-1.5 block text-sm leading-snug text-gray-700';
+        description.className = 'mt-1.5 block text-xs leading-snug text-gray-700';
         description.textContent = action.description;
         copy.append(title, description);
     }

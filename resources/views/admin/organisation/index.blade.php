@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast title="Organisations" >
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.organisation.create') }}">Create</x-ui.button>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.organisation.create') }}">Create organisation</x-ui.button>
 <x-ui.button color="mast" href="{{ route('admin.workshop.history') }}">Workshop history</x-ui.button></x-slot:actions>
     </x-mast>
 

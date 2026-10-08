@@ -1,6 +1,6 @@
 <x-layout>
     <x-mast>Workshop Categories
-        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-category.create') }}">Create</x-ui.button></x-slot:actions>
+        <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.workshop-category.create') }}">Create workshop category</x-ui.button></x-slot:actions>
     </x-mast>
 
     <x-container

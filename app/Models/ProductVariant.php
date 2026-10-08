@@ -26,6 +26,8 @@ class ProductVariant extends Model
         'shipping_rate',
         'shipping_units',
         'inventory_quantity',
+        'stock_item_id',
+        'stock_quantity_per_sale',
         'weight_grams',
         'is_preorder',
         'preorder_shipping_estimate',
@@ -50,6 +52,8 @@ class ProductVariant extends Model
         'shipping_rate' => 'decimal:2',
         'shipping_units' => 'decimal:3',
         'inventory_quantity' => 'integer',
+        'stock_item_id' => 'integer',
+        'stock_quantity_per_sale' => 'decimal:3',
         'product_details' => 'array',
         'weight_grams' => 'integer',
         'is_preorder' => 'boolean',
@@ -104,6 +108,12 @@ class ProductVariant extends Model
     public function storeOrderItems(): HasMany
     {
         return $this->hasMany(StoreOrderItem::class);
+    }
+
+    /** @return BelongsTo<StockItem, $this> */
+    public function stockItem(): BelongsTo
+    {
+        return $this->belongsTo(StockItem::class);
     }
 
     public function scopeActive($query)
@@ -182,16 +192,35 @@ class ProductVariant extends Model
 
     public function tracksInventory(): bool
     {
-        return $this->product?->shared_inventory ? $this->product->tracksInventory($this) : $this->inventory_quantity !== null;
+        $product = $this->product;
+        if ($product instanceof Product && ($product->shared_inventory || $product->hasLinkedStock($this))) {
+            return $product->tracksInventory($this);
+        }
+
+        return $this->inventory_quantity !== null;
     }
 
     public function availableInventory(): ?int
     {
-        return $this->product?->shared_inventory ? $this->product->availableInventory($this) : ($this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null);
+        $product = $this->product;
+        if ($product instanceof Product && ($product->shared_inventory || $product->hasLinkedStock($this))) {
+            return $product->availableInventory($this);
+        }
+
+        return $this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null;
+    }
+
+    public function replacementCost(): ?float
+    {
+        return $this->product?->replacementCostForVariant($this);
     }
 
     public function effectiveLowStockThreshold(): ?int
     {
+        if ($this->stock_item_id || $this->product?->hasLinkedStock($this)) {
+            return null;
+        }
+
         $value = $this->low_stock_threshold ?? $this->product?->effectiveLowStockThreshold();
 
         return $value !== null && (int) $value > 0 ? (int) $value : null;

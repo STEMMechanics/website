@@ -474,6 +474,7 @@ const makePayload = async (button, form) => {
     if (button.dataset.aiFillFields) {
         getAiBlankFields(button, scope).forEach((name) => payload.append('fill_fields[]', name));
     }
+    if (button.dataset.aiStockItems === 'true') payload.append('include_stock_items', '1');
     if (button.dataset.aiMode) payload.append('mode', button.dataset.aiMode);
     if (button.dataset.aiKind) payload.append('kind', button.dataset.aiKind);
     if (button.hasAttribute?.('data-ai-context') || button.dataset.aiContext) {
@@ -636,6 +637,64 @@ const lockAiFields = (trigger, form) => {
     };
 };
 
+const aiFormSaveLocks = new WeakMap();
+
+const lockAiFormSave = (form, request) => {
+    if (!(form instanceof HTMLFormElement)) return () => {};
+
+    let state = aiFormSaveLocks.get(form);
+    if (!state) {
+        state = {
+            requests: new Set(),
+            controls: new Map(),
+            ariaBusy: form.getAttribute('aria-busy'),
+            onSubmit: (event) => {
+                if (state.requests.size === 0) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            },
+        };
+        aiFormSaveLocks.set(form, state);
+        form.addEventListener('submit', state.onSubmit, true);
+    }
+
+    state.requests.add(request);
+    form.setAttribute('aria-busy', 'true');
+
+    [...form.elements].forEach((control) => {
+        const isSubmitControl = (control instanceof HTMLButtonElement && control.type === 'submit')
+            || (control instanceof HTMLInputElement && ['submit', 'image'].includes(control.type));
+        if (!isSubmitControl) return;
+
+        if (!state.controls.has(control)) {
+            state.controls.set(control, {
+                disabled: control.disabled,
+                ariaBusy: control.getAttribute('aria-busy'),
+            });
+        }
+        control.disabled = true;
+        control.setAttribute('aria-busy', 'true');
+    });
+
+    let released = false;
+    return () => {
+        if (released) return;
+        released = true;
+        state.requests.delete(request);
+        if (state.requests.size > 0) return;
+
+        state.controls.forEach(({ disabled, ariaBusy }, control) => {
+            control.disabled = disabled;
+            if (ariaBusy === null) control.removeAttribute('aria-busy');
+            else control.setAttribute('aria-busy', ariaBusy);
+        });
+        if (state.ariaBusy === null) form.removeAttribute('aria-busy');
+        else form.setAttribute('aria-busy', state.ariaBusy);
+        form.removeEventListener('submit', state.onSubmit, true);
+        aiFormSaveLocks.delete(form);
+    };
+};
+
 const requestDraft = async (trigger, { automatic = false } = {}) => {
     const targetWidget = trigger.dataset.aiWidgetTarget ? document.querySelector(trigger.dataset.aiWidgetTarget) : null;
     const root = targetWidget || (trigger.matches('[data-ai-widget]') ? trigger : trigger.closest('[data-ai-widget]'));
@@ -650,7 +709,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     root._adminAiUnlockFields?.();
     root._adminAiUnlockFields = null;
 
-    if (automatic && fillFields.length > 0 && blankFields.length === 0) {
+    if (automatic && fillFields.length > 0 && blankFields.length === 0 && trigger.dataset.aiStockItems !== 'true') {
         clearResults(root);
         root._adminAiProcessing = false;
         root.removeAttribute('aria-busy');
@@ -662,6 +721,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     root._adminAiAbortController = controller;
     root._adminAiProcessing = true;
     root.setAttribute('aria-busy', 'true');
+    const unlockFormSave = lockAiFormSave(form, controller);
 
     if (automatic) clearResults(root);
 
@@ -686,7 +746,9 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     };
     const initialToken = csrfToken() || trigger.dataset.aiToken || readFormField(form, '_token');
     if (initialToken) requestHeaders['X-CSRF-TOKEN'] = initialToken;
-    const initialStatus = automatic ? automaticAiStatus(blankFields) : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
+    const initialStatus = automatic
+        ? (blankFields.length === 0 && trigger.dataset.aiStockItems === 'true' ? 'Reading receipt for stock items…' : automaticAiStatus(blankFields))
+        : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
     setStatus(root, initialStatus, false, automatic || root.hasAttribute('data-ai-toast'));
 
     try {
@@ -784,6 +846,17 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
         const fields = (trigger.dataset.aiFillFields || '').split(',').map((field) => field.trim()).filter(Boolean);
         const fillOnlyBlanks = automatic || trigger.dataset.aiFillBlanks === 'true';
         const filledCount = fields.reduce((count, name) => count + Number(fillField(fillScope, name, result[name], trigger, fillOnlyBlanks)), 0);
+        let stockItemsPrepared = 0;
+        if (trigger.dataset.aiStockItems === 'true' && Array.isArray(result.stock_items)) {
+            const stockItemsEditor = fillScope?.querySelector('[data-expense-stock-items]');
+            if (stockItemsEditor) {
+                const event = new CustomEvent('sm-expense-stock-items-ai', {
+                    detail: { items: result.stock_items, appliedCount: 0 },
+                });
+                stockItemsEditor.dispatchEvent(event);
+                stockItemsPrepared = Number(event.detail.appliedCount) || 0;
+            }
+        }
 
         if (automatic) {
             const documentType = typeof result.document_type === 'string' && result.document_type.trim() !== ''
@@ -796,9 +869,12 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
             const fieldSummary = filledCount > 0
                 ? `${filledCount} ${filledCount === 1 ? 'field' : 'fields'} filled`
                 : 'no blank fields to fill';
+            const stockItemSummary = stockItemsPrepared > 0
+                ? ` · ${stockItemsPrepared} stock item ${stockItemsPrepared === 1 ? 'row' : 'rows'} prepared`
+                : '';
             const reviewCount = Array.isArray(result.needs_review) ? result.needs_review.length : 0;
             const reviewSummary = reviewCount > 0 ? ` · ${reviewCount} to review` : '';
-            setStatus(root, `${documentType} · ${pageSummary} · ${fieldSummary}${reviewSummary}`);
+            setStatus(root, `${documentType} · ${pageSummary} · ${fieldSummary}${stockItemSummary}${reviewSummary}`);
         } else {
             setStatus(root, 'Draft ready. Review and edit it before saving or sending.');
         }
@@ -810,6 +886,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
             ? 'Could not reach the AI service. Check your connection and try again.'
             : errorMessage, true);
     } finally {
+        unlockFormSave();
         if (root._adminAiAbortController === controller) {
             root._adminAiAbortController = null;
             root._adminAiProcessing = false;

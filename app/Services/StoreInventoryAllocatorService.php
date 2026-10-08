@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StockItem;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use Illuminate\Support\Collection;
@@ -13,16 +14,99 @@ class StoreInventoryAllocatorService
 {
     public function __construct(
         private readonly StoreOrderUpdateService $updates,
+        private readonly StockInventoryService $stockInventory,
     ) {}
 
     public function allocateForProduct(Product $product): int
     {
+        if ($this->stockInventory->isStockManaged($product)) {
+            return $this->allocateForStockManagedSource($product);
+        }
+
         return $this->allocateForProductId((int) $product->id);
     }
 
     public function allocateForVariant(ProductVariant $variant): int
     {
+        $product = $variant->relationLoaded('product') ? $variant->product : $variant->product()->first();
+        if ($product instanceof Product && $this->stockInventory->isStockManaged($product, $variant)) {
+            return $this->allocateForStockManagedSource($product, $variant);
+        }
+
         return $this->allocateForVariantId((int) $variant->id);
+    }
+
+    public function allocateForStockItem(StockItem $stockItem): int
+    {
+        return DB::transaction(function () use ($stockItem): int {
+            $lockedStockItem = StockItem::query()
+                ->whereKey($stockItem->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $lockedStockItem instanceof StockItem || ! $lockedStockItem->tracksInventory()) {
+                return 0;
+            }
+
+            $allocated = 0;
+            foreach ($this->stockCandidatesQuery()->get() as $candidate) {
+                if (! $candidate instanceof StoreOrderItem || $candidate->remainingDelayedQuantity() <= 0) {
+                    continue;
+                }
+
+                $product = $candidate->relationLoaded('product') ? $candidate->product : null;
+                if (! $product instanceof Product || ! $product->isPhysical()) {
+                    continue;
+                }
+
+                $variant = $candidate->product_variant_id && $candidate->relationLoaded('variant')
+                    ? $candidate->variant
+                    : null;
+                if ($candidate->product_variant_id && ! $variant instanceof ProductVariant) {
+                    continue;
+                }
+
+                if (! $this->stockInventory->requiresStockItem($product, $variant, (int) $lockedStockItem->id)) {
+                    continue;
+                }
+
+                $availableQuantity = $this->stockInventory->availableProductQuantity($product, $variant);
+                if ($availableQuantity === null || $availableQuantity <= 0) {
+                    continue;
+                }
+
+                $quantity = min($availableQuantity, $candidate->remainingDelayedQuantity());
+                if ($quantity <= 0) {
+                    continue;
+                }
+
+                $reservedQuantity = $this->stockInventory->reserveForStoreOrderItem($candidate, $quantity);
+                if ($reservedQuantity <= 0) {
+                    continue;
+                }
+
+                $candidate->available_now_quantity = max(0, (int) $candidate->available_now_quantity) + $reservedQuantity;
+                $candidate->delayed_quantity = max(0, (int) $candidate->delayed_quantity - $reservedQuantity);
+                $candidate->inventory_reserved_quantity = max(0, (int) $candidate->inventory_reserved_quantity) + $reservedQuantity;
+                if ((int) $candidate->delayed_quantity <= 0) {
+                    $candidate->delayed_fulfilment_type = null;
+                    $candidate->delayed_shipping_estimate = null;
+                }
+                $candidate->save();
+
+                $allocated += $reservedQuantity;
+                if ($candidate->order instanceof StoreOrder) {
+                    $this->updates->recordBackorderAllocation(
+                        $candidate->order,
+                        $candidate,
+                        $reservedQuantity,
+                        $candidate->remainingDelayedQuantity(),
+                    );
+                }
+            }
+
+            return $allocated;
+        });
     }
 
     public function allocateForOrder(StoreOrder $order): int
@@ -78,6 +162,11 @@ class StoreInventoryAllocatorService
             return 0;
         }
 
+        $product = Product::query()->find($productId);
+        if ($product instanceof Product && $this->stockInventory->isStockManaged($product)) {
+            return $this->allocateForStockManagedSource($product);
+        }
+
         return DB::transaction(function () use ($productId): int {
             $product = Product::query()
                 ->whereKey($productId)
@@ -113,6 +202,12 @@ class StoreInventoryAllocatorService
     {
         if ($variantId <= 0) {
             return 0;
+        }
+
+        $variant = ProductVariant::query()->with('product')->find($variantId);
+        if ($variant instanceof ProductVariant && $variant->product instanceof Product
+            && $this->stockInventory->isStockManaged($variant->product, $variant)) {
+            return $this->allocateForStockManagedSource($variant->product, $variant);
         }
 
         return DB::transaction(function () use ($variantId): int {
@@ -235,6 +330,33 @@ class StoreInventoryAllocatorService
             ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
             ->where('store_order_items.product_variant_id', $variantId)
             ->where('store_order_items.shared_inventory', false)
+            ->where('store_order_items.delayed_fulfilment_type', 'backorder')
+            ->where('store_order_items.delayed_quantity', '>', 0)
+            ->whereNotNull('store_orders.paid_at')
+            ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED)
+            ->orderBy('store_orders.paid_at')
+            ->orderBy('store_orders.created_at')
+            ->orderBy('store_orders.id')
+            ->orderBy('store_order_items.id')
+            ->lockForUpdate();
+    }
+
+    private function allocateForStockManagedSource(Product $product, ?ProductVariant $variant = null): int
+    {
+        $allocated = 0;
+        foreach ($this->stockInventory->stockItemsFor($product, $variant) as $stockItem) {
+            $allocated += $this->allocateForStockItem($stockItem);
+        }
+
+        return $allocated;
+    }
+
+    private function stockCandidatesQuery()
+    {
+        return StoreOrderItem::query()
+            ->with(['order', 'product', 'variant'])
+            ->select('store_order_items.*')
+            ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
             ->where('store_order_items.delayed_fulfilment_type', 'backorder')
             ->where('store_order_items.delayed_quantity', '>', 0)
             ->whereNotNull('store_orders.paid_at')

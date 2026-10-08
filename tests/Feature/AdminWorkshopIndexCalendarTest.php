@@ -258,7 +258,15 @@ class AdminWorkshopIndexCalendarTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.index'));
         $response->assertOk()->assertSeeInOrder(['Workshop next year', 'Showing 1–4 of 4 items']);
-        $this->assertSame(['All workshops' => 4, 'Current' => 2], request()->attributes->get('collection_preset_counts'));
+        $this->assertSame([
+            'All workshops' => 4,
+            'Current' => 2,
+            'Needs attention' => 2,
+            'Stock shortage' => 0,
+            'Attendance' => 2,
+            'Reconcile stock' => 2,
+            'Ready for review' => 0,
+        ], request()->attributes->get('collection_preset_counts'));
         $selection = $this->getJson(route('admin.workshop.index', ['select_listing' => 1, 'show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString(), 'page' => 2]))
             ->assertOk()->json('names');
         $this->assertCount(2, $selection);

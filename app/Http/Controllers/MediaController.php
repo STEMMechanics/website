@@ -463,6 +463,7 @@ class MediaController extends Controller
         }
 
         if ($isAdmin && $request->routeIs('admin.media.index', 'admin.media.selection')) {
+            $query->withCount(['downloads as download_count']);
             app(MediaListFilters::class)->apply($query, $request);
         } else {
             $query->orderBy('created_at', 'desc');
@@ -831,6 +832,7 @@ class MediaController extends Controller
         }
 
         $hash = hash_file('sha256', $file->path());
+        $visibility = $this->normalizeVisibility((string) $request->input('visibility', 'private'));
 
         $storageDisk = $this->normalizeStorageDisk((string) $request->input('storage_disk', 'media'));
         $storage = Storage::disk($storageDisk);
@@ -854,6 +856,7 @@ class MediaController extends Controller
 
         $existingMedia = Media::query()
             ->where('hash', $hash)
+            ->where('visibility', $visibility)
             ->when(! Auth::user()?->isAdmin(), fn ($query) => $query->where('user_id', auth()->id()))
             ->oldest()
             ->first();
@@ -907,8 +910,6 @@ class MediaController extends Controller
         if ($password !== '') {
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         }
-
-        $visibility = $this->normalizeVisibility((string) $request->input('visibility', 'private'));
 
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),

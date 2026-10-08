@@ -79,10 +79,8 @@ class DatabaseBackupService
                 '--events',
                 '--hex-blob',
                 '--default-character-set=utf8mb4',
-                '--add-drop-database',
-                '--databases',
-                $mysql['database'],
                 '--result-file='.$tmpSqlPath,
+                $mysql['database'],
             ];
 
             if ($this->supportsSetGtidPurgedFlag($dumpCommand)) {
@@ -247,18 +245,45 @@ class DatabaseBackupService
             : null;
 
         $mysql = $this->mysqlConfig();
+        $targetDatabase = str_replace('`', '``', $mysql['database']);
+        $databaseDirectiveFilter = <<<'AWK'
+{
+    statement = $0
+    sub(/^[[:space:]]*/, "", statement)
+    upperStatement = toupper(statement)
+    controlStatement = upperStatement
+    sub(/^\/\*(!|M!)[0-9]*[[:space:]]*/, "", controlStatement)
+
+    if (controlStatement ~ /^(DROP|CREATE|ALTER)[[:space:]]+(DATABASE|SCHEMA)([[:space:]]|;)/) {
+        next
+    }
+
+    if (controlStatement ~ /^USE[[:space:]]+/) {
+        print "USE `" ENVIRON["DB_IMPORT_TARGET"] "`;"
+        next
+    }
+
+    # Dumped programmable objects can carry production-only account definers.
+    gsub(/DEFINER[[:space:]]*=[[:space:]]*`[^`]*`@`[^`]*`/, "", statement)
+    gsub(/DEFINER[[:space:]]*=[[:space:]]*'[^']*'@'[^']*'/, "", statement)
+
+    print statement
+}
+AWK;
 
         $inputCommand = $isGzip
             ? escapeshellarg((string) $gzipCommand).' -dc '.escapeshellarg($sourcePath)
             : 'cat '.escapeshellarg($sourcePath);
 
-        $command = $inputCommand.' | '.escapeshellarg($mysqlImportCommand).' '
+        $command = $inputCommand.' | awk '.escapeshellarg($databaseDirectiveFilter).' | '.escapeshellarg($mysqlImportCommand).' '
             .'--host='.escapeshellarg($mysql['host']).' '
             .'--port='.escapeshellarg((string) $mysql['port']).' '
-            .'--user='.escapeshellarg($mysql['username']);
+            .'--user='.escapeshellarg($mysql['username']).' '
+            .'--database='.escapeshellarg($mysql['database']);
 
         $process = Process::fromShellCommandline($command, null, [
             'MYSQL_PWD' => $mysql['password'],
+            'DB_IMPORT_TARGET' => $targetDatabase,
         ], null, 600);
         $process->run();
 

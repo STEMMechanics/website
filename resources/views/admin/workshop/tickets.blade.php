@@ -168,14 +168,14 @@
 
                     <div class="mt-4 flex flex-wrap gap-2">
                         @if($canOpenTicketPdf)
-                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open Ticket PDF">
+                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open ticket PDF">
                                 <i class="fa-regular fa-file-pdf"></i>
                                 Ticket PDF
                             </a>
                         @endif
 
                         @if($ticket->invoice_id)
-                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open Linked Invoice">
+                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open invoice">
                                 <i class="fa-solid fa-file-invoice-dollar"></i>
                                 Invoice
                             </a>
@@ -207,7 +207,7 @@
                             <x-ui.button variant="plain"
                                 type="button"
                                 class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
-                                title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
+                                title="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}"
                                 x-on:click="SM.openTicketCancelModal(
                                     {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
                                     {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
@@ -283,14 +283,14 @@
                     <td class="text-center!">
                         <x-ui.row-actions>
                             @if($canOpenTicketPdf)
-                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
+                            <x-ui.row-action label="Open ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
                             @else
-                            <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" disabled title="Ticket PDF unavailable for this status" />
+                            <x-ui.row-action label="Open ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" disabled title="Ticket PDF unavailable for this status" />
                             @endif
                             @if($ticket->invoice_id)
-                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
+                            <x-ui.row-action label="Open invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
                             @else
-                            <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" disabled title="No linked invoice" />
+                            <x-ui.row-action label="Open invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" disabled title="No linked invoice" />
                             @endif
                             @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
@@ -310,7 +310,7 @@
                             @endif
 
                             @if($canCancel)
-                            <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}" icon="fa-solid fa-ban" tone="warning"
+                            <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}" icon="fa-solid fa-ban" tone="warning"
                                 type="button"
                                 x-on:click="SM.openTicketCancelModal(
                                     {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
@@ -321,7 +321,7 @@
                                     {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
                                 )" />
                             @else
-                            <x-ui.row-action label="Cancel ticket" icon="fa-solid fa-ban" tone="neutral" disabled title="Ticket is not cancellable" />
+                            <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="neutral" disabled title="Ticket is not cancellable" />
                             @endif
                         </x-ui.row-actions>
                     </td>

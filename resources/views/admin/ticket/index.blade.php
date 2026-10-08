@@ -126,13 +126,13 @@
                             <td class="text-center!">
                                 <x-ui.row-actions class="whitespace-nowrap">
                                     @if($canOpenTicketPdf)
-                                        <x-ui.row-action label="Open Ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
+                                        <x-ui.row-action label="Open ticket PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('tickets.pdf', $ticket) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="Ticket PDF unavailable for this status"><i class="fa-regular fa-file-pdf"></i></span>
                                     @endif
 
                                     @if($ticket->invoice_id)
-                                        <x-ui.row-action label="Open Linked Invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
+                                        <x-ui.row-action label="Open invoice" icon="fa-solid fa-file-invoice-dollar" tone="neutral" href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" />
                                     @else
                                         <span class="text-gray-300" title="No linked invoice"><i class="fa-solid fa-file-invoice-dollar"></i></span>
                                     @endif
@@ -144,7 +144,7 @@
                                     @endif
 
                                     @if($canCancel)
-                                        <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}" icon="fa-solid fa-ban" tone="warning"
+                                        <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-on:click="SM.openTicketCancelModal(
                                                 {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},

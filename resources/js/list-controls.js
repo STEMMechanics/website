@@ -14,7 +14,7 @@ export function openListDialog(dialog, trigger) {
         const groups = [...dialog.querySelectorAll('.sm-filter-sections details')];
         groups.forEach((group, index) => { group.open = index === 0; });
     }
-    if (window.innerWidth >= 768 && !dialog.classList.contains('sm-list-dialog-filters')) {
+    if (window.innerWidth >= 768 && !dialog.classList.contains('sm-list-dialog-filters') && !dialog.classList.contains('sm-list-dialog-centered')) {
         const bounds = trigger?.getBoundingClientRect();
         const width = dialog.getBoundingClientRect().width;
         const height = dialog.getBoundingClientRect().height;

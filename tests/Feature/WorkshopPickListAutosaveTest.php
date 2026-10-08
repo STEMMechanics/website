@@ -227,13 +227,13 @@ class WorkshopPickListAutosaveTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('ok', true);
         $response->assertJsonPath('pick_list_participants', 8);
-        $response->assertJsonPath('checked_item_ids.0', $allowedItem->id);
+        $response->assertJsonPath('checked_item_ids.0', 'manual:'.$allowedItem->id);
 
         $freshWorkshop = $workshop->fresh();
 
         $this->assertSame(8, (int) $freshWorkshop->pick_list_participants);
         $this->assertSame('Bring extension cords', (string) $freshWorkshop->pick_list_notes);
-        $this->assertSame([$allowedItem->id], array_map('intval', $freshWorkshop->pick_list_checked_item_ids ?? []));
+        $this->assertSame(['manual:'.$allowedItem->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
     }
 
     public function test_pick_list_notes_only_save_keeps_the_template_link_and_shows_template_notes_when_blank(): void
@@ -307,7 +307,7 @@ class WorkshopPickListAutosaveTest extends TestCase
         $freshWorkshop = $workshop->fresh();
         $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
         $this->assertNull($freshWorkshop->pick_list_custom_items);
-        $this->assertSame([$item->id], array_map('intval', $freshWorkshop->pick_list_checked_item_ids ?? []));
+        $this->assertSame(['manual:'.$item->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
     }
 
     public function test_pick_list_reset_can_restore_the_selected_template_and_clear_custom_items(): void
@@ -366,7 +366,7 @@ class WorkshopPickListAutosaveTest extends TestCase
             ->get(route('workshop.show', $workshop))
             ->assertOk()
             ->assertSee(route('admin.workshop.run-sheet', $workshop), false)
-            ->assertSeeText('Run Sheet');
+            ->assertSeeText('Manage');
     }
 
     public function test_non_ticketed_pick_list_shows_participant_count_and_persists_manual_items_without_a_template(): void

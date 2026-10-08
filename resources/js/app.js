@@ -30,6 +30,10 @@ import './workshop-delivery';
 import './workshop-hold-countdown';
 import './workshop-booking';
 import './workshop-line';
+import './stock-item-link';
+import './stock-assembly-dialog';
+import './stock-receipt-expense-link';
+import './expense-stock-items';
 import './document-product-editor';
 
 import './reminder-list';

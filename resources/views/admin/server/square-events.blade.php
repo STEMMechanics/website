@@ -140,7 +140,7 @@
                                                 x-on:click.prevent="openIgnore({{ \Illuminate\Support\Js::from(route('admin.server.square-events.ignore', $event)) }}, {{ \Illuminate\Support\Js::from($squarePaymentId) }})" />
                                         @endif
                                     @endif
-                                    <x-ui.row-action label="View event" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $event) }}" />
+                                    <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $event) }}" />
                                 </x-ui.row-actions>
                             </td>
                         </tr>
@@ -186,7 +186,7 @@
                                 </td>
                                 <td class="text-center!">
                                     <x-ui.row-actions class="whitespace-nowrap">
-                                        <x-ui.row-action label="View event" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $childEvent) }}" />
+                                        <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $childEvent) }}" />
                                     </x-ui.row-actions>
                                 </td>
                             </tr>

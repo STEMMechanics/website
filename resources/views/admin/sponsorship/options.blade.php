@@ -2,7 +2,7 @@
     <x-admin.sponsorship-mast title="Options" description="Manage the organisation-wide sponsorship checkout, recognition and support methods.">
         <x-slot:actions>
             <x-ui.button color="mast" variant="outline" data-record-editor data-record-title="Checkout settings" href="{{ route('admin.sponsorship.checkout.edit') }}">Checkout settings</x-ui.button>
-            <x-ui.button color="mast" data-record-editor data-record-title="Add sponsorship amount" href="{{ route('admin.sponsorship.option.create') }}">Add amount</x-ui.button>
+            <x-ui.button color="mast" data-record-editor data-record-title="Add sponsorship amount" href="{{ route('admin.sponsorship.option.create') }}">Add sponsorship amount</x-ui.button>
         </x-slot:actions>
     </x-admin.sponsorship-mast>
 
@@ -28,7 +28,7 @@
                     <h2 class="text-xl font-semibold text-gray-900">Business sponsors</h2>
                     <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600">Set the public recognition groups and thresholds, such as Major Sponsors. Recognition stays private unless a sponsor opts in. Active Major Sponsors are featured on the homepage.</p>
                 </div>
-                <x-ui.button color="outline" data-record-editor data-record-title="Add business sponsor group" href="{{ route('admin.sponsorship.group.create') }}">Add group</x-ui.button>
+                <x-ui.button color="primary-outline" size="compact" data-record-editor data-record-title="Add business sponsor group" href="{{ route('admin.sponsorship.group.create') }}">Add group</x-ui.button>
             </div>
             <div id="business-sponsor-groups-list" data-record-refresh class="mt-5">
                 @include('admin.sponsorship.partials.recognition-groups-list', ['levels' => $levels])

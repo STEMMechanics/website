@@ -1087,18 +1087,24 @@ const registerWorkshopPickListPage = () => {
         csrfToken: config.csrfToken || '',
         templateItems: Array.isArray(config.templateItems) ? config.templateItems : [],
         customItems: Array.isArray(config.customItems) ? config.customItems : [],
+        shelfPickRows: Array.isArray(config.shelfPickRows) ? config.shelfPickRows : [],
+        kitSummaries: Array.isArray(config.kitSummaries) ? config.kitSummaries : [],
+        stockShortageCount: Math.max(0, Number.parseInt(String(config.stockShortageCount ?? 0), 10) || 0),
         itemSuggestions: Array.isArray(config.itemSuggestions) ? config.itemSuggestions : [],
+        stockItems: Array.isArray(config.stockItems) ? config.stockItems : [],
         isCustomized: Boolean(config.isCustomized),
         itemsEditMode: false,
         customItemsDirty: false,
+        blueprintMergeMessage: '',
         resetCustomization: false,
         editSnapshot: null,
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         completedTaskIds: Array.isArray(config.completedTaskIds) ? config.completedTaskIds.map((id) => String(id)) : [],
         participantsInput: String(config.participantsInput ?? ''),
+        maxParticipants: Math.max(1, Number.parseInt(String(config.maxParticipants ?? 5000), 10) || 5000),
+        pickListViewportWidth: 0,
         notes: String(config.notes ?? ''),
-        defaultParticipants: Number.parseInt(String(config.defaultParticipants ?? 1), 10) || 1,
         pickListCanvasDataJson: normalizedString(config.pickListCanvasDataJson),
         pickListCanvasThumbnailData: '',
         pickListCanvasThumbnailUrl: normalizedString(config.pickListCanvasThumbnailUrl),
@@ -1121,6 +1127,7 @@ const registerWorkshopPickListPage = () => {
         canvasCanRedo: false,
         canvasZoomPercent: 100,
         init() {
+            this.pickListViewportWidth = window.innerWidth;
             this.customItems = this.cloneItems(this.customItems);
             this.templateItems = this.cloneItems(this.templateItems);
             this.itemSuggestions = this.itemSuggestions
@@ -1128,12 +1135,10 @@ const registerWorkshopPickListPage = () => {
                 .map((item) => item.trim())
                 .filter((item) => item !== '');
 
-            const resolvedItemIds = this.currentItems()
-                .map((item) => String(item?.id ?? ''))
-                .filter((id) => id !== '');
+            const validShelfRowKeys = this.currentItemIds();
             this.checkedIds = this.checkedIds
                 .map((id) => String(id))
-                .filter((id) => resolvedItemIds.includes(id));
+                .filter((id) => validShelfRowKeys.includes(id));
             this.nextCustomItemId = this.computeNextCustomItemId(this.currentItems());
 
             this.relativeTimer = window.SM.startRelativeTimeTicker(() => {
@@ -1174,7 +1179,23 @@ const registerWorkshopPickListPage = () => {
             return null;
         },
         isBlankCustomItem(item) {
-            return String(item?.item_name ?? '').trim() === '';
+            return String(item?.item_name ?? '').trim() === '' && !item?.stock_item_id;
+        },
+        stockItemLabel(item) {
+            const stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
+            const stockItem = this.stockItems.find((option) => Number(option.id) === stockItemId);
+
+            return stockItem?.name || '';
+        },
+        selectCustomStockItem(index) {
+            const item = this.customItems[index];
+            if (!item) {
+                return;
+            }
+
+            item.stock_quantity = null;
+            item.item_name = item.stock_item_id ? this.stockItemLabel(item) : '';
+            this.handleCustomItemChange(index);
         },
         normalizeItem(item) {
             if (!item || typeof item !== 'object') {
@@ -1182,14 +1203,20 @@ const registerWorkshopPickListPage = () => {
             }
 
             const id = Number.parseInt(String(item.id ?? 0), 10) || 0;
-            const itemName = String(item.item_name ?? '').trim();
+            const stockItemId = Number.parseInt(String(item.stock_item_id ?? 0), 10) || null;
+            const itemName = this.stockItemLabel({ stock_item_id: stockItemId }) || String(item.item_name ?? '').trim();
             const quantityType = String(item.quantity_type ?? 'per_participant');
             const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
             const sortOrder = Math.max(0, Number.parseInt(String(item.sort_order ?? 0), 10) || 0);
+            const stockQuantity = item.stock_quantity === null || item.stock_quantity === '' || item.stock_quantity === undefined
+                ? null
+                : Math.max(0.001, Number.parseFloat(String(item.stock_quantity)) || 1);
 
             return {
                 id,
                 item_name: itemName,
+                stock_item_id: stockItemId,
+                stock_quantity: stockQuantity,
                 quantity_type: ['fixed', 'per_participant'].includes(quantityType) ? quantityType : 'per_participant',
                 quantity_value: quantityValue,
                 sort_order: sortOrder,
@@ -1212,10 +1239,133 @@ const registerWorkshopPickListPage = () => {
 
             return this.isCustomized ? this.customItems : this.templateItems;
         },
+        itemMergeKey(item) {
+            const itemName = String(item?.item_name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+            let stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
+            if (stockItemId <= 0 && itemName !== '') {
+                const linkedByName = this.stockItems.find((option) => String(option.name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ') === itemName);
+                stockItemId = Number.parseInt(String(linkedByName?.id ?? 0), 10) || 0;
+            }
+
+            return stockItemId > 0 ? `stock:${stockItemId}` : `name:${itemName}`;
+        },
+        async addMissingBlueprintItems() {
+            if (!this.isCustomized || this.itemsEditMode || this.templateItems.length === 0) {
+                return;
+            }
+
+            const existingKeys = new Set(this.customItems
+                .filter((item) => !this.isBlankCustomItem(item))
+                .map((item) => this.itemMergeKey(item)));
+            const missing = this.templateItems.filter((item) => {
+                const key = this.itemMergeKey(item);
+                if (existingKeys.has(key)) {
+                    return false;
+                }
+                existingKeys.add(key);
+                return true;
+            });
+
+            if (missing.length === 0) {
+                this.blueprintMergeMessage = 'There are no missing items to add.';
+                return;
+            }
+
+            this.blueprintMergeMessage = '';
+            await this.startItemEditing();
+            if (!this.itemsEditMode) {
+                this.blueprintMergeMessage = 'The item editor could not be opened. Try again after saving the current changes.';
+                return;
+            }
+            this.customItems = this.customItems.filter((item) => !this.isBlankCustomItem(item));
+            this.customItems.push(...missing.map((item, index) => ({
+                ...this.normalizeItem(item),
+                id: this.nextCustomItemId++,
+                sort_order: (this.customItems.length + index + 1) * 10,
+            })));
+            this.ensureTrailingBlankCustomItem();
+            this.isCustomized = true;
+            this.customItemsDirty = true;
+
+            await this.stopItemEditing();
+            if (this.itemsEditMode || this.saveError !== '') {
+                this.blueprintMergeMessage = 'The missing items could not be saved. Review the editor and try again.';
+                return;
+            }
+
+            this.blueprintMergeMessage = `Added ${missing.length} missing item${missing.length === 1 ? '' : 's'} from the blueprint.`;
+        },
         currentItemIds() {
-            return this.currentItems()
-                .map((item) => String(item?.id ?? ''))
-                .filter((id) => id !== '');
+            return [
+                ...this.kitSummaries.map((kit) => String(kit?.key ?? '')).filter((key) => key !== ''),
+                ...this.shelfPickRows.map((row) => String(row?.key ?? '')).filter((key) => key !== ''),
+            ];
+        },
+        pickListEntryGroups() {
+            const byName = (left, right) => String(left?.item_name ?? '').localeCompare(
+                String(right?.item_name ?? ''),
+                undefined,
+                { sensitivity: 'base', numeric: true },
+            );
+            const groups = [];
+
+            [...this.kitSummaries].sort(byName).forEach((kit) => {
+                const entries = [{ key: String(kit.key), kind: 'kit', item: kit }];
+                (Array.isArray(kit.contents) ? kit.contents : []).forEach((item, index) => {
+                    entries.push({
+                        key: String(kit.key) + ':part:' + String(item.stock_item_id ?? item.key ?? index),
+                        kind: 'component',
+                        item,
+                    });
+                });
+                groups.push(entries);
+            });
+
+            [...this.shelfPickRows].sort(byName).forEach((row) => {
+                groups.push([{ key: String(row.key), kind: 'item', item: row }]);
+            });
+
+            return groups;
+        },
+        pickListEntryColumns() {
+            const groups = this.pickListEntryGroups();
+            const entryCount = groups.reduce((total, group) => total + group.length, 0);
+            if (entryCount === 0) {
+                return [];
+            }
+
+            const viewportWidth = Number(this.pickListViewportWidth) || window.innerWidth;
+            const requestedColumnCount = viewportWidth >= 1024 ? 3 : (viewportWidth >= 640 ? 2 : 1);
+            const columnCount = Math.min(requestedColumnCount, entryCount);
+            const entriesPerColumn = Math.ceil(entryCount / columnCount);
+            const columns = [[]];
+            let columnIndex = 0;
+            let currentColumnEntryCount = 0;
+
+            groups.forEach((group) => {
+                const maxKitEntriesPerColumn = Math.max(entriesPerColumn, 3);
+                const chunkSize = group[0]?.kind === 'kit' && group.length > maxKitEntriesPerColumn
+                    ? entriesPerColumn
+                    : group.length;
+
+                for (let offset = 0; offset < group.length; offset += chunkSize) {
+                    const chunk = group.slice(offset, offset + chunkSize);
+                    if (
+                        currentColumnEntryCount > 0
+                        && currentColumnEntryCount + chunk.length > entriesPerColumn
+                        && columnIndex < columnCount - 1
+                    ) {
+                        columnIndex += 1;
+                        columns[columnIndex] = [];
+                        currentColumnEntryCount = 0;
+                    }
+
+                    columns[columnIndex].push(...chunk);
+                    currentColumnEntryCount += chunk.length;
+                }
+            });
+
+            return columns;
         },
         allItemsChecked() {
             const itemIds = this.currentItemIds();
@@ -1241,6 +1391,80 @@ const registerWorkshopPickListPage = () => {
         setAllItemsChecked(checked) {
             this.checkedIds = checked ? this.currentItemIds() : [];
             this.scheduleAutosave();
+        },
+        shelfRowLabel(row) {
+            const quantity = Number(row?.quantity ?? 0);
+            const name = String(row?.item_name ?? '').trim();
+            const unit = String(row?.unit ?? '').trim();
+            const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
+            const itemLabel = window.SM.pluralize(name, count);
+            if (String(row?.kind) === 'manual' || unit === '') {
+                return `${this.formatQuantity(quantity)} x ${itemLabel}`;
+            }
+
+            if (['each', 'unit', 'units'].includes(unit.toLowerCase())) {
+                return `${this.formatQuantity(quantity)} x ${itemLabel}`;
+            }
+
+            return `${this.formatQuantity(quantity)} ${window.SM.pluralize(unit, count)} of ${itemLabel}`;
+        },
+        kitChecklistLabel(kit) {
+            const quantity = Number(kit?.required ?? 0);
+            const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
+            return this.formatQuantity(quantity) + ' ' + window.SM.pluralize(String(kit?.item_name ?? '').trim(), count);
+        },
+        kitComponentLabel(item) {
+            const quantity = Number(item?.is_kit ? item?.required ?? 0 : item?.quantity ?? 0);
+            const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
+            const name = window.SM.pluralize(String(item?.item_name ?? '').trim(), count);
+            const unit = item?.is_kit ? '' : String(item?.unit ?? '').trim();
+
+            if (unit === '' || ['each', 'unit', 'units'].includes(unit.toLowerCase())) {
+                return this.formatQuantity(quantity) + ' × ' + name;
+            }
+
+            return this.formatQuantity(quantity) + ' ' + window.SM.pluralize(unit, count) + ' of ' + name;
+        },
+        stockShortageLabel(item) {
+            const quantity = Math.max(0, Number(item?.shortage_quantity ?? 0));
+            const unit = String(item?.shortage_unit ?? item?.unit ?? '').trim();
+            const amount = this.formatQuantity(quantity);
+            if (unit === '' || ['each', 'unit', 'units'].includes(unit.toLowerCase())) {
+                return `Short by ${amount}`;
+            }
+
+            const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
+            return `Short by ${amount} ${window.SM.pluralize(unit, count)}`;
+        },
+        kitComponentNote(item) {
+            const notes = Array.isArray(item?.notes) ? item.notes : [item?.note];
+            const note = [...new Set(notes.map((value) => String(value ?? '').trim()).filter((value) => value !== ''))].join(' · ');
+
+            return note === '' ? '' : `Per kit: ${note}`;
+        },
+        kitAssemblyStatus(kit) {
+            const ready = Math.max(0, Number(kit?.ready_made ?? 0));
+            const toAssemble = Math.max(0, Number(kit?.to_assemble ?? 0));
+            const itemName = String(kit?.item_name ?? '').trim();
+            const describeQuantity = (quantity) => {
+                const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
+                return `${this.formatQuantity(quantity)} ${window.SM.pluralize(itemName, count)}`;
+            };
+
+            if (kit?.no_recipe && toAssemble > 0.0005) {
+                return `Recipe needed to assemble ${describeQuantity(toAssemble)}`;
+            }
+            if (ready > 0.0005 && toAssemble > 0.0005) {
+                return `${this.formatQuantity(ready)} ready-made to collect · ${this.formatQuantity(toAssemble)} to assemble`;
+            }
+            if (toAssemble > 0.0005) {
+                return `Assemble ${describeQuantity(toAssemble)}`;
+            }
+            if (ready > 0.0005) {
+                return `${this.formatQuantity(ready)} ready-made to collect`;
+            }
+
+            return 'No assembly needed';
         },
         customItemsEnabled() {
             return this.isCustomized || this.customItemsDirty;
@@ -1304,14 +1528,25 @@ const registerWorkshopPickListPage = () => {
             return {
                 id,
                 item_name: '',
+                stock_item_id: null,
+                stock_quantity: null,
                 quantity_type: ['fixed', 'per_participant'].includes(previousType) ? previousType : 'per_participant',
                 quantity_value: 1,
                 sort_order: this.customItems.length * 10,
             };
         },
-        startItemEditing() {
+        async startItemEditing() {
             if (!this.itemsEditMode) {
+                if (this.saving) {
+                    return;
+                }
+
                 this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
+                await this.autosave({ showFailure: true });
+                if (this.saveError !== '' || this.saving) {
+                    return;
+                }
+
                 this.editSnapshot = {
                     isCustomized: this.isCustomized,
                     customItems: this.cloneItems(this.customItems),
@@ -1440,6 +1675,8 @@ const registerWorkshopPickListPage = () => {
                 .map((item) => ({
                     id: item.id,
                     item_name: item.item_name,
+                    stock_item_id: item.stock_item_id,
+                    stock_quantity: item.stock_quantity,
                     quantity_type: item.quantity_type,
                     quantity_value: item.quantity_value,
                     sort_order: item.sort_order,
@@ -1448,41 +1685,12 @@ const registerWorkshopPickListPage = () => {
         normalizeParticipants() {
             return window.SM.toBoundedInt(this.participantsInput, {
                 min: 1,
-                max: 5000,
+                max: this.maxParticipants,
                 allowNull: true,
             });
         },
-        effectiveParticipants() {
-            return this.normalizeParticipants() ?? this.defaultParticipants;
-        },
-        quantityFor(item) {
-            const participants = this.effectiveParticipants();
-            const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
-            if (String(item.quantity_type) === 'per_participant') {
-                return Math.max(0, quantityValue * participants);
-            }
-
-            return quantityValue;
-        },
-        itemLabel(item) {
-            const quantity = this.quantityFor(item);
-            const name = String(item.item_name ?? '').trim();
-            const label = window.SM.pluralize(name, quantity);
-            return `${quantity} x ${label}`;
-        },
-        typeNote(item) {
-            if (String(item.quantity_type) !== 'per_participant') {
-                return '';
-            }
-
-            const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
-            return `(${quantityValue} per participant)`;
-        },
-        clearAllChecks() {
-            this.setAllItemsChecked(false);
-        },
-        checkAllItems() {
-            this.setAllItemsChecked(true);
+        formatQuantity(quantity) {
+            return Number.parseFloat(Number(quantity || 0).toFixed(3)).toString();
         },
         resizeNotesField() {
             const textarea = this.$refs.pickListNotes;
@@ -1654,6 +1862,15 @@ const registerWorkshopPickListPage = () => {
                 this.lastSavedAbsolute = data.saved_at_display ?? null;
                 if (Array.isArray(data.checked_item_ids)) {
                     this.checkedIds = data.checked_item_ids.map((id) => String(id));
+                }
+                if (Array.isArray(data.shelf_pick_rows)) {
+                    this.shelfPickRows = data.shelf_pick_rows;
+                }
+                if (Array.isArray(data.kit_summaries)) {
+                    this.kitSummaries = data.kit_summaries;
+                }
+                if (Number.isFinite(Number(data.stock_shortage_count))) {
+                    this.stockShortageCount = Math.max(0, Number.parseInt(String(data.stock_shortage_count), 10) || 0);
                 }
                 if (Array.isArray(data.completed_task_ids)) {
                     this.completedTaskIds = data.completed_task_ids.map((id) => String(id));

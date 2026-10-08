@@ -20,7 +20,13 @@
         : 'Browse upcoming STEMMechanics workshops, event details, and registration options.'"
     :canonical="$isPast ? route('workshop.past.index') : route('workshop.index')"
 >
-    <x-mast title="Workshops" :tabs="$tabs" />
+    <x-mast title="Workshops" :tabs="$tabs">
+        @if(auth()->user()?->isAdmin())
+            <x-slot:actions>
+                <x-ui.button color="mast" href="{{ route('admin.workshop.create') }}">Create workshop</x-ui.button>
+            </x-slot:actions>
+        @endif
+    </x-mast>
     <section class="bg-gray-100">
         <x-container class="pt-4">
             <div class="flex flex-wrap items-start gap-3 justify-between md:flex-nowrap md:items-center">
@@ -115,6 +121,13 @@
                                                     $statusClass = $workshop->publicStatus();
                                                     $statusTitle = $workshop->publicStatusLabel();
                                                     $statusShortTitle = $workshop->calendarStatusLabel();
+                                                    $continuation = $workshop->calendarContinuationForDate($day['date']);
+                                                    $calendarStartsAt = $workshop->calendarStartsAtForDate($day['date']);
+                                                    $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
+                                                    $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
+                                                    $calendarTimeLabel = $continuation['before']
+                                                        ? ($continuation['ends'] ? 'Ends '.($calendarEndsAt?->format('g:i a') ?? '-') : 'Continues')
+                                                        : ($calendarStartsAt?->format('g:i a') ?? '-');
 
                                                     if ($workshop->status === 'scheduled') {
                                                         $statusClass = 'soon';
@@ -125,8 +138,9 @@
                                                 <a href="{{ route('workshop.show', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
                                                     <div class="flex items-start justify-between gap-3">
                                                         <div class="min-w-0">
-                                                            <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->toDateString() === $day['date'] ? $workshop->starts_at->format('g:i a') : 'Continues' }}</div>
+                                                            <div class="font-semibold text-gray-900">{{ $calendarTimeLabel }}</div>
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                            @if($calendarSessionLabel)<div class="mt-0.5 text-[11px] font-medium text-primary-color">{{ $calendarSessionLabel }}</div>@endif
                                                             <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
                                                         <x-ui.workshop-status-badge :status="$statusClass" class="shrink-0" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.workshop-status-badge>
@@ -219,6 +233,9 @@
                                                         $statusTitle = $workshop->publicStatusLabel();
                                                         $statusShortTitle = $workshop->calendarStatusLabel();
                                                         $continuation = $workshop->calendarContinuationForDate($day['date']);
+                                                        $calendarStartsAt = $workshop->calendarStartsAtForDate($day['date']);
+                                                        $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
+                                                        $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
 
                                                         if ($workshop->status === 'scheduled') {
                                                             $statusClass = 'soon';
@@ -241,9 +258,9 @@
                                                             <div class="w-full">
                                                                 <div class="flex justify-between items-center">
                                                                     @if(! $continuation['before'])
-                                                                        <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
+                                                                        <div class="font-semibold text-gray-900"><x-ui.date-time>{{ $calendarStartsAt?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                     @elseif($continuation['ends'])
-                                                                        <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $workshop->ends_at?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
+                                                                        <div class="absolute bottom-1 right-2 font-semibold text-gray-900">Ends <x-ui.date-time>{{ $calendarEndsAt?->format('g:i a') ?? '-' }}</x-ui.date-time></div>
                                                                     @endif
                                                                     @if(! $continuation['before'])
                                                                         <x-ui.workshop-status-badge :status="$statusClass" class="shrink-0" title="{{ $statusTitle }}">{{ $statusShortTitle }}</x-ui.workshop-status-badge>
@@ -251,6 +268,7 @@
                                                                 </div>
                                                                 @if($continuation['show_details'])
                                                                     <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                                                    @if($calendarSessionLabel)<div class="mt-0.5 text-[10px] font-medium text-primary-color">{{ $calendarSessionLabel }}</div>@endif
                                                                     <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                                 @endif
                                                             </div>

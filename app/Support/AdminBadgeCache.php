@@ -48,6 +48,16 @@ class AdminBadgeCache
             default => null,
         };
         $groups = $group === null ? [] : [$group];
+        if (in_array($table, ['workshops', 'tickets', 'workshop_attendances', 'workshop_session_attendance', 'stock_reservations'], true)) {
+            $groups[] = 'workshop-follow-up';
+        }
+        if ($group === 'finance' || in_array($table, [
+            'workshops', 'tickets', 'workshop_attendances', 'workshop_session_attendance',
+            'stock_items', 'stock_movements', 'stock_reservations', 'finance_categories',
+            'finance_pricing_versions', 'finance_settings',
+        ], true)) {
+            $groups[] = 'workshop-attention';
+        }
         if (in_array($table, ['products', 'product_variants', 'finance_product_allocations', 'finance_product_profiles', 'finance_categories', 'store_orders', 'store_order_items', 'store_order_item_trackings', 'store_order_item_collections'], true)) {
             $groups[] = 'products';
         }

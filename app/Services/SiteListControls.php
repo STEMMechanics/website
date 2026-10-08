@@ -84,6 +84,13 @@ class SiteListControls
             'admin.workshop.index' => [
                 'show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1', 'default' => '1'],
                 'allocation_state' => ['label' => 'Workshop allocation', 'type' => 'select', 'options' => ['needs_review' => 'Ready for review']],
+                'workshop_attention' => ['label' => 'Action required', 'type' => 'select', 'options' => [
+                    'needs_attention' => 'Any action',
+                    'allocation_review' => 'Allocation review',
+                    'stock_shortage' => 'Stock shortage',
+                    'attendance' => 'Attendance not recorded',
+                    'stock_reconciliation' => 'Stock reconciliation due',
+                ]],
             ],
             'admin.workshop.attendance' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1']],
             'admin.invoice.index' => [
@@ -97,7 +104,7 @@ class SiteListControls
             ],
             'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
             'admin.server.square-events', 'admin.server.square-webhooks' => ['event_type' => ['label' => 'Event type', 'type' => 'text']],
-            'admin.workshop.files', 'admin.workshop.photos' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
+            'admin.workshop.files', 'admin.workshop.photos', 'admin.workshop.media' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
             'admin.supplier.show' => [
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
             ],
@@ -138,6 +145,9 @@ class SiteListControls
     public function capturePresetCounts($query): void
     {
         if (request()->attributes->has('collection_preset_counts')) return;
+        $workshopAttentionCounts = request()->routeIs('admin.workshop.index')
+            ? app(WorkshopActionAttention::class)->counts()
+            : [];
         $counts = match (request()->route()?->getName()) {
             'admin.user.index' => [
                 'Verified users' => (clone $query)->whereNotNull('email_verified_at')->count(),
@@ -163,10 +173,11 @@ class SiteListControls
             'admin.workshop.index' => [
                 'All workshops' => (clone $query)->count(),
                 'Current' => (clone $query)->where('status', '!=', 'cancelled')->where('starts_at', '>=', today())->count(),
-            ],
-            'admin.workshop.attendance' => [
-                'Current' => (clone $query)->where('status', '!=', 'cancelled')->count(),
-                'Including cancelled' => (clone $query)->count(),
+                'Needs attention' => $workshopAttentionCounts['workshops'],
+                'Stock shortage' => $workshopAttentionCounts['stock_shortage'],
+                'Attendance' => $workshopAttentionCounts['attendance'],
+                'Reconcile stock' => $workshopAttentionCounts['stock_reconciliation'],
+                'Ready for review' => $workshopAttentionCounts['allocation_review'],
             ],
             'admin.payment.refunds' => [
                 'All refunds' => (clone $query)->count(),
@@ -186,10 +197,19 @@ class SiteListControls
                 'Draft / scheduled' => ['status' => ['draft']],
                 'Outstanding' => ['status' => ['issued', 'sent', 'overdue']],
                 'Overdue' => ['status' => ['overdue']],
+                'Needs allocation' => ['status' => ['issued', 'sent', 'paid', 'overdue', 'written_off'], 'allocation_state' => 'not_allocated', 'list_total_amount_min' => '0.01'],
                 'Paid' => ['status' => ['paid']],
                 'Cancelled / written off' => ['status' => ['cancelled', 'written_off']],
             ],
-            'admin.workshop.index' => ['All workshops' => ['show_cancelled' => '1'], 'Current' => ['show_cancelled' => '0', 'list_starts_at_min' => today()->toDateString()]],
+            'admin.workshop.index' => [
+                'All workshops' => ['show_cancelled' => '1'],
+                'Current' => ['show_cancelled' => '0', 'list_starts_at_min' => today()->toDateString()],
+                'Needs attention' => ['show_cancelled' => '1', 'workshop_attention' => 'needs_attention'],
+                'Stock shortage' => ['show_cancelled' => '1', 'workshop_attention' => 'stock_shortage'],
+                'Attendance' => ['show_cancelled' => '1', 'workshop_attention' => 'attendance'],
+                'Reconcile stock' => ['show_cancelled' => '1', 'workshop_attention' => 'stock_reconciliation'],
+                'Ready for review' => ['show_cancelled' => '1', 'allocation_state' => 'needs_review'],
+            ],
             'admin.workshop.attendance' => ['Current' => ['show_cancelled' => '0'], 'Including cancelled' => ['show_cancelled' => '1']],
             'admin.payment.index' => ['All payments' => [], 'Unallocated' => ['unallocated_only' => '1']],
             'admin.payment.refunds' => ['All refunds' => [], 'Unfinished' => ['hide_completed' => '1']],
@@ -197,13 +217,21 @@ class SiteListControls
             'admin.ticket.index' => ['Current tickets' => ['ticket_status' => ['active'], 'workshop_from' => today()->toDateString()], 'Cancelled / reissued' => ['ticket_status' => ['cancelled', 'reissued']], 'All tickets' => []],
             'account.ticket.index' => ['Current tickets' => ['ticket_scope' => 'current'], 'Cancelled / reissued' => ['ticket_scope' => 'cancelled'], 'All tickets' => ['ticket_scope' => 'all']],
             'admin.user.index' => ['Verified users' => ['account_state' => 'verified'], 'Unverified users' => ['account_state' => 'ghost'], 'All users' => ['account_state' => 'all']],
-            'admin.shop.product.index' => ['Current products' => ['status_scope' => 'current'], 'Drafts' => ['status_scope' => 'draft'], 'Actionable' => ['status_scope' => 'current', 'inventory' => 'actionable'], 'Archived' => ['status_scope' => 'archived']],
+            'admin.shop.product.index' => [
+                'Current products' => ['status_scope' => 'current'],
+                'Drafts' => ['status_scope' => 'draft'],
+                'Needs allocation' => ['status_scope' => 'current', 'allocation_state' => 'needs_review'],
+                'Actionable' => ['status_scope' => 'current', 'inventory' => 'actionable'],
+                'Archived' => ['status_scope' => 'archived'],
+            ],
+            'admin.expense.index' => ['All expenses' => [], 'Needs allocation' => ['allocation_state' => 'not_allocated']],
             'admin.reminder.index' => ['Upcoming' => ['view' => 'upcoming'], 'Sent' => ['view' => 'sent'], 'Failed' => ['view' => 'failed'], 'All reminders' => ['view' => 'all']],
             default => [],
         };
         $active = array_filter(request()->only([...array_keys($this->filterFields()), 'search']), fn ($value) => is_array($value) ? count($value) > 0 : (is_scalar($value) && (string) $value !== ''));
         return collect($presets)->map(fn ($filters, $title) => [
             'title' => $title, 'active' => $active == $filters, 'count' => request()->attributes->get('collection_preset_counts', [])[$title] ?? null,
+            'attention' => (bool) (request()->attributes->get('collection_preset_attention', [])[$title] ?? false),
             'route' => url()->current().'?'.http_build_query(array_merge(request()->except([...array_keys($this->filterFields()), 'search', 'page', 'backup_page']), $filters)),
         ])->values()->all();
     }
@@ -325,6 +353,10 @@ class SiteListControls
         $data = Validator::make(request()->query(), $rules)->validate();
         if (request()->routeIs('admin.workshop.index') && ($data['allocation_state'] ?? '') === 'needs_review') {
             $ids = collect(app(\App\Services\Finance\WorkshopAllocation::class)->attention())->pluck('workshop.id');
+            $query->whereIn('workshops.id', $ids);
+        }
+        if (request()->routeIs('admin.workshop.index') && ! empty($data['workshop_attention'])) {
+            $ids = app(WorkshopActionAttention::class)->workshopIdsFor((string) $data['workshop_attention']);
             $query->whereIn('workshops.id', $ids);
         }
         if (request()->routeIs('admin.invoice.index')) { app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($query, $data); }

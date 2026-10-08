@@ -17,6 +17,8 @@
 
     $itemsCollection = ($calculatedItems ?? collect());
     $templateMode = isset($template) && $template instanceof \App\Models\PickListTemplate;
+    $formatPickQuantity = static fn (float $quantity): string => rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.');
+    $pluralizePickUnit = static fn (string $unit, float $quantity): string => \Illuminate\Support\Str::plural($unit, abs($quantity - 1) < 0.0005 ? 1 : 2);
 @endphp
 
 <table class="header">
@@ -90,6 +92,30 @@
                         @endphp
                         @if($typeNoteHtml !== '')
                             <div class="type-note">{!! $typeNoteHtml !!}</div>
+                        @endif
+                        @if(!empty($row['kit_contents']))
+                            <div class="kit-contents">
+                                <div class="kit-contents-title">Kit items and preparation materials:</div>
+                                @foreach($row['kit_contents'] as $part)
+                                    <div @if((int) ($part['depth'] ?? 0) > 0) style="margin-left: {{ min(36, (int) $part['depth'] * 10) }}px" @endif>
+                                        <div>
+                                            @if($part['is_kit'] ?? false)
+                                                <strong>Sub-kit requirement:</strong> {{ $formatPickQuantity((float) $part['quantity']) }} x {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
+                                            @else
+                                                @if(($part['parent_name'] ?? '') !== '')<strong>For {{ $part['parent_name'] }}:</strong> @endif
+                                                @if(in_array(strtolower((string) $part['stock_unit']), ['each', 'unit', 'units'], true))
+                                                    {{ $formatPickQuantity((float) $part['quantity']) }} x {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
+                                                @else
+                                                    {{ $formatPickQuantity((float) $part['quantity']) }} {{ $pluralizePickUnit((string) $part['stock_unit'], (float) $part['quantity']) }} of {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
+                                                @endif
+                                            @endif
+                                        </div>
+                                        @if(trim((string) ($part['note'] ?? '')) !== '')
+                                            <div style="margin-left: 12px; color: #666; font-size: 8px;">Per kit: {{ $part['note'] }}</div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
                         @endif
                     </div>
                 @endforeach

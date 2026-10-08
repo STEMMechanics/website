@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StockInventoryService;
 use App\Support\ShopProductUrls;
 use App\Support\ShopShippingSettings;
 use App\Traits\HasFiles;
@@ -75,6 +76,8 @@ class Product extends Model
         'shipping_rate',
         'tax_rate',
         'inventory_quantity',
+        'stock_item_id',
+        'stock_quantity_per_sale',
         'shipping_units',
         'min_satchel_rank',
         'weight_grams',
@@ -102,6 +105,8 @@ class Product extends Model
         'backorder_shipping_estimate' => 'date',
         'backorder_shipping_offset_days' => 'integer',
         'inventory_quantity' => 'integer',
+        'stock_item_id' => 'integer',
+        'stock_quantity_per_sale' => 'decimal:3',
         'product_details' => 'array',
         'shipping_units' => 'decimal:3',
         'min_satchel_rank' => 'integer',
@@ -171,6 +176,34 @@ class Product extends Model
     public function storeOrderItems(): HasMany
     {
         return $this->hasMany(StoreOrderItem::class);
+    }
+
+    /** @return BelongsTo<StockItem, $this> */
+    public function stockItem(): BelongsTo
+    {
+        return $this->belongsTo(StockItem::class);
+    }
+
+    public function linkedStockItem(?ProductVariant $variant = null): ?StockItem
+    {
+        if ($variant instanceof ProductVariant && $variant->stock_item_id) {
+            return $variant->relationLoaded('stockItem')
+                ? $variant->stockItem
+                : StockItem::query()->find($variant->stock_item_id);
+        }
+
+        if ($this->stock_item_id) {
+            return $this->relationLoaded('stockItem')
+                ? $this->stockItem
+                : StockItem::query()->find($this->stock_item_id);
+        }
+
+        return null;
+    }
+
+    public function hasLinkedStock(?ProductVariant $variant = null): bool
+    {
+        return $this->linkedStockItem($variant) instanceof StockItem;
     }
 
     public function scopeActive($query)
@@ -438,6 +471,10 @@ class Product extends Model
 
     public function tracksInventory(?ProductVariant $variant = null): bool
     {
+        if ($this->hasLinkedStock($variant)) {
+            return app(StockInventoryService::class)->isStockManaged($this, $variant);
+        }
+
         if ($this->shared_inventory) {
             return $this->inventory_quantity !== null;
         }
@@ -450,6 +487,10 @@ class Product extends Model
 
     public function availableInventory(?ProductVariant $variant = null): ?int
     {
+        if ($this->hasLinkedStock($variant)) {
+            return app(StockInventoryService::class)->availableProductQuantity($this, $variant);
+        }
+
         if ($this->shared_inventory) {
             return $this->inventory_quantity === null ? null : intdiv(max(0, (int) $this->inventory_quantity), $this->inventoryUnits($variant));
         }
@@ -740,6 +781,48 @@ class Product extends Model
 
     public function trackedInventoryTotal(): ?int
     {
+        $variants = $this->relationLoaded('variants')
+            ? $this->variants
+            : $this->variants()->get();
+
+        if ($this->hasLinkedStock()) {
+            $available = app(StockInventoryService::class)->availableProductQuantity($this);
+            if ($available !== null) {
+                return $available;
+            }
+
+            $variantAvailable = $this->purchasableVariants()
+                ->map(fn (ProductVariant $variant): ?int => app(StockInventoryService::class)->availableProductQuantity($this, $variant))
+                ->filter(fn (?int $quantity): bool => $quantity !== null)
+                ->sum();
+
+            return $variantAvailable > 0 ? (int) $variantAvailable : null;
+        }
+
+        $linkedVariantInventories = $variants
+            ->filter(fn ($variant): bool => $variant instanceof ProductVariant && $variant->is_active && $this->hasLinkedStock($variant))
+            ->map(fn (ProductVariant $variant): ?int => app(StockInventoryService::class)->availableProductQuantity($this, $variant))
+            ->filter(fn (?int $quantity): bool => $quantity !== null)
+            ->values();
+
+        if ($linkedVariantInventories->isNotEmpty()) {
+            $trackedInventories = [];
+            if ($this->inventory_quantity !== null) {
+                $trackedInventories[] = max(0, (int) $this->inventory_quantity);
+            }
+            $trackedInventories = array_merge($trackedInventories, $linkedVariantInventories->all());
+
+            foreach ($variants as $variant) {
+                if (! $variant instanceof ProductVariant || ! $variant->is_active || $this->hasLinkedStock($variant) || $variant->inventory_quantity === null) {
+                    continue;
+                }
+
+                $trackedInventories[] = max(0, (int) $variant->inventory_quantity);
+            }
+
+            return array_sum($trackedInventories);
+        }
+
         if ($this->shared_inventory) {
             return $this->inventory_quantity === null ? null : max(0, (int) $this->inventory_quantity);
         }
@@ -748,10 +831,6 @@ class Product extends Model
         if ($this->inventory_quantity !== null) {
             $trackedInventories[] = max(0, (int) $this->inventory_quantity);
         }
-
-        $variants = $this->relationLoaded('variants')
-            ? $this->variants
-            : $this->variants()->get();
 
         foreach ($variants as $variant) {
             if (! $variant instanceof ProductVariant || ! $variant->is_active || $variant->inventory_quantity === null) {
@@ -770,6 +849,10 @@ class Product extends Model
             return null;
         }
 
+        if ($this->hasLinkedStock()) {
+            return null;
+        }
+
         $threshold = $this->low_stock_threshold !== null ? (int) $this->low_stock_threshold : null;
 
         return $threshold !== null && $threshold > 0 ? $threshold : null;
@@ -783,6 +866,11 @@ class Product extends Model
         return $threshold !== null
             && $resolvedAvailable !== null
             && $resolvedAvailable <= $threshold;
+    }
+
+    public function replacementCostForVariant(?ProductVariant $variant = null): ?float
+    {
+        return app(StockInventoryService::class)->replacementCostFor($this, $variant);
     }
 
     public static function priceAmountLabel(float $amount): string

@@ -158,7 +158,7 @@
                                         <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
                                     @endif
                                     @if($canCancel)
-                                        <x-ui.row-action label="Cancel ticket" icon="fa-solid fa-ban" tone="warning"
+                                        <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-on:click="openCancelModal(
                                                 {{ \Illuminate\Support\Js::from(route('tickets.cancel', ['ticket' => $ticket, 'token' => $accessToken])) }},

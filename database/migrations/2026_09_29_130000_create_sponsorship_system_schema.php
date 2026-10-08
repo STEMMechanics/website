@@ -9,6 +9,32 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $existingSponsorshipTables = array_values(array_filter([
+            'sponsorship_projects',
+            'sponsorship_options',
+            'sponsorship_recognition_levels',
+            'sponsors',
+            'sponsorships',
+            'sponsorship_payments',
+            'sponsorship_magic_links',
+            'manual_sponsor_supports',
+            'sponsorship_invoice_requests',
+        ], static fn (string $table): bool => Schema::hasTable($table)));
+
+        if ($existingSponsorshipTables !== []) {
+            if (count($existingSponsorshipTables) !== 9) {
+                throw new \RuntimeException(
+                    'The sponsorship schema is only partially present. Refusing to recreate or mark it as migrated.'
+                );
+            }
+
+            // Some production schemas predate this migration record. Adopt the
+            // existing sponsorship tables and apply only missing shared columns.
+            $this->ensureImportedSchemaColumns();
+
+            return;
+        }
+
         Schema::create('sponsorship_projects', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
@@ -198,6 +224,63 @@ return new class extends Migration
         Schema::table('audit_logs', function (Blueprint $table): void {
             $table->string('event', 120)->change();
         });
+    }
+
+    private function ensureImportedSchemaColumns(): void
+    {
+        $organisationColumns = [
+            'website_url' => ! Schema::hasColumn('organisations', 'website_url'),
+            'logo_path' => ! Schema::hasColumn('organisations', 'logo_path'),
+            'abn' => ! Schema::hasColumn('organisations', 'abn'),
+            'foreign_tax_id' => ! Schema::hasColumn('organisations', 'foreign_tax_id'),
+            'sponsorship_recognition_public' => ! Schema::hasColumn('organisations', 'sponsorship_recognition_public'),
+        ];
+
+        if (in_array(true, $organisationColumns, true)) {
+            Schema::table('organisations', function (Blueprint $table) use ($organisationColumns): void {
+                if ($organisationColumns['website_url']) {
+                    $table->string('website_url', 2048)->nullable();
+                }
+                if ($organisationColumns['logo_path']) {
+                    $table->string('logo_path', 2048)->nullable();
+                }
+                if ($organisationColumns['abn']) {
+                    $table->string('abn', 20)->nullable();
+                }
+                if ($organisationColumns['foreign_tax_id']) {
+                    $table->string('foreign_tax_id', 100)->nullable();
+                }
+                if ($organisationColumns['sponsorship_recognition_public']) {
+                    $table->boolean('sponsorship_recognition_public')->default(false);
+                }
+            });
+        }
+
+        $invoiceColumns = [
+            'tax_treatment_code' => ! Schema::hasColumn('invoices', 'tax_treatment_code'),
+            'recipient_abn' => ! Schema::hasColumn('invoices', 'recipient_abn'),
+            'recipient_foreign_tax_id' => ! Schema::hasColumn('invoices', 'recipient_foreign_tax_id'),
+        ];
+
+        if (in_array(true, $invoiceColumns, true)) {
+            Schema::table('invoices', function (Blueprint $table) use ($invoiceColumns): void {
+                if ($invoiceColumns['tax_treatment_code']) {
+                    $table->string('tax_treatment_code', 40)->nullable()->after('gst_amount');
+                }
+                if ($invoiceColumns['recipient_abn']) {
+                    $table->string('recipient_abn', 20)->nullable()->after('billing_country');
+                }
+                if ($invoiceColumns['recipient_foreign_tax_id']) {
+                    $table->string('recipient_foreign_tax_id', 100)->nullable()->after('recipient_abn');
+                }
+            });
+        }
+
+        if (Schema::hasTable('audit_logs') && Schema::hasColumn('audit_logs', 'event')) {
+            Schema::table('audit_logs', function (Blueprint $table): void {
+                $table->string('event', 120)->change();
+            });
+        }
     }
 
     public function down(): void

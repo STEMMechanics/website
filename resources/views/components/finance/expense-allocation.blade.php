@@ -22,7 +22,7 @@
                 <i class="fa-solid fa-chevron-right shrink-0 text-sm text-slate-500 transition-transform" x-bind:class="allocationOpen ? 'rotate-90' : ''" aria-hidden="true"></i>
                 <span class="min-w-0">
                     <span class="block text-lg font-semibold">Cost centre allocation</span>
-                    <span class="mt-1 block text-sm text-slate-600" aria-live="polite">
+                    <span class="mt-1 block text-xs text-slate-600" aria-live="polite">
                         <span x-text="money(allocated)"></span> of <span x-text="money(total)"></span> allocated (excluding GST)
                     </span>
                 </span>
