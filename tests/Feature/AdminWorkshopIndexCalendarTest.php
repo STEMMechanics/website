@@ -264,7 +264,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             'Needs attention' => 2,
             'Stock shortage' => 0,
             'Attendance' => 2,
-            'Reconcile stock' => 2,
+            'Reconcile stock' => 0,
             'Ready for review' => 0,
         ], request()->attributes->get('collection_preset_counts'));
         $selection = $this->getJson(route('admin.workshop.index', ['select_listing' => 1, 'show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString(), 'page' => 2]))

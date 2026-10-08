@@ -94,7 +94,7 @@ class WorkshopFollowUp
                 ->pluck('id'))
             ->mapWithKeys(fn ($id): array => [(string) $id => true]);
 
-        return $workshops->flatMap(function (Workshop $workshop) use ($attendedWorkshopIds): array {
+        return $workshops->flatMap(function (Workshop $workshop) use ($attendedWorkshopIds, $now): array {
             $endedAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at;
             if ($endedAt === null) {
                 return [];
