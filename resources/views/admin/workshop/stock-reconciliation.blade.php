@@ -24,7 +24,11 @@
             @endif
         </div>
 
-        @if(! $workshop->stock_reconciled_at && ! $canReconcileWorkshopStock)
+        @if(! $workshop->stock_reconciled_at && ! $hasReconciliableStock)
+            <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                No stock items are on this workshop’s pick list, so stock reconciliation is not needed. If you add stock items later, reconciliation will be available after the workshop ends.
+            </div>
+        @elseif(! $workshop->stock_reconciled_at && ! $canReconcileWorkshopStock)
             <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                 @if(in_array((string) $workshop->status, ['draft', 'cancelled'], true))
                     Draft and cancelled workshops do not need stock reconciliation.

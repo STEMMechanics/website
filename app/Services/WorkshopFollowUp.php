@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class WorkshopFollowUp
 {
+    public function __construct(private readonly WorkshopPickListService $pickLists) {}
+
     public function hasEnded(Workshop $workshop, ?CarbonInterface $at = null): bool
     {
         if (in_array((string) $workshop->status, ['draft', 'cancelled'], true)) {
@@ -43,7 +45,14 @@ class WorkshopFollowUp
 
     public function needsStock(Workshop $workshop, ?CarbonInterface $at = null): bool
     {
-        return $workshop->stock_reconciled_at === null && $this->hasEnded($workshop, $at);
+        return $workshop->stock_reconciled_at === null
+            && $this->hasEnded($workshop, $at)
+            && $this->hasStockPlan($workshop);
+    }
+
+    public function hasStockPlan(Workshop $workshop): bool
+    {
+        return $this->pickLists->plannedStockForReconciliation($workshop)->isNotEmpty();
     }
 
     /** @return Collection<int, array{workshop: Workshop, ended_at: CarbonInterface, attendance: bool, stock: bool}> */
@@ -85,13 +94,13 @@ class WorkshopFollowUp
                 ->pluck('id'))
             ->mapWithKeys(fn ($id): array => [(string) $id => true]);
 
-        return $workshops->flatMap(function (Workshop $workshop) use ($attendedWorkshopIds): array {
+        return $workshops->flatMap(function (Workshop $workshop) use ($attendedWorkshopIds, $now): array {
             $endedAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at;
             if ($endedAt === null) {
                 return [];
             }
             $attendance = ! $attendedWorkshopIds->has((string) $workshop->getKey());
-            $stock = $workshop->stock_reconciled_at === null;
+            $stock = $this->needsStock($workshop, $now);
 
             if (! $attendance && ! $stock) {
                 return [];

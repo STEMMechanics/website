@@ -240,9 +240,11 @@ class WorkshopPickListController extends Controller
             ->values();
 
         $reconciliationTime = $workshop->effectiveEndsAt() ?? $workshop->starts_at;
+        $hasReconciliableStock = $this->pickListService->plannedStockForReconciliation($workshop)->isNotEmpty();
         $canReconcileWorkshopStock = ! in_array((string) $workshop->status, ['draft', 'cancelled'], true)
             && $reconciliationTime !== null
-            && $reconciliationTime->isPast();
+            && $reconciliationTime->isPast()
+            && $hasReconciliableStock;
 
         return view('admin.workshop.stock-reconciliation', [
             'workshop' => $workshop,
@@ -250,6 +252,7 @@ class WorkshopPickListController extends Controller
             'workshopPlanStock' => $workshopPlanStock,
             'workshopKitPreparation' => $workshopKitPreparation,
             'workshopStockUsage' => $workshopStockUsage,
+            'hasReconciliableStock' => $hasReconciliableStock,
             'canReconcileWorkshopStock' => $canReconcileWorkshopStock,
         ]);
     }

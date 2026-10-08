@@ -397,8 +397,7 @@
                                     @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
                                         <x-ui.row-action label="View interest registrations" icon="fa-solid fa-thumbs-up" tone="neutral" href="{{ route('admin.workshop.interests', $workshop) }}" />
                                     @endif
-                                    @php($workshopEndAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at)
-                                    @if(! in_array((string) $workshop->status, ['draft', 'cancelled'], true) && $workshopEndAt?->isPast())
+                                    @if($workshop->stock_reconciled_at !== null || ($workshopAttention['stock_reconciliation'] ?? false))
                                     <x-ui.row-action :label="$workshop->stock_reconciled_at ? 'View stock reconciliation' : 'Reconcile stock'" icon="fa-solid fa-box-open" :tone="$workshop->stock_reconciled_at ? 'neutral' : 'primary'" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" />
                                     @endif
                                     <x-ui.row-action label="Attendance" icon="fa-solid fa-user-check" tone="neutral" href="{{ route('admin.workshop.attendance', $workshop) }}" />
