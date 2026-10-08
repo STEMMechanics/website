@@ -3292,6 +3292,17 @@ class WorkshopController extends Controller
         $isKiosk = request()->boolean('kiosk') && ! in_array((string) $workshop->registration, ['tickets'], true);
         $search = trim((string) request()->query('search', ''));
         $showCancelledTickets = request()->boolean('show_cancelled');
+        $attendanceTicketQuery = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', [...Ticket::activePurchasedStatuses(), Ticket::STATUS_CANCELLED]);
+        $dropInAttendanceCount = WorkshopAttendance::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereNull('ticket_id')
+            ->count();
+        request()->attributes->set('collection_preset_counts', [
+            'Current' => (clone $attendanceTicketQuery)->where('status', '!=', Ticket::STATUS_CANCELLED)->count() + $dropInAttendanceCount,
+            'Including cancelled' => (clone $attendanceTicketQuery)->count() + $dropInAttendanceCount,
+        ]);
         $activeTickets = collect();
         $cancelledTickets = collect();
         $attendanceInvoiceMeta = [];

@@ -82,11 +82,11 @@
                                     <x-ui.button variant="plain"
                                         type="button"
                                         class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                        title="View invoices"
+                                        title="View linked invoices"
                                         x-on:click.prevent="open = true"
                                     >
                                         <i class="fa-solid fa-file-invoice"></i>
-                                        <span class="sr-only">View invoices</span>
+                                        <span class="sr-only">View linked invoices</span>
                                     </x-ui.button>
                                     <div
                                         x-cloak

@@ -439,7 +439,7 @@ class FileBackupUploadService
         }
 
         $freeBytes = @disk_free_space($directory);
-        if (! is_float($freeBytes) && ! is_int($freeBytes)) {
+        if ($freeBytes === false) {
             throw new RuntimeException('Available server storage could not be checked, so the upload was not started.');
         }
 

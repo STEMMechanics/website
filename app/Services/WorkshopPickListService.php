@@ -186,11 +186,11 @@ class WorkshopPickListService
                 return [
                     'stock_item' => $stockItem,
                     'planned_quantity' => $plannedQuantity,
-                    'sources' => collect($sourcesByStockItem[(int) $stockItemId] ?? [])
+                    'sources' => array_values(collect($sourcesByStockItem[(int) $stockItemId] ?? [])
                         ->unique()
                         ->reject(fn (string $source): bool => strcasecmp($source, $stockItem->linkLabel()) === 0)
                         ->values()
-                        ->all(),
+                        ->all()),
                 ];
             })
             ->filter()
@@ -202,7 +202,7 @@ class WorkshopPickListService
      * Build one hierarchical checklist for workshop kits and standalone materials.
      *
      * @return array{
-     *     rows: list<array{key: string, stock_item_id: ?int, item_name: string, unit: ?string, quantity: float, kind: string, sources: list<array{item_id: int, label: string, quantity: float}>}>,
+     *     rows: list<array{key: string, stock_item_id: ?int, item_name: string, admin_url: ?string, unit: ?string, quantity: float, kind: string, sources: list<array{item_id: int, label: string, quantity: float}>}>,
      *     kit_summaries: list<WorkshopKitSummary>
      * }
      */
@@ -376,7 +376,7 @@ class WorkshopPickListService
                     $node['contents'][] = [
                         'stock_item_id' => (int) $component->id,
                         'item_name' => $component->linkLabel(),
-                        'admin_url' => route($component->is_kit ? 'admin.shop.stock.kit.edit' : 'admin.shop.stock.edit', $component),
+                        'admin_url' => route('admin.shop.stock.edit', $component),
                         'unit' => (string) $component->unit,
                         'quantity' => 0.0,
                         'notes' => [],
@@ -506,10 +506,10 @@ class WorkshopPickListService
     public function normalizeCheckedItemIds(array $checkedItemIds, array $shelfPickList): array
     {
         $validRows = collect($shelfPickList['rows'])
-            ->keyBy('key');
+            ->mapWithKeys(fn (array $row): array => [(string) $row['key'] => true]);
         foreach ($shelfPickList['kit_summaries'] as $kit) {
             if (isset($kit['key'])) {
-                $validRows->put((string) $kit['key'], $kit);
+                $validRows->put((string) $kit['key'], true);
             }
         }
         $selectedRows = [];
@@ -838,7 +838,7 @@ class WorkshopPickListService
     private function resolvedParticipants(Workshop $workshop): int
     {
         if ($workshop->registration === 'tickets') {
-            return $this->reservationParticipants($workshop);
+            return max(1, $this->activeTicketCount($workshop));
         }
 
         $configured = (int) ($workshop->pick_list_participants ?? 0);

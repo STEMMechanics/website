@@ -387,7 +387,7 @@ class StockInventoryService
         // Keep existing reservations after a workshop starts unless an admin
         // explicitly saves its workshop plan or blueprint. Reconciliation uses
         // the latest saved plan until stock use has been recorded.
-        if (! $refreshAfterStart && $workshop->starts_at !== null && $workshop->starts_at->isPast()) {
+        if (! $refreshAfterStart && $workshop->starts_at->isPast()) {
             return;
         }
 
@@ -946,7 +946,7 @@ class StockInventoryService
                 'supplier_id' => $supplierId,
                 'expense_id' => $expense?->id,
                 'created_by' => $user?->id,
-                'received_at' => $attributes['received_at'] ?? $expense?->paid_on ?? now(),
+                'received_at' => $attributes['received_at'] ?? $expense->paid_on ?? now(),
                 'currency' => 'AUD',
                 'exchange_rate' => 1,
                 'freight_ex_tax' => 0,
@@ -1040,7 +1040,7 @@ class StockInventoryService
             $receipt->update([
                 'supplier_id' => $supplierId,
                 'expense_id' => $expense?->id,
-                'received_at' => $attributes['received_at'] ?? $expense?->paid_on ?? $receipt->received_at,
+                'received_at' => $attributes['received_at'] ?? $expense->paid_on ?? $receipt->received_at,
                 'notes' => trim((string) ($attributes['notes'] ?? '')) ?: null,
             ]);
 
@@ -1816,7 +1816,7 @@ class StockInventoryService
             'unit_cost_ex_tax' => $reservation->unit_cost_snapshot,
             'source_type' => get_class($source),
             'source_id' => (string) $source->getKey(),
-            'created_by' => $user?->id ?? auth()->id(),
+            'created_by' => $user->id ?? auth()->id(),
             'occurred_at' => now(),
             'notes' => $notes ?? (get_class($source) === StoreOrderItem::class ? 'Store order fulfilment' : 'Stock consumption'),
         ]);
@@ -2115,15 +2115,16 @@ class StockInventoryService
             return true;
         }
 
-        $stockItem = $state['items']->get((int) $stockItem->id) ?? $stockItem;
-        if (! $stockItem->tracksInventory() || isset($stack[$stockItem->id])) {
+        $stockItemId = (int) $stockItem->id;
+        $stockItem = $state['items']->get($stockItemId) ?? $stockItem;
+        if (! $stockItem->tracksInventory() || isset($stack[$stockItemId])) {
             return false;
         }
 
         $before = $allocated;
         $readyQuantity = min($quantity, $this->availableStockInState($stockItem, $allocated, $state));
         if ($readyQuantity > 0.0005) {
-            $allocated[$stockItem->id] = (float) ($allocated[$stockItem->id] ?? 0) + $readyQuantity;
+            $allocated[$stockItemId] = (float) ($allocated[$stockItemId] ?? 0) + $readyQuantity;
         }
         $remaining = $quantity - $readyQuantity;
         if ($remaining <= 0.0005) {
@@ -2137,7 +2138,7 @@ class StockInventoryService
             return false;
         }
 
-        $stack[$stockItem->id] = true;
+        $stack[$stockItemId] = true;
         foreach ($components as $component) {
             $componentItem = $state['items']->get((int) $component->component_stock_item_id);
             if (! $componentItem instanceof StockItem
@@ -2279,8 +2280,4 @@ class StockInventoryService
         }
     }
 
-    private function availableStockQuantity(StockItem $stockItem): float
-    {
-        return max(0, (float) $stockItem->on_hand_quantity - $stockItem->activeReservedQuantity());
-    }
 }

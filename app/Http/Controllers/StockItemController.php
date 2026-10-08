@@ -333,7 +333,7 @@ class StockItemController extends Controller
         $blockers = [];
 
         if ($kit->usedInKits->isNotEmpty()) {
-            $names = $kit->usedInKits->map(fn ($component): string => (string) ($component->kit?->name ?? 'another kit'))->unique()->implode(', ');
+            $names = $kit->usedInKits->map(fn ($component): string => (string) (data_get($component, 'kit.name') ?? 'another kit'))->unique()->implode(', ');
             $blockers[] = 'Remove this kit from these kit recipes first: '.$names.'.';
         }
         if ($kit->products->isNotEmpty() || $kit->variants->isNotEmpty()) {
@@ -463,7 +463,7 @@ class StockItemController extends Controller
             $blockers[] = 'Unlink it from store products and variants first.';
         }
         if ($item->usedInKits->isNotEmpty()) {
-            $names = $item->usedInKits->map(fn ($component): string => (string) ($component->kit?->name ?? 'a kit'))->unique()->implode(', ');
+            $names = $item->usedInKits->map(fn ($component): string => (string) (data_get($component, 'kit.name') ?? 'a kit'))->unique()->implode(', ');
             $blockers[] = 'Remove it from kit recipes first: '.$names.'.';
         }
         if ($item->pickListItems()->exists()) {
@@ -562,7 +562,7 @@ class StockItemController extends Controller
         $viewData = [
             'kit' => $plan['kit'],
             'plannedQuantity' => $plan['quantity'],
-            'completedQuantity' => old('completed_quantity', $plan['quantity']),
+            'completedQuantity' => old('completed_quantity', (string) $plan['quantity']),
             'assemblyRows' => $plan['rows'],
             'stockTabs' => $this->stockTabs('kits'),
             'workshop' => $workshop,
@@ -578,7 +578,7 @@ class StockItemController extends Controller
             ? $workshop
             : (isset($validated['workshop_return_id']) ? Workshop::query()->findOrFail($validated['workshop_return_id']) : null);
         if ($returnWorkshop instanceof Workshop) {
-            $returnRoute = ($viewData['workshopReturnTo'] ?? 'stock-reconciliation') === 'run-sheet'
+            $returnRoute = $viewData['workshopReturnTo'] === 'run-sheet'
                 ? 'admin.workshop.run-sheet'
                 : 'admin.workshop.stock-reconciliation';
             $previewParameters = [
@@ -1063,7 +1063,7 @@ class StockItemController extends Controller
         if ($shortage instanceof StockItem) {
             return redirect()->route($stockItem->is_kit ? 'admin.shop.stock.kit.edit' : 'admin.shop.stock.edit', $stockItem)->with([
                 'message' => 'Stock was adjusted, but active reservations are short by '
-                    .$shortage->formatQuantity((float) $shortage->reservation_shortage).' '.$shortage->unit
+                    .$shortage->formatQuantity((float) ($shortage->reservation_shortage ?? 0)).' '.$shortage->unit
                     .' for '.$shortage->linkLabel().'. Review the reservations below or replenish stock.',
                 'message-title' => 'Reservation stock warning',
                 'message-type' => 'warning',
@@ -1357,15 +1357,6 @@ class StockItemController extends Controller
             'stock_item_group_id' => $groupId,
             'variant_name' => $variantName !== '' ? $variantName : null,
         ];
-    }
-
-    private function selectedGroup(Request $request, string $kind): ?StockItemGroup
-    {
-        $groupId = $request->query('group');
-
-        return is_numeric($groupId)
-            ? StockItemGroup::query()->where('kind', $kind)->findOrFail((int) $groupId)
-            : null;
     }
 
     /** @return array<int, array{id: int, supplier: string, label: string, summary: string, detail: string, search: string, total_cost_ex_tax: string, date: ?string}> */

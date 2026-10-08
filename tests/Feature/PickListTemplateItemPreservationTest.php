@@ -105,7 +105,7 @@ class PickListTemplateItemPreservationTest extends TestCase
             ->get(route('admin.workshop.pick-list', $workshop));
 
         $pickListResponse->assertOk();
-        $this->assertSame([$toolkit->id], array_map('intval', $pickListResponse->viewData('checkedItemIds') ?? []));
+        $this->assertSame(['manual:'.$toolkit->id], $pickListResponse->viewData('checkedItemIds') ?? []);
 
         $templateItems = collect($pickListResponse->viewData('templateItems') ?? []);
         $toolkitRow = $templateItems->firstWhere('id', $toolkit->id);

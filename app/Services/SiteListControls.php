@@ -210,6 +210,7 @@ class SiteListControls
                 'Reconcile stock' => ['show_cancelled' => '1', 'workshop_attention' => 'stock_reconciliation'],
                 'Ready for review' => ['show_cancelled' => '1', 'allocation_state' => 'needs_review'],
             ],
+            'admin.workshop.attendance' => ['Current' => ['show_cancelled' => '0'], 'Including cancelled' => ['show_cancelled' => '1']],
             'admin.payment.index' => ['All payments' => [], 'Unallocated' => ['unallocated_only' => '1']],
             'admin.payment.refunds' => ['All refunds' => [], 'Unfinished' => ['hide_completed' => '1']],
             'account.order.index' => ['Current orders' => ['order_scope' => 'current'], 'Cancelled' => ['order_scope' => 'cancelled'], 'All orders' => ['order_scope' => 'all']],

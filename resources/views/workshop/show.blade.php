@@ -280,7 +280,7 @@
                         @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0 || ($adminCanViewTickets ?? false))
                             <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200 pt-3 text-sm">
                                 @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
-                                    <a class="font-medium text-primary-color hover:underline" href="{{ route('admin.workshop.interests', $workshop) }}">Interests</a>
+                                    <a class="font-medium text-primary-color hover:underline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</a>
                                 @endif
                                 @if($adminCanViewTickets ?? false)
                                     <a class="font-medium text-primary-color hover:underline" href="{{ route('admin.workshop.tickets', $workshop) }}">Tickets</a>

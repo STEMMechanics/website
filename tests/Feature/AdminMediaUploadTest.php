@@ -146,6 +146,7 @@ class AdminMediaUploadTest extends TestCase
             'size' => $file->getSize(),
             'user_id' => $admin->id,
             'storage_disk' => 'media',
+            'visibility' => 'private',
         ]);
         Storage::disk('media')->put($hash, $file->getContent());
 
@@ -298,7 +299,7 @@ class AdminMediaUploadTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.workshop.files', $workshop))
+            ->get(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'files']))
             ->assertOk()
             ->assertSeeText('All public files are displayed on the workshop page.')
             ->assertSeeText('Upload')
@@ -312,7 +313,7 @@ class AdminMediaUploadTest extends TestCase
             ->assertSee('workshop_files_pending', false);
 
         $this->actingAs($admin)
-            ->get(route('admin.workshop.photos', $workshop))
+            ->get(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']))
             ->assertOk()
             ->assertSeeText('Photos are not displayed on the workshop page.')
             ->assertSeeText('Upload')
@@ -555,7 +556,7 @@ class AdminMediaUploadTest extends TestCase
                 'title' => 'Storage Move', 'visibility' => 'private', 'storage_disk' => 'archive',
                 'caption' => '', 'consent_notes' => '', 'tags' => '', 'photographed_at' => '',
             ]],
-        ])->assertRedirect(route('admin.workshop.photos', $workshop));
+        ])->assertRedirect(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']));
 
         $this->assertDatabaseHas('media', ['name' => $media->name, 'storage_disk' => 'archive']);
         Storage::disk('archive')->assertExists($hash);

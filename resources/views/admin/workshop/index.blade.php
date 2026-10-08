@@ -203,7 +203,7 @@
                                             $calendarEndsAt = $workshop->calendarEndsAtForDate($day['date']);
                                             $calendarSessionLabel = $workshop->calendarSessionLabelForDate($day['date']);
                                             $calendarTimeLabel = $continuation['before']
-                                                ? ($continuation['ends'] ? 'Ends '.($calendarEndsAt?->format('g:i a') ?? '-') : 'Continues')
+                                                ? 'Continues'
                                                 : ($calendarStartsAt?->format('g:i a') ?? '-');
                                         @endphp
                                         <a
@@ -402,7 +402,7 @@
                                     <x-ui.row-action :label="$workshop->stock_reconciled_at ? 'View stock reconciliation' : 'Reconcile stock'" icon="fa-solid fa-box-open" :tone="$workshop->stock_reconciled_at ? 'neutral' : 'primary'" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" />
                                     @endif
                                     <x-ui.row-action label="Attendance" icon="fa-solid fa-user-check" tone="neutral" href="{{ route('admin.workshop.attendance', $workshop) }}" />
-                                    <x-ui.row-action label="Run sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
+                                    <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
                                     <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
                                         <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))" />

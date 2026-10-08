@@ -85,21 +85,25 @@ class WorkshopFollowUp
                 ->pluck('id'))
             ->mapWithKeys(fn ($id): array => [(string) $id => true]);
 
-        return $workshops->map(function (Workshop $workshop) use ($attendedWorkshopIds): ?array {
+        return $workshops->flatMap(function (Workshop $workshop) use ($attendedWorkshopIds): array {
+            $endedAt = $workshop->effectiveEndsAt() ?? $workshop->starts_at;
+            if ($endedAt === null) {
+                return [];
+            }
             $attendance = ! $attendedWorkshopIds->has((string) $workshop->getKey());
             $stock = $workshop->stock_reconciled_at === null;
 
             if (! $attendance && ! $stock) {
-                return null;
+                return [];
             }
 
-            return [
+            return [[
                 'workshop' => $workshop,
-                'ended_at' => $workshop->effectiveEndsAt() ?? $workshop->starts_at,
+                'ended_at' => $endedAt,
                 'attendance' => $attendance,
                 'stock' => $stock,
-            ];
-        })->filter()->values();
+            ]];
+        })->values();
     }
 
     public function pendingTaskCount(?CarbonInterface $at = null): int

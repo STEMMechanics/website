@@ -196,6 +196,8 @@ class AdminServerBackupTest extends TestCase
         (new RunServerBackup((string) $run->id))->handle(
             app(DatabaseBackupService::class),
             app(FileBackupService::class),
+            app(\App\Services\FileBackupImportService::class),
+            app(\App\Services\FileBackupUploadService::class),
         );
 
         $this->actingAs($admin)

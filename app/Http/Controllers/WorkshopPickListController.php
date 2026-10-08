@@ -452,7 +452,7 @@ class WorkshopPickListController extends Controller
         $reservationShortages = $inventory->reservationShortages($changedStockItemIds);
         if ($reservationShortages->isNotEmpty()) {
             $shortageSummary = $reservationShortages
-                ->map(fn (StockItem $stockItem): string => $stockItem->linkLabel().' short by '.$stockItem->formatQuantity((float) $stockItem->reservation_shortage).' '.$stockItem->unit)
+                ->map(fn (StockItem $stockItem): string => $stockItem->linkLabel().' short by '.$stockItem->formatQuantity((float) ($stockItem->reservation_shortage ?? 0)).' '.$stockItem->unit)
                 ->implode('; ');
 
             return redirect()->route('admin.workshop.stock-reconciliation', $workshop)->with([
@@ -560,7 +560,7 @@ class WorkshopPickListController extends Controller
             $stockItemId = (int) ($entry['stock_item_id'] ?? 0);
             if ($stockItemId > 0) {
                 $entry['shortage_quantity'] = round(max(0, (float) ($shortages[$stockItemId] ?? 0)), 3);
-                $entry['shortage_unit'] = (string) ($stockItemsById->get($stockItemId)?->unit ?? $entry['unit'] ?? '');
+                $entry['shortage_unit'] = (string) ($stockItemsById->get($stockItemId)->unit ?? $entry['unit'] ?? '');
             }
             if (isset($entry['contents']) && is_array($entry['contents'])) {
                 $entry['contents'] = array_map(

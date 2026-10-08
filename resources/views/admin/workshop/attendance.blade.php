@@ -129,7 +129,7 @@
     </x-mast>
 
     <x-container class="py-5 sm:py-8">
-        <x-ui.dynamic-list name="admin-workshop-attendance" :show-presets="false">
+        <x-ui.dynamic-list name="admin-workshop-attendance">
         @if($isTicketedWorkshop)
             <div
                 x-data="{

@@ -126,12 +126,39 @@ class AdminDashboardActions
             $description = $workshop->title.' · '.$endedAt->format('D j M Y').' · '.$workshop->getLocationName();
 
             if ($task['attendance']) {
-                $actions[] = $this->card(
-                    'Record workshop attendance',
-                    $description,
-                    route('admin.workshop.attendance', $workshop),
-                    'fa-solid fa-user-check',
-                    'violet',
+                $attendanceStart = Carbon::instance($workshop->effectiveStartsAt() ?? $workshop->starts_at ?? $endedAt);
+                $attendanceEnd = Carbon::instance($endedAt);
+                $sessionId = null;
+                if ($workshop->isCourse()) {
+                    $firstSession = collect($workshop->effectiveScheduleEntries())
+                        ->first(fn (array $session): bool => isset($session['id'], $session['starts_at'], $session['ends_at']));
+                    if (is_array($firstSession)) {
+                        $sessionId = (string) $firstSession['id'];
+                        $attendanceStart = Carbon::parse($firstSession['starts_at']);
+                        $attendanceEnd = Carbon::parse($firstSession['ends_at']);
+                    }
+                }
+                $ticketQuery = Ticket::query()
+                    ->where('workshop_id', $workshop->getKey())
+                    ->whereIn('status', Ticket::activePurchasedStatuses());
+                $ticketCount = $workshop->registration === 'tickets' ? (clone $ticketQuery)->count() : 0;
+                $attended = $workshop->registration === 'tickets'
+                    ? (clone $ticketQuery)->whereNotNull('attended_at')->count()
+                    : $workshop->attendances()->whereNull('ticket_id')->count();
+                if ($sessionId !== null) {
+                    $attended = (int) DB::table('workshop_session_attendance')
+                        ->where('workshop_id', $workshop->getKey())
+                        ->where('session_id', $sessionId)
+                        ->distinct('ticket_id')
+                        ->count('ticket_id');
+                }
+                $actions[] = $this->attendanceCard(
+                    $workshop,
+                    $attendanceStart,
+                    $attendanceEnd,
+                    $ticketCount,
+                    $attended,
+                    $sessionId,
                 );
             }
 

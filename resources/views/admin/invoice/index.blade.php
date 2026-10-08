@@ -5,6 +5,9 @@
 
     <x-container class="mt-4">
         <x-ui.dynamic-list name="admin-invoice-index">
+        <x-slot:beforePresets>
+            <x-finance.attention-notice kind="invoices" />
+        </x-slot:beforePresets>
         <div
             x-data="{
             invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},

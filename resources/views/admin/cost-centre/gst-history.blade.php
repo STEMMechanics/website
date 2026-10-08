@@ -27,7 +27,7 @@
                     @else
                     <td colspan="3" data-label="Settlement" class="text-center"><x-ui.badge color="gray">Not recorded</x-ui.badge></td>
                     @endif
-                    <td data-mobile-actions class="text-center"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Record a GST settlement" :href="route('admin.cost-centre.gst', ['month' => $row['month']->format('Y-m')])" /></x-ui.row-actions></td>
+                    <td data-mobile-actions class="text-center"><x-ui.row-actions><x-ui.row-action label="Edit GST settlement" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Record a GST settlement" :href="route('admin.cost-centre.gst', ['month' => $row['month']->format('Y-m')])" /></x-ui.row-actions></td>
                 </tr>
             @endforeach
         </tbody>

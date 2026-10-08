@@ -372,7 +372,7 @@ class FileBackupImportService
     {
         $path = Storage::disk('local')->path(FileBackupService::BACKUP_ROOT);
         $freeBytes = @disk_free_space(dirname($path));
-        if (! is_float($freeBytes) && ! is_int($freeBytes)) {
+        if ($freeBytes === false) {
             throw new RuntimeException('Available server storage could not be checked before unpacking.');
         }
 
