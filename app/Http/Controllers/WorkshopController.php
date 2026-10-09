@@ -1409,6 +1409,7 @@ class WorkshopController extends Controller
         $earlyBirdTicketLimitRemaining = $earlyBirdTicketLimit !== null
             ? max(0, $earlyBirdTicketLimit - $soldEarlyBirdTicketCount)
             : null;
+        $ticketChangeNotificationRecipients = $this->resolveWorkshopTicketEmailRecipients($workshop);
 
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
@@ -1417,15 +1418,15 @@ class WorkshopController extends Controller
             'groupSuggestions' => $this->groupSuggestions(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
             'facilitatorOptions' => $this->facilitatorOptions(),
-            'activeTicketCount' => $workshop->activeTicketCount(),
+            'activeTicketCount' => $soldTicketCount,
             'soldTicketCount' => $soldTicketCount,
             'soldEarlyBirdTicketCount' => $soldEarlyBirdTicketCount,
             'reservedTicketCount' => $reservedTicketCount,
             'earlyBirdTicketCount' => $earlyBirdTicketCount,
             'maxTicketsRemaining' => $maxTicketsRemaining,
             'earlyBirdTicketLimitRemaining' => $earlyBirdTicketLimitRemaining,
-            'ticketChangeNotificationRecipients' => $this->resolveWorkshopTicketEmailRecipients($workshop),
-            'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop)),
+            'ticketChangeNotificationRecipients' => $ticketChangeNotificationRecipients,
+            'ticketChangeNotificationRecipientCount' => count($ticketChangeNotificationRecipients),
         ]);
     }
 
@@ -5441,6 +5442,7 @@ class WorkshopController extends Controller
     private function facilitatorOptions(): Collection
     {
         return User::query()
+            ->select(['id', 'firstname', 'surname', 'email'])
             ->whereNotNull('email')
             ->whereRaw("TRIM(email) <> ''")
             ->orderBy('firstname')

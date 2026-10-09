@@ -2,6 +2,11 @@
     $editing = isset($template);
     $seedItems = old('items');
 
+    if (! is_array($seedItems) && is_string(old('items_payload'))) {
+        $decodedItems = json_decode((string) old('items_payload'), true);
+        $seedItems = is_array($decodedItems) ? $decodedItems : null;
+    }
+
     if (! is_array($seedItems)) {
         $seedItems = $editing
             ? $template->items->map(fn ($item) => [
@@ -67,7 +72,15 @@
         <form id="workshop-blueprint-form" method="POST" action="{{ route('admin.workshop-blueprint.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
             items: @js($seedItems),
             itemRowKeySequence: 0,
-            stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => ['id' => (int) $stockItem->id, 'name' => (string) $stockItem->linkLabel(), 'sku' => (string) ($stockItem->sku ?? '')])->values()->all()),
+            stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => [
+                'id' => (int) $stockItem->id,
+                'name' => (string) $stockItem->linkLabel(),
+                'sku' => (string) ($stockItem->sku ?? ''),
+                'status' => (string) ($stockItem->status ?? 'active'),
+                'is_kit' => (bool) ($stockItem->is_kit ?? false),
+                'group_name' => (string) ($stockItem->group?->name ?? ''),
+                'variant_name' => (string) ($stockItem->variant_name ?? ''),
+            ])->values()->all()),
             tasks: @js($seedTasks),
             attachments: @js($seedAttachments),
             attachmentDetails: @js($seedAttachmentDetails),
@@ -363,22 +376,20 @@
                 this.normalizeSort();
             },
             handleRowChange(index) {
-                const isLastRow = index === (this.items.length - 1);
-                if (isLastRow && !this.isBlankItem(this.items[index])) {
-                    this.items.push(this.seededBlankItem(this.items[index]));
-                    this.normalizeSort();
+                const item = this.items[index];
+                if (!item || this.isBlankItem(item)) {
                     return;
                 }
 
-                if (!this.hasSingleTrailingBlank()) {
-                    this.ensureSingleTrailingBlank();
+                if (index === this.items.length - 1) {
+                    this.items.push(this.seededBlankItem(this.items[index]));
+                    this.normalizeSort();
                 }
             },
             normalizeSort() {
-                this.items = this.items.map((item, index) => ({
-                    ...item,
-                    sort_order: (index + 1) * 10,
-                }));
+                this.items.forEach((item, index) => {
+                    item.sort_order = (index + 1) * 10;
+                });
             },
             addItem() {
                 if (!this.hasSingleTrailingBlank()) {
@@ -416,12 +427,26 @@
                     this.ensureSingleTrailingBlank();
                 }
             },
-        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask(); $nextTick(() => initCanvas())" x-on:submit.prevent="await saveDrawing(); submitting = true; $el.submit()" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
+            serializedItems() {
+                return JSON.stringify(this.items
+                    .filter((item) => !this.isBlankItem(item))
+                    .map((item, index) => ({
+                        id: Number.parseInt(String(item.id ?? 0), 10) || null,
+                        item_name: String(item.item_name ?? '').trim(),
+                        stock_item_id: Number.parseInt(String(item.stock_item_id ?? 0), 10) || null,
+                        stock_quantity: item.stock_quantity === '' || item.stock_quantity === undefined ? null : item.stock_quantity,
+                        quantity_type: item.quantity_type,
+                        quantity_value: Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1),
+                        sort_order: (index + 1) * 10,
+                    })));
+            },
+        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask()" x-on:submit.prevent="await saveDrawing(); $refs.itemsPayload.value = serializedItems(); submitting = true; $el.submit()" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
             @csrf
             @if($editing)
                 @method('PUT')
             @endif
 
+            <input x-ref="itemsPayload" type="hidden" name="items_payload" x-bind:value="serializedItems()">
             <input type="hidden" name="tasks_payload" x-bind:value="serializedTasks()">
 
             <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
@@ -613,23 +638,14 @@
                             <template x-for="(item, index) in items" :key="item._rowKey">
                                 <tr class="border-b border-gray-300 last:border-b-0">
                                     <td class="p-2 align-top">
-                                        <input type="hidden" x-model="item.id" :name="!isBlankItem(item) && item.id ? `items[${index}][id]` : null">
-                                        <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
-                                        <input type="hidden" x-model="item.item_name" x-bind:name="!isBlankItem(item) ? `items[${index}][item_name]` : null">
-                                        <input type="hidden" x-model="item.stock_item_id" x-bind:name="!isBlankItem(item) ? `items[${index}][stock_item_id]` : null">
-                                        <input type="hidden" x-model="item.quantity_type" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null">
-                                        <input type="hidden" x-model="item.quantity_value" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_value]` : null">
-                                        <input type="hidden" x-model="item.stock_quantity" x-bind:name="!isBlankItem(item) ? `items[${index}][stock_quantity]` : null">
-
-                                        <x-ui.grid class="md:hidden gap-2">
-                                            <div
-                                                class="sm:col-span-2"
-                                                x-on:stock-item-link-changed="selectStockItem(index)"
-                                                x-on:input="handleRowChange(index)"
-                                                x-on:change="handleRowChange(index)"
-                                            >
-                                                <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
-                                            </div>
+                                        <div
+                                            x-on:stock-item-link-changed="selectStockItem(index)"
+                                            x-on:input="handleRowChange(index)"
+                                            x-on:change="handleRowChange(index)"
+                                        >
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" />
+                                        </div>
+                                        <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Type</label>
@@ -663,15 +679,6 @@
                                             </div>
                                         </x-ui.grid>
 
-                                        <div class="hidden md:block">
-                                            <div
-                                                x-on:stock-item-link-changed="selectStockItem(index)"
-                                                x-on:input="handleRowChange(index)"
-                                                x-on:change="handleRowChange(index)"
-                                            >
-                                                <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
-                                            </div>
-                                        </div>
                                     </td>
                                     <td class="p-2 align-top hidden md:table-cell text-center!">
                                         <x-ui.select
@@ -725,7 +732,7 @@
                 />
             </x-ui.collapsible-section>
 
-            <x-ui.collapsible-section title="Drawing" class="mb-6">
+            <x-ui.collapsible-section title="Drawing" class="mb-6" x-on:toggle="if ($el.open) initCanvas()">
                 <p class="mb-3 text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
                 <input type="hidden" name="run_sheet_canvas_data" x-ref="canvasDataInput" value="{{ old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '') }}">
                 <input type="hidden" name="run_sheet_drawing_data" x-ref="canvasImageInput" value="{{ old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '') }}">
