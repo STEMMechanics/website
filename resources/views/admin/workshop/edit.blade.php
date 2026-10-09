@@ -171,7 +171,7 @@ if (isset($workshop)) {
 }
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs" :description="isset($workshop) ? view('admin.workshop.partials.mast-context', ['workshop' => $workshop]) : null">
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs" :description="isset($workshop) ? new \Illuminate\Support\HtmlString(view('admin.workshop.partials.mast-context', ['workshop' => $workshop])->render()) : null">
         <x-slot>{{ isset($workshop) ? $workshop->title : 'Create Workshop' }}</x-slot>
         @isset($workshop)
             <x-slot:actions>
