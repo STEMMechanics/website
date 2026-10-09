@@ -587,7 +587,7 @@
                             <label class="block text-sm pl-1" x-bind:for="'allocation-amount-' + index">Amount</label>
                             <div class="relative">
                                 <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true">$</span>
-                                <x-ui.input-control type="number" min="0" max="100000" step="0.01" inputmode="decimal" class="mt-1 h-11 w-full pl-7! pr-3 text-right tabular-nums" x-bind:id="'allocation-amount-' + index" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
+                                <input type="number" min="0" max="100000" step="0.01" inputmode="decimal" class="mt-1 block h-11 min-h-11 w-full rounded-lg border border-gray-300 bg-white py-2 pl-7 pr-3 text-right text-sm text-gray-900 tabular-nums focus:border-primary-color focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100" x-bind:id="'allocation-amount-' + index" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
                             </div>
                         </div>
                         <div class="flex items-center justify-end gap-3 md:justify-start md:pb-1">
