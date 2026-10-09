@@ -18,11 +18,9 @@ class StockItem extends Model
 
     public const STOCK_ISSUE_INCREMENT = 1.0;
 
-    public const SHARED_WORKSHOP_RESERVATION_BUFFER_PERCENT = 0.10;
-
     protected $fillable = [
         'name', 'sku', 'image_media_name', 'unit', 'status', 'is_kit', 'on_hand_quantity',
-        'stock_item_group_id', 'variant_name', 'reorder_point', 'shared_workshop_supply', 'replacement_unit_cost_ex_tax',
+        'stock_item_group_id', 'variant_name', 'reorder_point', 'replacement_unit_cost_ex_tax',
         'replacement_cost_currency', 'replacement_cost_source', 'replacement_cost_updated_at',
         'notes',
     ];
@@ -85,7 +83,6 @@ class StockItem extends Model
     protected $casts = [
         'on_hand_quantity' => 'decimal:3',
         'reorder_point' => 'decimal:3',
-        'shared_workshop_supply' => 'boolean',
         'stock_item_group_id' => 'integer',
         'replacement_unit_cost_ex_tax' => 'decimal:4',
         'replacement_cost_updated_at' => 'datetime',
