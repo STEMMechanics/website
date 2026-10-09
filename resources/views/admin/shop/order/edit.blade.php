@@ -1421,6 +1421,15 @@
                                     <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif @if($collectionOpen) openCollection({{ $item->id }}, @js($collectionTypeValue), @js($collectionQtyValue), @js($collectionCollectedAtValue), @js($collectionNotesValue), @js($collectionStateValue)); @endif">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
+                                    $itemStoreUrl = $item->product instanceof \App\Models\Product && $item->product->isActive()
+                                        ? ($item->variant instanceof \App\Models\ProductVariant
+                                            ? ($item->variant->is_active
+                                                ? ($item->variant->url_slug
+                                                    ? route('shop.product.show', ['product' => $item->variant->url_slug])
+                                                    : route('shop.product.show', ['product' => $item->product, 'variant' => $item->variant->id]))
+                                                : route('shop.product.show', $item->product))
+                                            : route('shop.product.show', $item->product))
+                                        : null;
                                 @endphp
                                 <div class="space-y-4">
                                     <div class="grid items-start gap-4 {{ $canBulkSelect ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]' }}">
@@ -1440,9 +1449,19 @@
                                                     {{ $loop->iteration }}
                                                 </div>
                                                 <div class="min-w-0 flex-1">
-                                                    <div class="font-semibold text-gray-900">{{ $item->displayTitle() }}</div>
+                                                    <div class="font-semibold text-gray-900">
+                                                        @if($itemStoreUrl !== null)
+                                                            <a href="{{ $itemStoreUrl }}" target="_blank" rel="noopener noreferrer" aria-label="View {{ $item->displayTitle() }} on the store in a new tab" class="text-primary-color hover:underline">{{ $item->displayTitle() }}</a>
+                                                        @else
+                                                            {{ $item->displayTitle() }}
+                                                        @endif
+                                                    </div>
                                                     <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
-                                                        <span>Qty {{ $item->quantity }}</span>
+                                                        @if((int) $item->quantity > 1)
+                                                            <span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-900 ring-1 ring-inset ring-sky-200">Qty {{ $item->quantity }}</span>
+                                                        @else
+                                                            <span>Qty {{ $item->quantity }}</span>
+                                                        @endif
                                                         @if($itemSku !== '')
                                                             <span>SKU {{ $itemSku }}</span>
                                                         @endif
