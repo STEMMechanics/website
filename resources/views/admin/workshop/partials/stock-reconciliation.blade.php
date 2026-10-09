@@ -165,7 +165,7 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <h3 class="text-sm font-semibold text-slate-800">Other stock used</h3>
-                                <p class="mt-1 text-xs text-slate-500">Add stock items used outside the workshop plan.</p>
+                                <p class="mt-1 text-xs text-slate-500">Add whole stock units used outside the workshop plan. Leave partially used shared supplies, such as masking tape, as manually managed consumables.</p>
                             </div>
                             <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addAdditionalItem()">
                                 <i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add stock item

@@ -50,9 +50,9 @@ class StockInventoryService
         $reservations = StockReservation::query()
             ->whereIn('stock_item_id', $stockItems->map(fn (StockItem $item): int => (int) $item->id)->all())
             ->whereIn('status', StockReservation::ACTIVE_STATUSES)
-            ->get(['stock_item_id', 'source_type', 'source_id', 'remaining_quantity', 'reserved_at']);
+            ->get(['stock_item_id', 'remaining_quantity']);
 
-        return $this->effectiveReservedQuantities($stockItems, $reservations);
+        return $this->sumReservedQuantities($reservations);
     }
 
     /** @param list<int> $stockItemIds
@@ -153,16 +153,7 @@ class StockInventoryService
 
                 $runningWorkshopReserve = 0.0;
                 foreach ($events as $event) {
-                    if ($stockItem->shared_workshop_supply) {
-                        $bufferedReserve = $runningWorkshopReserve > 0.0005
-                            ? $stockItem->roundStockIssueQuantity(
-                                $runningWorkshopReserve * (1 + StockItem::SHARED_WORKSHOP_RESERVATION_BUFFER_PERCENT),
-                            )
-                            : 0;
-                        $runningWorkshopReserve = max((float) $event['quantity'], $bufferedReserve);
-                    } else {
-                        $runningWorkshopReserve += (float) $event['quantity'];
-                    }
+                    $runningWorkshopReserve += (float) $event['quantity'];
 
                     $shortage = $hardReserved + $runningWorkshopReserve - (float) $stockItem->on_hand_quantity;
                     if ($shortage > 0.0005) {
@@ -473,25 +464,10 @@ class StockInventoryService
             }
 
             $reservedQuantity = $stockItem->roundStockIssueQuantity($estimatedUsage);
-            $projectedReservedQuantity = $stockItem->shared_workshop_supply
-                ? $this->effectiveReservedQuantities(
-                    collect([$stockItem]),
-                    $state['reservations'],
-                    [(int) $stockItemId => [[
-                        'stock_item_id' => (int) $stockItemId,
-                        'source_type' => Workshop::class,
-                        'source_id' => (string) $workshop->getKey(),
-                        'remaining_quantity' => $reservedQuantity,
-                        'reserved_at' => now(),
-                        'starts_at' => $workshop->starts_at,
-                    ]]],
-                )[(int) $stockItemId] ?? 0
-                : (float) ($state['reserved'][$stockItemId] ?? 0) + $reservedQuantity;
+            $projectedReservedQuantity = (float) ($state['reserved'][$stockItemId] ?? 0) + $reservedQuantity;
             if ($projectedReservedQuantity > (float) $stockItem->on_hand_quantity + 0.0005) {
                 throw ValidationException::withMessages([
-                    'pick_list_custom_items' => $stockItem->shared_workshop_supply
-                        ? 'There is not enough stock available for this workshop after cutting allowance, whole-unit picking, and the shared workshop forecast are applied. Receive or adjust stock before reserving it.'
-                        : 'There is not enough stock available for this workshop after cutting allowance and whole-unit picking are applied. Receive or adjust stock before reserving it.',
+                    'pick_list_custom_items' => 'There is not enough stock available for this workshop after cutting allowance and whole-unit picking are applied. Receive or adjust stock before reserving it.',
                 ]);
             }
 
@@ -1833,9 +1809,7 @@ class StockInventoryService
             throw ValidationException::withMessages(['actual_used' => $lockedItem->name.' is no longer active.']);
         }
 
-        $reservedQuantity = $lockedItem->shared_workshop_supply
-            ? $this->hardReservedQuantityForStockItem($lockedItem)
-            : $lockedItem->activeReservedQuantity();
+        $reservedQuantity = $lockedItem->activeReservedQuantity();
         $unreservedQuantity = max(0, (float) $lockedItem->on_hand_quantity - $reservedQuantity);
         if ($unreservedQuantity + 0.0005 < $quantity) {
             throw ValidationException::withMessages([
@@ -1874,122 +1848,15 @@ class StockInventoryService
         $reservation->save();
     }
 
-    private function hardReservedQuantityForStockItem(StockItem $stockItem): float
-    {
-        return (float) $stockItem->activeReservations()
-            ->where(function ($query): void {
-                $query->whereNull('source_type')
-                    ->orWhere('source_type', '!=', Workshop::class);
-            })
-            ->sum('remaining_quantity');
-    }
-
-    /**
-     * Shared workshop supplies keep each workshop's full pack quantity visible,
-     * while the stock pool carries only the largest compounded forecast.
-     * The 10% buffer compounds once for each additional active workshop.
-     *
-     * @param  Collection<int, StockItem>  $stockItems
-     * @param  Collection<int, StockReservation>  $reservations
-     * @param  array<int, list<array<string, mixed>>>  $additionalWorkshopReservations
-     * @return array<int, float>
+    /** @param Collection<int, StockReservation> $reservations
+     *  @return array<int, float>
      */
-    private function effectiveReservedQuantities(
-        Collection $stockItems,
-        Collection $reservations,
-        array $additionalWorkshopReservations = [],
-    ): array {
-        $itemsById = $stockItems
-            ->filter(fn ($item): bool => $item instanceof StockItem)
-            ->keyBy(fn (StockItem $item): int => (int) $item->id);
-        $rowsByItem = $reservations->groupBy(fn (StockReservation $reservation): int => (int) $reservation->stock_item_id);
-        $sharedItemIds = $itemsById
-            ->filter(fn (StockItem $item): bool => (bool) $item->shared_workshop_supply)
-            ->keys()
-            ->map(fn ($id): int => (int) $id)
+    private function sumReservedQuantities(Collection $reservations): array
+    {
+        return $reservations
+            ->groupBy(fn (StockReservation $reservation): int => (int) $reservation->stock_item_id)
+            ->map(fn (Collection $rows): float => (float) $rows->sum('remaining_quantity'))
             ->all();
-        $sharedItemIdLookup = array_fill_keys($sharedItemIds, true);
-
-        $workshopIds = $reservations
-            ->filter(fn (StockReservation $reservation): bool =>
-                isset($sharedItemIdLookup[(int) $reservation->stock_item_id])
-                    && $reservation->source_type === Workshop::class
-            )
-            ->pluck('source_id')
-            ->merge(collect($additionalWorkshopReservations)
-                ->flatMap(fn (array $rows): array => array_map(
-                    fn (array $row): string => (string) ($row['source_id'] ?? ''),
-                    $rows,
-                )))
-            ->map(fn ($id): string => (string) $id)
-            ->filter(fn (string $id): bool => $id !== '')
-            ->unique()
-            ->values();
-        $workshopStartTimes = $workshopIds->isNotEmpty()
-            ? Workshop::query()
-                ->whereIn('id', $workshopIds)
-                ->get(['id', 'starts_at'])
-                ->mapWithKeys(fn (Workshop $workshop): array => [(string) $workshop->getKey() => $workshop->starts_at])
-            : collect();
-
-        foreach ($additionalWorkshopReservations as $rows) {
-            foreach ($rows as $row) {
-                $sourceId = (string) ($row['source_id'] ?? '');
-                if ($sourceId !== '' && ! $workshopStartTimes->has($sourceId) && isset($row['starts_at'])) {
-                    $workshopStartTimes->put($sourceId, $row['starts_at']);
-                }
-            }
-        }
-
-        $reserved = [];
-        foreach ($itemsById as $stockItemId => $stockItem) {
-            $rows = $rowsByItem->get((int) $stockItemId, collect());
-            $extraRows = collect($additionalWorkshopReservations[(int) $stockItemId] ?? []);
-            if (! $stockItem->shared_workshop_supply) {
-                $reserved[(int) $stockItemId] = (float) $rows->sum('remaining_quantity')
-                    + (float) $extraRows->sum('remaining_quantity');
-
-                continue;
-            }
-
-            $hardReservedQuantity = (float) $rows
-                ->filter(fn (StockReservation $reservation): bool => $reservation->source_type !== Workshop::class)
-                ->sum('remaining_quantity');
-            $workshopRows = $rows
-                ->filter(fn (StockReservation $reservation): bool => $reservation->source_type === Workshop::class)
-                ->concat($extraRows)
-                ->filter(fn ($reservation): bool => (float) data_get($reservation, 'remaining_quantity', 0) > 0.0005)
-                ->groupBy(fn ($reservation): string => (string) data_get($reservation, 'source_id', ''));
-            $events = $workshopRows
-                ->map(function (Collection $eventRows, string $sourceId) use ($workshopStartTimes): array {
-                    $startsAt = $workshopStartTimes->get($sourceId)
-                        ?? data_get($eventRows->first(), 'starts_at')
-                        ?? data_get($eventRows->first(), 'reserved_at');
-
-                    return [
-                        'source_id' => $sourceId,
-                        'quantity' => (float) $eventRows->sum(fn ($reservation): float => (float) data_get($reservation, 'remaining_quantity', 0)),
-                        'sort_key' => $this->reservationDateSortKey($startsAt) ?? '9999-12-31 23:59:59',
-                    ];
-                })
-                ->values()
-                ->all();
-            usort($events, fn (array $left, array $right): int => [$left['sort_key'], $left['source_id']] <=> [$right['sort_key'], $right['source_id']]);
-
-            $sharedWorkshopReserve = 0.0;
-            foreach ($events as $event) {
-                $bufferedReserve = $sharedWorkshopReserve > 0.0005
-                    ? $stockItem->roundStockIssueQuantity(
-                        $sharedWorkshopReserve * (1 + StockItem::SHARED_WORKSHOP_RESERVATION_BUFFER_PERCENT),
-                    )
-                    : 0;
-                $sharedWorkshopReserve = max((float) $event['quantity'], $bufferedReserve);
-            }
-
-            $reserved[(int) $stockItemId] = $hardReservedQuantity + $sharedWorkshopReserve;
-        }
-
-        return $reserved;
     }
 
     private function reservationDateSortKey(mixed $value): ?string
@@ -2004,9 +1871,7 @@ class StockInventoryService
         return null;
     }
 
-    /**
-     * @return array{items: Collection<int, StockItem>, reserved: array<int, float>, reservations: Collection<int, StockReservation>}
-     */
+    /** @return array{items: Collection<int, StockItem>, reserved: array<int, float>} */
     private function inventoryState(
         ?array $stockItemIds = null,
         bool $lockForUpdate = false,
@@ -2031,14 +1896,14 @@ class StockInventoryService
                         ->orWhere('source_id', '!=', (string) ($excludedReservationSource['id'] ?? ''));
                 }))
                 ->when($lockForUpdate, fn ($query) => $query->orderBy('id')->lockForUpdate())
-                ->get(['stock_item_id', 'source_type', 'source_id', 'remaining_quantity', 'reserved_at']);
-        $reserved = $this->effectiveReservedQuantities($items, $reservedRows);
+                ->get(['stock_item_id', 'remaining_quantity']);
+        $reserved = $this->sumReservedQuantities($reservedRows);
 
-        return ['items' => $items, 'reserved' => $reserved, 'reservations' => $reservedRows];
+        return ['items' => $items, 'reserved' => $reserved];
     }
 
     /** @param Collection<int, StockItem> $roots
-     *  @return array{items: Collection<int, StockItem>, reserved: array<int, float>, reservations: Collection<int, StockReservation>}
+     *  @return array{items: Collection<int, StockItem>, reserved: array<int, float>}
      */
     private function lockInventoryTree(Collection $roots, ?array $excludedReservationSource = null): array
     {
@@ -2083,7 +1948,7 @@ class StockInventoryService
             return $state;
         }
 
-        return ['items' => collect(), 'reserved' => [], 'reservations' => collect()];
+        return ['items' => collect(), 'reserved' => []];
     }
 
     /** @param array<int, float> $allocated */

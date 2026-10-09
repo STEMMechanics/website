@@ -619,6 +619,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold">Pick List</h2>
                 </div>
+                <p class="mb-3 text-sm text-gray-600">Link a stock item only when it is issued to a participant or consumed as a whole stock unit. Leave partially used shared supplies, such as masking tape, unlinked and count them manually.</p>
 
                 <template x-if="items.length === 0">
                     <p class="text-sm text-gray-600">No items yet. Add your first pick list item.</p>
