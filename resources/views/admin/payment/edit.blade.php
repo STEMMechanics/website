@@ -505,14 +505,16 @@
                             <label class="block text-sm pl-1">Invoice</label>
                             <x-ui.button variant="plain"
                                 type="button"
-                                class="disabled:bg-gray-100 bg-white block mt-1 px-3 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 shadow-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                class="disabled:bg-gray-100 bg-white mt-1 flex h-11 w-full items-center rounded-lg border border-gray-300 px-3 py-2 text-left text-sm text-gray-900 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                x-bind:aria-label="selectedInvoiceLabel() + (selectedInvoiceMeta() ? ' · ' + selectedInvoiceMeta() : '')"
+                                x-bind:title="selectedInvoiceMeta()"
                                 x-on:click="open = !open; if (open) { focusSearch(); }"
                                 :disabled="! $canEditAllocations"
                             >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0">
-                                        <div class="truncate font-medium" x-text="selectedInvoiceLabel()"></div>
-                                        <div class="mt-1 text-xs text-gray-500" x-show="selectedInvoiceMeta()" x-cloak x-text="selectedInvoiceMeta()"></div>
+                                <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                                    <div class="flex min-w-0 flex-1 items-center gap-2">
+                                        <div class="min-w-0 truncate font-medium" x-text="selectedInvoiceLabel()"></div>
+                                        <div class="hidden max-w-[40%] truncate text-xs text-gray-500 lg:block" x-show="selectedInvoiceMeta()" x-cloak x-text="selectedInvoiceMeta()"></div>
                                     </div>
                                     <div class="flex shrink-0 items-center gap-2 text-xs text-gray-500">
                                         <template x-if="currentInvoice()">
