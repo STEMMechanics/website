@@ -174,6 +174,7 @@ if (isset($workshop)) {
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
         <x-slot>{{ isset($workshop) ? $workshop->title : 'Create Workshop' }}</x-slot>
         @isset($workshop)
+            <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
             <x-slot:actions>
                 <x-admin.workshop-public-page-action :workshop="$workshop" />
             </x-slot:actions>

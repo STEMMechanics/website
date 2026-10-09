@@ -17,6 +17,7 @@
 
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
         <x-slot:actions>
             <x-ui.button type="button" color="mast" class="gap-2" x-data x-on:click.prevent="$dispatch('open-create-workshop-ticket')">
                 <i class="fa-solid fa-plus" aria-hidden="true"></i> Create ticket
@@ -73,9 +74,6 @@
                         ? '$'.number_format($earlyBirdPriceAmount, 2)
                         : 'Free';
                 @endphp
-                <div class="text-sm text-gray-600">
-                    <span class="font-semibold">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}
-                </div>
                 <div class="text-sm text-gray-600">
                     <span class="font-semibold">Tickets:</span> {{ (int) ($activeTicketCount ?? 0) }} / {{ $workshop->max_tickets !== null ? (int) $workshop->max_tickets : 'Unlimited' }}
                 </div>
