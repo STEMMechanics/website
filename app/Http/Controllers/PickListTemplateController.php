@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PickListTemplateController extends Controller
 {
@@ -52,7 +53,6 @@ class PickListTemplateController extends Controller
     public function create()
     {
         return view('admin.pick-list-template.edit', [
-            'itemSuggestions' => $this->itemSuggestions(),
             'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
@@ -91,7 +91,6 @@ class PickListTemplateController extends Controller
 
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
-            'itemSuggestions' => $this->itemSuggestions(),
             'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
@@ -271,6 +270,19 @@ class PickListTemplateController extends Controller
             ->all();
         $request->merge(['tasks' => $tasks]);
 
+        if ($request->filled('items_payload')) {
+            Validator::make($request->only('items_payload'), [
+                'items_payload' => ['required', 'json'],
+            ])->validate();
+            $decodedItems = json_decode((string) $request->input('items_payload'), true);
+            if (! is_array($decodedItems)) {
+                throw ValidationException::withMessages([
+                    'items_payload' => 'Pick list items format is invalid.',
+                ]);
+            }
+            $request->merge(['items' => $decodedItems]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -306,6 +318,7 @@ class PickListTemplateController extends Controller
             'tasks.*.reminder_offset_days' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', 'integer', 'between:-365,365'],
             'tasks.*.reminder_time' => ['nullable', 'required_if:tasks.*.reminder_enabled,1', Rule::in(['06:00', '12:00', '16:00'])],
             'tasks.*.sort_order' => ['nullable', 'integer', 'min:0'],
+            'items_payload' => ['sometimes', 'nullable', 'string'],
             'items' => ['nullable', 'array'],
             'items.*.id' => array_filter([
                 'nullable',
@@ -477,23 +490,6 @@ class PickListTemplateController extends Controller
         }
 
         $template->tasks()->whereNotIn('id', $keptIds)->delete();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function itemSuggestions(): array
-    {
-        return PickListTemplateItem::query()
-            ->whereRaw("TRIM(item_name) <> ''")
-            ->select('item_name')
-            ->distinct()
-            ->orderBy('item_name')
-            ->pluck('item_name')
-            ->map(fn ($value) => trim((string) $value))
-            ->filter(fn (string $value) => $value !== '')
-            ->values()
-            ->all();
     }
 
     /** @return list<array<string, mixed>> */

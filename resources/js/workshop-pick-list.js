@@ -1090,7 +1090,6 @@ const registerWorkshopPickListPage = () => {
         shelfPickRows: Array.isArray(config.shelfPickRows) ? config.shelfPickRows : [],
         kitSummaries: Array.isArray(config.kitSummaries) ? config.kitSummaries : [],
         stockShortageCount: Math.max(0, Number.parseInt(String(config.stockShortageCount ?? 0), 10) || 0),
-        itemSuggestions: Array.isArray(config.itemSuggestions) ? config.itemSuggestions : [],
         stockItems: Array.isArray(config.stockItems) ? config.stockItems : [],
         isCustomized: Boolean(config.isCustomized),
         itemsEditMode: false,
@@ -1130,11 +1129,6 @@ const registerWorkshopPickListPage = () => {
             this.pickListViewportWidth = window.innerWidth;
             this.customItems = this.cloneItems(this.customItems);
             this.templateItems = this.cloneItems(this.templateItems);
-            this.itemSuggestions = this.itemSuggestions
-                .map((item) => String(item))
-                .map((item) => item.trim())
-                .filter((item) => item !== '');
-
             const validShelfRowKeys = this.currentItemIds();
             this.checkedIds = this.checkedIds
                 .map((id) => String(id))
@@ -1147,7 +1141,6 @@ const registerWorkshopPickListPage = () => {
 
             this.$nextTick(() => {
                 this.resizeNotesField();
-                this.initCanvas();
             });
         },
         destroy() {

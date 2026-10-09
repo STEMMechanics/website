@@ -9,8 +9,11 @@
 ])
 
 @php
-    $catalog = collect($stockItems)
-        ->map(function ($stockItem) {
+    $usesStockItemsExpression = is_string($stockItemsExpression) && trim($stockItemsExpression) !== '';
+    $catalog = $usesStockItemsExpression
+        ? []
+        : collect($stockItems)
+            ->map(function ($stockItem) {
                 return [
                     'id' => (int) data_get($stockItem, 'id'),
                     'name' => $stockItem instanceof \App\Models\StockItem
@@ -22,15 +25,15 @@
                     'group_name' => (string) data_get($stockItem, 'group.name', ''),
                     'variant_name' => (string) data_get($stockItem, 'variant_name', ''),
                 ];
-        })
-        ->filter(fn (array $stockItem): bool => $stockItem['id'] > 0 && $stockItem['name'] !== '')
-        ->values()
-        ->all();
+            })
+            ->filter(fn (array $stockItem): bool => $stockItem['id'] > 0 && $stockItem['name'] !== '')
+            ->values()
+            ->all();
 @endphp
 
 <div
     x-id="['stock-item-options', 'stock-item-input']"
-    @if(is_string($stockItemsExpression) && trim($stockItemsExpression) !== '')
+    @if($usesStockItemsExpression)
         x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }})"
     @else
         x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog))"
