@@ -81,6 +81,7 @@
                 'group_name' => (string) ($stockItem->group?->name ?? ''),
                 'variant_name' => (string) ($stockItem->variant_name ?? ''),
             ])->values()->all()),
+            blueprintItemNames: @js($blueprintItemNames ?? []),
             tasks: @js($seedTasks),
             attachments: @js($seedAttachments),
             attachmentDetails: @js($seedAttachmentDetails),
@@ -339,6 +340,14 @@
                 const stockItem = this.stockItems.find((option) => Number(option.id) === stockItemId);
 
                 return stockItem?.name || '';
+            },
+            blueprintTextSuggestions() {
+                const names = [
+                    ...this.blueprintItemNames,
+                    ...this.items.map((item) => item.item_name || ''),
+                ].map((name) => String(name || '').trim()).filter(Boolean);
+
+                return [...new Map(names.map((name) => [name.toLowerCase(), name])).values()];
             },
             selectStockItem(index) {
                 const item = this.items[index];
@@ -643,7 +652,7 @@
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :allow-linked-item-text-edit="true" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" item-name-suggestions-expression="blueprintTextSuggestions()" :allow-linked-item-text-edit="true" />
                                         </div>
                                         <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">

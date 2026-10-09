@@ -54,6 +54,7 @@ class PickListTemplateController extends Controller
     {
         return view('admin.pick-list-template.edit', [
             'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
+            'blueprintItemNames' => $this->blueprintItemNameSuggestions(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
         ]);
@@ -92,6 +93,7 @@ class PickListTemplateController extends Controller
         return view('admin.pick-list-template.edit', [
             'template' => $pickListTemplate,
             'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
+            'blueprintItemNames' => $this->blueprintItemNameSuggestions(),
             'defaultSocialTasks' => $this->defaultSocialTasks(),
             'workshopCategories' => WorkshopCategory::query()->orderBy('name')->get(),
         ]);
@@ -242,6 +244,20 @@ class PickListTemplateController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="workshop-blueprint-'.$pickListTemplate->id.'.pdf"',
         ]);
+    }
+
+    /** @return array<int, string> */
+    private function blueprintItemNameSuggestions(): array
+    {
+        return PickListTemplateItem::query()
+            ->whereNotNull('item_name')
+            ->orderBy('item_name')
+            ->pluck('item_name')
+            ->map(fn ($name): string => trim((string) $name))
+            ->filter(fn (string $name): bool => $name !== '')
+            ->unique(fn (string $name): string => mb_strtolower($name))
+            ->values()
+            ->all();
     }
 
     private function validateRequest(Request $request, ?PickListTemplate $template = null): array
