@@ -136,7 +136,6 @@ class WorkshopPickListController extends Controller
             'stockShortageCount' => $shelfPickList['shortage_count'],
             'customItems' => $workshop->pick_list_is_customized ? $resolvedItems->values()->all() : [],
             'isCustomized' => (bool) $workshop->pick_list_is_customized,
-            'itemSuggestions' => $this->itemSuggestions($resolvedItems),
             'stockItems' => $stockItems,
             'canReconcileWorkshopStock' => ! in_array((string) $workshop->status, ['draft', 'cancelled'], true)
                 && $stockReconciliationTime !== null
@@ -504,28 +503,6 @@ class WorkshopPickListController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="workshop-'.$workshop->id.'-plan.pdf"',
         ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function itemSuggestions(Collection $resolvedItems): array
-    {
-        $templateSuggestions = PickListTemplateItem::query()
-            ->whereRaw("TRIM(item_name) <> ''")
-            ->select('item_name')
-            ->distinct()
-            ->orderBy('item_name')
-            ->pluck('item_name')
-            ->map(fn ($value) => trim((string) $value))
-            ->filter(fn (string $value) => $value !== '');
-
-        return $templateSuggestions
-            ->merge($resolvedItems->pluck('item_name')->map(fn ($value) => trim((string) $value)))
-            ->filter(fn (string $value) => $value !== '')
-            ->unique()
-            ->values()
-            ->all();
     }
 
     /**

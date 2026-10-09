@@ -38,8 +38,15 @@
                 shelfPickRows: @js($shelfPickRows ?? []),
                 kitSummaries: @js($kitSummaries ?? []),
                 stockShortageCount: @js((int) ($stockShortageCount ?? 0)),
-                itemSuggestions: @js($itemSuggestions ?? []),
-                stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => ['id' => (int) $stockItem->id, 'name' => (string) $stockItem->linkLabel(), 'sku' => (string) ($stockItem->sku ?? '')])->values()->all()),
+                stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => [
+                    'id' => (int) $stockItem->id,
+                    'name' => (string) $stockItem->linkLabel(),
+                    'sku' => (string) ($stockItem->sku ?? ''),
+                    'status' => (string) ($stockItem->status ?? 'active'),
+                    'is_kit' => (bool) ($stockItem->is_kit ?? false),
+                    'group_name' => (string) ($stockItem->group?->name ?? ''),
+                    'variant_name' => (string) ($stockItem->variant_name ?? ''),
+                ])->values()->all()),
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
@@ -68,6 +75,7 @@
                 x-bind:name="customItemsEnabled() && !itemsEditMode ? 'pick_list_custom_items' : null"
                 x-bind:value="customItemsEnabled() && !itemsEditMode ? JSON.stringify(normalizeCustomItems()) : ''"
             >
+            <input type="hidden" name="reset_pick_list_customization" :value="resetCustomization ? '1' : '0'">
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
@@ -188,6 +196,24 @@
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Pick List</h2>
+                    @if($workshop->pickListTemplate && count($templateItems ?? []) > 0)
+                        <div class="flex shrink-0 items-center gap-3 text-sm" x-show="isCustomized" x-cloak>
+                            <x-ui.button
+                                type="button"
+                                variant="plain"
+                                class="text-primary-color hover:underline disabled:opacity-50"
+                                x-bind:disabled="saving"
+                                x-on:click.stop.prevent="resetToTemplate()"
+                            >Revert to blueprint</x-ui.button>
+                            <x-ui.button
+                                type="button"
+                                variant="plain"
+                                class="text-primary-color hover:underline disabled:opacity-50"
+                                x-bind:disabled="saving || itemsEditMode"
+                                x-on:click.stop.prevent="addMissingBlueprintItems()"
+                            >Amend missing blueprint items</x-ui.button>
+                        </div>
+                    @endif
                     <span x-show="stockShortageCount > 0" x-cloak class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900" role="status">
                         <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                         <span x-text="stockShortageCount === 1 ? '1 stock shortage' : `${stockShortageCount} stock shortages`"></span>
@@ -242,17 +268,6 @@
                     @endif
 
                     <div class="flex flex-col sm:flex-row gap-2">
-                        <x-ui.button
-                            type="button"
-                            variant="plain"
-                            class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
-                            x-show="isCustomized && templateItems.length > 0 && !itemsEditMode"
-                            x-cloak
-                            x-bind:disabled="saving"
-                            x-on:click="addMissingBlueprintItems()"
-                            aria-label="Add missing items from blueprint"
-                            title="Add missing items from blueprint"
-                        ><i class="fa-solid fa-arrow-down-to-bracket" aria-hidden="true"></i></x-ui.button>
                         <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-bind:disabled="saving" x-on:click="startItemEditing()">Edit Items</x-ui.button>
                     </div>
                 </div>
@@ -361,7 +376,7 @@
                                             x-on:input="handleCustomItemChange(index)"
                                             x-on:change="handleCustomItemChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field :stock-items="$stockItems ?? []" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" />
                                         </div>
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3 text-center!">
@@ -440,7 +455,7 @@
             </div>
             </details>
 
-            <details class="group mb-8">
+            <details class="group mb-8" x-on:toggle="if ($el.open) initCanvas()">
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Drawing</h2>
