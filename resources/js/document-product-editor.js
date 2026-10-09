@@ -21,6 +21,152 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
     findProduct(productId) {
         return this.catalogProducts.find((product) => parseInt(product.id || 0) === parseInt(productId || 0)) || null;
     },
+    productSearchState(item) {
+        if (!item.product_search || typeof item.product_search !== 'object') {
+            const product = this.findProduct(item.source_id);
+            item.product_search = {
+                query: product?.title || '',
+                open: false,
+                selectedIndex: 0,
+                top: 0,
+                left: 0,
+                width: 0,
+                maxHeight: 288,
+                activeId: null,
+            };
+        }
+
+        return item.product_search;
+    },
+    productSuggestions(item) {
+        const query = String(this.productSearchState(item).query || '').trim().toLocaleLowerCase();
+        if (!query) {
+            return [];
+        }
+
+        return this.catalogProducts
+            .map((product) => {
+                const title = String(product.title || '').toLocaleLowerCase();
+                const sku = String(product.sku || '').toLocaleLowerCase();
+                const titleIndex = title.indexOf(query);
+                const skuIndex = sku.indexOf(query);
+                if (titleIndex < 0 && skuIndex < 0) {
+                    return null;
+                }
+
+                const rank = title === query || sku === query ? 0
+                    : title.startsWith(query) || sku.startsWith(query) ? 1
+                        : titleIndex >= 0 ? 2 : 3;
+
+                return { product, rank };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.rank - b.rank || String(a.product.title || '').localeCompare(String(b.product.title || '')))
+            .slice(0, 8)
+            .map(({ product }) => product);
+    },
+    positionProductSuggestions(item, input) {
+        if (!(input instanceof HTMLElement)) {
+            return;
+        }
+
+        const rect = input.getBoundingClientRect();
+        const viewportPadding = 8;
+        const state = this.productSearchState(item);
+        const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+        const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding));
+        const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - 4;
+        const spaceAbove = rect.top - viewportPadding - 4;
+        const opensBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+        const availableHeight = Math.max(80, Math.min(288, opensBelow ? spaceBelow : spaceAbove));
+
+        state.top = opensBelow ? rect.bottom + 4 : Math.max(viewportPadding, rect.top - availableHeight - 4);
+        state.left = left;
+        state.width = width;
+        state.maxHeight = availableHeight;
+    },
+    openProductSuggestions(item, input, activeId = null) {
+        const state = this.productSearchState(item);
+        state.open = true;
+        state.selectedIndex = 0;
+        state.activeId = activeId;
+        this.positionProductSuggestions(item, input);
+    },
+    closeProductSuggestions(item, activeId = null) {
+        const state = this.productSearchState(item);
+        if (activeId === null || state.activeId === activeId) {
+            state.open = false;
+        }
+    },
+    moveProductSuggestion(item, step, input, activeId = null) {
+        const state = this.productSearchState(item);
+        if (!state.open || state.activeId !== activeId) {
+            this.openProductSuggestions(item, input, activeId);
+            return;
+        }
+
+        const count = this.productSuggestions(item).length;
+        if (!count) {
+            return;
+        }
+
+        state.selectedIndex = (state.selectedIndex + step + count) % count;
+    },
+    clearProductSelection(item) {
+        item.source_id = '';
+        item.source_type = null;
+        item.source_variant_id = 0;
+        item.store_context = null;
+        item.description = '';
+        item.product_selection_changed = false;
+        item.saved_pricing = null;
+        item.unit_price = '0.00';
+        item.unit_price_ex_tax = '0.00';
+        item.unit_price_inc_tax = '0.00';
+        if (item.details_json && typeof item.details_json === 'object') {
+            delete item.details_json.store_context;
+            delete item.details_json.variant_id;
+            delete item.details_json.inclusive_unit_price;
+        }
+    },
+    searchProducts(item, index, value, input, activeId = null) {
+        const state = this.productSearchState(item);
+        if (this.findProduct(item.source_id)) {
+            this.clearProductSelection(item);
+        }
+
+        state.query = String(value || '');
+        state.open = true;
+        state.selectedIndex = 0;
+        state.activeId = activeId;
+        this.positionProductSuggestions(item, input);
+        this.serializeLineItems();
+    },
+    chooseProductSuggestion(item, index, product) {
+        if (!product || this.isLocked) {
+            return;
+        }
+
+        const state = this.productSearchState(item);
+        if (parseInt(item.source_id || 0, 10) !== parseInt(product.id || 0, 10)) {
+            item.source_id = String(product.id);
+            item.source_variant_id = '0';
+        }
+        state.query = String(product.title || '');
+        state.open = false;
+        state.selectedIndex = 0;
+        this.applyProductSelection(index);
+    },
+    confirmProductSuggestion(item, index) {
+        const suggestions = this.productSuggestions(item);
+        if (!suggestions.length) {
+            return;
+        }
+
+        const state = this.productSearchState(item);
+        const selected = suggestions[Math.min(state.selectedIndex, suggestions.length - 1)];
+        this.chooseProductSuggestion(item, index, selected);
+    },
     normalizeSelectionValue(value, fallback = '') {
         const numeric = parseInt(value || 0, 10);
         if (Number.isNaN(numeric) || numeric < 0) {
@@ -77,6 +223,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         delete item.details_json?.store_context;
         delete item.details_json?.variant_id;
         item.source_variant_id = 0;
+        item.product_search = null;
         item.description = this.defaultDescriptionForKind(item.kind);
         item.notes = item.kind === 'custom' ? item.notes : '';
         if (item.kind === 'product') {
@@ -108,9 +255,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         const product = this.findProduct(item?.source_id);
         if (!item || this.isLocked) return;
         if (!product) {
-            this.applyKind(index);
-            item.unit_price_inc_tax = '0.00';
-            item.saved_pricing = null;
+            this.clearProductSelection(item);
             this.serializeLineItems();
             return;
         }

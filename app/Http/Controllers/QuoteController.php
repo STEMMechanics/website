@@ -688,8 +688,11 @@ class QuoteController extends Controller
             $quantity = (float) ($item['quantity'] ?? 0);
             $unitPrice = (float) ($item['unit_price'] ?? 0);
             $gstApplicable = filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN);
+            $isProductLine = (string) ($item['kind'] ?? '') === 'product';
+            $hasSelectedProduct = (int) ($item['source_id'] ?? 0) > 0
+                || (int) data_get($item, 'store_context.product_id', 0) > 0;
 
-            if ($description === '' || $quantity <= 0) {
+            if (($description === '' || $quantity <= 0) && (! $isProductLine || $hasSelectedProduct)) {
                 continue;
             }
 

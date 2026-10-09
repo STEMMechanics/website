@@ -13,6 +13,8 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Quote;
 use App\Models\StoreOrder;
 use App\Models\TaxAdjustment;
@@ -152,6 +154,7 @@ class InvoiceController extends Controller
         $validated = $this->validateRequest($request);
         $this->validateQuoteUserMatch($validated['quote_id'] ?? null, $validated['user_id'] ?? null);
         $lineItems = $this->extractLineItems($request);
+        $this->validateProductLineItems($lineItems);
 
         $invoice = new Invoice();
         $invoice->fill($validated);
@@ -332,6 +335,7 @@ class InvoiceController extends Controller
         }
 
         $lineItems = $this->extractLineItems($request, $invoice);
+        $this->validateProductLineItems($lineItems);
 
         $invoice->fill($validated);
         $invoice->scheduled_email = $request->boolean('scheduled_email');
@@ -2262,6 +2266,38 @@ class InvoiceController extends Controller
         return $lineItems;
     }
 
+    private function validateProductLineItems(array $lineItems): void
+    {
+        foreach ($lineItems as $lineItem) {
+            if ((string) ($lineItem['kind'] ?? '') !== 'product') {
+                continue;
+            }
+
+            $productId = (int) ($lineItem['source_id'] ?? 0);
+            $productSelected = ($lineItem['source_type'] ?? null) === Product::class
+                && $productId > 0
+                && Product::query()->whereKey($productId)->exists();
+
+            if (! $productSelected) {
+                throw ValidationException::withMessages([
+                    'line_items_json' => 'Each store product line must have a store product selected from the suggestions.',
+                ]);
+            }
+
+            $variantId = (int) (data_get($lineItem, 'details_json.variant_id')
+                ?? data_get($lineItem, 'details_json.store_context.variant_id')
+                ?? 0);
+            if ($variantId > 0 && ! ProductVariant::query()
+                ->whereKey($variantId)
+                ->where('product_id', $productId)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'line_items_json' => 'Choose a valid variant for each store product line.',
+                ]);
+            }
+        }
+    }
+
     private function squareDateTime($value): ?Carbon
     {
         $raw = trim((string) $value);
@@ -2529,13 +2565,14 @@ class InvoiceController extends Controller
         $item = \App\Services\Finance\WorkshopLine::normalize($item);
         $description = trim((string) ($item['description'] ?? ''));
         $notes = trim((string) ($item['notes'] ?? ''));
+        $kind = trim((string) ($item['kind'] ?? 'generic')) ?: 'generic';
         $quantity = (float) ($item['quantity'] ?? $item['qty'] ?? 0);
         $unitPriceExTax = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
         $taxRate = array_key_exists('tax_rate', $item)
             ? (float) $item['tax_rate']
             : (filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN) ? 0.10 : 0.00);
 
-        if ($description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
+        if ($kind !== 'product' && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
             return null;
         }
 
@@ -2557,7 +2594,7 @@ class InvoiceController extends Controller
 
         return [
             'id' => isset($item['id']) ? (int) $item['id'] : null,
-            'kind' => trim((string) ($item['kind'] ?? 'generic')) ?: 'generic',
+            'kind' => $kind,
             'description' => $description,
             'notes' => $notes,
             'details_json' => is_array($item['details_json'] ?? null) ? $item['details_json'] : [],
