@@ -1,4 +1,8 @@
 <x-layout-kiosk title="Workshop Sign-In">
+    @php
+        $workshopStartsAt = $workshop->effectiveStartsAt() ?? $workshop->starts_at;
+        $workshopEndsAt = $workshop->effectiveEndsAt() ?? $workshop->ends_at;
+    @endphp
     <header class="p-4 mx-auto max-w-2xl flex justify-between items-center">
         <img src="{{ asset('logo.svg') }}" alt="STEMMechanics" class="h-10 w-auto">
         <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="inline-block text-sm text-gray-500 hover:text-primary-color">Exit Kiosk</a>
@@ -8,7 +12,13 @@
             <div class="mb-4 text-center">
                 <div class="text-2xl font-bold">Sign-In Sheet</div>
                 <div class="text-sm text-gray-600">{{ $workshop->title }}</div>
-                <div class="text-xs text-gray-500">{{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }} · {{ $workshop->getLocationName() }}</div>
+                <div class="mt-1 space-y-0.5 text-xs text-gray-500">
+                    <div>Starts: {{ $workshopStartsAt?->format('D j M Y, g:i a') ?? 'Date not set' }}</div>
+                    @if($workshopEndsAt)
+                        <div>Ends: {{ $workshopEndsAt->format('D j M Y, g:i a') }}</div>
+                    @endif
+                    <div>Location: {{ $workshop->getLocationDisplay() }}</div>
+                </div>
             </div>
 
             <form method="POST" action="{{ route('admin.workshop.attendance.dropin.store', $workshop) }}" class="grid grid-cols-1 gap-3">

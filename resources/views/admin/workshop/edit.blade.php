@@ -171,7 +171,7 @@ if (isset($workshop)) {
 }
 @endphp
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs" :description="isset($workshop) ? new \Illuminate\Support\HtmlString(view('admin.workshop.partials.mast-context', ['workshop' => $workshop])->render()) : null">
         <x-slot>{{ isset($workshop) ? $workshop->title : 'Create Workshop' }}</x-slot>
         @isset($workshop)
             <x-slot:actions>
@@ -182,7 +182,6 @@ if (isset($workshop)) {
 
     <x-container class="py-5 sm:py-8">
         <x-admin.ai-status-toast id="workshop-ai-toast" message="Preparing workshop copy…" detail="Workshop and blueprint details are being used to draft the content." progress-label="Workshop content generation" />
-        @isset($workshop)<x-finance.workshop-review-notice :workshop="$workshop" />@endisset
         <form id="workshop-form" x-data="{
             ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
             editorStep: @js($workshopEditorStep),

@@ -148,7 +148,7 @@ class WorkshopAllocationFinalisationTest extends TestCase
         foreach (['edit', 'attendance', 'media', 'allocation.edit'] as $page) {
             $response = $this->get(route('admin.workshop.'.$page, $f['workshop']))->assertOk()->assertSee($url);
             if ($page === 'edit') {
-                $response->assertSee('Allocation ready for review')->assertDontSee('>Review allocation</a>', false);
+                $response->assertDontSee('Allocation ready for review')->assertDontSee('>Review allocation</a>', false);
             } else {
                 $response->assertDontSee('aria-label="Workshop allocation review"', false);
             }
