@@ -109,14 +109,18 @@
             <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
                     <div class="shrink-0">
-                        <div class="h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-                            <img src="{{ asset('profile-alex.png') }}" alt="Alex Rivera" class="h-full w-full object-cover" />
-                        </div>
+                        @if(file_exists(public_path('stemcrew.webp')))
+                            <img src="{{ asset('stemcrew.webp') }}" alt="STEMCrew members together on the STEMCraft server" class="h-28 w-28 rounded-2xl border border-gray-200 object-cover" />
+                        @else
+                            <div class="flex h-28 w-28 items-center justify-center rounded-2xl border border-gray-200 bg-sky-50 text-primary-color" aria-hidden="true">
+                                <i class="fa-solid fa-users text-3xl"></i>
+                            </div>
+                        @endif
                     </div>
                     <div class="min-w-0">
-                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Team member</div>
-                        <h2 class="mt-2 text-2xl font-semibold text-gray-900">Alex Rivera</h2>
-                        <p class="mt-4 text-sm leading-7 text-gray-600">Alex brings experience delivering hands-on STEM workshops across school and community settings, with a focus on practical, engaging learning for young people. Their work includes supporting programs in creative technology, digital media, and build-based projects, helping participants turn ideas into working outcomes. Alex has also worked alongside community coordinators to assist with program delivery and participant support, particularly in regional settings. They have a strong interest in creating inclusive, approachable learning environments and contribute to the ongoing development of workshop content and resources.</p>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Student community team</div>
+                        <h2 class="mt-2 text-2xl font-semibold text-gray-900">Meet the STEMCrew</h2>
+                        <p class="mt-4 text-sm leading-7 text-gray-600">The STEMCrew is a group of students who help make our community a welcoming place to learn, create and share ideas. They support others in our Discord community, help look after the STEMCraft Minecraft server, and volunteer at events and activities when they can. Look for the STEMCrew badge beside their name online, or their STEMCrew shirts at events. We’re grateful for the time and enthusiasm they bring to STEMMechanics.</p>
                     </div>
                 </div>
             </div>
