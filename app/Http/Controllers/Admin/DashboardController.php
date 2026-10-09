@@ -33,7 +33,7 @@ class DashboardController extends Controller
     public function dismissAction(Request $request, AdminDashboardActions $actions): JsonResponse
     {
         $validated = $request->validate([
-            'action_key' => ['required', 'string', 'regex:/^bas:\\d{4}-(0[1-9]|1[0-2])$/'],
+            'action_key' => ['required', 'string', 'regex:/^(?:bas|stemcraft-challenge):\\d{4}-(0[1-9]|1[0-2])$/'],
         ]);
 
         abort_unless($actions->dismissAction((string) $request->user()->getAuthIdentifier(), $validated['action_key']), 404);

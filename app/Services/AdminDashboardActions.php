@@ -16,7 +16,23 @@ class AdminDashboardActions
     public function build(?string $userId = null): array
     {
         $now = now();
+        $challengeActionKey = 'stemcraft-challenge:'.$now->format('Y-m');
+        $dynamic = [];
+        if (! $userId || ! $this->isDismissed($userId, $challengeActionKey)) {
+            $dynamic[] = $this->card(
+                'Update the STEMCraft monthly challenge',
+                'Set the '.$now->format('F Y').' challenge on the STEMCraft dashboard.',
+                route('admin.stemcraft-content.edit'),
+                'fa-solid fa-cubes',
+                'violet',
+                $challengeActionKey,
+                false,
+                'Mark done for this month',
+            );
+        }
+
         $dynamic = [
+            ...$dynamic,
             ...$this->workshopFollowUpActions($now),
             ...$this->attendanceActions($now),
         ];
@@ -92,9 +108,13 @@ class AdminDashboardActions
     public function dismissAction(string $userId, string $actionKey): bool
     {
         $date = now();
-        if (! preg_match('/^bas:\d{4}-(0[1-9]|1[0-2])$/', $actionKey)
-            || ($date->day < 25 && $date->day > 10)
-            || $actionKey !== 'bas:'.$date->copy()->subMonthNoOverflow()->format('Y-m')) {
+        $isCurrentBasAction = preg_match('/^bas:\d{4}-(0[1-9]|1[0-2])$/', $actionKey)
+            && ! ($date->day < 25 && $date->day > 10)
+            && $actionKey === 'bas:'.$date->copy()->subMonthNoOverflow()->format('Y-m');
+        $isCurrentChallengeAction = preg_match('/^stemcraft-challenge:\d{4}-(0[1-9]|1[0-2])$/', $actionKey)
+            && $actionKey === 'stemcraft-challenge:'.$date->format('Y-m');
+
+        if (! $isCurrentBasAction && ! $isCurrentChallengeAction) {
             return false;
         }
 
@@ -330,7 +350,7 @@ class AdminDashboardActions
     }
 
     /** @return array<string, mixed> */
-    private function card(string $title, string $description, string $url, string $icon, string $tone = 'sky', ?string $dismissKey = null, bool $titleNoWrap = false): array
+    private function card(string $title, string $description, string $url, string $icon, string $tone = 'sky', ?string $dismissKey = null, bool $titleNoWrap = false, ?string $dismissLabel = null): array
     {
         return [
             'title' => $title,
@@ -339,6 +359,8 @@ class AdminDashboardActions
             'icon' => $icon,
             'tone' => $tone,
             'dismiss_key' => $dismissKey,
+            'dismiss_label' => $dismissKey !== null ? ($dismissLabel ?? 'Hide action') : null,
+            'dismiss_icon' => $dismissKey !== null ? ($dismissLabel !== null ? 'fa-solid fa-check' : 'fa-solid fa-eye-slash') : null,
             'title_no_wrap' => $titleNoWrap,
         ];
     }

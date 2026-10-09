@@ -43,8 +43,8 @@
                             </a>
                             @if(!empty($action['dismiss_key']))
                                 <div class="flex justify-end border-t border-gray-100 px-3 py-1.5">
-                                    <button type="button" data-dismiss-dashboard-action data-action-key="{{ $action['dismiss_key'] }}" class="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color" aria-label="Hide this BAS action">
-                                        <i class="fa-solid fa-eye-slash" aria-hidden="true"></i><span>Hide action</span>
+                                    <button type="button" data-dismiss-dashboard-action data-action-key="{{ $action['dismiss_key'] }}" class="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color" aria-label="{{ $action['dismiss_label'] ?? 'Hide action' }}">
+                                        <i class="{{ $action['dismiss_icon'] ?? 'fa-solid fa-eye-slash' }}" aria-hidden="true"></i><span>{{ $action['dismiss_label'] ?? 'Hide action' }}</span>
                                     </button>
                                 </div>
                             @endif
