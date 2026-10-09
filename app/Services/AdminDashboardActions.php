@@ -20,14 +20,12 @@ class AdminDashboardActions
         $dynamic = [];
         if (! $userId || ! $this->isDismissed($userId, $challengeActionKey)) {
             $dynamic[] = $this->card(
-                'Update the STEMCraft monthly challenge',
+                'Update STEMCraft monthly challenge',
                 'Set the '.$now->format('F Y').' challenge on the STEMCraft dashboard.',
                 route('admin.stemcraft-content.edit'),
                 'fa-solid fa-cubes',
                 'violet',
                 $challengeActionKey,
-                false,
-                'Mark done for this month',
             );
         }
 
