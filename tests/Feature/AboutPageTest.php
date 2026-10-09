@@ -17,7 +17,8 @@ class AboutPageTest extends TestCase
         $response->assertSee('Hands-on STEM learning with clear outcomes.');
         $response->assertSee('What STEMMechanics does');
         $response->assertSee('James Collins');
-        $response->assertSee('Alex Rivera');
+        $response->assertSee('Meet the STEMCrew');
+        $response->assertSee('STEMCraft Minecraft server');
         $response->assertSee('Talk about a program');
     }
 }

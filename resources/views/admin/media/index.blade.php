@@ -34,6 +34,18 @@
                     $presetItems = collect(['all' => 'All media', 'images' => 'Images', 'unused' => 'Unused'])->map(fn ($title, $key) => ['title' => $title, 'count' => $presetCounts[$key], 'active' => $activeFilters->all() == $presetFilters[$key], 'route' => route('admin.media.index', array_merge(request()->only(['view', 'sort', 'direction', 'per_page']), $presetFilters[$key]))])->values()->all();
                     $clearUrl = route('admin.media.index', request()->only(['view', 'sort', 'direction', 'per_page']));
                 @endphp
+                @if($duplicateAttentionCount > 0)
+                    <div role="status" class="mb-5 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-start gap-3 text-sm">
+                            <i class="fa-solid fa-clone mt-0.5" aria-hidden="true"></i>
+                            <p class="mb-0">
+                                <span class="font-semibold">{{ number_format($duplicateAttentionCount) }} {{ $duplicateAttentionCount === 1 ? 'media duplicate finding needs' : 'media duplicate findings need' }} review.</span>
+                                <span class="text-amber-900">This count includes exact duplicate groups and possible similar-image matches.</span>
+                            </p>
+                        </div>
+                        <a href="{{ route('admin.media.duplicates') }}" class="shrink-0 text-sm font-semibold text-primary-color hover:underline">Review duplicate findings <i class="fa-solid fa-arrow-right ml-1" aria-hidden="true"></i></a>
+                    </div>
+                @endif
                 <div data-filter-controls data-filter-schema="{{ json_encode(collect($filterLabels)->map(fn ($label, $key) => ['label' => $label, 'type' => 'text', 'count' => $key !== 'search'])->all()) }}" data-filter-search="search">
                 <x-ui.preset-views :items="$presetItems" label="Media presets" />
                 <div class="my-5 flex flex-wrap items-center gap-3">

@@ -60,12 +60,13 @@ const renderActionCard = (action) => {
         dismiss.className = 'inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color';
         dismiss.dataset.dismissDashboardAction = '';
         dismiss.dataset.actionKey = action.dismiss_key;
-        dismiss.setAttribute('aria-label', 'Hide this BAS action');
+        const dismissLabel = typeof action.dismiss_label === 'string' && action.dismiss_label !== '' ? action.dismiss_label : 'Hide action';
+        dismiss.setAttribute('aria-label', dismissLabel);
         const dismissIcon = document.createElement('i');
-        dismissIcon.className = 'fa-solid fa-eye-slash';
+        dismissIcon.className = typeof action.dismiss_icon === 'string' && action.dismiss_icon !== '' ? action.dismiss_icon : 'fa-solid fa-eye-slash';
         dismissIcon.setAttribute('aria-hidden', 'true');
         const dismissText = document.createElement('span');
-        dismissText.textContent = 'Hide action';
+        dismissText.textContent = dismissLabel;
         dismiss.append(dismissIcon, dismissText);
         const footer = document.createElement('div');
         footer.className = 'flex justify-end border-t border-gray-100 px-3 py-1.5';
