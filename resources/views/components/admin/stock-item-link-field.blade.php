@@ -11,6 +11,7 @@
 
 @php
     $usesStockItemsExpression = is_string($stockItemsExpression) && trim($stockItemsExpression) !== '';
+    $readonlyExpression = $allowLinkedItemTextEdit ? 'false' : 'Boolean(model.stock_item_id)';
     $catalog = $usesStockItemsExpression
         ? []
         : collect($stockItems)
@@ -65,7 +66,7 @@
             maxlength="255"
             autocomplete="off"
             x-model="model.item_name"
-            x-bind:readonly="!allowLinkedItemTextEdit && Boolean(model.stock_item_id)"
+            x-bind:readonly="{{ $readonlyExpression }}"
             role="combobox"
             aria-autocomplete="list"
             x-bind:aria-expanded="open"
