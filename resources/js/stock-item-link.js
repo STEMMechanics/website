@@ -1,8 +1,9 @@
 window.SM = window.SM || {};
 
-window.SM.stockItemLinkEditor = (model, catalog = []) => ({
+window.SM.stockItemLinkEditor = (model, catalog = [], allowLinkedItemTextEdit = false) => ({
     model,
     catalog: Array.isArray(catalog) ? catalog : [],
+    allowLinkedItemTextEdit: Boolean(allowLinkedItemTextEdit),
     query: '',
     open: false,
     selected: 0,
@@ -34,9 +35,15 @@ window.SM.stockItemLinkEditor = (model, catalog = []) => ({
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
     },
     editDescription(element) {
-        if (this.model?.stock_item_id) return;
+        if (this.model?.stock_item_id) {
+            if (!this.allowLinkedItemTextEdit || element.value === this.linkedStockItem?.name) return;
 
-        this.query = this.model?.item_name || '';
+            this.model.stock_item_id = null;
+            this.model.stock_quantity = null;
+            this.$dispatch('stock-item-link-changed');
+        }
+
+        this.query = element.value || '';
         this.selected = 0;
         this.position(element, Math.max(320, element.offsetWidth));
         this.open = !!this.query.trim();

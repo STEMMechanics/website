@@ -347,7 +347,7 @@
                 }
 
                 item.stock_quantity = null;
-                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : '';
+                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
             isBlankItem(item) {
@@ -643,7 +643,7 @@
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :allow-linked-item-text-edit="true" />
                                         </div>
                                         <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">

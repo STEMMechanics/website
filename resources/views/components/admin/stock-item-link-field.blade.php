@@ -6,6 +6,7 @@
     'ariaLabel' => 'Item name or stock item',
     'label' => null,
     'noMatchesText' => 'No matches. You can keep a manual item name.',
+    'allowLinkedItemTextEdit' => false,
 ])
 
 @php
@@ -34,9 +35,9 @@
 <div
     x-id="['stock-item-options', 'stock-item-input']"
     @if($usesStockItemsExpression)
-        x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }})"
+        x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, @js((bool) $allowLinkedItemTextEdit))"
     @else
-        x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog))"
+        x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js((bool) $allowLinkedItemTextEdit))"
     @endif
     x-init="if (linkedStockItem && !model.item_name) model.item_name = linkedStockItem.name"
     x-on:keydown.escape.window="open = false"
@@ -64,7 +65,9 @@
             maxlength="255"
             autocomplete="off"
             x-model="model.item_name"
-            x-bind:readonly="Boolean(model.stock_item_id)"
+            @unless($allowLinkedItemTextEdit)
+                x-bind:readonly="Boolean(model.stock_item_id)"
+            @endunless
             role="combobox"
             aria-autocomplete="list"
             x-bind:aria-expanded="open"

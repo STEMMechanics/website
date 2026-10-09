@@ -1,6 +1,5 @@
 <x-layout>
-    <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="\App\Support\WorkshopNavigation::tabs($workshop)">
-        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
+    <x-mast :title="$workshop->title" :description="view('admin.workshop.partials.mast-context', ['workshop' => $workshop])" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="\App\Support\WorkshopNavigation::tabs($workshop)">
         <x-slot:actions><x-admin.workshop-public-page-action :workshop="$workshop" /></x-slot:actions>
     </x-mast>
     <x-container class="py-5 sm:py-8">
