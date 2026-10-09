@@ -258,10 +258,9 @@ class AccountController extends Controller
 
     public static function getTFAInstance(Algorithm $algorithm = Algorithm::Sha512)
     {
-        $tfa = new TwoFactorAuth(new QRCodeProvider, 'STEMMechanics', 6, 30, $algorithm);
-        $tfa->ensureCorrectTime();
-
-        return $tfa;
+        // TOTP uses the host's system clock. Avoid making account security depend on
+        // reaching public NTP/HTTP time services during requests and test runs.
+        return new TwoFactorAuth(new QRCodeProvider, 'STEMMechanics', 6, 30, $algorithm);
     }
 
     public static function verifyTfaCode(string $secret, string $code): bool

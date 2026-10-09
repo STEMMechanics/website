@@ -1,5 +1,7 @@
 <x-layout>
-    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Interests</x-mast>
+    <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Interests
+        <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
+    </x-mast>
 
     <x-container class="mt-4">
         <div class="mb-6 flex flex-wrap items-start justify-between gap-4">

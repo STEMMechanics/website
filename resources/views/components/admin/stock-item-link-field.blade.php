@@ -6,10 +6,15 @@
     'ariaLabel' => 'Item name or stock item',
     'label' => null,
     'noMatchesText' => 'No matches. You can keep a manual item name.',
+    'allowLinkedItemTextEdit' => false,
+    'itemNameSuggestions' => [],
+    'itemNameSuggestionsExpression' => null,
 ])
 
 @php
     $usesStockItemsExpression = is_string($stockItemsExpression) && trim($stockItemsExpression) !== '';
+    $usesItemNameSuggestionsExpression = is_string($itemNameSuggestionsExpression) && trim($itemNameSuggestionsExpression) !== '';
+    $readonlyExpression = $allowLinkedItemTextEdit ? 'false' : 'Boolean(model.stock_item_id)';
     $catalog = $usesStockItemsExpression
         ? []
         : collect($stockItems)
@@ -34,9 +39,13 @@
 <div
     x-id="['stock-item-options', 'stock-item-input']"
     @if($usesStockItemsExpression)
-        x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }})"
+        @if($usesItemNameSuggestionsExpression)
+            x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, {{ $itemNameSuggestionsExpression }})"
+        @else
+            x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, @js($itemNameSuggestions))"
+        @endif
     @else
-        x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog))"
+        x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions))"
     @endif
     x-init="if (linkedStockItem && !model.item_name) model.item_name = linkedStockItem.name"
     x-on:keydown.escape.window="open = false"
@@ -64,7 +73,7 @@
             maxlength="255"
             autocomplete="off"
             x-model="model.item_name"
-            x-bind:readonly="Boolean(model.stock_item_id)"
+            x-bind:readonly="{{ $readonlyExpression }}"
             role="combobox"
             aria-autocomplete="list"
             x-bind:aria-expanded="open"
@@ -73,7 +82,7 @@
             x-on:input="editDescription($el)"
             x-on:keydown.arrow-down.prevent.stop="if (!open) browse($el); else move(1)"
             x-on:keydown.arrow-up.prevent.stop="move(-1)"
-            x-on:keydown.enter="if (open && matches[selected]) { $event.preventDefault(); $event.stopPropagation(); choose(matches[selected]); }"
+            x-on:keydown.enter="handleEnter($event)"
         />
         <x-ui.button
             type="button"
@@ -104,7 +113,7 @@
                 x-on:input="selected = 0"
                 x-on:keydown.arrow-down.prevent.stop="move(1)"
                 x-on:keydown.arrow-up.prevent.stop="move(-1)"
-                x-on:keydown.enter.prevent.stop="if (matches[selected]) choose(matches[selected])"
+                x-on:keydown.enter="handleEnter($event)"
             />
             <div
                 class="mt-2 max-h-64 overflow-y-auto"
@@ -124,6 +133,7 @@
                     >
                             <span class="min-w-0 truncate" x-text="option.name"></span>
                             <span class="flex shrink-0 items-center gap-2">
+                                <span x-show="option.suggestionType === 'blueprint-text'" class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">Blueprint text</span>
                                 <span x-show="option.is_kit" class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">Recipe</span>
                                 <span x-show="option.status === 'archived'" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Archived</span>
                                 <span class="text-xs text-slate-400" x-show="option.sku" x-text="option.sku"></span>
