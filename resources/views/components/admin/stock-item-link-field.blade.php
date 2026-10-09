@@ -65,9 +65,7 @@
             maxlength="255"
             autocomplete="off"
             x-model="model.item_name"
-            @unless($allowLinkedItemTextEdit)
-                x-bind:readonly="Boolean(model.stock_item_id)"
-            @endunless
+            x-bind:readonly="!allowLinkedItemTextEdit && Boolean(model.stock_item_id)"
             role="combobox"
             aria-autocomplete="list"
             x-bind:aria-expanded="open"
