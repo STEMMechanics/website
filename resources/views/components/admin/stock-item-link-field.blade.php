@@ -74,7 +74,7 @@
             x-on:input="editDescription($el)"
             x-on:keydown.arrow-down.prevent.stop="if (!open) browse($el); else move(1)"
             x-on:keydown.arrow-up.prevent.stop="move(-1)"
-            x-on:keydown.enter="if (open && matches[selected]) { $event.preventDefault(); $event.stopPropagation(); choose(matches[selected]); }"
+            x-on:keydown.enter="handleEnter($event)"
         />
         <x-ui.button
             type="button"
@@ -105,7 +105,7 @@
                 x-on:input="selected = 0"
                 x-on:keydown.arrow-down.prevent.stop="move(1)"
                 x-on:keydown.arrow-up.prevent.stop="move(-1)"
-                x-on:keydown.enter.prevent.stop="if (matches[selected]) choose(matches[selected])"
+                x-on:keydown.enter="handleEnter($event)"
             />
             <div
                 class="mt-2 max-h-64 overflow-y-auto"

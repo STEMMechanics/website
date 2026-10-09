@@ -59,6 +59,19 @@ window.SM.stockItemLinkEditor = (model, catalog = [], allowLinkedItemTextEdit = 
 
         this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step));
     },
+    handleEnter(event) {
+        if (!this.open) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (event.metaKey || event.ctrlKey) {
+            if (this.matches[this.selected]) this.choose(this.matches[this.selected]);
+            return;
+        }
+
+        this.open = false;
+    },
     choose(option) {
         this.model.stock_item_id = option?.id || null;
         this.model.stock_quantity = null;
