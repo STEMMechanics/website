@@ -441,7 +441,28 @@
                         sort_order: (index + 1) * 10,
                     })));
             },
-        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask()" x-on:submit.prevent="await saveDrawing(); $refs.itemsPayload.value = serializedItems(); submitting = true; $el.submit()" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
+            async submitBlueprint(event) {
+                if (this.submitting) return;
+                const form = event.currentTarget;
+                this.submitting = true;
+
+                try {
+                    await this.saveDrawing();
+                } catch (error) {
+                    console.error('Could not prepare the blueprint drawing for save.', error);
+                    window.SM?.alert('Drawing could not be saved', 'The other blueprint changes will still be saved.', 'warning');
+                }
+
+                try {
+                    this.$refs.itemsPayload.value = this.serializedItems();
+                } catch (error) {
+                    console.error('Could not serialize the blueprint pick list.', error);
+                    window.SM?.alert('Pick list could not be prepared', 'The other blueprint changes will still be saved.', 'danger');
+                }
+
+                HTMLFormElement.prototype.submit.call(form);
+            },
+        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask()" x-on:submit.prevent="submitBlueprint($event)" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
             @csrf
             @if($editing)
                 @method('PUT')
@@ -643,8 +664,14 @@
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :item-name-suggestions="$blueprintItemNames ?? []" :allow-linked-item-text-edit="true" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :item-name-suggestions="$blueprintItemNames ?? []" :allow-linked-item-text-edit="true" name-prefix="items" />
                                         </div>
+                                        <input type="hidden" x-bind:name="`items[${index}][id]`" x-bind:value="item.id ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][stock_item_id]`" x-bind:value="item.stock_item_id ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][stock_quantity]`" x-bind:value="item.stock_quantity ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][quantity_type]`" x-bind:value="item.quantity_type">
+                                        <input type="hidden" x-bind:name="`items[${index}][quantity_value]`" x-bind:value="item.quantity_value">
+                                        <input type="hidden" x-bind:name="`items[${index}][sort_order]`" x-bind:value="item.sort_order">
                                         <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div>

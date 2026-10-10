@@ -1815,6 +1815,23 @@ let SM = {
 
 window.SM = SM;
 
+const showFlashNotifications = () => {
+    document.querySelectorAll('[data-sm-flash-notification]').forEach((notification) => {
+        const { title = '', message = '', type = 'info' } = notification.dataset;
+
+        notification.remove();
+        if (message !== '') {
+            SM.alert(title, message, type);
+        }
+    });
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', showFlashNotifications, { once: true });
+} else {
+    showFlashNotifications();
+}
+
 document.addEventListener('alpine:init', () => {
     Alpine.store('ticketCancelModal', {
         open: false,

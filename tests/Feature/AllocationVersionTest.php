@@ -65,7 +65,7 @@ class AllocationVersionTest extends TestCase
         $unused = $this->version('Unused', '2026-07-01', 20);
         $this->delete(route('admin.cost-centre.version.destroy', $unused))->assertSessionHasNoErrors()->assertRedirect(route('admin.cost-centre.allocations'));
         $this->assertDatabaseMissing('finance_pricing_versions', ['id' => $unused]);
-        $this->get(route('admin.cost-centre.allocations'))->assertOk()->assertSee('SM.alert(', false)->assertSee('Allocation plan deleted.')->assertDontSee('bg-emerald-50 p-4 text-emerald-800', false);
+        $this->get(route('admin.cost-centre.allocations'))->assertOk()->assertSee('data-sm-flash-notification', false)->assertSee('Allocation plan deleted.')->assertDontSee('bg-emerald-50 p-4 text-emerald-800', false);
 
         $default = $this->version('Default', '2026-07-01', 20, true);
         $this->deleteJson(route('admin.cost-centre.version.destroy', $default))->assertUnprocessable();
