@@ -197,12 +197,12 @@
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Pick List</h2>
                     @if($workshop->pickListTemplate && count($templateItems ?? []) > 0)
-                        <div class="flex shrink-0 items-center gap-3 text-sm" x-show="isCustomized" x-cloak>
+                        <div class="flex shrink-0 items-center gap-3 text-sm">
                             <x-ui.button
                                 type="button"
                                 variant="plain"
                                 class="text-primary-color hover:underline disabled:opacity-50"
-                                x-bind:disabled="saving"
+                                x-bind:disabled="saving || !isCustomized"
                                 x-on:click.stop.prevent="resetToTemplate()"
                             >Revert to blueprint</x-ui.button>
                             <x-ui.button
