@@ -71,7 +71,9 @@ class PickListTemplateController extends Controller
         $template = DB::transaction(function () use ($validated): PickListTemplate {
             $template = new PickListTemplate;
             $this->fillTemplate($template, $validated);
-            $this->syncItems($template, $validated['items'] ?? []);
+            if (array_key_exists('items', $validated)) {
+                $this->syncItems($template, $validated['items']);
+            }
             $this->syncTasks($template, $validated['tasks'] ?? []);
             $template->categories()->sync($validated['category_ids'] ?? []);
             $template->updateFiles($validated['attachments'], PickListTemplate::ATTACHMENT_COLLECTION);
@@ -138,7 +140,9 @@ class PickListTemplateController extends Controller
 
         DB::transaction(function () use ($pickListTemplate, $validated): void {
             $this->fillTemplate($pickListTemplate, $validated);
-            $this->syncItems($pickListTemplate, $validated['items'] ?? []);
+            if (array_key_exists('items', $validated)) {
+                $this->syncItems($pickListTemplate, $validated['items']);
+            }
             $this->syncTasks($pickListTemplate, $validated['tasks'] ?? []);
             app(StockInventoryService::class)->syncWorkshopReservationsForTemplate($pickListTemplate);
             $pickListTemplate->categories()->sync($validated['category_ids'] ?? []);
@@ -262,6 +266,7 @@ class PickListTemplateController extends Controller
 
     private function validateRequest(Request $request, ?PickListTemplate $template = null): array
     {
+        $hasSubmittedItems = $request->filled('items_payload') || $request->exists('items');
         $submittedTasks = $request->input('tasks', []);
         if ($request->filled('tasks_payload')) {
             Validator::make($request->only('tasks_payload'), [
@@ -296,7 +301,9 @@ class PickListTemplateController extends Controller
                     'items_payload' => 'Pick list items format is invalid.',
                 ]);
             }
-            $request->merge(['items' => $decodedItems]);
+            if (! $request->exists('items')) {
+                $request->merge(['items' => $decodedItems]);
+            }
         }
 
         $validated = $request->validate([
@@ -361,25 +368,27 @@ class PickListTemplateController extends Controller
             ? StockItem::query()->with('group')->whereIn('id', $stockItemIds)->get()->keyBy('id')
             : collect();
 
-        $validated['items'] = collect($validated['items'] ?? [])
-            ->map(function (array $row) use ($stockItems): array {
-                $stockItemId = isset($row['stock_item_id']) && (int) $row['stock_item_id'] > 0 ? (int) $row['stock_item_id'] : null;
+        if ($hasSubmittedItems) {
+            $validated['items'] = collect($validated['items'] ?? [])
+                ->map(function (array $row) use ($stockItems): array {
+                    $stockItemId = isset($row['stock_item_id']) && (int) $row['stock_item_id'] > 0 ? (int) $row['stock_item_id'] : null;
 
-                return [
-                    'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
-                    'item_name' => $stockItemId !== null && $stockItems->get($stockItemId) instanceof StockItem
-                        ? $stockItems->get($stockItemId)->linkLabel()
-                        : trim((string) ($row['item_name'] ?? '')),
-                    'stock_item_id' => $stockItemId,
-                    'quantity_type' => (string) ($row['quantity_type'] ?? PickListTemplateItem::TYPE_PER_PARTICIPANT),
-                    'quantity_value' => max(1, (int) ($row['quantity_value'] ?? 1)),
-                    'stock_quantity' => ($row['stock_quantity'] ?? '') !== '' ? max(0.001, (float) $row['stock_quantity']) : null,
-                    'sort_order' => max(0, (int) ($row['sort_order'] ?? 0)),
-                ];
-            })
-            ->filter(fn (array $row): bool => $row['item_name'] !== '' || $row['stock_item_id'] !== null)
-            ->values()
-            ->all();
+                    return [
+                        'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
+                        'item_name' => $stockItemId !== null && $stockItems->get($stockItemId) instanceof StockItem
+                            ? $stockItems->get($stockItemId)->linkLabel()
+                            : trim((string) ($row['item_name'] ?? '')),
+                        'stock_item_id' => $stockItemId,
+                        'quantity_type' => (string) ($row['quantity_type'] ?? PickListTemplateItem::TYPE_PER_PARTICIPANT),
+                        'quantity_value' => max(1, (int) ($row['quantity_value'] ?? 1)),
+                        'stock_quantity' => ($row['stock_quantity'] ?? '') !== '' ? max(0.001, (float) $row['stock_quantity']) : null,
+                        'sort_order' => max(0, (int) ($row['sort_order'] ?? 0)),
+                    ];
+                })
+                ->filter(fn (array $row): bool => $row['item_name'] !== '' || $row['stock_item_id'] !== null)
+                ->values()
+                ->all();
+        }
 
         $validated['tasks'] = collect($validated['tasks'] ?? [])
             ->map(fn (array $row): array => [

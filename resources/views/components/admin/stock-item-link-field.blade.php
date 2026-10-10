@@ -9,6 +9,7 @@
     'allowLinkedItemTextEdit' => false,
     'itemNameSuggestions' => [],
     'itemNameSuggestionsExpression' => null,
+    'namePrefix' => null,
 ])
 
 @php
@@ -79,6 +80,9 @@
             x-bind:aria-expanded="open"
             x-bind:aria-controls="$id('stock-item-options')"
             x-bind:aria-activedescendant="open && matches.length ? $id('stock-item-options') + '-' + selected : null"
+            @if(is_string($namePrefix) && trim($namePrefix) !== '')
+                x-bind:name="`{{ $namePrefix }}[${index}][item_name]`"
+            @endif
             x-on:input="editDescription($el)"
             x-on:keydown.arrow-down.prevent.stop="if (!open) browse($el); else move(1)"
             x-on:keydown.arrow-up.prevent.stop="move(-1)"

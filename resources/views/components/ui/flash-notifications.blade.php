@@ -23,14 +23,18 @@
     if (request()->routeIs('admin.user.index') && is_string(session('status')) && session('status') !== '') {
         $notifications[] = ['title' => '', 'message' => session('status'), 'type' => 'success'];
     }
-    if (request()->routeIs('admin.cost-centre.allocations', 'admin.timesheet.index', 'admin.expense.*') && $errors->any()) {
+    if (request()->routeIs('admin.cost-centre.allocations', 'admin.timesheet.index', 'admin.expense.*', 'admin.workshop-blueprint.*') && $errors->any()) {
         $notifications[] = ['title' => 'Could not save changes', 'message' => implode("\n", $errors->all()), 'type' => 'error'];
     }
 @endphp
 @foreach($notifications as $notification)
     @if(is_string($notification['message']) && $notification['message'] !== '')
-        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-            SM.alert(@js($notification['title']), @js($notification['message']), @js($notification['type']));
-        </script>
+        <div
+            hidden
+            data-sm-flash-notification
+            data-title="{{ $notification['title'] }}"
+            data-message="{{ $notification['message'] }}"
+            data-type="{{ $notification['type'] }}"
+        ></div>
     @endif
 @endforeach
