@@ -463,15 +463,11 @@ class StockInventoryService
                 }
             }
 
-            $reservedQuantity = $stockItem->roundStockIssueQuantity($estimatedUsage);
-            $projectedReservedQuantity = (float) ($state['reserved'][$stockItemId] ?? 0) + $reservedQuantity;
-            if ($projectedReservedQuantity > (float) $stockItem->on_hand_quantity + 0.0005) {
-                throw ValidationException::withMessages([
-                    'pick_list_custom_items' => 'There is not enough stock available for this workshop after cutting allowance and whole-unit picking are applied. Receive or adjust stock before reserving it.',
-                ]);
-            }
-
-            $requirements[$stockItemId] = $reservedQuantity;
+            // Keep the full planned requirement reserved even when it exceeds
+            // stock on hand. Workshop pick lists use the reservation forecast
+            // to show the shortage against the affected item without blocking
+            // a blueprint or workshop save.
+            $requirements[$stockItemId] = $stockItem->roundStockIssueQuantity($estimatedUsage);
         }
 
         if ($requirements === []) {

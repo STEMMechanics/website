@@ -664,8 +664,9 @@
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :item-name-suggestions="$blueprintItemNames ?? []" :allow-linked-item-text-edit="true" name-prefix="items" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :item-name-suggestions="$blueprintItemNames ?? []" :allow-linked-item-text-edit="true" />
                                         </div>
+                                        <input type="hidden" x-bind:name="`items[${index}][item_name]`" x-bind:value="item.item_name ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][id]`" x-bind:value="item.id ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][stock_item_id]`" x-bind:value="item.stock_item_id ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][stock_quantity]`" x-bind:value="item.stock_quantity ?? ''">
