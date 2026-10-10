@@ -32,6 +32,7 @@
                 x-bind:id="$id('store-product-input')"
                 x-bind:value="productSearchState(item).query"
                 x-bind:disabled="isLocked"
+                aria-label="Store product"
                 x-bind:aria-invalid="!isLocked && !findProduct(item.source_id)"
                 x-bind:aria-required="true"
                 x-bind:aria-describedby="!isLocked && !findProduct(item.source_id) ? $id('store-product-hint') : null"
