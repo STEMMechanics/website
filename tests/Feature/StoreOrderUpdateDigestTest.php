@@ -219,6 +219,8 @@ class StoreOrderUpdateDigestTest extends TestCase
 
     public function test_ready_for_pickup_payload_groups_ready_and_expected_items(): void
     {
+        $this->travelTo(now()->setDate(2026, 4, 1)->startOfDay());
+
         $order = $this->makePaidPhysicalOrder([
             'billing_name' => 'Jamie Example',
             'billing_email' => 'jamie@example.com',
@@ -328,6 +330,8 @@ class StoreOrderUpdateDigestTest extends TestCase
 
     public function test_tracking_payload_groups_shipped_and_remaining_items(): void
     {
+        $this->travelTo(now()->setDate(2026, 4, 1)->startOfDay());
+
         $order = $this->makePaidPhysicalOrder([
             'billing_name' => 'Jamie Example',
             'billing_email' => 'jamie@example.com',
