@@ -2,7 +2,8 @@
 
 <div {{ $attributes->merge(['class' => 'sm-invoice-line-details']) }}>
     <x-finance.product-line-fields />
-    <div class="mb-3" x-show="item.kind !== 'workshop'"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
+    <div class="mb-3" x-show="item.kind === 'product'"><x-ui.input label="Description" type="text" x-model="item.description" readonly aria-readonly="true" /></div>
+    <div class="mb-3" x-show="item.kind !== 'workshop' &amp;&amp; item.kind !== 'product'"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
     <div class="mb-3" x-show="item.kind === 'workshop'"><label class="mb-1 block text-sm">Workshop</label><x-finance.workshop-funding-fields /></div>
     <x-finance.workshop-line-fields :inclusive="true" :invoice-layout="$invoiceLayout" />
     <div x-show="item.kind === 'workshop'" class="mt-3 max-w-xs"><x-ui.input label="Workshop date" type="date" x-model="item.workshop_date" x-on:change="serializeLineItems()" /></div>

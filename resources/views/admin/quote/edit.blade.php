@@ -104,6 +104,7 @@
             action="{{ route('admin.quote.' . (isset($quote) ? 'update' : 'store'), $quote ?? []) }}"
             x-data="{
                 quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
+                isLocked: false,
                 ...SM.productLineEditor(@js($catalogProducts ?? [])),
                 savedTotals: @js($editing ? ['count' => count($quote->line_items ?? []), 'net' => (float) $quote->subtotal_amount, 'tax' => (float) $quote->gst_amount, 'gross' => (float) $quote->total_amount] : null),
                 lineItems: (() => {
@@ -215,6 +216,7 @@
                         line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
                         gst_applicable: item.gst_applicable !== false,
                     };
+                    delete cleaned.product_search;
 
                     if (cleaned.kind === 'product') {
                         const product = this.findProduct(item.source_id);
@@ -251,7 +253,7 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+                        .filter((item) => item.kind === 'product' || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },

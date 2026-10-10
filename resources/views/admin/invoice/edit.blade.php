@@ -397,7 +397,7 @@
                             unit_price_inc_tax: SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (item.gst_applicable === false ? 1 : 1.1)),
                             saved_pricing: item.saved_pricing ?? null,
                             tax_rate: item.tax_rate ?? 0.1,
-                            id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
+                            id: item.id ?? null, source_type: item.source_type ?? (item.kind === 'product' ? 'App\\Models\\Product' : null), source_id: item.source_id ?? item.details_json?.store_context?.product_id ?? null,
                             source_variant_id: String(item.source_variant_id ?? item.details_json?.variant_id ?? item.details_json?.store_context?.variant_id ?? 0),
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
                             travel_hours: item.travel_hours ?? '',
@@ -445,7 +445,7 @@
                             gst_applicable: item.gst_applicable !== false,
                             tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate || 0.1),
                         }))
-                        .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+                        .filter((item) => item.kind === 'product' || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                     this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
