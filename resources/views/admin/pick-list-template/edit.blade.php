@@ -81,6 +81,7 @@
                 'group_name' => (string) ($stockItem->group?->name ?? ''),
                 'variant_name' => (string) ($stockItem->variant_name ?? ''),
             ])->values()->all()),
+            blueprintItemNames: @js($blueprintItemNames ?? []),
             tasks: @js($seedTasks),
             attachments: @js($seedAttachments),
             attachmentDetails: @js($seedAttachmentDetails),
@@ -340,6 +341,14 @@
 
                 return stockItem?.name || '';
             },
+            blueprintTextSuggestions() {
+                const names = [
+                    ...this.blueprintItemNames,
+                    ...this.items.map((item) => item.item_name || ''),
+                ].map((name) => String(name || '').trim()).filter(Boolean);
+
+                return [...new Map(names.map((name) => [name.toLowerCase(), name])).values()];
+            },
             selectStockItem(index) {
                 const item = this.items[index];
                 if (!item) {
@@ -347,7 +356,7 @@
                 }
 
                 item.stock_quantity = null;
-                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : '';
+                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
             isBlankItem(item) {
@@ -619,6 +628,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold">Pick List</h2>
                 </div>
+                <p class="mb-3 text-sm text-gray-600">Link a stock item only when it is issued to a participant or consumed as a whole stock unit. Leave partially used shared supplies, such as masking tape, unlinked and count them manually.</p>
 
                 <template x-if="items.length === 0">
                     <p class="text-sm text-gray-600">No items yet. Add your first pick list item.</p>
@@ -643,7 +653,7 @@
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" />
+                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" item-name-suggestions-expression="blueprintTextSuggestions()" :allow-linked-item-text-edit="true" />
                                         </div>
                                         <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">

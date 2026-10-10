@@ -108,7 +108,7 @@
             <input type="hidden" name="replacement_unit_cost_ex_tax" x-bind:value="manualReplacementCost">
             <input type="hidden" name="replacement_cost_reset" x-bind:value="replacementCostReset ? '1' : '0'">
             <h2 class="text-lg font-semibold">Stock item details</h2>
-            <p class="mt-1 text-sm text-gray-600">Use one stock item wherever the same part is sold, included in a kit or used in a workshop. Each receipt keeps its historical cost. The latest unit cost is used for current cost calculations.</p>
+            <p class="mt-1 text-sm text-gray-600">Use one stock item wherever the same part is sold, included in a kit or issued or consumed as a whole unit in a workshop. Keep shared supplies used partially, such as masking tape, as manual pick-list items. Each receipt keeps its historical cost; the latest unit cost is used for current cost calculations.</p>
             <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <x-ui.input name="name" label="Name" value="{{ old('name', $stockItem->name) }}" x-model="name" x-on:blur="generateSkuFromName()" required />
                 <x-ui.input name="sku" label="SKU" value="{{ old('sku', $stockItem->sku) }}" x-model="sku" x-on:input="handleSkuInput()" info="Generated from the name when left blank. You can edit it before saving." />
@@ -148,16 +148,6 @@
                     @error('replacement_unit_cost_ex_tax')<p class="mt-1 text-xs text-red-600" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <x-ui.input name="reorder_point" label="Reorder alert threshold" type="number" min="0" step="0.001" value="{{ old('reorder_point', $stockItem->formatQuantity((float) ($stockItem->reorder_point ?? 0))) }}" info="Set to 0 to turn this off. An alert appears when available stock falls below this quantity." />
-                <div class="md:col-span-2">
-                    <x-ui.checkbox
-                        name="shared_workshop_supply"
-                        value="1"
-                        label="Share this supply between workshops"
-                        :checked="old('shared_workshop_supply', $stockItem->shared_workshop_supply ?? false)"
-                        info="Shared reserve includes a compounded 10% buffer."
-                        class="mb-0"
-                    />
-                </div>
                 @if(! $stockItem->exists)
                     <x-ui.input name="opening_quantity" label="Opening quantity" type="number" min="0" step="0.001" value="{{ old('opening_quantity', 0) }}" />
                 @endif
@@ -208,7 +198,7 @@
                                 Not tracked
                             @endif
                         </p>
-                        <p class="mt-0.5 text-xs text-slate-500">{{ $stockItem->formatQuantity($currentOnHandQuantity) }} on hand · {{ $stockItem->formatQuantity($currentReservedQuantity) }} reserved{{ $stockItem->shared_workshop_supply ? ' (forecast)' : '' }}</p>
+                        <p class="mt-0.5 text-xs text-slate-500">{{ $stockItem->formatQuantity($currentOnHandQuantity) }} on hand · {{ $stockItem->formatQuantity($currentReservedQuantity) }} reserved</p>
                     </div>
                 </div>
                 <div class="mt-4 grid items-start gap-4 sm:grid-cols-2">
@@ -248,12 +238,11 @@
                         <h2 class="text-lg font-semibold">Reserved stock</h2>
                         <p class="mt-1 text-sm text-gray-600">
                             Current reservations are listed below. Reserved quantities are included in on-hand stock.
-                            @if($stockItem->shared_workshop_supply) Each workshop keeps its planned pack quantity while the total reserve uses the compounded 10% forecast. @endif
                         </p>
                     </div>
                     <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium tabular-nums text-slate-700">
                         {{ $stockItem->formatQuantity($currentOnHandQuantity) }} on hand ·
-                        {{ $stockItem->formatQuantity($currentReservedQuantity) }} reserved{{ $stockItem->shared_workshop_supply ? ' (forecast)' : '' }} ·
+                        {{ $stockItem->formatQuantity($currentReservedQuantity) }} reserved ·
                         {{ $currentAvailableQuantity !== null ? $stockItem->formatQuantity($currentAvailableQuantity).$stockItemUnitSuffix : '—' }} available
                     </p>
                 </div>
@@ -268,7 +257,7 @@
                             <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                                 <tr>
                                     <th class="px-3 py-2">Workshop</th>
-                                    <th class="px-3 py-2 text-center">{{ $stockItem->shared_workshop_supply ? 'Planned to pack' : 'Currently reserved' }}</th>
+                                    <th class="px-3 py-2 text-center">Currently reserved</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">

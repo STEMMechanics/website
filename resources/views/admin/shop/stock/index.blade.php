@@ -50,7 +50,6 @@
                                             <a class="font-semibold text-gray-900 hover:text-primary-color" href="{{ route('admin.shop.stock.edit', $stockItem) }}">{{ $stockItem->linkLabel() }}</a>
                                             <div class="mt-1 text-xs text-gray-500">
                                                 {{ $stockItem->sku ?: 'No SKU' }} · {{ $stockItem->unit }} · {{ ucfirst($stockItem->status) }}
-                                                @if($stockItem->shared_workshop_supply) · Shared workshop supply @endif
                                             </div>
                                         </div>
                                     </div>
@@ -61,7 +60,7 @@
                                     @else
                                         <div class="font-semibold {{ $needsReorder ? 'text-amber-700' : 'text-gray-900' }}">{{ $stockItem->formatQuantity($available) }}{{ $unitSuffix }} available</div>
                                         <div class="mt-1 space-y-1 text-xs text-gray-500">
-                                            <div>{{ $stockItem->formatQuantity((float) $stockItem->on_hand_quantity) }} on hand · {{ $stockItem->formatQuantity($reserved) }} reserved{{ $stockItem->shared_workshop_supply ? ' (forecast)' : '' }}</div>
+                                            <div>{{ $stockItem->formatQuantity((float) $stockItem->on_hand_quantity) }} on hand · {{ $stockItem->formatQuantity($reserved) }} reserved</div>
                                             @if($reservationShortage > 0.0005)
                                                 <div class="font-medium text-amber-700">Reservations exceed stock by {{ $stockItem->formatQuantity($reservationShortage) }}{{ $unitSuffix }}</div>
                                             @endif
