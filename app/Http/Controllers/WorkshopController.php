@@ -438,11 +438,13 @@ class WorkshopController extends Controller
 
         $workshopPages = $monthWorkshops->map(function (Workshop $workshop) use ($pickListService): array {
             $pickListData = $pickListService->build($workshop);
+            $shelfPickList = $pickListService->buildShelfPickList($workshop, $pickListData['participants']);
 
             return [
                 'workshop' => $workshop,
                 'participants' => $pickListData['participants'],
                 'calculatedItems' => $pickListData['calculatedItems'],
+                'kitSummaries' => $shelfPickList['kit_summaries'],
                 'pickListNotes' => $pickListData['pickListNotes'],
             ];
         });

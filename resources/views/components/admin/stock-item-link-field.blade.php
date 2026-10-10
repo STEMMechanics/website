@@ -49,8 +49,8 @@
     @endif
     x-init="if (linkedStockItem && !model.item_name) model.item_name = linkedStockItem.name"
     x-on:keydown.escape.window="open = false"
-    x-on:resize.window="if (open) position($refs.stockItemTrigger, menuWidth)"
-    x-on:scroll.window="if (open) position($refs.stockItemTrigger, menuWidth)"
+    x-on:resize.window="if (open) position($refs.stockItemInput, menuWidth)"
+    x-on:scroll.window="if (open) position($refs.stockItemInput, menuWidth)"
     {{ $attributes->merge(['class' => 'relative']) }}
 >
     @if(is_string($label) && trim($label) !== '')
@@ -103,23 +103,10 @@
             x-cloak
             x-show="open"
             x-on:click.outside="open = false"
-            class="fixed z-50 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
-            x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', width: menuWidth + 'px' }"
+            class="fixed z-50 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+            x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', width: menuWidth + 'px', maxHeight: menuMaxHeight + 'px' }"
         >
-            <x-ui.input-control
-                aria-label="Find a stock item to link"
-                placeholder="Search name or SKU"
-                x-model="query"
-                x-on:input="selected = 0"
-                x-on:keydown.arrow-down.prevent.stop="move(1)"
-                x-on:keydown.arrow-up.prevent.stop="move(-1)"
-                x-on:keydown.enter="handleEnter($event)"
-            />
-            <div
-                class="mt-2 max-h-64 overflow-y-auto"
-                role="listbox"
-                x-bind:id="$id('stock-item-options')"
-            >
+            <div role="listbox" x-bind:id="$id('stock-item-options')">
                 <template x-for="(option, optionIndex) in matches" :key="option.id">
                     <button
                         type="button"
@@ -133,10 +120,10 @@
                     >
                             <span class="min-w-0 truncate" x-text="option.name"></span>
                             <span class="flex shrink-0 items-center gap-2">
-                                <span x-show="option.suggestionType === 'blueprint-text'" class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">Blueprint text</span>
-                                <span x-show="option.is_kit" class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">Recipe</span>
+                                <span x-show="option.suggestionType === 'blueprint-text'" class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">Blueprint Item</span>
+                                <span x-show="option.suggestionType === 'stock' && !option.is_kit" class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">Stock Item</span>
+                                <span x-show="option.is_kit" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Stock Kit</span>
                                 <span x-show="option.status === 'archived'" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Archived</span>
-                                <span class="text-xs text-slate-400" x-show="option.sku" x-text="option.sku"></span>
                         </span>
                     </button>
                 </template>

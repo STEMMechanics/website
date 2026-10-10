@@ -394,6 +394,42 @@ class StoreOrderItem extends Model
         return $this->delayed_shipping_estimate->format($format);
     }
 
+    public function hasExpiredBackorderShippingEstimate(): bool
+    {
+        return $this->isBackorder()
+            && $this->delayed_shipping_estimate instanceof Carbon
+            && $this->delayed_shipping_estimate->lt(Carbon::today());
+    }
+
+    public static function expiredBackorderTimingMessage(bool $isPickup = false): string
+    {
+        return 'More stock expected soon. '.($isPickup
+            ? 'Collection timing to be confirmed.'
+            : 'Shipping timing to be confirmed.');
+    }
+
+    public function backorderShippingStatus(string $format = 'F jS Y', bool $isPickup = false): string
+    {
+        if ($this->hasExpiredBackorderShippingEstimate()) {
+            return self::expiredBackorderTimingMessage($isPickup);
+        }
+
+        $timingPrefix = $isPickup ? 'Expected availability ' : 'Shipping estimated ';
+
+        return $timingPrefix.($this->delayedShippingEstimateLabel($format) ?: 'to be confirmed');
+    }
+
+    public function backorderShippingTimingSuffix(string $format = 'F jS Y', bool $isPickup = false): string
+    {
+        if ($this->hasExpiredBackorderShippingEstimate()) {
+            return '. '.self::expiredBackorderTimingMessage($isPickup);
+        }
+
+        $estimate = $this->delayedShippingEstimateLabel($format);
+
+        return $estimate ? ' from '.$estimate : '';
+    }
+
     public function preorderShippingEstimateLabel(string $format = 'F jS'): ?string
     {
         if (! $this->preorder_shipping_estimate instanceof Carbon) {

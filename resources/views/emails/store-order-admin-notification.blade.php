@@ -42,9 +42,9 @@ $heading = match ($notificationType) {
     @elseif($item->isBackorder())
         <br><span style="color:#1d4ed8;">
             @if((int) $item->available_now_quantity > 0)
-                {{ (int) $item->available_now_quantity }} shipping now, {{ (int) $item->delayed_quantity }} shipping later{{ $item->delayedShippingEstimateLabel('F jS Y') ? ' from '.$item->delayedShippingEstimateLabel('F jS Y') : '' }}
+                {{ (int) $item->available_now_quantity }} shipping now, {{ (int) $item->delayed_quantity }} shipping later{{ $item->backorderShippingTimingSuffix('F jS Y', $order->usesPickup()) }}
             @else
-                Shipping estimated {{ $item->delayedShippingEstimateLabel('F jS Y') ?: 'to be confirmed' }}
+                {{ $item->backorderShippingStatus('F jS Y', $order->usesPickup()) }}
             @endif
         </span>
     @endif
