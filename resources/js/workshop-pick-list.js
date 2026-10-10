@@ -1261,7 +1261,11 @@ const registerWorkshopPickListPage = () => {
             });
 
             if (missing.length === 0) {
-                this.blueprintMergeMessage = 'There are no missing items to add.';
+                this.blueprintMergeMessage = '';
+                window.SM?.notice?.('Pick list up to date', 'There are no missing items to add.', 'info', {
+                    toast: true,
+                    timer: 3000,
+                });
                 return;
             }
 
