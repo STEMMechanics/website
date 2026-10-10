@@ -193,25 +193,29 @@
             @endif
 
             <details open class="group mb-8">
-                <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                <summary class="flex cursor-pointer list-none items-center gap-3 border-b border-gray-300 pb-1 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                    <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Pick List</h2>
+                    <h2 class="flex-1 text-lg font-semibold text-gray-900">Pick List</h2>
                     @if($workshop->pickListTemplate && count($templateItems ?? []) > 0)
-                        <div class="flex shrink-0 items-center gap-3 text-sm" x-show="isCustomized" x-cloak>
-                            <x-ui.button
-                                type="button"
-                                variant="plain"
-                                class="text-primary-color hover:underline disabled:opacity-50"
-                                x-bind:disabled="saving"
-                                x-on:click.stop.prevent="resetToTemplate()"
-                            >Revert to blueprint</x-ui.button>
-                            <x-ui.button
-                                type="button"
-                                variant="plain"
-                                class="text-primary-color hover:underline disabled:opacity-50"
-                                x-bind:disabled="saving || itemsEditMode"
-                                x-on:click.stop.prevent="addMissingBlueprintItems()"
-                            >Amend missing blueprint items</x-ui.button>
+                        <div class="flex shrink-0 items-center gap-1.5">
+                            <span class="cursor-default" x-on:click.stop.prevent>
+                                <x-ui.button
+                                    type="button"
+                                    variant="plain"
+                                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium leading-4 text-primary-color shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-primary-color-dark disabled:opacity-50"
+                                    x-bind:disabled="saving || !isCustomized"
+                                    x-on:click.stop.prevent="resetToTemplate()"
+                                ><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>Revert to blueprint</span></x-ui.button>
+                            </span>
+                            <span class="cursor-default" x-on:click.stop.prevent>
+                                <x-ui.button
+                                    type="button"
+                                    variant="plain"
+                                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium leading-4 text-primary-color shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-primary-color-dark disabled:opacity-50"
+                                    x-bind:disabled="saving || itemsEditMode"
+                                    x-on:click.stop.prevent="addMissingBlueprintItems()"
+                                ><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Amend missing blueprint items</span></x-ui.button>
+                            </span>
                         </div>
                     @endif
                     <span x-show="stockShortageCount > 0" x-cloak class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900" role="status">

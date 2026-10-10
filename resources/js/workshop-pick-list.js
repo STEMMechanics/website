@@ -1243,11 +1243,12 @@ const registerWorkshopPickListPage = () => {
             return stockItemId > 0 ? `stock:${stockItemId}` : `name:${itemName}`;
         },
         async addMissingBlueprintItems() {
-            if (!this.isCustomized || this.itemsEditMode || this.templateItems.length === 0) {
+            if (this.itemsEditMode || this.templateItems.length === 0) {
                 return;
             }
 
-            const existingKeys = new Set(this.customItems
+            const existingItems = this.isCustomized ? this.customItems : this.templateItems;
+            const existingKeys = new Set(existingItems
                 .filter((item) => !this.isBlankCustomItem(item))
                 .map((item) => this.itemMergeKey(item)));
             const missing = this.templateItems.filter((item) => {
@@ -1260,7 +1261,11 @@ const registerWorkshopPickListPage = () => {
             });
 
             if (missing.length === 0) {
-                this.blueprintMergeMessage = 'There are no missing items to add.';
+                this.blueprintMergeMessage = '';
+                window.SM?.notice?.('Pick list up to date', 'There are no missing items to add.', 'info', {
+                    toast: true,
+                    timer: 3000,
+                });
                 return;
             }
 
@@ -1463,7 +1468,7 @@ const registerWorkshopPickListPage = () => {
             return this.isCustomized || this.customItemsDirty;
         },
         resetToTemplate() {
-            if (!this.isCustomized) {
+            if (!this.isCustomized || this.saving) {
                 return;
             }
 
