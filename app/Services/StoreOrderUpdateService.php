@@ -877,10 +877,10 @@ class StoreOrderUpdateService
 
             if ($available > 0) {
                 return $available.' ready now, '.$delayed.' still expected'
-                    .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+                    .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing, $item).')' : '');
             }
 
-            return $this->expectedLaterPhrase($order, $timing);
+            return $this->expectedLaterPhrase($order, $timing, $item);
         }
 
         return null;
@@ -893,7 +893,7 @@ class StoreOrderUpdateService
         }
 
         if ($item->shipsLater()) {
-            return $this->expectedLaterPhrase($order, $item->delayedShippingEstimateLabel('F jS Y'));
+            return $this->expectedLaterPhrase($order, $item->delayedShippingEstimateLabel('F jS Y'), $item);
         }
 
         return null;
@@ -908,7 +908,7 @@ class StoreOrderUpdateService
             $timing = $item->delayedShippingEstimateLabel('F jS Y');
 
             return $available.' being prepared, '.$delayed.' expected'
-                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing, $item).')' : '');
         }
 
         if ($available > 0) {
@@ -947,7 +947,7 @@ class StoreOrderUpdateService
             $timing = $item->delayedShippingEstimateLabel('F jS Y');
 
             return $available.' ready to collect, '.$delayed.' still to collect'
-                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing, $item).')' : '');
         }
 
         if ($available > 0) {
@@ -999,7 +999,7 @@ class StoreOrderUpdateService
             $timing = $item->delayedShippingEstimateLabel('F jS Y');
 
             return $available.' still to be prepared, '.$delayed.' still to be prepared'
-                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
+                .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing, $item).')' : '');
         }
 
         if ($available > 0) {
@@ -1262,8 +1262,12 @@ class StoreOrderUpdateService
         }
     }
 
-    private function expectedLaterPhrase(StoreOrder $order, ?string $dateLabel): string
+    private function expectedLaterPhrase(StoreOrder $order, ?string $dateLabel, ?StoreOrderItem $item = null): string
     {
+        if ($item?->hasExpiredBackorderShippingEstimate()) {
+            return $item->backorderShippingStatus('F jS Y', $order->usesPickup());
+        }
+
         $resolvedDate = trim((string) $dateLabel);
 
         if ($order->usesPickup()) {

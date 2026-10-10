@@ -17,7 +17,8 @@
         .box { display: inline-block; width: 12px; height: 12px; border: 1px solid #666; margin-right: 8px; margin-top: -2px; vertical-align: text-top }
         .type-note { margin: -6px 0 0 22px; font-size: 9px; color: #666; line-height: 1.25; }
         .kit-contents { margin: 3px 0 0 22px; font-size: 9px; color: #555; line-height: 1.25; }
-        .kit-contents-title { font-weight: 700; }
+        .kit-component { margin: 0 0 3px; padding: 3px 5px 3px 8px; border-left: 2px solid #7dd3fc; background: #f8fafc; }
+        .kit-component-note { margin: 2px 0 0 10px; color: #666; font-size: 8px; }
         .type-note p, .notes-body p { margin: 0 0 3px; }
         .type-note ul, .notes-body ul { margin: 0 0 3px 14px; padding: 0; }
         .type-note li, .notes-body li { margin: 0 0 2px; }
@@ -33,6 +34,7 @@
                 'workshop' => $page['workshop'],
                 'participants' => $page['participants'],
                 'calculatedItems' => $page['calculatedItems'],
+                'kitSummaries' => $page['kitSummaries'],
                 'pickListNotes' => $page['pickListNotes'],
                 'documentTitle' => 'Workshop Pick List',
             ])

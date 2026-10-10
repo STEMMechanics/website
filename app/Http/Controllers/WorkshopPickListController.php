@@ -480,11 +480,13 @@ class WorkshopPickListController extends Controller
         app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
         $workshop->loadMissing('location', 'pickListTemplate.items', 'pickListTemplate.attachments', 'runSheetTasks');
         $pickListData = $this->pickListService->build($workshop);
+        $shelfPickList = $this->pickListService->buildShelfPickList($workshop, $pickListData['participants']);
 
         $pdf = DomPdf::loadView('pdf.workshop-pick-list', [
             'workshop' => $workshop,
             'participants' => $pickListData['participants'],
             'calculatedItems' => $pickListData['calculatedItems'],
+            'kitSummaries' => $shelfPickList['kit_summaries'],
             'pickListNotes' => $pickListData['pickListNotes'],
             'workshopDrawingPath' => $this->pickListCanvasThumbnailPath($workshop->pick_list_canvas_thumbnail_path),
             'generatedAt' => now(),

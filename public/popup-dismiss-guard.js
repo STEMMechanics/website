@@ -18,6 +18,7 @@
     };
 
     const eventPath = (event) => typeof event.composedPath === 'function' ? event.composedPath() : [event.target];
+    const isNode = (value) => value !== null && typeof value === 'object' && typeof value.nodeType === 'number';
     const hasDirective = (element, expression) => Array.from(element.attributes || []).some(({ name }) => expression.test(name));
 
     const pointerIsOutsidePopup = (popup, event) => {
@@ -45,10 +46,10 @@
         if (event.target === popup && hasDirective(popup, /^(?:@|x-on:)click\.self(?:\.|$)/)) return true;
 
         if (eventPath(event).some((element) => {
-            return element !== popup && popup.contains(element) && isDismissalBackdrop(element);
+            return isNode(element) && element !== popup && popup.contains(element) && isDismissalBackdrop(element);
         })) return true;
 
-        return !popup.contains(event.target);
+        return !isNode(event.target) || !popup.contains(event.target);
     };
 
     let pointerStart = null;

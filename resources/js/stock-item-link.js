@@ -10,6 +10,7 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
     menuTop: 0,
     menuLeft: 0,
     menuWidth: 320,
+    menuMaxHeight: 320,
     get linkedStockItem() {
         const stockItemId = String(this.model?.stock_item_id ?? '');
 
@@ -18,7 +19,6 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
     get matches() {
         const query = this.query.trim().toLowerCase();
         const currentStockItemId = String(this.model?.stock_item_id ?? '');
-        const stockItemNames = new Set(this.catalog.map((option) => String(option.name || '').trim().toLowerCase()));
         const uniqueBlueprintNames = [...new Map(this.itemNameSuggestions
             .map((name) => String(name || '').trim())
             .filter(Boolean)
@@ -28,7 +28,6 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
                 .filter((option) => option.status !== 'archived' || String(option.id) === currentStockItemId)
                 .map((option) => ({ ...option, suggestionType: 'stock' })),
             ...uniqueBlueprintNames
-                .filter((name) => !stockItemNames.has(name.toLowerCase()))
                 .map((name, index) => ({
                     id: `blueprint-text-${index}`,
                     name,
@@ -48,33 +47,51 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
             return 2;
         };
 
-        return options
-            .sort((a, b) => matchRank(a) - matchRank(b) || String(a.name).localeCompare(String(b.name)))
-            .slice(0, 12);
+        const sortedOptions = options.sort(
+            (a, b) => matchRank(a) - matchRank(b) || String(a.name).localeCompare(String(b.name)),
+        );
+        const blueprintTextMatches = sortedOptions
+            .filter((option) => option.suggestionType === 'blueprint-text')
+            .slice(0, 4);
+        const stockMatches = sortedOptions
+            .filter((option) => option.suggestionType === 'stock')
+            .slice(0, Math.max(0, 12 - blueprintTextMatches.length));
+
+        return [...stockMatches, ...blueprintTextMatches]
+            .sort((a, b) => matchRank(a) - matchRank(b) || String(a.name).localeCompare(String(b.name)));
     },
     position(element, width = 320) {
         const rect = element.getBoundingClientRect();
         this.menuWidth = Math.min(width, window.innerWidth - 16);
-        this.menuTop = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 320));
+        this.menuTop = rect.bottom + 4;
+        this.menuMaxHeight = Math.max(96, Math.min(320, window.innerHeight - this.menuTop - 8));
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
     },
     editDescription(element) {
-        if (this.model?.stock_item_id && element.value !== this.linkedStockItem?.name) {
+        const value = String(element.value || '');
+        this.model.item_name = value;
+
+        if (this.model?.stock_item_id && value !== this.linkedStockItem?.name) {
             this.model.stock_item_id = null;
             this.model.stock_quantity = null;
             this.$dispatch('stock-item-link-changed');
         }
 
-        this.query = element.value || '';
+        this.query = value;
         this.selected = 0;
         this.position(element, Math.max(320, element.offsetWidth));
-        this.open = this.matches.length > 0 || !!this.query.trim();
+        this.open = true;
     },
     browse(element) {
-        this.position(element);
-        this.query = '';
+        const opening = !this.open;
+        const input = this.$refs.stockItemInput || element;
+
+        if (opening) {
+            this.position(input);
+        }
+        this.query = opening ? String(input.value || '') : '';
         this.selected = 0;
-        this.open = !this.open;
+        this.open = opening;
     },
     move(step) {
         if (!this.matches.length) return;
