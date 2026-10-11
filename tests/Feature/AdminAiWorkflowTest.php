@@ -7,6 +7,7 @@ use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\SiteOption;
 use App\Models\Supplier;
 use App\Models\Ticket;
@@ -420,7 +421,29 @@ class AdminAiWorkflowTest extends TestCase
             'ends_at' => now()->addDays(10)->addHours(2),
             'is_private' => false,
         ]);
-        Product::factory()->create(['title' => 'New Maker Kit', 'created_at' => now()->subDays(2)]);
+        Product::factory()->create([
+            'title' => 'New Maker Kit',
+            'product_type' => Product::PRODUCT_TYPE_KIT,
+            'inventory_quantity' => 1,
+            'created_at' => now()->subDays(2),
+        ]);
+        $variantOnlyProduct = Product::factory()->create([
+            'title' => 'Variant-only craft parts',
+            'inventory_quantity' => 0,
+            'created_at' => now()->subDays(2),
+        ]);
+        ProductVariant::factory()->create(['product_id' => $variantOnlyProduct->id, 'inventory_quantity' => 5]);
+        Product::factory()->create([
+            'title' => 'Out of stock craft parts',
+            'inventory_quantity' => 0,
+            'created_at' => now()->subDays(2),
+        ]);
+        Product::factory()->create([
+            'title' => 'Private cardboard material',
+            'product_type' => Product::PRODUCT_TYPE_MATERIAL,
+            'inventory_quantity' => 10,
+            'created_at' => now()->subDays(2),
+        ]);
         SiteOption::query()->updateOrCreate(['name' => 'workshops.school-holidays'], ['value' => '2026-09-20 to 2026-09-29']);
         SiteOption::query()->updateOrCreate(['name' => 'workshops.public-holidays'], ['value' => '2026-10-05 | Local public holiday']);
 
@@ -445,6 +468,9 @@ class AdminAiWorkflowTest extends TestCase
         $this->assertStringContainsString('Recent Robotics Workshop', $payload);
         $this->assertStringContainsString('Upcoming Design Workshop', $payload);
         $this->assertStringContainsString('New Maker Kit', $payload);
+        $this->assertStringContainsString('Variant-only craft parts', $payload);
+        $this->assertStringNotContainsString('Out of stock craft parts', $payload);
+        $this->assertStringNotContainsString('Private cardboard material', $payload);
         $this->assertStringContainsString('Local public holiday', $payload);
         $this->assertStringContainsString('School holidays', $payload);
         $this->assertStringContainsString('We had a creative week.', $payload);

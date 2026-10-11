@@ -40,7 +40,7 @@ class AdminShopProductTest extends TestCase
             ->assertOk()->assertSeeText($draft->title)
             ->assertDontSeeText($current->title)->assertDontSeeText($archived->title)
             ->assertDontSeeText('Allocation needs review')
-            ->assertViewHas('allocationAttentionCount', 1);
+            ->assertSee('aria-label="Needs allocation, 1, needs attention"', false);
 
         $response = $this->actingAs($admin)
             ->get(route('admin.shop.product.index', ['filter' => 'archived']))
@@ -48,7 +48,7 @@ class AdminShopProductTest extends TestCase
             ->assertSeeText($archived->title)
             ->assertDontSeeText($current->title);
 
-        $this->assertMatchesRegularExpression('/aria-label="Archived"\s+aria-current="page"/', $response->getContent());
+        $this->assertMatchesRegularExpression('/aria-label="Archived, 1"\s+aria-current="page"/', $response->getContent());
     }
 
     public function test_product_editor_has_ai_wands_in_place_of_the_product_copy_panel(): void

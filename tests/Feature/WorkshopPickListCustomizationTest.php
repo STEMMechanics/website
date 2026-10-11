@@ -76,13 +76,13 @@ class WorkshopPickListCustomizationTest extends TestCase
         $saveResponse->assertOk();
         $saveResponse->assertJsonPath('pick_list_is_customized', true);
         $saveResponse->assertJsonPath('pick_list_custom_items.0.item_name', 'Custom cable pack');
-        $saveResponse->assertJsonPath('checked_item_ids.0', 'manual:2');
+        $saveResponse->assertJsonPath('checked_item_ids.0', 'item:2');
 
         $workshop->refresh();
         $this->assertTrue((bool) $workshop->pick_list_is_customized);
         $this->assertSame('Workshop-specific notes', (string) $workshop->pick_list_notes);
         $this->assertSame('Custom cable pack', (string) ($workshop->pick_list_custom_items[0]['item_name'] ?? ''));
-        $this->assertSame(['manual:2'], $workshop->pick_list_checked_item_ids ?? []);
+        $this->assertSame(['item:2'], $workshop->pick_list_checked_item_ids ?? []);
 
         $this->actingAs($admin)
             ->from(route('admin.pick-list-template.edit', $template))
@@ -111,7 +111,7 @@ class WorkshopPickListCustomizationTest extends TestCase
             ->get(route('admin.workshop.pick-list', $workshop));
 
         $pickListResponse->assertOk();
-        $this->assertSame(['manual:2'], $pickListResponse->viewData('checkedItemIds') ?? []);
+        $this->assertSame(['item:2'], $pickListResponse->viewData('checkedItemIds') ?? []);
 
         $visibleItems = collect($pickListResponse->viewData('customItems') ?? []);
         $this->assertSame('Custom cable pack', (string) ($visibleItems[0]['item_name'] ?? ''));

@@ -262,16 +262,13 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             'All workshops' => 4,
             'Current' => 2,
             'Needs attention' => 2,
-            'Stock shortage' => 0,
             'Attendance' => 2,
-            'Reconcile stock' => 0,
             'Ready for review' => 0,
         ], request()->attributes->get('collection_preset_counts'));
         $selection = $this->getJson(route('admin.workshop.index', ['select_listing' => 1, 'show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString(), 'page' => 2]))
             ->assertOk()->json('names');
         $this->assertCount(2, $selection);
         $this->assertNotContains($cancelled->id, $selection);
-
 
         $this->get(route('admin.workshop.index', ['show_cancelled' => 0, 'list_starts_at_min' => today()->toDateString()]))
             ->assertOk()->assertDontSee('Cancelled example')->assertDontSee('Workshop yesterday')

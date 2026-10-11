@@ -93,7 +93,7 @@ class WorkshopPickListController extends Controller
             'checked_item_ids.*' => ['required', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ((! is_string($value) && ! is_int($value))
                     || strlen((string) $value) > 100
-                    || preg_match('/^(?:[1-9][0-9]*|item:[1-9][0-9]*)$/D', (string) $value) !== 1) {
+                    || preg_match('/^(?:[1-9][0-9]*|(?:item|manual):[1-9][0-9]*)$/D', (string) $value) !== 1) {
                     $fail('Select a valid pick list item.');
                 }
             }],

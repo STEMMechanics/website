@@ -83,7 +83,15 @@ class WorkshopPickListService
     {
         $allowed = collect([...$shelfPickList['rows'], ...$shelfPickList['kit_summaries']])->pluck('key')->all();
 
-        return collect($checkedItemIds)->map(fn ($id): string => is_numeric($id) ? 'item:'.$id : (string) $id)
+        return collect($checkedItemIds)->map(function ($id): string {
+            if (is_numeric($id)) {
+                return 'item:'.$id;
+            }
+            $id = (string) $id;
+
+            // Existing workshops can still hold checkmarks using the previous row keys.
+            return str_starts_with($id, 'manual:') ? 'item:'.substr($id, 7) : $id;
+        })
             ->filter(fn (string $id): bool => in_array($id, $allowed, true))->unique()->values()->all();
     }
 

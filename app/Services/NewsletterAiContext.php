@@ -136,13 +136,13 @@ class NewsletterAiContext
     /** @return list<array{title:string,availability:string,description:string}> */
     private function newProducts(Carbon $from): array
     {
-        return Product::query()->sellable()
+        return Product::query()->sellable()->with('variants')
             ->active()
             ->where(fn (Builder $query): Builder => $query
                 ->where('created_at', '>=', $from)
                 ->orWhere('restocked_at', '>=', $from))
             ->orderByDesc('created_at')
-            ->get(['title', 'short_description', 'description', 'created_at', 'restocked_at'])
+            ->get()
             ->filter(fn (Product $product): bool => $product->isSelectionPurchasable()
                 || $product->purchasableVariants()->contains(fn ($variant): bool => $product->isSelectionPurchasable($variant)))
             ->take(12)

@@ -227,13 +227,13 @@ class WorkshopPickListAutosaveTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('ok', true);
         $response->assertJsonPath('pick_list_participants', 8);
-        $response->assertJsonPath('checked_item_ids.0', 'manual:'.$allowedItem->id);
+        $response->assertJsonPath('checked_item_ids.0', 'item:'.$allowedItem->id);
 
         $freshWorkshop = $workshop->fresh();
 
         $this->assertSame(8, (int) $freshWorkshop->pick_list_participants);
         $this->assertSame('Bring extension cords', (string) $freshWorkshop->pick_list_notes);
-        $this->assertSame(['manual:'.$allowedItem->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
+        $this->assertSame(['item:'.$allowedItem->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
     }
 
     public function test_pick_list_notes_only_save_keeps_the_template_link_and_shows_template_notes_when_blank(): void
@@ -307,7 +307,35 @@ class WorkshopPickListAutosaveTest extends TestCase
         $freshWorkshop = $workshop->fresh();
         $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
         $this->assertNull($freshWorkshop->pick_list_custom_items);
-        $this->assertSame(['manual:'.$item->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
+        $this->assertSame(['item:'.$item->id], $freshWorkshop->pick_list_checked_item_ids ?? []);
+    }
+
+    public function test_legacy_checked_item_keys_are_preserved_and_normalized_when_saved(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create(['name' => 'Existing blueprint']);
+        $item = $template->items()->create([
+            'item_name' => 'Masking tape',
+            'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+            'quantity_value' => 1,
+            'sort_order' => 1,
+        ]);
+        $workshop = $this->createWorkshop();
+        $workshop->update([
+            'pick_list_template_id' => $template->id,
+            'pick_list_checked_item_ids' => ['manual:'.$item->id, 'manual:999999'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.run-sheet', $workshop))
+            ->assertOk()
+            ->assertViewHas('checkedItemIds', ['item:'.$item->id]);
+
+        $this->postJson(route('admin.workshop.run-sheet.save', $workshop), [
+            'checked_item_ids' => ['manual:'.$item->id, 'item:'.$item->id, 'manual:999999'],
+        ])->assertOk()->assertJsonPath('checked_item_ids', ['item:'.$item->id]);
+
+        $this->assertSame(['item:'.$item->id], $workshop->fresh()->pick_list_checked_item_ids);
     }
 
     public function test_pick_list_reset_can_restore_the_selected_template_and_clear_custom_items(): void
