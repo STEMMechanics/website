@@ -133,7 +133,9 @@ class ProductStockController extends Controller
     private function unitLabel(Product $product, ?ProductVariant $variant = null): string
     {
         if ($product->hasMaterialMeasurements() && ($product->shared_inventory || $product->saleUnits($variant) === 1)) {
-            return $product->purchaseUnitLabel();
+            $unit = $product->purchaseUnitLabel();
+
+            return in_array(strtolower($unit), ['each', 'unit', 'units'], true) ? 'piece' : $unit;
         }
 
         return $product->shared_inventory ? 'item' : 'pack';

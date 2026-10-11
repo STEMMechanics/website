@@ -1,15 +1,19 @@
+import { changeProductQuantityUnit, defaultProductQuantityUnit, productQuantityUnit } from './product-material-quantity';
+
 window.SM = window.SM || {};
 
 window.SM.productMaterials = (config = {}) => ({
     recipeCatalog: config.catalog || [],
-    recipeRows: (config.recipe || []).map((row, index) => ({ ...row, product_id: row.component_product_id, key: `recipe-${index}` })),
+    recipeRows: (config.recipe || []).map((row, index) => ({ ...row, product_id: row.component_product_id, quantity_unit: productQuantityUnit(config.catalog?.find(item => String(item.id) === String(row.component_product_id)), row), key: `recipe-${index}` })),
     cutSizes: (config.cuts || []).map((row, index) => ({ ...row, key: `cut-${index}` })),
     nextRecipeKey: 0,
     nextCutKey: 0,
     isKit: Boolean(config.isKit),
+    useAsMaterial: Boolean(config.useAsMaterial),
     materialKind: config.materialKind || 'unit',
     purchaseUnit: config.purchaseUnit || 'each',
     purchaseQuantity: config.purchaseQuantity ?? 1,
+    purchasePackUnits: config.purchasePackUnits ?? 1,
     materialMeasureUnit: config.measureUnit || 'm',
     materialLength: config.materialLength ?? '',
     materialWidth: config.materialWidth ?? '',
@@ -26,7 +30,7 @@ window.SM.productMaterials = (config = {}) => ({
         return ['physical', 'kit'].includes(this.productType);
     },
     hasMaterialMeasurements() {
-        return this.productType === 'material' || (this.productType === 'physical' && ['length', 'sheet'].includes(this.materialKind));
+        return this.productType === 'material' || (this.productType === 'physical' && this.useAsMaterial);
     },
     initMaterials() {
         this.isKit = this.productType === 'kit';
@@ -59,8 +63,8 @@ window.SM.productMaterials = (config = {}) => ({
         });
     },
     changeMaterialKind() {
-        this.purchaseUnit = ({ unit: 'each', length: 'roll', sheet: 'sheet' })[this.materialKind] || 'each';
-        if (this.materialKind === 'sheet') this.purchaseQuantity = 1;
+        this.purchaseUnit = ({ unit: 'piece', length: 'roll', sheet: 'sheet' })[this.materialKind] || 'piece';
+        if (this.materialKind === 'sheet' || (this.productType === 'physical' && this.materialKind === 'unit')) this.purchaseQuantity = 1;
     },
     recipeItem(row) {
         return this.recipeCatalog.find((item) => String(item.id) === String(row.product_id)) || null;
@@ -71,9 +75,16 @@ window.SM.productMaterials = (config = {}) => ({
         row.cut_size_id = '';
         row.length = '';
         row.length_unit = this.recipeItem(row)?.measure_unit || 'mm';
+        row.quantity_unit = row.product_id ? defaultProductQuantityUnit(this.recipeItem(row)) : null;
+    },
+    recipeQuantityUnit(row) {
+        return productQuantityUnit(this.recipeItem(row), row);
+    },
+    changeRecipeQuantityUnit(row) {
+        changeProductQuantityUnit(row, row.quantity_unit, this.recipeItem(row));
     },
     addRecipeRow() {
-        this.recipeRows.push({ key: `new-recipe-${++this.nextRecipeKey}`, product_id: '', component_product_id: '', component_variant_id: '', item_name: '', quantity: 1, cut_size_id: '', length: '', length_unit: 'mm', note: '' });
+        this.recipeRows.push({ key: `new-recipe-${++this.nextRecipeKey}`, product_id: '', component_product_id: '', component_variant_id: '', item_name: '', quantity: 1, quantity_unit: null, cut_size_id: '', length: '', length_unit: 'mm', note: '' });
     },
     addCutSize() {
         this.cutSizes.push({ key: `new-cut-${++this.nextCutKey}`, id: '', length_mm: '', width_mm: '', yield: '' });
@@ -90,23 +101,23 @@ window.SM.productMaterials = (config = {}) => ({
         const item = this.recipeItem(row);
         const quantity = Number(row.quantity);
         if (!item || !Number.isFinite(quantity) || quantity <= 0) return null;
-        if (item.product_type !== 'material' && !item.has_material_measurements) return quantity;
+        if ((!item.has_material_measurements && item.product_type !== 'material') || productQuantityUnit(item, row) === 'pack') return quantity;
         const variant = item.variants?.find((option) => String(option.id) === String(row.component_variant_id));
         const packUnits = item.product_type === 'material' ? 1 : Number(variant?.pack_units ?? item.pack_units ?? 1);
         if (!Number.isInteger(packUnits) || packUnits < 1) return null;
         if (item.material_kind === 'sheet') {
-            if (!row.cut_size_id) return quantity;
+            if (!row.cut_size_id) return quantity / packUnits;
             const cut = item.cut_sizes.find((size) => String(size.id) === String(row.cut_size_id));
             return cut?.yield > 0 ? quantity / cut.yield / packUnits : null;
         }
         if (item.material_kind === 'length') {
-            if (item.product_type !== 'material' && String(row.length ?? '').trim() === '') return quantity;
+            if (item.product_type !== 'material' && String(row.length ?? '').trim() === '') return quantity / packUnits;
             const factors = { mm: 1, cm: 10, m: 1000 };
             const length = Number(row.length);
             const purchased = Number(item.purchase_quantity) * (factors[item.measure_unit] || 0);
             return length > 0 && purchased > 0 && factors[row.length_unit] ? quantity * length * factors[row.length_unit] / purchased / packUnits : null;
         }
-        return item.purchase_quantity > 0 ? quantity / item.purchase_quantity : null;
+        return item.purchase_quantity > 0 ? quantity / item.purchase_quantity / packUnits : null;
     },
     recipeRowCost(row) {
         const item = this.recipeItem(row);

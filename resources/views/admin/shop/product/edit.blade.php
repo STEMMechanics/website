@@ -6,12 +6,14 @@
     $costingService = app(\App\Services\ProductRecipeService::class);
     $materialsConfig = [
         'catalog' => $recipeCatalog ?? [],
-        'recipe' => old('recipe', isset($product) ? $product->recipeComponents->map(fn ($row) => [...$row->only(['component_product_id', 'component_variant_id', 'cut_size_id', 'quantity', 'length', 'length_unit', 'note']), 'item_name' => $row->component?->title ?? ''])->all() : []),
+        'recipe' => old('recipe', isset($product) ? $product->recipeComponents->map(fn ($row) => [...$row->only(['component_product_id', 'component_variant_id', 'cut_size_id', 'quantity', 'quantity_unit', 'length', 'length_unit', 'note']), 'item_name' => $row->component?->title ?? ''])->all() : []),
         'cuts' => old('cut_sizes', isset($product) ? $product->cutSizes->toArray() : []),
         'isKit' => old('product_type', $product->product_type ?? '') === \App\Models\Product::PRODUCT_TYPE_KIT,
+        'useAsMaterial' => (bool) old('use_as_material', isset($product) && $product->hasMaterialMeasurements()),
         'materialKind' => old('material_kind', $product->material_kind ?? 'unit'),
-        'purchaseUnit' => old('purchase_unit', $product->purchase_unit ?? 'each'),
+        'purchaseUnit' => old('purchase_unit', $product->purchase_unit ?? 'piece'),
         'purchaseQuantity' => old('purchase_quantity', $product->purchase_quantity ?? 1),
+        'purchasePackUnits' => old('purchase_pack_units', $product->purchase_pack_units ?? 1),
         'measureUnit' => old('material_measure_unit', $product->material_measure_unit ?? 'm'),
         'materialLength' => old('material_length_mm', $product->material_length_mm ?? ''),
         'materialWidth' => old('material_width_mm', $product->material_width_mm ?? ''),

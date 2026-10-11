@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductPurchase extends Model
 {
-    protected $fillable = ['expense_id', 'product_id', 'product_variant_id', 'quantity', 'total_cost_ex_tax', 'inventory_added', 'individual_units', 'units_per_purchase'];
+    protected $fillable = ['expense_id', 'product_id', 'product_variant_id', 'quantity', 'total_cost_ex_tax', 'inventory_added', 'individual_units', 'purchase_pack', 'units_per_purchase'];
 
-    protected $casts = ['quantity' => 'float', 'total_cost_ex_tax' => 'float', 'inventory_added' => 'integer', 'individual_units' => 'boolean', 'units_per_purchase' => 'integer'];
+    protected $casts = ['quantity' => 'float', 'total_cost_ex_tax' => 'float', 'inventory_added' => 'integer', 'individual_units' => 'boolean', 'purchase_pack' => 'boolean', 'units_per_purchase' => 'integer'];
 
     /** @return BelongsTo<Expense, $this> */
     public function expense(): BelongsTo

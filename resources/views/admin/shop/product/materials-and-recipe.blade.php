@@ -1,13 +1,21 @@
-<x-ui.collapsible-section title="Material measurements" variant="product" :open="$editorProductType === \App\Models\Product::PRODUCT_TYPE_MATERIAL || (isset($product) && $product->hasMaterialMeasurements()) || $errors->any()" x-show="productType === 'material' || productType === 'physical'" x-cloak>
-    <x-slot:summary><span x-text="hasMaterialMeasurements() ? purchaseUnit + (materialKind === 'length' ? ' · ' + purchaseQuantity + ' ' + materialMeasureUnit : materialKind === 'sheet' ? ' · ' + materialLength + ' × ' + materialWidth + ' mm' : '') : 'Individual items'"></span></x-slot:summary>
-    <p class="mb-4 text-sm text-slate-600" x-text="productType === 'material' ? 'Describe each purchased unit. Recipes use counts, lengths and cut sizes. Materials are kept off the public store and do not need stock counts.' : 'Optional: describe one individual stock unit, such as a 50 m roll. Use this same item for purchases, store packs and measured pieces in recipes or workshop pick lists. Stock counts whole sellable units; opening a roll for workshops is a manual stock adjustment.'"></p>
-    <div class="product-editor__fields">
-        <x-ui.select name="material_kind" label="Measure as" x-model="materialKind" x-on:change="changeMaterialKind()" x-bind:disabled="productType !== 'material' && productType !== 'physical'">
-            <option value="unit" x-text="productType === 'material' ? 'Individual items' : 'Individual items (no measurements)'">Individual items</option><option value="length">Length (roll or dowel)</option><option value="sheet">Sheet</option>
+<x-ui.collapsible-section title="Material use and measurements" variant="product" :open="$editorProductType === \App\Models\Product::PRODUCT_TYPE_MATERIAL || (isset($product) && $product->hasMaterialMeasurements()) || $errors->any()" x-show="productType === 'material' || productType === 'physical'" x-cloak>
+    <x-slot:summary><span x-text="hasMaterialMeasurements() ? purchaseUnit + (materialKind === 'length' ? ' · ' + purchaseQuantity + ' ' + materialMeasureUnit : materialKind === 'sheet' ? ' · ' + materialLength + ' × ' + materialWidth + ' mm' : '') : 'Store use only'"></span></x-slot:summary>
+    <div x-show="productType === 'physical'">
+        <input type="hidden" name="use_as_material" value="0" x-bind:disabled="productType !== 'physical'">
+        <x-ui.checkbox name="use_as_material" label="Use as a material" x-model="useAsMaterial" :checked="old('use_as_material', isset($product) && $product->hasMaterialMeasurements())" x-bind:disabled="productType !== 'physical'" />
+        @error('use_as_material')<p class="mb-3 text-sm text-red-700">{{ $message }}</p>@enderror
+    </div>
+    <p class="mb-4 text-sm text-slate-600" x-text="productType === 'material' ? 'Describe each purchased unit. Recipes use counts, lengths and cut sizes. Materials are kept off the public store and do not need stock counts.' : 'Use one item for purchases, retail packs and individual pieces in recipes or workshop pick lists. Describe one stock unit below, such as one pipe cleaner or one 50 m roll. Taking items or opening a roll for workshops remains a manual stock adjustment.'"></p>
+    <div class="product-editor__fields" x-show="hasMaterialMeasurements()">
+        <x-ui.select name="material_kind" label="Measure as" x-model="materialKind" x-on:change="changeMaterialKind()" x-bind:disabled="!hasMaterialMeasurements()">
+            <option value="unit">Individual units</option><option value="length">Length (roll or dowel)</option><option value="sheet">Sheet</option>
         </x-ui.select>
-        <x-ui.input name="purchase_unit" label="Unit name" placeholder="Roll, sheet, pack or each" fieldClasses="max-w-48" x-model="purchaseUnit" x-show="hasMaterialMeasurements()" x-bind:disabled="!hasMaterialMeasurements()" />
-        <div x-show="hasMaterialMeasurements() && materialKind !== 'sheet'">
-            <x-ui.input name="purchase_quantity" label="Amount per unit" type="number" min="0.0001" step="any" x-model="purchaseQuantity" x-bind:disabled="!hasMaterialMeasurements() || materialKind === 'sheet'" />
+        <x-ui.input name="purchase_unit" label="Unit name" placeholder="Piece, roll or sheet" fieldClasses="max-w-48" x-model="purchaseUnit" x-bind:disabled="!hasMaterialMeasurements()" />
+        <div x-show="materialKind === 'length' || (productType === 'material' && materialKind === 'unit')">
+            <x-ui.input name="purchase_quantity" label="Amount per unit" type="number" min="0.0001" step="any" x-model="purchaseQuantity" x-bind:disabled="!hasMaterialMeasurements() || materialKind === 'sheet' || (productType === 'physical' && materialKind === 'unit')" />
+        </div>
+        <div x-show="productType === 'physical'">
+            <x-ui.input name="purchase_pack_units" label="Stock units per supplier pack" type="number" min="1" max="1000000" step="1" x-model="purchasePackUnits" x-bind:disabled="productType !== 'physical' || !hasMaterialMeasurements()" info="Use 200 for a bag of 200 pipe cleaners, or 1 for a single roll. Retail pack sizes are set in Variants." />
         </div>
         <div x-show="materialKind === 'length'">
             <x-ui.select name="material_measure_unit" label="Length unit" x-model="materialMeasureUnit" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'length'">
@@ -17,7 +25,8 @@
         <div x-show="materialKind === 'sheet'"><x-ui.input name="material_length_mm" label="Sheet length (mm)" type="number" step="any" min="0.001" x-model="materialLength" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
         <div x-show="materialKind === 'sheet'"><x-ui.input name="material_width_mm" label="Sheet width (mm)" type="number" step="any" min="0.001" x-model="materialWidth" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
     </div>
-    <div x-show="materialKind === 'sheet'" class="mt-4">
+    <p class="mb-4 text-xs text-slate-600" x-show="productType === 'physical' && useAsMaterial && !sharedInventory && Number(basePackUnits) > 1">For one stock count across retail pack sizes, enable “Share stock across all packs and variants” in Variants.</p>
+    <div x-show="hasMaterialMeasurements() && materialKind === 'sheet'" class="mt-4">
         <div class="mb-3 flex items-center justify-between gap-3"><h3 class="font-semibold">Cut sizes and usable yield</h3><x-ui.button type="button" color="primary-outline" size="small" x-on:click="addCutSize()">Add cut size</x-ui.button></div>
         <p class="mb-3 text-sm text-slate-600">Enter the number of usable pieces you normally cut from one sheet. Costs include the unused material. Reusing offcuts gives you a saving.</p>
         <template x-for="(cut, index) in cutSizes" :key="cut.key">
@@ -50,22 +59,28 @@
             <label class="product-editor__recipe-quantity text-sm">Quantity
                 <x-ui.input-control class="mt-1 h-11" type="number" min="0.001" step="any" x-bind:name="`recipe[${index}][quantity]`" x-model="row.quantity" x-bind:disabled="!isPhysicalProduct()" required />
             </label>
+            <label class="product-editor__recipe-option text-sm" x-show="recipeItem(row)?.product_type === 'physical' && recipeItem(row)?.has_material_measurements">Quantity counts
+                <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][quantity_unit]`" x-model="row.quantity_unit" x-on:change="changeRecipeQuantityUnit(row)" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.product_type !== 'physical' || !recipeItem(row)?.has_material_measurements">
+                    <option value="item">Individual units</option>
+                    <option value="pack" x-text="recipeItem(row)?.variants?.find(variant => String(variant.id) === String(row.component_variant_id))?.name || recipeItem(row)?.base_option_name || ''"></option>
+                </x-ui.select-control>
+            </label>
             <label class="product-editor__recipe-option text-sm" x-show="recipeItem(row)?.variants?.length">Variant
                 <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][component_variant_id]`" x-model="row.component_variant_id" x-bind:disabled="!isPhysicalProduct() || !recipeItem(row)?.variants?.length">
                     <option value="" x-text="recipeItem(row)?.base_option_name || ''"></option><template x-for="variant in recipeItem(row)?.variants || []" :key="variant.id"><option x-bind:value="variant.id" x-text="variant.name"></option></template>
                 </x-ui.select-control>
             </label>
-            <label class="product-editor__recipe-option text-sm" x-show="recipeItem(row)?.material_kind === 'sheet'">Cut size
-                <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][cut_size_id]`" x-model="row.cut_size_id" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'sheet'">
+            <label class="product-editor__recipe-option text-sm" x-show="recipeQuantityUnit(row) === 'item' && recipeItem(row)?.material_kind === 'sheet'">Cut size
+                <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][cut_size_id]`" x-model="row.cut_size_id" x-bind:disabled="!isPhysicalProduct() || recipeQuantityUnit(row) !== 'item' || recipeItem(row)?.material_kind !== 'sheet'">
                     <option value="">Whole sheet</option><template x-for="cut in recipeItem(row)?.cut_sizes || []" :key="cut.id"><option x-bind:value="cut.id" x-text="cut.label"></option></template>
                 </x-ui.select-control>
             </label>
-            <div class="product-editor__recipe-length" x-show="recipeItem(row)?.material_kind === 'length'">
+            <div class="product-editor__recipe-length" x-show="recipeQuantityUnit(row) === 'item' && recipeItem(row)?.material_kind === 'length'">
                 <label class="min-w-0 flex-1 text-sm">Length each <span class="text-xs text-slate-500" x-show="recipeItem(row)?.product_type !== 'material'">(optional)</span>
-                    <x-ui.input-control class="mt-1 h-11" type="number" min="0.0001" step="any" x-bind:name="`recipe[${index}][length]`" x-model="row.length" x-bind:placeholder="recipeItem(row)?.product_type === 'material' ? '' : 'Whole pack'" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'length'" x-bind:required="recipeItem(row)?.product_type === 'material' && recipeItem(row)?.material_kind === 'length'" />
+                    <x-ui.input-control class="mt-1 h-11" type="number" min="0.0001" step="any" x-bind:name="`recipe[${index}][length]`" x-model="row.length" x-bind:placeholder="recipeItem(row)?.product_type === 'material' ? '' : 'Whole ' + (recipeItem(row)?.purchase_unit || 'roll')" x-bind:disabled="!isPhysicalProduct() || recipeQuantityUnit(row) !== 'item' || recipeItem(row)?.material_kind !== 'length'" x-bind:required="recipeItem(row)?.product_type === 'material' && recipeItem(row)?.material_kind === 'length'" />
                 </label>
                 <label class="w-16 text-sm">Unit
-                    <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][length_unit]`" x-model="row.length_unit" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'length'">
+                    <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][length_unit]`" x-model="row.length_unit" x-bind:disabled="!isPhysicalProduct() || recipeQuantityUnit(row) !== 'item' || recipeItem(row)?.material_kind !== 'length'">
                         <option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option>
                     </x-ui.select-control>
                 </label>
@@ -186,7 +201,7 @@
                         @php
                             $unitCost = $purchase->quantity > 0 ? $purchase->total_cost_ex_tax / $purchase->quantity : null;
                             $unitCostDecimals = $unitCost !== null && round($unitCost, 4) !== round($unitCost, 2) ? 4 : 2;
-                            $purchaseUnit = $purchase->individual_units ? 'Individual units' : ($product->isPhysical() ? ($purchase->variant?->displayName() ?? $product->baseOptionName()) : $product->purchaseUnitLabel());
+                            $purchaseUnit = $purchase->purchase_pack ? 'Supplier pack ('.$purchase->units_per_purchase.' '.\Illuminate\Support\Str::plural($product->purchaseUnitLabel() === 'each' ? 'piece' : $product->purchaseUnitLabel(), $purchase->units_per_purchase).')' : ($purchase->individual_units ? 'Individual units' : ($product->isPhysical() ? ($purchase->variant?->displayName() ?? $product->baseOptionName()) : $product->purchaseUnitLabel()));
                         @endphp
                         <tr>
                             <td class="whitespace-nowrap">{{ $purchase->expense?->paid_on?->format('j M Y') ?? 'Undated' }}</td>

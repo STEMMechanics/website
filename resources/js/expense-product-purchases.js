@@ -35,6 +35,7 @@ window.SM.expenseProductPurchases = (catalog = [], initialRows = [], createUrl =
         const individualUnits = row.individual_units === undefined
             ? ['physical', 'kit'].includes(product?.product_type) && !row.id && !row.product_variant_id
             : [true, 1, '1'].includes(row.individual_units);
+        const purchasePack = [true, 1, '1'].includes(row.purchase_pack);
 
         const normalised = {
             key,
@@ -42,8 +43,10 @@ window.SM.expenseProductPurchases = (catalog = [], initialRows = [], createUrl =
             product_id: productId,
             item_name: String(row.item_name || product?.name || ''),
             product_variant_id: String(row.product_variant_id ?? ''),
-            individual_units: individualUnits,
-            purchase_choice: individualUnits ? 'individual' : String(row.product_variant_id ?? ''),
+            individual_units: individualUnits && !purchasePack,
+            purchase_pack: purchasePack,
+            saved_purchase_pack_units: purchasePack ? Number(row.units_per_purchase) || null : null,
+            purchase_choice: purchasePack ? 'supplier' : individualUnits ? 'individual' : String(row.product_variant_id ?? ''),
             add_inventory: false,
             quantity: String(row.quantity ?? ''),
             total_cost_ex_tax: this.formatAmount(row.total_cost_ex_tax),
@@ -63,25 +66,46 @@ window.SM.expenseProductPurchases = (catalog = [], initialRows = [], createUrl =
     productFor(row) { return this.catalog.find((item) => String(item.id) === String(row.product_id)) || null; },
     tracksInventory(row) {
         const item = this.productFor(row);
-        if (row.individual_units && !item?.shared_inventory && item?.pack_units > 1) return false;
+        if ((row.individual_units || row.purchase_pack) && !item?.shared_inventory && item?.pack_units > 1) return false;
         const variant = item?.variants?.find((option) => String(option.id) === String(row.product_variant_id));
         return Boolean(variant ? variant.tracks_inventory : item?.tracks_inventory);
     },
     itemChanged(row) {
         row.product_variant_id = '';
-        row.individual_units = ['physical', 'kit'].includes(this.productFor(row)?.product_type);
-        row.purchase_choice = row.individual_units ? 'individual' : '';
+        const product = this.productFor(row);
+        row.saved_purchase_pack_units = null;
+        row.purchase_pack = Boolean(product?.has_material_measurements && product?.purchase_pack_units > 1);
+        row.individual_units = !row.purchase_pack && ['physical', 'kit'].includes(product?.product_type);
+        row.purchase_choice = row.purchase_pack ? 'supplier' : row.individual_units ? 'individual' : '';
         row.add_inventory = this.tracksInventory(row);
         this.markChanged(row);
     },
     purchaseChoiceChanged(row) {
         row.individual_units = row.purchase_choice === 'individual';
-        row.product_variant_id = row.individual_units ? '' : row.purchase_choice;
+        row.purchase_pack = row.purchase_choice === 'supplier';
+        row.product_variant_id = row.individual_units || row.purchase_pack ? '' : row.purchase_choice;
         row.add_inventory = this.tracksInventory(row);
         this.markChanged(row);
     },
-    unitFor(productId) {
-        return this.catalog.find((item) => String(item.id) === String(productId))?.unit || '';
+    purchasePackUnits(row) {
+        return row.saved_purchase_pack_units || this.productFor(row)?.purchase_pack_units || 1;
+    },
+    supplierPackLabel(row) {
+        const units = this.purchasePackUnits(row);
+        const unit = this.productFor(row)?.unit || 'piece';
+        const label = ['each', 'unit', 'units'].includes(unit.toLowerCase()) ? 'piece' : unit;
+
+        return `Supplier pack (${units} ${window.SM.pluralize(label, units)})`;
+    },
+    unitFor(row) {
+        const product = this.productFor(row);
+        if (row.purchase_pack) return 'pack';
+        if (['physical', 'kit'].includes(product?.product_type) && !row.individual_units) {
+            const variant = product.variants?.find(option => String(option.id) === String(row.product_variant_id));
+            if (Number(variant?.pack_units ?? product.pack_units) > 1) return 'pack';
+        }
+
+        return product?.unit || '';
     },
     markChanged(row = null) {
         this.changed = true;
@@ -198,16 +222,20 @@ window.SM.expenseProductPurchases = (catalog = [], initialRows = [], createUrl =
                 page: Number(item?.evidence?.page) || 0,
             };
             const product = this.catalog.find((option) => String(option.id) === productId && option.status !== 'archived');
+            const purchasePack = item?.purchase_pack === true;
             if (!product || !/^\d+(?:\.\d+)?$/.test(quantity) || Number(quantity) <= 0 || !/^\d+(?:\.\d+)?$/.test(totalCost)) {
                 continue;
             }
+            if (purchasePack && (!product.has_material_measurements || product.product_type !== 'physical' || product.purchase_pack_units <= 1)) continue;
 
             const existingRow = this.rows.find((row) => {
                 return !row.touched
                     && !matchedRows.has(row.key)
                     && String(row.product_id) === productId
                     && !row.product_variant_id
-                    && row.individual_units === ['physical', 'kit'].includes(product.product_type);
+                    && row.purchase_pack === purchasePack
+                    && (!purchasePack || this.purchasePackUnits(row) === product.purchase_pack_units)
+                    && row.individual_units === (!purchasePack && ['physical', 'kit'].includes(product.product_type));
             });
             if (existingRow) {
                 existingRow.quantity = quantity;
@@ -218,6 +246,7 @@ window.SM.expenseProductPurchases = (catalog = [], initialRows = [], createUrl =
             } else {
                 const row = this.normaliseRow({
                     product_id: productId,
+                    purchase_pack: purchasePack,
                     item_name: product.name,
                     quantity,
                     total_cost_ex_tax: totalCost,

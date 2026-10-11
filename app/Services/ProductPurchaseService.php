@@ -23,6 +23,7 @@ class ProductPurchaseService
             'product_purchases.*.total_cost_ex_tax' => ['required', 'numeric', 'min:0', 'max:10000000', 'decimal:0,4'],
             'product_purchases.*.add_inventory' => ['nullable', 'boolean'],
             'product_purchases.*.individual_units' => ['nullable', 'boolean'],
+            'product_purchases.*.purchase_pack' => ['nullable', 'boolean'],
         ]);
         if (! $request->boolean('product_purchases_changed') && ! $request->exists('product_purchases')) {
             return null;
@@ -63,21 +64,30 @@ class ProductPurchaseService
                 throw ValidationException::withMessages(['product_purchases.'.$index.'.product_id' => 'Individual units must be linked to a physical product without a retail variant.']);
             }
             $sameItem = $old && (int) $old->product_id === (int) $product->id && (int) ($old->product_variant_id ?? 0) === $variantId;
-            $samePurchaseUnit = $sameItem && (bool) $old->individual_units === $individualUnits;
+            $purchasePack = ! empty($row['purchase_pack'] ?? ($sameItem ? $old->purchase_pack : false));
+            if ($purchasePack && ($individualUnits || $variantId || ! $product->isPhysical()
+                || (! $product->hasMaterialMeasurements() && ! ($sameItem && $old->purchase_pack)))) {
+                throw ValidationException::withMessages(['product_purchases.'.$index.'.purchase_pack' => 'Supplier packs must be linked to a Store Item used as a material, without a retail variant.']);
+            }
+            $samePurchaseUnit = $sameItem && (bool) $old->individual_units === $individualUnits && (bool) $old->purchase_pack === $purchasePack;
             $unitsPerPurchase = $individualUnits || ! $product->isPhysical()
                 ? 1
-                : ($samePurchaseUnit && $old->units_per_purchase !== null ? $old->units_per_purchase : $product->saleUnits($variant));
+                : ($samePurchaseUnit && $old->units_per_purchase !== null ? $old->units_per_purchase
+                    : ($purchasePack ? max(1, (int) $product->purchase_pack_units) : $product->saleUnits($variant)));
             $inventory = 0;
             if (! empty($row['add_inventory']) && $product->isPhysical() && $product->tracksInventory($variant)) {
-                if ($individualUnits && ! $product->shared_inventory && $product->saleUnits() > 1) {
-                    throw ValidationException::withMessages(['product_purchases.'.$index.'.add_inventory' => 'Use shared individual stock on this product, or leave Add to product stock off for an individual-unit purchase.']);
+                if (($individualUnits || $purchasePack) && ! $product->shared_inventory && $product->saleUnits() > 1) {
+                    throw ValidationException::withMessages(['product_purchases.'.$index.'.add_inventory' => 'Use shared individual stock on this product, or leave Add to product stock off for a purchase of individual units or supplier packs.']);
                 }
                 if (floor((float) $row['quantity']) !== (float) $row['quantity']) {
                     throw ValidationException::withMessages(['product_purchases.'.$index.'.quantity' => 'Use a whole number of purchased items when adding inventory.']);
                 }
                 $units = $samePurchaseUnit && $old->inventory_added > 0
                     ? (float) $old->inventory_added / (float) $old->quantity
-                    : ($individualUnits ? 1 : $product->inventoryUnits($variant));
+                    : ($purchasePack ? $unitsPerPurchase : ($individualUnits ? 1 : $product->inventoryUnits($variant)));
+                if ((float) $row['quantity'] * $units > 2147483647) {
+                    throw ValidationException::withMessages(['product_purchases.'.$index.'.quantity' => 'This purchase exceeds the maximum stock count.']);
+                }
                 $inventory = (int) round((float) $row['quantity'] * $units);
             }
             if ($old && ((int) $old->product_id !== (int) $product->id || (int) $old->product_variant_id !== $variantId)) {
@@ -92,7 +102,7 @@ class ProductPurchaseService
                 'product_id' => $product->id, 'product_variant_id' => $variantId ?: null,
                 'quantity' => (float) $row['quantity'], 'total_cost_ex_tax' => (float) $row['total_cost_ex_tax'],
                 'inventory_added' => $inventory,
-                'individual_units' => $individualUnits, 'units_per_purchase' => $unitsPerPurchase,
+                'individual_units' => $individualUnits, 'purchase_pack' => $purchasePack, 'units_per_purchase' => $unitsPerPurchase,
             ])->save();
             $kept[] = $purchase->id;
             $affected[] = (int) $product->id;
@@ -125,6 +135,9 @@ class ProductPurchaseService
         if ((int) $inventory->inventory_quantity + $delta < 0) {
             throw ValidationException::withMessages(['product_purchases' => 'Some of this purchase stock has already been used. Adjust the product inventory before reducing or removing the purchase.']);
         }
+        if ((int) $inventory->inventory_quantity + $delta > 2147483647) {
+            throw ValidationException::withMessages(['product_purchases' => 'This purchase exceeds the maximum stock count.']);
+        }
         $inventory->inventory_quantity = (int) $inventory->inventory_quantity + $delta;
         $inventory->save();
     }
@@ -141,6 +154,8 @@ class ProductPurchaseService
                 'base_option_name' => $product->baseOptionName(),
                 'pack_units' => $product->saleUnits(), 'shared_inventory' => (bool) $product->shared_inventory,
                 'product_type' => (string) $product->product_type, 'is_kit' => $product->isKit(),
+                'has_material_measurements' => $product->hasMaterialMeasurements(),
+                'purchase_pack_units' => max(1, (int) $product->purchase_pack_units),
                 'status' => (string) $product->status, 'unit' => $product->purchaseUnitLabel(),
                 'tracks_inventory' => $product->isPhysical() && $product->inventory_quantity !== null,
                 'variants' => $product->variants->map(fn (ProductVariant $variant): array => ['id' => (int) $variant->id, 'name' => $variant->displayName(), 'pack_units' => $product->saleUnits($variant), 'tracks_inventory' => $product->isPhysical() && $product->tracksInventory($variant)])->all(),

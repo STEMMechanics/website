@@ -160,6 +160,9 @@ class AdminAiController extends Controller
         $purchaseInstruction = $includePurchases
             ? ' Also inspect itemized purchased goods against the available product and material catalogue. Return a product_purchases entry only when the printed item clearly matches a listed product or material and its quantity uses the same unit as the catalogue; do not infer pack-to-unit conversions, include services or fees, or guess a match. Use the printed line amount excluding GST; if only a clear ex-GST unit price and quantity are printed, calculate their line total. Derive an ex-GST amount from an inclusive line total only when that line’s GST is explicitly shown; never assume a GST rate. Do not allocate invoice-wide freight across items; if freight is present, add a needs_review note to allocate it manually. If an ex-GST line amount or quantity is unclear, omit that item and add a short needs_review note. For each entry return its exact catalogue ID, quantity, total_cost_ex_tax as decimal digits, and short printed evidence with page number. If no product and material catalogue item was purchased, return an empty product_purchases array. Catalogue: '.json_encode($purchaseCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).'.'
             : ' Return an empty product_purchases array.';
+        if ($includePurchases) {
+            $purchaseInstruction .= ' For a Store Item with has_material_measurements and purchase_pack_units greater than 1, a printed supplier pack may be matched only when its printed pack size exactly equals purchase_pack_units. Keep quantity as the number of supplier packs and set purchase_pack to true. Otherwise use individual stock units for Store Items and Kits, or the purchase unit for private Materials, and set purchase_pack to false. Never treat a retail pack or a measured length as one individual unit. If the purchase unit is unclear or the pack size differs, omit the item and flag it for review.';
+        }
 
         $input = [[
             'role' => 'user',
@@ -195,6 +198,7 @@ class AdminAiController extends Controller
                 'type' => 'array',
                 'items' => $this->objectSchema([
                     'product_id' => ['type' => 'integer'],
+                    'purchase_pack' => ['type' => 'boolean'],
                     'quantity' => $this->stringSchema(),
                     'total_cost_ex_tax' => $this->stringSchema(),
                     'evidence' => $this->evidenceSchema(),
@@ -208,17 +212,21 @@ class AdminAiController extends Controller
             : $this->assistant->generateJson($instructions, $input, 'expense_receipt_extraction', $schema);
 
         $catalogProductIds = array_fill_keys(array_map('intval', array_column($purchaseCatalog, 'id')), true);
+        $catalogProducts = array_column($purchaseCatalog, null, 'id');
         $result['product_purchases'] = $includePurchases
             ? collect($result['product_purchases'] ?? [])
                 ->take(100)
-                ->map(function ($item) use ($catalogProductIds): ?array {
+                ->map(function ($item) use ($catalogProductIds, $catalogProducts): ?array {
                     if (! is_array($item)) {
                         return null;
                     }
                     $productId = (int) ($item['product_id'] ?? 0);
+                    $purchasePack = ($item['purchase_pack'] ?? false) === true;
+                    $catalogItem = $catalogProducts[$productId] ?? [];
                     $quantity = trim((string) ($item['quantity'] ?? ''));
                     $totalCost = trim((string) ($item['total_cost_ex_tax'] ?? ''));
                     if (! isset($catalogProductIds[$productId])
+                        || ($purchasePack && (empty($catalogItem['has_material_measurements']) || (int) ($catalogItem['purchase_pack_units'] ?? 1) <= 1 || ($catalogItem['product_type'] ?? '') !== 'physical'))
                         || ! is_numeric($quantity)
                         || (float) $quantity <= 0
                         || (float) $quantity > 100000
@@ -230,6 +238,7 @@ class AdminAiController extends Controller
 
                     return [
                         'product_id' => $productId,
+                        'purchase_pack' => $purchasePack,
                         'quantity' => $quantity,
                         'total_cost_ex_tax' => $totalCost,
                         'evidence' => [

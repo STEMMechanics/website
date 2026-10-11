@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\ProductRecipeComponent;
 use App\Models\Workshop;
 use App\Models\WorkshopCategory;
 use App\Models\WorkshopTemplateTask;
@@ -123,7 +124,8 @@ class PickListTemplateController extends Controller
                 'id' => (int) $item->id,
                 'item_name' => (string) ($item->product?->title ?: $item->item_name),
                 'product_id' => $item->product_id ? (int) $item->product_id : null,
-                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit,
+                'product_variant_id' => $item->product_variant_id,
+                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit, 'quantity_unit' => $item->quantity_unit,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
                 'sort_order' => (int) ($item->sort_order ?? 0),
@@ -189,7 +191,8 @@ class PickListTemplateController extends Controller
             $copy->items()->create([
                 'item_name' => (string) ($item->product->title ?? $item->item_name),
                 'product_id' => $item->product_id,
-                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit,
+                'product_variant_id' => $item->product_variant_id,
+                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit, 'quantity_unit' => $item->quantity_unit,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
                 'sort_order' => (int) ($item->sort_order ?? 0),
@@ -350,9 +353,11 @@ class PickListTemplateController extends Controller
             ]),
             'items.*.item_name' => ['nullable', 'string', 'max:255'],
             'items.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'items.*.product_variant_id' => ['nullable', 'integer'],
             'items.*.cut_size_id' => ['nullable', 'integer'],
             'items.*.length' => ['nullable', 'numeric', 'gt:0'],
             'items.*.length_unit' => ['nullable', Rule::in(['mm', 'cm', 'm'])],
+            'items.*.quantity_unit' => ['nullable', Rule::in(ProductRecipeComponent::QUANTITY_UNITS)],
             'items.*.quantity_type' => ['required', 'string', 'in:'.implode(',', PickListTemplateItem::TYPES)],
             'items.*.quantity_value' => ['required', 'integer', 'min:1'],
             'items.*.sort_order' => ['nullable', 'integer', 'min:0'],
@@ -360,7 +365,7 @@ class PickListTemplateController extends Controller
 
         if ($hasSubmittedItems) {
             $rows = collect($validated['items'] ?? [])->filter(fn (array $row): bool => trim((string) ($row['item_name'] ?? '')) !== '' || ! empty($row['product_id']))->values()->all();
-            $normalized = app(WorkshopPickListService::class)->normalizePickListItems($rows);
+            $normalized = app(WorkshopPickListService::class)->normalizePickListItems($rows, existingItems: $template?->items->toArray() ?? []);
             $validated['items'] = collect($normalized)->map(function (array $row, int $index) use ($rows): array {
                 $row['id'] = ! empty($rows[$index]['id']) ? (int) $rows[$index]['id'] : null;
 
@@ -427,7 +432,8 @@ class PickListTemplateController extends Controller
             $payload = [
                 'item_name' => $row['item_name'],
                 'product_id' => $row['product_id'],
-                'cut_size_id' => $row['cut_size_id'], 'length' => $row['length'], 'length_unit' => $row['length_unit'],
+                'product_variant_id' => $row['product_variant_id'],
+                'cut_size_id' => $row['cut_size_id'], 'length' => $row['length'], 'length_unit' => $row['length_unit'], 'quantity_unit' => $row['quantity_unit'],
                 'stock_item_id' => null, 'stock_quantity' => null,
                 'quantity_type' => $row['quantity_type'],
                 'quantity_value' => $row['quantity_value'],

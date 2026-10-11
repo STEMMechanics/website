@@ -13,7 +13,8 @@
                 'id' => (int) $item->id,
                 'item_name' => (string) ($item->product?->title ?? $item->item_name),
                 'product_id' => $item->product_id !== null ? (int) $item->product_id : null,
-                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit,
+                'product_variant_id' => $item->product_variant_id,
+                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit, 'quantity_unit' => $item->quantity_unit,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
                 'sort_order' => (int) ($item->sort_order ?? 0),
@@ -321,7 +322,8 @@
                     id: null,
                     item_name: '',
                     product_id: null,
-                    cut_size_id: null, length: null, length_unit: 'mm',
+                    product_variant_id: null,
+                    cut_size_id: null, length: null, length_unit: 'mm', quantity_unit: null,
                     quantity_type: ['per_participant', 'fixed'].includes(previousType) ? previousType : 'per_participant',
                     quantity_value: 1,
                     sort_order: 0,
@@ -340,8 +342,10 @@
                 }
 
                 item.cut_size_id = null;
+                item.product_variant_id = null;
                 item.length = null;
                 item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
+                item.quantity_unit = item.product_id ? window.SM.defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
                 item.item_name = item.product_id ? this.productItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
@@ -429,9 +433,11 @@
                         id: Number.parseInt(String(item.id ?? 0), 10) || null,
                         item_name: String(item.item_name ?? '').trim(),
                         product_id: Number.parseInt(String(item.product_id ?? 0), 10) || null,
+                        product_variant_id: item.product_id ? Number(item.product_variant_id) || null : null,
                         cut_size_id: Number(item.cut_size_id) || null,
                         length: item.length === '' || item.length === undefined ? null : item.length,
                         length_unit: item.length ? item.length_unit : null,
+                        quantity_unit: item.product_id ? window.SM.productQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : null,
                         quantity_type: item.quantity_type,
                         quantity_value: Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1),
                         sort_order: (index + 1) * 10,
@@ -646,9 +652,9 @@
                         <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
                             <tr>
                                 <th class="px-3 py-2 border-b border-gray-300">Item</th>
-                                <th class="hidden px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Type</th>
+                                <th class="hidden w-44 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Type</th>
                                 <th class="hidden w-24 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Quantity</th>
-                                <th class="px-3 py-2 border-b border-gray-300 text-center!">Actions</th>
+                                <th class="w-44 px-3 py-2 border-b border-gray-300 text-center!">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -656,19 +662,22 @@
                                 <tr class="border-b border-gray-300 last:border-b-0">
                                     <td class="p-2 align-top">
                                         <div
+                                            class="flex flex-wrap items-center gap-2"
                                             x-on:product-item-link-changed="selectProductItem(index)"
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.product-item-field catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
-                                            <x-admin.product-preparation-fields />
+                                            <x-admin.product-item-field class="min-w-56 flex-1" catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
+                                            <x-admin.product-preparation-fields :inline="true" />
                                         </div>
                                         <input type="hidden" x-bind:name="`items[${index}][item_name]`" x-bind:value="item.item_name ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][id]`" x-bind:value="item.id ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][product_id]`" x-bind:value="item.product_id ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][product_variant_id]`" x-bind:value="item.product_variant_id ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][cut_size_id]`" x-bind:value="item.cut_size_id ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][length]`" x-bind:value="item.length ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][length_unit]`" x-bind:value="item.length ? item.length_unit : ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][quantity_unit]`" x-bind:value="item.product_id ? window.SM.productQuantityUnit(productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : ''">
                                         <input type="hidden" x-bind:name="`items[${index}][quantity_type]`" x-bind:value="item.quantity_type">
                                         <input type="hidden" x-bind:name="`items[${index}][quantity_value]`" x-bind:value="item.quantity_value">
                                         <input type="hidden" x-bind:name="`items[${index}][sort_order]`" x-bind:value="item.sort_order">
@@ -707,7 +716,7 @@
                                         </x-ui.grid>
 
                                     </td>
-                                    <td class="p-2 align-top hidden md:table-cell text-center!">
+                                    <td class="w-44 p-2 align-top hidden md:table-cell text-center!">
                                         <x-ui.select
                                             name="quantity_type_placeholder_desktop"
                                             label="Type"
@@ -734,7 +743,7 @@
                                             x-on:input="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)"
                                             x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
                                     </td>
-                                    <td class="p-2 align-middle">
+                                    <td class="w-44 p-2 align-middle">
                                         <x-ui.row-actions :menu="false" class="h-full">
                                             <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveUp(index)" x-bind:disabled="index === 0 || isBlankItem(item)" />
                                             <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveDown(index)" x-bind:disabled="index >= (items.length - 2) || isBlankItem(item)" />

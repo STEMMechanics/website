@@ -23,24 +23,26 @@ class WorkshopPickListService
         $participants = $participantsOverride !== null ? max(1, $participantsOverride) : $this->resolvedParticipants($workshop);
         $items = $workshop->pick_list_is_customized
             ? $this->normalizePickListItems($workshop->pick_list_custom_items, false)
-            : ($workshop->pickListTemplate?->items->map(fn (PickListTemplateItem $item): array => $item->only(['id', 'item_name', 'product_id', 'cut_size_id', 'length', 'length_unit', 'quantity_type', 'quantity_value', 'sort_order']))->all() ?? []);
+            : ($workshop->pickListTemplate?->items->map(fn (PickListTemplateItem $item): array => $item->only(['id', 'item_name', 'product_id', 'product_variant_id', 'cut_size_id', 'length', 'length_unit', 'quantity_unit', 'quantity_type', 'quantity_value', 'sort_order']))->all() ?? []);
         $resolved = collect($this->normalizePickListItems($items, false));
-        $products = Product::query()->with(['cutSizes', 'recipeComponents'])->whereIn('id', $resolved->pluck('product_id')->filter())->get()->keyBy('id');
+        $products = Product::query()->with(['cutSizes', 'recipeComponents', 'variants'])->whereIn('id', $resolved->pluck('product_id')->filter())->get()->keyBy('id');
         $calculated = $resolved->map(function (array $item) use ($participants, $products): array {
             $quantity = $this->computedItemQuantity($participants, $item['quantity_type'], $item['quantity_value']);
             $product = $products->get((int) ($item['product_id'] ?? 0));
-            $row = new ProductRecipeComponent(['component_product_id' => $item['product_id'], 'quantity' => 1, 'cut_size_id' => $item['cut_size_id'], 'length' => $item['length'], 'length_unit' => $item['length_unit']]);
+            $variant = $product?->variants->find($item['product_variant_id']);
+            $row = new ProductRecipeComponent(['component_product_id' => $item['product_id'], 'component_variant_id' => $item['product_variant_id'], 'quantity' => 1, 'quantity_unit' => $item['quantity_unit'], 'cut_size_id' => $item['cut_size_id'], 'length' => $item['length'], 'length_unit' => $item['length_unit']]);
             $row->setRelation('component', $product);
-            $row->setRelation('variant', null);
+            $row->setRelation('variant', $variant);
             $row->setRelation('cutSize', $product?->cutSizes->find($item['cut_size_id']));
             $name = $product ? $row->preparationLabel() : $item['item_name'];
-            $contents = $product && $product->isKit() ? $this->recipes->preparationRows($product, $quantity) : [];
+            $contents = $product && $product->isKit() ? $this->recipes->preparationRows($product, $quantity, variant: $variant) : [];
             $units = $product ? $row->purchasedUnits() : null;
-            $cost = $product ? $this->recipes->materialCost($product) : null;
+            $cost = $product ? $this->recipes->materialCost($product, $variant) : null;
 
             return [
-                'item_id' => $item['id'], 'product_id' => $item['product_id'], 'item_name' => $name,
+                'item_id' => $item['id'], 'product_id' => $item['product_id'], 'product_variant_id' => $item['product_variant_id'], 'item_name' => $name,
                 'quantity' => $quantity, 'quantity_text' => (string) $quantity,
+                'quantity_unit' => $row->resolvedQuantityUnit(), 'unit' => $row->preparationUnit(),
                 'type_note' => $item['quantity_type'] === PickListTemplateItem::TYPE_PER_PARTICIPANT ? '('.$item['quantity_value'].' per participant)' : '',
                 'kit_contents' => $contents,
                 'is_kit' => (bool) $product?->isKit(),
@@ -70,7 +72,7 @@ class WorkshopPickListService
             } else {
                 $rows[] = [
                     'key' => 'item:'.$item['item_id'], 'item_id' => $item['item_id'], 'product_id' => $item['product_id'],
-                    'item_name' => $item['item_name'], 'quantity' => $item['quantity'], 'unit' => '',
+                    'item_name' => $item['item_name'], 'quantity' => $item['quantity'], 'unit' => $item['unit'],
                     'kind' => $item['product_id'] ? 'product' : 'manual', 'admin_url' => $item['admin_url'], 'raw_note' => $item['raw_note'],
                 ];
             }
@@ -96,7 +98,7 @@ class WorkshopPickListService
     }
 
     /** Validate a blueprint or workshop's structured preparation quantities. */
-    public function normalizePickListItems(mixed $value, bool $validateLinks = true): array
+    public function normalizePickListItems(mixed $value, bool $validateLinks = true, array $existingItems = []): array
     {
         if ($value === null || $value === '') {
             return [];
@@ -112,6 +114,9 @@ class WorkshopPickListService
             throw ValidationException::withMessages(['pick_list_custom_items' => 'Use a valid pick list with up to 200 items.']);
         }
         $normalized = [];
+        // Only retain inactive variants already linked to this blueprint or workshop.
+        $existingVariantLinks = collect($existingItems)->filter(fn ($item): bool => is_array($item) && ! empty($item['product_id']) && ! empty($item['product_variant_id']))
+            ->mapWithKeys(fn (array $item): array => [(int) $item['product_id'].':'.(int) $item['product_variant_id'] => true])->all();
         $usedIds = [];
         $nextId = 1;
         foreach ($value as $index => $row) {
@@ -124,9 +129,10 @@ class WorkshopPickListService
                 continue;
             }
             $validated = validator($row, [
-                'product_id' => 'nullable|integer', 'cut_size_id' => 'nullable|integer',
+                'product_id' => 'nullable|integer', 'product_variant_id' => 'nullable|integer', 'cut_size_id' => 'nullable|integer',
                 'item_name' => 'nullable|string|max:255', 'length' => 'nullable|numeric|gt:0|max:10000000',
                 'length_unit' => ['nullable', Rule::in(array_keys(ProductRecipeComponent::LENGTH_UNITS))],
+                'quantity_unit' => ['nullable', Rule::in(ProductRecipeComponent::QUANTITY_UNITS)],
                 'quantity_type' => ['required', Rule::in(PickListTemplateItem::TYPES)],
                 'quantity_value' => 'required|integer|min:1|max:100000',
             ]);
@@ -134,10 +140,12 @@ class WorkshopPickListService
                 throw ValidationException::withMessages(['pick_list_custom_items' => 'Check the quantity and measurements for '.($name ?: 'each item').'.']);
             }
             $cutId = $productId ? ((int) ($row['cut_size_id'] ?? 0) ?: null) : null;
+            $variantId = $productId ? ((int) ($row['product_variant_id'] ?? 0) ?: null) : null;
             $length = $productId && ($row['length'] ?? '') !== '' && ($row['length'] ?? null) !== null ? (float) $row['length'] : null;
             $lengthUnit = $length !== null ? ($row['length_unit'] ?? null) : null;
+            $quantityUnit = $productId ? (($row['quantity_unit'] ?? null) ?: null) : null;
             if ($productId && $validateLinks) {
-                $this->recipes->validateComponent(['component_product_id' => $productId, 'cut_size_id' => $cutId, 'length' => $length, 'length_unit' => $lengthUnit, 'quantity' => 1], 'pick_list_custom_items.'.$index);
+                $this->recipes->validateComponent(['component_product_id' => $productId, 'component_variant_id' => $variantId, 'cut_size_id' => $cutId, 'length' => $length, 'length_unit' => $lengthUnit, 'quantity_unit' => $quantityUnit, 'quantity' => 1], 'pick_list_custom_items.'.$index, isset($existingVariantLinks[$productId.':'.$variantId]));
                 $name = (string) (Product::query()->find($productId)->title ?? $name);
             }
             $id = (int) ($row['id'] ?? 0);
@@ -146,8 +154,9 @@ class WorkshopPickListService
             }
             $usedIds[] = $id;
             $nextId = max($nextId + 1, $id + 1);
-            $normalized[] = ['id' => $id, 'item_name' => $name, 'product_id' => $productId,
+            $normalized[] = ['id' => $id, 'item_name' => $name, 'product_id' => $productId, 'product_variant_id' => $variantId,
                 'cut_size_id' => $cutId, 'length' => $length, 'length_unit' => $lengthUnit,
+                'quantity_unit' => $quantityUnit,
                 'quantity_type' => $row['quantity_type'], 'quantity_value' => (int) $row['quantity_value'], 'sort_order' => ($index + 1) * 10];
         }
 
@@ -190,9 +199,10 @@ class WorkshopPickListService
                 $parts = $item['is_kit'] && $item['kit_contents'] !== [] ? array_filter($item['kit_contents'], fn (array $part): bool => ! $part['is_kit'] || ! $part['has_recipe']) : [$item];
                 foreach ($parts as $part) {
                     $name = trim((string) $part['item_name']);
-                    $key = mb_strtolower($name);
+                    $unit = (string) ($part['unit'] ?? '');
+                    $key = mb_strtolower($name).'|'.$unit.'|'.($part['quantity_unit'] ?? '');
                     $quantity = (float) $part['quantity'];
-                    $materials[$key] ??= ['item_name' => $name, 'product_id' => $part['product_id'], 'total_quantity' => 0, 'workshopBreakdowns' => []];
+                    $materials[$key] ??= ['item_name' => $name, 'unit' => $unit, 'product_id' => $part['product_id'], 'total_quantity' => 0, 'workshopBreakdowns' => []];
                     $materials[$key]['total_quantity'] += $quantity;
                     $id = (string) $workshop->id;
                     $materials[$key]['workshopBreakdowns'][$id] ??= ['workshop_id' => $id, 'workshop_title' => $workshop->title, 'starts_at_label' => $workshop->starts_at?->format('D j M g:ia') ?? '-', 'quantity' => 0];
