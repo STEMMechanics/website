@@ -2,9 +2,23 @@
 
 namespace App\Services;
 
+use App\Models\Invoice;
+use App\Models\Reminder;
+use App\Models\SquareRefundOperation;
+use App\Models\StoreOrder;
+use App\Models\Supplier;
+use App\Models\Ticket;
+use App\Services\Finance\FinanceAttention;
+use App\Services\Finance\InvoiceAllocationFilters;
+use App\Services\Finance\WorkshopAllocation;
+use App\Support\RequestMemo;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SiteListControls
 {
@@ -18,6 +32,7 @@ class SiteListControls
     public function paginationReset(): array
     {
         $keys = array_filter(array_keys(request()->query()), fn ($key) => $key === 'page' || str_ends_with($key, '_page') || (request()->routeIs('search.index') && in_array($key, ['product', 'workshop'])));
+
         return array_fill_keys([...$keys, 'page'], null);
     }
 
@@ -31,22 +46,31 @@ class SiteListControls
         $definition = $this->definition();
         if (isset($definition['model'])) {
             $this->apply($query);
+
             return $query;
         }
-        if (!collect(array_keys(request()->query()))->contains(fn ($key) => str_starts_with($key, $this->scope.'_'))) return $query;
-        $wrapped = \Illuminate\Support\Facades\DB::query()->fromSub((clone $query)->reorder(), 'list_results');
-        $this->apply($wrapped);
-        if (!request()->filled($this->parameter('sort'))) {
-            foreach ($definition['order'] ?? [] as $column => $direction) $wrapped->orderBy($column, $direction);
+        if (! collect(array_keys(request()->query()))->contains(fn ($key) => str_starts_with($key, $this->scope.'_'))) {
+            return $query;
         }
+        $wrapped = DB::query()->fromSub((clone $query)->reorder(), 'list_results');
+        $this->apply($wrapped);
+        if (! request()->filled($this->parameter('sort'))) {
+            foreach ($definition['order'] ?? [] as $column => $direction) {
+                $wrapped->orderBy($column, $direction);
+            }
+        }
+
         return $wrapped;
     }
 
     public function definition(): array
     {
-        if ($this->scope) return config('report-listings', [])[$this->scope] ?? [];
+        if ($this->scope) {
+            return config('report-listings', [])[$this->scope] ?? [];
+        }
         $route = request()->route()?->getName() ?? '';
         $route = preg_replace('/\.(csv|pdf)$/', '', $route);
+
         return config('listings', [])[$route] ?? [];
     }
 
@@ -57,8 +81,11 @@ class SiteListControls
 
     public function nativeFields(): array
     {
-        if ($this->scope) return [];
-        return app(\App\Support\RequestMemo::class)->remember('list-native-fields:'.request()->route()?->getName(), fn () => $this->resolveNativeFields());
+        if ($this->scope) {
+            return [];
+        }
+
+        return app(RequestMemo::class)->remember('list-native-fields:'.request()->route()?->getName(), fn () => $this->resolveNativeFields());
     }
 
     private function resolveNativeFields(): array
@@ -77,7 +104,7 @@ class SiteListControls
             ],
             'admin.cost-centre.index' => ['state' => ['label' => 'Status', 'type' => 'select', 'options' => ['all' => 'All', 'active' => 'Active', 'archived' => 'Archived'], 'default' => 'all', 'clear' => 'all']],
             'admin.supplier.index' => [
-                'cost_centre_id' => ['label' => 'Cost centre', 'type' => 'select', 'options' => \Illuminate\Support\Facades\DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->pluck('name', 'id')->all()],
+                'cost_centre_id' => ['label' => 'Cost centre', 'type' => 'select', 'options' => DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->pluck('name', 'id')->all()],
             ],
             'shop.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
             'workshop.index', 'workshop.past.index' => ['category' => ['label' => 'Category', 'type' => 'text']],
@@ -87,22 +114,24 @@ class SiteListControls
                 'workshop_attention' => ['label' => 'Action required', 'type' => 'select', 'options' => [
                     'needs_attention' => 'Any action',
                     'allocation_review' => 'Allocation review',
-                    'stock_shortage' => 'Stock shortage',
                     'attendance' => 'Attendance not recorded',
-                    'stock_reconciliation' => 'Stock reconciliation due',
                 ]],
             ],
             'admin.workshop.attendance' => ['show_cancelled' => ['label' => 'Include cancelled', 'type' => 'boolean', 'clear' => '1']],
             'admin.invoice.index' => [
-                'status' => ['label' => 'Status', 'type' => 'array', 'options' => array_combine(\App\Models\Invoice::STATUSES, array_map(fn ($status) => ucwords(str_replace('_', ' ', $status)), \App\Models\Invoice::STATUSES))],
+                'status' => ['label' => 'Status', 'type' => 'array', 'options' => array_combine(Invoice::STATUSES, array_map(fn ($status) => ucwords(str_replace('_', ' ', $status)), Invoice::STATUSES))],
                 'customer' => ['label' => 'Customer name or email', 'type' => 'text'],
                 'line_types' => ['label' => 'Contains line types', 'type' => 'array', 'options' => ['ticket' => 'Ticket', 'workshop' => 'Workshop', 'multi_workshop' => 'Multi Workshop Delivery', 'travel' => 'Travel', 'product' => 'Product', 'custom' => 'Custom / other']],
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Not allocated', 'automatic' => 'Automatic', 'manual' => 'Manual override']],
-                'allocation_plan' => ['label' => 'Allocation plan', 'type' => 'select', 'options' => \Illuminate\Support\Facades\DB::table('finance_pricing_versions')->orderBy('name')->get()->mapWithKeys(fn ($plan) => [(string) $plan->id => $plan->name.($plan->is_snapshot ? ' (saved revision)' : ($plan->archived ? ' (archived)' : ''))])->all()],
+                'allocation_plan' => ['label' => 'Allocation plan', 'type' => 'select', 'options' => DB::table('finance_pricing_versions')->orderBy('name')->get()->mapWithKeys(fn ($plan) => [(string) $plan->id => $plan->name.($plan->is_snapshot ? ' (saved revision)' : ($plan->archived ? ' (archived)' : ''))])->all()],
                 'payment_from' => ['label' => 'Payment date — From', 'type' => 'date'],
                 'payment_to' => ['label' => 'Payment date — To', 'type' => 'date'],
             ],
-            'admin.quote.index', 'admin.shop.order.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
+            'admin.quote.index', 'admin.server.sent-emails', 'admin.server.sent-sms' => ['status' => ['label' => 'Status', 'type' => 'text']],
+            'admin.shop.order.index' => [
+                'status' => ['label' => 'Status', 'type' => 'text'],
+                'order_attention' => ['label' => 'Action required', 'type' => 'select', 'options' => ['needs_attention' => 'Needs attention']],
+            ],
             'admin.server.square-events', 'admin.server.square-webhooks' => ['event_type' => ['label' => 'Event type', 'type' => 'text']],
             'admin.workshop.files', 'admin.workshop.photos', 'admin.workshop.media' => ['visibility' => ['label' => 'Visibility', 'type' => 'select', 'options' => ['public' => 'Public', 'private' => 'Private']]],
             'admin.supplier.show' => [
@@ -110,7 +139,7 @@ class SiteListControls
             ],
             'admin.expense.index' => [
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Missing or incomplete', 'allocated' => 'Allocated']],
-                'supplier_id' => ['label' => 'Supplier account', 'type' => 'select', 'options' => \App\Models\Supplier::orderBy('name')->pluck('name', 'id')->all()],
+                'supplier_id' => ['label' => 'Supplier account', 'type' => 'select', 'options' => Supplier::orderBy('name')->pluck('name', 'id')->all()],
                 'supplier' => ['label' => 'Supplier', 'type' => 'text'],
                 'description' => ['label' => 'Description', 'type' => 'text'],
                 'invoice_id' => ['label' => 'Invoice ID', 'type' => 'text'],
@@ -134,7 +163,7 @@ class SiteListControls
             'admin.user.index' => ['account_state' => ['label' => 'Accounts', 'type' => 'select', 'options' => ['all' => 'All users', 'verified' => 'Verified users', 'ghost' => 'Unverified users'], 'clear' => 'all']],
             'admin.shop.product.index' => [
                 'status_scope' => ['label' => 'Products', 'type' => 'select', 'options' => ['all' => 'All statuses', 'current' => 'Current products', 'draft' => 'Drafts', 'archived' => 'Archived'], 'clear' => 'all'],
-                'inventory' => ['label' => 'Inventory', 'type' => 'select', 'options' => ['actionable' => 'Needs attention']],
+                'inventory' => ['label' => 'Inventory', 'type' => 'select', 'options' => ['low_stock' => 'Low Stock']],
                 'allocation_state' => ['label' => 'Cost centre allocation', 'type' => 'select', 'options' => ['needs_review' => 'Needs review', 'allocated' => 'Allocated']],
             ],
             'admin.reminder.index' => ['view' => ['label' => 'Delivery', 'type' => 'select', 'options' => ['all' => 'All reminders', 'upcoming' => 'Upcoming', 'sent' => 'Sent', 'failed' => 'Failed'], 'clear' => 'all']],
@@ -144,7 +173,9 @@ class SiteListControls
 
     public function capturePresetCounts($query): void
     {
-        if (request()->attributes->has('collection_preset_counts')) return;
+        if (request()->attributes->has('collection_preset_counts')) {
+            return;
+        }
         $workshopAttentionCounts = request()->routeIs('admin.workshop.index')
             ? app(WorkshopActionAttention::class)->counts()
             : [];
@@ -160,37 +191,39 @@ class SiteListControls
                 'All orders' => (clone $query)->count(),
             ],
             'admin.ticket.index', 'account.ticket.index' => [
-                'Current tickets' => (clone $query)->whereNotIn('status', [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED])->when(request()->routeIs('admin.ticket.index'), fn ($tickets) => $tickets->whereIn('status', \App\Models\Ticket::activePurchasedStatuses())->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '>=', today()->startOfDay())))->count(),
-                'Cancelled / reissued' => (clone $query)->whereIn('status', [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED])->count(),
+                'Current tickets' => (clone $query)->whereNotIn('status', [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED])->when(request()->routeIs('admin.ticket.index'), fn ($tickets) => $tickets->whereIn('status', Ticket::activePurchasedStatuses())->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '>=', today()->startOfDay())))->count(),
+                'Cancelled / reissued' => (clone $query)->whereIn('status', [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED])->count(),
                 'All tickets' => (clone $query)->count(),
             ],
             'admin.reminder.index' => [
-                'Upcoming' => (clone $query)->whereIn('status', [\App\Models\Reminder::STATUS_PENDING, \App\Models\Reminder::STATUS_QUEUED])->count(),
-                'Sent' => (clone $query)->where('status', \App\Models\Reminder::STATUS_SENT)->count(),
-                'Failed' => (clone $query)->where('status', \App\Models\Reminder::STATUS_FAILED)->count(),
+                'Upcoming' => (clone $query)->whereIn('status', [Reminder::STATUS_PENDING, Reminder::STATUS_QUEUED])->count(),
+                'Sent' => (clone $query)->where('status', Reminder::STATUS_SENT)->count(),
+                'Failed' => (clone $query)->where('status', Reminder::STATUS_FAILED)->count(),
                 'All reminders' => (clone $query)->count(),
             ],
             'admin.workshop.index' => [
                 'All workshops' => (clone $query)->count(),
                 'Current' => (clone $query)->where('status', '!=', 'cancelled')->where('starts_at', '>=', today())->count(),
                 'Needs attention' => $workshopAttentionCounts['workshops'],
-                'Stock shortage' => $workshopAttentionCounts['stock_shortage'],
                 'Attendance' => $workshopAttentionCounts['attendance'],
-                'Reconcile stock' => $workshopAttentionCounts['stock_reconciliation'],
                 'Ready for review' => $workshopAttentionCounts['allocation_review'],
             ],
             'admin.payment.refunds' => [
                 'All refunds' => (clone $query)->count(),
-                'Unfinished' => (clone $query)->where('status', '!=', \App\Models\SquareRefundOperation::STATUS_COMPLETED)->count(),
+                'Unfinished' => (clone $query)->where('status', '!=', SquareRefundOperation::STATUS_COMPLETED)->count(),
             ],
             default => [],
         };
-        if ($counts) request()->attributes->set('collection_preset_counts', $counts);
+        if ($counts) {
+            request()->attributes->set('collection_preset_counts', $counts);
+        }
     }
 
     public function presets(): array
     {
-        if ($this->scope) return [];
+        if ($this->scope) {
+            return [];
+        }
         $presets = match (request()->route()?->getName()) {
             'admin.invoice.index' => [
                 'All invoices' => [],
@@ -205,30 +238,32 @@ class SiteListControls
                 'All workshops' => ['show_cancelled' => '1'],
                 'Current' => ['show_cancelled' => '0', 'list_starts_at_min' => today()->toDateString()],
                 'Needs attention' => ['show_cancelled' => '1', 'workshop_attention' => 'needs_attention'],
-                'Stock shortage' => ['show_cancelled' => '1', 'workshop_attention' => 'stock_shortage'],
                 'Attendance' => ['show_cancelled' => '1', 'workshop_attention' => 'attendance'],
-                'Reconcile stock' => ['show_cancelled' => '1', 'workshop_attention' => 'stock_reconciliation'],
                 'Ready for review' => ['show_cancelled' => '1', 'allocation_state' => 'needs_review'],
             ],
             'admin.workshop.attendance' => ['Current' => ['show_cancelled' => '0'], 'Including cancelled' => ['show_cancelled' => '1']],
             'admin.payment.index' => ['All payments' => [], 'Unallocated' => ['unallocated_only' => '1']],
             'admin.payment.refunds' => ['All refunds' => [], 'Unfinished' => ['hide_completed' => '1']],
+            'admin.shop.order.index' => ['All orders' => [], 'Needs attention' => ['order_attention' => 'needs_attention']],
             'account.order.index' => ['Current orders' => ['order_scope' => 'current'], 'Cancelled' => ['order_scope' => 'cancelled'], 'All orders' => ['order_scope' => 'all']],
             'admin.ticket.index' => ['Current tickets' => ['ticket_status' => ['active'], 'workshop_from' => today()->toDateString()], 'Cancelled / reissued' => ['ticket_status' => ['cancelled', 'reissued']], 'All tickets' => []],
             'account.ticket.index' => ['Current tickets' => ['ticket_scope' => 'current'], 'Cancelled / reissued' => ['ticket_scope' => 'cancelled'], 'All tickets' => ['ticket_scope' => 'all']],
             'admin.user.index' => ['Verified users' => ['account_state' => 'verified'], 'Unverified users' => ['account_state' => 'ghost'], 'All users' => ['account_state' => 'all']],
             'admin.shop.product.index' => [
                 'Current products' => ['status_scope' => 'current'],
+                'Materials' => ['status_scope' => 'current', 'list_product_type' => 'material'],
+                'Kits' => ['status_scope' => 'current', 'list_product_type' => 'kit'],
                 'Drafts' => ['status_scope' => 'draft'],
                 'Needs allocation' => ['status_scope' => 'current', 'allocation_state' => 'needs_review'],
-                'Actionable' => ['status_scope' => 'current', 'inventory' => 'actionable'],
+                'Low Stock' => ['status_scope' => 'current', 'inventory' => 'low_stock'],
                 'Archived' => ['status_scope' => 'archived'],
             ],
-            'admin.expense.index' => ['All expenses' => [], 'Needs allocation' => ['allocation_state' => 'not_allocated']],
+            'admin.expense.index', 'admin.supplier.show' => ['All expenses' => [], 'Needs allocation' => ['allocation_state' => 'not_allocated']],
             'admin.reminder.index' => ['Upcoming' => ['view' => 'upcoming'], 'Sent' => ['view' => 'sent'], 'Failed' => ['view' => 'failed'], 'All reminders' => ['view' => 'all']],
             default => [],
         };
         $active = array_filter(request()->only([...array_keys($this->filterFields()), 'search']), fn ($value) => is_array($value) ? count($value) > 0 : (is_scalar($value) && (string) $value !== ''));
+
         return collect($presets)->map(fn ($filters, $title) => [
             'title' => $title, 'active' => $active == $filters, 'count' => request()->attributes->get('collection_preset_counts', [])[$title] ?? null,
             'attention' => (bool) (request()->attributes->get('collection_preset_attention', [])[$title] ?? false),
@@ -240,8 +275,12 @@ class SiteListControls
     {
         $filters = $this->nativeFields();
         foreach ($this->fields() as $key => $field) {
-            if (($field['filter'] ?? true) === false) continue;
-            if (isset($filters[$key])) continue;
+            if (($field['filter'] ?? true) === false) {
+                continue;
+            }
+            if (isset($filters[$key])) {
+                continue;
+            }
             if (in_array($field['type'], ['number', 'date'])) {
                 foreach (['min' => 'From', 'max' => 'To'] as $suffix => $label) {
                     $filters[$this->parameter($key.'_'.$suffix)] = $field + ['column' => $key, 'operator' => $suffix === 'min' ? '>=' : '<='];
@@ -251,11 +290,12 @@ class SiteListControls
                 $filters[$this->parameter($key)] = $field + ['column' => $key];
             }
         }
+
         return $filters;
     }
 
     /** Filter complete in-memory inventories before slicing their paginator. */
-    public function applyCollection(\Illuminate\Support\Collection $items): \Illuminate\Support\Collection
+    public function applyCollection(Collection $items): Collection
     {
         $rules = [$this->searchParameter() => ['nullable', 'string', 'max:255'], $this->parameter('sort') => ['nullable', Rule::in(array_keys($this->fields()))], $this->parameter('direction') => ['nullable', Rule::in(['asc', 'desc'])]];
         foreach ($this->filterFields() as $key => $field) {
@@ -265,44 +305,70 @@ class SiteListControls
         }
         $data = Validator::make(request()->query(), $rules)->validate();
         $items = $items->filter(function ($item) use ($data) {
-            if (!empty($data[$this->searchParameter()]) && !collect($this->fields())->filter(fn ($field) => ($field['type'] === 'text' && !isset($field['sort_sql'])))->keys()->contains(fn ($key) => str_contains(mb_strtolower((string) data_get($item, $key)), mb_strtolower($data[$this->searchParameter()])))) return false;
+            if (! empty($data[$this->searchParameter()]) && ! collect($this->fields())->filter(fn ($field) => ($field['type'] === 'text' && ! isset($field['sort_sql'])))->keys()->contains(fn ($key) => str_contains(mb_strtolower((string) data_get($item, $key)), mb_strtolower($data[$this->searchParameter()])))) {
+                return false;
+            }
             foreach ($this->filterFields() as $key => $field) {
-                if (!isset($data[$key]) || $data[$key] === '') continue;
+                if (! isset($data[$key]) || $data[$key] === '') {
+                    continue;
+                }
                 $value = data_get($item, $field['column']);
-                if ($field['type'] === 'date') $value = substr((string) $value, 0, 10);
+                if ($field['type'] === 'date') {
+                    $value = substr((string) $value, 0, 10);
+                }
                 if (isset($field['operator'])) {
-                    if ($field['operator'] === '>=' && $value < $data[$key]) return false;
-                    if ($field['operator'] === '<=' && $value > $data[$key]) return false;
+                    if ($field['operator'] === '>=' && $value < $data[$key]) {
+                        return false;
+                    }
+                    if ($field['operator'] === '<=' && $value > $data[$key]) {
+                        return false;
+                    }
                 } else {
                     $pattern = str_replace(['\\*', '\\?'], ['.*', '.'], preg_quote($data[$key], '/'));
-                    if (!preg_match('/'.$pattern.'/iu', (string) $value)) return false;
+                    if (! preg_match('/'.$pattern.'/iu', (string) $value)) {
+                        return false;
+                    }
                 }
             }
+
             return true;
         });
+
         return empty($data[$this->parameter('sort')]) ? $items->values() : $items->sortBy([[$data[$this->parameter('sort')], $data[$this->parameter('direction')] ?? 'asc']])->values();
     }
 
     public function apply($query): void
     {
         $definition = $this->definition();
-        if (!$definition) return;
-        if (!isset($definition['model']) && !$this->scope) return;
-        if (request()->routeIs('admin.workshop.index', 'admin.workshop.attendance') && !request()->filled('show_cancelled')) request()->query->set('show_cancelled', request()->routeIs('admin.workshop.index') ? '1' : '0');
+        if (! $definition) {
+            return;
+        }
+        if (! isset($definition['model']) && ! $this->scope) {
+            return;
+        }
+        if (request()->routeIs('admin.workshop.index', 'admin.workshop.attendance') && ! request()->filled('show_cancelled')) {
+            request()->query->set('show_cancelled', request()->routeIs('admin.workshop.index') ? '1' : '0');
+        }
         $model = isset($definition['model']) ? new $definition['model'] : null;
         $table = $model ? ($query instanceof Builder ? $query->getModel()->getTable() : $query->from) : 'list_results';
-        if ($table !== ($model?->getTable() ?? 'list_results')) return;
-        if (!$this->scope) $this->capturePresetCounts($query);
+        if ($table !== ($model?->getTable() ?? 'list_results')) {
+            return;
+        }
+        if (! $this->scope) {
+            $this->capturePresetCounts($query);
+        }
         if (request()->routeIs('admin.ticket.index')) {
             $legacy = request()->query('ticket_scope');
             $explicit = request()->hasAny(['ticket_status', 'workshop_from', 'workshop_to', 'workshop_name', 'ticket_filters']);
-            if ($legacy !== null || !$explicit) {
+            if ($legacy !== null || ! $explicit) {
                 $legacy = $legacy ?? (request()->boolean('show_inactive') ? 'all' : 'current');
                 Validator::make(['ticket_scope' => $legacy], ['ticket_scope' => Rule::in(['current', 'cancelled', 'all'])])->validate();
                 request()->query->set('ticket_status', match ($legacy) {
                     'current' => ['active'], 'cancelled' => ['cancelled', 'reissued'], default => [],
                 });
-                if ($legacy === 'current') request()->query->set('workshop_from', today()->toDateString());
+                if ($legacy === 'current') {
+                    request()->query->set('workshop_from', today()->toDateString());
+                }
             }
             request()->query->remove('ticket_scope');
             request()->query->remove('show_inactive');
@@ -311,14 +377,20 @@ class SiteListControls
         if ($this->scope && request()->filled($this->searchParameter())) {
             $search = request()->validate([$this->searchParameter() => ['nullable', 'string', 'max:255']])[$this->searchParameter()];
             $query->where(function ($nested) use ($table, $search) {
-                foreach ($this->fields() as $key => $field) if (($field['type'] === 'text' && !isset($field['sort_sql']))) $nested->orWhere($table.'.'.$key, 'like', '%'.$search.'%');
+                foreach ($this->fields() as $key => $field) {
+                    if (($field['type'] === 'text' && ! isset($field['sort_sql']))) {
+                        $nested->orWhere($table.'.'.$key, 'like', '%'.$search.'%');
+                    }
+                }
             });
         }
         if (request()->filled('search') && in_array(request()->route()?->getName(), ['admin.shop.category.index', 'admin.workshop-category.index', 'admin.subscription.theme.index', 'admin.user.payments', 'workshop.index', 'workshop.past.index'], true)) {
             $search = request()->validate(['search' => ['nullable', 'string', 'max:255']])['search'];
-            $textFields = array_keys(array_filter($this->fields(), fn ($field) => ($field['type'] === 'text' && !isset($field['sort_sql']))));
+            $textFields = array_keys(array_filter($this->fields(), fn ($field) => ($field['type'] === 'text' && ! isset($field['sort_sql']))));
             $query->where(function ($nested) use ($table, $textFields, $search) {
-                foreach ($textFields as $field) $nested->orWhere($table.'.'.$field, 'like', '%'.$search.'%');
+                foreach ($textFields as $field) {
+                    $nested->orWhere($table.'.'.$field, 'like', '%'.$search.'%');
+                }
             });
         }
         if (request()->routeIs('account.order.index', 'account.ticket.index')) {
@@ -328,14 +400,18 @@ class SiteListControls
             Validator::make([$key => $scope], [$key => Rule::in(['current', 'cancelled', 'all'])])->validate();
             request()->query->set($key, $scope);
             request()->query->remove('show_inactive');
-            $inactive = $orders ? ['cancelled'] : [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED];
+            $inactive = $orders ? ['cancelled'] : [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED];
             if ($scope === 'current') {
                 $query->whereNotIn($table.'.status', $inactive);
 
             }
-            if ($scope === 'cancelled') $query->whereIn($table.'.status', $inactive);
+            if ($scope === 'cancelled') {
+                $query->whereIn($table.'.status', $inactive);
+            }
         }
-        if (request()->routeIs('admin.workshop.index') && !request()->boolean('show_cancelled')) $query->whereNotIn($table.'.status', ['cancelled']);
+        if (request()->routeIs('admin.workshop.index') && ! request()->boolean('show_cancelled')) {
+            $query->whereNotIn($table.'.status', ['cancelled']);
+        }
         $rules = [$this->parameter('sort') => ['nullable', Rule::in(array_keys($this->fields()))], $this->parameter('direction') => ['nullable', Rule::in(['asc', 'desc'])]];
         foreach ($this->filterFields() as $key => $field) {
             $rules[$key] = match ($field['type']) {
@@ -348,54 +424,74 @@ class SiteListControls
             };
         }
         foreach ($this->filterFields() as $key => $field) {
-            if ($field['type'] === 'array' && isset($field['options'])) $rules[$key.'.*'] = ['string', Rule::in(array_keys($field['options']))];
+            if ($field['type'] === 'array' && isset($field['options'])) {
+                $rules[$key.'.*'] = ['string', Rule::in(array_keys($field['options']))];
+            }
         }
         $data = Validator::make(request()->query(), $rules)->validate();
+        if (request()->routeIs('admin.shop.order.index') && ($data['order_attention'] ?? '') === 'needs_attention') {
+            $query->whereIn('store_orders.status', StoreOrder::ACTION_REQUIRED_STATUSES);
+        }
         if (request()->routeIs('admin.workshop.index') && ($data['allocation_state'] ?? '') === 'needs_review') {
-            $ids = collect(app(\App\Services\Finance\WorkshopAllocation::class)->attention())->pluck('workshop.id');
+            $ids = collect(app(WorkshopAllocation::class)->attention())->pluck('workshop.id');
             $query->whereIn('workshops.id', $ids);
         }
         if (request()->routeIs('admin.workshop.index') && ! empty($data['workshop_attention'])) {
             $ids = app(WorkshopActionAttention::class)->workshopIdsFor((string) $data['workshop_attention']);
             $query->whereIn('workshops.id', $ids);
         }
-        if (request()->routeIs('admin.invoice.index')) { app(\App\Services\Finance\InvoiceAllocationFilters::class)->apply($query, $data); }
+        if (request()->routeIs('admin.invoice.index')) {
+            app(InvoiceAllocationFilters::class)->apply($query, $data);
+        }
         if (request()->routeIs('admin.expense.index', 'admin.supplier.show') && ! empty($data['allocation_state'])) {
-            $match = fn ($part) => app(\App\Services\Finance\FinanceAttention::class)->unallocatedExpenses($part);
-            if ($data['allocation_state'] === 'not_allocated') { $query->where($match); }
-            else { $query->whereNot($match); }
+            $match = fn ($part) => app(FinanceAttention::class)->unallocatedExpenses($part);
+            if ($data['allocation_state'] === 'not_allocated') {
+                $query->where($match);
+            } else {
+                $query->whereNot($match);
+            }
         }
 
         if (request()->routeIs('admin.ticket.index')) {
             $statuses = [];
             foreach ($data['ticket_status'] ?? [] as $status) {
                 $statuses = [...$statuses, ...match ($status) {
-                    'active' => \App\Models\Ticket::activePurchasedStatuses(),
-                    'cancelled' => [\App\Models\Ticket::STATUS_CANCELLED],
-                    'reissued' => [\App\Models\Ticket::STATUS_REISSUED],
-                    default => throw \Illuminate\Validation\ValidationException::withMessages([
+                    'active' => Ticket::activePurchasedStatuses(),
+                    'cancelled' => [Ticket::STATUS_CANCELLED],
+                    'reissued' => [Ticket::STATUS_REISSUED],
+                    default => throw ValidationException::withMessages([
                         'ticket_status' => 'Select a valid ticket status.',
                     ]),
                 }];
             }
-            if ($statuses) $query->whereIn('tickets.status', array_unique($statuses));
-            if (!empty($data['workshop_from'])) $query->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '>=', $data['workshop_from']));
-            if (!empty($data['workshop_to'])) $query->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '<', \Carbon\Carbon::parse($data['workshop_to'])->addDay()->toDateString()));
-            if (!empty($data['workshop_name'])) {
+            if ($statuses) {
+                $query->whereIn('tickets.status', array_unique($statuses));
+            }
+            if (! empty($data['workshop_from'])) {
+                $query->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '>=', $data['workshop_from']));
+            }
+            if (! empty($data['workshop_to'])) {
+                $query->whereHas('workshop', fn ($workshops) => $workshops->where('starts_at', '<', Carbon::parse($data['workshop_to'])->addDay()->toDateString()));
+            }
+            if (! empty($data['workshop_name'])) {
                 $name = trim($data['workshop_name']);
                 $pattern = strtr(mb_strtolower($name), ['!' => '!!', '%' => '!%', '_' => '!_', '*' => '%', '?' => '_']);
-                if (!str_contains($name, '*') && !str_contains($name, '?')) $pattern = '%'.$pattern.'%';
+                if (! str_contains($name, '*') && ! str_contains($name, '?')) {
+                    $pattern = '%'.$pattern.'%';
+                }
                 $query->whereHas('workshop', fn ($workshops) => $workshops->whereRaw("LOWER(title) LIKE ? ESCAPE '!'", [$pattern]));
             }
         }
         foreach ($this->filterFields() as $key => $field) {
-            if (!isset($field['column']) || !isset($data[$key]) || $data[$key] === '') continue;
+            if (! isset($field['column']) || ! isset($data[$key]) || $data[$key] === '') {
+                continue;
+            }
             $column = $table.'.'.$field['column'];
             if ($field['type'] === 'date') {
                 // Include the entire end date without applying a function to the column.
                 $end = ($field['operator'] === '<=');
-                $query->where($column, $end ? '<' : '>=', $end ? \Carbon\Carbon::parse($data[$key])->addDay()->toDateString() : $data[$key]);
-            } elseif ($field['type'] === 'number' && !$model) {
+                $query->where($column, $end ? '<' : '>=', $end ? Carbon::parse($data[$key])->addDay()->toDateString() : $data[$key]);
+            } elseif ($field['type'] === 'number' && ! $model) {
                 $wrapped = $query->getGrammar()->wrap($column);
                 $operator = $field['operator'] ?? '=';
                 $query->whereRaw("$wrapped $operator CAST(? AS DECIMAL(20, 6))", [$data[$key]]);
@@ -404,7 +500,9 @@ class SiteListControls
             } else {
                 $value = trim($data[$key]);
                 $pattern = strtr(mb_strtolower($value), ['!' => '!!', '%' => '!%', '_' => '!_', '*' => '%', '?' => '_']);
-                if (!str_contains($value, '*') && !str_contains($value, '?')) $pattern = '%'.$pattern.'%';
+                if (! str_contains($value, '*') && ! str_contains($value, '?')) {
+                    $pattern = '%'.$pattern.'%';
+                }
                 $wrapped = $query->getGrammar()->wrap($column);
                 $query->where(function ($nested) use ($wrapped, $pattern, $field) {
                     $nested->whereRaw("LOWER($wrapped) LIKE ? ESCAPE '!'", [$pattern]);
@@ -417,13 +515,18 @@ class SiteListControls
                 });
             }
         }
-        if (!empty($data[$this->parameter('sort')])) {
+        if (! empty($data[$this->parameter('sort')])) {
             $sortField = $data[$this->parameter('sort')];
             $sortDirection = $data[$this->parameter('direction')] ?? 'asc';
             $expression = $this->fields()[$sortField]['sort_sql'] ?? null;
-            if ($expression) $query->reorder()->orderByRaw($expression.' '.$sortDirection);
-            else $query->reorder($table.'.'.$sortField, $sortDirection);
-            if ($model) $query->orderBy($table.'.'.$model->getKeyName());
+            if ($expression) {
+                $query->reorder()->orderByRaw($expression.' '.$sortDirection);
+            } else {
+                $query->reorder($table.'.'.$sortField, $sortDirection);
+            }
+            if ($model) {
+                $query->orderBy($table.'.'.$model->getKeyName());
+            }
         }
     }
 }

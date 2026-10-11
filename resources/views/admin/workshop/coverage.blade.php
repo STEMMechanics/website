@@ -32,8 +32,8 @@
             <div class="flex items-center justify-between gap-4 mb-4 mt-8">
                 <div class="text-lg font-bold">Results</div>
                 <div class="flex gap-4">
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.coverage.csv', request()->query()) }}"><i class="fa-solid fa-file-csv mr-2"></i>CSV</x-ui.button>
-                    <x-ui.button color="outline" href="{{ route('admin.workshop.coverage.pdf', request()->query()) }}" target="_blank"><i class="fa-regular fa-file-pdf mr-2"></i>PDF</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.coverage.csv', request()->query()) }}"><i class="fa-solid fa-file-csv mr-2" aria-hidden="true"></i>CSV</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.coverage.pdf', request()->query()) }}" target="_blank"><i class="fa-regular fa-file-pdf mr-2" aria-hidden="true"></i>PDF</x-ui.button>
                 </div>
             </div>
             <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">

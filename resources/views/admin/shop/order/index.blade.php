@@ -3,7 +3,6 @@
 
     <x-container class="py-5">
         <x-ui.dynamic-list name="admin-shop-order">
-        <x-finance.attention-notice kind="orders" :total="$attentionCount" />
         <x-ui.collection-controls class="my-5" />
 
         @if($orders->isEmpty())

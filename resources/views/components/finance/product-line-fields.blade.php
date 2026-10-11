@@ -73,7 +73,7 @@
                     x-bind:id="$id('store-product-options')"
                 >
                     <template x-for="(product, productIndex) in productSuggestions(item)" :key="product.id">
-                        <button
+                        <x-ui.button variant="plain"
                             type="button"
                             role="option"
                             class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
@@ -86,7 +86,7 @@
                         >
                             <span class="min-w-0 truncate" x-text="product.title"></span>
                             <span x-show="product.sku" class="shrink-0 text-xs text-slate-500" x-text="product.sku"></span>
-                        </button>
+                        </x-ui.button>
                     </template>
                     <p x-show="!productSuggestions(item).length" class="px-3 py-2 text-sm text-slate-500">
                         <span x-show="String(productSearchState(item).query || '').trim()" x-cloak>No store products match this search.</span>

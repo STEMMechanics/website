@@ -67,7 +67,7 @@
                             <td class="text-center! whitespace-nowrap">
                                 <x-ui.badge :color="$statusTone" class="text-center">{{ ucfirst($status) }}</x-ui.badge>
                                 @if($status === 'failed' || $email->failed_at || $email->error_message)
-                                    <x-ui.button variant="plain" data-open-dialog="email-failure-{{ $email->id }}" aria-haspopup="dialog" aria-controls="email-failure-{{ $email->id }}" aria-label="View failure details for email {{ $email->id }}" class="inline-flex h-8 w-8 items-center justify-center p-0! text-slate-500 hover:text-red-700">
+                                    <x-ui.button variant="plain" data-open-dialog="email-failure-{{ $email->id }}" aria-haspopup="dialog" aria-controls="email-failure-{{ $email->id }}" aria-label="View failure details for email {{ $email->id }}" class="text-slate-500 hover:text-red-700" size="icon-small">
                                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                                     </x-ui.button>
                                     <x-ui.list-dialog id="email-failure-{{ $email->id }}" title="Email failure details">

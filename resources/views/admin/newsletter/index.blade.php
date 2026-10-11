@@ -34,7 +34,7 @@
         <x-admin.newsletter-editor-dialog id="newsletter-header-editor" title="Edit newsletter header">
             <x-slot:titleActions>
                 <div class="flex flex-wrap items-center gap-2">
-                    <x-ui.button type="button" variant="plain" class="flex h-8 w-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#newsletter-header-ai-toast" data-ai-processing-message="Updating newsletter text…" data-ai-action="newsletter-header" data-ai-url="{{ route('admin.ai.newsletter.header') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#newsletter-content-form" data-ai-fields="content_order" data-ai-lock-fields="subject,hero_header,hero_cta" data-ai-lock-controls="#newsletter-header-editor [data-newsletter-refresh], #newsletter-header-editor [name=content_order], #newsletter-header-editor button[type=submit]" :disabled="blank(config('services.openai.api_key'))" aria-label="Replace header text with AI" title="Replace header text with AI"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#newsletter-header-ai-toast" data-ai-processing-message="Updating newsletter text…" data-ai-action="newsletter-header" data-ai-url="{{ route('admin.ai.newsletter.header') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#newsletter-content-form" data-ai-fields="content_order" data-ai-lock-fields="subject,hero_header,hero_cta" data-ai-lock-controls="#newsletter-header-editor [data-newsletter-refresh], #newsletter-header-editor [name=content_order], #newsletter-header-editor button[type=submit]" :disabled="blank(config('services.openai.api_key'))" aria-label="Replace header text with AI" title="Replace header text with AI" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
                 </div>
             </x-slot:titleActions>
             <x-admin.ai-status-toast id="newsletter-header-ai-toast" message="Preparing the newsletter header…" detail="The subject, heading, and introduction are locked while AI updates them." progress-label="Newsletter header generation" />
@@ -42,7 +42,7 @@
                 <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
                     <label for="newsletter-subject" class="col-span-2 block text-sm font-medium text-gray-900">Subject</label>
                     <x-ui.input-control id="newsletter-subject" form="newsletter-content-form" name="subject" class="h-11" :value="old('subject', $storePromotion->subject)" />
-                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="subject" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh subject" aria-label="Refresh subject"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="subject" class="rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh subject" aria-label="Refresh subject" size="icon"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                     @error('subject')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <x-ui.select form="newsletter-content-form" name="content_order" label="Content order">
@@ -52,29 +52,29 @@
                 <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
                     <label for="newsletter-hero_header" class="col-span-2 block text-sm font-medium text-gray-900">Hero heading</label>
                     <x-ui.input-control id="newsletter-hero_header" form="newsletter-content-form" name="hero_header" class="h-11" :value="old('hero_header', $storePromotion->hero_header)" />
-                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_header" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero heading" aria-label="Refresh hero heading"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_header" class="rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero heading" aria-label="Refresh hero heading" size="icon"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                     @error('hero_header')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="mb-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-2 gap-y-1">
                     <label for="newsletter-hero_cta" class="col-span-2 block text-sm font-medium text-gray-900">Hero introduction</label>
                     <x-ui.textarea-control id="newsletter-hero_cta" form="newsletter-content-form" name="hero_cta" rows="4">{{ old('hero_cta', $storePromotion->hero_cta) }}</x-ui.textarea-control>
-                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_cta" class="flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero introduction" aria-label="Refresh hero introduction"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button type="button" variant="plain" data-newsletter-refresh="hero_cta" class="rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-color" title="Refresh hero introduction" aria-label="Refresh hero introduction" size="icon"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                     @error('hero_cta')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <p class="mb-4 text-xs text-gray-500">The wand replaces all three fields with a draft based on this newsletter’s selected workshops and store items. The refresh arrows suggest one field at a time.</p>
-                <input form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" oninput="SMNewsletterPhotoPreview('header')">
+                <input x-data form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" x-on:input="SMNewsletterPhotoPreview('header')">
                 <div class="relative rounded-xl border border-slate-200 p-4">
                     <p class="mb-3 text-sm font-medium">Header image</p>
-                    <x-ui.button type="button" variant="plain" id="newsletter-header-image-remove" class="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800" onclick="document.getElementById('newsletter-header-image').value = ''; SMNewsletterPhotoPreview('header')" aria-label="Reset header image to default" title="Reset header image to default" :hidden="!filled(old('hero_image_name', $storePromotion->hero_image_name ?? ''))"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button x-data type="button" variant="plain" id="newsletter-header-image-remove" class="absolute right-3 top-3 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800" x-on:click="document.getElementById('newsletter-header-image').value = ''; SMNewsletterPhotoPreview('header')" aria-label="Reset header image to default" title="Reset header image to default" :hidden="!filled(old('hero_image_name', $storePromotion->hero_image_name ?? ''))" size="icon-small"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
                     <img id="newsletter-header-image-preview" data-default-src="{{ $defaultHeroImage ?? '' }}" @if($currentStoreSelection['hero_image_url'] ?? null) src="{{ $currentStoreSelection['hero_image_url'] }}" @else hidden @endif alt="Selected header image" class="mb-3 h-32 w-full rounded-lg object-cover">
                     <div class="flex justify-center">
-                        <x-ui.button type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" onclick="SMNewsletterChoosePhoto('header')"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose header image</x-ui.button>
+                        <x-ui.button x-data type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" x-on:click="SMNewsletterChoosePhoto('header')"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose header image</x-ui.button>
                     </div>
                     <p class="mt-2 text-xs text-slate-500">The default image is chosen from the newsletter’s products or workshops. Reset removes your override when you save.</p>
                     @error('hero_image_name')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="mt-5 flex justify-end gap-3">
-                    <x-ui.button type="button" color="outline" onclick="SMNewsletterCloseEditor(this.closest('dialog'))">Cancel</x-ui.button>
+                    <x-ui.button x-data type="button" color="outline" x-on:click="SMNewsletterCloseEditor($el.closest('dialog'))">Cancel</x-ui.button>
                     <x-ui.button type="submit" form="newsletter-content-form">Save header</x-ui.button>
                 </div>
             </div>
@@ -84,7 +84,7 @@
         @endphp
         <div data-newsletter-canvas class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-8">
             <header class="relative mb-8 overflow-hidden rounded-xl bg-slate-900 p-6 text-white sm:p-9">
-                <x-ui.button type="button" variant="plain" class="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-900 shadow" onclick="SMNewsletterOpenEditor('newsletter-header-editor')" aria-label="Edit newsletter header" title="Edit newsletter header"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
+                <x-ui.button x-data type="button" variant="plain" class="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-900 shadow" x-on:click="SMNewsletterOpenEditor('newsletter-header-editor')" aria-label="Edit newsletter header" title="Edit newsletter header"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
                 <div class="grid gap-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)]">
                 <div>
                 <img src="{{ asset('/logo-dark.png') }}" alt="STEMMechanics" class="mb-6 h-9 w-auto">

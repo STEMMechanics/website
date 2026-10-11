@@ -70,7 +70,7 @@
         <div id="{{ $pickerId }}_results" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="open" x-cloak role="listbox">
             <template x-for="(option, index) in results" :key="option.id">
                 <x-ui.button variant="plain" type="button" class="flex w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-bind:class="{ 'bg-sky-50': index === activeIndex }" x-on:mouseenter="activeIndex = index" x-on:click="add(option)" x-effect="if (index === activeIndex) $el.scrollIntoView({ block: 'nearest' })" role="option" x-bind:aria-selected="index === activeIndex">
-                    <i class="fa-solid fa-plus text-primary-color"></i>
+                    <i class="fa-solid fa-plus text-primary-color" aria-hidden="true"></i>
                     <span x-text="option.label"></span>
                 </x-ui.button>
             </template>
@@ -83,7 +83,7 @@
                 <input type="hidden" x-bind:name="`{{ $fieldName }}[${index}]`" :value="option.id">
                 <span class="truncate" x-text="option.label"></span>
                 <x-ui.button variant="plain" type="button" class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-sky-500 hover:bg-sky-100 hover:text-red-600" x-on:click="remove(option.id)" aria-label="Remove {{ strtolower($label) }}">
-                    <i class="fa-solid fa-xmark text-xs"></i>
+                    <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
                 </x-ui.button>
             </x-ui.badge>
         </template>

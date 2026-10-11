@@ -16,7 +16,7 @@ class ProductAttention
             $allocationIds = app(ProductAllocationEditor::class)->attentionIds();
             $inventoryIds = [];
             $currentIds = [];
-            Product::query()->active()->with('variants')
+            Product::query()->sellable()->active()->with('variants')
                 ->chunkById(200, function ($products) use (&$inventoryIds, &$currentIds): void {
                     $currentIds = array_merge($currentIds, $products->modelKeys());
                     foreach ($this->inventorySummaries($products) as $id => $summary) {

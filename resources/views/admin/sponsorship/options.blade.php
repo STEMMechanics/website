@@ -28,7 +28,7 @@
                     <h2 class="text-xl font-semibold text-gray-900">Business sponsors</h2>
                     <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600">Set the public recognition groups and thresholds, such as Major Sponsors. Recognition stays private unless a sponsor opts in. Active Major Sponsors are featured on the homepage.</p>
                 </div>
-                <x-ui.button color="primary-outline" size="compact" data-record-editor data-record-title="Add business sponsor group" href="{{ route('admin.sponsorship.group.create') }}">Add group</x-ui.button>
+                <x-ui.button color="primary-outline" size="small" data-record-editor data-record-title="Add business sponsor group" href="{{ route('admin.sponsorship.group.create') }}">Add group</x-ui.button>
             </div>
             <div id="business-sponsor-groups-list" data-record-refresh class="mt-5">
                 @include('admin.sponsorship.partials.recognition-groups-list', ['levels' => $levels])

@@ -2,7 +2,6 @@
 
 @php
     $hasError = $errors->has($name);
-    $onchange = $attributes->get('onchange');
     $value = old($name, $value);
     $editor = filter_var($editor, FILTER_VALIDATE_BOOLEAN);
 @endphp
@@ -18,16 +17,16 @@
             x-cloak
             x-show="$store.modelIndex!=-1"
             x-on:click.prevent="$store.modelIndex=-1">
-            <div class="cursor-pointer z-10 flex justify-center items-center fixed top-0 left-0 h-full w-12 hover:scale-125 transition text-gray-400/60 hover:text-gray-400 text-3xl" x-on:click.prevent.stop="$store.modelIndex<=0?$store.modelIndex=$store.modelCount-1:$store.modelIndex--"><i class="fa-solid fa-circle-chevron-left"></i></div>
-            <div class="cursor-pointer z-10 flex justify-center items-center fixed top-0 right-0 h-full w-12 hover:scale-125 transition text-gray-400/60 hover:text-gray-400 text-3xl" x-on:click.prevent.stop="$store.modelIndex>=$store.modelCount-1?$store.modelIndex=0:$store.modelIndex++"><i class="fa-solid fa-circle-chevron-right"></i></div>
+            <x-ui.button variant="plain" aria-label="Previous image" class="z-10 flex justify-center items-center fixed top-0 left-0 h-full w-12 hover:scale-125 text-gray-400/60 hover:text-gray-400 text-3xl" x-on:click.prevent.stop="$store.modelIndex<=0?$store.modelIndex=$store.modelCount-1:$store.modelIndex--"><i class="fa-solid fa-circle-chevron-left" aria-hidden="true"></i></x-ui.button>
+            <x-ui.button variant="plain" aria-label="Next image" class="z-10 flex justify-center items-center fixed top-0 right-0 h-full w-12 hover:scale-125 text-gray-400/60 hover:text-gray-400 text-3xl" x-on:click.prevent.stop="$store.modelIndex>=$store.modelCount-1?$store.modelIndex=0:$store.modelIndex++"><i class="fa-solid fa-circle-chevron-right" aria-hidden="true"></i></x-ui.button>
             <ul class="flex flex-wrap justify-center px-14 mt-2">
                 <template x-for="(file,index) in $store.gallery" :key="file.name">
                     <li x-show="$store.modelIndex==index" class="flex items-center justify-center relative">
                         <div class="flex gap-4 px-4 py-1 cursor-pointer z-10 fixed top-4 right-14 transition bg-black/0 hover:bg-black/80 rounded items-center">
                             @if($downloads)
-                            <a :href="file.url ? file.url + '?download' : galleryModalUrl(file) + '?download'" target="_blank" class="cursor-pointer transition text-white/80 hover:text-white text-2xl" x-on:click.stop><i class="fa-solid fa-download"></i></a>
+                            <x-ui.button variant="plain" size="icon" aria-label="Download image" x-bind:href="file.url ? file.url + '?download' : galleryModalUrl(file) + '?download'" target="_blank" class="text-white/80 hover:text-white text-2xl" x-on:click.stop><i class="fa-solid fa-download" aria-hidden="true"></i></x-ui.button>
                             @endif
-                            <div class="cursor-pointer transition text-white/80 hover:text-white text-3xl" x-on:click.prevent.stop="$store.modelIndex=-1"><i class="fa-solid fa-xmark"></i></div>
+                            <x-ui.button variant="plain" size="icon" aria-label="Close image gallery" class="text-white/80 hover:text-white text-3xl" x-on:click.prevent.stop="$store.modelIndex=-1"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                         </div>
                         <img class="rounded max-h-[80vh] max-w-[90vw]" :src="galleryModalUrl(file)" :alt="file.title || file.name" x-on:error="handleGalleryImageError($event, file)" />
                     </li>
@@ -56,13 +55,13 @@
                     <div
                             :class="$store.gallery.length === 0 ? 'block' : 'hidden'"
                             class="text-sm font-semibold text-gray-900">Drop images here to upload</div>
-                    <button
+                    <x-ui.button variant="plain"
                         type="button"
                         class="mt-1 bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                         x-on:click.prevent="SMMediaPicker.open((Array.isArray(Alpine.store('gallery')) ? Alpine.store('gallery') : []).map(file => file.name), {require_mime_type:'image/*',allow_multiple:true,allow_uploads:true}, (result)=>updateGallery(result))"
                     >
                         Select Images
-                    </button>
+                    </x-ui.button>
                 </div>
             </li>
         @endif

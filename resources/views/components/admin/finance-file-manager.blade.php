@@ -129,18 +129,29 @@
                 item.className = 'flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2 bg-white';
                 item.innerHTML = `
                     <div class="min-w-0">
-                        <div class="text-sm text-gray-900 truncate">${file.name}</div>
-                        <div class="text-xs text-gray-500">${file.mime_type || 'File'} - ${toBytes(Number(file.size || 0))}</div>
+                        <div class="text-sm text-gray-900 truncate" data-file-name></div>
+                        <div class="text-xs text-gray-500" data-file-meta></div>
                     </div>
-                    <span class="inline-flex items-center gap-3">
-                        <a class="hover:text-primary-color" title="View file" href="${file.view_url}" target="_blank"><i class="fa-solid fa-eye"></i></a>
-                        <a class="hover:text-primary-color" title="Download file" href="${file.download_url}"><i class="fa-solid fa-download"></i></a>
-                        <button type="button" class="hover:text-red-600" title="Remove file" data-remove-id="${file.id}">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+                    <span class="inline-flex shrink-0 items-center gap-2">
+                        <x-ui.button variant="soft" size="icon-small" color="primary" icon="eye" label="View file" href="#" target="_blank" data-file-view />
+                        <x-ui.button variant="soft" size="icon-small" color="secondary" icon="download" label="Download file" href="#" data-file-download />
+                        <x-ui.button variant="soft" size="icon-small" color="danger" icon="trash" label="Remove file" data-remove-id="" />
                     </span>
                 `;
 
+                item.querySelector('[data-file-name]').textContent = String(file.name || 'File');
+                item.querySelector('[data-file-meta]').textContent = `${file.mime_type || 'File'} - ${toBytes(Number(file.size || 0))}`;
+                item.querySelector('[data-remove-id]').dataset.removeId = String(file.id);
+                for (const [selector, url] of [['[data-file-view]', file.view_url], ['[data-file-download]', file.download_url]]) {
+                    const link = item.querySelector(selector);
+                    const href = SM.safeHref(url);
+                    if (href) link.setAttribute('href', href);
+                    else {
+                        link.removeAttribute('href');
+                        link.setAttribute('aria-disabled', 'true');
+                        link.tabIndex = -1;
+                    }
+                }
                 list.appendChild(item);
             });
         };

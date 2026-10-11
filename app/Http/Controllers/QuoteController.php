@@ -5,19 +5,26 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Models\Invoice;
+use App\Models\Product;
 use App\Models\Quote;
+use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\DocumentNumberService;
+use App\Services\Finance\DocumentProductCatalog;
+use App\Services\Finance\LinePricing;
+use App\Services\Finance\WorkshopLine;
 use App\Services\QuoteWorkflowService;
+use App\Services\SiteListControls;
 use App\Services\StoreOrderService;
+use App\Support\ListPageSize;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
 
@@ -50,7 +57,7 @@ class QuoteController extends Controller
             });
         }
 
-        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
 
         return view('admin.quote.index', [
             'quotes' => $quotes,
@@ -78,7 +85,7 @@ class QuoteController extends Controller
             ]);
         }
 
-        $quote = new Quote();
+        $quote = new Quote;
         $quote->fill($validated);
         $quote->valid_until ??= $quote->quote_date?->copy()->addDays(28);
         $quote->follow_up_at ??= $quote->quote_date?->copy()->addDays(3);
@@ -133,7 +140,7 @@ class QuoteController extends Controller
             ]);
         }
 
-        $samePricing = \App\Services\Finance\LinePricing::sameTotals($lineItems, $quote->line_items ?? []);
+        $samePricing = LinePricing::sameTotals($lineItems, $quote->line_items ?? []);
         $quote->fill($validated);
         $quote->line_items = $lineItems;
         $quote->setAcceptanceSettings(
@@ -214,7 +221,7 @@ class QuoteController extends Controller
             });
         }
 
-        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $quotes = $query->orderBy('quote_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
 
         return view('account.quotes', [
             'quotes' => $quotes,
@@ -265,15 +272,15 @@ class QuoteController extends Controller
 
         $invoice = $result['invoice'] ?? null;
         $order = $result['order'] ?? null;
-        $message = ($order instanceof \App\Models\StoreOrder && ($result['order_email_deferred'] ?? false))
+        $message = ($order instanceof StoreOrder && ($result['order_email_deferred'] ?? false))
             ? 'Quote accepted. Your order confirmation and invoice will be emailed shortly.'
-            : (($order instanceof \App\Models\StoreOrder && ($result['invoice_emailed'] ?? false))
+            : (($order instanceof StoreOrder && ($result['invoice_emailed'] ?? false))
                 ? 'Quote accepted. Your order confirmation has been emailed.'
                 : (($invoice instanceof Invoice && ($result['invoice_emailed'] ?? false))
                     ? 'Quote accepted. Your invoice has been emailed.'
                     : 'Quote accepted. We have recorded your response.'));
 
-        if (($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
+        if (($result['order'] ?? null) instanceof StoreOrder) {
             $message .= ' The linked order is now available in your account.';
         }
 
@@ -509,7 +516,6 @@ class QuoteController extends Controller
     }
 
     /**
-     * @param  mixed  $contextPayload
      * @return array<string, mixed>
      */
     private function duplicateQuoteContextPayload(mixed $contextPayload): array
@@ -545,7 +551,8 @@ class QuoteController extends Controller
                 continue;
             }
 
-            if ((int) data_get($lineItem, 'store_context.product_id', 0) > 0) {
+            $productId = (int) data_get($lineItem, 'store_context.product_id', 0);
+            if ($productId > 0 && Product::query()->sellable()->whereKey($productId)->exists()) {
                 return true;
             }
         }
@@ -569,15 +576,15 @@ class QuoteController extends Controller
 
         $invoice = $result['invoice'] ?? null;
         $order = $result['order'] ?? null;
-        $message = ($order instanceof \App\Models\StoreOrder && ($result['order_email_deferred'] ?? false))
+        $message = ($order instanceof StoreOrder && ($result['order_email_deferred'] ?? false))
             ? 'Quote accepted. Your order confirmation and invoice will be emailed shortly.'
-            : (($order instanceof \App\Models\StoreOrder && ($result['invoice_emailed'] ?? false))
+            : (($order instanceof StoreOrder && ($result['invoice_emailed'] ?? false))
                 ? 'Quote accepted. Your order confirmation has been emailed.'
-                : (($invoice instanceof \App\Models\Invoice && ($result['invoice_emailed'] ?? false))
+                : (($invoice instanceof Invoice && ($result['invoice_emailed'] ?? false))
                     ? 'Quote accepted. Your invoice has been emailed.'
                     : 'Quote accepted. We have recorded your response.'));
 
-        if ($isAccountAccess && ($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
+        if ($isAccountAccess && ($result['order'] ?? null) instanceof StoreOrder) {
             $message .= ' The linked order is now available in your account.';
         }
 
@@ -640,7 +647,7 @@ class QuoteController extends Controller
             'linkedInvoiceOutstanding' => $linkedInvoiceOutstanding,
             'linkedInvoiceUrl' => $linkedInvoice instanceof Invoice ? route('account.invoice.show', $linkedInvoice) : null,
             'linkedInvoicePayUrl' => $linkedInvoiceIsPayable ? route('account.invoice.show', $linkedInvoice) : null,
-            'quoteDueDate' => $quoteExpiresAt instanceof \Illuminate\Support\Carbon ? $quoteExpiresAt->format('M j, Y') : null,
+            'quoteDueDate' => $quoteExpiresAt instanceof Carbon ? $quoteExpiresAt->format('M j, Y') : null,
             'quoteHasExpired' => $quote->isExpired(),
             'forceAcceptAndPay' => $quote->requiresAcceptancePayment(),
             'canAcceptAndPay' => $quote->canCustomerRespond() && (
@@ -660,7 +667,7 @@ class QuoteController extends Controller
 
     private function quoteEditorProducts(?Quote $quote = null): array
     {
-        return app(\App\Services\Finance\DocumentProductCatalog::class)->products($quote->line_items ?? []);
+        return app(DocumentProductCatalog::class)->products($quote->line_items ?? []);
     }
 
     private function extractLineItems(Request $request, array $savedItems = []): array
@@ -682,7 +689,7 @@ class QuoteController extends Controller
                 continue;
             }
 
-            $item = \App\Services\Finance\WorkshopLine::normalize($item);
+            $item = WorkshopLine::normalize($item);
             $description = trim((string) ($item['description'] ?? ''));
             $notes = trim((string) ($item['notes'] ?? ''));
             $quantity = (float) ($item['quantity'] ?? 0);
@@ -703,11 +710,13 @@ class QuoteController extends Controller
                 $unitPrice = (float) $item['unit_price_inc_tax'] / ($gstApplicable ? 1.1 : 1);
             }
             $saved = $savedItems[$item['saved_line_index'] ?? $index] ?? null;
-            $unchanged = $saved && \App\Services\Finance\LinePricing::unchanged($item, $saved);
+            $unchanged = $saved && LinePricing::unchanged($item, $saved);
             $amounts = $unchanged
-                ? \App\Services\Finance\LinePricing::savedAmounts($saved)
-                : \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
-            if ($unchanged && (float) $saved['quantity'] === $quantity) $unitPrice = (float) $saved['unit_price'];
+                ? LinePricing::savedAmounts($saved)
+                : WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
+            if ($unchanged && (float) $saved['quantity'] === $quantity) {
+                $unitPrice = (float) $saved['unit_price'];
+            }
             unset($item['saved_line_index']);
             $lineTotal = $amounts['net'];
 
@@ -758,7 +767,7 @@ class QuoteController extends Controller
 
         foreach ($lineItems as $lineItem) {
             if (($lineItem['gst_applicable'] ?? true) === true) {
-                $gst += \App\Services\Finance\LinePricing::savedAmounts($lineItem)['tax'];
+                $gst += LinePricing::savedAmounts($lineItem)['tax'];
             }
         }
 

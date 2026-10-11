@@ -15,7 +15,7 @@ class ProductRecommendationService
             return collect();
         }
 
-        return Product::query()->active()
+        return Product::query()->sellable()->active()
             ->whereKeyNot($product->getKey())
             ->whereHas('categories', fn ($query) => $query->whereIn('product_categories.id', $categoryIds))
             ->withCount(['categories as shared_categories_count' => fn ($query) => $query->whereIn('product_categories.id', $categoryIds)])

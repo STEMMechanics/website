@@ -11,9 +11,9 @@
         $seedItems = $editing
             ? $template->items->map(fn ($item) => [
                 'id' => (int) $item->id,
-                'item_name' => (string) ($item->stockItem?->linkLabel() ?? $item->item_name),
-                'stock_item_id' => $item->stock_item_id !== null ? (int) $item->stock_item_id : null,
-                'stock_quantity' => $item->stock_quantity !== null ? (float) $item->stock_quantity : null,
+                'item_name' => (string) ($item->product?->title ?? $item->item_name),
+                'product_id' => $item->product_id !== null ? (int) $item->product_id : null,
+                'cut_size_id' => $item->cut_size_id, 'length' => $item->length, 'length_unit' => $item->length_unit,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
                 'sort_order' => (int) ($item->sort_order ?? 0),
@@ -72,15 +72,7 @@
         <form id="workshop-blueprint-form" method="POST" action="{{ route('admin.workshop-blueprint.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
             items: @js($seedItems),
             itemRowKeySequence: 0,
-            stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => [
-                'id' => (int) $stockItem->id,
-                'name' => (string) $stockItem->linkLabel(),
-                'sku' => (string) ($stockItem->sku ?? ''),
-                'status' => (string) ($stockItem->status ?? 'active'),
-                'is_kit' => (bool) ($stockItem->is_kit ?? false),
-                'group_name' => (string) ($stockItem->group?->name ?? ''),
-                'variant_name' => (string) ($stockItem->variant_name ?? ''),
-            ])->values()->all()),
+            productCatalog: @js($productCatalog ?? []),
             blueprintItemNames: @js($blueprintItemNames ?? []),
             tasks: @js($seedTasks),
             attachments: @js($seedAttachments),
@@ -328,32 +320,34 @@
                     _rowKey: `new-pick-list-item-${++this.itemRowKeySequence}`,
                     id: null,
                     item_name: '',
-                    stock_item_id: null,
-                    stock_quantity: null,
+                    product_id: null,
+                    cut_size_id: null, length: null, length_unit: 'mm',
                     quantity_type: ['per_participant', 'fixed'].includes(previousType) ? previousType : 'per_participant',
                     quantity_value: 1,
                     sort_order: 0,
                 };
             },
-            stockItemLabel(item) {
-                const stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
-                const stockItem = this.stockItems.find((option) => Number(option.id) === stockItemId);
+            productItemLabel(item) {
+                const productId = Number.parseInt(String(item?.product_id ?? 0), 10) || 0;
+                const product = this.productCatalog.find((option) => Number(option.id) === productId);
 
-                return stockItem?.name || '';
+                return product?.name || '';
             },
-            selectStockItem(index) {
+            selectProductItem(index) {
                 const item = this.items[index];
                 if (!item) {
                     return;
                 }
 
-                item.stock_quantity = null;
-                item.item_name = item.stock_item_id ? this.stockItemLabel(item) : (item.item_name || '');
+                item.cut_size_id = null;
+                item.length = null;
+                item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
+                item.item_name = item.product_id ? this.productItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
             isBlankItem(item) {
                 const name = String(item?.item_name || '').trim();
-                return name === '' && !item?.stock_item_id;
+                return name === '' && !item?.product_id;
             },
             hasSingleTrailingBlank() {
                 if (this.items.length === 0) {
@@ -434,8 +428,10 @@
                     .map((item, index) => ({
                         id: Number.parseInt(String(item.id ?? 0), 10) || null,
                         item_name: String(item.item_name ?? '').trim(),
-                        stock_item_id: Number.parseInt(String(item.stock_item_id ?? 0), 10) || null,
-                        stock_quantity: item.stock_quantity === '' || item.stock_quantity === undefined ? null : item.stock_quantity,
+                        product_id: Number.parseInt(String(item.product_id ?? 0), 10) || null,
+                        cut_size_id: Number(item.cut_size_id) || null,
+                        length: item.length === '' || item.length === undefined ? null : item.length,
+                        length_unit: item.length ? item.length_unit : null,
                         quantity_type: item.quantity_type,
                         quantity_value: Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1),
                         sort_order: (index + 1) * 10,
@@ -521,14 +517,14 @@
                     </div>
                     <x-ui.input type="textarea" noLabel class="mb-0" id="default_workshop_summary" name="default_workshop_summary" value="{{ old('default_workshop_summary', $template->default_workshop_summary ?? '') }}" rows="3" />
                 </div>
-                <x-ui.editor name="default_workshop_content" label="Default Workshop Description" class="workshop-template-editor" value="{!! old('default_workshop_content', $template->default_workshop_content ?? '') !!}">
+                <x-ui.editor name="default_workshop_content" label="Default Workshop Description" class="workshop-template-editor" :value="old('default_workshop_content', $template->default_workshop_content ?? '')">
                     <x-slot:toolbar>
-                        <button type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Replace and improve default workshop description" title="Replace and improve the current description" {{ blank(config('services.openai.api_key')) ? 'disabled' : '' }}>
+                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Replace and improve default workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
                             <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                        </button>
-                        <button type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Checking for missing learning outcomes…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Add missing supported learning outcomes without changing the description" title="Add only supported learning outcomes that are missing. Existing description and outcomes are kept unchanged." {{ blank(config('services.openai.api_key')) ? 'disabled' : '' }}>
+                        </x-ui.button>
+                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Checking for missing learning outcomes…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Add missing supported learning outcomes without changing the description" title="Add only supported learning outcomes that are missing. Existing description and outcomes are kept unchanged." :disabled="blank(config('services.openai.api_key'))">
                             <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                        </button>
+                        </x-ui.button>
                     </x-slot:toolbar>
                 </x-ui.editor>
                 <div class="mt-4"><x-ui.media label="Default Hero Image" name="hero_media_name" value="{{ old('hero_media_name', $template->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" /></div>
@@ -575,7 +571,7 @@
                                 <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
                                 <div class="flex items-center gap-3">
                                     <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></x-ui.button>
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark"></i></x-ui.button>
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                                 </div>
                             </div>
 
@@ -584,15 +580,15 @@
                                 <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-tab-${subtaskIndex}`">
                                     <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === `subtask-${subtaskIndex}` ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = `subtask-${subtaskIndex}`" x-text="subtask.title || `Subtask ${subtaskIndex + 1}`"></x-ui.button>
                                 </template>
-                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus"></i></x-ui.button>
+                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus" aria-hidden="true"></i></x-ui.button>
                             </div>
 
                             <div x-show="taskEditorTab === 'details'">
                                 <div class="mb-1 flex items-center justify-between gap-2">
                                     @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Notes'])
-                                    <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex))" x-bind:data-ai-mode="String(tasks[taskEditorIndex]?.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task content" title="Write or improve task content" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                    <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex))" x-bind:data-ai-mode="String(tasks[taskEditorIndex]?.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task content" title="Write or improve task content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
                                 </div>
-                                <x-ui.mini-editor x-model="tasks[taskEditorIndex].notes">
+                                <x-ui.mini-editor label="Task notes" x-model="tasks[taskEditorIndex].notes">
                                     <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
                                 </x-ui.mini-editor>
 
@@ -617,13 +613,13 @@
                                 <div x-show="taskEditorTab === `subtask-${subtaskIndex}`">
                                     <div class="mb-4 flex items-end gap-3">
                                         <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title" /></label>
-                                        <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1"></i>Remove</x-ui.button>
+                                        <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Remove</x-ui.button>
                                     </div>
                                     <div class="mb-1 flex items-center justify-between gap-2">
                                         @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Subtask content'])
-                                        <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve subtask content" title="Write or improve subtask content" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve subtask content" title="Write or improve subtask content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
                                     </div>
-                                    <x-ui.mini-editor x-model="subtask.content">
+                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
                                         <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
                                     </x-ui.mini-editor>
                                 </div>
@@ -660,16 +656,19 @@
                                 <tr class="border-b border-gray-300 last:border-b-0">
                                     <td class="p-2 align-top">
                                         <div
-                                            x-on:stock-item-link-changed="selectStockItem(index)"
+                                            x-on:product-item-link-changed="selectProductItem(index)"
                                             x-on:input="handleRowChange(index)"
                                             x-on:change="handleRowChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" :item-name-suggestions="$blueprintItemNames ?? []" :allow-linked-item-text-edit="true" />
+                                            <x-admin.product-item-field catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
+                                            <x-admin.product-preparation-fields />
                                         </div>
                                         <input type="hidden" x-bind:name="`items[${index}][item_name]`" x-bind:value="item.item_name ?? ''">
                                         <input type="hidden" x-bind:name="`items[${index}][id]`" x-bind:value="item.id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][stock_item_id]`" x-bind:value="item.stock_item_id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][stock_quantity]`" x-bind:value="item.stock_quantity ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][product_id]`" x-bind:value="item.product_id ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][cut_size_id]`" x-bind:value="item.cut_size_id ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][length]`" x-bind:value="item.length ?? ''">
+                                        <input type="hidden" x-bind:name="`items[${index}][length_unit]`" x-bind:value="item.length ? item.length_unit : ''">
                                         <input type="hidden" x-bind:name="`items[${index}][quantity_type]`" x-bind:value="item.quantity_type">
                                         <input type="hidden" x-bind:name="`items[${index}][quantity_value]`" x-bind:value="item.quantity_value">
                                         <input type="hidden" x-bind:name="`items[${index}][sort_order]`" x-bind:value="item.sort_order">
@@ -756,7 +755,7 @@
                     name="run_sheet"
                     label="Instructions"
                     class="workshop-template-editor"
-                    value="{!! old('run_sheet', $template->run_sheet ?? '') !!}"
+                    :value="old('run_sheet', $template->run_sheet ?? '')"
                 />
             </x-ui.collapsible-section>
 
@@ -798,9 +797,9 @@
                                 <div class="text-xs text-gray-500" x-text="attachmentDetails[name] ? `${attachmentDetails[name].type} · ${attachmentSize(attachmentDetails[name].size)}` : 'File details available after saving'"></div>
                             </div>
                             <div class="flex shrink-0 items-center gap-3">
-                                <a x-show="attachmentDetails[name]?.view_url" x-bind:href="attachmentDetails[name]?.view_url" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment"><i class="fa-solid fa-eye"></i></a>
+                                <a x-show="attachmentDetails[name]?.view_url" x-bind:href="attachmentDetails[name]?.view_url" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment" rel="noopener"><i class="fa-solid fa-eye"></i></a>
                                 <a x-show="attachmentDetails[name]?.download_url" x-bind:href="attachmentDetails[name]?.download_url" class="text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
-                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark"></i></x-ui.button>
+                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                             </div>
                         </div>
                     </template>
@@ -809,7 +808,7 @@
                     <template x-for="(item, index) in pendingAttachments" :key="item.key">
                         <div class="flex items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm">
                             <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="`${item.file.type || 'File'} · ${attachmentSize(item.size)}`"></div></div>
-                            <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark"></i></x-ui.button>
+                            <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                         </div>
                     </template>
                 </div>
@@ -823,7 +822,7 @@
                 <x-ui.button type="submit" x-bind:disabled="submitting">
                     <span x-show="!submitting">{{ $editing ? 'Save Blueprint' : 'Create Blueprint' }}</span>
                     <span x-show="submitting" class="inline-flex items-center gap-2">
-                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                         <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
                     </span>
                 </x-ui.button>

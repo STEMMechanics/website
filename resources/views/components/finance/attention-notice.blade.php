@@ -14,7 +14,7 @@
                     @if($counts['overdue'])<a data-dynamic-link class="underline underline-offset-2" href="{{ route('admin.invoice.index', ['status' => ['overdue']]) }}">{{ $counts['overdue'] }} overdue</a>@endif
                     @if($counts['unallocated_invoices'])<a data-dynamic-link class="underline underline-offset-2" href="{{ route('admin.invoice.index', ['allocation_state' => 'not_allocated', 'status' => ['issued', 'sent', 'paid', 'overdue', 'written_off'], 'list_total_amount_min' => '0.01']) }}">{{ $counts['unallocated_invoices'] }} missing cost centre allocation</a>@endif
                 @elseif($kind === 'product-stock')
-                    <a data-dynamic-link class="underline underline-offset-2" href="{{ route('admin.shop.product.index', ['status_scope' => 'current', 'inventory' => 'actionable']) }}">{{ $total }} with low stock</a>
+                    <a data-dynamic-link class="underline underline-offset-2" href="{{ route('admin.shop.product.index', ['status_scope' => 'current', 'inventory' => 'low_stock']) }}">{{ $total }} with low stock</a>
                 @elseif($kind === 'orders')
                     <p>Review orders awaiting preparation, shipping, collection or a quote.</p>
                 @elseif($kind === 'products')

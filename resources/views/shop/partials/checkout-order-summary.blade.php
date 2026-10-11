@@ -77,10 +77,9 @@
                                         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
                                             <x-ui.button variant="plain"
                                                 type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-8 w-8 items-center justify-center border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyLineKey === line.key || isSubmitting"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)"
-                                            >-</x-ui.button>
+                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)" size="icon-small">-</x-ui.button>
                                             <x-ui.input-control
                                                 type="number"
                                                 min="0"
@@ -91,10 +90,9 @@
                                                 x-on:change="changeCartQuantity(line.key, $event.target.value, line.max_quantity)" />
                                             <x-ui.button variant="plain"
                                                 type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-8 w-8 items-center justify-center border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyLineKey === line.key || isSubmitting || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)"
-                                            >+</x-ui.button>
+                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)" size="icon-small">+</x-ui.button>
                                         </div>
                                         <x-ui.button variant="plain"
                                             type="button"
@@ -171,8 +169,8 @@
             <input type="hidden" name="return_to" value="{{ $resolvedReturnTo }}">
             <div class="text-xs text-slate-500">Add voucher</div>
             <div class="flex gap-2 items-center">
-                <x-ui.input name="coupon_code" no-label="true" :value="old('coupon_code', '')" class="mb-0" x-model="couponDraft" x-bind:disabled="couponBusy || isSubmitting" />
-                <x-ui.button type="submit" color="outline" class="text-xs px-2" x-bind:disabled="couponBusy || isSubmitting || couponDraft.trim() === ''">Apply</x-ui.button>
+                <x-ui.input name="coupon_code" label="Voucher code" no-label="true" :value="old('coupon_code', '')" class="mb-0" x-model="couponDraft" x-bind:disabled="couponBusy || isSubmitting" />
+                <x-ui.button type="submit" size="small" color="outline" x-bind:disabled="couponBusy || isSubmitting || couponDraft.trim() === ''">Apply</x-ui.button>
             </div>
         </form>
 

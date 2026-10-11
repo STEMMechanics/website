@@ -43,7 +43,7 @@ class NavbarThemeTest extends TestCase
         );
     }
 
-    public function test_product_attention_badge_and_stock_notice_use_the_combined_attention_count(): void
+    public function test_product_attention_badge_and_stock_tab_use_the_combined_attention_count(): void
     {
         $this->actingAs($this->createAdminUser());
         Product::factory()->create(['price' => 11, 'inventory_quantity' => 1]);
@@ -51,7 +51,7 @@ class NavbarThemeTest extends TestCase
             ->assertSee('1 product needs stock or allocation attention')
             ->assertSee('Low stock')
             ->assertSee('Allocation needs review')
-            ->assertSee('1 with low stock');
+            ->assertSee('aria-label="Low Stock, 1, needs attention"', false);
     }
 
     private function renderNavbarForHost(string $host): string

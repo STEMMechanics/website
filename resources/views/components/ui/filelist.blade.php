@@ -2,7 +2,6 @@
 
 @php
     $hasError = $errors->has($name);
-    $onchange = $attributes->get('onchange');
     $value = old($name, $value);
     $editor = filter_var($editor, FILTER_VALIDATE_BOOLEAN);
     $publicUsableOnly = filter_var($public_usable_only, FILTER_VALIDATE_BOOLEAN);
@@ -142,18 +141,18 @@
             <p class="mt-1 text-xs text-gray-500" x-text="deferredUploads ? 'Files stay pending until you press Save.' : 'Uploads add to the list immediately.'"></p>
             <div class="mt-3 flex flex-wrap items-center justify-center gap-3">
                 <label class="inline-flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100" for="filelist_upload_{{ $name }}">Select files</label>
-                <button
+                <x-ui.button variant="plain"
                     x-show="deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
                     x-on:click.prevent="SMMediaPicker.open(currentFileList('{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:false,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }}}, (result)=>updateFiles('{{ $name }}', result))"
-                >Browse existing files</button>
-                <button
+                >Browse existing files</x-ui.button>
+                <x-ui.button variant="plain"
                     x-show="!deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    x-on:click.prevent="SMMediaPicker.open(currentFileList('{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:@js($uploadFields)}, (result)=>updateFiles('{{ $name }}', result))"
-                >Browse media</button>
+                    x-on:click.prevent="SMMediaPicker.open(currentFileList('{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:{{ \Illuminate\Support\Js::from($uploadFields) }}}, (result)=>updateFiles('{{ $name }}', result))"
+                >Browse media</x-ui.button>
             </div>
             <input class="hidden" id="filelist_upload_{{ $name }}" type="file" multiple x-on:change="uploadFiles($event.target.files); $event.target.value = '';">
             <ul x-show="currentStagedFileList('{{ $name }}').length > 0" class="mt-4 flex flex-col gap-4 rounded-lg border border-gray-300 bg-white p-3 text-left">
@@ -169,7 +168,7 @@
                         </template>
                         <div class="flex grow flex-col">
                             <div x-show="!file.pending_id">
-                                <a class="link break-all" :href="file.url" x-text="file.title" target="_blank"></a>
+                                <a class="link break-all" :href="file.url" x-text="file.title" target="_blank" rel="noopener"></a>
                                 <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
                             </div>
                             <div x-show="file.pending_id" class="break-all text-sm font-medium text-gray-900" x-text="file.title"></div>
@@ -207,7 +206,7 @@
                 <img class="w-10 mr-2" :src="file.thumbnail" src="" alt="thumbnail" />
                 <div class="flex grow flex-col">
                     <div>
-                        <a class="link break-all" :href="file.url" x-text="file.title" target="_blank"></a>
+                        <a class="link break-all" :href="file.url" x-text="file.title" target="_blank" rel="noopener"></a>
                         <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
                     </div>
                     @if(!$noTags)

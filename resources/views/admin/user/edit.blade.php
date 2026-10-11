@@ -74,14 +74,14 @@
             <x-slot:right>
                 @if((string) auth()->id() !== (string) $user->id && ! $user->isAnonymized())
                     <x-ui.button color="outline" type="button" x-on:click="mergeOpen = true">
-                        <i class="fa-solid fa-code-merge mr-2"></i>Merge User
+                        <i class="fa-solid fa-code-merge mr-2" aria-hidden="true"></i>Merge User
                     </x-ui.button>
                 @endif
                 <x-ui.button color="outline" href="{{ route('admin.workshop.history', [
                     'requested_by_user_id' => $user->id,
                     'include_cancelled' => 1,
                 ]) }}">
-                    <i class="fa-solid fa-clock-rotate-left mr-2"></i>Workshop History
+                    <i class="fa-solid fa-clock-rotate-left mr-2" aria-hidden="true"></i>Workshop History
                 </x-ui.button>
             </x-slot:right>
             </x-ui.toolbar>
@@ -103,8 +103,8 @@
                                 <h3 id="merge-user-title" class="text-lg font-semibold text-gray-950">Merge {{ $user->getName() }} into another user</h3>
                                 <p class="mt-1 text-sm text-gray-600">Everything associated with this account will be moved to the account selected below, then this account will be permanently removed.</p>
                             </div>
-                            <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeMerge()" aria-label="Close merge dialog">
-                                <i class="fa-solid fa-xmark"></i>
+                            <x-ui.button variant="text" color="secondary" type="button"  x-on:click="closeMerge()" aria-label="Close merge dialog">
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </x-ui.button>
                         </div>
 
@@ -184,9 +184,9 @@
                         <div class="text-xs text-emerald-800">Card-refundable: {{ money($cardRefundableCredit) }}</div>
                     @endif
                     @if(isset($refundPayment))
-                        <x-ui.button color="primary-outline-sm" type="button" x-on:click="createRefundOpen = true">Create refund</x-ui.button>
+                        <x-ui.button color="primary-outline" type="button" x-on:click="createRefundOpen = true" size="small">Create refund</x-ui.button>
                     @endif
-                    <x-ui.button color="primary-outline-sm" href="{{ route('admin.user.payments', $user) }}">Payments</x-ui.button>
+                    <x-ui.button color="primary-outline" href="{{ route('admin.user.payments', $user) }}" size="small">Payments</x-ui.button>
                 </div>
 
                 @if(isset($refundPayment))
@@ -209,8 +209,8 @@
                                             This user currently has {{ money($accountCredit) }} in account credit, and {{ money($refundPaymentAvailableAmount) }} is available to refund from this payment.
                                         </p>
                                     </div>
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createRefundOpen = false">
-                                        <i class="fa-solid fa-xmark"></i>
+                                    <x-ui.button size="icon-small" aria-label="Close refund" variant="text" color="secondary" type="button"  x-on:click="createRefundOpen = false">
+                                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                     </x-ui.button>
                                 </div>
 

@@ -5,14 +5,6 @@
 
     <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="admin-shop-product">
-        @php
-            $selectedFilter = $selectedFilter ?? 'all';
-            $baseIndexQuery = request()->except('page', 'filter');
-        @endphp
-        <div class="mt-4 grid gap-x-4 {{ $allocationAttentionCount > 0 && $inventoryAttentionCount > 0 ? 'lg:grid-cols-2' : '' }}">
-            <x-finance.attention-notice kind="products" :total="$allocationAttentionCount" />
-            <x-finance.attention-notice kind="product-stock" :total="$inventoryAttentionCount" />
-        </div>
         <x-ui.collection-controls class="mb-5" />
 
         @if($products->isEmpty())
@@ -70,7 +62,9 @@
                             <td class="hidden md:table-cell text-center!">{{ \App\Models\Product::productTypeLabel((string) $product->product_type) }}</td>
                             <td>
                                 <div class="font-semibold text-gray-900">
-                                    @if($product->isDigital())
+                                    @if($product->isMaterial())
+                                        Material costs only
+                                    @elseif($product->isDigital())
                                         Digital
                                     @elseif($inventorySummary['available'] === null)
                                         Not tracked
@@ -99,7 +93,7 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="text-center!">{{ \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
+                            <td class="text-center!">{{ $product->isMaterial() ? '—' : \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
                             <td class="text-center!">
                                 <x-ui.row-actions>
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.product.edit', $product) }}" />
@@ -128,7 +122,7 @@
                                             x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
                                          />
                                     @endif
-                                    @if($product->isActive())
+                                    @if($product->isActive() && $product->isSellable())
                                         <x-ui.row-action label="View" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('shop.product.show', $product) }}" />
                                     @endif
                                 </x-ui.row-actions>

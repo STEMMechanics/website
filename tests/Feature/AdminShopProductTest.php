@@ -11,6 +11,7 @@ use App\Models\StoreOrderItem;
 use App\Models\StoreOrderItemCollection;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\ProductAttention;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -60,7 +61,7 @@ class AdminShopProductTest extends TestCase
             ->get(route('admin.shop.product.edit', $product))
             ->assertOk();
 
-        $document = new \DOMDocument();
+        $document = new \DOMDocument;
         $previousLibxmlState = libxml_use_internal_errors(true);
         $document->loadHTML($response->getContent());
         libxml_clear_errors();
@@ -982,7 +983,7 @@ class AdminShopProductTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.product.edit', $product))
             ->assertOk()
-            ->assertSee('Inventory Quantity')
+            ->assertSee('Packs in stock')
             ->assertSee('Awaiting fulfilment:')
             ->assertSee('Reserved now:')
             ->assertSee('6')
@@ -1119,7 +1120,7 @@ class AdminShopProductTest extends TestCase
             'inventory_reserved_quantity' => 0,
         ]);
 
-        $this->assertSame(0, app(\App\Services\ProductAttention::class)->counts()['inventory']);
+        $this->assertSame(0, app(ProductAttention::class)->counts()['inventory']);
 
         $this->actingAs($admin)
             ->get(route('admin.shop.product.index', ['filter' => 'actionable']))

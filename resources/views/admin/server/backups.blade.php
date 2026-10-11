@@ -60,7 +60,7 @@
                     <div id="database-import-progress-bar" class="h-full rounded-full bg-sky-600 transition-[width] duration-200" style="width: 0%"></div>
                 </div>
                 <p id="database-import-progress-detail" class="mt-2 text-xs text-sky-800">Keep this page open while the backup is uploaded.</p>
-                <button id="database-import-reload" type="button" class="hidden mt-3 text-sm font-semibold text-primary-color hover:underline">Reload page</button>
+                <x-ui.button variant="plain" id="database-import-reload" type="button" class="hidden mt-3 text-sm font-semibold text-primary-color hover:underline">Reload page</x-ui.button>
             </div>
 
             <h4 class="font-semibold mb-2">Available Backups</h4>
@@ -153,7 +153,7 @@
                         <div id="file-backup-upload-bar" class="h-full rounded-full bg-sky-600 transition-[width] duration-200" style="width: 0%"></div>
                     </div>
                     <p id="file-backup-upload-detail" class="mt-2 text-xs text-sky-800">If the connection stops, select the same file again to resume from the last saved chunk.</p>
-                    <button id="file-backup-upload-cancel" type="button" class="hidden mt-3 text-xs font-semibold text-red-700 hover:underline">Discard staged upload</button>
+                    <x-ui.button variant="plain" id="file-backup-upload-cancel" type="button" class="hidden mt-3 text-xs font-semibold text-red-700 hover:underline">Discard staged upload</x-ui.button>
                 </div>
             </div>
 
@@ -232,7 +232,7 @@
                     </div>
                     <form method="POST" action="{{ route('admin.server.media.download-all') }}" @submit.prevent="startBackup($event, 'media_archive')">
                         @csrf
-                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('media_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare media ZIP" aria-label="Prepare media ZIP"><i class="fa-solid fa-download"></i></x-ui.button>
+                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('media_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare media ZIP" aria-label="Prepare media ZIP"><i class="fa-solid fa-download" aria-hidden="true"></i></x-ui.button>
                     </form>
                 </div>
                 <div class="rounded-lg border border-gray-200 bg-white p-3 flex justify-between">
@@ -246,7 +246,7 @@
                     </div>
                     <form method="POST" action="{{ route('admin.server.finance.download-all') }}" @submit.prevent="startBackup($event, 'finance_archive')">
                         @csrf
-                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('finance_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare finance ZIP" aria-label="Prepare finance ZIP"><i class="fa-solid fa-download"></i></x-ui.button>
+                        <x-ui.button variant="plain" type="submit" x-bind:disabled="isRunning('finance_archive')" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" title="Prepare finance ZIP" aria-label="Prepare finance ZIP"><i class="fa-solid fa-download" aria-hidden="true"></i></x-ui.button>
                     </form>
                 </div>
             </x-ui.grid>

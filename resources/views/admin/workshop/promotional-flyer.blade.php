@@ -55,7 +55,7 @@
  name="workshop_ids[]"
  value="{{ $workshopId }}"
  x-model="selected"
- x-bind:disabled="selected.length>= 6 && !selected.includes(@js($workshopId))"
+ x-bind:disabled="selected.length>= 6 && !selected.includes({{ \Illuminate\Support\Js::from($workshopId) }})"
  inputClass="mt-1"
  />
                                         <span class="min-w-0">
@@ -223,7 +223,7 @@
 
                         <div class="flex justify-end">
                             <x-ui.button type="submit" class="mt-5" :disabled="$workshops->isEmpty()">
-                                <i class="fa-regular fa-file-pdf mr-2"></i>Generate PDF
+                                <i class="fa-regular fa-file-pdf mr-2" aria-hidden="true"></i>Generate PDF
                             </x-ui.button>
                         </div>
                     </div>

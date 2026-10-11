@@ -40,7 +40,7 @@
                 <input type="hidden" name="{{ $queryKey }}" value="{{ $queryValue }}" @if(in_array($queryKey, $advancedFields, true)) data-advanced-search-param @endif>
             @endif
         @endforeach
-        <input class="{{ $classes }}" autocomplete="off" x-bind:placeholder="advancedActive && !search ? 'Advanced Search' : {{ \Illuminate\Support\Js::from($label) }}" x-model="search" type="{{ $type }}" name="{{ $name }}" />
+        <x-ui.input-control class="{{ twMerge($classes, 'rounded-r-none') }}" aria-label="{{ $label }}" autocomplete="off" x-bind:placeholder="advancedActive && !search ? 'Advanced Search' : {{ \Illuminate\Support\Js::from($label) }}" x-model="search" type="{{ $type }}" name="{{ $name }}" />
         @if($hasAdvancedSearch)
             <x-ui.button
                 type="button"
@@ -49,15 +49,15 @@
                 x-on:click="{{ $advancedExternal ? '$dispatch(\'toggle-advanced-search\')' : 'advancedOpen = !advancedOpen' }}"
                 title="Advanced search"
             >
-                <i class="fa-solid fa-sliders"></i>
+                <i class="fa-solid fa-sliders" aria-hidden="true"></i>
                 <span class="sr-only">Advanced search</span>
             </x-ui.button>
         @endif
-        <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
-        <i
+        <x-ui.button type="submit" class="rounded-l-none px-6" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" size="icon-small" aria-label="Clear search"
             x-show="search || advancedActive"
             x-cloak
-            class="absolute z-10 top-1/2 {{ $hasAdvancedSearch ? 'right-31' : 'right-18' }} transform -translate-y-1/2 text-gray-300 hover:text-gray-400 cursor-pointer fa-solid fa-circle-xmark"
+            class="absolute z-10 top-1/2 {{ $hasAdvancedSearch ? 'right-31' : 'right-18' }} transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             x-on:click="
                 search = '';
                 if (advancedActive) {
@@ -69,7 +69,7 @@
                     $nextTick(() => $el.closest('form').requestSubmit());
                 }
             "
-        ></i>
+        ><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></x-ui.button>
     </div>
     @if(isset($advanced))
         <div x-show="advancedOpen" x-cloak class="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">

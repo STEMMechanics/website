@@ -185,8 +185,8 @@
                                         <h3 class="text-lg font-semibold text-gray-950">Record manual refund</h3>
                                         <p class="text-sm text-gray-600">Mark this item complete and record the actual refund details.</p>
                                     </div>
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="refundModalOpen = false">
-                                        <i class="fa-solid fa-xmark"></i>
+                                    <x-ui.button size="icon-small" aria-label="Close manual refund" variant="text" color="secondary" type="button"  x-on:click="refundModalOpen = false">
+                                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                     </x-ui.button>
                                 </div>
 

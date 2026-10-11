@@ -27,6 +27,9 @@ document.addEventListener('alpine:init', () => {
                     editorProps: {
                         attributes: {
                             class: 'tiptap content min-h-80 px-3 py-2.5 focus:outline-none',
+                            role: 'textbox',
+                            'aria-multiline': 'true',
+                            'aria-label': options.label || 'Content',
                         },
                     },
                     onCreate: ({ editor: currentEditor }) => {

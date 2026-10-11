@@ -51,8 +51,8 @@
 
                 <div class="flex flex-wrap items-end justify-end gap-3">
                     <div role="tablist" aria-label="Sponsorship frequency" class="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
-                        <button type="button" role="tab" x-bind:aria-selected="frequency === 'one_time'" x-bind:class="frequency === 'one_time' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'" x-on:click="changeFrequency('one_time')" class="rounded-lg px-4 py-2 text-sm font-semibold transition">One-time</button>
-                        <button type="button" role="tab" x-cloak x-show="monthlyAvailable" x-bind:aria-selected="frequency === 'monthly'" x-bind:class="frequency === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'" x-on:click="changeFrequency('monthly')" class="rounded-lg px-4 py-2 text-sm font-semibold transition">Monthly</button>
+                        <x-ui.button variant="plain" type="button" role="tab" x-bind:aria-selected="frequency === 'one_time'" x-bind:class="frequency === 'one_time' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'" x-on:click="changeFrequency('one_time')" class="rounded-lg px-4 py-2 text-sm font-semibold transition">One-time</x-ui.button>
+                        <x-ui.button variant="plain" type="button" role="tab" x-cloak x-show="monthlyAvailable" x-bind:aria-selected="frequency === 'monthly'" x-bind:class="frequency === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'" x-on:click="changeFrequency('monthly')" class="rounded-lg px-4 py-2 text-sm font-semibold transition">Monthly</x-ui.button>
                     </div>
                 </div>
 

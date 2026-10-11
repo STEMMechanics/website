@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false, 'labelClass' => '' ])
+@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info' => null, 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false, 'labelClass' => '' ])
 
 @php
     if ($error === null) {
@@ -6,7 +6,10 @@
     }
 
     $hasError = $error !== '';
-    $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
+    $floating = filter_var($floating, FILTER_VALIDATE_BOOLEAN);
+    $noLabel = filter_var($noLabel, FILTER_VALIDATE_BOOLEAN);
+    $inline = filter_var($inline, FILTER_VALIDATE_BOOLEAN);
+    $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 '.($floating ? 'peer ' : '').($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
     $value = ($name !== null && $name !== '') ? old($name, $value) : $value;
     if (is_array($value)) {
         $value = implode(
@@ -36,13 +39,18 @@
     }
     $suggestionInputExpression .= '}';
     $isFileInput = $type === 'file';
-    $inputId = (string) ($attributes->get('id') ?? $name ?? '');
+    $field = new \App\Support\UiField($attributes, $info !== null && $info !== '', $hasError);
+    $controlAttributes = $field->controlAttributes();
+    $inputId = $field->id;
     $autocomplete = (string) ($attributes->get('autocomplete') ?? 'off');
 
     $autocompleteValue = (string) $value;
 @endphp
 
-<div data-validation-field="{{ $name }}" class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}">
+<div data-validation-field="{{ $name }}" class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}" {{ $field->rootAttributes() }} {{ $attributes->only(['x-show', 'x-cloak']) }}>
+    @if($noLabel && !$floating && !$isFileInput && filled($label))
+        <x-ui.field-label :label="$label" class="sr-only" :label-attributes="$field->labelAttributes()" />
+    @endif
     @if($isFileInput)
         <x-ui.file-upload
             :name="$name"
@@ -63,8 +71,8 @@
     @elseif($floating)
         @if($type === 'textarea')
             <div class="relative">
-                <textarea class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
-                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}</label>
+                <textarea class="{{ twMerge(['pt-4'], $classes, $fieldClasses) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes }}>{{ $value }}</textarea>
+                <x-ui.field-label :label="$label" :info="$labelInfo" :notice="$labelNotice" :floating="true" :label-attributes="$field->labelAttributes()" />
             </div>
         @elseif($hasSuggestions)
             <div
@@ -197,7 +205,7 @@
             >
                 <input
                     x-ref="inputEl"
-                    class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}"
+                    class="{{ twMerge(['pt-4'], $classes, $fieldClasses) }}"
                     autocomplete="{{ $autocomplete }}"
                     placeholder=" "
                     type="{{ $type }}"
@@ -211,9 +219,9 @@
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete', 'x-on:input']) }}
+                    {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
-                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
+                <x-ui.field-label :label="$label" :info="$labelInfo" :notice="$labelNotice" :floating="true" :label-attributes="$field->labelAttributes()" />
                 <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                     <ul class="max-h-60 overflow-auto py-1">
                         <template x-for="(item, index) in filtered" :key="item + '-' + index">
@@ -230,14 +238,14 @@
             </div>
         @else
             <div class="relative">
-                <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
-                <label @if($inputId !== '') for="{{ $inputId }}" @endif class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-left bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto inset-s-1">{{ $label }}</label>
+                <input class="{{ twMerge(['pt-4'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes->except('autocomplete') }} />
+                <x-ui.field-label :label="$label" :info="$labelInfo" :notice="$labelNotice" :floating="true" :label-attributes="$field->labelAttributes()" />
             </div>
         @endif
     @elseif($noLabel)
         <div class="relative">
             @if($type === 'textarea')
-                <textarea class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif placeholder="{{ $label }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
+                <textarea class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif placeholder="{{ $label }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes }}>{{ $value }}</textarea>
             @elseif($hasSuggestions)
                 <div
                     class="relative"
@@ -428,7 +436,7 @@
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
+                    {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
                     <template x-teleport="body">
                         <div
@@ -453,16 +461,16 @@
                     </template>
                 </div>
             @else
-                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
+                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" @if($name !== null && $name !== '') name="{{ $name }}" @endif @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes->except('autocomplete') }} />
             @endif
         </div>
     @else
         <div class="{{ ($inline ? 'flex items-center gap-2' : '') }}">
             @if(isset($label) && $label !== '')
-            <label @if($inputId !== '') for="{{ $inputId }}" @endif class="{{ twMerge(['flex','text-sm','pl-1','items-center'], $labelClass) }}">{{ $label }}{!! isset($labelInfo) ? '<span class="text-xs text-gray-500 ml-1">' . $labelInfo . '</span>' : '' !!}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
+            <x-ui.field-label :label="$label" :info="$labelInfo" :notice="$labelNotice" :class="$labelClass" :label-attributes="$field->labelAttributes()" />
             @endif
             @if($type === 'textarea')
-                <textarea class="{{ twMerge(['pt-2.5', 'mt-1', $attributes->has('rows') ? 'h-auto' : 'h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }}>{{ $value }}</textarea>
+                <textarea class="{{ twMerge(['pt-2.5', 'mt-1', $attributes->has('rows') ? 'h-auto' : 'h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes }}>{{ $value }}</textarea>
             @elseif($hasSuggestions)
                 <div
                     class="relative mt-1"
@@ -608,7 +616,7 @@
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
+                    {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
                     <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
@@ -625,14 +633,11 @@
                     </div>
                 </div>
             @else
-                <input class="{{ twMerge(['pt-2.5','mt-1'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $placeholder }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
+                <input class="{{ twMerge(['pt-2.5','mt-1'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $placeholder }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) data-money-format @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $controlAttributes->except('autocomplete') }} />
             @endif
         </div>
     @endif
-    @if(!$isFileInput && isset($info) && $info !== '')
-        <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
-    @endif
     @if(!$isFileInput)
-        <div data-validation-error @if($inputId !== '') id="{{ $inputId }}-error" @endif class="text-xs text-red-600 ml-2 mt-2" @if(!$hasError) hidden @endif>{{ $error }}</div>
+        <x-ui.field-feedback :field="$field" :info="$info" :error="$error" />
     @endif
 </div>

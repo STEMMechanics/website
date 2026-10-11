@@ -5,7 +5,6 @@ namespace App\Services\Finance;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Services\StockInventoryService;
 use Illuminate\Validation\ValidationException;
 
 class InvoiceInventory
@@ -17,8 +16,6 @@ class InvoiceInventory
         if ($invoice->storeOrders()->exists()) {
             return;
         }
-
-        app(StockInventoryService::class)->syncInvoiceReservations($invoice, $release);
 
         $previous = $invoice->inventory_reservations ?? [];
         $next = [];

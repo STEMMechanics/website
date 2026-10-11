@@ -179,16 +179,6 @@ class AdminDashboardActions
                     $sessionId,
                 );
             }
-
-            if ($task['stock']) {
-                $actions[] = $this->card(
-                    'Reconcile workshop stock',
-                    $description,
-                    route('admin.workshop.stock-reconciliation', $workshop),
-                    'fa-solid fa-box-open',
-                    'amber',
-                );
-            }
         }
 
         return array_slice($actions, 0, 6);

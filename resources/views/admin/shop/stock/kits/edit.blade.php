@@ -360,11 +360,10 @@
                                         <x-ui.button
                                             type="button"
                                             variant="plain"
-                                            class="md:hidden inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 p-0! text-slate-600 transition-colors hover:bg-slate-200"
+                                            class="md:hidden rounded-xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
                                             x-on:click="openComponentNote(index)"
                                             x-bind:aria-label="String(component.note || '').trim() ? 'Edit preparation note' : 'Add preparation note'"
-                                            x-bind:title="String(component.note || '').trim() ? 'Edit preparation note' : 'Add preparation note'"
-                                        >
+                                            x-bind:title="String(component.note || '').trim() ? 'Edit preparation note' : 'Add preparation note'" size="icon">
                                             <i x-bind:class="String(component.note || '').trim() ? 'fa-solid fa-note-sticky' : 'fa-regular fa-note-sticky'" aria-hidden="true"></i>
                                         </x-ui.button>
                                         <x-ui.input-control

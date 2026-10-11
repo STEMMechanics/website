@@ -44,7 +44,7 @@
 
                 <div class="flex flex-wrap gap-3 justify-end">
                     <x-ui.button href="{{ $downloadUrl }}">
-                        <i class="fa-solid fa-download mr-2"></i>
+                        <i class="fa-solid fa-download mr-2" aria-hidden="true"></i>
                         Download Now
                     </x-ui.button>
                 </div>

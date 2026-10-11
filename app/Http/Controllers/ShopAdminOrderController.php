@@ -14,8 +14,10 @@ use App\Models\StoreOrderItemTracking;
 use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\QuoteWorkflowService;
+use App\Services\SiteListControls;
 use App\Services\StoreOrderService;
 use App\Support\InvoiceDueDate;
+use App\Support\ListPageSize;
 use App\Support\ShopShippingSettings;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +40,14 @@ class ShopAdminOrderController extends Controller
     public function index(Request $request): View
     {
         $query = StoreOrder::query()->with('invoice');
+        $attentionCount = StoreOrder::actionRequiredCount();
+        $request->attributes->set('collection_preset_counts', [
+            'All orders' => StoreOrder::query()->count(),
+            'Needs attention' => $attentionCount,
+        ]);
+        $request->attributes->set('collection_preset_attention', [
+            'Needs attention' => $attentionCount > 0,
+        ]);
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
@@ -50,8 +60,7 @@ class ShopAdminOrderController extends Controller
         }
 
         return view('admin.shop.order.index', [
-            'attentionCount' => StoreOrder::actionRequiredCount(),
-            'orders' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1),
+            'orders' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1),
         ]);
     }
 
@@ -494,7 +503,7 @@ class ShopAdminOrderController extends Controller
             ];
         }
 
-        $quote = new Quote();
+        $quote = new Quote;
         $quote->quote_number = $this->documentNumbers->nextQuoteNumber();
         $quote->user_id = $order->user_id;
         $quote->status = Quote::STATUS_OPEN;
@@ -544,7 +553,7 @@ class ShopAdminOrderController extends Controller
         $quote->loadMissing('user');
         $sourceLineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
 
-        $invoice = new Invoice();
+        $invoice = new Invoice;
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->quote_id = $quote->id;
         $invoice->user_id = $quote->user_id;

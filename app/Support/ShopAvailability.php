@@ -51,7 +51,7 @@ class ShopAvailability
                 return $this->hasSaleableProducts = false;
             }
 
-            return $this->hasSaleableProducts = Product::query()
+            return $this->hasSaleableProducts = Product::query()->sellable()
                 ->active()
                 ->exists();
         } catch (Throwable) {

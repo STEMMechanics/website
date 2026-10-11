@@ -10,7 +10,7 @@
                                     title="Promotional Flyer"
                                     aria-label="Promotional Flyer"
                             >
-                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-print"></i></span>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-print" aria-hidden="true"></i></span>
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthCalendarPdfRoute }}"
@@ -19,7 +19,7 @@
                                     title="Calendar PDF"
                                     aria-label="Calendar PDF"
                             >
-                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-calendar"></i></span>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span>
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthPickListsPdfRoute }}"
@@ -28,7 +28,7 @@
                                     title="Pick Lists PDF"
                                     aria-label="Pick Lists PDF"
                             >
-                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-file-pdf"></i></span>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></span>
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthMaterialsPdfRoute }}"
@@ -39,7 +39,7 @@
                                     aria-haspopup="dialog"
                                     x-data x-on:click.prevent="$dispatch('open-workshop-materials')"
                             >
-                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-clipboard-list"></i></span>
+                                <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i></span>
                             </x-ui.button></x-slot:actions></x-mast>
 
     <x-container class="py-5 sm:py-8">
@@ -54,11 +54,11 @@
                         @if($view === 'month')
                             <div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:justify-start">
                                 <x-ui.button data-dynamic-link href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
-                                    <i class="fa-solid fa-chevron-left"></i>
+                                    <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
                                 </x-ui.button>
                                 <div class="min-w-36 text-center text-sm font-semibold text-gray-900 whitespace-nowrap">{{ $currentMonthLabel }}</div>
                                 <x-ui.button data-dynamic-link href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
-                                    <i class="fa-solid fa-chevron-right"></i>
+                                    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
 
@@ -92,7 +92,7 @@
                                     </p>
                                 </div>
                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeDialog()" aria-label="Close materials summary dialog">
-                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                    <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
                         </div>
@@ -104,7 +104,7 @@
                                 x-on:click="launch('all')"
                             >
                                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                                    <i class="fa-solid fa-calendar-days text-primary-color"></i>
+                                    <i class="fa-solid fa-calendar-days text-primary-color" aria-hidden="true"></i>
                                     <span>All monthly workshops</span>
                                 </div>
                                 <div class="text-sm leading-5 text-gray-600">
@@ -118,7 +118,7 @@
                                 x-on:click="launch('upcoming')"
                             >
                                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                                    <i class="fa-solid fa-arrow-up-right-dots text-primary-color"></i>
+                                    <i class="fa-solid fa-arrow-up-right-dots text-primary-color" aria-hidden="true"></i>
                                     <span>Upcoming workshops</span>
                                 </div>
                                 <div class="text-sm leading-5 text-gray-600">
@@ -367,14 +367,8 @@
                                                     @if($workshopAttention['allocation_review'] ?? false)
                                                         <a href="{{ route('admin.workshop.allocation.edit', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Workshop allocation needs review"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Allocation review</a>
                                                     @endif
-                                                    @if($workshopAttention['stock_shortage'] ?? false)
-                                                        <a href="{{ route('admin.workshop.run-sheet', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Pick list stock is short"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Stock short</a>
-                                                    @endif
                                                     @if($workshopAttention['attendance'] ?? false)
                                                         <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Attendance still needs recording"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Attendance</a>
-                                                    @endif
-                                                    @if($workshopAttention['stock_reconciliation'] ?? false)
-                                                        <a href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100" title="Workshop stock still needs reconciliation"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>Reconcile stock</a>
                                                     @endif
                                                 </div>
                                             @endif
@@ -397,14 +391,11 @@
                                     @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
                                         <x-ui.row-action label="View interest registrations" icon="fa-solid fa-thumbs-up" tone="neutral" href="{{ route('admin.workshop.interests', $workshop) }}" />
                                     @endif
-                                    @if($workshop->stock_reconciled_at !== null || ($workshopAttention['stock_reconciliation'] ?? false))
-                                    <x-ui.row-action :label="$workshop->stock_reconciled_at ? 'View stock reconciliation' : 'Reconcile stock'" icon="fa-solid fa-box-open" :tone="$workshop->stock_reconciled_at ? 'neutral' : 'primary'" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" />
-                                    @endif
                                     <x-ui.row-action label="Attendance" icon="fa-solid fa-user-check" tone="neutral" href="{{ route('admin.workshop.attendance', $workshop) }}" />
                                     <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
                                     <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
-                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))" />
+                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
                                     @endif
                                     <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" href="{{ route('admin.workshop.duplicate', $workshop) }}" />
                                     <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />

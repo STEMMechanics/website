@@ -29,17 +29,17 @@
                 @endforeach
                 <div class="absolute right-0 top-0 z-10 flex gap-2" aria-label="Section editing controls">
                     @if($showSectionHeading)
-                    <x-ui.button variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Edit section heading" title="Edit section heading" onclick="window.SMNewsletterOpenCustom(this.form, {{ $sectionIndex }}, this.form.querySelector('[data-newsletter-section=&quot;{{ $sectionIndex }}&quot;] select'))"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button x-data variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Edit section heading" title="Edit section heading" x-on:click="window.SMNewsletterOpenCustom($el.form, {{ $sectionIndex }}, $el.form.querySelector('[data-newsletter-section=&quot;{{ $sectionIndex }}&quot;] select'))"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
                     @endif
-                    <x-ui.button variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Choose section theme" title="Choose section theme" onclick="SMNewsletterOpenEditor('newsletter-section-{{ $sectionIndex }}')"><i class="fa-solid fa-sliders" aria-hidden="true"></i></x-ui.button>
-                    <x-ui.button variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Refresh section products" title="Refresh unlocked products" onclick="window.SMNewsletterUpdateSection(this.form, {{ $sectionIndex }}, 'refresh_section', '{{ $sectionIndex }}', this)"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button x-data variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Choose section theme" title="Choose section theme" x-on:click="SMNewsletterOpenEditor('newsletter-section-{{ $sectionIndex }}')"><i class="fa-solid fa-sliders" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button x-data variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Refresh section products" title="Refresh unlocked products" x-on:click="window.SMNewsletterUpdateSection($el.form, {{ $sectionIndex }}, 'refresh_section', '{{ $sectionIndex }}', $el)"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
                 </div>
                 <x-admin.newsletter-editor-dialog id="newsletter-section-{{ $sectionIndex }}" title="Choose section theme">
                 <div class="max-w-xl">
                     <div>
                         <input data-theme-mode="{{ $sectionIndex }}" type="hidden" name="sections[{{ $sectionIndex }}][theme]" value="{{ $section['theme'] ?? 'managed' }}">
                         <input data-theme-id="{{ $sectionIndex }}" type="hidden" name="sections[{{ $sectionIndex }}][theme_id]" value="{{ $section['theme_id'] ?? '' }}">
-                        <x-ui.select label="Section theme" data-current-value="{{ ($section['theme'] ?? 'managed') === 'managed' ? 'theme:'.($section['theme_id'] ?? '') : ($section['theme'] ?? 'managed') }}" onchange="if (this.value === 'custom') { window.SMNewsletterOpenCustom(this.form, {{ $sectionIndex }}, this); } else { const mode = this.value === 'disabled' ? 'disabled' : 'managed'; this.form.querySelector('[data-theme-mode=&quot;{{ $sectionIndex }}&quot;]').value = mode; this.form.querySelector('[data-theme-id=&quot;{{ $sectionIndex }}&quot;]').value = mode === 'managed' ? this.value.replace('theme:', '') : ''; window.SMNewsletterApplyTheme(this.form, {{ $sectionIndex }}, this); }">
+                        <x-ui.select x-data label="Section theme" data-current-value="{{ ($section['theme'] ?? 'managed') === 'managed' ? 'theme:'.($section['theme_id'] ?? '') : ($section['theme'] ?? 'managed') }}" x-on:change="if ($el.value === 'custom') { window.SMNewsletterOpenCustom($el.form, {{ $sectionIndex }}, $el); } else { const mode = $el.value === 'disabled' ? 'disabled' : 'managed'; $el.form.querySelector('[data-theme-mode=&quot;{{ $sectionIndex }}&quot;]').value = mode; $el.form.querySelector('[data-theme-id=&quot;{{ $sectionIndex }}&quot;]').value = mode === 'managed' ? $el.value.replace('theme:', '') : ''; window.SMNewsletterApplyTheme($el.form, {{ $sectionIndex }}, $el); }">
                             @foreach($storeThemes as $theme)
                                 <option value="theme:{{ $theme->id }}" @selected(($section['theme'] ?? 'managed') === 'managed' && (int) ($section['theme_id'] ?? 0) === $theme->id)>{{ $theme->name }}</option>
                             @endforeach
@@ -49,13 +49,13 @@
                         <div class="-mt-2 flex gap-4 text-xs font-medium text-primary-color">
                             <a href="{{ route('admin.subscription.theme.index') }}" class="hover:underline">Manage newsletter themes</a>
                             @if($showSectionHeading && ($section['theme'] ?? 'managed') === 'custom')
-                                <x-ui.button variant="plain" type="button" class="hover:underline" onclick="window.SMNewsletterOpenCustom(this.form, {{ $sectionIndex }}, this.form.querySelector('[data-newsletter-section=&quot;{{ $sectionIndex }}&quot;] select'))">Edit custom heading</x-ui.button>
+                                <x-ui.button x-data variant="plain" type="button" class="hover:underline" x-on:click="window.SMNewsletterOpenCustom($el.form, {{ $sectionIndex }}, $el.form.querySelector('[data-newsletter-section=&quot;{{ $sectionIndex }}&quot;] select'))">Edit custom heading</x-ui.button>
                             @endif
                         </div>
                     </div>
                 </div>
                     <p class="mt-5 text-sm text-slate-500">{{ $matchDescription }} Available products matching this theme: {{ $matchingProductCounts[$sectionIndex] }}. Locked products stay selected when refreshing.</p>
-                    <div class="mt-6 flex justify-end"><x-ui.button type="button" color="outline" onclick="SMNewsletterCloseEditor(this.closest('dialog'))">Close</x-ui.button></div>
+                    <div class="mt-6 flex justify-end"><x-ui.button x-data type="button" color="outline" x-on:click="SMNewsletterCloseEditor($el.closest('dialog'))">Close</x-ui.button></div>
                 </x-admin.newsletter-editor-dialog>
                 @if(($section['theme'] ?? 'managed') === 'disabled')
                     <div class="mt-4 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">This section will not be included in the next newsletter.</div>
@@ -70,7 +70,7 @@
                 @if($previewProducts->count() < 3)
                     <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                         {{ 3 - $previewProducts->count() }} {{ \Illuminate\Support\Str::plural('slot', 3 - $previewProducts->count()) }} still empty. Choose products below, change the theme, or fill from other available products in the same categories. Review the heading if you add products outside the theme.
-                        <x-ui.button type="button" color="outline" class="mt-2" onclick="window.SMNewsletterUpdateSection(this.form, {{ $sectionIndex }}, 'fill_empty_slots', '{{ $sectionIndex }}', this)">Fill empty slots</x-ui.button>
+                        <x-ui.button x-data type="button" color="outline" class="mt-2" x-on:click="window.SMNewsletterUpdateSection($el.form, {{ $sectionIndex }}, 'fill_empty_slots', '{{ $sectionIndex }}', $el)">Fill empty slots</x-ui.button>
                     </div>
                 @endif
                 <div class="mt-5 space-y-4">
@@ -80,8 +80,8 @@
                         @endphp
                         <article class="newsletter-editable-card relative" data-newsletter-product="{{ $sectionIndex }}:{{ $slot }}">
                             <div class="absolute right-3 top-3 z-10 flex gap-2">
-                                <x-ui.button variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" onclick="SMNewsletterOpenEditor('newsletter-product-{{ $sectionIndex }}-{{ $slot }}')" aria-label="Choose product {{ $slot + 1 }}" title="Choose a different product"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
-                                <x-ui.button variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" onclick="window.SMNewsletterUpdateSection(this.form, {{ $sectionIndex }}, 'refresh_product', '{{ $sectionIndex }}:{{ $slot }}', this)" title="Refresh this product" aria-label="Refresh this product"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
+                                <x-ui.button x-data variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" x-on:click="SMNewsletterOpenEditor('newsletter-product-{{ $sectionIndex }}-{{ $slot }}')" aria-label="Choose product {{ $slot + 1 }}" title="Choose a different product"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
+                                <x-ui.button x-data variant="plain" type="button" class="h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" x-on:click="window.SMNewsletterUpdateSection($el.form, {{ $sectionIndex }}, 'refresh_product', '{{ $sectionIndex }}:{{ $slot }}', $el)" title="Refresh this product" aria-label="Refresh this product"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
                                 @if($selectedProduct)
                                     <label class="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 has-checked:border-primary-color has-checked:bg-primary-color has-checked:text-white" title="Lock this product">
                                         <x-ui.checkbox bare small name="sections[{{ $sectionIndex }}][locked_product_ids][]" value="{{ $selectedProduct->id }}" :checked="$lockedIds->contains((int) $selectedProduct->id)" class="sr-only" />
@@ -100,8 +100,8 @@
                                     <p class="text-xs text-slate-500">Choose an available product from this section’s categories.</p>
                                 </div>
                                 <div class="flex justify-end gap-3">
-                                    <x-ui.button type="button" color="outline" onclick="SMNewsletterCloseEditor(this.closest('dialog'))">Cancel</x-ui.button>
-                                    <x-ui.button type="button" onclick="window.SMNewsletterUpdateSection(this.form, {{ $sectionIndex }}, 'save_section', '{{ $sectionIndex }}', this)">Use product</x-ui.button>
+                                    <x-ui.button x-data type="button" color="outline" x-on:click="SMNewsletterCloseEditor($el.closest('dialog'))">Cancel</x-ui.button>
+                                    <x-ui.button x-data type="button" x-on:click="window.SMNewsletterUpdateSection($el.form, {{ $sectionIndex }}, 'save_section', '{{ $sectionIndex }}', $el)">Use product</x-ui.button>
                                 </div>
                             </x-admin.newsletter-editor-dialog>
                         </article>
@@ -118,11 +118,11 @@
         <p class="my-7 text-center"><a href="{{ route('shop.index') }}" class="inline-block rounded-3xl bg-green-600 px-8 py-4 text-lg font-extrabold text-white">Browse the Store</a></p>
     @endif
 
-    <dialog id="newsletter-custom-theme-dialog" class="m-auto w-[min(42rem,calc(100%-2rem))] rounded-xl bg-white p-0 shadow-2xl backdrop:bg-black/50" oncancel="event.preventDefault(); window.SMNewsletterCloseCustom();">
-        <form method="dialog" class="p-6" onsubmit="return false;">
+    <dialog x-data id="newsletter-custom-theme-dialog" class="m-auto w-[min(42rem,calc(100%-2rem))] rounded-xl bg-white p-0 shadow-2xl backdrop:bg-black/50" x-on:cancel.prevent="window.SMNewsletterCloseCustom();">
+        <form x-data method="dialog" class="p-6" x-on:submit.prevent="">
             <div class="flex items-start justify-between gap-4">
                 <div><h3 class="text-xl font-bold text-gray-900">Custom newsletter section</h3><p class="mt-1 text-sm text-gray-500">Set the heading and introduction, then choose each product directly.</p></div>
-                <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-900" onclick="window.SMNewsletterCloseCustom()" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></x-ui.button>
+                <x-ui.button x-data variant="text" color="secondary" type="button"  x-on:click="window.SMNewsletterCloseCustom()" aria-label="Close"><i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i></x-ui.button>
             </div>
             <div class="mt-5">
                 <label for="newsletter-custom-title" class="mb-1 block text-sm font-medium text-gray-700">Heading</label>
@@ -133,8 +133,8 @@
                 <x-ui.textarea-control id="newsletter-custom-intro" rows="4" maxlength="400" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-indigo-300 focus:ring-indigo-300"></x-ui.textarea-control>
             </div>
             <div class="mt-6 flex justify-end gap-3">
-                <x-ui.button type="button" color="outline" onclick="window.SMNewsletterCloseCustom()">Cancel</x-ui.button>
-                <x-ui.button type="button" onclick="window.SMNewsletterSaveCustom()">Use Custom Section</x-ui.button>
+                <x-ui.button x-data type="button" color="outline" x-on:click="window.SMNewsletterCloseCustom()">Cancel</x-ui.button>
+                <x-ui.button x-data type="button" x-on:click="window.SMNewsletterSaveCustom()">Use Custom Section</x-ui.button>
             </div>
         </form>
     </dialog>

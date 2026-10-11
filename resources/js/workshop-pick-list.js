@@ -1089,8 +1089,8 @@ const registerWorkshopPickListPage = () => {
         customItems: Array.isArray(config.customItems) ? config.customItems : [],
         shelfPickRows: Array.isArray(config.shelfPickRows) ? config.shelfPickRows : [],
         kitSummaries: Array.isArray(config.kitSummaries) ? config.kitSummaries : [],
-        stockShortageCount: Math.max(0, Number.parseInt(String(config.stockShortageCount ?? 0), 10) || 0),
-        stockItems: Array.isArray(config.stockItems) ? config.stockItems : [],
+        materialBudget: config.materialBudget || {},
+        productCatalog: Array.isArray(config.productCatalog) ? config.productCatalog : [],
         isCustomized: Boolean(config.isCustomized),
         itemsEditMode: false,
         customItemsDirty: false,
@@ -1172,22 +1172,24 @@ const registerWorkshopPickListPage = () => {
             return null;
         },
         isBlankCustomItem(item) {
-            return String(item?.item_name ?? '').trim() === '' && !item?.stock_item_id;
+            return String(item?.item_name ?? '').trim() === '' && !item?.product_id;
         },
-        stockItemLabel(item) {
-            const stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
-            const stockItem = this.stockItems.find((option) => Number(option.id) === stockItemId);
+        productItemLabel(item) {
+            const productId = Number.parseInt(String(item?.product_id ?? 0), 10) || 0;
+            const product = this.productCatalog.find((option) => Number(option.id) === productId);
 
-            return stockItem?.name || '';
+            return product?.name || '';
         },
-        selectCustomStockItem(index) {
+        selectCustomProductItem(index) {
             const item = this.customItems[index];
             if (!item) {
                 return;
             }
 
-            item.stock_quantity = null;
-            item.item_name = item.stock_item_id ? this.stockItemLabel(item) : '';
+            item.cut_size_id = null;
+            item.length = null;
+            item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
+            item.item_name = item.product_id ? this.productItemLabel(item) : item.item_name;
             this.handleCustomItemChange(index);
         },
         normalizeItem(item) {
@@ -1196,20 +1198,18 @@ const registerWorkshopPickListPage = () => {
             }
 
             const id = Number.parseInt(String(item.id ?? 0), 10) || 0;
-            const stockItemId = Number.parseInt(String(item.stock_item_id ?? 0), 10) || null;
-            const itemName = this.stockItemLabel({ stock_item_id: stockItemId }) || String(item.item_name ?? '').trim();
+            const productId = Number.parseInt(String(item.product_id ?? 0), 10) || null;
+            const itemName = this.productItemLabel({ product_id: productId }) || String(item.item_name ?? '').trim();
             const quantityType = String(item.quantity_type ?? 'per_participant');
             const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
             const sortOrder = Math.max(0, Number.parseInt(String(item.sort_order ?? 0), 10) || 0);
-            const stockQuantity = item.stock_quantity === null || item.stock_quantity === '' || item.stock_quantity === undefined
-                ? null
-                : Math.max(0.001, Number.parseFloat(String(item.stock_quantity)) || 1);
-
             return {
                 id,
                 item_name: itemName,
-                stock_item_id: stockItemId,
-                stock_quantity: stockQuantity,
+                product_id: productId,
+                cut_size_id: Number(item.cut_size_id) || null,
+                length: item.length === '' || item.length === undefined || item.length === null ? null : Number(item.length),
+                length_unit: item.length ? item.length_unit : null,
                 quantity_type: ['fixed', 'per_participant'].includes(quantityType) ? quantityType : 'per_participant',
                 quantity_value: quantityValue,
                 sort_order: sortOrder,
@@ -1234,13 +1234,8 @@ const registerWorkshopPickListPage = () => {
         },
         itemMergeKey(item) {
             const itemName = String(item?.item_name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-            let stockItemId = Number.parseInt(String(item?.stock_item_id ?? 0), 10) || 0;
-            if (stockItemId <= 0 && itemName !== '') {
-                const linkedByName = this.stockItems.find((option) => String(option.name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ') === itemName);
-                stockItemId = Number.parseInt(String(linkedByName?.id ?? 0), 10) || 0;
-            }
-
-            return stockItemId > 0 ? `stock:${stockItemId}` : `name:${itemName}`;
+            const productId = Number.parseInt(String(item?.product_id ?? 0), 10) || 0;
+            return productId > 0 ? `product:${productId}:cut:${item.cut_size_id || ''}:length:${item.length || ''}:${item.length_unit || ''}` : `name:${itemName}`;
         },
         async addMissingBlueprintItems() {
             if (this.itemsEditMode || this.templateItems.length === 0) {
@@ -1311,7 +1306,7 @@ const registerWorkshopPickListPage = () => {
                 const entries = [{ key: String(kit.key), kind: 'kit', item: kit }];
                 (Array.isArray(kit.contents) ? kit.contents : []).forEach((item, index) => {
                     entries.push({
-                        key: String(kit.key) + ':part:' + String(item.stock_item_id ?? item.key ?? index),
+                        key: String(kit.key) + ':part:' + String(item.key ?? index),
                         kind: 'component',
                         item,
                     });
@@ -1412,7 +1407,7 @@ const registerWorkshopPickListPage = () => {
             return this.formatQuantity(quantity) + ' ' + window.SM.pluralize(String(kit?.item_name ?? '').trim(), count);
         },
         kitComponentLabel(item) {
-            const quantity = Number(item?.is_kit ? item?.required ?? 0 : item?.quantity ?? 0);
+            const quantity = Number(item?.quantity ?? 0);
             const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
             const name = window.SM.pluralize(String(item?.item_name ?? '').trim(), count);
             const unit = item?.is_kit ? '' : String(item?.unit ?? '').trim();
@@ -1423,46 +1418,11 @@ const registerWorkshopPickListPage = () => {
 
             return this.formatQuantity(quantity) + ' ' + window.SM.pluralize(unit, count) + ' of ' + name;
         },
-        stockShortageLabel(item) {
-            const quantity = Math.max(0, Number(item?.shortage_quantity ?? 0));
-            const unit = String(item?.shortage_unit ?? item?.unit ?? '').trim();
-            const amount = this.formatQuantity(quantity);
-            if (unit === '' || ['each', 'unit', 'units'].includes(unit.toLowerCase())) {
-                return `Short by ${amount}`;
-            }
-
-            const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
-            return `Short by ${amount} ${window.SM.pluralize(unit, count)}`;
-        },
         kitComponentNote(item) {
-            const notes = Array.isArray(item?.notes) ? item.notes : [item?.note];
-            const note = [...new Set(notes.map((value) => String(value ?? '').trim()).filter((value) => value !== ''))].join(' · ');
-
-            return note === '' ? '' : `Per kit: ${note}`;
+            return [item?.note ? 'Per kit: ' + item.note : '', item?.raw_note || ''].filter(Boolean).join(' · ');
         },
         kitAssemblyStatus(kit) {
-            const ready = Math.max(0, Number(kit?.ready_made ?? 0));
-            const toAssemble = Math.max(0, Number(kit?.to_assemble ?? 0));
-            const itemName = String(kit?.item_name ?? '').trim();
-            const describeQuantity = (quantity) => {
-                const count = Math.abs(quantity - 1) < 0.0005 ? 1 : 2;
-                return `${this.formatQuantity(quantity)} ${window.SM.pluralize(itemName, count)}`;
-            };
-
-            if (kit?.no_recipe && toAssemble > 0.0005) {
-                return `Recipe needed to assemble ${describeQuantity(toAssemble)}`;
-            }
-            if (ready > 0.0005 && toAssemble > 0.0005) {
-                return `${this.formatQuantity(ready)} ready-made to collect · ${this.formatQuantity(toAssemble)} to assemble`;
-            }
-            if (toAssemble > 0.0005) {
-                return `Assemble ${describeQuantity(toAssemble)}`;
-            }
-            if (ready > 0.0005) {
-                return `${this.formatQuantity(ready)} ready-made to collect`;
-            }
-
-            return 'No assembly needed';
+            return kit?.no_recipe ? 'Add a recipe to see preparation items' : 'Recipe quantities for this workshop';
         },
         customItemsEnabled() {
             return this.isCustomized || this.customItemsDirty;
@@ -1526,8 +1486,8 @@ const registerWorkshopPickListPage = () => {
             return {
                 id,
                 item_name: '',
-                stock_item_id: null,
-                stock_quantity: null,
+                product_id: null,
+                cut_size_id: null, length: null, length_unit: 'mm',
                 quantity_type: ['fixed', 'per_participant'].includes(previousType) ? previousType : 'per_participant',
                 quantity_value: 1,
                 sort_order: this.customItems.length * 10,
@@ -1629,7 +1589,7 @@ const registerWorkshopPickListPage = () => {
         },
         removeCustomItem(index) {
             this.customItems.splice(index, 1);
-            this.checkedIds = this.checkedIds.filter((id) => this.customItems.some((item) => String(item.id) === String(id)));
+            this.checkedIds = this.checkedIds.filter((id) => this.customItems.some((item) => 'item:' + item.id === String(id)));
             this.customItemsDirty = true;
             this.ensureTrailingBlankCustomItem();
             this.scheduleAutosave();
@@ -1673,8 +1633,8 @@ const registerWorkshopPickListPage = () => {
                 .map((item) => ({
                     id: item.id,
                     item_name: item.item_name,
-                    stock_item_id: item.stock_item_id,
-                    stock_quantity: item.stock_quantity,
+                    product_id: item.product_id,
+                    cut_size_id: item.cut_size_id, length: item.length, length_unit: item.length_unit,
                     quantity_type: item.quantity_type,
                     quantity_value: item.quantity_value,
                     sort_order: item.sort_order,
@@ -1867,9 +1827,7 @@ const registerWorkshopPickListPage = () => {
                 if (Array.isArray(data.kit_summaries)) {
                     this.kitSummaries = data.kit_summaries;
                 }
-                if (Number.isFinite(Number(data.stock_shortage_count))) {
-                    this.stockShortageCount = Math.max(0, Number.parseInt(String(data.stock_shortage_count), 10) || 0);
-                }
+                if (data.material_budget) this.materialBudget = data.material_budget;
                 if (Array.isArray(data.completed_task_ids)) {
                     this.completedTaskIds = data.completed_task_ids.map((id) => String(id));
                 }

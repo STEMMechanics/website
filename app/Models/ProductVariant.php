@@ -14,7 +14,14 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
+    protected $attributes = [
+        'bulk_discount_percent' => 20,
+    ];
+
     protected $fillable = [
+        'unit_cost_ex_tax',
+        'bulk_discount_percent',
+        'automatic_pricing',
         'inventory_units',
         'product_id',
         'name',
@@ -46,6 +53,9 @@ class ProductVariant extends Model
     ];
 
     protected $casts = [
+        'unit_cost_ex_tax' => 'float',
+        'bulk_discount_percent' => 'decimal:2',
+        'automatic_pricing' => 'boolean',
         'inventory_units' => 'integer',
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',

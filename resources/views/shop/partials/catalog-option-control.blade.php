@@ -296,7 +296,7 @@
 {{--                            <p class="mt-2 text-sm leading-6 text-gray-600">{{ $chooserIntro }}</p>--}}
                         </div>
                         <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeDialog()" aria-label="Close chooser">
-                            <i class="fa-solid fa-xmark text-lg"></i>
+                            <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                         </x-ui.button>
                     </div>
                 </div>

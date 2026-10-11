@@ -39,8 +39,8 @@
                         <div class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg">
                             <div class="mb-3 flex items-center justify-between">
                                 <h3 class="text-lg font-semibold">Email Quote</h3>
-                                <x-ui.button variant="plain" type="button" class="text-gray-600 hover:text-black" x-on:click.prevent="open = false">
-                                    <i class="fa-solid fa-xmark"></i>
+                                <x-ui.button size="icon-small" aria-label="Close quote email" variant="text" color="secondary" type="button"  x-on:click.prevent="open = false">
+                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
                             <label class="block text-sm pl-1 mt-4" for="quote-recipient-emails">Recipient Email</label>

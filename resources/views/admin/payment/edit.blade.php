@@ -368,7 +368,7 @@
  class="mt-1"
  x-model="bankTransferCleared"
  x-on:change="$dispatch('bank-transfer-cleared-updated', { checked: $event.target.checked })"
- x-bind:disabled="@js(isset($customerPayment) && $customerPayment->cleared_at !== null)"
+ x-bind:disabled="{{ \Illuminate\Support\Js::from(isset($customerPayment) && $customerPayment->cleared_at !== null) }}"
  :checked="old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)" />
                     <span>
                         <span class="block text-sm font-semibold text-gray-900">Mark this bank transfer as cleared</span>
@@ -392,7 +392,7 @@
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
                         <div class="flex flex-wrap gap-2">
-                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click.prevent="addAllocation()">Add Allocation</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click.prevent="addAllocation()">Add Allocation</x-ui.button>
                         </div>
                     @endif
                 </div>
@@ -520,7 +520,7 @@
                                         <template x-if="currentInvoice()">
                                             <span x-text="'Remaining: '+formatMoney(currentInvoice()?.remaining_amount || 0)"></span>
                                         </template>
-                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                        <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
                                     </div>
                                 </div>
                             </x-ui.button>
@@ -603,7 +603,7 @@
                                 </a>
                                 @if($canEditAllocations)
                                     <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" title="Remove allocation" aria-label="Remove allocation" x-on:click.prevent="removeAllocation(index)">
-                                        <i class="fa-solid fa-trash"></i>
+                                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                     </x-ui.button>
                                 @endif
                         </div>
@@ -710,7 +710,7 @@
                                     @foreach($receiptLinkItems as $receiptLink)
                                         <li class="py-2 text-sm text-gray-900">
                                             <div class="flex items-center justify-between gap-3">
-                                                <a href="{{ $receiptLink['view_url'] }}" target="_blank" class="text-primary-color hover:text-primary-color-dark hover:underline" title="View receipt">Receipt #{{ $receiptLink['number'] }}</a>
+                                                <a href="{{ $receiptLink['view_url'] }}" target="_blank" class="text-primary-color hover:text-primary-color-dark hover:underline" title="View receipt" rel="noopener">Receipt #{{ $receiptLink['number'] }}</a>
                                             </div>
                                         </li>
                                     @endforeach
@@ -842,7 +842,7 @@
             <x-ui.editor-actions
                 x-data="{
                     selectedPaymentMethod: '',
-                    bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
+                    bankTransferMethod: {{ \Illuminate\Support\Js::from(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) }},
                     bankTransferCleared: false,
                     init() {
                         this.selectedPaymentMethod = document.getElementById('payment-method')?.value || '';

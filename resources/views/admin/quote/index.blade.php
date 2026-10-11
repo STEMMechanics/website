@@ -85,7 +85,7 @@
                                         title="View linked invoices"
                                         x-on:click.prevent="open = true"
                                     >
-                                        <i class="fa-solid fa-file-invoice"></i>
+                                        <i class="fa-solid fa-file-invoice" aria-hidden="true"></i>
                                         <span class="sr-only">View linked invoices</span>
                                     </x-ui.button>
                                     <div
@@ -102,7 +102,7 @@
                                                     <p class="mt-1 text-sm text-gray-500">{{ $quote->quote_number }}</p>
                                                 </div>
                                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click.prevent="open = false" title="Close">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                 </x-ui.button>
                                             </div>
                                             <div class="mt-4 text-xs text-gray-700">
@@ -126,7 +126,7 @@
                             <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
                                 @csrf
                                 <x-ui.button variant="plain" type="submit" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Create invoice">
-                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                    <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i>
                                     <span class="sr-only">Create invoice</span>
                                 </x-ui.button>
                             </form>

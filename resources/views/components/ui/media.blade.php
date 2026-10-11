@@ -46,22 +46,22 @@
             <img class="hidden rounded-lg max-w-72 max-h-40 my-4" id="{{ $previewId }}" alt="preview" />
             <div id="{{ $nameId }}" class="text-sm text-gray-500"></div>
             <div class="mt-4 flex flex-wrap justify-center gap-2">
-                <button
+                <x-ui.button variant="plain"
                     x-data
                     type="button"
                     class="bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                    x-on:click.prevent="SMMediaPicker.open(document.getElementById(@js($name)).value, {require_mime_type:@js($mime_type), allow_multiple:{{ $allow_multiple }}, allow_uploads:{{ $allow_uploads }}, public_usable_only:{{ $public_usable_only }}, passwordless_only:{{ $passwordless_only }}}, (value)=>updateMedia(@js($name), value))"
+                    x-on:click.prevent="SMMediaPicker.open(document.getElementById({{ \Illuminate\Support\Js::from($name) }}).value, {require_mime_type:{{ \Illuminate\Support\Js::from($mime_type) }}, allow_multiple:{{ $allow_multiple }}, allow_uploads:{{ $allow_uploads }}, public_usable_only:{{ $public_usable_only }}, passwordless_only:{{ $passwordless_only }}}, (value)=>updateMedia({{ \Illuminate\Support\Js::from($name) }}, value))"
                 >
                     Select Image
-                </button>
-                <button
+                </x-ui.button>
+                <x-ui.button x-data variant="plain"
                     type="button"
                     id="{{ $clearButtonId }}"
                     class="hidden bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                    onclick="updateMedia(@js($name), '')"
+                    x-on:click="updateMedia({{ \Illuminate\Support\Js::from($name) }}, '')"
                 >
                     Clear Image
-                </button>
+                </x-ui.button>
             </div>
             @if($allowUploads)
                 <div class="text-xs text-gray-500 mt-2">Paste an image here or drag and drop one.</div>

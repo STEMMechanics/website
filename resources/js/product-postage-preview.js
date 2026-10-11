@@ -15,7 +15,7 @@ window.SM.productPostagePreview = (url, csrf) => ({
         const version = ++this.version;
         this.options = [];
         this.busy = false;
-        if (measurements.product_type !== 'physical') { this.message = ''; return; }
+        if (!['physical', 'kit'].includes(measurements.product_type)) { this.message = ''; return; }
         const fields = ['length_mm', 'width_mm', 'height_mm', 'weight_grams'];
         const valid = fields.every(field => {
             const value = measurements[field];

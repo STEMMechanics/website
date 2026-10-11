@@ -306,15 +306,15 @@ $errorClass = $mobileStacked
         <div class="w-full max-w-xl rounded-lg bg-white p-4 shadow-lg">
             <div class="mb-3 flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Create User</h3>
-                <button type="button" class="text-gray-600 hover:text-black" x-on:click.prevent="closeCreateUser()">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <x-ui.button size="icon-small" aria-label="Close create user" variant="text" color="secondary" type="button"  x-on:click.prevent="closeCreateUser()">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </x-ui.button>
             </div>
 
             <div class="mb-4 flex gap-2 border-b border-gray-200 pb-2">
-                <button type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" :class="createUserTab === 'contact' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'contact'">Contact</button>
-                <button type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" :class="createUserTab === 'billing' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'billing'">Billing</button>
-                <button type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" :class="createUserTab === 'shipping' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'shipping'">Shipping</button>
+                <x-ui.button variant="plain" type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" x-bind:class="createUserTab === 'contact' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'contact'">Contact</x-ui.button>
+                <x-ui.button variant="plain" type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" x-bind:class="createUserTab === 'billing' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'billing'">Billing</x-ui.button>
+                <x-ui.button variant="plain" type="button" class="rounded-md px-3 py-1.5 text-sm font-semibold" x-bind:class="createUserTab === 'shipping' ? 'bg-primary-color text-white' : 'bg-gray-100 text-gray-700'" x-on:click.prevent="createUserTab = 'shipping'">Shipping</x-ui.button>
             </div>
 
             <div x-show="createUserTab === 'contact'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">

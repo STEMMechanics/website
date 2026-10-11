@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
 use App\Mail\StoreOrderAdminUpdateNotice;
 use App\Mail\StoreOrderCustomerUpdateNotice;
@@ -21,8 +22,8 @@ use App\Models\StoreOrderUpdate;
 use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Models\UserGroup;
-use App\Support\ShopShippingSettings;
 use App\Services\SquareApiService;
+use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
@@ -77,8 +78,8 @@ class ShopAdminOrderItemsTest extends TestCase
             ->get(route('admin.shop.order.index'))
             ->assertOk()
             ->assertSee('title="'.$expectedCount.' store orders require action"', false)
-            ->assertSeeText($expectedCount.' orders need attention')
-            ->assertSee('aria-label="Store orders needing attention"', false)
+            ->assertSee(route('admin.shop.order.index', ['order_attention' => 'needs_attention']), false)
+            ->assertSee('aria-label="Needs attention, '.$expectedCount.', needs attention"', false)
             ->assertSee('bg-amber-50', false)
             ->assertSee('fa-solid fa-box-open', false)
             ->assertSee('bg-emerald-50', false)
@@ -1271,7 +1272,7 @@ class ShopAdminOrderItemsTest extends TestCase
                 && $job->mailable->subjectLine === 'Some items on your order '.$order->order_number.' were cancelled';
         });
         Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'ops@example.com' && $job->mailable instanceof StoreOrderAdminUpdateNotice);
-        Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'jamie@example.com' && $job->mailable instanceof \App\Mail\InvoiceDocumentBundle);
+        Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'jamie@example.com' && $job->mailable instanceof InvoiceDocumentBundle);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
             return $job->to === 'jamie@example.com'
                 && $job->mailable instanceof PaymentReceiptPdf
@@ -1475,7 +1476,7 @@ class ShopAdminOrderItemsTest extends TestCase
                 && $job->mailable instanceof StoreOrderCustomerUpdateNotice;
         }));
         Queue::assertNotPushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'ops@example.com' && $job->mailable instanceof StoreOrderAdminUpdateNotice);
-        $this->assertCount(0, Queue::pushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'jordan@example.com' && $job->mailable instanceof \App\Mail\InvoiceDocumentBundle));
+        $this->assertCount(0, Queue::pushed(SendEmail::class, fn (SendEmail $job): bool => $job->to === 'jordan@example.com' && $job->mailable instanceof InvoiceDocumentBundle));
         $this->assertCount(1, Queue::pushed(SendEmail::class, function (SendEmail $job): bool {
             return $job->to === 'jordan@example.com'
                 && $job->mailable instanceof PaymentReceiptPdf

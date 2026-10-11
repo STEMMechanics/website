@@ -278,7 +278,7 @@ class NewsletterProductSelectionService
         return collect($this->normalizeSections($sections))
             ->reject(fn (array $section): bool => $section['theme'] === 'disabled')
             ->map(function (array $section): array {
-                $products = Product::query()
+                $products = Product::query()->sellable()
                     ->with(['hero', 'categories', 'variants'])
                     ->active()
                     ->whereIn('id', $section['product_ids'])
@@ -298,7 +298,7 @@ class NewsletterProductSelectionService
     /** @return Collection<int, Product> */
     private function candidates(array $categorySlugs, ?NewsletterStoreTheme $theme = null): Collection
     {
-        $query = Product::query()
+        $query = Product::query()->sellable()
             ->with(['hero', 'categories', 'variants'])
             ->active()
             ->when($categorySlugs !== [], fn ($query) => $query->whereHas('categories', fn ($categories) => $categories->whereIn('slug', $categorySlugs)));

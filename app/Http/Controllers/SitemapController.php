@@ -27,10 +27,11 @@ class SitemapController extends Controller
             ->map(function (array $page) use ($managedStatic) {
                 $managed = $managedStatic->get(parse_url($page['loc'], PHP_URL_PATH) ?: '/');
                 $page['lastmod'] = $managed->updated_at ?? $page['lastmod'];
+
                 return $page;
             })->values();
         $custom = CustomPage::query()->whereNotIn('path', $staticPaths)->published()->where('seo_noindex', false)->where('path', 'like', '/%')->where('path', 'not like', '//%');
-        $products = Product::query()->active();
+        $products = Product::query()->sellable()->active();
         if (! app(ShopAvailability::class)->isPublicEnabled()) {
             $products->whereRaw('1 = 0');
         } else {
@@ -59,6 +60,7 @@ class SitemapController extends Controller
             }
             if ($offset >= $counts[$index]) {
                 $offset -= $counts[$index];
+
                 continue;
             }
             $pages = $pages->concat((clone $query)->orderBy('id')->offset($offset)->limit($perPage - $pages->count())->get()->map($map));

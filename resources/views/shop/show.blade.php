@@ -769,10 +769,9 @@
                                     <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
                                         <x-ui.button variant="plain"
                                                 type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyCartLineKey === activeLineKey()"
-                                                x-on:click="changeCartQuantity(cartQuantity() - 1)"
-                                        >-</x-ui.button>
+                                                x-on:click="changeCartQuantity(cartQuantity() - 1)" size="icon">-</x-ui.button>
                                         <x-ui.input-control
                                                 type="number"
                                                 min="0"
@@ -783,10 +782,9 @@
                                                 x-on:change="changeCartQuantity($event.target.value)" />
                                         <x-ui.button variant="plain"
                                                 type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                x-on:click="changeCartQuantity(cartQuantity() + 1)"
-                                        >+</x-ui.button>
+                                                x-on:click="changeCartQuantity(cartQuantity() + 1)" size="icon">+</x-ui.button>
                                     </div>
                                 </div>
 

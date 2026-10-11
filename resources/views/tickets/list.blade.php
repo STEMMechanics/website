@@ -142,7 +142,7 @@
                                                     {
                                                         firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
                                                         surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
-                                                        age: @js($ticket->age),
+                                                        age: {{ \Illuminate\Support\Js::from($ticket->age) }},
                                                         email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
                                                         phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                     }

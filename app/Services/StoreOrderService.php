@@ -263,7 +263,7 @@ class StoreOrderService
                 }
 
                 /** @var Product $product */
-                $product = Product::query()
+                $product = Product::query()->sellable()
                     ->with(['hero'])
                     ->lockForUpdate()
                     ->findOrFail($productId);

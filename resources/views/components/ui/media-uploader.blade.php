@@ -81,16 +81,14 @@
             <div class="flex flex-wrap justify-center gap-2">
                 <x-ui.button
                     type="button"
-                    color="primary-outline-sm"
+                    color="primary-outline"
                     x-on:click.prevent="$refs.{{ $inputRef }}.click()"
-                    x-bind:disabled="{{ $disabled }}"
-                >{{ $localButtonText }}</x-ui.button>
+                    x-bind:disabled="{{ $disabled }}" size="small">{{ $localButtonText }}</x-ui.button>
                 <x-ui.button
                     type="button"
-                    color="primary-outline-sm"
+                    color="primary-outline"
                     x-on:click.prevent="{{ $onBrowseExisting }}()"
-                    x-bind:disabled="{{ $disabled }}"
-                >{{ $existingButtonText }}</x-ui.button>
+                    x-bind:disabled="{{ $disabled }}" size="small">{{ $existingButtonText }}</x-ui.button>
             </div>
 
             @if($supportedTypes)

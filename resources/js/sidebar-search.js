@@ -6,6 +6,9 @@ document.querySelectorAll('[data-sidebar-search]').forEach((form) => {
     const headings = [...menu.querySelectorAll('[data-sidebar-heading]')];
     const status = form.querySelector('[data-sidebar-selection-status]');
     let activeLink = null;
+    const updateSearchState = (focused = document.activeElement === input) => {
+        menu.dataset.sidebarSearchActive = String(focused || input.value.trim() !== '');
+    };
     const select = (link) => {
         activeLink?.removeAttribute('data-sidebar-keyboard-selected');
         activeLink = link;
@@ -19,8 +22,9 @@ document.querySelectorAll('[data-sidebar-search]').forEach((form) => {
         if (child.matches('[data-sidebar-heading]')) heading = child;
         if (links.includes(child)) sections.set(child, heading);
     }
-    input.addEventListener('input', () => {
+    const filterMenu = () => {
         select(null);
+        updateSearchState();
         const words = input.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
         for (const link of links) {
             const text = `${sections.get(link)?.dataset.sidebarHeading || ''} ${link.textContent}`.toLocaleLowerCase();
@@ -32,7 +36,8 @@ document.querySelectorAll('[data-sidebar-search]').forEach((form) => {
             section.style.display = links.some((link) => sections.get(link) === section && link.style.display !== 'none') ? '' : 'none';
         }
         menu.querySelector('[data-sidebar-empty]').hidden = links.some((link) => link.style.display !== 'none');
-    });
+    };
+    input.addEventListener('input', filterMenu);
     input.addEventListener('keydown', (event) => {
         if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -53,5 +58,10 @@ document.querySelectorAll('[data-sidebar-search]').forEach((form) => {
             activeLink.click();
         }
     });
-    input.addEventListener('blur', () => select(null));
+    input.addEventListener('focus', () => updateSearchState(true));
+    input.addEventListener('blur', () => {
+        select(null);
+        updateSearchState(false);
+    });
+    filterMenu();
 });

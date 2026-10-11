@@ -18,7 +18,7 @@
                         <p class="mt-2 text-sm leading-6 text-gray-600" x-text="replacementDialogData?.description || 'Compare the current payment with the matching EFTPOS transaction before replacing it.'"></p>
                     </div>
                     <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeReplacementDialog()" aria-label="Close replacement dialog">
-                        <i class="fa-solid fa-xmark text-lg"></i>
+                        <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                     </x-ui.button>
                 </div>
             </div>

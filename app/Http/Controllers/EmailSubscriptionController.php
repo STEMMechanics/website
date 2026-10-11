@@ -70,7 +70,7 @@ class EmailSubscriptionController extends Controller
 
         return view('admin.newsletter.index', [
             'headerCopyOptions' => ['store' => $newsletter->heroCopyOptions('store'), 'workshops' => $newsletter->heroCopyOptions('workshops')],
-            'newsletterLinkOptions' => Product::query()->active()->orderBy('title')->get()->map(fn ($product) => ['title' => $product->title, 'type' => 'Store item', 'url' => route('shop.product.show', $product)])
+            'newsletterLinkOptions' => Product::query()->sellable()->active()->orderBy('title')->get()->map(fn ($product) => ['title' => $product->title, 'type' => 'Store item', 'url' => route('shop.product.show', $product)])
                 ->concat(Workshop::query()->publiclyVisible()->where(fn ($query) => $query->whereNull('is_private')->orWhere('is_private', false))->whereIn('status', ['open', 'scheduled'])->where('starts_at', '>=', now())->orderBy('starts_at')->get()->map(fn ($workshop) => ['title' => $workshop->title.' · '.$workshop->starts_at->format('j M Y'), 'type' => 'Workshop', 'url' => route('workshop.show', $workshop)]))->values(),
             'storePromotion' => $draft,
             'storeProductsBySection' => collect($draft->sections)->map(fn (array $section) => $selector->availableProducts($section['category_slugs'])),
@@ -138,7 +138,7 @@ class EmailSubscriptionController extends Controller
         ]);
 
         $selector = app(NewsletterProductSelectionService::class);
-        $productsByTitle = Product::query()->active()->get(['id', 'title'])->keyBy(fn (Product $product) => mb_strtolower(trim($product->title)));
+        $productsByTitle = Product::query()->sellable()->active()->get(['id', 'title'])->keyBy(fn (Product $product) => mb_strtolower(trim($product->title)));
         foreach ($validated['sections'] as &$section) {
             if (isset($section['product_titles'])) {
                 $section['product_ids'] = collect($section['product_titles'])

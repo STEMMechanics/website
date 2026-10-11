@@ -235,7 +235,7 @@
                     @enderror
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between" x-show="!expired" x-cloak>
-                        <x-ui.button type="button" color="danger-outline" x-bind:disabled="isSubmitting || expired" onclick="document.getElementById('ticket-cancel-form').submit();">Cancel</x-ui.button>
+                        <x-ui.button x-data type="button" color="danger-outline" x-bind:disabled="isSubmitting || expired" x-on:click="document.getElementById('ticket-cancel-form').submit();">Cancel</x-ui.button>
                         <x-ui.button type="submit" x-bind:disabled="expired || isSubmitting || (paymentMethod === 'credit_card' && isCardLoading)">
                             <span x-show="!isSubmitting" x-text="submitButtonLabel()"></span>
                             <span x-show="isSubmitting" x-cloak>Processing...</span>
@@ -264,7 +264,7 @@
                                         <h3 id="ticket-voucher-dialog-title" class="text-xl font-bold text-gray-900">Enter a voucher code</h3>
                                     </div>
                                     <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeVoucherDialog()" aria-label="Close voucher dialog">
-                                        <i class="fa-solid fa-xmark text-lg"></i>
+                                        <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                                     </x-ui.button>
                                 </div>
                             </div>

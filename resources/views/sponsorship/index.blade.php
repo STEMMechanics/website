@@ -80,22 +80,22 @@
                         <div class="flex min-h-9 items-center justify-between gap-3">
                             <div class="flex min-w-0 items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><i class="fa-brands fa-bitcoin" aria-hidden="true"></i></span><h3 class="text-xl font-semibold text-gray-900">Support with Bitcoin</h3></div>
                             @if($bitcoinQrAvailable)
-                                <button type="button" x-on:click="qrOpen = true" class="group flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white p-1 focus:outline-none focus:ring-2 focus:ring-amber-500" aria-label="Show a larger Bitcoin QR code">
+                                <x-ui.button variant="plain" type="button" x-on:click="qrOpen = true" class="group flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white p-1 focus:outline-none focus:ring-2 focus:ring-amber-500" aria-label="Show a larger Bitcoin QR code">
                                     <img src="{{ route('sponsor.asset', ['type' => 'btc', 'id' => 0]) }}" alt="" class="h-full w-full object-contain transition group-hover:scale-105">
-                                </button>
+                                </x-ui.button>
                             @endif
                         </div>
                         <p class="mt-3 flex-1 text-sm leading-6 text-gray-600">Send a one-off, anonymous sponsorship by scanning the QR code or copying our address.</p>
                         <code class="mt-4 block break-all rounded-lg bg-amber-50 px-3 py-3 text-xs leading-5 text-gray-800">{{ $bitcoinAddress }}</code>
-                        <div class="mt-auto pt-3"><button type="button" x-on:click="copy(@js($bitcoinAddress))" class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"><i class="fa-regular fa-copy" aria-hidden="true"></i><span x-text="copied ? 'Address copied' : 'Copy address'"></span></button></div>
+                        <div class="mt-auto pt-3"><x-ui.button variant="plain" type="button" x-on:click="copy({{ \Illuminate\Support\Js::from($bitcoinAddress) }})" class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"><i class="fa-regular fa-copy" aria-hidden="true"></i><span x-text="copied ? 'Address copied' : 'Copy address'"></span></x-ui.button></div>
                         @if($bitcoinQrAvailable)
                             <div x-cloak x-show="qrOpen" x-transition.opacity x-on:click.self="qrOpen = false" x-on:keydown.escape.window="qrOpen = false" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="bitcoin-qr-title">
                                 <div class="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
-                                    <button type="button" x-on:click="qrOpen = false" class="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" aria-label="Close enlarged QR code"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                                    <x-ui.button variant="plain" type="button" x-on:click="qrOpen = false" class="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" aria-label="Close enlarged QR code"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                                     <h4 id="bitcoin-qr-title" class="pr-8 text-left text-lg font-semibold text-gray-900">Bitcoin support</h4>
                                     <p class="mt-1 text-left text-sm text-gray-600">Scan this code to make a one-off sponsorship.</p>
                                     <img src="{{ route('sponsor.asset', ['type' => 'btc', 'id' => 0]) }}" alt="Bitcoin QR code for STEMMechanics support" class="mx-auto mt-5 h-72 w-72 max-w-full rounded-xl border border-gray-200 bg-white p-3">
-                                    <button type="button" x-on:click="copy(@js($bitcoinAddress))" class="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"><i class="fa-regular fa-copy" aria-hidden="true"></i><span x-text="copied ? 'Address copied' : 'Copy address'"></span></button>
+                                    <x-ui.button variant="plain" type="button" x-on:click="copy({{ \Illuminate\Support\Js::from($bitcoinAddress) }})" class="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500"><i class="fa-regular fa-copy" aria-hidden="true"></i><span x-text="copied ? 'Address copied' : 'Copy address'"></span></x-ui.button>
                                 </div>
                             </div>
                         @endif

@@ -17,7 +17,7 @@
                 @php($inputName = preg_replace('/\.([^.]*)/', '[$1]', $key))
                 @if(is_scalar($value))<input type="hidden" name="{{ $inputName }}" value="{{ $value }}">@endif
             @endforeach
-            <x-ui.select :name="$pageSizeName" label="Show" inline-label class="mb-0" selectClass="min-w-20 pr-9!" onchange="this.form.requestSubmit()" aria-label="Items per page">
+            <x-ui.select :name="$pageSizeName" label="Show" inline-label class="mb-0" selectClass="min-w-20 pr-9!" data-submit-on-change aria-label="Items per page">
                 @foreach($pageSizes as $size)<option value="{{ $size }}" @selected($paginator->perPage() === $size)>{{ $size }}</option>@endforeach
             </x-ui.select>
             <span>items</span>

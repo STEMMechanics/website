@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AccountCreditService;
 use App\Services\ProductRecommendationService;
 use App\Services\StoreCartService;
+use App\Services\StoreCheckoutAnalytics;
 use App\Services\StoreOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -54,7 +55,7 @@ class ShopController extends Controller
             $selectedSort = 'relevance';
         }
 
-        $query = Product::query()
+        $query = Product::query()->sellable()
             ->active()
             ->with([
                 'hero',
@@ -130,13 +131,13 @@ class ShopController extends Controller
     public function show(Request $request, string $product, StoreCartService $cart, ProductRecommendationService $recommendations): View
     {
         $productSlug = $product;
-        $product = Product::query()->where('slug', $productSlug)->first();
+        $product = Product::query()->sellable()->where('slug', $productSlug)->first();
         $pathVariant = null;
         if ($product === null) {
             $pathVariant = ProductVariant::query()->active()->where('url_slug', $productSlug)->first();
             $product = $pathVariant?->product;
         }
-        abort_unless($product instanceof Product && $product->isActive(), 404);
+        abort_unless($product instanceof Product && $product->isActive() && $product->isSellable(), 404);
 
         $product->load([
             'hero',
@@ -192,7 +193,7 @@ class ShopController extends Controller
 
     public function addToCart(Request $request, Product $product, StoreCartService $cart): RedirectResponse|JsonResponse
     {
-        abort_unless($product->isActive(), 404);
+        abort_unless($product->isActive() && $product->isSellable(), 404);
 
         $validated = $request->validate([
             'quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
@@ -725,7 +726,7 @@ class ShopController extends Controller
 
         if ((bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false)) {
             $orders->createQuoteRequestFromCart($lines, $validated, $request->user());
-            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'checkout', 'quote_requested', null, $summary);
+            app(StoreCheckoutAnalytics::class)->record($request, 'checkout', 'quote_requested', null, $summary);
             $cart->clear();
             $this->clearCheckoutSession();
 
@@ -746,7 +747,7 @@ class ShopController extends Controller
 
         if ((float) ($summary['total'] ?? 0) <= 0.0001) {
             $order = $orders->createFromCart($lines, $validated, $request->user());
-            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
+            app(StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
             $cart->clear();
             $this->clearCheckoutSession();
             $this->rememberGuestOrderDocumentAccess($order, $request);
@@ -782,7 +783,7 @@ class ShopController extends Controller
         } catch (ValidationException $e) {
             $errors = $e->errors();
             if (array_key_exists('source_id', $errors)) {
-                app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
+                app(StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
                 $reference = $this->checkoutPaymentFailureReference();
                 $errors = $this->appendCheckoutPaymentReference($errors, $reference);
                 logger()->warning('Store checkout payment validation failed.', [
@@ -801,7 +802,7 @@ class ShopController extends Controller
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         } catch (\Throwable $e) {
-            app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
+            app(StoreCheckoutAnalytics::class)->record($request, 'payment_failed');
             $reference = $this->checkoutPaymentFailureReference();
 
             report($e);
@@ -823,7 +824,7 @@ class ShopController extends Controller
                 ->with('shop_checkout_step', 'payment');
         }
 
-        app(\App\Services\StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
+        app(StoreCheckoutAnalytics::class)->record($request, 'payment', 'completed', $order->id, $summary);
         $cart->clear();
         $this->clearCheckoutSession();
         $this->rememberGuestOrderDocumentAccess($order, $request);

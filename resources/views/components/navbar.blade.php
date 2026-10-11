@@ -40,7 +40,6 @@
             : 0;
         $storeOrderActionCount = $operationCounts['orders'];
         $productAttentionCount = $isAdmin ? app(\App\Services\ProductAttention::class)->counts()['total'] : 0;
-        $stockAttentionCount = $isAdmin ? app(\App\Services\StockAttention::class)->count() : 0;
         $mediaDuplicateCount = $isAdmin
             ? app(\App\Services\MediaDuplicateService::class)->attentionCount(app(\App\Services\ImagePerceptualHash::class))
             : 0;
@@ -51,7 +50,6 @@
                     'items' => [
                     ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*'], 'badge' => $storeOrderActionCount, 'badge_title' => $storeOrderActionCount.' store '.($storeOrderActionCount === 1 ? 'order requires' : 'orders require').' action'],
                     ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*'], 'badge' => $productAttentionCount, 'badge_title' => $productAttentionCount.' '.($productAttentionCount === 1 ? 'product needs' : 'products need').' stock or allocation attention'],
-                    ['label' => 'Stock items', 'route' => route('admin.shop.stock.index'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.stock.*'], 'badge' => $stockAttentionCount, 'badge_title' => $stockAttentionCount.' '.($stockAttentionCount === 1 ? 'stock item needs' : 'stock items need').' attention'],
                     ['label' => 'Categories', 'route' => route('admin.shop.category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.category.*']],
                     ['label' => 'Vouchers', 'route' => route('admin.shop.coupon.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.coupon.*']],
                     ['label' => 'Settings', 'route' => route('admin.shop.settings.edit'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.settings.*']],
@@ -123,16 +121,16 @@
     <div class="mx-auto max-w-7xl px-2 relative">
         <div class="relative flex h-16 items-center justify-between">
             <div class="ml-2 sm:ml-4 mr-2 flex shrink-0 gap-3 items-center">
-                <button type="button" @click="pageMenuOpen=!pageMenuOpen" @keydown.escape="pageMenuOpen=false" class="relative flex w-6 text-gray-400 hover:text-white {{ $isAdmin ? '' : 'lg:hidden' }}" id="page-menu-button" aria-expanded="false" aria-haspopup="true">
+                <x-ui.button variant="plain" size="icon-small" type="button" x-on:click="pageMenuOpen=!pageMenuOpen" x-on:keydown.escape="pageMenuOpen=false" class="relative text-gray-400 hover:text-white {{ $isAdmin ? '' : 'lg:hidden' }}" id="page-menu-button" x-bind:aria-expanded="pageMenuOpen" aria-haspopup="true">
                     <span class="sr-only">Open page menu</span>
-                    <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
+                    <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition" aria-hidden="true"></i>
                     @if($pageMenuAttentionCount > 0)
                         <x-ui.badge color="warning" variant="solid" size="count" class="absolute -right-1 -top-2">{{ $pageMenuAttentionCount }}</x-ui.badge>
                     @endif
-                </button>
-                <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()" aria-label="Search">
+                </x-ui.button>
+                <x-ui.button variant="plain" size="icon-small" type="button" class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out lg:inline-flex hidden" x-on:click.prevent="openSearchOverlay()" aria-label="Search">
                     <i class="fa fa-search" aria-hidden="true"></i>
-                </button>
+                </x-ui.button>
             </div>
             <div class="flex min-w-0 flex-1 items-center justify-center sm:justify-start ml-2">
                 <div class="flex min-w-0 w-40 sm:w-56 items-center">
@@ -149,22 +147,22 @@
                 @endif
                 <a href="{{ route('workshop.index') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
                 <a href="{{ route('contact') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
-                <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                <x-ui.button variant="plain" size="icon-small" type="button" x-on:click="userMenuOpen=!userMenuOpen" x-on:keydown.escape="userMenuOpen=false" class="relative text-gray-400 hover:text-white" id="user-menu-button" x-bind:aria-expanded="userMenuOpen" aria-haspopup="true">
                     <span class="sr-only">Open user menu</span>
-                    <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
-                </button>
+                    <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition" aria-hidden="true"></i>
+                </x-ui.button>
                 @if($publicShopAvailable || $workshopBookings !== [])
-                    <button
+                    <x-ui.button variant="plain" size="icon-small"
                             type="button"
-                            @click.prevent="openCartDrawer()"
+                            x-on:click.prevent="openCartDrawer()"
                             x-show="publicShopAvailable || workshopTicketCount() > 0"
                             class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out relative"
                             title="Cart"
                             aria-label="Cart"
                     >
-                        <i class="fa-solid fa-cart-shopping text-base"></i>
+                        <i class="fa-solid fa-cart-shopping text-base" aria-hidden="true"></i>
                         <x-ui.badge color="danger" variant="solid" x-cloak x-show="cartCount() > 0" x-text="cartCount()" class="absolute -right-3 -top-2 min-w-4 px-1 py-0 text-[11px] leading-4"></x-ui.badge>
-                    </button>
+                    </x-ui.button>
                 @endif
             </div>
         </div>
@@ -188,9 +186,9 @@
                     <div>
                         @includeSVG('logo.svg', 'width:10em;color:black')
                     </div>
-                    <button @click="pageMenuOpen=false" class="hover:text-red-500">
-                        <i class="fa fa-times"></i>
-                    </button>
+                    <x-ui.button size="icon-small" aria-label="Close menu" variant="plain" x-on:click="pageMenuOpen=false" class="hover:text-red-500">
+                        <i class="fa fa-times" aria-hidden="true"></i>
+                    </x-ui.button>
                 </div>
                 @if($isAdmin)
                     <form method="GET" action="{{ route('search.index') }}" class="mb-2" data-sidebar-search>
@@ -227,7 +225,8 @@
                             @endphp
                             <a
                                 href="{{ $item['route'] }}"
-                                class="sm-admin-nav-link mt-1 flex items-center gap-2 px-4 py-2 text-sm rounded transition {{ $isActiveAdminLink ? 'bg-sky-600 text-white' : 'text-gray-700 hover:bg-sky-600 hover:text-white' }}"
+                                class="sm-admin-nav-link mt-1 flex items-center gap-2 px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white"
+                                @if($isActiveAdminLink) aria-current="page" @endif
                                 role="menuitem"
                                 tabindex="-1"
                             >
@@ -286,7 +285,7 @@
                 <div class="border-t border-gray-200 my-2"></div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="w-full text-left block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-from-bracket w-4 mr-2"></i>Log out</button>
+                    <x-ui.button variant="plain" type="submit" class="w-full text-left block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-from-bracket w-4 mr-2" aria-hidden="true"></i>Log out</x-ui.button>
                 </form>
                 @endif
             </div>
@@ -322,9 +321,9 @@
                     <div>
                         <h2 id="cart-drawer-title" class="text-2xl font-bold text-gray-900">Cart</h2>
                     </div>
-                    <button type="button" @click="cartOpen=false" class="text-gray-500 hover:text-red-500">
-                        <i class="fa fa-times"></i>
-                    </button>
+                    <x-ui.button size="icon-small" aria-label="Close cart" variant="text" color="secondary" type="button" x-on:click="cartOpen=false" >
+                        <i class="fa fa-times" aria-hidden="true"></i>
+                    </x-ui.button>
                 </div>
 
                 <div x-show="workshopExpiryNotice" x-cloak role="status" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" x-text="workshopExpiryNotice"></div>
@@ -368,12 +367,12 @@
                                     <div class="mt-1 text-sm text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
                                     <div class="mt-3">
                                         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                :disabled="busyCartLineKey === line.key"
-                                                @click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
-                                            >-</button>
+                                                x-bind:disabled="busyCartLineKey === line.key"
+                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
+                                            >-</x-ui.button>
                                             <input
                                                 type="text"
                                                 inputmode="numeric"
@@ -385,23 +384,23 @@
                                                 @input="sanitizeCartQuantityInput($event.target)"
                                                 @change="changeCartQuantity(line.key, $event.target.value, line.max_quantity, $event.target, line.quantity)"
                                             />
-                                            <button
+                                            <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                :disabled="busyCartLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                @click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
-                                            >+</button>
+                                                x-bind:disabled="busyCartLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
+                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
+                                            >+</x-ui.button>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <div class="font-semibold text-gray-900" x-text="formatMoney(line.line_price)"></div>
-                                    <button
+                                    <x-ui.button variant="plain"
                                         type="button"
                                         class="mt-2 text-xs text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-                                        :disabled="busyCartLineKey === line.key"
-                                        @click="removeCartLine(line.key)"
-                                    >Remove</button>
+                                        x-bind:disabled="busyCartLineKey === line.key"
+                                        x-on:click="removeCartLine(line.key)"
+                                    >Remove</x-ui.button>
                                 </div>
                             </div>
                         </template>
@@ -435,7 +434,7 @@
                             <x-ui.button href="{{ route('shop.checkout') }}" class="block" x-on:click="cartOpen=false">Checkout</x-ui.button>
                         </template>
                         <template x-if="cartUpdateLocked()">
-                            <button type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</button>
+                            <x-ui.button variant="plain" type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</x-ui.button>
                         </template>
                     </div>
                 </div>

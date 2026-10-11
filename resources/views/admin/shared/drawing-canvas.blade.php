@@ -13,18 +13,18 @@
             ['pan', 'fa-hand', 'Pan'],
         ] as [$tool, $icon, $label])
             <x-ui.button variant="plain" type="button" x-bind:class="canvasToolButtonClass('{{ $tool }}')" x-on:click="setCanvasTool('{{ $tool }}')" title="{{ $label }}" aria-label="{{ $label }}">
-                <i class="{{ str_contains($icon, 'fa-regular') ? $icon : 'fa-solid '.$icon }}"></i>
+                <i class="{{ str_contains($icon, 'fa-regular') ? $icon : 'fa-solid '.$icon }}" aria-hidden="true"></i>
             </x-ui.button>
         @endforeach
 
         <span class="mx-1 h-6 border-l border-gray-300" aria-hidden="true"></span>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()" title="Zoom in" aria-label="Zoom in"><i class="fa-solid fa-magnifying-glass-plus"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()" title="Zoom out" aria-label="Zoom out"><i class="fa-solid fa-magnifying-glass-minus"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()" title="Reset view" aria-label="Reset view"><i class="fa-solid fa-arrows-to-dot"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()" title="Export PNG" aria-label="Export PNG"><i class="fa-solid fa-file-arrow-down"></i></x-ui.button>
-        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()" title="Clear drawing" aria-label="Clear drawing"><i class="fa-solid fa-trash-can"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()" title="Undo" aria-label="Undo"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()" title="Redo" aria-label="Redo"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()" title="Zoom in" aria-label="Zoom in"><i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()" title="Zoom out" aria-label="Zoom out"><i class="fa-solid fa-magnifying-glass-minus" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()" title="Reset view" aria-label="Reset view"><i class="fa-solid fa-arrows-to-dot" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="exportCanvasPng()" title="Export PNG" aria-label="Export PNG"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></x-ui.button>
+        <x-ui.button variant="plain" type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()" title="Clear drawing" aria-label="Clear drawing"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></x-ui.button>
 
         <span class="mx-1 h-6 border-l border-gray-300" aria-hidden="true"></span>
         <label class="flex h-9 items-center gap-1 rounded-md border border-gray-300 bg-white px-2" title="Colour">

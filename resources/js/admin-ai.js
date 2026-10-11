@@ -474,7 +474,7 @@ const makePayload = async (button, form) => {
     if (button.dataset.aiFillFields) {
         getAiBlankFields(button, scope).forEach((name) => payload.append('fill_fields[]', name));
     }
-    if (button.dataset.aiStockItems === 'true') payload.append('include_stock_items', '1');
+    if (button.dataset.aiProductPurchases === 'true') payload.append('include_product_purchases', '1');
     if (button.dataset.aiMode) payload.append('mode', button.dataset.aiMode);
     if (button.dataset.aiKind) payload.append('kind', button.dataset.aiKind);
     if (button.hasAttribute?.('data-ai-context') || button.dataset.aiContext) {
@@ -709,7 +709,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     root._adminAiUnlockFields?.();
     root._adminAiUnlockFields = null;
 
-    if (automatic && fillFields.length > 0 && blankFields.length === 0 && trigger.dataset.aiStockItems !== 'true') {
+    if (automatic && fillFields.length > 0 && blankFields.length === 0 && trigger.dataset.aiProductPurchases !== 'true') {
         clearResults(root);
         root._adminAiProcessing = false;
         root.removeAttribute('aria-busy');
@@ -747,7 +747,7 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
     const initialToken = csrfToken() || trigger.dataset.aiToken || readFormField(form, '_token');
     if (initialToken) requestHeaders['X-CSRF-TOKEN'] = initialToken;
     const initialStatus = automatic
-        ? (blankFields.length === 0 && trigger.dataset.aiStockItems === 'true' ? 'Reading receipt for stock items…' : automaticAiStatus(blankFields))
+        ? (blankFields.length === 0 && trigger.dataset.aiProductPurchases === 'true' ? 'Reading receipt for products and materials…' : automaticAiStatus(blankFields))
         : (trigger.dataset.aiProcessingMessage || 'Creating a draft…');
     setStatus(root, initialStatus, false, automatic || root.hasAttribute('data-ai-toast'));
 
@@ -846,15 +846,15 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
         const fields = (trigger.dataset.aiFillFields || '').split(',').map((field) => field.trim()).filter(Boolean);
         const fillOnlyBlanks = automatic || trigger.dataset.aiFillBlanks === 'true';
         const filledCount = fields.reduce((count, name) => count + Number(fillField(fillScope, name, result[name], trigger, fillOnlyBlanks)), 0);
-        let stockItemsPrepared = 0;
-        if (trigger.dataset.aiStockItems === 'true' && Array.isArray(result.stock_items)) {
-            const stockItemsEditor = fillScope?.querySelector('[data-expense-stock-items]');
-            if (stockItemsEditor) {
-                const event = new CustomEvent('sm-expense-stock-items-ai', {
-                    detail: { items: result.stock_items, appliedCount: 0 },
+        let purchasesPrepared = 0;
+        if (trigger.dataset.aiProductPurchases === 'true' && Array.isArray(result.product_purchases)) {
+            const purchasesEditor = fillScope?.querySelector('[data-expense-product-purchases]');
+            if (purchasesEditor) {
+                const event = new CustomEvent('sm-expense-product-purchases-ai', {
+                    detail: { items: result.product_purchases, appliedCount: 0 },
                 });
-                stockItemsEditor.dispatchEvent(event);
-                stockItemsPrepared = Number(event.detail.appliedCount) || 0;
+                purchasesEditor.dispatchEvent(event);
+                purchasesPrepared = Number(event.detail.appliedCount) || 0;
             }
         }
 
@@ -869,12 +869,12 @@ const requestDraft = async (trigger, { automatic = false } = {}) => {
             const fieldSummary = filledCount > 0
                 ? `${filledCount} ${filledCount === 1 ? 'field' : 'fields'} filled`
                 : 'no blank fields to fill';
-            const stockItemSummary = stockItemsPrepared > 0
-                ? ` · ${stockItemsPrepared} stock item ${stockItemsPrepared === 1 ? 'row' : 'rows'} prepared`
+            const purchaseSummary = purchasesPrepared > 0
+                ? ` · ${purchasesPrepared} purchase ${purchasesPrepared === 1 ? 'row' : 'rows'} prepared`
                 : '';
             const reviewCount = Array.isArray(result.needs_review) ? result.needs_review.length : 0;
             const reviewSummary = reviewCount > 0 ? ` · ${reviewCount} to review` : '';
-            setStatus(root, `${documentType} · ${pageSummary} · ${fieldSummary}${stockItemSummary}${reviewSummary}`);
+            setStatus(root, `${documentType} · ${pageSummary} · ${fieldSummary}${purchaseSummary}${reviewSummary}`);
         } else {
             setStatus(root, 'Draft ready. Review and edit it before saving or sending.');
         }

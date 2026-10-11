@@ -16,6 +16,9 @@
 ])
 
 @php
+foreach (['bare', 'checked', 'small', 'inline', 'noWrapper', 'labelHidden', 'disabled'] as $flag) {
+    ${$flag} = filter_var(${$flag}, FILTER_VALIDATE_BOOLEAN);
+}
 $resolvedId = $id ?: ($bare ? null : ($name ?: null));
 $inputClass = $bare ? twMerge($inputClass, $attributes->get('class')) : $inputClass;
 $isMixed = filter_var($mixed, FILTER_VALIDATE_BOOLEAN);

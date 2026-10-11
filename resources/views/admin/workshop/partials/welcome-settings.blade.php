@@ -38,7 +38,7 @@
                 </div>
                 <p class="mt-3 text-xs text-gray-500">These actions use the saved email. Save changes first. Editing content does not resend it.</p>
                 <div class="mt-3 flex flex-wrap gap-3">
-                    <x-ui.button type="button" color="outline" onclick="window.open(@js(route('admin.workshop.welcome.preview', $workshopModel)), '_blank', 'noopener')">Preview saved email</x-ui.button>
+                    <x-ui.button color="outline" :href="route('admin.workshop.welcome.preview', $workshopModel)" target="_blank">Preview saved email</x-ui.button>
                     <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="send">Send now</x-ui.button>
                     @if($welcomeCounts->get('sent', 0))
                         <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="resend" x-on:click.prevent="const button = $el; const result = await SM.confirm('Resend welcome email?', 'The saved email will be sent again to all active ticket contacts.', 'Resend'); if (result?.isConfirmed) button.form.requestSubmit(button)" color="outline">Resend to active contacts</x-ui.button>

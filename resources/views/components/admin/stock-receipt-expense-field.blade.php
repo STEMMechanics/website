@@ -34,38 +34,36 @@
             x-bind:aria-describedby="$id('stock-receipt-supplier-help')"
             x-on:input="editSupplier($event.target.value)"
         />
-        <button
+        <x-ui.button variant="plain"
             x-cloak
             x-show="!linkedExpense && supplier"
             type="button"
-            class="absolute right-10 flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            class="absolute right-10 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             aria-label="Clear supplier"
             title="Clear supplier"
-            x-on:click="clearValue()"
-        >
+            x-on:click="clearValue()" size="icon-small">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
+        </x-ui.button>
         <div x-cloak x-show="linkedExpense" class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 py-1 pl-3 pr-1.5 text-sm text-slate-800" x-bind:title="linkedExpense?.summary">
             <i class="fa-solid fa-link shrink-0 text-xs text-sky-600" aria-hidden="true"></i>
             <span class="min-w-0 flex-1 truncate leading-5" x-text="linkedExpense?.summary"></span>
-            <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-white hover:text-slate-900" aria-label="Change linked expense" title="Change linked expense" x-on:click="browse($el)">
+            <x-ui.button variant="plain" type="button" class="rounded-md text-slate-500 hover:bg-white hover:text-slate-900" aria-label="Change linked expense" title="Change linked expense" x-on:click="browse($el)" size="icon-small">
                 <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-white hover:text-slate-900" aria-label="Clear supplier or expense" title="Clear supplier or expense" x-on:click="clearValue()">
+            </x-ui.button>
+            <x-ui.button variant="plain" type="button" class="rounded-md text-slate-500 hover:bg-white hover:text-slate-900" aria-label="Clear supplier or expense" title="Clear supplier or expense" x-on:click="clearValue()" size="icon-small">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
+            </x-ui.button>
         </div>
         <x-ui.button
             x-show="!linkedExpense"
             type="button"
             variant="plain"
-            class="absolute right-0 size-11 p-0! text-slate-500"
+            class="absolute right-0 text-slate-500"
             x-ref="expenseTrigger"
             aria-label="Search and link an expense"
             x-bind:title="linkedExpense ? 'Linked to ' + linkedExpense.label : 'Search and link an expense'"
             x-bind:aria-expanded="open"
-            x-on:click="browse($el)"
-        >
+            x-on:click="browse($el)" size="icon">
             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
         </x-ui.button>
         <input type="hidden" name="{{ $supplierField }}" x-bind:value="supplier">
@@ -99,7 +97,7 @@
             />
             <div class="mt-2 max-h-64 overflow-y-auto" role="listbox" x-bind:id="$id('stock-receipt-expenses')">
                 <template x-for="(expense, expenseIndex) in matches" :key="expense.id">
-                    <button
+                    <x-ui.button variant="plain"
                         type="button"
                         role="option"
                         class="block w-full rounded-lg px-3 py-2 text-left"
@@ -110,18 +108,18 @@
                     >
                         <span class="block text-sm font-medium" x-text="expense.label"></span>
                         <span class="mt-0.5 block text-xs text-slate-500" x-text="expense.detail"></span>
-                    </button>
+                    </x-ui.button>
                 </template>
                 <p x-show="!matches.length" class="px-3 py-2 text-sm text-slate-500">No matching expenses in the recent list. You can enter a supplier without linking an expense.</p>
             </div>
-            <button
+            <x-ui.button variant="plain"
                 type="button"
                 class="mt-2 w-full rounded-lg border-t border-slate-100 px-3 pt-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-900"
                 x-show="expenseId"
                 x-on:click="choose(null)"
             >
                 Remove expense link
-            </button>
+            </x-ui.button>
         </div>
     </template>
 </div>

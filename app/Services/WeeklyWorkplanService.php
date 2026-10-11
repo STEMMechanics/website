@@ -38,7 +38,7 @@ class WeeklyWorkplanService
             ->whereIn('status', ['open', 'scheduled'])
             ->with('location')->orderBy('starts_at')->get();
         $reminders = Reminder::query()->where(fn ($query) => $query->where('status', Reminder::STATUS_PENDING)
-                ->orWhere('kind', ReminderService::WORKSHOP_TASK_KIND))
+            ->orWhere('kind', ReminderService::WORKSHOP_TASK_KIND))
             ->where(function ($query): void {
                 $query->where('kind', '!=', ReminderService::WORKSHOP_TASK_KIND)
                     ->orWhereHasMorph('remindable', [Workshop::class], fn ($query) => $query->where('status', '!=', 'cancelled'));
@@ -98,7 +98,7 @@ class WeeklyWorkplanService
     private function lowStock(): Collection
     {
         $rows = collect();
-        Product::query()->active()->where('product_type', Product::PRODUCT_TYPE_PHYSICAL)->with('variants')
+        Product::query()->active()->physical()->with('variants')
             ->chunkById(200, function ($products) use ($rows): void {
                 foreach ($products as $product) {
                     $selections = [[

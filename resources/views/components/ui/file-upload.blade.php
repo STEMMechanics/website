@@ -22,7 +22,12 @@
     $hasError = $error !== '';
     $readonly = filter_var($readonly, FILTER_VALIDATE_BOOLEAN);
     $disabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
+    $noLabel = filter_var($noLabel, FILTER_VALIDATE_BOOLEAN);
+    $noWrapper = filter_var($noWrapper, FILTER_VALIDATE_BOOLEAN);
+    $floating = filter_var($floating, FILTER_VALIDATE_BOOLEAN);
+    $inline = filter_var($inline, FILTER_VALIDATE_BOOLEAN);
     $inputId = (string) ($id ?: $name);
+    $field = new \App\Support\UiField($attributes->merge(['id' => $inputId]), filled($info), $hasError);
     $fileUiUid = substr(md5($name.'-'.$inputId), 0, 12);
     $dropzoneId = 'file-dropzone-'.$fileUiUid;
     $fileNameId = 'file-name-'.$fileUiUid;
@@ -38,7 +43,9 @@
 <div class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}">
 @endif
     @if(!$noLabel && !$floating)
-        <label for="{{ $inputId }}" class="block text-sm pl-1">{{ $label }}</label>
+        <x-ui.field-label :label="$label" :label-attributes="$field->labelAttributes()" />
+    @elseif(filled($label))
+        <x-ui.field-label :label="$label" class="sr-only" :label-attributes="$field->labelAttributes()" />
     @endif
 
     <div
@@ -49,10 +56,9 @@
         <input
             type="file"
             name="{{ $name }}"
-            id="{{ $inputId }}"
             class="sr-only peer"
             @disabled($disabled || $readonly)
-            {{ $attributes->except(['class']) }}
+            {{ $field->controlAttributes() }}
         />
 
         <label
@@ -72,9 +78,9 @@
         </label>
 
         <div class="mt-2 flex items-center justify-between gap-3">
-            <button type="button" id="{{ $fileClearId }}" class="hidden text-xs font-medium text-gray-500 hover:text-danger-color">
+            <x-ui.button variant="plain" id="{{ $fileClearId }}" class="hidden text-xs font-medium text-gray-500 hover:text-danger-color">
                 Clear file
-            </button>
+            </x-ui.button>
             <div id="{{ $fileStateId }}" class="hidden text-xs text-primary-color">
                 <x-ui.badge color="primary" class="gap-2 font-medium">
                     <i class="fa-solid fa-circle-notch animate-spin"></i>
@@ -83,11 +89,7 @@
             </div>
         </div>
 
-        @if($info)
-            <div class="mt-1 text-xs text-gray-500">{{ $info }}</div>
-        @endif
-
-        <div data-validation-error id="{{ $inputId }}-error" class="mt-1 text-xs text-red-600" @if(!$hasError) hidden @endif>{{ $error }}</div>
+        <x-ui.field-feedback :field="$field" :info="$info" :error="$error" />
     </div>
 
     <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

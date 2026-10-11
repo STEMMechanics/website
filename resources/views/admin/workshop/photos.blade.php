@@ -1029,7 +1029,7 @@
                             <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))" /></td>
                             <td data-mobile-primary class="px-3 py-3">
                                 <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
-                                    <a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a>
+                                    <a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0" rel="noopener"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a>
                                     <div class="sm-workshop-media-card-copy min-w-0">
                                         <div class="sm-workshop-media-card-title font-medium text-gray-900" x-text="title"></div>
                                         <div class="sm-workshop-media-card-meta">

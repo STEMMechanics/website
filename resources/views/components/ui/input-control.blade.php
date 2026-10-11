@@ -1,5 +1,6 @@
-@props(['type' => 'text'])
+@props(['type' => 'text', 'controlAttributes' => null])
 @php
+    $attributes = $attributes->merge($controlAttributes instanceof \Illuminate\View\ComponentAttributeBag ? $controlAttributes->getAttributes() : ($controlAttributes ?? []));
     // For fields embedded in table cells, steppers or an existing labelled wrapper.
     $base = $type === 'radio'
         ? 'h-5 w-5 shrink-0 border-gray-300 text-primary-color focus:ring-primary-color disabled:cursor-not-allowed'

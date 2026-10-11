@@ -136,7 +136,7 @@ class NewsletterAiContext
     /** @return list<array{title:string,availability:string,description:string}> */
     private function newProducts(Carbon $from): array
     {
-        return Product::query()
+        return Product::query()->sellable()
             ->active()
             ->where(fn (Builder $query): Builder => $query
                 ->where('created_at', '>=', $from)

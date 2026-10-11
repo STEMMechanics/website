@@ -87,8 +87,8 @@
             <div class="w-full max-w-lg rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-lg font-bold">Ignore Square Payment</h3>
-                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeIgnore()">
-                        <i class="fa-solid fa-xmark"></i>
+                    <x-ui.button size="icon-small" aria-label="Close ignore payment" variant="text" color="secondary" type="button"  x-on:click="closeIgnore()">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </x-ui.button>
                 </div>
                 <p class="text-sm text-gray-700 mb-3">
@@ -124,7 +124,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4" x-data="{ copyState: '', async copyPayload() { try { await navigator.clipboard.writeText(this.$refs.payload.textContent); this.copyState = 'Copied'; } catch { this.copyState = 'Copy failed. Select the payload and copy it manually.'; } } }">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <h3 class="text-lg font-bold">Payload</h3>
-                <x-ui.button color="primary-outline" size="compact" x-on:click="copyPayload()" aria-label="Copy payload"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i>Copy</x-ui.button>
+                <x-ui.button color="primary-outline" size="small" x-on:click="copyPayload()" aria-label="Copy payload"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i>Copy</x-ui.button>
             </div>
             <p role="status" class="mb-2 text-sm text-gray-600" x-show="copyState" x-text="copyState" x-cloak></p>
             <pre x-ref="payload" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-152 whitespace-pre-wrap">{{ $payloadPretty ?: '{}' }}</pre>

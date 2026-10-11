@@ -184,6 +184,11 @@ class SiteOption extends Model
                 'value' => '{}',
                 'description' => 'JSON object of courier-name keys to tracking URL templates. Use {tracking} as the placeholder for the parcel number.',
             ],
+            'store.costing.markup-percent' => ['value' => '30', 'description' => 'Default markup percentage for suggested Store Item prices. Products can override it. Automatic pricing is enabled per product.', 'input_type' => 'number'],
+            'store.costing.item-operational' => ['value' => '0.50', 'description' => 'Default operational allowance per Store Item, excluding GST.', 'input_type' => 'number'],
+            'store.costing.kit-operational' => ['value' => '1.00', 'description' => 'Default operational allowance per kit, excluding GST.', 'input_type' => 'number'],
+            'store.costing.item-time' => ['value' => '3.50', 'description' => 'Default time allowance per Store Item, excluding GST.', 'input_type' => 'number'],
+            'store.costing.workshop-material-budget' => ['value' => '3.50', 'description' => 'Workshop planning allowance for materials per participant, excluding GST.', 'input_type' => 'number'],
             'store.public-enabled' => [
                 'value' => '1',
                 'description' => 'Master switch for the public store storefront, cart, and checkout. Existing order links still work when disabled.',

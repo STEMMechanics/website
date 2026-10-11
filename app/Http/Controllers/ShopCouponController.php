@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Coupon;
 use App\Models\Product;
 use App\Models\Workshop;
+use App\Services\SiteListControls;
+use App\Support\ListPageSize;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -27,7 +29,7 @@ class ShopCouponController extends Controller
         }
 
         return view('admin.shop.coupon.index', [
-            'coupons' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1),
+            'coupons' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1),
         ]);
     }
 
@@ -38,7 +40,7 @@ class ShopCouponController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $coupon = new Coupon();
+        $coupon = new Coupon;
         $this->saveCoupon($request, $coupon);
 
         session()->flash('message', 'Voucher created.');
@@ -87,7 +89,7 @@ class ShopCouponController extends Controller
 
     public function productOptions(Request $request): JsonResponse
     {
-        $query = Product::query();
+        $query = Product::query()->sellable();
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
@@ -112,7 +114,7 @@ class ShopCouponController extends Controller
 
         $products = $query
             ->orderBy('title')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
 
         return response()->json([
@@ -158,7 +160,7 @@ class ShopCouponController extends Controller
         $workshops = $query
             ->orderByDesc('starts_at')
             ->orderBy('title')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
 
         return response()->json([

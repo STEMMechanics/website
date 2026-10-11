@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ProductRecipeService;
 use App\Services\StockInventoryService;
 use App\Support\ShopProductUrls;
 use App\Support\ShopShippingSettings;
@@ -31,6 +32,10 @@ class Product extends Model
 
     public const PRODUCT_TYPE_PHYSICAL = 'physical';
 
+    public const PRODUCT_TYPE_KIT = 'kit';
+
+    public const PRODUCT_TYPE_MATERIAL = 'material';
+
     public const BACKORDER_SHIPPING_ESTIMATE_STATIC = 'static';
 
     public const BACKORDER_SHIPPING_ESTIMATE_DYNAMIC = 'dynamic';
@@ -44,9 +49,18 @@ class Product extends Model
     public const PRODUCT_TYPES = [
         self::PRODUCT_TYPE_DIGITAL,
         self::PRODUCT_TYPE_PHYSICAL,
+        self::PRODUCT_TYPE_KIT,
+        self::PRODUCT_TYPE_MATERIAL,
     ];
 
+    public const PHYSICAL_TYPES = [self::PRODUCT_TYPE_PHYSICAL, self::PRODUCT_TYPE_KIT];
+
+    public const SELLABLE_TYPES = [self::PRODUCT_TYPE_PHYSICAL, self::PRODUCT_TYPE_KIT, self::PRODUCT_TYPE_DIGITAL];
+
     protected $fillable = [
+        'material_kind', 'purchase_unit', 'purchase_quantity', 'material_measure_unit',
+        'material_length_mm', 'material_width_mm', 'unit_cost_ex_tax', 'operational_cost_ex_tax',
+        'time_cost_ex_tax', 'automatic_pricing', 'markup_percent',
         'shared_inventory',
         'inventory_units',
         'slug',
@@ -93,6 +107,14 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'automatic_pricing' => 'boolean',
+        'purchase_quantity' => 'float',
+        'material_length_mm' => 'float',
+        'material_width_mm' => 'float',
+        'unit_cost_ex_tax' => 'float',
+        'operational_cost_ex_tax' => 'float',
+        'time_cost_ex_tax' => 'float',
+        'markup_percent' => 'float',
         'shared_inventory' => 'boolean',
         'inventory_units' => 'integer',
         'price' => 'decimal:2',
@@ -203,12 +225,87 @@ class Product extends Model
 
     public function hasLinkedStock(?ProductVariant $variant = null): bool
     {
-        return $this->linkedStockItem($variant) instanceof StockItem;
+        return false;
     }
 
     public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopeSellable($query)
+    {
+        return $query->whereIn('product_type', self::SELLABLE_TYPES);
+    }
+
+    public function scopePhysical($query)
+    {
+        return $query->whereIn('product_type', self::PHYSICAL_TYPES);
+    }
+
+    public function isKit(): bool
+    {
+        return (string) $this->product_type === self::PRODUCT_TYPE_KIT;
+    }
+
+    public function isMaterial(): bool
+    {
+        return (string) $this->product_type === self::PRODUCT_TYPE_MATERIAL;
+    }
+
+    public function isSellable(): bool
+    {
+        return $this->isPhysical() || $this->isDigital();
+    }
+
+    /** @return HasMany<ProductCutSize, $this> */
+    public function cutSizes(): HasMany
+    {
+        return $this->hasMany(ProductCutSize::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** @return HasMany<ProductRecipeComponent, $this> */
+    public function recipeComponents(): HasMany
+    {
+        return $this->hasMany(ProductRecipeComponent::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** @return HasMany<ProductRecipeComponent, $this> */
+    public function usedInRecipes(): HasMany
+    {
+        return $this->hasMany(ProductRecipeComponent::class, 'component_product_id');
+    }
+
+    /** @return HasMany<ProductPurchase, $this> */
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(ProductPurchase::class);
+    }
+
+    public function purchaseUnitLabel(): string
+    {
+        return trim((string) $this->purchase_unit) ?: 'each';
+    }
+
+    public function hasPickListReferences(?int $cutSizeId = null): bool
+    {
+        if (PickListTemplateItem::query()->where('product_id', $this->id)
+            ->when($cutSizeId !== null, fn ($query) => $query->where('cut_size_id', $cutSizeId))->exists()) {
+            return true;
+        }
+        foreach (Workshop::query()->where('pick_list_is_customized', true)->select(['id', 'pick_list_custom_items'])->cursor() as $workshop) {
+            foreach ($workshop->pick_list_custom_items ?? [] as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                if ((int) ($item['product_id'] ?? 0) === (int) $this->id
+                    && ($cutSizeId === null || (int) ($item['cut_size_id'] ?? 0) === $cutSizeId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function getRouteKeyName(): string
@@ -273,7 +370,7 @@ class Product extends Model
 
     public function isPhysical(): bool
     {
-        return (string) $this->product_type === self::PRODUCT_TYPE_PHYSICAL;
+        return in_array((string) $this->product_type, self::PHYSICAL_TYPES, true);
     }
 
     public function isPreorder(?ProductVariant $variant = null): bool
@@ -464,9 +561,14 @@ class Product extends Model
         return $variant instanceof ProductVariant ? $variant->effectiveHeightMm() : ($this->height_mm !== null ? (int) $this->height_mm : null);
     }
 
+    public function saleUnits(?ProductVariant $variant = null): int
+    {
+        return max(1, (int) ($variant->inventory_units ?? $this->inventory_units));
+    }
+
     public function inventoryUnits(?ProductVariant $variant = null): int
     {
-        return $this->shared_inventory ? max(1, (int) ($variant->inventory_units ?? $this->inventory_units)) : 1;
+        return $this->shared_inventory ? $this->saleUnits($variant) : 1;
     }
 
     public function tracksInventory(?ProductVariant $variant = null): bool
@@ -536,6 +638,9 @@ class Product extends Model
 
     public function isSelectionPurchasable(?ProductVariant $variant = null): bool
     {
+        if (! $this->isSellable()) {
+            return false;
+        }
         if ($variant instanceof ProductVariant) {
             return $variant->is_active && ($this->isPreorder($variant) || $this->allowsBackorder($variant) || $this->isSelectionInStock($variant));
         }
@@ -870,7 +975,7 @@ class Product extends Model
 
     public function replacementCostForVariant(?ProductVariant $variant = null): ?float
     {
-        return app(StockInventoryService::class)->replacementCostFor($this, $variant);
+        return app(ProductRecipeService::class)->materialCost($this, $variant);
     }
 
     public static function priceAmountLabel(float $amount): string
@@ -953,7 +1058,9 @@ class Product extends Model
     {
         return match ($type) {
             self::PRODUCT_TYPE_DIGITAL => 'Digital Download',
-            self::PRODUCT_TYPE_PHYSICAL => 'Physical Item',
+            self::PRODUCT_TYPE_PHYSICAL => 'Store Item',
+            self::PRODUCT_TYPE_KIT => 'Kit',
+            self::PRODUCT_TYPE_MATERIAL => 'Material',
             default => ucfirst(str_replace('_', ' ', $type)),
         };
     }

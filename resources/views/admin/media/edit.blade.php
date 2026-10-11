@@ -117,6 +117,24 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     if (edge === 'bottom') return `left:${bounds.x}px; top:${bottom}px; width:${bounds.width}px; height:${Math.max(0, bounds.y + bounds.height - bottom)}px;`;
                     return `left:${bounds.x}px; top:${top}px; width:${Math.max(0, left - bounds.x)}px; height:${Math.max(0, bottom - top)}px;`;
                 },
+                resizeCropWithKeyboard(mode, event) {
+                    if (event.altKey || event.ctrlKey || event.metaKey || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const step = event.shiftKey ? 5 : 1;
+                    const dx = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0;
+                    const dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0;
+                    const next = { ...this.editorDraft };
+                    for (const [direction, edge, opposite, delta] of [
+                        ['n', 'top', 'bottom', dy], ['s', 'bottom', 'top', -dy],
+                        ['w', 'left', 'right', dx], ['e', 'right', 'left', -dx],
+                    ]) {
+                        if (mode.includes(direction)) {
+                            next[edge] = Math.max(0, Math.min(90, 95 - Number(next[opposite] || 0), Number(next[edge] || 0) + delta));
+                        }
+                    }
+                    this.editorDraft = next;
+                },
                 startCropDrag(mode, event) {
                     const bounds = this.editorBounds;
                     if (!bounds) return;
@@ -316,7 +334,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     @if($isEditableImage)
                         <div class="mt-4 flex justify-end">
                             <x-ui.button variant="plain" type="button" class="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click.prevent="openEditor()">
-                                <i class="fa-solid fa-pen-to-square mr-2"></i>Edit Image
+                                <i class="fa-solid fa-pen-to-square mr-2" aria-hidden="true"></i>Edit Image
                             </x-ui.button>
                         </div>
                         <div x-show="editorOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeEditor()">
@@ -326,8 +344,8 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <div class="text-base font-semibold text-gray-900">Edit Image</div>
                                         <div class="text-xs text-gray-500">Saving applies these edits to the original image and regenerates variants.</div>
                                     </div>
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click.prevent="closeEditor()">
-                                        <i class="fa-solid fa-xmark"></i>
+                                    <x-ui.button size="icon-small" aria-label="Close image editor" variant="text" color="secondary" type="button"  x-on:click.prevent="closeEditor()">
+                                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                     </x-ui.button>
                                 </div>
                                 <div class="overflow-y-auto p-4">
@@ -341,14 +359,14 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                         <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('bottom')"></div>
                                         <div class="sm-image-crop-preview__shade" :style="cropShadeStyle('left')"></div>
                                         <div class="sm-image-crop-preview__focus" :style="cropFocusStyle()" x-on:mousedown.prevent="startCropDrag('move', $event)">
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--n" style="cursor: ns-resize;" aria-label="Resize crop top edge" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('n', $event)" x-on:mousedown.prevent.stop="startCropDrag('n', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--ne" style="cursor: nesw-resize;" aria-label="Resize crop top right corner" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('ne', $event)" x-on:mousedown.prevent.stop="startCropDrag('ne', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--e" style="cursor: ew-resize;" aria-label="Resize crop right edge" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('e', $event)" x-on:mousedown.prevent.stop="startCropDrag('e', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--se" style="cursor: nwse-resize;" aria-label="Resize crop bottom right corner" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('se', $event)" x-on:mousedown.prevent.stop="startCropDrag('se', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--s" style="cursor: ns-resize;" aria-label="Resize crop bottom edge" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('s', $event)" x-on:mousedown.prevent.stop="startCropDrag('s', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--sw" style="cursor: nesw-resize;" aria-label="Resize crop bottom left corner" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('sw', $event)" x-on:mousedown.prevent.stop="startCropDrag('sw', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--w" style="cursor: ew-resize;" aria-label="Resize crop left edge" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('w', $event)" x-on:mousedown.prevent.stop="startCropDrag('w', $event)"></x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="sm-image-crop-preview__handle sm-image-crop-preview__handle--nw" style="cursor: nwse-resize;" aria-label="Resize crop top left corner" title="Use arrow keys to resize; hold Shift for larger steps" x-on:keydown="resizeCropWithKeyboard('nw', $event)" x-on:mousedown.prevent.stop="startCropDrag('nw', $event)"></x-ui.button>
                                         </div>
                                     </div>
                                     <div class="space-y-4 md:max-w-72">
@@ -492,7 +510,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                             <x-ui.row-actions>
                                                 <x-ui.row-action label="Copy protected URL" icon="fa-solid fa-copy" tone="neutral"
 
-                                                    x-on:click.prevent="SM.copyToClipboard(@js($protectedDownloadLink))"
+                                                    x-on:click.prevent="SM.copyToClipboard({{ \Illuminate\Support\Js::from($protectedDownloadLink) }})"
                                                     x-bind:class="protectedLinkActionsDisabled() ? 'pointer-events-none opacity-50' : ''"
                                                  />
                                                 <x-ui.row-action label="Revoke protected URL" icon="fa-solid fa-trash" tone="danger"
@@ -647,7 +665,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50" x-show="search.trim().length >= 2" x-cloak>
                     <template x-for="workshop in filtered()" :key="workshop.id">
                         <x-ui.button variant="plain" type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(workshop.id)">
-                            <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
+                            <i class="fa-solid fa-plus mt-1 text-primary-color" aria-hidden="true"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="workshop.title"></span>
                                 <span class="block text-xs text-gray-500" x-text="`${workshop.location} · ${workshop.date}`"></span>
@@ -737,9 +755,9 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                         <h3 class="text-base font-semibold">Stored Variants</h3>
                         <div class="flex items-center gap-2">
                             @if($variantFilesInfo->isNotEmpty())
-                            <x-ui.button type="button" color="outline" size="compact" x-data x-on:click.prevent="confirmDeleteVariants()">Delete Variants</x-ui.button>
+                            <x-ui.button type="button" color="outline" size="small" x-data x-on:click.prevent="confirmDeleteVariants()">Delete Variants</x-ui.button>
                             @endif
-                            <x-ui.button type="button" color="primary-outline" size="compact" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="small" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
                         </div>
                     </div>
                     @if($variantFilesInfo->isNotEmpty())
@@ -792,7 +810,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 </div>
             @endisset
             @unless(isset($medium))
-                <x-ui.file name="file" onchange="updateTitle" value="" />
+                <x-ui.file name="file" on-change="updateTitle" value="" />
             @endunless
 
             <x-ui.editor-actions>

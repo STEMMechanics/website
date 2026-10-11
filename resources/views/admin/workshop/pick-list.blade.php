@@ -37,16 +37,8 @@
                 customItems: @js($customItems ?? []),
                 shelfPickRows: @js($shelfPickRows ?? []),
                 kitSummaries: @js($kitSummaries ?? []),
-                stockShortageCount: @js((int) ($stockShortageCount ?? 0)),
-                stockItems: @js(($stockItems ?? collect())->map(fn ($stockItem) => [
-                    'id' => (int) $stockItem->id,
-                    'name' => (string) $stockItem->linkLabel(),
-                    'sku' => (string) ($stockItem->sku ?? ''),
-                    'status' => (string) ($stockItem->status ?? 'active'),
-                    'is_kit' => (bool) ($stockItem->is_kit ?? false),
-                    'group_name' => (string) ($stockItem->group?->name ?? ''),
-                    'variant_name' => (string) ($stockItem->variant_name ?? ''),
-                ])->values()->all()),
+                materialBudget: @js($materialBudget ?? []),
+                productCatalog: @js($productCatalog ?? []),
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
@@ -131,7 +123,7 @@
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
                                                     <div class="flex gap-3 items-center">
                                                         @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = {{ \Illuminate\Support\Js::from($task->name) }}; taskNote = {{ \Illuminate\Support\Js::from($renderedTaskNote) }}; taskSubtasks = {{ \Illuminate\Support\Js::from($renderedSubtasks) }}"><i class="fa-regular fa-note-sticky mr-1"></i>View notes</x-ui.button>
+                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = {{ \Illuminate\Support\Js::from($task->name) }}; taskNote = {{ \Illuminate\Support\Js::from($renderedTaskNote) }}; taskSubtasks = {{ \Illuminate\Support\Js::from($renderedSubtasks) }}"><i class="fa-regular fa-note-sticky mr-1" aria-hidden="true"></i>View notes</x-ui.button>
                                                         @endif
 
                                                         @if(($task->notes || count($task->subtasks ?? []) > 0) && $taskReminder)
@@ -218,18 +210,16 @@
                             </span>
                         </div>
                     @endif
-                    <span x-show="stockShortageCount > 0" x-cloak class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900" role="status">
-                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                        <span x-text="stockShortageCount === 1 ? '1 stock shortage' : `${stockShortageCount} stock shortages`"></span>
-                    </span>
                 </summary>
 
-                @if(($workshopStockCost ?? null) !== null && (float) $workshopStockCost > 0)
-                    <div class="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                        <span class="font-semibold">Estimated linked material cost:</span>
-                        ${{ number_format((float) $workshopStockCost, 2) }} ex GST
-                    </div>
-                @endif
+                <div class="mt-3 rounded-xl border px-4 py-3 text-sm" x-bind:class="materialBudget.over_budget ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-700'" x-show="shelfPickRows.length || kitSummaries.length">
+                    <strong>Linked material estimate:</strong> <span x-text="'$' + Number(materialBudget.known_cost || 0).toFixed(2)"></span> ex GST
+                    · <span x-text="'$' + Number(materialBudget.per_participant || 0).toFixed(2)"></span> per participant
+                    · <span x-text="'$' + Number(materialBudget.budget || 0).toFixed(2) + ' ' + (materialBudget.budget_label || 'planning allowance')"></span>
+                    <span x-show="materialBudget.over_budget" class="font-semibold"> · Above allowance</span>
+                    <p class="mt-1 text-xs">Uses recipe materials only; workshop time and operations are covered by the workshop allocation.</p>
+                    <p class="mt-1 text-xs" x-show="materialBudget.manual_items || materialBudget.unknown_items"><span x-text="(materialBudget.manual_items || 0) + ' manual items and ' + (materialBudget.unknown_items || 0) + ' linked items without costs are excluded.'"></span></p>
+                </div>
 
                 <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 
@@ -299,24 +289,16 @@
                                                     />
                                                     <span class="min-w-0 flex-1">
                                                         <span class="block font-semibold text-gray-900" x-text="entry.kind === 'kit' ? kitChecklistLabel(entry.item) : shelfRowLabel(entry.item)"></span>
-                                                        <template x-if="Number(entry.item.shortage_quantity ?? 0) > 0.0005">
-                                                            <span class="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                                                                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                                                                <span x-text="stockShortageLabel(entry.item)"></span>
-                                                            </span>
-                                                        </template>
                                                         <template x-if="entry.kind === 'kit'">
                                                             <span class="mt-0.5 block text-xs font-medium text-slate-600" x-text="kitAssemblyStatus(entry.item)"></span>
                                                         </template>
-                                                        <template x-if="entry.kind === 'kit' && entry.item.assembly_url">
-                                                            <button type="button" class="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950" x-on:click.stop="$dispatch('open-workshop-assembly', { url: entry.item.assembly_url })">
-                                                                <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>Assemble for workshop
-                                                            </button>
+                                                        <template x-if="entry.item.raw_note">
+                                                            <span class="mt-0.5 block text-xs text-slate-500" x-text="entry.item.raw_note"></span>
                                                         </template>
                                                     </span>
                                                 </label>
                                                 <template x-if="entry.item.admin_url">
-                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open stock item in admin" title="Open stock item in admin"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open item in Products" title="Open item in Products"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
                                                 </template>
                                             </div>
                                         </template>
@@ -324,18 +306,12 @@
                                             <div class="flex items-start gap-2 text-sm text-gray-600">
                                                 <div class="min-w-0 flex-1">
                                                     <span class="block" x-text="kitComponentLabel(entry.item)"></span>
-                                                    <template x-if="Number(entry.item.shortage_quantity ?? 0) > 0.0005">
-                                                        <span class="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                                                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                                                            <span x-text="stockShortageLabel(entry.item)"></span>
-                                                        </span>
-                                                    </template>
                                                     <template x-if="kitComponentNote(entry.item) !== ''">
                                                         <span class="mt-0.5 block text-xs text-slate-500" x-text="kitComponentNote(entry.item)"></span>
                                                     </template>
                                                 </div>
                                                 <template x-if="entry.item.admin_url">
-                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open stock item in admin" title="Open stock item in admin"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+                                                    <a class="shrink-0 text-slate-400 hover:text-primary-color" x-bind:href="entry.item.admin_url" target="_blank" rel="noopener noreferrer" aria-label="Open item in Products" title="Open item in Products"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
                                                 </template>
                                             </div>
                                         </template>
@@ -376,11 +352,12 @@
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Item</div>
                                         <div
-                                            x-on:stock-item-link-changed="selectCustomStockItem(index)"
+                                            x-on:product-item-link-changed="selectCustomProductItem(index)"
                                             x-on:input="handleCustomItemChange(index)"
                                             x-on:change="handleCustomItemChange(index)"
                                         >
-                                            <x-admin.stock-item-link-field stock-items-expression="stockItems" />
+                                            <x-admin.product-item-field catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
+                                            <x-admin.product-preparation-fields />
                                         </div>
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3 text-center!">
@@ -453,7 +430,7 @@
                 <x-ui.editor
                     name="workshop_run_sheet"
                     label="Instructions"
-                    value="{!! old('workshop_run_sheet', $workshop->workshop_run_sheet ?? $workshop->pickListTemplate?->run_sheet ?? '') !!}"
+                    :value="old('workshop_run_sheet', $workshop->workshop_run_sheet ?? $workshop->pickListTemplate?->run_sheet ?? '')"
                 />
                 <p class="mt-1 text-xs text-gray-500">Changes apply only to this workshop and do not alter its blueprint.</p>
             </div>
@@ -484,7 +461,7 @@
                                     <div class="truncate">{{ $attachment->title ?: $attachment->name }}</div>
                                     <div class="text-xs text-gray-500">{{ $attachment->file_type }} · {{ \App\Helpers::bytesToString((int) $attachment->size) }}</div>
                                 </div>
-                                <a href="{{ $attachment->url }}" target="_blank" class="shrink-0 text-gray-500 hover:text-primary-color" title="View attachment"><i class="fa-solid fa-eye"></i></a>
+                                <a href="{{ $attachment->url }}" target="_blank" class="shrink-0 text-gray-500 hover:text-primary-color" title="View attachment" rel="noopener"><i class="fa-solid fa-eye"></i></a>
                                 <a href="{{ $attachment->url }}?download=1" class="shrink-0 text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
                             </div>
                         @endforeach
@@ -501,13 +478,13 @@
                 <x-ui.button type="submit" x-bind:disabled="submitting || itemsEditMode">
                     <span x-show="!submitting">Save</span>
                     <span x-show="submitting" class="inline-flex items-center gap-2">
-                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                         <span>Saving...</span>
                     </span>
                 </x-ui.button>
             </div>
         </form>
 
-        @include('admin.workshop.partials.stock-assembly-dialog')
+
     </x-container>
 </x-layout>
