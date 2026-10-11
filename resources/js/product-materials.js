@@ -25,6 +25,9 @@ window.SM.productMaterials = (config = {}) => ({
     isPhysicalProduct() {
         return ['physical', 'kit'].includes(this.productType);
     },
+    hasMaterialMeasurements() {
+        return this.productType === 'material' || (this.productType === 'physical' && ['length', 'sheet'].includes(this.materialKind));
+    },
     initMaterials() {
         this.isKit = this.productType === 'kit';
         this.recipeRows.forEach((row) => { row.item_name = this.recipeItem(row)?.name || row.item_name || ''; });
@@ -87,17 +90,21 @@ window.SM.productMaterials = (config = {}) => ({
         const item = this.recipeItem(row);
         const quantity = Number(row.quantity);
         if (!item || !Number.isFinite(quantity) || quantity <= 0) return null;
-        if (item.product_type !== 'material') return quantity;
+        if (item.product_type !== 'material' && !item.has_material_measurements) return quantity;
+        const variant = item.variants?.find((option) => String(option.id) === String(row.component_variant_id));
+        const packUnits = item.product_type === 'material' ? 1 : Number(variant?.pack_units ?? item.pack_units ?? 1);
+        if (!Number.isInteger(packUnits) || packUnits < 1) return null;
         if (item.material_kind === 'sheet') {
             if (!row.cut_size_id) return quantity;
             const cut = item.cut_sizes.find((size) => String(size.id) === String(row.cut_size_id));
-            return cut?.yield > 0 ? quantity / cut.yield : null;
+            return cut?.yield > 0 ? quantity / cut.yield / packUnits : null;
         }
         if (item.material_kind === 'length') {
+            if (item.product_type !== 'material' && String(row.length ?? '').trim() === '') return quantity;
             const factors = { mm: 1, cm: 10, m: 1000 };
             const length = Number(row.length);
             const purchased = Number(item.purchase_quantity) * (factors[item.measure_unit] || 0);
-            return length > 0 && purchased > 0 && factors[row.length_unit] ? quantity * length * factors[row.length_unit] / purchased : null;
+            return length > 0 && purchased > 0 && factors[row.length_unit] ? quantity * length * factors[row.length_unit] / purchased / packUnits : null;
         }
         return item.purchase_quantity > 0 ? quantity / item.purchase_quantity : null;
     },

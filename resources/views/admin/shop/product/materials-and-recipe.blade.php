@@ -1,31 +1,31 @@
-<x-ui.collapsible-section title="Material measurements" variant="product" :open="true" x-show="productType === 'material'" x-cloak>
-    <x-slot:summary><span x-text="purchaseUnit + (materialKind === 'length' ? ' · ' + purchaseQuantity + ' ' + materialMeasureUnit : materialKind === 'sheet' ? ' · ' + materialLength + ' × ' + materialWidth + ' mm' : '')"></span></x-slot:summary>
-    <p class="mb-4 text-sm text-slate-600">Describe what you purchase. Recipes use counts, lengths and cut sizes. Materials are kept off the public store and do not need stock counts.</p>
+<x-ui.collapsible-section title="Material measurements" variant="product" :open="$editorProductType === \App\Models\Product::PRODUCT_TYPE_MATERIAL || (isset($product) && $product->hasMaterialMeasurements()) || $errors->any()" x-show="productType === 'material' || productType === 'physical'" x-cloak>
+    <x-slot:summary><span x-text="hasMaterialMeasurements() ? purchaseUnit + (materialKind === 'length' ? ' · ' + purchaseQuantity + ' ' + materialMeasureUnit : materialKind === 'sheet' ? ' · ' + materialLength + ' × ' + materialWidth + ' mm' : '') : 'Individual items'"></span></x-slot:summary>
+    <p class="mb-4 text-sm text-slate-600" x-text="productType === 'material' ? 'Describe each purchased unit. Recipes use counts, lengths and cut sizes. Materials are kept off the public store and do not need stock counts.' : 'Optional: describe one individual stock unit, such as a 50 m roll. Use this same item for purchases, store packs and measured pieces in recipes or workshop pick lists. Stock counts whole sellable units; opening a roll for workshops is a manual stock adjustment.'"></p>
     <div class="product-editor__fields">
-        <x-ui.select name="material_kind" label="Measure as" x-model="materialKind" x-on:change="changeMaterialKind()" x-bind:disabled="productType !== 'material'">
-            <option value="unit">Individual items</option><option value="length">Length (roll or dowel)</option><option value="sheet">Sheet</option>
+        <x-ui.select name="material_kind" label="Measure as" x-model="materialKind" x-on:change="changeMaterialKind()" x-bind:disabled="productType !== 'material' && productType !== 'physical'">
+            <option value="unit" x-text="productType === 'material' ? 'Individual items' : 'Individual items (no measurements)'">Individual items</option><option value="length">Length (roll or dowel)</option><option value="sheet">Sheet</option>
         </x-ui.select>
-        <x-ui.input name="purchase_unit" label="Purchased as" placeholder="Roll, sheet, pack or each" fieldClasses="max-w-48" x-model="purchaseUnit" x-bind:disabled="productType !== 'material'" />
-        <div x-show="materialKind !== 'sheet'">
-            <x-ui.input name="purchase_quantity" label="Amount in each purchase unit" type="number" min="0.0001" step="any" x-model="purchaseQuantity" x-bind:disabled="productType !== 'material' || materialKind === 'sheet'" />
+        <x-ui.input name="purchase_unit" label="Unit name" placeholder="Roll, sheet, pack or each" fieldClasses="max-w-48" x-model="purchaseUnit" x-show="hasMaterialMeasurements()" x-bind:disabled="!hasMaterialMeasurements()" />
+        <div x-show="hasMaterialMeasurements() && materialKind !== 'sheet'">
+            <x-ui.input name="purchase_quantity" label="Amount per unit" type="number" min="0.0001" step="any" x-model="purchaseQuantity" x-bind:disabled="!hasMaterialMeasurements() || materialKind === 'sheet'" />
         </div>
         <div x-show="materialKind === 'length'">
-            <x-ui.select name="material_measure_unit" label="Length unit" x-model="materialMeasureUnit" x-bind:disabled="productType !== 'material' || materialKind !== 'length'">
+            <x-ui.select name="material_measure_unit" label="Length unit" x-model="materialMeasureUnit" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'length'">
                 <option value="mm">Millimetres (mm)</option><option value="cm">Centimetres (cm)</option><option value="m">Metres (m)</option>
             </x-ui.select>
         </div>
-        <div x-show="materialKind === 'sheet'"><x-ui.input name="material_length_mm" label="Sheet length (mm)" type="number" step="any" min="0.001" x-model="materialLength" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'" /></div>
-        <div x-show="materialKind === 'sheet'"><x-ui.input name="material_width_mm" label="Sheet width (mm)" type="number" step="any" min="0.001" x-model="materialWidth" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'" /></div>
+        <div x-show="materialKind === 'sheet'"><x-ui.input name="material_length_mm" label="Sheet length (mm)" type="number" step="any" min="0.001" x-model="materialLength" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
+        <div x-show="materialKind === 'sheet'"><x-ui.input name="material_width_mm" label="Sheet width (mm)" type="number" step="any" min="0.001" x-model="materialWidth" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
     </div>
     <div x-show="materialKind === 'sheet'" class="mt-4">
         <div class="mb-3 flex items-center justify-between gap-3"><h3 class="font-semibold">Cut sizes and usable yield</h3><x-ui.button type="button" color="primary-outline" size="small" x-on:click="addCutSize()">Add cut size</x-ui.button></div>
         <p class="mb-3 text-sm text-slate-600">Enter the number of usable pieces you normally cut from one sheet. Costs include the unused material. Reusing offcuts gives you a saving.</p>
         <template x-for="(cut, index) in cutSizes" :key="cut.key">
             <div class="mb-3 product-editor__compact-fields rounded-lg border border-slate-200 p-3">
-                <input type="hidden" x-bind:name="`cut_sizes[${index}][id]`" x-bind:value="cut.id" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'">
-                <label class="w-40 text-sm">Length (mm)<x-ui.input-control class="mt-1" type="number" min="0.001" step="any" x-bind:name="`cut_sizes[${index}][length_mm]`" x-model="cut.length_mm" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'" required /></label>
-                <label class="w-40 text-sm">Width (mm)<x-ui.input-control class="mt-1" type="number" min="0.001" step="any" x-bind:name="`cut_sizes[${index}][width_mm]`" x-model="cut.width_mm" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'" required /></label>
-                <label class="w-40 text-sm">Pieces per sheet<x-ui.input-control class="mt-1" type="number" min="1" step="1" x-bind:name="`cut_sizes[${index}][yield]`" x-model="cut.yield" x-bind:disabled="productType !== 'material' || materialKind !== 'sheet'" required /></label>
+                <input type="hidden" x-bind:name="`cut_sizes[${index}][id]`" x-bind:value="cut.id" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'">
+                <label class="w-40 text-sm">Length (mm)<x-ui.input-control class="mt-1" type="number" min="0.001" step="any" x-bind:name="`cut_sizes[${index}][length_mm]`" x-model="cut.length_mm" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" required /></label>
+                <label class="w-40 text-sm">Width (mm)<x-ui.input-control class="mt-1" type="number" min="0.001" step="any" x-bind:name="`cut_sizes[${index}][width_mm]`" x-model="cut.width_mm" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" required /></label>
+                <label class="w-40 text-sm">Pieces per sheet<x-ui.input-control class="mt-1" type="number" min="1" step="1" x-bind:name="`cut_sizes[${index}][yield]`" x-model="cut.yield" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" required /></label>
                 <div class="flex self-end items-center gap-2"><x-ui.button type="button" size="small" color="outline" x-on:click="cut.yield = gridYield(cut) || cut.yield" x-bind:disabled="!gridYield(cut)" title="Use the best simple grid, allowing rotation">Use grid yield</x-ui.button><x-ui.row-action type="button" label="Remove cut size" icon="fa-solid fa-trash-can" tone="danger" x-on:click="cutSizes.splice(index, 1)" /></div>
             </div>
         </template>
@@ -61,8 +61,8 @@
                 </x-ui.select-control>
             </label>
             <div class="product-editor__recipe-length" x-show="recipeItem(row)?.material_kind === 'length'">
-                <label class="min-w-0 flex-1 text-sm">Length each
-                    <x-ui.input-control class="mt-1 h-11" type="number" min="0.0001" step="any" x-bind:name="`recipe[${index}][length]`" x-model="row.length" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'length'" required />
+                <label class="min-w-0 flex-1 text-sm">Length each <span class="text-xs text-slate-500" x-show="recipeItem(row)?.product_type !== 'material'">(optional)</span>
+                    <x-ui.input-control class="mt-1 h-11" type="number" min="0.0001" step="any" x-bind:name="`recipe[${index}][length]`" x-model="row.length" x-bind:placeholder="recipeItem(row)?.product_type === 'material' ? '' : 'Whole pack'" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'length'" x-bind:required="recipeItem(row)?.product_type === 'material' && recipeItem(row)?.material_kind === 'length'" />
                 </label>
                 <label class="w-16 text-sm">Unit
                     <x-ui.select-control class="mt-1 h-11" x-bind:name="`recipe[${index}][length_unit]`" x-model="row.length_unit" x-bind:disabled="!isPhysicalProduct() || recipeItem(row)?.material_kind !== 'length'">
@@ -78,7 +78,7 @@
                 <span class="flex h-11 items-center whitespace-nowrap text-sm font-semibold tabular-nums" x-text="costingMoney(recipeRowCost(row))"></span>
             </div>
             <div class="flex shrink-0 items-center gap-2">
-                <x-ui.button variant="soft" size="icon" color="secondary" icon="pen-ruler" label="Edit material measurements and cut sizes" x-show="recipeItem(row)?.product_type === 'material'" x-bind:href="recipeItem(row)?.url" target="_blank" class="rounded-xl" />
+                <x-ui.button variant="soft" size="icon" color="secondary" icon="pen-ruler" label="Edit material measurements and cut sizes" x-show="recipeItem(row)?.has_material_measurements" x-bind:href="recipeItem(row)?.url" target="_blank" class="rounded-xl" />
                 <x-ui.row-action type="button" label="Remove item" icon="fa-solid fa-trash-can" tone="danger" x-on:click="recipeRows.splice(index, 1)" />
             </div>
         </div>

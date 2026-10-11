@@ -8,6 +8,7 @@ use App\Models\WorkshopRunSheetTask;
 use App\Models\WorkshopTemplateTask;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class WorkshopBlueprintService
 {
@@ -46,6 +47,96 @@ class WorkshopBlueprintService
                 'run_sheet_completed_task_ids' => null,
             ])->save();
         });
+    }
+
+    public function workshopTasksMatchBlueprint(Workshop $workshop): bool
+    {
+        $currentTasks = array_map(
+            $this->taskDefinition(...),
+            $this->taskDraftsForWorkshop($workshop),
+        );
+        $blueprintTasks = array_map($this->taskDefinition(...), $this->blueprintTaskDrafts($workshop));
+
+        return $currentTasks === $blueprintTasks;
+    }
+
+    public function amendMissingBlueprintTasks(Workshop $workshop): int
+    {
+        return DB::transaction(function () use ($workshop): int {
+            Workshop::query()->whereKey($workshop->id)->lockForUpdate()->firstOrFail();
+            $existing = $workshop->runSheetTasks()->get();
+            $existingIds = $existing->pluck('blueprint_task_id')->filter()->map(fn ($id): int => (int) $id)->all();
+            $existingNames = $existing->pluck('name')->map(fn ($name): string => Str::lower(Str::squish((string) $name)))->all();
+            $sortOrder = (int) ($existing->max('sort_order') ?? 0);
+            $added = 0;
+
+            foreach ($this->blueprintTaskDrafts($workshop) as $task) {
+                $name = Str::lower(Str::squish((string) $task['name']));
+                if (in_array((int) $task['blueprint_task_id'], $existingIds, true) || in_array($name, $existingNames, true)) {
+                    continue;
+                }
+
+                $sortOrder += 10;
+                $workshop->runSheetTasks()->create([...$task, 'sort_order' => $sortOrder]);
+                $existingIds[] = (int) $task['blueprint_task_id'];
+                $existingNames[] = $name;
+                $added++;
+            }
+
+            $workshop->unsetRelation('runSheetTasks');
+
+            return $added;
+        });
+    }
+
+    public function revertWorkshopTasksToBlueprint(Workshop $workshop): void
+    {
+        DB::transaction(function () use ($workshop): void {
+            Workshop::query()->whereKey($workshop->id)->lockForUpdate()->firstOrFail();
+            $existing = $workshop->runSheetTasks()->get()->keyBy('blueprint_task_id');
+            $tasks = array_map(function (array $task) use ($existing): array {
+                // Keep task IDs so completed tasks and their reminder history are retained.
+                $task['id'] = $existing->get($task['blueprint_task_id'])?->id;
+
+                return $task;
+            }, $this->blueprintTaskDrafts($workshop));
+
+            $this->saveWorkshopTasks($workshop, $tasks);
+            $workshop->unsetRelation('runSheetTasks');
+        });
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function blueprintTaskDrafts(Workshop $workshop): array
+    {
+        $workshop->loadMissing('pickListTemplate.tasks');
+
+        return $workshop->pickListTemplate?->tasks->map(fn (WorkshopTemplateTask $task): array => [
+            'blueprint_task_id' => (int) $task->id,
+            ...$task->only(['name', 'notes', 'subtasks', 'reminder_enabled', 'reminder_offset_days', 'reminder_time']),
+        ])->values()->all() ?? [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $task
+     * @return array<string, mixed>
+     */
+    private function taskDefinition(array $task): array
+    {
+        $reminderEnabled = (bool) ($task['reminder_enabled'] ?? false);
+
+        return [
+            'blueprint_task_id' => isset($task['blueprint_task_id']) ? (int) $task['blueprint_task_id'] : null,
+            'name' => trim((string) ($task['name'] ?? '')),
+            'notes' => trim((string) ($task['notes'] ?? '')),
+            'subtasks' => collect($task['subtasks'] ?? [])->map(fn (array $subtask): array => [
+                'title' => trim((string) ($subtask['title'] ?? '')),
+                'content' => trim((string) ($subtask['content'] ?? '')),
+            ])->values()->all(),
+            'reminder_enabled' => $reminderEnabled,
+            'reminder_offset_days' => $reminderEnabled && isset($task['reminder_offset_days']) ? (int) $task['reminder_offset_days'] : null,
+            'reminder_time' => $reminderEnabled ? ($task['reminder_time'] ?? null) : null,
+        ];
     }
 
     /** @return list<array<string, mixed>> */

@@ -9,7 +9,7 @@
         </label>
     </div>
     <div class="grid grid-cols-[1fr_5rem] gap-2" x-show="linkedMaterial?.material_kind === 'length'" x-cloak>
-        <label class="text-xs text-slate-600">Length of each piece<x-ui.input-control class="mt-1 text-sm" type="number" step="any" min="0.0001" x-model="preparationItem.length" x-bind:required="linkedMaterial?.material_kind === 'length'" x-bind:disabled="linkedMaterial?.material_kind !== 'length'" /></label>
+        <label class="text-xs text-slate-600">Length of each piece <span x-show="linkedMaterial?.product_type !== 'material'">(optional)</span><x-ui.input-control class="mt-1 text-sm" type="number" step="any" min="0.0001" x-model="preparationItem.length" x-bind:placeholder="linkedMaterial?.product_type === 'material' ? '' : 'Whole pack'" x-bind:required="linkedMaterial?.product_type === 'material' && linkedMaterial?.material_kind === 'length'" x-bind:disabled="linkedMaterial?.material_kind !== 'length'" /></label>
         <label class="text-xs text-slate-600">Unit<x-ui.select-control class="mt-1 text-sm" x-model="preparationItem.length_unit"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option></x-ui.select-control></label>
     </div>
 </div>

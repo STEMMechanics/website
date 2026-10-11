@@ -49,26 +49,31 @@ class ProductRecipeComponent extends Model
             $size = self::formatNumber((float) $this->length).' '.(string) $this->length_unit;
         }
 
-        return trim(($size ? $size.' ' : '').($this->component?->displayTitle($this->variant) ?? 'Missing item'));
+        $name = $size && $this->component?->isPhysical() && ! $this->variant
+            ? $this->component->title
+            : ($this->component?->displayTitle($this->variant) ?? 'Missing item');
+
+        return trim(($size ? $size.' ' : '').$name);
     }
 
-    /** Purchased units, used for costing only. The pick list still counts pieces. */
+    /** Purchase units or retail packs for costing only. The pick list counts pieces. */
     public function purchasedUnits(): ?float
     {
         $material = $this->component;
         if (! $material instanceof Product) {
             return null;
         }
-        if (! $material->isMaterial()) {
+        if (! $material->hasMaterialMeasurements()) {
             return (float) $this->quantity;
         }
+        $packUnits = $material->isPhysical() ? $material->saleUnits($this->variant) : 1;
         if ($material->material_kind === 'sheet') {
             if (! $this->cut_size_id) {
                 return (float) $this->quantity;
             }
 
             return $this->cutSize && $this->cutSize->yield > 0
-                ? (float) $this->quantity / $this->cutSize->yield
+                ? (float) $this->quantity / $this->cutSize->yield / $packUnits
                 : null;
         }
         $purchased = (float) $material->purchase_quantity;
@@ -76,11 +81,15 @@ class ProductRecipeComponent extends Model
             return null;
         }
         if ($material->material_kind === 'length') {
+            // Existing store-item links without a length still refer to complete packs.
+            if ($material->isPhysical() && $this->length === null) {
+                return (float) $this->quantity;
+            }
             $purchaseFactor = self::LENGTH_UNITS[(string) $material->material_measure_unit] ?? 0;
             $cutFactor = self::LENGTH_UNITS[(string) $this->length_unit] ?? 0;
 
             return $this->length > 0 && $purchaseFactor > 0 && $cutFactor > 0
-                ? (float) $this->quantity * (float) $this->length * $cutFactor / ($purchased * $purchaseFactor)
+                ? (float) $this->quantity * (float) $this->length * $cutFactor / ($purchased * $purchaseFactor) / $packUnits
                 : null;
         }
 
@@ -91,10 +100,13 @@ class ProductRecipeComponent extends Model
     {
         $material = $this->component;
         $units = $this->purchasedUnits();
-        if (! $material?->isMaterial() || $units === null) {
+        if (! $material?->hasMaterialMeasurements() || $units === null) {
             return '';
         }
         if ($material->material_kind === 'length') {
+            if ($this->length === null) {
+                return '';
+            }
             $millimetres = (float) $this->quantity * (float) $this->length
                 * self::LENGTH_UNITS[(string) $this->length_unit] * $multiples;
 
@@ -103,7 +115,12 @@ class ProductRecipeComponent extends Model
                 : self::formatNumber($millimetres).' mm total';
         }
         if ($material->material_kind === 'sheet' || $material->purchase_quantity > 1) {
-            return 'Allow '.self::formatNumber(ceil($units * $multiples - 0.0000001)).' × '.$material->purchaseUnitLabel();
+            if ($material->isPhysical() && ! $this->cut_size_id) {
+                return '';
+            }
+            $packUnits = $material->isPhysical() ? $material->saleUnits($this->variant) : 1;
+
+            return 'Allow '.self::formatNumber(ceil($units * $packUnits * $multiples - 0.0000001)).' × '.$material->purchaseUnitLabel();
         }
 
         return '';

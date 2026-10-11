@@ -295,10 +295,12 @@ class ProductRecipeService
                 'status' => (string) $product->status,
                 'is_kit' => $product->isKit(),
                 'product_type' => (string) $product->product_type,
+                'has_material_measurements' => $product->hasMaterialMeasurements(),
                 'material_kind' => (string) $product->material_kind,
                 'purchase_unit' => $product->purchaseUnitLabel(),
                 'purchase_quantity' => (float) ($product->purchase_quantity ?? 1),
                 'measure_unit' => (string) ($product->material_measure_unit ?? 'mm'),
+                'pack_units' => $product->saleUnits(),
                 'unit_cost' => $this->materialCost($product),
                 'url' => route('admin.shop.product.edit', $product),
                 'cut_sizes' => $product->cutSizes->map(fn (ProductCutSize $cut): array => [
@@ -306,6 +308,7 @@ class ProductRecipeService
                 ])->all(),
                 'variants' => $product->variants->where('is_active', true)->map(fn (ProductVariant $variant): array => [
                     'id' => (int) $variant->id, 'name' => (string) $variant->displayName(), 'unit_cost' => $this->materialCost($product, $variant),
+                    'pack_units' => $product->saleUnits($variant),
                 ])->values()->all(),
             ])->values()->all();
     }
@@ -314,13 +317,16 @@ class ProductRecipeService
     public function validate(Request $request, Product $product): array
     {
         $isMaterial = $request->input('product_type') === Product::PRODUCT_TYPE_MATERIAL;
+        $hasMeasurements = $isMaterial || ($request->input('product_type') === Product::PRODUCT_TYPE_PHYSICAL
+            && in_array($request->input('material_kind'), ['length', 'sheet'], true));
+        $kind = $request->input('material_kind');
         $data = $request->validate([
             'material_kind' => [Rule::requiredIf($isMaterial), 'nullable', Rule::in(['unit', 'length', 'sheet'])],
-            'purchase_unit' => [Rule::requiredIf($isMaterial), 'nullable', 'string', 'max:40'],
-            'purchase_quantity' => [Rule::requiredIf($isMaterial && $request->input('material_kind') !== 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000', 'decimal:0,4'],
-            'material_measure_unit' => [Rule::requiredIf($isMaterial && $request->input('material_kind') === 'length'), 'nullable', Rule::in(array_keys(ProductRecipeComponent::LENGTH_UNITS))],
-            'material_length_mm' => [Rule::requiredIf($isMaterial && $request->input('material_kind') === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
-            'material_width_mm' => [Rule::requiredIf($isMaterial && $request->input('material_kind') === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
+            'purchase_unit' => [Rule::requiredIf($hasMeasurements), 'nullable', 'string', 'max:40'],
+            'purchase_quantity' => [Rule::requiredIf($hasMeasurements && $kind !== 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000', 'decimal:0,4'],
+            'material_measure_unit' => [Rule::requiredIf($hasMeasurements && $kind === 'length'), 'nullable', Rule::in(array_keys(ProductRecipeComponent::LENGTH_UNITS))],
+            'material_length_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
+            'material_width_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
             'unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'operational_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'time_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
@@ -341,23 +347,29 @@ class ProductRecipeService
             'recipe.*.note' => ['nullable', 'string', 'max:500'],
             'variants.*.unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
         ]);
+        $data['material_kind'] = $hasMeasurements ? $data['material_kind'] : null;
+        $data['purchase_unit'] = $hasMeasurements ? trim($data['purchase_unit']) : null;
+        $data['purchase_quantity'] = $hasMeasurements ? ($kind === 'sheet' ? 1 : (float) $data['purchase_quantity']) : null;
+        $data['material_measure_unit'] = $hasMeasurements && $kind === 'length' ? $data['material_measure_unit'] : null;
+        $data['material_length_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_length_mm'] : null;
+        $data['material_width_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_width_mm'] : null;
         if ($product->exists && $product->product_type !== $request->input('product_type')
             && ! ($product->isPhysical() && in_array($request->input('product_type'), Product::PHYSICAL_TYPES, true))
             && ($product->usedInRecipes()->exists() || $product->purchases()->exists() || $product->storeOrderItems()->exists() || $product->hasPickListReferences())) {
             throw ValidationException::withMessages(['product_type' => 'This item is used in recipes, pick lists, purchases or orders. Create a separate item for the new type.']);
         }
-        if ($isMaterial && $product->exists && ($product->usedInRecipes()->exists() || $product->hasPickListReferences())
+        if ($product->exists && $product->hasMaterialMeasurements() && ($product->usedInRecipes()->exists() || $product->hasPickListReferences())
             && ($product->material_kind !== $data['material_kind']
                 || $product->purchase_unit !== $data['purchase_unit']
                 || (float) $product->purchase_quantity !== (float) ($data['purchase_quantity'] ?? 1)
                 || $product->material_measure_unit !== ($data['material_measure_unit'] ?? null))) {
-            throw ValidationException::withMessages(['purchase_unit' => 'This material is already used. Keep its purchase units unchanged and create a separate material for a different unit or roll length.']);
+            throw ValidationException::withMessages(['purchase_unit' => 'These measurements are used in recipes or pick lists. Keep them unchanged and create a separate item for a different unit or roll length.']);
         }
         if ($product->exists && $product->shared_inventory !== $request->boolean('shared_inventory')
             && $product->purchases()->where('inventory_added', '>', 0)->exists()) {
             throw ValidationException::withMessages(['shared_inventory' => 'This item has recorded stock purchases. Keep its shared inventory setting unchanged so those purchases remain linked to the right stock count.']);
         }
-        $cuts = $isMaterial && ($data['material_kind'] ?? '') === 'sheet' ? ($data['cut_sizes'] ?? []) : [];
+        $cuts = $hasMeasurements && $kind === 'sheet' ? ($data['cut_sizes'] ?? []) : [];
         foreach ($cuts as $index => $cut) {
             if (! empty($cut['id']) && ! $product->cutSizes()->whereKey($cut['id'])->exists()) {
                 throw ValidationException::withMessages(['cut_sizes' => 'A cut size does not belong to this material.']);
@@ -395,18 +407,20 @@ class ProductRecipeService
         if (! empty($row['cut_size_id']) && ($component->material_kind !== 'sheet' || ! $component->cutSizes->contains('id', (int) $row['cut_size_id']))) {
             throw ValidationException::withMessages([$key.'.cut_size_id' => 'Choose a cut size belonging to this material.']);
         }
-        if ($component->material_kind === 'length'
+        $hasLength = ($row['length'] ?? null) !== null && ($row['length'] ?? '') !== '';
+        if ($component->material_kind === 'length' && ($component->isMaterial() || $hasLength)
             && ((float) ($row['length'] ?? 0) <= 0 || ! isset(ProductRecipeComponent::LENGTH_UNITS[$row['length_unit'] ?? '']))) {
             throw ValidationException::withMessages([$key.'.length' => 'Enter the length of each piece and its unit.']);
         }
-        if ($component->material_kind === 'length') {
+        if ($component->material_kind === 'length' && $hasLength) {
             $cut = (float) $row['length'] * ProductRecipeComponent::LENGTH_UNITS[$row['length_unit']];
             $purchased = (float) $component->purchase_quantity * (ProductRecipeComponent::LENGTH_UNITS[$component->material_measure_unit] ?? 0);
             if ($cut > $purchased) {
                 throw ValidationException::withMessages([$key.'.length' => 'A single piece cannot be longer than the purchased material.']);
             }
         }
-        if ($component->isMaterial() && in_array($component->material_kind, ['sheet', 'length'], true)
+        if ($component->hasMaterialMeasurements() && in_array($component->material_kind, ['sheet', 'length'], true)
+            && ($component->isMaterial() || $hasLength || ! empty($row['cut_size_id']))
             && abs((float) $row['quantity'] - round((float) $row['quantity'])) > 0.00001) {
             throw ValidationException::withMessages([$key.'.quantity' => 'Enter a whole number of pieces.']);
         }
