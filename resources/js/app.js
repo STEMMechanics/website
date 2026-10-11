@@ -1,4 +1,5 @@
 import './bootstrap';
+import './ui-controls';
 // Emit a local, versioned classic script for layouts that need dialogs before modules run.
 import.meta.glob(['../../node_modules/sweetalert2/dist/sweetalert2.all.min.js'], { eager: true, query: '?url', import: 'default' });
 import './media-picker-loader.js';
@@ -30,10 +31,9 @@ import './workshop-delivery';
 import './workshop-hold-countdown';
 import './workshop-booking';
 import './workshop-line';
-import './stock-item-link';
-import './stock-assembly-dialog';
-import './stock-receipt-expense-link';
-import './expense-stock-items';
+import './product-item-link';
+import './product-materials';
+import './expense-product-purchases';
 import './document-product-editor';
 
 import './reminder-list';

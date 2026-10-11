@@ -1281,7 +1281,7 @@ const editorConfigureImage = async (editor) => {
 }
 
 document.addEventListener('alpine:init', () => {
-    Alpine.data('editor', (content, linkOptionsUrl = '/link-options') => {
+    Alpine.data('editor', (content, linkOptionsUrl = '/link-options', options = {}) => {
         let editor // Alpine's reactive engine automatically wraps component properties in proxy objects. Attempting to use a proxied editor instance to apply a transaction will cause a "Range Error: Applying a mismatched transaction", so be sure to unwrap it using Alpine.raw(), or simply avoid storing your editor as a component property, as shown in this example.
         let tableSelectionDragCleanup = null;
 
@@ -1398,6 +1398,12 @@ document.addEventListener('alpine:init', () => {
                     editorProps: {
                         attributes: {
                             class: 'tiptap content',
+                            role: 'textbox',
+                            'aria-multiline': 'true',
+                            ...(options.id ? { id: options.id } : {}),
+                            ...(options.labelledBy ? { 'aria-labelledby': options.labelledBy } : { 'aria-label': options.label || 'Content' }),
+                            ...(options.describedBy ? { 'aria-describedby': options.describedBy } : {}),
+                            ...(options.invalid ? { 'aria-invalid': 'true' } : {}),
                         },
                         handleClickOn(view, _pos, node, nodePos, event, direct) {
                             const tableRole = node?.type?.spec?.tableRole;

@@ -156,7 +156,7 @@
                     <template x-for="workshop in addedWorkshops()" :key="workshop.id">
                         <x-ui.badge color="sky" class="gap-2">
                             <span x-text="`${workshop.title} · ${workshop.meta}`"></span>
-                            <x-ui.button variant="plain" type="button" x-on:click="remove(workshop.id)" class="hover:text-red-600"><i class="fa-solid fa-xmark"></i></x-ui.button>
+                            <x-ui.button size="icon-small" aria-label="Remove workshop" variant="plain" type="button" x-on:click="remove(workshop.id)" class="hover:text-red-600"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                         </x-ui.badge>
                     </template>
                 </div>

@@ -8,7 +8,7 @@
             @endisset
             @csrf
             <div class="mb-4">
-                <x-ui.input label="Title" name="title" value="{!! isset($post) ? $post->title : '' !!}" />
+                <x-ui.input label="Title" name="title" :value="isset($post) ? $post->title : ''" />
             </div>
             <div class="mb-4">
                 <x-ui.media label="Image" name="hero_media_name" value="{{ $post->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
@@ -30,7 +30,7 @@
             <div class="mb-4">
                 <x-ui.editor
                     name="content"
-                    value="{!! isset($post) ? $post->content : '' !!}"
+                    :value="isset($post) ? $post->content : ''"
                 ></x-ui.editor>
             </div>
             <div class="mb-4">

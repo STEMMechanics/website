@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
-use App\Models\Expense;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use App\Models\Product;
@@ -19,6 +19,7 @@ use App\Models\StoreOrderItem;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -36,7 +37,7 @@ class StockInventoryService
     }
 
     /** @param Collection<int, StockItem> $stockItems
-     *  @return array<int, float>
+     * @return array<int, float>
      */
     public function reservedQuantitiesForStockItems(Collection $stockItems): array
     {
@@ -56,7 +57,7 @@ class StockInventoryService
     }
 
     /** @param list<int> $stockItemIds
-     *  @return Collection<int, StockItem>
+     * @return Collection<int, StockItem>
      */
     public function reservationShortages(array $stockItemIds): Collection
     {
@@ -102,7 +103,7 @@ class StockInventoryService
      */
     public function workshopReservationShortagesByWorkshop(): array
     {
-        return app(\App\Support\RequestMemo::class)->remember('workshop-reservation-shortages-by-workshop', function (): array {
+        return app(RequestMemo::class)->remember('workshop-reservation-shortages-by-workshop', function (): array {
             $workshopRows = StockReservation::query()
                 ->where('source_type', Workshop::class)
                 ->whereIn('status', StockReservation::ACTIVE_STATUSES)
@@ -202,7 +203,7 @@ class StockInventoryService
 
     public function isStockManaged(Product $product, ?ProductVariant $variant = null): bool
     {
-        return $this->stockItemFor($product, $variant) instanceof StockItem;
+        return false;
     }
 
     /** @param array<int, float> $allocatedStock */
@@ -390,8 +391,7 @@ class StockInventoryService
         if ($workshop->registration !== 'tickets'
             && $workshop->max_attendance === null
             && $workshop->pick_list_participants === null
-            && $summary['resolvedItems']->contains(fn (array $item): bool =>
-                (int) ($item['stock_item_id'] ?? 0) > 0
+            && $summary['resolvedItems']->contains(fn (array $item): bool => (int) ($item['stock_item_id'] ?? 0) > 0
                     && (string) ($item['quantity_type'] ?? '') === PickListTemplateItem::TYPE_PER_PARTICIPANT
             )) {
             throw ValidationException::withMessages([
@@ -770,7 +770,7 @@ class StockInventoryService
     }
 
     /**
-     * @param array<int, array{stock_receipt_line_id?: int|string|null, stock_item_id: int|string, quantity: int|float|string, total_cost_ex_tax: int|float|string}> $items
+     * @param  array<int, array{stock_receipt_line_id?: int|string|null, stock_item_id: int|string, quantity: int|float|string, total_cost_ex_tax: int|float|string}>  $items
      * @return array<int, int> IDs of stock items whose receipts were synchronized.
      */
     public function syncExpenseStockItems(Expense $expense, array $items, ?User $user = null): array
@@ -1224,7 +1224,7 @@ class StockInventoryService
      * Offcuts are not carried in inventory, so the confirmed quantities can be lower
      * than the suggested deduction when saved material is reused.
      *
-     * @param array<int|string, int|float|string> $actualUsage
+     * @param  array<int|string, int|float|string>  $actualUsage
      */
     public function assemble(
         StockItem $kit,
@@ -1393,7 +1393,7 @@ class StockInventoryService
     }
 
     /**
-     * @param array{items: Collection<int, StockItem>, reserved: array<int, float>} $state
+     * @param  array{items: Collection<int, StockItem>, reserved: array<int, float>}  $state
      * @return array{kit: StockItem, quantity: int, rows: array<int, array{stock_item: StockItem, recipe_quantity: float, estimated_usage: float, cut_loss: float, suggested_deduction: float, available_quantity: float, increment: float}>}
      */
     private function buildAssemblyPlan(StockItem $kit, int $quantity, array $state): array
@@ -1457,7 +1457,7 @@ class StockInventoryService
     }
 
     /** @param array<int, float> $requirements
-     *  @param array<int, array<int, array{units: float, quantity_per_unit: float}>> $batches
+     * @param  array<int, array<int, array{units: float, quantity_per_unit: float}>>  $batches
      */
     private function addAssemblyRawRequirement(StockItem $stockItem, float $units, float $quantityPerUnit, array &$requirements, array &$batches): bool
     {
@@ -1478,10 +1478,10 @@ class StockInventoryService
     }
 
     /** @param array{items: Collection<int, StockItem>, reserved: array<int, float>} $state
-     *  @param array<int, float> $requirements
-     *  @param array<int, array<int, array{units: float, quantity_per_unit: float}>> $batches
-     *  @param array<int, float> $allocated
-     *  @param array<int, bool> $stack
+     * @param  array<int, float>  $requirements
+     * @param  array<int, array<int, array{units: float, quantity_per_unit: float}>>  $batches
+     * @param  array<int, float>  $allocated
+     * @param  array<int, bool>  $stack
      */
     private function planAssemblyKitComponent(StockItem $kit, float $quantity, array $state, array &$requirements, array &$batches, array &$allocated, array $stack): bool
     {
@@ -1602,6 +1602,7 @@ class StockInventoryService
 
         $sourceType = get_class($source);
         $sourceId = (string) $source->getKey();
+
         return DB::transaction(function () use ($root, $quantityPerSale, $quantity, $sourceType, $sourceId, $purpose, $errorKey, $metadata, $product, $variant): int {
             $state = $this->lockInventoryTree(collect([$root]));
             $segments = $this->planStockItemSegments($root, $quantityPerSale, $quantity, $state);
@@ -1762,8 +1763,7 @@ class StockInventoryService
         Model $source,
         ?User $user = null,
         ?string $notes = null,
-    ): void
-    {
+    ): void {
         if ($quantity <= 0) {
             return;
         }
@@ -1845,7 +1845,7 @@ class StockInventoryService
     }
 
     /** @param Collection<int, StockReservation> $reservations
-     *  @return array<int, float>
+     * @return array<int, float>
      */
     private function sumReservedQuantities(Collection $reservations): array
     {
@@ -1872,8 +1872,7 @@ class StockInventoryService
         ?array $stockItemIds = null,
         bool $lockForUpdate = false,
         ?array $excludedReservationSource = null,
-    ): array
-    {
+    ): array {
         $itemsQuery = StockItem::query()
             ->when(! $lockForUpdate, fn ($query) => $query->with(['kitComponents.component']))
             ->when($stockItemIds !== null, fn ($query) => $query->whereIn('id', $stockItemIds));
@@ -1899,7 +1898,7 @@ class StockInventoryService
     }
 
     /** @param Collection<int, StockItem> $roots
-     *  @return array{items: Collection<int, StockItem>, reserved: array<int, float>}
+     * @return array{items: Collection<int, StockItem>, reserved: array<int, float>}
      */
     private function lockInventoryTree(Collection $roots, ?array $excludedReservationSource = null): array
     {
@@ -1966,8 +1965,8 @@ class StockInventoryService
      * Consumes ready-made stock first, then plans the components needed to build the remainder.
      * The shared $allocated map lets cart lines and workshop pick-list rows use one inventory pool.
      *
-     * @param array<int, float> $allocated
-     * @param array<int, bool> $stack
+     * @param  array<int, float>  $allocated
+     * @param  array<int, bool>  $stack
      */
     private function planStockItemUsage(StockItem $stockItem, float $quantity, array &$allocated, array $state, array $stack = []): bool
     {
@@ -2140,5 +2139,4 @@ class StockInventoryService
             }
         }
     }
-
 }

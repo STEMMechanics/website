@@ -109,12 +109,14 @@
 
     $toneClasses = $toneMap[$color][$variant] ?? $toneMap['gray'][$variant] ?? $toneMap['gray']['soft'];
     $classes = twMerge($baseClasses, $sizeMap[$size] ?? $sizeMap['xs'], $toneClasses, $attributes->get('class'));
+    $safeHref = \App\Support\UiLink::href($href);
+    $rel = \App\Support\UiLink::rel($attributes->get('rel'));
 @endphp
 
-@if($href)
-    <a href="{{ $href }}" {{ $attributes->except('class')->merge(['class' => $classes]) }}>
+@if($safeHref !== null)
+    <a href="{{ $safeHref }}" rel="{{ $rel }}" data-ui-button {{ $attributes->except(['class', 'rel'])->merge(['class' => twMerge($classes, 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color')]) }}>
         @if($iconClass !== '')
-            <i class="{{ $iconClass }} text-[0.85em]"></i>
+            <i class="{{ $iconClass }} text-[0.85em]" aria-hidden="true"></i>
         @endif
         @if($hasSlot)
             {{ $slot }}
@@ -125,7 +127,7 @@
 @else
     <span {{ $attributes->except('class')->merge(['class' => $classes]) }}>
         @if($iconClass !== '')
-            <i class="{{ $iconClass }} text-[0.85em]"></i>
+            <i class="{{ $iconClass }} text-[0.85em]" aria-hidden="true"></i>
         @endif
         @if($hasSlot)
             {{ $slot }}

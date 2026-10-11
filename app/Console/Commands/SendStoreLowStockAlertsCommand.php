@@ -26,7 +26,7 @@ class SendStoreLowStockAlertsCommand extends Command
         $products = Product::query()
             ->with('variants')
             ->where('status', Product::STATUS_ACTIVE)
-            ->where('product_type', Product::PRODUCT_TYPE_PHYSICAL)
+            ->physical()
             ->get();
 
         if ($products->isEmpty()) {

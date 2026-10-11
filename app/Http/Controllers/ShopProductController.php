@@ -4,14 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductPurchase;
+use App\Models\ProductRecipeComponent;
 use App\Models\ProductVariant;
-use App\Models\StockItem;
 use App\Models\StoreOrderItem;
 use App\Services\Finance\ProductAllocationEditor;
 use App\Services\ProductAttention;
+use App\Services\ProductPurchaseService;
+use App\Services\ProductRecipeService;
 use App\Services\SiteListControls;
 use App\Services\StoreInventoryAllocatorService;
 use App\Support\ListPageSize;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -30,8 +34,11 @@ class ShopProductController extends Controller
         $query = Product::query()->with(['hero', 'variants', 'categories'])->withExists('storeOrderItems');
         $legacyFilter = $this->normalizeIndexFilter($request->query('filter'));
         $scope = $request->query('status_scope', $legacyFilter === 'archived' ? 'archived' : 'current') ?: 'all';
-        $inventory = $request->query('inventory', $legacyFilter === 'actionable' ? 'actionable' : '');
-        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'draft', 'archived'])], 'inventory' => ['nullable', Rule::in(['actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
+        $inventory = $request->query('inventory', $legacyFilter === 'low_stock' ? 'low_stock' : '');
+        $request->validate(['status_scope' => ['nullable', Rule::in(['all', 'current', 'draft', 'archived'])], 'inventory' => ['nullable', Rule::in(['low_stock', 'actionable'])], 'allocation_state' => ['nullable', Rule::in(['needs_review', 'allocated'])]]);
+        if ($inventory === 'actionable') {
+            $inventory = 'low_stock';
+        }
         $request->query->set('status_scope', $scope);
         if ($inventory) {
             $request->query->set('inventory', $inventory);
@@ -45,19 +52,20 @@ class ShopProductController extends Controller
             $query->whereNotIn('id', $allocationAttentionIds);
         }
         $productAttention = app(ProductAttention::class)->counts();
-        $actionableCount = $productAttention['inventory'];
+        $lowStockCount = $productAttention['inventory'];
         $request->attributes->set('collection_preset_counts', [
             'Current products' => Product::query()->where('status', Product::STATUS_ACTIVE)->count(),
+            'Materials' => Product::query()->active()->where('product_type', Product::PRODUCT_TYPE_MATERIAL)->count(),
+            'Kits' => Product::query()->active()->where('product_type', Product::PRODUCT_TYPE_KIT)->count(),
             'Drafts' => Product::query()->where('status', Product::STATUS_DRAFT)->count(),
             'Needs allocation' => $allocationAttentionCount,
             'Archived' => Product::query()->where('status', Product::STATUS_ARCHIVED)->count(),
-            'Actionable' => $actionableCount,
+            'Low Stock' => $lowStockCount,
         ]);
         $request->attributes->set('collection_preset_attention', [
             'Needs allocation' => $allocationAttentionCount > 0,
-            'Actionable' => $actionableCount > 0,
+            'Low Stock' => $lowStockCount > 0,
         ]);
-        $selectedFilter = $inventory === 'actionable' ? 'actionable' : ($scope === 'archived' ? 'archived' : 'all');
         if ($scope === 'archived') {
             $query->where('status', Product::STATUS_ARCHIVED);
         } elseif ($scope === 'draft') {
@@ -83,12 +91,12 @@ class ShopProductController extends Controller
 
         $query->orderByDesc('is_featured')->orderBy('sort_order')->orderBy('title');
 
-        if ($selectedFilter === 'actionable') {
+        if ($inventory === 'low_stock') {
             $matchingProducts = $query->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->get();
             $inventorySummaries = app(ProductAttention::class)->inventorySummaries($matchingProducts);
             $products = $this->paginateProducts(
                 $matchingProducts
-                    ->filter(fn (Product $product): bool => (bool) ($inventorySummaries[(int) $product->id]['actionable'] ?? false))
+                    ->filter(fn (Product $product): bool => (bool) ($inventorySummaries[(int) $product->id]['low_stock'] ?? false))
                     ->values(),
                 $request
             );
@@ -101,9 +109,6 @@ class ShopProductController extends Controller
             'products' => $products,
             'inventorySummaries' => $inventorySummaries,
             'allocationAttentionIds' => $allocationAttentionIds,
-            'allocationAttentionCount' => $allocationAttentionCount,
-            'inventoryAttentionCount' => $actionableCount,
-            'selectedFilter' => $selectedFilter,
         ]);
     }
 
@@ -111,8 +116,25 @@ class ShopProductController extends Controller
     {
         return view('admin.shop.product.edit', [
             'categories' => $this->availableCategories(),
-            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
+            'recipeCatalog' => app(ProductRecipeService::class)->catalog(),
         ]);
+    }
+
+    public function quickStore(Request $request): JsonResponse
+    {
+        $data = $request->validate(['title' => 'required|string|max:255', 'sku' => 'nullable|string|max:120', 'purchase_unit' => 'required|string|max:40']);
+        $product = new Product;
+        $sku = trim((string) ($data['sku'] ?? '')) ?: $this->uniqueProductSkuSeed($request, $product);
+        if ($this->productSkuIsTaken($sku, $product)) {
+            throw ValidationException::withMessages(['sku' => 'That SKU is already in use.']);
+        }
+        $product->fill(['title' => $data['title'], 'sku' => $sku, 'product_type' => Product::PRODUCT_TYPE_MATERIAL,
+            'status' => Product::STATUS_ACTIVE, 'material_kind' => 'unit', 'purchase_unit' => $data['purchase_unit'],
+            'purchase_quantity' => 1, 'price' => 0, 'tax_rate' => 0.10, 'shipping_rate' => 0]);
+        $product->save();
+        $item = collect(app(ProductPurchaseService::class)->catalog())->firstWhere('id', (int) $product->id);
+
+        return response()->json(['item' => $item], 201);
     }
 
     public function store(Request $request, StoreInventoryAllocatorService $allocator): RedirectResponse
@@ -129,13 +151,13 @@ class ShopProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants.stockItem', 'categories', 'stockItem'])->loadExists('storeOrderItems');
+        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants', 'categories', 'cutSizes', 'recipeComponents.component', 'recipeComponents.cutSize', 'recipeComponents.variant', 'purchases.expense', 'purchases.variant'])->loadExists('storeOrderItems');
 
         return view('admin.shop.product.edit', [
             'product' => $product,
             'categories' => $this->availableCategories(),
             'inventoryContexts' => $this->inventoryContexts($product),
-            'stockItems' => StockItem::query()->with('group')->where('status', StockItem::STATUS_ACTIVE)->orderBy('name')->get(),
+            'recipeCatalog' => app(ProductRecipeService::class)->catalog($product),
         ]);
     }
 
@@ -184,6 +206,13 @@ class ShopProductController extends Controller
                 $variantCopies[(int) $variant->id] = $variantCopy;
             }
 
+            foreach ($product->cutSizes as $cut) {
+                $copy->cutSizes()->create($cut->only(['length_mm', 'width_mm', 'yield', 'sort_order']));
+            }
+            foreach ($product->recipeComponents as $row) {
+                $copy->recipeComponents()->create($row->only(['component_product_id', 'component_variant_id', 'cut_size_id', 'quantity', 'length', 'length_unit', 'note', 'sort_order']));
+            }
+
             return $copy;
         });
 
@@ -196,6 +225,9 @@ class ShopProductController extends Controller
 
     public function destroy(Product $product): RedirectResponse
     {
+        if ($product->usedInRecipes()->exists() || $product->purchases()->exists() || $product->hasPickListReferences()) {
+            return redirect()->route('admin.shop.product.edit', $product)->with(['message' => 'This item is used in a recipe, pick list or purchase. Archive it instead.', 'message-title' => 'Delete blocked', 'message-type' => 'danger']);
+        }
         if ($product->storeOrderItems()->exists()) {
             session()->flash('message', 'This product has already been ordered and cannot be deleted. Archive it instead.');
             session()->flash('message-title', 'Delete blocked');
@@ -245,11 +277,25 @@ class ShopProductController extends Controller
 
     private function saveProduct(Request $request, Product $product, StoreInventoryAllocatorService $allocator): void
     {
-        $productAllocations = app(ProductAllocationEditor::class)->validate($request);
+        $isMaterial = $request->input('product_type') === Product::PRODUCT_TYPE_MATERIAL;
+        $isPhysical = in_array($request->input('product_type'), Product::PHYSICAL_TYPES, true);
+        if ($isMaterial) {
+            // Hidden selling controls must not prevent a material from saving.
+            $request->merge(['price' => 0, 'variants' => [], 'category_ids' => [], 'allow_backorder' => false, 'is_featured' => false, 'inventory_quantity' => null, 'product_details' => [], 'length_mm' => null, 'width_mm' => null, 'height_mm' => null]);
+        }
+        $recipes = app(ProductRecipeService::class);
+        $recipeData = $recipes->validate($request, $product);
+        $productAllocations = $isMaterial ? null : app(ProductAllocationEditor::class)->validate($request);
         $previousProductInventory = $product->exists ? $product->inventory_quantity : null;
         $previousVariantInventory = $product->exists
             ? $product->variants()->pluck('inventory_quantity', 'id')->map(fn ($quantity) => $quantity !== null ? (int) $quantity : null)->all()
             : [];
+        $previousAutomaticPricing = [
+            'base' => (bool) $product->automatic_pricing,
+            'variants' => $product->exists
+                ? $product->variants()->where('automatic_pricing', true)->pluck('id')->map(fn ($id) => (int) $id)->all()
+                : [],
+        ];
         $satchelRanks = Product::satchelOptions()->pluck('rank')->map(fn ($rank) => (int) $rank)->values()->all();
         if ($satchelRanks === []) {
             $satchelRanks = [1];
@@ -295,8 +341,6 @@ class ShopProductController extends Controller
             'shared_inventory' => ['sometimes', 'boolean'],
             'inventory_units' => ['nullable', 'integer', 'min:1'],
             'inventory_quantity' => ['nullable', 'integer', 'min:0'],
-            'stock_item_id' => ['nullable', 'integer', Rule::exists('stock_items', 'id')->where('status', StockItem::STATUS_ACTIVE)],
-            'stock_quantity_per_sale' => ['nullable', 'numeric', 'gt:0'],
             'shipping_units' => ['nullable', 'numeric', 'min:0'],
             'min_satchel_rank' => ['nullable', 'integer', Rule::in($satchelRanks)],
             'weight_grams' => ['nullable', 'integer', 'min:0'],
@@ -321,7 +365,9 @@ class ShopProductController extends Controller
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_units' => ['nullable', 'integer', 'min:1'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
-            'variants.*.stock_quantity_per_sale' => ['nullable', 'numeric', 'gt:0'],
+            'variants.*.unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0'],
+            'variants.*.bulk_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
+            'variants.*.automatic_pricing' => ['nullable', 'boolean'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
             'variants.*.length_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'variants.*.width_mm' => ['nullable', 'integer', 'min:1', 'max:10000'],
@@ -341,7 +387,7 @@ class ShopProductController extends Controller
         ]);
 
         $isDigital = (string) $validated['product_type'] === Product::PRODUCT_TYPE_DIGITAL;
-        $allowsBackorder = ! $isDigital && $request->boolean('allow_backorder');
+        $allowsBackorder = $isPhysical && $request->boolean('allow_backorder');
         $backorderShippingEstimateType = $this->backorderShippingEstimateType(
             $validated['backorder_shipping_estimate_type'] ?? null,
             $validated['backorder_shipping_estimate'] ?? null,
@@ -428,25 +474,40 @@ class ShopProductController extends Controller
             'base_variant_description' => trim((string) ($validated['base_variant_description'] ?? '')) ?: null,
             'private_notes' => trim((string) ($validated['private_notes'] ?? '')) ?: null,
             'hero_media_name' => trim((string) ($validated['hero_media_name'] ?? '')) ?: null,
-            'price' => round((float) $validated['price'], 2),
+            'price' => $isPhysical && $request->boolean('automatic_pricing') && $product->exists
+                ? (float) $product->price
+                : round((float) $validated['price'], 2),
             'compare_at_price' => ($validated['compare_at_price'] ?? null) !== null ? round((float) $validated['compare_at_price'], 2) : null,
             'shipping_rate' => 0,
             'tax_rate' => 0.10,
-            'shared_inventory' => ! $isDigital && empty($validated['stock_item_id']) && $request->boolean('shared_inventory'),
+            'shared_inventory' => $isPhysical && $request->boolean('shared_inventory'),
             'inventory_units' => (int) ($validated['inventory_units'] ?? 1),
-            'inventory_quantity' => $isDigital ? null : ($validated['inventory_quantity'] ?? null),
-            'stock_item_id' => $isDigital ? null : ($validated['stock_item_id'] ?? null),
-            'stock_quantity_per_sale' => $isDigital ? null : (($validated['stock_quantity_per_sale'] ?? null) !== null ? round((float) $validated['stock_quantity_per_sale'], 3) : null),
-            'shipping_units' => $isDigital ? 0 : round((float) ($validated['shipping_units'] ?? 0), 3),
-            'min_satchel_rank' => $isDigital ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
-            'weight_grams' => $isDigital ? null : ($validated['weight_grams'] ?? null),
-            'box_only' => $isDigital ? false : $request->boolean('box_only'),
-            'length_mm' => $isDigital ? null : ($validated['length_mm'] ?? null),
-            'width_mm' => $isDigital ? null : ($validated['width_mm'] ?? null),
-            'height_mm' => $isDigital ? null : ($validated['height_mm'] ?? null),
+            'inventory_quantity' => $isPhysical ? ($validated['inventory_quantity'] ?? null) : null,
+            'stock_item_id' => null,
+            'stock_quantity_per_sale' => null,
+            'shipping_units' => ! $isPhysical ? 0 : round((float) ($validated['shipping_units'] ?? 0), 3),
+            'min_satchel_rank' => ! $isPhysical ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
+            'weight_grams' => ! $isPhysical ? null : ($validated['weight_grams'] ?? null),
+            'box_only' => ! $isPhysical ? false : $request->boolean('box_only'),
+            'length_mm' => ! $isPhysical ? null : ($validated['length_mm'] ?? null),
+            'width_mm' => ! $isPhysical ? null : ($validated['width_mm'] ?? null),
+            'height_mm' => ! $isPhysical ? null : ($validated['height_mm'] ?? null),
             'is_featured' => $isFeatured,
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
-            'low_stock_threshold' => $isDigital ? null : ($validated['low_stock_threshold'] ?? 5),
+            'low_stock_threshold' => ! $isPhysical ? null : ($validated['low_stock_threshold'] ?? 5),
+        ]);
+        $product->fill([
+            'material_kind' => $isMaterial ? $recipeData['material_kind'] : null,
+            'purchase_unit' => $isMaterial ? $recipeData['purchase_unit'] : null,
+            'purchase_quantity' => $isMaterial ? ($recipeData['purchase_quantity'] ?? 1) : null,
+            'material_measure_unit' => $isMaterial && $recipeData['material_kind'] === 'length' ? $recipeData['material_measure_unit'] : null,
+            'material_length_mm' => $isMaterial && $recipeData['material_kind'] === 'sheet' ? $recipeData['material_length_mm'] : null,
+            'material_width_mm' => $isMaterial && $recipeData['material_kind'] === 'sheet' ? $recipeData['material_width_mm'] : null,
+            'unit_cost_ex_tax' => $recipeData['unit_cost_ex_tax'] ?? null,
+            'operational_cost_ex_tax' => $isPhysical ? ($recipeData['operational_cost_ex_tax'] ?? null) : null,
+            'time_cost_ex_tax' => $isPhysical ? ($recipeData['time_cost_ex_tax'] ?? null) : null,
+            'automatic_pricing' => $isPhysical && $request->boolean('automatic_pricing'),
+            'markup_percent' => $isPhysical ? ($recipeData['markup_percent'] ?? null) : null,
         ]);
         $product->save();
         $product->categories()->sync(
@@ -460,8 +521,10 @@ class ShopProductController extends Controller
         $product->updateFiles($request->input('gallery_files'), 'gallery');
         $product->updateFiles($isDigital ? $request->input('download_files') : null, 'downloads');
 
-        $savedVariants = $this->syncVariants($product, $normalizedVariants, $isDigital);
+        $savedVariants = $this->syncVariants($product, $normalizedVariants, ! $isPhysical);
         app(ProductAllocationEditor::class)->save($product, $savedVariants, $productAllocations, $request->user()->id);
+        $recipes->save($product, $recipeData, $savedVariants, $previousAutomaticPricing);
+        $product->refresh();
         $freshProduct = $product->fresh('variants');
         $this->allocateRestockedInventory($freshProduct, $previousProductInventory, $previousVariantInventory, $allocator);
 
@@ -695,7 +758,11 @@ class ShopProductController extends Controller
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
                     'inventory_units' => max(1, (int) ($variant['inventory_units'] ?? 1)),
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
-                    'stock_quantity_per_sale' => ($variant['stock_quantity_per_sale'] ?? '') !== '' ? round((float) $variant['stock_quantity_per_sale'], 3) : null,
+                    'unit_cost_ex_tax' => ($variant['unit_cost_ex_tax'] ?? '') !== '' && ($variant['unit_cost_ex_tax'] ?? null) !== null ? round((float) $variant['unit_cost_ex_tax'], 4) : null,
+                    'bulk_discount_percent' => ($variant['bulk_discount_percent'] ?? '') !== '' && ($variant['bulk_discount_percent'] ?? null) !== null
+                        ? round((float) $variant['bulk_discount_percent'], 2)
+                        : (float) config('product-costing.bulk_discount_percent', 20),
+                    'automatic_pricing' => filter_var($variant['automatic_pricing'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
                     'length_mm' => ($variant['length_mm'] ?? '') !== '' ? (int) $variant['length_mm'] : null,
                     'width_mm' => ($variant['width_mm'] ?? '') !== '' ? (int) $variant['width_mm'] : null,
@@ -721,7 +788,9 @@ class ShopProductController extends Controller
                     || $variant['price'] !== null
                     || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
-                    || $variant['stock_quantity_per_sale'] !== null
+                    || $variant['unit_cost_ex_tax'] !== null
+                    || $variant['bulk_discount_percent'] !== (float) config('product-costing.bulk_discount_percent', 20)
+                    || $variant['automatic_pricing']
                     || $variant['weight_grams'] !== null
                     || $variant['length_mm'] !== null
                     || $variant['width_mm'] !== null
@@ -811,14 +880,19 @@ class ShopProductController extends Controller
             $variant->description = $variantData['description'] !== '' ? $variantData['description'] : null;
             $variant->product_details = $variantData['product_details'] !== [] ? $variantData['product_details'] : null;
             $variant->sku = $variantData['sku'] !== '' ? $variantData['sku'] : null;
-            $variant->price = $variantData['price'];
+            if ($isDigital || ! $variantData['automatic_pricing'] || ! $variant->exists) {
+                $variant->price = $variantData['price'];
+            }
             $variant->compare_at_price = $variantData['compare_at_price'];
             $variant->shipping_rate = null;
             $variant->shipping_units = null;
             $variant->inventory_units = $variantData['inventory_units'];
             $variant->inventory_quantity = $isDigital ? null : $variantData['inventory_quantity'];
             $variant->stock_item_id = null;
-            $variant->stock_quantity_per_sale = $isDigital ? null : $variantData['stock_quantity_per_sale'];
+            $variant->stock_quantity_per_sale = null;
+            $variant->unit_cost_ex_tax = $isDigital ? null : $variantData['unit_cost_ex_tax'];
+            $variant->bulk_discount_percent = $isDigital ? 0 : $variantData['bulk_discount_percent'];
+            $variant->automatic_pricing = ! $isDigital && $variantData['automatic_pricing'];
             $variant->weight_grams = $isDigital ? null : $variantData['weight_grams'];
             $variant->is_preorder = false;
             $variant->preorder_shipping_estimate = null;
@@ -854,7 +928,9 @@ class ShopProductController extends Controller
                 continue;
             }
 
-            if ($existingVariant->storeOrderItems()->exists()) {
+            if ($existingVariant->storeOrderItems()->exists()
+                || ProductPurchase::query()->where('product_variant_id', $existingVariant->id)->exists()
+                || ProductRecipeComponent::query()->where('component_variant_id', $existingVariant->id)->exists()) {
                 $existingVariant->is_active = false;
                 $existingVariant->save();
 
@@ -975,7 +1051,11 @@ class ShopProductController extends Controller
     {
         $normalized = trim((string) $filter);
 
-        return in_array($normalized, ['all', 'actionable', 'archived'], true) ? $normalized : 'all';
+        return match ($normalized) {
+            'actionable', 'low_stock' => 'low_stock',
+            'archived' => 'archived',
+            default => 'all',
+        };
     }
 
     /**

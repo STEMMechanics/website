@@ -19,7 +19,7 @@
                 <div class="flex items-center gap-2 sm:gap-3">
                     <div class="relative min-w-0 flex-1">
                         <x-ui.input-control id="results-search-query" type="search" name="q" :value="$search" placeholder="Search the site" class="min-h-11 pr-11!" />
-                        <button type="submit" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-primary-color" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+                        <x-ui.button variant="plain" type="submit" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-primary-color" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></x-ui.button>
                     </div>
                     <x-ui.button color="outline" class="h-11 shrink-0 rounded-lg px-3 sm:px-4" data-open-dialog="search-filters" aria-haspopup="dialog"><i class="fa-solid fa-filter hidden sm:inline sm:mr-2" aria-hidden="true"></i>Filters</x-ui.button>
                     <x-ui.button color="outline" class="h-11 shrink-0 rounded-lg px-3 sm:px-4" data-open-dialog="search-sort" aria-haspopup="dialog"><i class="fa-solid fa-arrow-down-short-wide hidden sm:inline sm:mr-2" aria-hidden="true"></i>Sort<i class="fa-solid fa-chevron-down ml-2 text-xs" aria-hidden="true"></i></x-ui.button>

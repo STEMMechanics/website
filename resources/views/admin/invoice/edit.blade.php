@@ -275,7 +275,7 @@
                                     <div class="mt-3 flex items-center gap-3">
                                         @if($payment)
                                             <a href="{{ route('admin.payment.edit', $payment) }}" class="text-sm text-primary-color hover:underline" title="Open payment">Open payment</a>
-                                            <a href="{{ route('admin.payment.receipt', ['payment' => $payment]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View receipt">Receipt</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $payment]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View receipt" rel="noopener">Receipt</a>
                                             <a href="{{ route('admin.payment.receipt', ['payment' => $payment, 'download' => 1]) }}" class="text-sm text-primary-color hover:underline" title="Download receipt">Download</a>
                                         @endif
                                     </div>
@@ -296,7 +296,7 @@
                                         </div>
                                         <div class="mt-3 flex items-center gap-3">
                                             <a href="{{ route('admin.payment.edit', $refund) }}" class="text-sm text-primary-color hover:underline" title="Open refund record">Open refund</a>
-                                            <a href="{{ route('admin.payment.receipt', ['payment' => $refund]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View refund receipt">Receipt</a>
+                                            <a href="{{ route('admin.payment.receipt', ['payment' => $refund]) }}" target="_blank" class="text-sm text-primary-color hover:underline" title="View refund receipt" rel="noopener">Receipt</a>
                                             <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="text-sm text-primary-color hover:underline" title="Download refund receipt">Download</a>
                                         </div>
                                     </div>
@@ -783,11 +783,10 @@
  />
                             <x-ui.button
                                 type="button"
-                                color="primary-outline-sm"
+                                color="primary-outline"
                                 class="ml-6 mt-2"
                                 x-show="scheduledEmail"
-                                x-on:click.prevent="openInvoiceEmailModal({{ isset($invoice) ? json_encode($invoiceEmailDefaultPayload) : 'newInvoiceEmailPayload()' }}, true)"
-                            >Edit scheduled email details</x-ui.button>
+                                x-on:click.prevent="openInvoiceEmailModal({{ isset($invoice) ? json_encode($invoiceEmailDefaultPayload) : 'newInvoiceEmailPayload()' }}, true)" size="small">Edit scheduled email details</x-ui.button>
                         </div>
                     </div>
                     @if($errors->has('allocation'))

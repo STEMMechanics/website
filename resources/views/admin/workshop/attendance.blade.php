@@ -735,7 +735,7 @@
                 <h2 class="mb-3 text-lg font-semibold">Ticketed Attendance</h2>
                 @if($courseSession)
                     <form method="GET" class="max-w-xl">
-                        <x-ui.select label="Course session" name="session_id" onchange="this.form.submit()">
+                        <x-ui.select label="Course session" name="session_id" data-submit-on-change>
                             @foreach($workshop->effectiveScheduleEntries() as $session)
                                 <option value="{{ $session['id'] }}" @selected($session['id'] === $courseSession['id'])>{{ \Illuminate\Support\Carbon::parse($session['starts_at'])->format('D j M Y g:ia') }}</option>
                             @endforeach
@@ -965,8 +965,8 @@
                                     <h3 class="text-xl font-semibold text-gray-900">Cancel Tickets</h3>
                                     <p class="mt-1 text-sm text-gray-600">Select which tickets on this invoice should be cancelled now. Refund processing will be attempted automatically.</p>
                                 </div>
-                                <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCancelModal()">
-                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                <x-ui.button size="icon-small" aria-label="Close cancel tickets" variant="text" color="secondary" type="button"  x-on:click="closeCancelModal()">
+                                    <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
 
@@ -1007,7 +1007,7 @@
                                 <x-ui.button type="button" x-bind:disabled="cancelModalSubmitting" x-on:click="submitCancelTickets()">
                                     <span x-show="!cancelModalSubmitting">Cancel Selected</span>
                                     <span x-show="cancelModalSubmitting" class="inline-flex items-center gap-2">
-                                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                                         <span>Cancelling...</span>
                                     </span>
                                 </x-ui.button>
@@ -1028,8 +1028,8 @@
                                     <h3 class="text-xl font-semibold text-gray-900">Record Ticket Payment</h3>
                             <p class="mt-1 text-sm text-gray-600">Create one or more payment entries and allocate them to the selected tickets' invoice balance.</p>
                         </div>
-                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="paymentModalOpen = false">
-                            <i class="fa-solid fa-xmark text-lg"></i>
+                        <x-ui.button size="icon-small" aria-label="Close ticket payment" variant="text" color="secondary" type="button"  x-on:click="paymentModalOpen = false">
+                            <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                         </x-ui.button>
                     </div>
 
@@ -1121,7 +1121,7 @@
                                             >
                                                 <span x-show="!eftposPaymentsLoading">Refresh</span>
                                                 <span x-show="eftposPaymentsLoading" class="inline-flex items-center gap-1">
-                                                    <i class="fa-solid fa-circle-notch animate-spin"></i>
+                                                    <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                                                     <span>Refreshing</span>
                                                 </span>
                                             </x-ui.button>
@@ -1339,7 +1339,7 @@
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || `Entry ${index + 1}`"></h3>
                                 <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete">
-                                    <i class="fa-solid fa-trash"></i>
+                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
 
@@ -1500,7 +1500,7 @@
                     <x-ui.button type="submit" x-bind:disabled="submitting">
                         <span x-show="!submitting">Save</span>
                         <span x-show="submitting" class="inline-flex items-center gap-2">
-                            <i class="fa-solid fa-circle-notch animate-spin"></i>
+                            <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                             <span>Saving...</span>
                         </span>
                     </x-ui.button>

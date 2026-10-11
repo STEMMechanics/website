@@ -112,7 +112,7 @@
                                 role="option"
                                 x-bind:aria-selected="index === activeResultIndex"
                         >
-                            <i class="fa-solid fa-plus text-primary-color"></i>
+                            <i class="fa-solid fa-plus text-primary-color" aria-hidden="true"></i>
                             <span x-text="organisation.label"></span>
                         </x-ui.button>
                     </template>
@@ -134,7 +134,7 @@
                                 title="Remove organisation"
                                 aria-label="Remove organisation"
                         >
-                            <i class="fa-solid fa-xmark text-xs"></i>
+                            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
                         </x-ui.button>
                     </x-ui.badge>
                 </template>

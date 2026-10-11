@@ -142,9 +142,9 @@
             <template x-for="(tag, index) in tags" :key="tag">
                 <span data-tag-pill class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800" :style="`order: ${(index + 1) * 2}`" :class="isMixed(tag) ? 'bg-[repeating-linear-gradient(135deg,#e0f2fe_0,#e0f2fe_5px,#bae6fd_5px,#bae6fd_10px)]' : ''" x-on:click="cursorIndex = index + 1; $refs.entry.focus()">
                     <span x-text="tag"></span>
-                    <button type="button" class="text-sky-600 hover:text-red-600" x-on:click.prevent.stop="remove(index)" aria-label="Remove tag">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <x-ui.button variant="plain" type="button" class="text-sky-600 hover:text-red-600" x-on:click.prevent.stop="remove(index)" aria-label="Remove tag">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </x-ui.button>
                 </span>
             </template>
             <input

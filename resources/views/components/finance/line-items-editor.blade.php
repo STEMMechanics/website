@@ -99,7 +99,7 @@
                 <div class="min-w-0">
                     <h2 id="sm-invoice-line-item-dialog-title" class="break-words text-sm font-medium leading-snug text-slate-600" x-text="mobileLineItemIndex === null ? 'Line item' : itemTypeLabel(lineItems[mobileLineItemIndex]?.kind)"></h2>
                 </div>
-                <x-ui.button type="button" variant="plain" class="h-11 w-11 shrink-0 rounded-lg p-0! text-slate-500" x-on:click="closeMobileLineItem()" aria-label="Close line item editor"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+                <x-ui.button type="button" variant="plain" class="rounded-lg text-slate-500" x-on:click="closeMobileLineItem()" aria-label="Close line item editor" size="icon"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
             </div>
             <template x-if="mobileLineItemIndex !== null">
                 <div x-data="{

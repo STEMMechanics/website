@@ -107,13 +107,12 @@
                         @if($typeNoteHtml !== '')
                             <div class="type-note">{!! $typeNoteHtml !!}</div>
                         @endif
+                        @if(!empty($row['raw_note']))<div class="type-note">{{ $row['raw_note'] }}</div>@endif
                         @if($kitSummary !== null)
                             <div class="kit-contents">
                                 @foreach($kitSummary['contents'] ?? [] as $part)
                                     @php
-                                        $partQuantity = (bool) ($part['is_kit'] ?? false)
-                                            ? (float) ($part['required'] ?? 0)
-                                            : (float) ($part['quantity'] ?? 0);
+                                        $partQuantity = (float) ($part['quantity'] ?? 0);
                                         $partName = (string) ($part['item_name'] ?? '');
                                         $partUnit = trim((string) ($part['unit'] ?? ''));
                                         $partLabel = in_array(strtolower($partUnit), ['', 'each', 'unit', 'units'], true)
@@ -130,6 +129,7 @@
                                         @if($partNotes->isNotEmpty())
                                             <div class="kit-component-note">Per kit: {{ $partNotes->implode(' · ') }}</div>
                                         @endif
+                                        @if(!empty($part['raw_note']))<div class="kit-component-note">{{ $part['raw_note'] }}</div>@endif
                                     </div>
                                 @endforeach
                             </div>
@@ -138,15 +138,16 @@
                                 @foreach($row['kit_contents'] as $part)
                                     <div class="kit-component">
                                         @if($part['is_kit'] ?? false)
-                                            {{ $formatPickQuantity((float) $part['quantity']) }} × {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
-                                        @elseif(in_array(strtolower((string) $part['stock_unit']), ['each', 'unit', 'units'], true))
-                                            {{ $formatPickQuantity((float) $part['quantity']) }} × {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
+                                            {{ $formatPickQuantity((float) $part['quantity']) }} × {{ $pluralizePickUnit((string) $part['item_name'], (float) $part['quantity']) }}
+                                        @elseif(in_array(strtolower((string) ($part['unit'] ?? '')), ['', 'each', 'unit', 'units'], true))
+                                            {{ $formatPickQuantity((float) $part['quantity']) }} × {{ $pluralizePickUnit((string) $part['item_name'], (float) $part['quantity']) }}
                                         @else
-                                            {{ $formatPickQuantity((float) $part['quantity']) }} {{ $pluralizePickUnit((string) $part['stock_unit'], (float) $part['quantity']) }} of {{ $pluralizePickUnit((string) $part['stock_item_name'], (float) $part['quantity']) }}
+                                            {{ $formatPickQuantity((float) $part['quantity']) }} {{ $pluralizePickUnit((string) $part['unit'], (float) $part['quantity']) }} of {{ $pluralizePickUnit((string) $part['item_name'], (float) $part['quantity']) }}
                                         @endif
                                         @if(trim((string) ($part['note'] ?? '')) !== '')
                                             <div class="kit-component-note">Per kit: {{ $part['note'] }}</div>
                                         @endif
+                                        @if(!empty($part['raw_note']))<div class="kit-component-note">{{ $part['raw_note'] }}</div>@endif
                                     </div>
                                 @endforeach
                             </div>

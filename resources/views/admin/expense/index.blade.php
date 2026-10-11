@@ -22,7 +22,6 @@
             <p data-expense-drop-error role="alert" class="text-sm text-red-600" hidden></p>
         </div>
         <x-ui.dynamic-list name="admin-expense-index">
-        <x-finance.attention-notice kind="expenses" />
         @if(isset($selectedSupplier))
             <p class="my-4 first:mt-0 text-sm">Default cost centre: <x-ui.badge :color="$supplierCostCentre ? 'slate' : 'amber'">{{ $supplierCostCentre ? $supplierCostCentre : 'Choose cost centre' }}</x-ui.badge></p>
         @endif

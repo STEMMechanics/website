@@ -3,12 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
+use App\Services\OnlineVisitors;
+use App\Services\ProductRecipeService;
 use App\Services\ServerMaintenanceService;
+use App\Services\SiteListControls;
+use App\Support\HomeHero;
+use App\Support\ListPageSize;
+use App\Support\RequestMemo;
 use App\Support\ShopShippingSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SiteOptionController extends Controller
@@ -31,14 +39,15 @@ class SiteOptionController extends Controller
         }
 
         return view('admin.site-option.index', [
-            'siteOptions' => $query->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(30))->onEachSide(1),
+            'siteOptions' => $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(30))->onEachSide(1),
         ]);
     }
 
     public function hero(): View
     {
-        $hero = \App\Support\HomeHero::content();
-        return view('admin.site-option.hero', ['hero' => $hero, 'heroImageUrl' => \App\Support\HomeHero::imageUrl($hero)]);
+        $hero = HomeHero::content();
+
+        return view('admin.site-option.hero', ['hero' => $hero, 'heroImageUrl' => HomeHero::imageUrl($hero)]);
     }
 
     public function updateHero(Request $request): RedirectResponse
@@ -50,12 +59,15 @@ class SiteOptionController extends Controller
             'heading' => ['required', 'string', 'max:220'],
             'body' => ['nullable', 'string', 'max:2400'],
         ]);
-        if (!empty($data['hero_image']) && !\App\Support\HomeHero::publicImages()->whereKey($data['hero_image'])->exists()) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['hero_image' => 'Choose a public image without password protection.']);
+        if (! empty($data['hero_image']) && ! HomeHero::publicImages()->whereKey($data['hero_image'])->exists()) {
+            throw ValidationException::withMessages(['hero_image' => 'Choose a public image without password protection.']);
         }
         $hero = ['image' => $data['hero_image'] ?? ''];
-        foreach (['caption', 'eyebrow', 'heading', 'body'] as $key) $hero[$key] = $data[$key] ?? '';
-        SiteOption::updateOrCreate(['name' => \App\Support\HomeHero::OPTION], ['value' => json_encode($hero, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]);
+        foreach (['caption', 'eyebrow', 'heading', 'body'] as $key) {
+            $hero[$key] = $data[$key] ?? '';
+        }
+        SiteOption::updateOrCreate(['name' => HomeHero::OPTION], ['value' => json_encode($hero, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]);
+
         return redirect()->route('admin.site_option.hero')->with(['message' => 'Homepage settings updated.', 'message-title' => 'Changes saved', 'message-type' => 'success']);
     }
 
@@ -67,14 +79,20 @@ class SiteOptionController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $this->validateRequest($request);
-        if (in_array($validated['name'], ['finance.fortnight-start', 'finance.cash-buffer', 'finance.owner-hourly-rate'], true)) {
+        if (in_array($validated['name'], ['finance.fortnight-start', 'finance.cash-buffer', 'finance.owner-hourly-rate'], true)
+            || str_starts_with($validated['name'], 'store.costing.')) {
             $validated['value'] = $this->validateValueRequest($request, $validated['name'])['value'];
         }
         if (SiteOption::isSecret((string) $validated['name']) && trim((string) ($validated['value'] ?? '')) !== '') {
             $validated['value'] = SiteOption::encryptSecretValue($validated['value']);
         }
 
-        $siteOption = SiteOption::query()->create($validated);
+        $siteOption = DB::transaction(function () use ($validated): SiteOption {
+            $option = SiteOption::query()->create($validated);
+            $this->refreshProductPricing($option->name);
+
+            return $option;
+        });
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -107,7 +125,10 @@ class SiteOptionController extends Controller
                 : ($validated['value'] ?? null);
         }
 
-        $siteOption->save();
+        DB::transaction(function () use ($siteOption): void {
+            $siteOption->save();
+            $this->refreshProductPricing($siteOption->name);
+        });
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -129,7 +150,12 @@ class SiteOptionController extends Controller
             abort(404);
         }
 
-        $siteOption = SiteOption::resetToDefault((string) $siteOption->name);
+        $siteOption = DB::transaction(function () use ($siteOption): ?SiteOption {
+            $option = SiteOption::resetToDefault((string) $siteOption->name);
+            $this->refreshProductPricing((string) $siteOption->name);
+
+            return $option;
+        });
 
         if (request()->expectsJson()) {
             return response()->json([
@@ -147,7 +173,10 @@ class SiteOptionController extends Controller
 
     public function resetAllDefaults(): RedirectResponse|JsonResponse
     {
-        SiteOption::resetAllToDefaults();
+        DB::transaction(function (): void {
+            SiteOption::resetAllToDefaults();
+            $this->refreshProductPricing();
+        });
 
         if (request()->expectsJson()) {
             return response()->json([
@@ -167,7 +196,7 @@ class SiteOptionController extends Controller
     {
         abort_unless((bool) ($request->user()?->isAdmin() ?? false), 403);
 
-        app(\App\Services\OnlineVisitors::class)->ensureDisruptionConfirmed($request->boolean('online_visitors_confirmed'));
+        app(OnlineVisitors::class)->ensureDisruptionConfirmed($request->boolean('online_visitors_confirmed'));
         $result = $serverMaintenanceService->refreshCachesAndRestartQueue();
 
         if ($request->expectsJson()) {
@@ -197,6 +226,15 @@ class SiteOptionController extends Controller
         ]);
     }
 
+    private function refreshProductPricing(?string $optionName = null): void
+    {
+        if ($optionName !== null && ! str_starts_with($optionName, 'store.costing.')) {
+            return;
+        }
+        app(RequestMemo::class)->clear();
+        app(ProductRecipeService::class)->refreshPrices();
+    }
+
     private function validateValueRequest(Request $request, string $optionName): array
     {
         $rules = [
@@ -211,6 +249,9 @@ class SiteOptionController extends Controller
         }
 
         if ($optionName === 'finance.owner-hourly-rate') {
+            $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
+        }
+        if (str_starts_with($optionName, 'store.costing.')) {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
         }
 

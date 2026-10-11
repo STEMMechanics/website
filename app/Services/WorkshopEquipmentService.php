@@ -15,7 +15,7 @@ class WorkshopEquipmentService
         $workshopIds = session('ticket_checkout_flow.'.$workshop->id.'.workshop_ids', [$workshop->id]);
         $productIds = Workshop::whereIn('id', $workshopIds)->get()->flatMap(fn (Workshop $item) => $item->optional_product_ids ?? [])->unique()->all();
 
-        return Product::query()->active()->with(['variants', 'hero'])->whereIn('id', $productIds)->orderBy('title')->get();
+        return Product::query()->sellable()->active()->with(['variants', 'hero'])->whereIn('id', $productIds)->orderBy('title')->get();
     }
 
     public function removeUnavailable(Workshop $workshop): void

@@ -92,7 +92,7 @@
                                     </p>
                                 </div>
                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="passwordDialogOpen = false" aria-label="Close password dialog">
-                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                    <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
                         </div>
@@ -143,7 +143,7 @@
         <div class="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)] lg:items-center">
             <div class="flex items-center justify-center">
                 <img src="{{ asset('loading.gif') }}" id="tfa_image_loader" alt="loading" width="100" height="100"/>
-                <img src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" onload="handleTfaImageLoad()"/>
+                <img x-data src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" x-on:load="handleTfaImageLoad()"/>
             </div>
             <div>
                 <p class="text-sm font-semibold text-gray-900">Link your authenticator app</p>

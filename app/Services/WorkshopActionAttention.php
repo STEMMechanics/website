@@ -31,15 +31,6 @@ class WorkshopActionAttention
                 if ($task['attendance']) {
                     $add($workshopId, 'attendance');
                 }
-                if ($task['stock']) {
-                    $add($workshopId, 'stock_reconciliation');
-                }
-            }
-
-            foreach (app(StockInventoryService::class)->workshopReservationShortagesByWorkshop() as $workshopId => $shortages) {
-                if ($shortages !== []) {
-                    $add($workshopId, 'stock_shortage');
-                }
             }
 
             return $attention;
@@ -91,7 +82,7 @@ class WorkshopActionAttention
     }
 
     /** @param Collection<int, Workshop> $workshops
-     *  @return array<string, array<string, bool>>
+     * @return array<string, array<string, bool>>
      */
     public function forWorkshops(Collection $workshops): array
     {

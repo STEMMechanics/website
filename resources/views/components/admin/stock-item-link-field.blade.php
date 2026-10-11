@@ -87,13 +87,12 @@
         <x-ui.button
             type="button"
             variant="plain"
-            class="absolute right-0 size-11 p-0! text-slate-500"
+            class="absolute right-0 text-slate-500"
             x-ref="stockItemTrigger"
             aria-label="Stock item link options"
             x-bind:title="linkedStockItem ? 'Linked to ' + linkedStockItem.name : 'Link a stock item'"
             x-bind:aria-expanded="open"
-            x-on:click="browse($el)"
-        >
+            x-on:click="browse($el)" size="icon">
             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
         </x-ui.button>
     </div>
@@ -108,7 +107,7 @@
         >
             <div role="listbox" x-bind:id="$id('stock-item-options')">
                 <template x-for="(option, optionIndex) in matches" :key="option.id">
-                    <button
+                    <x-ui.button variant="plain"
                         type="button"
                         role="option"
                         class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
@@ -125,18 +124,18 @@
                                 <span x-show="option.is_kit" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Stock Kit</span>
                                 <span x-show="option.status === 'archived'" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Archived</span>
                         </span>
-                    </button>
+                    </x-ui.button>
                 </template>
                 <p x-show="!matches.length" class="px-3 py-2 text-sm text-slate-500">{{ $noMatchesText }}</p>
             </div>
-            <button
+            <x-ui.button variant="plain"
                 type="button"
                 class="mt-2 w-full rounded-lg border-t border-slate-100 px-3 pt-2 text-left text-xs font-semibold text-slate-600 hover:text-slate-900"
                 x-show="model.stock_item_id"
                 x-on:click="choose(null)"
             >
                 Remove stock item link
-            </button>
+            </x-ui.button>
         </div>
     </template>
 </div>

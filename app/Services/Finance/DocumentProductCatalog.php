@@ -15,7 +15,7 @@ class DocumentProductCatalog
             ?? data_get($item, 'details_json.store_context.variant_id')
             ?? data_get($item, 'store_context.variant_id'))->filter()->unique()->all();
 
-        return Product::query()
+        return Product::query()->sellable()
             ->with(['variants' => fn ($query) => $query
                 ->where(fn ($query) => $query->where('is_active', true)->orWhereIn('id', $referencedVariants))
                 ->orderBy('sort_order')->orderBy('name')])

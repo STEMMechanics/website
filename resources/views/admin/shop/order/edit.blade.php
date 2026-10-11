@@ -1619,7 +1619,7 @@
                                                     <p class="mt-1 text-sm text-gray-600">Remove units from this item’s fulfilment plan. Backordered units are cancelled first, then any reserved stock if more units still need to be removed.</p>
                                                 </div>
                                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancel({{ $item->id }})" aria-label="Close cancel modal">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                 </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.cancel', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stageCancelAction({{ $item->id }}, $event.target)">
@@ -1702,7 +1702,7 @@
                                                     <p class="mt-1 text-sm text-gray-600">Record a dispatch for the units being sent now. This shipment entry is the shipped record for those units; the order status handles the overall order state.</p>
                                                 </div>
                                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTracking({{ $item->id }})" aria-label="Close tracking modal">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                 </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.tracking.store', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stageTrackingAction({{ $item->id }}, $event.target)">
@@ -1894,7 +1894,7 @@
                                                     <p class="mt-1 text-sm text-gray-600">Mark this item ready for pickup or record a collection against the quantity that has already been prepared.</p>
                                                 </div>
                                                 <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCollection({{ $item->id }})" aria-label="Close collection modal">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                 </x-ui.button>
                                             </div>
                                             <form method="POST" action="{{ route('admin.shop.order.item.collection.store', ['storeOrder' => $order, 'storeOrderItem' => $item]) }}" class="px-6 py-5" x-on:submit.prevent="stagePickupAction({{ $item->id }}, $event.target)">
@@ -2003,7 +2003,7 @@
                                             <p class="mt-1 text-sm text-gray-600">This will stage a cancellation for every selected item using each row’s current open quantity.</p>
                                         </div>
                                         <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkCancel()" aria-label="Close bulk cancellation modal">
-                                            <i class="fa-solid fa-xmark"></i>
+                                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                         </x-ui.button>
                                     </div>
                                     <form class="px-6 py-5" x-on:submit.prevent="stageBulkCancel($event.target)">
@@ -2050,7 +2050,7 @@
                                             <p class="mt-1 text-sm text-gray-600">This will stage one shipment entry per selected item using the current open quantity for the chosen shipment stage.</p>
                                         </div>
                                         <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeBulkTracking()" aria-label="Close bulk shipment modal">
-                                            <i class="fa-solid fa-xmark"></i>
+                                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                         </x-ui.button>
                                     </div>
                                     <form class="px-6 py-5" x-on:submit.prevent="stageBulkTracking($event.target)">

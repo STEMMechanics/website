@@ -1,8 +1,7 @@
-@props(['type' => 'text', 'name', 'label' => 'File', 'info', 'value' => '', 'readonly' => false])
+@props(['type' => 'text', 'name', 'label' => 'File', 'info', 'value' => '', 'readonly' => false, 'onChange' => null])
 
 @php
     $hasError = $errors->has($name);
-    $onchange = $attributes->get('onchange');
     $readonly = filter_var($readonly, FILTER_VALIDATE_BOOLEAN);
     $dropzoneId = $name . '_dropzone';
     $stateId = $name . '_state';
@@ -32,13 +31,13 @@
                     >
                         Browse files
                     </label>
-                    <button
+                    <x-ui.button variant="plain"
                         type="button"
                         id="{{ $name }}_clear"
                         class="hidden not-[.hidden]:inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
                         Clear file
-                    </button>
+                    </x-ui.button>
                 </div>
                 <div class="mt-2 text-xs text-gray-500">Drop a file here or click Browse files</div>
                 <div class="mt-1 text-xs text-gray-500">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
@@ -202,8 +201,9 @@
                 newFileInfo.setAttribute('data-tooltip', 'The filename may change once saved to the server.');
                 document.getElementById('{{ $name }}_name').appendChild(newFileInfo);
 
-                if('{{ $onchange }}' !== '' && typeof window['{{ $onchange }}'] === 'function') {
-                    window['{{ $onchange }}'](file, file.name);
+                const onChange = @js($onChange);
+                if (onChange && typeof window[onChange] === 'function') {
+                    window[onChange](file, file.name);
                 }
             }
 

@@ -18,23 +18,21 @@
                 </div>
             </div>
             <div class="flex items-center gap-1">
-                <button
+                <x-ui.button variant="plain"
                     type="button"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+                    class="rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
                     title="Show placeholder help"
                     x-on:click.prevent="invoiceEmailHelpOpen = !invoiceEmailHelpOpen"
-                    x-bind:aria-pressed="invoiceEmailHelpOpen ? 'true' : 'false'"
-                >
-                    <i class="fa-solid fa-circle-info"></i>
-                </button>
-                <button
+                    x-bind:aria-pressed="invoiceEmailHelpOpen ? 'true' : 'false'" aria-label="Show placeholder help" size="icon-small">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                </x-ui.button>
+                <x-ui.button variant="plain"
                     type="button"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-black"
+                    class="rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-black"
                     title="Close"
-                    x-on:click.prevent="closeInvoiceEmailModal()"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                    x-on:click.prevent="closeInvoiceEmailModal()" aria-label="Close" size="icon-small">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </x-ui.button>
             </div>
         </div>
 
@@ -70,14 +68,14 @@
                     </div>
 
                     <div>
-                        <button
+                        <x-ui.button variant="plain"
                             type="button"
                             class="flex w-full items-center gap-2 py-1 text-left"
                             x-on:click.prevent="invoiceEmailSubjectOpen = !invoiceEmailSubjectOpen"
                         >
                             <i class="fa-solid text-xs text-gray-500" x-bind:class="invoiceEmailSubjectOpen ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
                             <span class="text-sm font-medium text-gray-900">Subject</span>
-                        </button>
+                        </x-ui.button>
                         <div x-show="invoiceEmailSubjectOpen" x-cloak class="mt-2">
                             <input
                                 id="invoice-email-subject-line"
@@ -96,14 +94,14 @@
                     </div>
 
                     <div>
-                        <button
+                        <x-ui.button variant="plain"
                             type="button"
                             class="flex w-full items-center gap-2 py-1 text-left"
                             x-on:click.prevent="invoiceEmailCcOpen = !invoiceEmailCcOpen"
                         >
                             <i class="fa-solid text-xs text-gray-500" x-bind:class="invoiceEmailCcOpen ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
                             <span class="text-sm font-medium text-gray-900">CC Email</span>
-                        </button>
+                        </x-ui.button>
                         <div x-show="invoiceEmailCcOpen" x-cloak class="mt-2">
                             <input
                                 id="invoice-email-cc-emails"

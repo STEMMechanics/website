@@ -5,9 +5,8 @@
                     <x-ui.page-upload color="mast" id="admin-media-bulk-upload" />
                     <x-ui.action-menu color="mast" id="media-tools" title="Media tools">
                         <a href="{{ route('admin.media.create') }}"><i class="fa-solid fa-file-circle-plus"></i>Create with metadata</a>
-                        <a href="{{ route('admin.media.duplicates') }}"><i class="fa-solid fa-clone"></i>Find Duplicates <x-ui.badge color="warning">{{ $duplicateAttentionCount }}</x-ui.badge></a>
                         <a href="{{ route('admin.media.downloads') }}"><i class="fa-solid fa-chart-column"></i>Download report</a>
-                        <x-ui.button variant="plain" id="regenerate-missing-variants-button" onclick="this.closest('dialog').close(); confirmRegenerateMissingVariants()"><i class="fa-solid fa-arrows-rotate"></i>Regenerate Missing Variants</x-ui.button>
+                        <x-ui.button x-data variant="plain" id="regenerate-missing-variants-button" x-on:click="$el.closest('dialog').close(); confirmRegenerateMissingVariants()"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>Regenerate Missing Variants</x-ui.button>
                     </x-ui.action-menu>
         </x-slot:actions>
     </x-mast>
@@ -32,20 +31,9 @@
                     $activeFilters = collect(request()->only(array_keys($filterLabels)))->filter(fn ($value) => is_scalar($value) && (string) $value !== '');
                     $presetFilters = ['all' => [], 'images' => ['type' => 'image'], 'unused' => ['usage' => 'unused']];
                     $presetItems = collect(['all' => 'All media', 'images' => 'Images', 'unused' => 'Unused'])->map(fn ($title, $key) => ['title' => $title, 'count' => $presetCounts[$key], 'active' => $activeFilters->all() == $presetFilters[$key], 'route' => route('admin.media.index', array_merge(request()->only(['view', 'sort', 'direction', 'per_page']), $presetFilters[$key]))])->values()->all();
+                    $presetItems[] = ['title' => 'Duplicates', 'count' => $duplicateAttentionCount, 'attention' => $duplicateAttentionCount > 0, 'active' => false, 'route' => route('admin.media.duplicates')];
                     $clearUrl = route('admin.media.index', request()->only(['view', 'sort', 'direction', 'per_page']));
                 @endphp
-                @if($duplicateAttentionCount > 0)
-                    <div role="status" class="mb-5 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex items-start gap-3 text-sm">
-                            <i class="fa-solid fa-clone mt-0.5" aria-hidden="true"></i>
-                            <p class="mb-0">
-                                <span class="font-semibold">{{ number_format($duplicateAttentionCount) }} {{ $duplicateAttentionCount === 1 ? 'media duplicate finding needs' : 'media duplicate findings need' }} review.</span>
-                                <span class="text-amber-900">This count includes exact duplicate groups and possible similar-image matches.</span>
-                            </p>
-                        </div>
-                        <a href="{{ route('admin.media.duplicates') }}" class="shrink-0 text-sm font-semibold text-primary-color hover:underline">Review duplicate findings <i class="fa-solid fa-arrow-right ml-1" aria-hidden="true"></i></a>
-                    </div>
-                @endif
                 <div data-filter-controls data-filter-schema="{{ json_encode(collect($filterLabels)->map(fn ($label, $key) => ['label' => $label, 'type' => 'text', 'count' => $key !== 'search'])->all()) }}" data-filter-search="search">
                 <x-ui.preset-views :items="$presetItems" label="Media presets" />
                 <div class="my-5 flex flex-wrap items-center gap-3">
@@ -55,10 +43,10 @@
                             <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-3.5 text-slate-400" aria-hidden="true"></i>
                             <x-ui.input-control type="search" name="search" :value="request('search')" placeholder="Search media" aria-label="Search media" class="min-h-11 pl-10!" />
                         </div>
-                        <button type="submit" class="sr-only">Search</button>
+                        <x-ui.button variant="plain" type="submit" class="sr-only">Search</x-ui.button>
                     </form>
-                    <x-ui.button color="outline" data-open-dialog="media-filter-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none"><i class="fa-solid fa-filter mr-2"></i>Filters <x-ui.badge data-filter-count color="sky" class="ml-2" :hidden="$activeFilters->except('search')->isEmpty()">{{ $activeFilters->except('search')->count() }}</x-ui.badge></x-ui.button>
-                    <x-ui.button color="outline" data-open-dialog="media-sort-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none lg:hidden"><i class="fa-solid fa-arrow-down-short-wide mr-2"></i>{{ \App\Services\MediaListFilters::SORTS[request('sort', 'created_at')] }} <span class="ml-1">{{ request('direction', 'desc') === 'asc' ? '↑' : '↓' }}</span></x-ui.button>
+                    <x-ui.button color="outline" data-open-dialog="media-filter-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none"><i class="fa-solid fa-filter mr-2" aria-hidden="true"></i>Filters <x-ui.badge data-filter-count color="sky" class="ml-2" :hidden="$activeFilters->except('search')->isEmpty()">{{ $activeFilters->except('search')->count() }}</x-ui.badge></x-ui.button>
+                    <x-ui.button color="outline" data-open-dialog="media-sort-dialog" aria-haspopup="dialog" class="h-11 rounded-lg border-gray-300! shadow-none lg:hidden"><i class="fa-solid fa-arrow-down-short-wide mr-2" aria-hidden="true"></i>{{ \App\Services\MediaListFilters::SORTS[request('sort', 'created_at')] }} <span class="ml-1">{{ request('direction', 'desc') === 'asc' ? '↑' : '↓' }}</span></x-ui.button>
                     <nav data-view-tabs aria-label="Media layout" class="ml-auto flex rounded-lg border border-slate-200 bg-white p-1">
                         @foreach(['table' => ['Table view', 'fa-table-list'], 'photos' => ['Photo view', 'fa-table-cells-large']] as $mode => [$label, $icon])
                             <a href="{{ route('admin.media.index', array_merge(request()->except(['page', 'view']), ['view' => $mode])) }}" aria-label="{{ $label }}" @if($view === $mode) aria-current="page" @endif class="flex h-9 w-10 items-center justify-center rounded-md {{ $view === $mode ? 'bg-sky-50 text-primary-color' : 'text-slate-500' }}"><i class="fa-solid {{ $icon }}"></i></a>

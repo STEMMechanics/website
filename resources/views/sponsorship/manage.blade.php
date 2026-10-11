@@ -137,7 +137,7 @@
                             <h2 class="text-xl font-semibold text-gray-900">Public recognition</h2>
                             <p class="mt-1 text-sm leading-6 text-gray-600">Choose whether and how STEMMechanics may recognise this sponsorship publicly.</p>
                         </div>
-                        <button type="button" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close" x-on:click="$refs.recognitionDialog.close()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                        <x-ui.button variant="plain" type="button" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Close" x-on:click="$refs.recognitionDialog.close()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                     </div>
                     <form method="POST" action="{{ route('sponsor.manage.recognition') }}" enctype="multipart/form-data" class="grid gap-x-4 p-5 sm:grid-cols-2 sm:p-6">
                         @csrf @method('PATCH')

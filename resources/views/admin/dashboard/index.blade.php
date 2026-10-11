@@ -43,9 +43,9 @@
                             </a>
                             @if(!empty($action['dismiss_key']))
                                 <div class="flex justify-end border-t border-gray-100 px-3 py-1.5">
-                                    <button type="button" data-dismiss-dashboard-action data-action-key="{{ $action['dismiss_key'] }}" class="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color" aria-label="{{ $action['dismiss_label'] ?? 'Hide action' }}">
+                                    <x-ui.button variant="plain" type="button" data-dismiss-dashboard-action data-action-key="{{ $action['dismiss_key'] }}" class="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-color" aria-label="{{ $action['dismiss_label'] ?? 'Hide action' }}">
                                         <i class="{{ $action['dismiss_icon'] ?? 'fa-solid fa-eye-slash' }}" aria-hidden="true"></i><span>{{ $action['dismiss_label'] ?? 'Hide action' }}</span>
-                                    </button>
+                                    </x-ui.button>
                                 </div>
                             @endif
                         </article>
@@ -79,7 +79,7 @@
                         <div class="flex flex-wrap justify-end gap-2">
                             @foreach(($card['links'] ?? []) as $link)
                                 <x-ui.button type="link" href="{{ $link['route'] }}" color="secondary" class="px-3! py-1! text-xs!">
-                                    <i class="{{ $link['icon'] }} mr-2"></i>{{ $link['label'] }}
+                                    <i class="{{ $link['icon'] }} mr-2" aria-hidden="true"></i>{{ $link['label'] }}
                                 </x-ui.button>
                             @endforeach
                         </div>

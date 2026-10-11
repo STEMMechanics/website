@@ -17,7 +17,7 @@
                                     <x-ui.button
                                         type="button"
                                         color="primary-outline"
-                                        size="compact"
+                                        size="small"
                                         data-assembly-url="{{ route('admin.shop.stock.kit.assemble.preview', ['stockItem' => $usageRow['stock_item'], 'quantity' => 1, 'workshop_return_id' => (string) $workshop->getKey(), 'workshop_return_to' => 'stock-reconciliation']) }}"
                                         x-on:click="$dispatch('open-workshop-assembly', { url: $el.dataset.assemblyUrl })"
                                     >Assemble another</x-ui.button>
@@ -81,7 +81,7 @@
                             @foreach($workshopKitPreparation as $kitPreparation)
                                 <li class="flex flex-wrap items-center justify-between gap-2">
                                     <span>{{ $kitPreparation['quantity'] }} {{ \Illuminate\Support\Str::plural($kitPreparation['stock_item']->name, $kitPreparation['quantity']) }} to assemble</span>
-                                    <x-ui.button type="button" color="primary-outline" size="compact" data-assembly-url="{{ $kitPreparation['url'] }}" x-on:click="$dispatch('open-workshop-assembly', { url: $el.dataset.assemblyUrl })">Assemble kits</x-ui.button>
+                                    <x-ui.button type="button" color="primary-outline" size="small" data-assembly-url="{{ $kitPreparation['url'] }}" x-on:click="$dispatch('open-workshop-assembly', { url: $el.dataset.assemblyUrl })">Assemble kits</x-ui.button>
                                 </li>
                             @endforeach
                         </ul>
@@ -167,7 +167,7 @@
                                 <h3 class="text-sm font-semibold text-slate-800">Other stock used</h3>
                                 <p class="mt-1 text-xs text-slate-500">Add whole stock units used outside the workshop plan. Leave partially used shared supplies, such as masking tape, as manually managed consumables.</p>
                             </div>
-                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addAdditionalItem()">
+                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addAdditionalItem()">
                                 <i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add stock item
                             </x-ui.button>
                         </div>

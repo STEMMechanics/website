@@ -129,9 +129,8 @@
                 <x-ui.button variant="plain"
                     type="button"
                     id="audit-log-modal-close"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
-                    aria-label="Close changes modal"
-                >
+                    class="rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                    aria-label="Close changes modal" size="icon-small">
                     &times;
                 </x-ui.button>
             </div>

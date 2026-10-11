@@ -26,7 +26,7 @@
             <x-ui.toolbar>
                 <x-slot:right>
                     <x-ui.button color="outline" href="{{ route('admin.workshop.history', ['organisation_id' => $organisation->id, 'include_children' => 1]) }}">
-                        <i class="fa-solid fa-clock-rotate-left mr-2"></i>Workshop History
+                        <i class="fa-solid fa-clock-rotate-left mr-2" aria-hidden="true"></i>Workshop History
                     </x-ui.button>
                 </x-slot:right>
             </x-ui.toolbar>
@@ -206,7 +206,7 @@
                                     <td class="hidden px-3 py-2 text-gray-600 md:table-cell" x-text="contact.organisation_name || '-'"></td>
                                     <td class="px-3 py-2 text-center">
                                         <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-red-600" x-on:click.prevent="remove(contact.id)" title="Remove contact" aria-label="Remove contact">
-                                            <i class="fa-solid fa-link-slash"></i>
+                                            <i class="fa-solid fa-link-slash" aria-hidden="true"></i>
                                         </x-ui.button>
                                     </td>
                                 </tr>
@@ -239,7 +239,7 @@
                 <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50" x-show="search.trim().length >= 2 && !searching" x-cloak>
                     <template x-for="contact in results" :key="contact.id">
                         <x-ui.button variant="plain" type="button" class="flex w-full items-start gap-3 border-b border-gray-200 bg-white px-3 py-2 text-left text-sm last:border-b-0 hover:bg-sky-50" x-on:click.prevent="add(contact)">
-                            <i class="fa-solid fa-plus mt-1 text-primary-color"></i>
+                            <i class="fa-solid fa-plus mt-1 text-primary-color" aria-hidden="true"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="contact.name"></span>
                                 <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>

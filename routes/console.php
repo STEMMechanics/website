@@ -4,11 +4,17 @@ use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
 use App\Models\Invoice;
 use App\Models\Media;
-use App\Models\Ticket;
+use App\Models\Quote;
 use App\Models\SponsorshipInvoiceRequest;
+use App\Models\SponsorshipPayment;
+use App\Models\Ticket;
 use App\Services\DashboardSnapshot;
+use App\Services\FileBackupUploadService;
 use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
+use App\Services\SponsorshipBillingScheduleService;
+use App\Services\SponsorshipService;
+use App\Services\WorkshopWelcomeService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
@@ -115,13 +121,13 @@ Artisan::command('invoices:mark-overdue', function () {
             'status' => Invoice::STATUS_OVERDUE,
         ]);
 
-    \App\Models\SponsorshipPayment::query()
-        ->where('status', \App\Models\SponsorshipPayment::STATUS_PENDING)
+    SponsorshipPayment::query()
+        ->where('status', SponsorshipPayment::STATUS_PENDING)
         ->whereHas('sponsorship', fn ($query) => $query->where('frequency', 'monthly')->where('billing_method', 'invoice'))
         ->whereHas('invoice', fn ($query) => $query->where('status', Invoice::STATUS_OVERDUE))
         ->with('invoice')
         ->get()
-        ->each(fn ($payment) => app(\App\Services\SponsorshipService::class)->syncOverdueInvoice($payment->invoice));
+        ->each(fn ($payment) => app(SponsorshipService::class)->syncOverdueInvoice($payment->invoice));
 
     $this->info('Marked '.$updated.' invoice'.($updated === 1 ? '' : 's').' as overdue.');
 })->purpose('Mark overdue invoices as overdue')
@@ -207,7 +213,7 @@ Schedule::command('files:backup --full')
     ->withoutOverlapping();
 
 Artisan::command('file-backups:cleanup-uploads', function () {
-    app(\App\Services\FileBackupUploadService::class)->cleanupAbandonedUploads();
+    app(FileBackupUploadService::class)->cleanupAbandonedUploads();
     $this->info('Expired file-backup upload staging has been cleaned up.');
 })->purpose('Remove abandoned file-backup upload chunks')->hourly()->withoutOverlapping();
 
@@ -218,15 +224,6 @@ Schedule::command('store:orders:send-update-digests')
 
 Schedule::command('store:products:send-low-stock-alerts')
     ->hourly()
-    ->withoutOverlapping();
-
-Artisan::command('stock:release-expired-workshop-reservations', function () {
-    $released = app(\App\Services\StockInventoryService::class)->releaseExpiredWorkshopReservations();
-    $this->info("Released {$released} abandoned workshop stock reservations.");
-})->purpose('Release stock reservations for cancelled, draft, unscheduled, reconciled, or deleted workshops');
-
-Schedule::command('stock:release-expired-workshop-reservations')
-    ->everyTenMinutes()
     ->withoutOverlapping();
 
 Schedule::command('reminders:send-due')
@@ -244,23 +241,23 @@ Schedule::command('invoices:process-scheduled')
     ->withoutOverlapping();
 
 Artisan::command('sponsorships:process-monthly', function () {
-    $result = app(\App\Services\SponsorshipService::class)->processDueMonthlyPayments();
+    $result = app(SponsorshipService::class)->processDueMonthlyPayments();
     $this->info('Monthly sponsorship billing actions processed: '.$result['processed'].'. Failed: '.$result['failed'].'. Skipped: '.$result['skipped'].'.');
 })->purpose('Charge saved cards and send recurring sponsorship invoices');
 
 Schedule::command('sponsorships:process-monthly')
     ->dailyAt('08:00')
-    ->timezone(\App\Services\SponsorshipBillingScheduleService::TIMEZONE)
+    ->timezone(SponsorshipBillingScheduleService::TIMEZONE)
     ->withoutOverlapping();
 
 Artisan::command('sponsorships:reconcile-pending', function () {
-    $result = app(\App\Services\SponsorshipService::class)->reconcilePendingMonthlyPayments();
+    $result = app(SponsorshipService::class)->reconcilePendingMonthlyPayments();
     $this->info('Pending monthly sponsorship payments reconciled: '.$result['processed'].'. Failed: '.$result['failed'].'. Still pending or skipped: '.$result['skipped'].'.');
 })->purpose('Reconcile pending monthly sponsorship payments');
 
 Schedule::command('sponsorships:reconcile-pending')
     ->everyFiveMinutes()
-    ->timezone(\App\Services\SponsorshipBillingScheduleService::TIMEZONE)
+    ->timezone(SponsorshipBillingScheduleService::TIMEZONE)
     ->withoutOverlapping();
 
 Schedule::command('workplan:send-fortnightly')
@@ -283,12 +280,12 @@ Artisan::command('finance:allocate', function () {
 })->purpose('Create and refresh opted-in workshop and invoice allocations using effective pricing versions')->hourly()->withoutOverlapping();
 
 Artisan::command('quotes:expire', function () {
-    \App\Models\Quote::expireOpenQuotes();
+    Quote::expireOpenQuotes();
     $this->info('Expired quotes updated.');
 })->purpose('Expire open quotes outside page rendering')->everyMinute()->withoutOverlapping();
 
 Artisan::command('workshops:send-welcomes', function () {
-    $count = app(\App\Services\WorkshopWelcomeService::class)->queueDue();
+    $count = app(WorkshopWelcomeService::class)->queueDue();
     $this->info("Queued {$count} workshop welcome emails.");
 })->purpose('Queue due welcome emails and catch up late active bookings');
 

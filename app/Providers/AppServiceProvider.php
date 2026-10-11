@@ -15,12 +15,21 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\TicketPolicy;
+use App\Services\ProductRecipeService;
+use App\Support\AdminBadgeCache;
+use App\Support\QueryMetrics;
+use App\Support\RequestMemo;
 use App\Support\ShopAvailability;
 use App\Support\SiteOptionContentFilter;
+use App\Support\TailwindMerge;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionCommitted;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
@@ -41,10 +50,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(ContentFilter::class, SiteOptionContentFilter::class);
         $this->app->scoped(ShopAvailability::class);
-        $this->app->scoped(\App\Support\RequestMemo::class);
-        $this->app->scoped(\App\Support\AdminBadgeCache::class);
-        $this->app->scoped(\App\Support\TailwindMerge::class);
-        $this->app->scoped(\App\Support\QueryMetrics::class);
+        $this->app->scoped(ProductRecipeService::class);
+        $this->app->scoped(RequestMemo::class);
+        $this->app->scoped(AdminBadgeCache::class);
+        $this->app->scoped(TailwindMerge::class);
+        $this->app->scoped(QueryMetrics::class);
     }
 
     /**
@@ -52,21 +62,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Support\Facades\DB::listen(fn ($event) => app(\App\Support\AdminBadgeCache::class)->written($event));
-        Event::listen(\Illuminate\Database\Events\TransactionCommitted::class, function ($event): void {
+        DB::listen(fn ($event) => app(AdminBadgeCache::class)->written($event));
+        Event::listen(TransactionCommitted::class, function ($event): void {
             if ($event->connection->transactionLevel() === 0) {
-                app(\App\Support\AdminBadgeCache::class)->committed($event->connectionName);
+                app(AdminBadgeCache::class)->committed($event->connectionName);
             }
         });
-        Event::listen(\Illuminate\Database\Events\TransactionRolledBack::class, function ($event): void {
-            app(\App\Support\RequestMemo::class)->clear();
+        Event::listen(TransactionRolledBack::class, function ($event): void {
+            app(RequestMemo::class)->clear();
             if ($event->connection->transactionLevel() === 0) {
-                app(\App\Support\AdminBadgeCache::class)->rolledBack($event->connectionName);
+                app(AdminBadgeCache::class)->rolledBack($event->connectionName);
             }
         });
         if (config('analytics.profile_requests')) {
-            \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $event) {
-                $metrics = app(\App\Support\QueryMetrics::class);
+            DB::listen(function (QueryExecuted $event) {
+                $metrics = app(QueryMetrics::class);
                 $metrics->count++;
                 $metrics->milliseconds += $event->time;
             });

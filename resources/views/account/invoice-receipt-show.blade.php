@@ -31,7 +31,7 @@
             </x-ui.grid>
 
             <div class="mt-4 flex flex-wrap gap-3">
-                <a href="{{ route('account.invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $receipt]) }}" target="_blank" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View PDF</a>
+                <a href="{{ route('account.invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $receipt]) }}" target="_blank" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark" rel="noopener">View PDF</a>
                 <a href="{{ route('account.invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $receipt, 'download' => 1]) }}" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Download PDF</a>
             </div>
         </div>

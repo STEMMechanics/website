@@ -102,7 +102,7 @@
                             <div id="site-option-modal-name" class="mt-1 text-sm text-gray-600"></div>
                         </div>
                         <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" id="site-option-modal-close" title="Close">
-                            <i class="fa-solid fa-xmark text-lg"></i>
+                            <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
                         </x-ui.button>
                     </div>
                     <div class="p-5">

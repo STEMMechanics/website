@@ -9,8 +9,8 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminMediaDuplicateTest extends TestCase
@@ -224,7 +224,8 @@ class AdminMediaDuplicateTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.media.index'))
             ->assertViewHas('duplicateAttentionCount', 1)
-            ->assertSeeText('Find Duplicates');
+            ->assertSee('aria-label="Duplicates, 1, needs attention"', false)
+            ->assertDontSeeText('Find Duplicates');
 
         $this->actingAs($admin)
             ->post(route('admin.media.duplicates.ignore-similar'), ['first' => $first->name, 'second' => $second->name])
@@ -239,7 +240,8 @@ class AdminMediaDuplicateTest extends TestCase
             ->assertDontSeeText('98.4% visually similar');
         $this->actingAs($admin)
             ->get(route('admin.media.index'))
-            ->assertViewHas('duplicateAttentionCount', 0);
+            ->assertViewHas('duplicateAttentionCount', 0)
+            ->assertSee('aria-label="Duplicates, 0"', false);
         $this->actingAs($admin)
             ->get(route('admin.media.duplicates', ['show_ignored' => 1]))
             ->assertSeeText('98.4% visually similar');

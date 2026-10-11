@@ -20,7 +20,7 @@
             </div>
             <p class="mt-1 pl-4 text-sm text-gray-500">{{ $workplan['weekStart']->format('D j M') }} to {{ $workplan['weekEnd']->format('D j M Y') }}.</p>
         </div>
-        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+        <div x-data class="flex items-center gap-2" x-on:click="$event.stopPropagation()">
             <a href="{{ route('admin.dashboard.workplan.pdf') }}" target="_blank" rel="noopener noreferrer" class="flex size-11 items-center justify-center text-2xl text-gray-700 transition hover:text-primary-color" title="Open printable PDF" aria-label="Open printable PDF"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></a>
         </div>
     </summary>

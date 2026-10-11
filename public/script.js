@@ -1859,5 +1859,8 @@ document.addEventListener('blur', (event) => {
     const raw = String(input.value || '').trim();
     if (raw === '') return;
     const amount = parseFloat(raw);
-    input.value = Number.isFinite(amount) && amount >= 0 ? amount.toFixed(2) : '';
+    const formatted = Number.isFinite(amount) && amount >= 0 ? amount.toFixed(2) : '';
+    if (input.value === formatted) return;
+    input.value = formatted;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
 }, true);

@@ -149,7 +149,7 @@ class StoreCartService
             ->values()
             ->all();
 
-        $products = Product::query()
+        $products = Product::query()->sellable()
             ->with(['hero', 'variants'])
             ->whereIn('id', $productIds)
             ->where('status', Product::STATUS_ACTIVE)
@@ -555,7 +555,7 @@ class StoreCartService
             ->unique()
             ->values()
             ->all();
-        $products = Product::query()
+        $products = Product::query()->sellable()
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');

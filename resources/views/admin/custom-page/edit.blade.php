@@ -61,7 +61,7 @@
                 </div>
             </details>
             <div class="mb-4">
-                <x-ui.editor name="content" value="{!! old('content', $page->content) !!}" label="Page Content" />
+                <x-ui.editor name="content" :value="old('content', $page->content)" label="Page Content" />
             </div>
 
             <x-ui.editor-actions>

@@ -92,7 +92,7 @@ class SearchController extends Controller
 
     private function searchProducts(Collection $searchWords): LengthAwarePaginator
     {
-        $productQuery = Product::query()
+        $productQuery = Product::query()->sellable()
             ->active()
             ->with(['hero', 'categories', 'variants' => fn ($query) => $query->where('is_active', true)]);
 

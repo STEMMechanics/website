@@ -14,7 +14,7 @@
         <form method="GET" action="{{ $action ?? url()->current() }}" class="flex min-w-0 flex-1 basis-full items-center gap-3 lg:basis-auto">
             <x-ui.query-inputs :values="request()->except([$searchName, ...array_keys($pageReset)])" />
             <div class="relative min-w-0 flex-1"><i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-3.5 text-slate-400" aria-hidden="true"></i><x-ui.input-control type="search" :name="$searchName" :value="request($searchName, $value)" :placeholder="$label" :aria-label="$label" class="pl-10! min-h-11" /></div>
-            <button type="submit" class="sr-only">Search</button>
+            <x-ui.button variant="plain" type="submit" class="sr-only">Search</x-ui.button>
         </form>
         <x-ui.button color="outline" class="h-11 rounded-lg border-gray-300! shadow-none px-4" data-open-dialog="{{ $id }}-filters" aria-haspopup="dialog"><i class="fa-solid fa-filter mr-2" aria-hidden="true"></i>Filters <x-ui.badge data-filter-count class="ml-2" color="sky" :hidden="$active->isEmpty()">{{ $active->count() }}</x-ui.badge></x-ui.button>
         <x-ui.button color="outline" class="h-11 rounded-lg border-gray-300! shadow-none px-4" data-open-dialog="{{ $id }}-sort" aria-haspopup="dialog"><i class="fa-solid fa-arrow-down-short-wide mr-2" aria-hidden="true"></i>Sort</x-ui.button>

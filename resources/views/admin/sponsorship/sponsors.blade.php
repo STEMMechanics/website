@@ -12,10 +12,10 @@
                     <h2 class="text-lg font-semibold text-gray-900">Sponsor details</h2>
                     <div class="flex flex-wrap gap-2">
                         @if($sponsor->user)
-                            <x-ui.button color="primary-outline" size="compact" href="{{ route('admin.user.edit', $sponsor->user) }}">Edit linked user</x-ui.button>
+                            <x-ui.button color="primary-outline" size="small" href="{{ route('admin.user.edit', $sponsor->user) }}">Edit linked user</x-ui.button>
                         @endif
                         @if($sponsor->organisation)
-                            <x-ui.button color="primary-outline" size="compact" href="{{ route('admin.organisation.edit', $sponsor->organisation) }}">Edit organisation</x-ui.button>
+                            <x-ui.button color="primary-outline" size="small" href="{{ route('admin.organisation.edit', $sponsor->organisation) }}">Edit organisation</x-ui.button>
                         @endif
                     </div>
                 </div>
@@ -123,7 +123,7 @@
                                         <td>{{ $payment->payment?->payment_method ? \App\Models\Payment::paymentMethodLabel($payment->payment->payment_method) : 'Square' }}</td>
                                         <td class="text-right">
                                             @if($payment->status === \App\Models\SponsorshipPayment::STATUS_COMPLETED && $payment->invoice_id)
-                                                <div class="flex justify-end gap-3 whitespace-nowrap"><a class="text-primary-color hover:underline" href="{{ route('admin.sponsorship.payment.invoice', $payment) }}" target="_blank">Download</a><form method="POST" action="{{ route('admin.sponsorship.payment.resend', $payment) }}">@csrf<button type="submit" class="text-primary-color hover:underline">Resend</button></form></div>
+                                                <div class="flex justify-end gap-3 whitespace-nowrap"><a class="text-primary-color hover:underline" href="{{ route('admin.sponsorship.payment.invoice', $payment) }}" target="_blank" rel="noopener">Download</a><form method="POST" action="{{ route('admin.sponsorship.payment.resend', $payment) }}">@csrf<x-ui.button variant="plain" type="submit" class="text-primary-color hover:underline">Resend</x-ui.button></form></div>
                                             @else — @endif
                                         </td>
                                     </tr>

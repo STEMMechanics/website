@@ -44,7 +44,7 @@ class NewsletterProductPromotion extends Model
             return collect();
         }
 
-        $products = Product::query()
+        $products = Product::query()->sellable()
             ->with(['hero', 'categories', 'variants'])
             ->active()
             ->whereIn('id', $ids->all())

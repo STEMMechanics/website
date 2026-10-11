@@ -43,7 +43,7 @@ $hasCustomPickListItems = collect($workshopModel?->pick_list_custom_items ?? [])
     ->contains(function ($item): bool {
         $item = is_array($item) ? $item : (array) $item;
 
-        return (int) ($item['stock_item_id'] ?? 0) > 0 || trim((string) ($item['item_name'] ?? '')) !== '';
+        return (int) ($item['product_id'] ?? 0) > 0 || trim((string) ($item['item_name'] ?? '')) !== '';
     });
 $providedWorkshopTaskDrafts = $workshopTaskDrafts ?? null;
 $submittedTaskDrafts = old('workshop_tasks_payload');
@@ -834,10 +834,10 @@ if (isset($workshop)) {
                     <ol class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 @foreach($workshopEditorSteps as $stepIndex => $step)
                             <li class="min-w-0">
-                                <button type="button" class="block w-full text-left" x-on:click="setEditorStep('{{ $step['id'] }}')" x-bind:aria-current="editorStep === '{{ $step['id'] }}' ? 'step' : null">
+                                <x-ui.button variant="plain" type="button" class="block w-full text-left" x-on:click="setEditorStep('{{ $step['id'] }}')" x-bind:aria-current="editorStep === '{{ $step['id'] }}' ? 'step' : null">
                                     <span class="block h-1.5 rounded-full transition-colors" x-bind:class="editorStepIndex() >= {{ $stepIndex }} ? 'bg-primary-color' : 'bg-gray-200'"></span>
                                     <span class="mt-2 block truncate text-xs" x-bind:class="editorStep === '{{ $step['id'] }}' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ $stepIndex + 1 }}. {{ $step['label'] }}</span>
-                                </button>
+                                </x-ui.button>
                     </li>
                 @endforeach
                     </ol>
@@ -1028,8 +1028,8 @@ if (isset($workshop)) {
                 <div class="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-xl">
                     <div class="mb-4 flex items-center justify-between">
                         <h3 class="text-lg font-semibold">Create Location</h3>
-                        <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="closeCreateLocation()">
-                            <i class="fa-solid fa-xmark"></i>
+                        <x-ui.button size="icon-small" aria-label="Close create location" variant="text" color="secondary" type="button"  x-on:click="closeCreateLocation()">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                         </x-ui.button>
                     </div>
 
@@ -1065,7 +1065,7 @@ if (isset($workshop)) {
                             label="Start Date"
                             name="starts_at"
                             value="{{ $workshopStartValue }}"
-                            onchange="updatedStartsAt()"
+                            x-on:change="updatedStartsAt()"
                             x-ref="startsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
                             x-on:input="manualStartsAt = $event.target.value"
                             x-on:change="manualStartsAt = $event.target.value"
@@ -1078,7 +1078,7 @@ if (isset($workshop)) {
                             label="End Date"
                             name="ends_at"
                             value="{{ $workshopEndValue }}"
-                            onchange="updatedEndsAt()"
+                            x-on:change="updatedEndsAt()"
                             x-ref="endsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
                             x-on:input="manualEndsAt = $event.target.value"
                             x-on:change="manualEndsAt = $event.target.value"
@@ -1109,7 +1109,7 @@ if (isset($workshop)) {
                                 </p>
                             </div>
                             <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </x-ui.button>
                         </div>
 
@@ -1151,7 +1151,7 @@ if (isset($workshop)) {
                             </p>
                         </div>
                         <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTicketChangeEmailModal()" aria-label="Close ticket holder notification modal">
-                            <i class="fa-solid fa-xmark"></i>
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                         </x-ui.button>
                     </div>
 
@@ -1180,7 +1180,7 @@ if (isset($workshop)) {
                             <label class="block text-sm font-semibold text-gray-900">Message</label>
                             <span class="text-xs text-gray-500">Placeholders: @{{first_name}}, @{{last_name}}, @{{full_name}}</span>
                         </div>
-                        <x-ui.mini-editor x-model="ticketChangeEmailBody" content-class="min-h-48" />
+                        <x-ui.mini-editor label="Ticket change email" x-model="ticketChangeEmailBody" content-class="min-h-48" />
                         <p class="mt-1 text-xs text-gray-500">BCC sends one shared message. Name placeholders use a generic greeting when multiple ticket holders are included.</p>
                     </div>
                     </div>
@@ -1382,7 +1382,7 @@ if (isset($workshop)) {
                             <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? `${participantFiles.length} attachment${participantFiles.length === 1 ? '' : 's'} selected` : 'No attachments selected'"></div>
                         </div>
                         <x-ui.button type="button" color="outline" x-on:click.prevent="participantInformationOpen = true">
-                            <i class="fa-solid fa-paperclip mr-2"></i>Configure
+                            <i class="fa-solid fa-paperclip mr-2" aria-hidden="true"></i>Configure
                         </x-ui.button>
                     </div>
                 </div>
@@ -1390,7 +1390,7 @@ if (isset($workshop)) {
                     <x-ui.collapsible-section title="Optional equipment" variant="panel" subtitle="Offer store products with a ticket">
                         <x-ui.select name="optional_product_ids[]" label="Products" multiple
                             :value="old('optional_product_ids', $workshop->optional_product_ids ?? [])"
-                            :options="\App\Models\Product::query()->active()->orderBy('title')->pluck('title', 'id')->all()" />
+                            :options="\App\Models\Product::query()->sellable()->active()->orderBy('title')->pluck('title', 'id')->all()" />
                         <p class="text-sm text-gray-600">Customers can choose equipment and use the store’s delivery options during ticket checkout.</p>
                     </x-ui.collapsible-section>
                 </div>
@@ -1412,7 +1412,7 @@ if (isset($workshop)) {
                                 <p class="mt-1 text-sm text-gray-600">This content appears during checkout and in the booking confirmation email.</p>
                             </div>
                             <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </x-ui.button>
                         </div>
                         <div class="mb-5 border-b border-gray-200 pb-5">
@@ -1429,7 +1429,7 @@ if (isset($workshop)) {
                         <x-ui.editor
                             label="Instructions or notes"
                             name="participant_information"
-                            value="{!! old('participant_information', $workshopModel?->participant_information ?? '') !!}"
+                            :value="old('participant_information', $workshopModel?->participant_information ?? '')"
                         ></x-ui.editor>
                         <div class="mt-5">
                             <div class="mb-2 flex items-center justify-between gap-3">
@@ -1444,7 +1444,7 @@ if (isset($workshop)) {
                                 <template x-for="(fileName, index) in participantFiles" :key="fileName">
                                     <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                                         <div class="min-w-0 truncate text-sm font-medium text-gray-800" x-text="fileName"></div>
-                                        <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash"></i></x-ui.button>
+                                        <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
                                     </div>
                                 </template>
                             </div>
@@ -1656,7 +1656,7 @@ if (isset($workshop)) {
                                     class="h-11 bg-white! pr-10! cursor-pointer"
                                     x-on:click="openBlueprintPicker()"
                                 />
-                                <x-ui.button type="button" variant="plain" class="absolute right-0 size-11 p-0! text-slate-500" aria-label="Choose a workshop blueprint" x-bind:aria-expanded="blueprintPickerOpen" x-on:click="toggleBlueprintPicker()">
+                                <x-ui.button type="button" variant="plain" class="absolute right-0 text-slate-500" aria-label="Choose a workshop blueprint" x-bind:aria-expanded="blueprintPickerOpen" x-on:click="toggleBlueprintPicker()" size="icon">
                                     <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
@@ -1681,7 +1681,7 @@ if (isset($workshop)) {
                                 />
                                 <div id="workshop-blueprint-option-list" role="listbox" class="max-h-72 overflow-y-auto">
                                     <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="`${option.kind}-${option.id}`">
-                                        <button
+                                        <x-ui.button variant="plain"
                                             type="button"
                                             role="option"
                                             class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
@@ -1693,7 +1693,7 @@ if (isset($workshop)) {
                                         >
                                             <span class="min-w-0 truncate" x-text="option.label"></span>
                                             <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="`${option.tasks_count || 0} tasks · ${option.items_count || 0} items`"></span>
-                                        </button>
+                                        </x-ui.button>
                                     </template>
                                     <p x-show="filteredBlueprintOptions().length === 0" class="px-3 py-2 text-sm text-slate-500">No matching blueprints.</p>
                                 </div>
@@ -1708,7 +1708,7 @@ if (isset($workshop)) {
                         <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">Existing tasks are kept when you change blueprints.</p><p x-show="blueprintTaskImportMessage" x-cloak class="mt-1 text-sm text-sky-800" role="status" x-text="blueprintTaskImportMessage"></p></div>
                         <div class="flex items-center gap-1">
                             <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" x-show="pickListTemplateId" x-cloak x-bind:disabled="blueprintTasksImporting" x-on:click="addMissingBlueprintTasks()" aria-label="Add missing tasks from blueprint" title="Add missing tasks from blueprint"><i class="fa-solid" x-bind:class="blueprintTasksImporting ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" aria-hidden="true"></i></x-ui.button>
-                            <x-ui.button type="button" color="primary-outline" size="compact" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1"></i>Add task</x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add task</x-ui.button>
                         </div>
                     </div>
                     <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
@@ -1716,7 +1716,7 @@ if (isset($workshop)) {
                         <template x-for="(task, taskIndex) in tasks" :key="task.id || `new-workshop-task-${taskIndex}`">
                             <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                 <div class="flex items-start gap-2">
-                                    <button type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
+                                    <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
                                         <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
                                         <span class="min-w-0 flex-1">
                                             <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
@@ -1725,26 +1725,26 @@ if (isset($workshop)) {
                                                 <span class="inline-flex items-center gap-1"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
                                             </span>
                                         </span>
-                                    </button>
-                                    <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash"></i></x-ui.button>
+                                    </x-ui.button>
+                                    <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
                                 </div>
                                 <div x-show="task.expanded" x-cloak class="mt-4 border-t border-gray-200 pt-4">
                                     <label class="mb-3 block"><span class="mb-1 block text-sm font-medium text-gray-700">Task</span><x-ui.input-control type="text" maxlength="255" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="task.name" /></label>
                                     <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
                                         <span class="text-sm font-medium text-gray-700">Notes</span>
                                         <div class="flex items-center gap-1">
-                                            <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex))" x-bind:data-ai-mode="String(task.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task notes" title="Write or improve task notes" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                                            <x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" x-show="taskPreviewAvailable(task)" x-cloak x-on:click="previewTask = task" data-open-dialog="workshop-task-copy-dialog" aria-haspopup="dialog" aria-controls="workshop-task-copy-dialog" aria-label="Preview and copy workshop post" title="Preview and copy workshop post"><i class="fa-solid fa-eye" aria-hidden="true"></i></x-ui.button>
+                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex))" x-bind:data-ai-mode="String(task.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task notes" title="Write or improve task notes" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" x-show="taskPreviewAvailable(task)" x-cloak x-on:click="previewTask = task" data-open-dialog="workshop-task-copy-dialog" aria-haspopup="dialog" aria-controls="workshop-task-copy-dialog" aria-label="Preview and copy workshop post" title="Preview and copy workshop post" size="icon-small"><i class="fa-solid fa-eye" aria-hidden="true"></i></x-ui.button>
                                         </div>
                                     </div>
                                     <div x-show="String(task.notes || '').trim() !== ''">
-                                        <x-ui.mini-editor x-model="task.notes">
+                                        <x-ui.mini-editor label="Task notes" x-model="task.notes">
                                             <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
                                         </x-ui.mini-editor>
                                     </div>
                                     <div x-show="String(task.notes || '').trim() === ''" class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
                                         <span>No notes added.</span>
-                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = '<p></p>'">Add notes</x-ui.button>
+                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = {{ \Illuminate\Support\Js::from('<p></p>') }}">Add notes</x-ui.button>
                                     </div>
                                     <div class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
                                         <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
@@ -1771,16 +1771,16 @@ if (isset($workshop)) {
                                         <div class="mt-3 space-y-4">
                                             <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="`workshop-subtask-${task.id || taskIndex}-${subtaskIndex}`">
                                                 <div class="border-t border-gray-200 pt-3">
-                                                    <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="inline-flex size-8 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section"><i class="fa-solid fa-trash"></i></x-ui.button></div>
-                                                    <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="inline-flex size-8 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
-                                                    <x-ui.mini-editor x-model="subtask.content">
+                                                    <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section" size="icon-small"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button></div>
+                                                    <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
+                                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
                                                         <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
                                                     </x-ui.mini-editor>
                                                 </div>
                                             </template>
                                         </div>
                                     </details>
-                                    <x-ui.button type="button" variant="plain" class="mt-2 text-sm text-primary-color hover:underline" x-on:click="addSubtask(task)"><i class="fa-solid fa-plus mr-1"></i>Add section</x-ui.button>
+                                    <x-ui.button type="button" variant="plain" class="mt-2 text-sm text-primary-color hover:underline" x-on:click="addSubtask(task)"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add section</x-ui.button>
                                 </div>
                             </article>
                         </template>
@@ -1845,14 +1845,14 @@ if (isset($workshop)) {
                     <x-ui.editor
                         label=""
                         name="content"
-                        value="{!! $workshopContent !!}">
+                        :value="$workshopContent">
                         <x-slot:toolbar>
-                            <button type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Replace and improve workshop description" title="Replace and improve the current description" {{ blank(config('services.openai.api_key')) ? 'disabled' : '' }}>
+                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Replace and improve workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
                                 <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                            </button>
-                            <button type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Checking workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Amend description and add missing supported sections" title="Amend the description and add missing supported sections, including learning outcomes">
+                            </x-ui.button>
+                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Checking workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Amend description and add missing supported sections" title="Amend the description and add missing supported sections, including learning outcomes">
                                 <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                            </button>
+                            </x-ui.button>
                         </x-slot:toolbar>
                     </x-ui.editor>
                 </section>
@@ -1920,7 +1920,7 @@ if (isset($workshop)) {
                             </x-ui.select>
                         </div>
                         <div>
-                            <x-ui.input type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" onchange="updatedPublishAt()" />
+                            <x-ui.input x-data type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" x-on:change="updatedPublishAt()" />
                         </div>
                     </div>
                     @isset($workshop)

@@ -119,7 +119,7 @@ class SharedInventoryTest extends TestCase
         $this->assertTrue($product->shared_inventory);
         $this->assertSame(5, $product->inventory_units);
         $this->assertSame(10, $product->variants()->firstOrFail()->inventory_units);
-        $this->get(route('admin.shop.product.edit', $product))->assertOk()->assertSee('Share stock across all packs and variants')->assertSee('Units in this pack');
+        $this->get(route('admin.shop.product.edit', $product))->assertOk()->assertSee('Share stock across all packs and variants')->assertSee('Units per pack');
     }
 
     public function test_mixed_pack_cart_shares_availability_and_checkout_backorders_the_remainder(): void

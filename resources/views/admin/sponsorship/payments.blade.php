@@ -24,7 +24,7 @@
                     </dl>
                     @if($payment->status === \App\Models\SponsorshipPayment::STATUS_COMPLETED && $payment->invoice_id)
                         <div class="mt-4 flex flex-wrap gap-3 border-t border-gray-100 pt-4">
-                            <a class="text-sm font-medium text-primary-color hover:underline" href="{{ route('admin.sponsorship.payment.invoice', $payment) }}" target="_blank">Download invoice</a>
+                            <a class="text-sm font-medium text-primary-color hover:underline" href="{{ route('admin.sponsorship.payment.invoice', $payment) }}" target="_blank" rel="noopener">Download invoice</a>
                             <form method="POST" action="{{ route('admin.sponsorship.payment.resend', $payment) }}">@csrf<x-ui.button type="submit" variant="plain" class="px-0 py-0 text-sm font-medium text-primary-color shadow-none hover:underline">Resend invoice</x-ui.button></form>
                         </div>
                     @endif

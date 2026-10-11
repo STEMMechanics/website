@@ -153,7 +153,7 @@
                         <h3 id="{{ $dialogId }}-title" class="text-xl font-bold text-gray-900">Advanced merge</h3>
                         <p class="mt-1 text-sm text-gray-600">Choose the image record and metadata values to keep.</p>
                     </div>
-                    <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeAdvanced()" aria-label="Close advanced merge"><i class="fa-solid fa-xmark text-lg"></i></x-ui.button>
+                    <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeAdvanced()" aria-label="Close advanced merge"><i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i></x-ui.button>
                 </div>
                 <div class="overflow-auto px-6 py-5">
                     <div class="min-w-max">
@@ -197,7 +197,7 @@
                                     @foreach($media as $medium)
                                         <label for="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" @class(['flex min-w-0 items-center gap-2', 'text-gray-700' => $fieldDiffers])>
                                             @if($fieldDiffers)
-                                                <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $medium->name }}" x-model="metadata[@js($field)]" />
+                                                <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $medium->name }}" x-model="metadata[{{ \Illuminate\Support\Js::from($field) }}]" />
                                             @else
                                                 <span class="w-4 shrink-0" aria-hidden="true"></span>
                                             @endif

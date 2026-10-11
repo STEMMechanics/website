@@ -22,11 +22,25 @@ use App\Models\Ticket;
 use App\Models\Token;
 use App\Models\User;
 use App\Services\DocumentNumberService;
+use App\Services\Finance\DocumentProductCatalog;
+use App\Services\Finance\FinanceAttention;
+use App\Services\Finance\InvoiceAllocation;
+use App\Services\Finance\InvoiceAllocationEditor;
+use App\Services\Finance\InvoiceAllocationWorkspace;
+use App\Services\Finance\InvoiceInventory;
+use App\Services\Finance\InvoicePdfLines;
+use App\Services\Finance\LinePricing;
+use App\Services\Finance\WorkshopAllocation;
+use App\Services\Finance\WorkshopFunding;
+use App\Services\Finance\WorkshopLine;
 use App\Services\InvoiceEmailTemplateService;
+use App\Services\ScheduledInvoiceCancellationService;
+use App\Services\SiteListControls;
 use App\Services\SquareApiService;
 use App\Services\StoreOrderService;
 use App\Support\EmailSignatureFormatter;
 use App\Support\InvoiceDueDate;
+use App\Support\ListPageSize;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -62,7 +76,7 @@ class InvoiceController extends Controller
             $query->where(function ($matches) use ($statuses): void {
                 $matches->whereIn('status', array_diff($statuses, [Invoice::STATUS_OVERDUE]));
                 if (in_array(Invoice::STATUS_OVERDUE, $statuses, true)) {
-                    $matches->orWhere(fn ($overdue) => app(\App\Services\Finance\FinanceAttention::class)->overdue($overdue));
+                    $matches->orWhere(fn ($overdue) => app(FinanceAttention::class)->overdue($overdue));
                 }
             });
         }
@@ -83,7 +97,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $invoiceAttention = app(\App\Services\Finance\FinanceAttention::class)->counts();
+        $invoiceAttention = app(FinanceAttention::class)->counts();
         $request->attributes->set('collection_preset_counts', [
             'Overdue' => (int) $invoiceAttention['overdue'],
             'Needs allocation' => (int) $invoiceAttention['unallocated_invoices'],
@@ -93,10 +107,13 @@ class InvoiceController extends Controller
             'Needs allocation' => (int) $invoiceAttention['unallocated_invoices'] > 0,
         ]);
 
-        app(\App\Services\SiteListControls::class)->apply($query);
+        app(SiteListControls::class)->apply($query);
         if ($request->boolean('allocation_selection')) {
             $ids = (clone $query)->reorder()->limit(201)->pluck('invoices.id');
-            if ($ids->count() > 200) { throw \Illuminate\Validation\ValidationException::withMessages(['selection' => 'Narrow your filters to at most 200 invoices per allocation batch.']); }
+            if ($ids->count() > 200) {
+                throw ValidationException::withMessages(['selection' => 'Narrow your filters to at most 200 invoices per allocation batch.']);
+            }
+
             return response()->json(['names' => $ids->map(fn ($id) => (string) $id)->all()]);
         }
         $summaryInvoices = (clone $query)->get();
@@ -112,7 +129,7 @@ class InvoiceController extends Controller
                 : 0;
         }), 2);
 
-        $invoices = $query->orderByRaw('CAST(invoice_number AS DECIMAL(20, 0)) DESC')->orderByDesc('invoice_number')->orderByDesc('created_at')->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderByRaw('CAST(invoice_number AS DECIMAL(20, 0)) DESC')->orderByDesc('invoice_number')->orderByDesc('created_at')->paginate(ListPageSize::resolve(20))->onEachSide(1);
         $invoiceEmailDefaults = $invoices->getCollection()
             ->mapWithKeys(function (Invoice $invoice): array {
                 return [(string) $invoice->id => $this->invoiceEmailPayload($invoice)];
@@ -136,7 +153,7 @@ class InvoiceController extends Controller
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
-            'catalogProducts' => app(\App\Services\Finance\DocumentProductCatalog::class)->products(),
+            'catalogProducts' => app(DocumentProductCatalog::class)->products(),
         ]);
     }
 
@@ -156,7 +173,7 @@ class InvoiceController extends Controller
         $lineItems = $this->extractLineItems($request);
         $this->validateProductLineItems($lineItems);
 
-        $invoice = new Invoice();
+        $invoice = new Invoice;
         $invoice->fill($validated);
         $invoice->scheduled_email = $request->boolean('scheduled_email');
         $invoice->status = $invoice->scheduled_email
@@ -185,11 +202,11 @@ class InvoiceController extends Controller
             }
             $invoice->save();
             $fundingChanged = $this->replaceInvoiceLines($invoice, $lineItems);
-            app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
+            app(InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
             if ((string) $invoice->status === Invoice::STATUS_ISSUED) {
-                app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
+                app(InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
             }
             $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
@@ -231,7 +248,7 @@ class InvoiceController extends Controller
             'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
-            'catalogProducts' => app(\App\Services\Finance\DocumentProductCatalog::class)->products($this->invoiceLineItemsForPayload($invoice)),
+            'catalogProducts' => app(DocumentProductCatalog::class)->products($this->invoiceLineItemsForPayload($invoice)),
             'invoiceEmailDefaultPayload' => $this->invoiceEmailPayload($invoice),
         ]);
     }
@@ -243,49 +260,56 @@ class InvoiceController extends Controller
 
     private function prepareWorkshopAllocations(Request $request, Invoice $invoice): void
     {
-        if (! $request->has('workshop_allocations')) return;
+        if (! $request->has('workshop_allocations')) {
+            return;
+        }
         $request->validate(['workshop_allocations' => 'array']);
-        $request->attributes->set('validated_workshop_allocations', app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->prepare($invoice, $request->input('workshop_allocations')));
+        $request->attributes->set('validated_workshop_allocations', app(InvoiceAllocationWorkspace::class)->prepare($invoice, $request->input('workshop_allocations')));
     }
 
     private function saveWorkshopAllocations(Request $request, Invoice $invoice): void
     {
-        if (! $request->has('workshop_allocations')) return;
+        if (! $request->has('workshop_allocations')) {
+            return;
+        }
         $request->validate(['workshop_allocations' => 'array']);
-        app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->save($invoice->fresh(), $request->input('workshop_allocations'), $request->user()->id, $request->attributes->get('validated_workshop_allocations', []));
+        app(InvoiceAllocationWorkspace::class)->save($invoice->fresh(), $request->input('workshop_allocations'), $request->user()->id, $request->attributes->get('validated_workshop_allocations', []));
     }
 
     private function finaliseLinkedWorkshopAllocations(Invoice $invoice, string $userId): void
     {
-        if (! in_array((string) $invoice->status, [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_PAID, Invoice::STATUS_OVERDUE], true)) return;
-        app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $userId);
+        if (! in_array((string) $invoice->status, [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_PAID, Invoice::STATUS_OVERDUE], true)) {
+            return;
+        }
+        app(WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $userId);
     }
 
     private function saveInvoiceAllocation(Request $request, Invoice $invoice, bool $fundingChanged = false): void
     {
-        $funding = app(\App\Services\Finance\WorkshopFunding::class);
+        $funding = app(WorkshopFunding::class);
         if (! $invoice->canEditContents() && $request->has('workshop_funding')) {
             $request->validate(['workshop_funding' => 'array', 'workshop_funding.*' => 'array:linked_workshop_id,allocation_basis,allocation_seats,rows', 'workshop_funding.*.rows' => 'array', 'workshop_funding.*.rows.*' => 'array:linked_workshop_id,allocation_basis,allocation_seats']);
             $fundingChanged = $funding->saveLinks($invoice, $request->input('workshop_funding')) || $fundingChanged;
         }
         $funding->validateLinks($invoice);
         if ($fundingChanged) {
-            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice->fresh(), $request->user()->id, true);
+            app(InvoiceAllocation::class)->sync($invoice->fresh(), $request->user()->id, true);
+
             return;
         }
         if ($request->has('allocation')) {
             $request->validate(['allocation' => 'array']);
             try {
-                app(\App\Services\Finance\InvoiceAllocationEditor::class)->save($invoice->fresh(), $request->input('allocation'), $request->user()->id);
-            } catch (\Illuminate\Validation\ValidationException $exception) {
+                app(InvoiceAllocationEditor::class)->save($invoice->fresh(), $request->input('allocation'), $request->user()->id);
+            } catch (ValidationException $exception) {
                 $errors = [];
                 foreach ($exception->errors() as $key => $messages) {
                     $errors['allocation.'.$key] = $messages;
                 }
-                throw \Illuminate\Validation\ValidationException::withMessages($errors);
+                throw ValidationException::withMessages($errors);
             }
         } else {
-            app(\App\Services\Finance\InvoiceAllocation::class)->sync($invoice, $request->user()->id);
+            app(InvoiceAllocation::class)->sync($invoice, $request->user()->id);
         }
     }
 
@@ -347,7 +371,7 @@ class InvoiceController extends Controller
             $invoice->scheduled_email_failure = null;
         }
         $invoice->status = $nextStatus;
-        if (! \App\Services\Finance\LinePricing::sameTotals($lineItems, $invoice->lines->map->toArray()->all())) {
+        if (! LinePricing::sameTotals($lineItems, $invoice->lines->map->toArray()->all())) {
             $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
             $invoice->gst_amount = $this->calculateGst($lineItems);
             $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
@@ -370,11 +394,11 @@ class InvoiceController extends Controller
             }
             $invoice->save();
             $fundingChanged = $this->replaceInvoiceLines($invoice, $lineItems);
-            app(\App\Services\Finance\InvoiceInventory::class)->sync($invoice);
+            app(InvoiceInventory::class)->sync($invoice);
             $this->saveInvoiceAllocation($request, $invoice, $fundingChanged);
             $this->saveWorkshopAllocations($request, $invoice);
             if ((string) $invoice->status === Invoice::STATUS_ISSUED) {
-                app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
+                app(InvoiceAllocationWorkspace::class)->assertBalanced($invoice->fresh(['lines', 'tickets']));
             }
             $this->finaliseLinkedWorkshopAllocations($invoice, $request->user()->id);
         });
@@ -420,8 +444,8 @@ class InvoiceController extends Controller
                 if ($locked->status !== Invoice::STATUS_DRAFT) {
                     throw ValidationException::withMessages(['invoice' => 'This invoice is no longer a draft. Refresh the page before making changes.']);
                 }
-                app(\App\Services\Finance\InvoiceAllocation::class)->removeDraft($locked);
-                app(\App\Services\Finance\InvoiceInventory::class)->sync($locked, release: true);
+                app(InvoiceAllocation::class)->removeDraft($locked);
+                app(InvoiceInventory::class)->sync($locked, release: true);
                 $locked->delete();
             });
 
@@ -472,7 +496,7 @@ class InvoiceController extends Controller
                 }
 
                 $lockedInvoice->status = Invoice::STATUS_CANCELLED;
-                app(\App\Services\Finance\InvoiceInventory::class)->sync($lockedInvoice, release: true);
+                app(InvoiceInventory::class)->sync($lockedInvoice, release: true);
                 if (! $lockedInvoice->issued_at) {
                     $lockedInvoice->issued_at = now();
                 }
@@ -582,7 +606,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
 
         return view('account.invoices', [
             'invoices' => $invoices,
@@ -628,7 +652,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $receipts = $query->orderByDesc('received_on')->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $receipts = $query->orderByDesc('received_on')->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
 
         return view('account.invoice-receipts', [
             'invoice' => $invoice,
@@ -1238,7 +1262,7 @@ class InvoiceController extends Controller
                     ]);
                 }
 
-                $customerPayment = new Payment();
+                $customerPayment = new Payment;
                 $customerPayment->user_id = $lockedInvoice->user_id ?: auth()->id();
                 $customerPayment->created_by = auth()->id();
                 $customerPayment->kind = Payment::KIND_PAYMENT;
@@ -1973,7 +1997,7 @@ class InvoiceController extends Controller
             'creditReferenceSummary' => $creditReferenceSummary,
             'orderTotalAmount' => round((float) $invoice->total_amount, 2),
             'purchasedItems' => $invoice->lines()->orderBy('line_number')->get()->map(fn ($line): array => [
-                'quantity_label' => \App\Services\Finance\WorkshopLine::quantityLabel($line->toArray()),
+                'quantity_label' => WorkshopLine::quantityLabel($line->toArray()),
                 'description' => (string) $line->description,
                 'quantity' => (float) $line->quantity,
                 'line_total_inc_tax' => (float) $line->line_total_inc_tax,
@@ -2101,8 +2125,8 @@ class InvoiceController extends Controller
         try {
             DB::transaction(function () use ($invoice): void {
                 $fresh = $invoice->fresh(['lines', 'tickets']);
-                if (! $fresh || ! app(\App\Services\Finance\InvoiceAllocationWorkspace::class)->isBalanced($fresh)) {
-                    throw new UnbalancedInvoiceAllocation();
+                if (! $fresh || ! app(InvoiceAllocationWorkspace::class)->isBalanced($fresh)) {
+                    throw new UnbalancedInvoiceAllocation;
                 }
                 $invoice->update([
                     'status' => Invoice::STATUS_ISSUED,
@@ -2111,10 +2135,10 @@ class InvoiceController extends Controller
                     'scheduled_email_failure' => null,
                     'scheduled_email_failed_at' => null,
                 ]);
-                app(\App\Services\Finance\WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $invoice->created_by);
+                app(WorkshopAllocation::class)->finaliseFundingInvoice($invoice->fresh('lines'), $invoice->created_by);
             });
         } catch (UnbalancedInvoiceAllocation) {
-            app(\App\Services\ScheduledInvoiceCancellationService::class)->cancelForUnbalancedAllocation($invoice);
+            app(ScheduledInvoiceCancellationService::class)->cancelForUnbalancedAllocation($invoice);
 
             return 'cancelled';
         }
@@ -2276,7 +2300,7 @@ class InvoiceController extends Controller
             $productId = (int) ($lineItem['source_id'] ?? 0);
             $productSelected = ($lineItem['source_type'] ?? null) === Product::class
                 && $productId > 0
-                && Product::query()->whereKey($productId)->exists();
+                && Product::query()->sellable()->whereKey($productId)->exists();
 
             if (! $productSelected) {
                 throw ValidationException::withMessages([
@@ -2336,7 +2360,7 @@ class InvoiceController extends Controller
 
     private function paginateLineItemsForPdf(Invoice $invoice): array
     {
-        $items = \App\Services\Finance\InvoicePdfLines::prepare($this->invoiceLineItemsForPayload($invoice));
+        $items = InvoicePdfLines::prepare($this->invoiceLineItemsForPayload($invoice));
 
         if (count($items) === 0) {
             return [[]];
@@ -2532,7 +2556,7 @@ class InvoiceController extends Controller
         $invoice->lines()->delete();
 
         foreach (array_values($lineItems) as $index => $lineItem) {
-            $line = new \App\Models\InvoiceLine([
+            $line = new InvoiceLine([
                 'line_number' => $index + 1,
                 'kind' => (string) ($lineItem['kind'] ?? 'generic'),
                 'description' => (string) ($lineItem['description'] ?? ''),
@@ -2556,13 +2580,14 @@ class InvoiceController extends Controller
             }
             $invoice->lines()->save($line);
         }
-        $signature = fn ($lines) => $lines->flatMap(fn ($line) => app(\App\Services\Finance\WorkshopFunding::class)->entries($line))->pluck('details_json.workshop.linked_workshop_id')->values()->all();
+        $signature = fn ($lines) => $lines->flatMap(fn ($line) => app(WorkshopFunding::class)->entries($line))->pluck('details_json.workshop.linked_workshop_id')->values()->all();
+
         return $signature($previous) !== $signature($invoice->lines()->get());
     }
 
     private function normalizeLineItem(array $item, ?array $saved = null): ?array
     {
-        $item = \App\Services\Finance\WorkshopLine::normalize($item);
+        $item = WorkshopLine::normalize($item);
         $description = trim((string) ($item['description'] ?? ''));
         $notes = trim((string) ($item['notes'] ?? ''));
         $kind = trim((string) ($item['kind'] ?? 'generic')) ?: 'generic';
@@ -2580,10 +2605,10 @@ class InvoiceController extends Controller
             validator($item, ['unit_price_inc_tax' => 'numeric'])->validate();
             $item['details_json']['inclusive_unit_price'] = (float) $item['unit_price_inc_tax'];
         }
-        $unchanged = $saved && \App\Services\Finance\LinePricing::unchanged($item, $saved);
+        $unchanged = $saved && LinePricing::unchanged($item, $saved);
         $amounts = $unchanged
-            ? \App\Services\Finance\LinePricing::savedAmounts($saved)
-            : \App\Services\Finance\WorkshopLine::amounts($item, $quantity, $unitPriceExTax, $taxRate);
+            ? LinePricing::savedAmounts($saved)
+            : WorkshopLine::amounts($item, $quantity, $unitPriceExTax, $taxRate);
         $lineTotalExTax = $amounts['net'];
         $taxAmount = $amounts['tax'];
         if ($unchanged && (float) $saved['quantity'] === $quantity) {
@@ -2615,7 +2640,7 @@ class InvoiceController extends Controller
         $invoice->loadMissing('lines');
 
         return $invoice->lines->map(function (InvoiceLine $line): array {
-            return \App\Services\Finance\LinePricing::forEditor([
+            return LinePricing::forEditor([
                 'id' => $line->id,
                 'kind' => (string) $line->kind,
                 'description' => (string) $line->description,

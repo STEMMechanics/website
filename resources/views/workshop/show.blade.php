@@ -227,8 +227,8 @@
                                                     <h3 class="text-lg font-bold text-gray-900">I'm interested</h3>
                                                     <p class="mt-2 text-sm text-gray-700">Leave your details and we’ll record your interest for this workshop.</p>
                                                 </div>
-                                                <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="interestModalOpen = false" aria-label="Close">
-                                                    <i class="fa-solid fa-xmark"></i>
+                                                <x-ui.button variant="text" color="secondary" type="button"  x-on:click="interestModalOpen = false" aria-label="Close">
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                 </x-ui.button>
                                             </div>
 
@@ -272,9 +272,6 @@
                             </x-ui.button>
                             <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.run-sheet', $workshop) }}">
                                 <i class="fa-solid fa-list-check mr-1.5" aria-hidden="true"></i>Manage
-                            </x-ui.button>
-                            <x-ui.button color="primary-outline" class="w-full justify-center" href="{{ route('admin.workshop.stock-reconciliation', $workshop) }}" aria-label="Reconcile stock">
-                                <i class="fa-solid fa-box-open mr-1.5" aria-hidden="true"></i>Reconcile
                             </x-ui.button>
                         </div>
                         @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0 || ($adminCanViewTickets ?? false))
@@ -334,7 +331,7 @@
 
                     @if($workshop->location?->address)
                         @if($workshop->location?->address_url)
-                            <a href="{{ $workshop->location->address_url }}" class="link" target="_blank">
+                            <a href="{{ $workshop->location->address_url }}" class="link" target="_blank" rel="noopener">
                                 @endif
                                 <p class="text-xs">{{ $workshop->location->address }}</p>
                                 @if($workshop->location?->address_url)

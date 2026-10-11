@@ -3,9 +3,8 @@
 namespace App\Support;
 
 use App\Models\Workshop;
-use App\Services\WorkshopFollowUp;
 use App\Services\Finance\WorkshopAllocation;
-use App\Services\StockInventoryService;
+use App\Services\WorkshopFollowUp;
 
 class WorkshopNavigation
 {
@@ -23,22 +22,14 @@ class WorkshopNavigation
         $mediaSection = (string) request()->query('section', 'files');
         $followUp = app(WorkshopFollowUp::class);
         $needsAttendance = $followUp->needsAttendance($workshop);
-        $hasStockPlan = $workshop->stock_reconciled_at !== null || $followUp->hasStockPlan($workshop);
-        $needsStock = $workshop->stock_reconciled_at === null
-            && $followUp->hasEnded($workshop)
-            && $hasStockPlan;
-        $hasReservationShortages = app(StockInventoryService::class)->workshopReservationShortages($workshop) !== [];
         $routes = [
             'Create' => ['route' => 'edit', 'icon' => 'fa-solid fa-pen-to-square', 'active' => $routeName === 'admin.workshop.edit'],
             'Allocate' => ['route' => 'allocation.edit', 'icon' => 'fa-solid fa-list-check', 'active' => $routeName === 'admin.workshop.allocation.edit', 'attention' => ($state['ready'] && ! $state['current']) || $state['status'] === 'Allocation needs review', 'attention_label' => 'Allocation needs review'],
-            'Run sheet' => ['route' => 'run-sheet', 'icon' => 'fa-solid fa-clipboard-list', 'active' => $routeName === 'admin.workshop.run-sheet', 'attention' => $hasReservationShortages, 'attention_label' => 'Pick list stock is short for this workshop'],
+            'Run sheet' => ['route' => 'run-sheet', 'icon' => 'fa-solid fa-clipboard-list', 'active' => $routeName === 'admin.workshop.run-sheet'],
             'Attendance' => ['route' => 'attendance', 'icon' => 'fa-solid fa-user-check', 'active' => $routeName === 'admin.workshop.attendance', 'attention' => $needsAttendance, 'attention_label' => 'Attendance still needs recording'],
             'Files' => ['route' => 'media', 'section' => 'files', 'icon' => 'fa-regular fa-file-lines', 'active' => $isMediaPage && ($routeName === 'admin.workshop.files' || $mediaSection !== 'photos')],
             'Photos' => ['route' => 'media', 'section' => 'photos', 'icon' => 'fa-solid fa-images', 'active' => $isMediaPage && ($routeName === 'admin.workshop.photos' || $mediaSection === 'photos')],
         ];
-        if ($hasStockPlan) {
-            $routes['Reconcile stock'] = ['route' => 'stock-reconciliation', 'icon' => 'fa-solid fa-box-open', 'active' => $routeName === 'admin.workshop.stock-reconciliation', 'attention' => $needsStock, 'attention_label' => 'Workshop stock still needs reconciliation'];
-        }
 
         return collect($routes)
             ->map(function ($definition, $title) use ($workshop): array {

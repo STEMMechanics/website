@@ -166,14 +166,14 @@
 
                     <div class="mt-4 flex flex-wrap gap-2">
                         @if($canOpenTicketPdf)
-                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open ticket PDF">
+                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open ticket PDF" rel="noopener">
                                 <i class="fa-regular fa-file-pdf"></i>
                                 Ticket PDF
                             </a>
                         @endif
 
                         @if($ticket->invoice_id)
-                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open invoice">
+                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open invoice" rel="noopener">
                                 <i class="fa-solid fa-file-invoice-dollar"></i>
                                 Invoice
                             </a>
@@ -194,7 +194,7 @@
                                                     phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
                                                 }
                                             )">
-                                <i class="fa-solid fa-user-pen"></i>
+                                <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
                                 Reissue
                             </x-ui.button>
                         @endif
@@ -214,7 +214,7 @@
                                     {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }},
                                     {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
                                 )">
-                                <i class="fa-solid fa-ban"></i>
+                                <i class="fa-solid fa-ban" aria-hidden="true"></i>
                                 Cancel
                             </x-ui.button>
                         </div>
@@ -344,8 +344,8 @@
                         <h3 class="text-lg font-bold text-gray-900">Create Ticket</h3>
                         <p class="mt-1 text-sm text-gray-600">Create a free ticket or a reserved pay-at-door ticket for this workshop.</p>
                     </div>
-                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createTicketOpen = false">
-                        <i class="fa-solid fa-xmark"></i>
+                    <x-ui.button size="icon-small" aria-label="Close create ticket" variant="text" color="secondary" type="button"  x-on:click="createTicketOpen = false">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </x-ui.button>
                 </div>
 
@@ -458,8 +458,8 @@
             <div class="relative z-10 w-full max-w-2xl rounded-xl bg-white shadow-xl border border-gray-200 p-6">
                 <div class="mb-3 flex items-center justify-between">
                     <h3 class="text-lg font-bold text-gray-900">Email Ticket Contacts</h3>
-                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="bulkEmailOpen = false">
-                        <i class="fa-solid fa-xmark"></i>
+                    <x-ui.button size="icon-small" aria-label="Close ticket email" variant="text" color="secondary" type="button"  x-on:click="bulkEmailOpen = false">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </x-ui.button>
                 </div>
                 <form method="POST" action="{{ route('admin.workshop.tickets.email', $workshop) }}" class="mt-4 space-y-3">
@@ -509,8 +509,8 @@
                         <h3 class="text-lg font-bold text-gray-900">Text Ticket Contacts</h3>
                         <p class="mt-1 text-sm text-gray-600">Only ticket holders with a mobile number are selectable.</p>
                     </div>
-                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-700" x-on:click="smsOpen = false">
-                        <i class="fa-solid fa-xmark"></i>
+                    <x-ui.button size="icon-small" aria-label="Close ticket text message" variant="text" color="secondary" type="button"  x-on:click="smsOpen = false">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </x-ui.button>
                 </div>
 

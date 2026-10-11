@@ -484,7 +484,7 @@
                                     :value="$selectedSort"
                                     class="mb-0 sm:w-64 w-full"
                                     inline-label
-                                    onchange="this.form.submit()"
+                                    data-submit-on-change
                                 >
                                     @foreach($sortOptions as $value => $label)
                                         <option value="{{ $value }}" @selected($selectedSort === $value)>{{ $label }}</option>
@@ -504,7 +504,7 @@
                                     class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition"
                                     aria-pressed="{{ $selectedView === 'grid' ? 'true' : 'false' }}"
                                 >
-                                    <i class="fa-solid fa-grip"></i>
+                                    <i class="fa-solid fa-grip" aria-hidden="true"></i>
                                     <span>Grid</span>
                                 </x-ui.button>
                                 <x-ui.button variant="plain"
@@ -513,7 +513,7 @@
                                     class="inline-flex items-center gap-2 border-l border-gray-300 px-4 py-2.5 text-sm font-medium transition"
                                     aria-pressed="{{ $selectedView === 'list' ? 'true' : 'false' }}"
                                 >
-                                    <i class="fa-solid fa-list"></i>
+                                    <i class="fa-solid fa-list" aria-hidden="true"></i>
                                     <span>List</span>
                                 </x-ui.button>
                             </div>

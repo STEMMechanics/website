@@ -377,11 +377,10 @@
                                         <x-ui.button
                                             type="button"
                                             color="danger-outline"
-                                            class="h-11 w-11 shrink-0 px-0!"
+                                            class="px-0!"
                                             x-on:click="removeTrackingLinkTemplate(templateIndex)"
                                             aria-label="Remove courier tracking link template"
-                                            title="Remove courier tracking link template"
-                                        >
+                                            title="Remove courier tracking link template" size="icon">
                                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                         </x-ui.button>
                                     </div>
@@ -548,7 +547,7 @@
                                                 <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][weight_tiers][${tierIndex}][price]`" x-model="tier.price" x-bind:class="hasFieldError(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`) && 'border-red-400'" />
                                                 <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                             </div>
-                                            <x-ui.button variant="plain" type="button" class="inline-flex h-11 w-11 items-center justify-center justify-self-end rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 sm:mt-6" x-on:click="method.weight_tiers.splice(tierIndex, 1)" title="Remove tier" aria-label="Remove tier">
+                                            <x-ui.button variant="plain" type="button" class="justify-self-end rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 sm:mt-6" x-on:click="method.weight_tiers.splice(tierIndex, 1)" title="Remove tier" aria-label="Remove tier" size="icon">
                                                 <i class="fa-solid fa-trash text-sm" aria-hidden="true"></i>
                                             </x-ui.button>
                                         </div>

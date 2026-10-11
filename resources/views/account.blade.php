@@ -186,7 +186,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                                 data-device-nickname="{{ (string) ($device['nickname'] ?? '') }}"
                                                 data-device-default-title="{{ $defaultDeviceTitle }}"
                                             >
-                                                <i class="fa-solid fa-pen"></i>
+                                                <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                             </x-ui.button>
                                             @if(! empty($device['is_current']))
                                                 <x-ui.badge color="success">Current device</x-ui.badge>

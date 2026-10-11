@@ -191,7 +191,7 @@
                     class="gap-3"
                     x-on:click.prevent="sendSmsOpen = true"
                 >
-                    <i class="fa-solid fa-comment-sms"></i>
+                    <i class="fa-solid fa-comment-sms" aria-hidden="true"></i>
                     Send SMS
                 </x-ui.button>
             </div>
@@ -300,7 +300,7 @@
                                             <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
                                                 @csrf
                                                 @method('PATCH')
-                                                <x-ui.button type="submit" color="primary-outline-sm" class="gap-2" x-bind:disabled="busy">
+                                                <x-ui.button type="submit" color="primary-outline" class="gap-2" x-bind:disabled="busy" size="small">
                                                     <span x-text="busy ? 'Acknowledging...' : 'Acknowledge'"></span>
                                                 </x-ui.button>
                                             </form>
@@ -418,7 +418,7 @@
                                                         <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
                                                             @csrf
                                                             @method('PATCH')
-                                                            <x-ui.button type="submit" color="primary-outline-sm" class="gap-2" x-bind:disabled="busy">
+                                                            <x-ui.button type="submit" color="primary-outline" class="gap-2" x-bind:disabled="busy" size="small">
                                                                 <span x-text="busy ? 'Acknowledging...' : 'Acknowledge'"></span>
                                                             </x-ui.button>
                                                         </form>
@@ -483,7 +483,7 @@
                                         <form method="POST" action="{{ route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id')) }}" class="shrink-0" x-show="! acknowledged" x-cloak x-on:submit.prevent="acknowledgeReply($data)">
                                             @csrf
                                             @method('PATCH')
-                                            <x-ui.button type="submit" color="primary-outline-sm" class="gap-2" x-bind:disabled="busy">
+                                            <x-ui.button type="submit" color="primary-outline" class="gap-2" x-bind:disabled="busy" size="small">
                                                 <span x-text="busy ? 'Acknowledging...' : 'Acknowledge'"></span>
                                             </x-ui.button>
                                         </form>
@@ -508,7 +508,7 @@
                         @csrf
                         <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                             <h2 id="sent-sms-modal-title" class="text-sm font-semibold text-gray-900">Send SMS</h2>
-                            <x-ui.button variant="plain" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50" aria-label="Close SMS dialog" x-on:click="sendSmsOpen = false">
+                            <x-ui.button variant="plain" type="button" class="rounded border border-gray-300 text-gray-600 hover:bg-gray-50" aria-label="Close SMS dialog" x-on:click="sendSmsOpen = false" size="icon-small">
                                 &times;
                             </x-ui.button>
                         </div>
@@ -552,7 +552,7 @@
                         <div class="flex items-center justify-end gap-2 border-t border-gray-200 px-4 py-3">
                             <x-ui.button type="button" color="outline" x-on:click.prevent="sendSmsOpen = false">Cancel</x-ui.button>
                             <x-ui.button type="submit" class="gap-3">
-                                <i class="fa-solid fa-paper-plane"></i>
+                                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                                 Send
                             </x-ui.button>
                         </div>

@@ -64,7 +64,7 @@
                     <div class="flex flex-wrap gap-3">
                         <x-ui.button color="outline" href="{{ $backUrl }}">Back to order</x-ui.button>
                         <x-ui.button href="{{ $downloadUrl }}">
-                            <i class="fa-solid fa-download mr-2"></i>
+                            <i class="fa-solid fa-download mr-2" aria-hidden="true"></i>
                             Download now
                         </x-ui.button>
                     </div>

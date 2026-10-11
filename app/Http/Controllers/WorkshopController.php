@@ -33,7 +33,7 @@ use App\Services\SiteListControls;
 use App\Services\SmsFlowMessageService;
 use App\Services\SmsFlowService;
 use App\Services\SquareApiService;
-use App\Services\StockInventoryService;
+use App\Services\WorkshopActionAttention;
 use App\Services\WorkshopBlueprintService;
 use App\Services\WorkshopCourseSettings;
 use App\Services\WorkshopFollowUp;
@@ -159,9 +159,7 @@ class WorkshopController extends Controller
             $request->attributes->set('collection_preset_counts', $presetCounts);
             $request->attributes->set('collection_preset_attention', [
                 'Needs attention' => (int) ($presetCounts['Needs attention'] ?? 0) > 0,
-                'Stock shortage' => (int) ($presetCounts['Stock shortage'] ?? 0) > 0,
                 'Attendance' => (int) ($presetCounts['Attendance'] ?? 0) > 0,
-                'Reconcile stock' => (int) ($presetCounts['Reconcile stock'] ?? 0) > 0,
                 'Ready for review' => $allocationReviewCount > 0,
             ]);
         }
@@ -179,7 +177,7 @@ class WorkshopController extends Controller
             ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
             ->onEachSide(1);
         $workshopAttentionById = $view === 'list'
-            ? app(\App\Services\WorkshopActionAttention::class)->forWorkshops($workshops->getCollection())
+            ? app(WorkshopActionAttention::class)->forWorkshops($workshops->getCollection())
             : [];
 
         $tabQuery = array_filter([
@@ -361,8 +359,6 @@ class WorkshopController extends Controller
                 }
                 if ($itemChanges !== []) {
                     $workshop->update($itemChanges);
-                    $freshWorkshop = $workshop->fresh();
-                    app(StockInventoryService::class)->syncWorkshopReservations($freshWorkshop, (string) $freshWorkshop->status === 'cancelled');
                 }
                 if ($removeCategoryIds->isNotEmpty()) {
                     $workshop->categories()->detach($removeCategoryIds->all());
@@ -438,7 +434,7 @@ class WorkshopController extends Controller
 
         $workshopPages = $monthWorkshops->map(function (Workshop $workshop) use ($pickListService): array {
             $pickListData = $pickListService->build($workshop);
-            $shelfPickList = $pickListService->buildShelfPickList($workshop, $pickListData['participants']);
+            $shelfPickList = $pickListService->buildShelfPickList($workshop, $pickListData['participants'], $pickListData);
 
             return [
                 'workshop' => $workshop,
@@ -1172,7 +1168,7 @@ class WorkshopController extends Controller
             'allow_pay_at_door' => 'nullable|boolean',
             'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
             'optional_product_ids' => 'nullable|array|max:30',
-            'optional_product_ids.*' => 'integer|distinct|exists:products,id',
+            'optional_product_ids.*' => ['integer', 'distinct', Rule::exists('products', 'id')->whereIn('product_type', ['physical', 'kit', 'digital'])],
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'max_attendance' => 'nullable|integer|min:1|max:5000',
             'ticket_group_slug' => 'nullable|string|max:80',
@@ -1292,8 +1288,6 @@ class WorkshopController extends Controller
 
         $workshop = DB::transaction(function () use ($workshopData): Workshop {
             $workshop = Workshop::create($workshopData);
-            $freshWorkshop = $workshop->fresh();
-            app(StockInventoryService::class)->syncWorkshopReservations($freshWorkshop, (string) $freshWorkshop->status === 'cancelled');
 
             return $workshop;
         });
@@ -2359,7 +2353,7 @@ class WorkshopController extends Controller
             'allow_pay_at_door' => 'nullable|boolean',
             'pricing_version_id' => 'nullable|integer|exists:finance_pricing_versions,id',
             'optional_product_ids' => 'nullable|array|max:30',
-            'optional_product_ids.*' => 'integer|distinct|exists:products,id',
+            'optional_product_ids.*' => ['integer', 'distinct', Rule::exists('products', 'id')->whereIn('product_type', ['physical', 'kit', 'digital'])],
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
             'max_attendance' => 'nullable|integer|min:1|max:5000',
             'ticket_group_slug' => 'nullable|string|max:80',
@@ -2587,12 +2581,6 @@ class WorkshopController extends Controller
 
         DB::transaction(function () use ($workshop, $workshopData): void {
             $workshop->update($workshopData);
-            $freshWorkshop = $workshop->fresh();
-            app(StockInventoryService::class)->syncWorkshopReservations(
-                $freshWorkshop,
-                (string) $freshWorkshop->status === 'cancelled',
-                refreshAfterStart: true,
-            );
         });
         $blueprintService = app(WorkshopBlueprintService::class);
         $hasSubmittedWorkshopTasks = collect($submittedWorkshopTasks ?? [])

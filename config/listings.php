@@ -1,88 +1,100 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Coupon;
+use App\Models\CustomPage;
+use App\Models\EmailSubscriptions;
+use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\Location;
+use App\Models\Media;
+use App\Models\NewsletterStoreTheme;
+use App\Models\Organisation;
+use App\Models\Payment;
+use App\Models\PickListTemplate;
+use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\Quote;
+use App\Models\Reminder;
+use App\Models\SentEmail;
+use App\Models\SentSms;
+use App\Models\SiteOption;
+use App\Models\SquareRefundOperation;
+use App\Models\SquareWebhookEvent;
+use App\Models\StoreOrder;
+use App\Models\Supplier;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Models\Workshop;
+use App\Models\WorkshopCategory;
+
 // Explicit public list fields only: never infer filters from database columns.
 $lists = [
-    'admin.user.index' => ['model' => \App\Models\User::class, 'fields' => [
+    'admin.user.index' => ['model' => User::class, 'fields' => [
         'firstname' => ['label' => 'Name', 'type' => 'text'],
         'surname' => ['label' => 'Surname', 'type' => 'text'],
         'email' => ['label' => 'Email', 'type' => 'text'],
         'phone' => ['label' => 'Phone', 'type' => 'text'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.location.index' => ['model' => \App\Models\Location::class, 'fields' => [
+    'admin.location.index' => ['model' => Location::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'address' => ['label' => 'Address', 'type' => 'text'],
         'suburb' => ['label' => 'Suburb', 'type' => 'text'],
         'state' => ['label' => 'State', 'type' => 'text'],
         'postcode' => ['label' => 'Postcode', 'type' => 'text'],
     ]],
-    'admin.organisation.index' => ['model' => \App\Models\Organisation::class, 'fields' => [
+    'admin.organisation.index' => ['model' => Organisation::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'type' => ['label' => 'Type', 'type' => 'text'],
         'billing_city' => ['label' => 'City', 'type' => 'text'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.shop.product.index' => ['model' => \App\Models\Product::class, 'fields' => [
+    'admin.shop.product.index' => ['model' => Product::class, 'fields' => [
         'title' => ['label' => 'Product', 'type' => 'text'],
         'sku' => ['label' => 'SKU', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
-        'product_type' => ['label' => 'Type', 'type' => 'text'],
+        'product_type' => ['label' => 'Type', 'type' => 'select', 'options' => ['physical' => 'Store Item', 'kit' => 'Kit', 'digital' => 'Digital Download', 'material' => 'Material']],
         'price' => ['label' => 'Price', 'type' => 'number'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.shop.stock.index' => ['model' => \App\Models\StockItem::class, 'fields' => [
-        'name' => ['label' => 'Stock item', 'type' => 'text'],
-        'sku' => ['label' => 'SKU', 'type' => 'text'],
-        'status' => ['label' => 'Status', 'type' => 'select', 'options' => ['active' => 'Active', 'archived' => 'Archived']],
-        'on_hand_quantity' => ['label' => 'On hand', 'type' => 'number'],
-        'reorder_point' => ['label' => 'Reorder point', 'type' => 'number'],
-        'replacement_unit_cost_ex_tax' => ['label' => 'Replacement cost', 'type' => 'number'],
-        'created_at' => ['label' => 'Created', 'type' => 'date'],
-    ]],
-    'admin.shop.stock.kits' => ['model' => \App\Models\StockItem::class, 'fields' => [
-        'name' => ['label' => 'Kit', 'type' => 'text'],
-        'sku' => ['label' => 'SKU', 'type' => 'text'],
-        'status' => ['label' => 'Status', 'type' => 'select', 'options' => ['active' => 'Active', 'archived' => 'Archived']],
-        'on_hand_quantity' => ['label' => 'Ready-made quantity', 'type' => 'number'],
-        'created_at' => ['label' => 'Created', 'type' => 'date'],
-    ]],
-    'admin.shop.category.index' => ['model' => \App\Models\ProductCategory::class, 'fields' => [
+    'admin.shop.category.index' => ['model' => ProductCategory::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'slug' => ['label' => 'Slug', 'type' => 'text'],
         'sort_order' => ['label' => 'Order', 'type' => 'number'],
     ]],
-    'admin.shop.coupon.index' => ['model' => \App\Models\Coupon::class, 'fields' => [
+    'admin.shop.coupon.index' => ['model' => Coupon::class, 'fields' => [
         'code' => ['label' => 'Code', 'type' => 'text'],
         'discount_type' => ['label' => 'Type', 'type' => 'text'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.shop.order.index' => ['model' => \App\Models\StoreOrder::class, 'fields' => [
+    'admin.shop.order.index' => ['model' => StoreOrder::class, 'fields' => [
         'order_number' => ['label' => 'Order', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'account.order.index' => ['model' => \App\Models\StoreOrder::class, 'fields' => [
+    'account.order.index' => ['model' => StoreOrder::class, 'fields' => [
         'order_number' => ['label' => 'Order', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.invoice.index' => ['model' => \App\Models\Invoice::class, 'fields' => [
+    'admin.invoice.index' => ['model' => Invoice::class, 'fields' => [
         'invoice_number' => ['label' => 'Invoice', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'issue_date' => ['label' => 'Issued', 'type' => 'date'],
         'due_date' => ['label' => 'Due', 'type' => 'date'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
     ]],
-    'account.invoice.index' => ['model' => \App\Models\Invoice::class, 'fields' => [
+    'account.invoice.index' => ['model' => Invoice::class, 'fields' => [
         'invoice_number' => ['label' => 'Invoice', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'issue_date' => ['label' => 'Issued', 'type' => 'date'],
         'due_date' => ['label' => 'Due', 'type' => 'date'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
     ]],
-    'admin.quote.index' => ['model' => \App\Models\Quote::class, 'fields' => [
+    'admin.quote.index' => ['model' => Quote::class, 'fields' => [
         'quote_number' => ['label' => 'Quote', 'type' => 'text'],
         'title' => ['label' => 'Title', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
@@ -90,7 +102,7 @@ $lists = [
         'valid_until' => ['label' => 'Valid until', 'type' => 'date'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
     ]],
-    'account.quote.index' => ['model' => \App\Models\Quote::class, 'fields' => [
+    'account.quote.index' => ['model' => Quote::class, 'fields' => [
         'quote_number' => ['label' => 'Quote', 'type' => 'text'],
         'title' => ['label' => 'Title', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
@@ -98,88 +110,88 @@ $lists = [
         'valid_until' => ['label' => 'Valid until', 'type' => 'date'],
         'total_amount' => ['label' => 'Total', 'type' => 'number'],
     ]],
-    'admin.payment.index' => ['model' => \App\Models\Payment::class, 'fields' => [
+    'admin.payment.index' => ['model' => Payment::class, 'fields' => [
         'reference' => ['label' => 'Reference', 'type' => 'text'],
         'payment_method' => ['label' => 'Method', 'type' => 'text'],
         'received_on' => ['label' => 'Received', 'type' => 'date'],
         'total_amount' => ['label' => 'Amount', 'type' => 'number'],
     ]],
-    'account.payment.index' => ['model' => \App\Models\Payment::class, 'fields' => [
+    'account.payment.index' => ['model' => Payment::class, 'fields' => [
         'reference' => ['label' => 'Reference', 'type' => 'text'],
         'payment_method' => ['label' => 'Method', 'type' => 'text'],
         'received_on' => ['label' => 'Received', 'type' => 'date'],
         'total_amount' => ['label' => 'Amount', 'type' => 'number'],
     ]],
-    'account.invoice.receipts' => ['model' => \App\Models\Payment::class, 'fields' => [
+    'account.invoice.receipts' => ['model' => Payment::class, 'fields' => [
         'reference' => ['label' => 'Reference', 'type' => 'text'],
         'payment_method' => ['label' => 'Method', 'type' => 'text'],
         'received_on' => ['label' => 'Received', 'type' => 'date'],
         'total_amount' => ['label' => 'Amount', 'type' => 'number'],
     ]],
-    'admin.expense.index' => ['model' => \App\Models\Expense::class, 'fields' => [
+    'admin.expense.index' => ['model' => Expense::class, 'fields' => [
         'supplier' => ['label' => 'Supplier', 'type' => 'text'],
         'description' => ['label' => 'Description', 'type' => 'text'],
         'paid_on' => ['label' => 'Paid', 'type' => 'date'],
         'total_amount' => ['label' => 'Amount', 'type' => 'number'],
     ]],
-    'admin.subscription.index' => ['model' => \App\Models\EmailSubscriptions::class, 'fields' => [
+    'admin.subscription.index' => ['model' => EmailSubscriptions::class, 'fields' => [
         'email' => ['label' => 'Email', 'type' => 'text'],
         'confirmed' => ['label' => 'Confirmed', 'type' => 'boolean'],
         'created_at' => ['label' => 'Subscribed', 'type' => 'date'],
     ]],
-    'admin.site_option.index' => ['model' => \App\Models\SiteOption::class, 'fields' => [
+    'admin.site_option.index' => ['model' => SiteOption::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
     ]],
-    'admin.pick-list-template.index' => ['model' => \App\Models\PickListTemplate::class, 'fields' => [
-        'name' => ['label' => 'Name', 'type' => 'text'],
-        'description' => ['label' => 'Description', 'type' => 'text'],
-        'duration' => ['label' => 'Duration', 'type' => 'number'],
-        'participants' => ['label' => 'Participants', 'type' => 'number'],
-    ]],
-    'admin.workshop-template.index' => ['model' => \App\Models\PickListTemplate::class, 'fields' => [
+    'admin.pick-list-template.index' => ['model' => PickListTemplate::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'description' => ['label' => 'Description', 'type' => 'text'],
         'duration' => ['label' => 'Duration', 'type' => 'number'],
         'participants' => ['label' => 'Participants', 'type' => 'number'],
     ]],
-    'admin.workshop-category.index' => ['model' => \App\Models\WorkshopCategory::class, 'fields' => [
+    'admin.workshop-template.index' => ['model' => PickListTemplate::class, 'fields' => [
+        'name' => ['label' => 'Name', 'type' => 'text'],
+        'description' => ['label' => 'Description', 'type' => 'text'],
+        'duration' => ['label' => 'Duration', 'type' => 'number'],
+        'participants' => ['label' => 'Participants', 'type' => 'number'],
+    ]],
+    'admin.workshop-category.index' => ['model' => WorkshopCategory::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'slug' => ['label' => 'Slug', 'type' => 'text'],
         'hide_in_footer' => ['label' => 'Hidden in footer', 'type' => 'boolean'],
     ]],
-    'admin.subscription.theme.index' => ['model' => \App\Models\NewsletterStoreTheme::class, 'fields' => [
+    'admin.subscription.theme.index' => ['model' => NewsletterStoreTheme::class, 'fields' => [
         'name' => ['label' => 'Name', 'type' => 'text'],
         'title' => ['label' => 'Title', 'type' => 'text'],
         'is_active' => ['label' => 'Active', 'type' => 'boolean'],
         'sort_order' => ['label' => 'Order', 'type' => 'number'],
     ]],
-    'admin.reminder.index' => ['model' => \App\Models\Reminder::class, 'fields' => [
+    'admin.reminder.index' => ['model' => Reminder::class, 'fields' => [
         'subject' => ['label' => 'Subject', 'type' => 'text'],
         'recipient_email' => ['label' => 'Recipient', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'scheduled_at' => ['label' => 'Scheduled', 'type' => 'date'],
         'sent_at' => ['label' => 'Sent', 'type' => 'date'],
     ]],
-    'admin.workshop.history' => ['model' => \App\Models\Workshop::class, 'fields' => [
+    'admin.workshop.history' => ['model' => Workshop::class, 'fields' => [
         'title' => ['label' => 'Workshop', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'starts_at' => ['label' => 'Date', 'type' => 'date'],
         'price' => ['label' => 'Price', 'type' => 'number'],
     ]],
-    'admin.workshop.index' => ['model' => \App\Models\Workshop::class, 'fields' => [
+    'admin.workshop.index' => ['model' => Workshop::class, 'fields' => [
         'title' => ['label' => 'Workshop', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text', 'labels' => ['scheduled' => 'Opens Soon']],
         'starts_at' => ['label' => 'Date', 'type' => 'date'],
         'price' => ['label' => 'Price', 'type' => 'number'],
     ]],
-    'account.media.index' => ['model' => \App\Models\Media::class, 'fields' => [
+    'account.media.index' => ['model' => Media::class, 'fields' => [
         'title' => ['label' => 'File', 'type' => 'text'],
         'name' => ['label' => 'Filename', 'type' => 'text'],
         'mime_type' => ['label' => 'Type', 'type' => 'text'],
         'size' => ['label' => 'Size', 'type' => 'number'],
         'created_at' => ['label' => 'Uploaded', 'type' => 'date'],
     ]],
-    'account.ticket.index' => ['model' => \App\Models\Ticket::class, 'fields' => [
+    'account.ticket.index' => ['model' => Ticket::class, 'fields' => [
         'reference_code' => ['label' => 'Reference', 'type' => 'text'],
         'firstname' => ['label' => 'Name', 'type' => 'text'],
         'surname' => ['label' => 'Surname', 'type' => 'text'],
@@ -187,35 +199,35 @@ $lists = [
         'status' => ['label' => 'Status', 'type' => 'text'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.custom-page.index' => ['model' => \App\Models\CustomPage::class, 'fields' => [
+    'admin.custom-page.index' => ['model' => CustomPage::class, 'fields' => [
         'title' => ['label' => 'Title', 'type' => 'text'],
         'path' => ['label' => 'Path', 'type' => 'text'],
         'is_published' => ['label' => 'Published', 'type' => 'boolean'],
     ]],
-    'admin.ticket.index' => ['model' => \App\Models\Ticket::class, 'fields' => [
+    'admin.ticket.index' => ['model' => Ticket::class, 'fields' => [
         'reference_code' => ['label' => 'Reference', 'type' => 'text'],
         'firstname' => ['label' => 'Name', 'type' => 'text'],
         'surname' => ['label' => 'Surname', 'type' => 'text'],
         'email' => ['label' => 'Email', 'type' => 'text'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.server.audit' => ['model' => \App\Models\AuditLog::class, 'fields' => [
+    'admin.server.audit' => ['model' => AuditLog::class, 'fields' => [
         'event' => ['label' => 'Event', 'type' => 'text'],
         'created_at' => ['label' => 'Date', 'type' => 'date'],
     ]],
-    'admin.server.sent-emails' => ['model' => \App\Models\SentEmail::class, 'fields' => [
+    'admin.server.sent-emails' => ['model' => SentEmail::class, 'fields' => [
         'recipient' => ['label' => 'Recipient', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'sent_at' => ['label' => 'Sent', 'type' => 'date'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.server.sent-sms' => ['model' => \App\Models\SentSms::class, 'fields' => [
+    'admin.server.sent-sms' => ['model' => SentSms::class, 'fields' => [
         'recipient' => ['label' => 'Recipient', 'type' => 'text'],
         'status' => ['label' => 'Status', 'type' => 'text'],
         'sent_at' => ['label' => 'Sent', 'type' => 'date'],
         'created_at' => ['label' => 'Created', 'type' => 'date'],
     ]],
-    'admin.server.square-events' => ['model' => \App\Models\SquareWebhookEvent::class, 'fields' => [
+    'admin.server.square-events' => ['model' => SquareWebhookEvent::class, 'fields' => [
         'event_type' => ['label' => 'Type', 'type' => 'text'],
         'created_at' => ['label' => 'Received', 'type' => 'date'],
         'processed_at' => ['label' => 'Processed', 'type' => 'date'],
@@ -249,12 +261,12 @@ $lists['admin.workshop.photos'] = $lists['account.media.index'];
 $lists['admin.workshop.tickets'] = $lists['account.ticket.index'];
 $lists['admin.user.payments'] = $lists['account.payment.index'];
 $lists['admin.server.square-webhooks'] = $lists['admin.server.square-events'];
-$lists['admin.payment.refunds'] = ['model' => \App\Models\SquareRefundOperation::class, 'fields' => [
+$lists['admin.payment.refunds'] = ['model' => SquareRefundOperation::class, 'fields' => [
     'status' => ['label' => 'Status', 'type' => 'text'],
     'created_at' => ['label' => 'Created', 'type' => 'date'],
 ]];
 $lists['admin.workshop.attendance'] = $lists['account.ticket.index'];
-$lists['admin.workshop.coverage'] = ['model' => \App\Models\Workshop::class, 'fields' => ['title' => ['label' => 'Workshop', 'type' => 'text']]];
+$lists['admin.workshop.coverage'] = ['model' => Workshop::class, 'fields' => ['title' => ['label' => 'Workshop', 'type' => 'text']]];
 $lists['admin.server.backups'] = ['fields' => [
     'filename' => ['label' => 'File', 'type' => 'text'],
     'size' => ['label' => 'Size', 'type' => 'number'],
@@ -262,7 +274,7 @@ $lists['admin.server.backups'] = ['fields' => [
 ]];
 $lists['tickets.invoice.receipts'] = $lists['account.invoice.receipts'];
 $lists['admin.user.index']['description'] = 'Manage users, verification status and account access.';
-$lists['admin.supplier.index'] = ['model' => \App\Models\Supplier::class, 'description' => 'Manage suppliers and their default cost centres.', 'fields' => [
+$lists['admin.supplier.index'] = ['model' => Supplier::class, 'description' => 'Manage suppliers and their default cost centres.', 'fields' => [
     'name' => ['label' => 'Supplier', 'type' => 'text'],
     'cost_centre' => ['label' => 'Cost centre', 'type' => 'text', 'filter' => false, 'sort_sql' => '(select name from finance_categories where finance_categories.id = finance_supplier_rules.category_id)'],
     'expenses_count' => ['label' => 'Expenses', 'type' => 'number', 'filter' => false, 'sort_sql' => 'expenses_count'],
@@ -282,4 +294,5 @@ $lists['admin.cost-centre.show'] = ['fields' => [
 ]];
 $lists['admin.cost-centre.gst'] = $lists['admin.cost-centre.show'];
 $lists['admin.cost-centre.show']['fields']['type'] = ['label' => 'Transaction type', 'type' => 'select', 'options' => ['invoice' => 'Invoices', 'refund' => 'Refunds', 'expense' => 'Expenses', 'transfer' => 'Transfers', 'drawing' => 'Drawings', 'opening' => 'Opening balance', 'contribution' => 'Owner contributions']];
+
 return $lists;

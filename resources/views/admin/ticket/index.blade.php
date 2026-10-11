@@ -10,7 +10,7 @@
             <x-slot:presetActions>
                 <form method="GET" action="{{ url()->current() }}">
                     <x-ui.query-inputs :values="request()->except(['group_by_workshop', 'page'])" />
-                    <x-ui.checkbox name="group_by_workshop" value="1" label="Group by workshop" :checked="!empty($groupByWorkshop)" noWrapper inline onchange="this.form.requestSubmit()" />
+                    <x-ui.checkbox name="group_by_workshop" value="1" label="Group by workshop" :checked="!empty($groupByWorkshop)" noWrapper inline data-submit-on-change />
                 </form>
             </x-slot:presetActions>
         <x-ui.collection-controls class="my-5" />
