@@ -94,12 +94,15 @@
                                 ? (float) ($kitSummary['required'] ?? 0)
                                 : (float) ($row['quantity'] ?? 0);
                             $rowItemLabel = $pluralizePickUnit($rowItemName, $rowItemQuantity);
+                            $rowUnit = trim((string) ($row['unit'] ?? ''));
                             $typeNoteHtml = $renderMarkdown((string) ($row['type_note'] ?? ''));
                         @endphp
                         <div>
                             <span class="box"></span>
                             @if($kitSummary !== null)
                                 {{ $formatPickQuantity($rowItemQuantity) }} {{ $rowItemLabel }}
+                            @elseif(!in_array(strtolower($rowUnit), ['', 'each', 'unit', 'units'], true))
+                                {{ $formatPickQuantity($rowItemQuantity) }} {{ $pluralizePickUnit($rowUnit, $rowItemQuantity) }} of {{ $rowItemLabel }}
                             @else
                                 {{ $row['quantity_text'] }} x {{ \App\Support\ItemLabelFormatter::forQuantity($rowItemName, (int) ($row['quantity'] ?? 0)) }}
                             @endif

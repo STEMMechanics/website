@@ -80,6 +80,7 @@
                 <tr>
                     <td class="item">
                         <div class="item-name">{{ (string) ($row['item_name'] ?? '') }}</div>
+                        @if(!empty($row['unit']))<div>{{ \Illuminate\Support\Str::plural($row['unit']) }}</div>@endif
                     </td>
                     @foreach($workshopColumns as $summary)
                         @php

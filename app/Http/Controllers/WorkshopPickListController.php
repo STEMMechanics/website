@@ -37,7 +37,7 @@ class WorkshopPickListController extends Controller
         $workshop->loadMissing('location', 'pickListTemplate.items.product', 'pickListTemplate.attachments', 'runSheetTasks', 'reminders.recipient');
         $data = $this->pickListService->build($workshop);
         $shelf = $this->pickListService->buildShelfPickList($workshop, $data['participants'], $data);
-        $templateItems = $workshop->pickListTemplate?->items->map(fn (PickListTemplateItem $item): array => $item->only(['id', 'item_name', 'product_id', 'cut_size_id', 'length', 'length_unit', 'quantity_type', 'quantity_value', 'sort_order']))->values()->all() ?? [];
+        $templateItems = $workshop->pickListTemplate?->items->map(fn (PickListTemplateItem $item): array => $item->only(['id', 'item_name', 'product_id', 'product_variant_id', 'cut_size_id', 'length', 'length_unit', 'quantity_unit', 'quantity_type', 'quantity_value', 'sort_order']))->values()->all() ?? [];
         $allowedTasks = $workshop->runSheetTasks->modelKeys();
 
         return view('admin.workshop.pick-list', [
@@ -135,7 +135,11 @@ class WorkshopPickListController extends Controller
             $workshop->pick_list_custom_items = null;
             $workshop->pick_list_is_customized = false;
         } elseif ($customItemsProvided) {
-            $customItems = $this->pickListService->normalizePickListItems($request->input('pick_list_custom_items'));
+            $existingItems = [
+                ...($workshop->pick_list_custom_items ?? []),
+                ...(PickListTemplate::query()->find($templateId)?->items->toArray() ?? []),
+            ];
+            $customItems = $this->pickListService->normalizePickListItems($request->input('pick_list_custom_items'), existingItems: $existingItems);
             $workshop->pick_list_custom_items = $customItems;
             $workshop->pick_list_is_customized = true;
         } elseif (! $existingCustomized) {

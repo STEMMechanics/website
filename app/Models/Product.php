@@ -58,7 +58,7 @@ class Product extends Model
     public const SELLABLE_TYPES = [self::PRODUCT_TYPE_PHYSICAL, self::PRODUCT_TYPE_KIT, self::PRODUCT_TYPE_DIGITAL];
 
     protected $fillable = [
-        'material_kind', 'purchase_unit', 'purchase_quantity', 'material_measure_unit',
+        'material_kind', 'purchase_unit', 'purchase_quantity', 'purchase_pack_units', 'material_measure_unit',
         'material_length_mm', 'material_width_mm', 'unit_cost_ex_tax', 'operational_cost_ex_tax',
         'time_cost_ex_tax', 'automatic_pricing', 'markup_percent',
         'shared_inventory',
@@ -109,6 +109,7 @@ class Product extends Model
     protected $casts = [
         'automatic_pricing' => 'boolean',
         'purchase_quantity' => 'float',
+        'purchase_pack_units' => 'integer',
         'material_length_mm' => 'float',
         'material_width_mm' => 'float',
         'unit_cost_ex_tax' => 'float',
@@ -257,7 +258,7 @@ class Product extends Model
     {
         return $this->isMaterial()
             || ((string) $this->product_type === self::PRODUCT_TYPE_PHYSICAL
-                && in_array($this->material_kind, ['length', 'sheet'], true));
+                && in_array($this->material_kind, ['unit', 'length', 'sheet'], true));
     }
 
     public function isSellable(): bool
@@ -294,10 +295,11 @@ class Product extends Model
         return trim((string) $this->purchase_unit) ?: 'each';
     }
 
-    public function hasPickListReferences(?int $cutSizeId = null): bool
+    public function hasPickListReferences(?int $cutSizeId = null, ?int $variantId = null): bool
     {
         if (PickListTemplateItem::query()->where('product_id', $this->id)
-            ->when($cutSizeId !== null, fn ($query) => $query->where('cut_size_id', $cutSizeId))->exists()) {
+            ->when($cutSizeId !== null, fn ($query) => $query->where('cut_size_id', $cutSizeId))
+            ->when($variantId !== null, fn ($query) => $query->where('product_variant_id', $variantId))->exists()) {
             return true;
         }
         foreach (Workshop::query()->where('pick_list_is_customized', true)->select(['id', 'pick_list_custom_items'])->cursor() as $workshop) {
@@ -306,7 +308,8 @@ class Product extends Model
                     continue;
                 }
                 if ((int) ($item['product_id'] ?? 0) === (int) $this->id
-                    && ($cutSizeId === null || (int) ($item['cut_size_id'] ?? 0) === $cutSizeId)) {
+                    && ($cutSizeId === null || (int) ($item['cut_size_id'] ?? 0) === $cutSizeId)
+                    && ($variantId === null || (int) ($item['product_variant_id'] ?? 0) === $variantId)) {
                     return true;
                 }
             }

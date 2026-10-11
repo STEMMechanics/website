@@ -1,3 +1,5 @@
+import { defaultProductQuantityUnit } from './product-material-quantity';
+
 window.SM = window.SM || {};
 
 window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = [], requireSelection = false) => ({
@@ -74,9 +76,11 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
 
         if (this.model?.product_id && value !== this.linkedProduct?.name) {
             this.model.product_id = null;
+            this.model.product_variant_id = null;
             this.model.cut_size_id = null;
             this.model.length = null;
             this.model.length_unit = null;
+            this.model.quantity_unit = null;
             this.$dispatch('product-item-link-changed');
         }
 
@@ -117,9 +121,11 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
     choose(option) {
         const isBlueprintTextSuggestion = option?.suggestionType === 'blueprint-text';
         this.model.product_id = isBlueprintTextSuggestion ? null : (option?.id || null);
+        this.model.product_variant_id = null;
         this.model.cut_size_id = null;
         this.model.length = null;
         this.model.length_unit = null;
+        this.model.quantity_unit = isBlueprintTextSuggestion ? null : defaultProductQuantityUnit(option);
         this.model.item_name = option?.name || '';
         this.query = '';
         this.selected = 0;

@@ -341,12 +341,13 @@
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                         <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Item</div>
                                         <div
+                                            class="flex flex-wrap items-center gap-2"
                                             x-on:product-item-link-changed="selectCustomProductItem(index)"
                                             x-on:input="handleCustomItemChange(index)"
                                             x-on:change="handleCustomItemChange(index)"
                                         >
-                                            <x-admin.product-item-field catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
-                                            <x-admin.product-preparation-fields />
+                                            <x-admin.product-item-field class="min-w-56 flex-1" catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
+                                            <x-admin.product-preparation-fields :inline="true" />
                                         </div>
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3 text-center!">

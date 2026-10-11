@@ -20,7 +20,7 @@ class PickListTemplateItem extends Model
     ];
 
     protected $fillable = [
-        'product_id', 'cut_size_id', 'length', 'length_unit',
+        'product_id', 'product_variant_id', 'cut_size_id', 'length', 'length_unit', 'quantity_unit',
         'pick_list_template_id',
         'item_name',
         'stock_item_id',
@@ -31,7 +31,7 @@ class PickListTemplateItem extends Model
     ];
 
     protected $casts = [
-        'product_id' => 'integer', 'cut_size_id' => 'integer', 'length' => 'float',
+        'product_id' => 'integer', 'product_variant_id' => 'integer', 'cut_size_id' => 'integer', 'length' => 'float',
         'quantity_value' => 'integer',
         'stock_item_id' => 'integer',
         'stock_quantity' => 'decimal:3',
@@ -56,6 +56,12 @@ class PickListTemplateItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** @return BelongsTo<ProductVariant, $this> */
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
     }
 
     /** @return BelongsTo<ProductCutSize, $this> */

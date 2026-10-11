@@ -1,3 +1,5 @@
+import { defaultProductQuantityUnit, productQuantityUnit } from './product-material-quantity';
+
 let fabricModulePromise = null;
 
 const DEFAULT_VIEWPORT = Object.freeze([1, 0, 0, 1, 64, 64]);
@@ -1189,8 +1191,10 @@ const registerWorkshopPickListPage = () => {
             }
 
             item.cut_size_id = null;
+            item.product_variant_id = null;
             item.length = null;
             item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
+            item.quantity_unit = item.product_id ? defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
             item.item_name = item.product_id ? this.productItemLabel(item) : item.item_name;
             this.handleCustomItemChange(index);
         },
@@ -1209,6 +1213,8 @@ const registerWorkshopPickListPage = () => {
                 id,
                 item_name: itemName,
                 product_id: productId,
+                product_variant_id: productId ? Number(item.product_variant_id) || null : null,
+                quantity_unit: productId ? productQuantityUnit(this.productCatalog.find(option => Number(option.id) === productId), item) : null,
                 cut_size_id: Number(item.cut_size_id) || null,
                 length: item.length === '' || item.length === undefined || item.length === null ? null : Number(item.length),
                 length_unit: item.length ? item.length_unit : null,
@@ -1237,7 +1243,8 @@ const registerWorkshopPickListPage = () => {
         itemMergeKey(item) {
             const itemName = String(item?.item_name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
             const productId = Number.parseInt(String(item?.product_id ?? 0), 10) || 0;
-            return productId > 0 ? `product:${productId}:cut:${item.cut_size_id || ''}:length:${item.length || ''}:${item.length_unit || ''}` : `name:${itemName}`;
+            const quantityUnit = productQuantityUnit(this.productCatalog.find(option => Number(option.id) === productId), item);
+            return productId > 0 ? `product:${productId}:variant:${item.product_variant_id || ''}:quantity:${quantityUnit}:cut:${item.cut_size_id || ''}:length:${item.length || ''}:${item.length ? item.length_unit || '' : ''}` : `name:${itemName}`;
         },
         async addMissingBlueprintItems() {
             if (this.itemsEditMode || this.templateItems.length === 0) {
@@ -1489,7 +1496,8 @@ const registerWorkshopPickListPage = () => {
                 id,
                 item_name: '',
                 product_id: null,
-                cut_size_id: null, length: null, length_unit: 'mm',
+                product_variant_id: null,
+                cut_size_id: null, length: null, length_unit: 'mm', quantity_unit: null,
                 quantity_type: ['fixed', 'per_participant'].includes(previousType) ? previousType : 'per_participant',
                 quantity_value: 1,
                 sort_order: this.customItems.length * 10,
@@ -1636,7 +1644,8 @@ const registerWorkshopPickListPage = () => {
                     id: item.id,
                     item_name: item.item_name,
                     product_id: item.product_id,
-                    cut_size_id: item.cut_size_id, length: item.length, length_unit: item.length_unit,
+                    product_variant_id: item.product_variant_id,
+                    cut_size_id: item.cut_size_id, length: item.length, length_unit: item.length_unit, quantity_unit: item.quantity_unit,
                     quantity_type: item.quantity_type,
                     quantity_value: item.quantity_value,
                     sort_order: item.sort_order,

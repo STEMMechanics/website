@@ -230,6 +230,8 @@ class ExpenseController extends Controller
                 'quantity' => $row->quantity, 'total_cost_ex_tax' => $row->total_cost_ex_tax,
                 'add_inventory' => $row->inventory_added > 0,
                 'individual_units' => (bool) $row->individual_units,
+                'purchase_pack' => (bool) $row->purchase_pack,
+                'units_per_purchase' => $row->units_per_purchase,
             ])->values()->all(),
         ]);
     }

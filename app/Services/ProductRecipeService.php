@@ -114,7 +114,7 @@ class ProductRecipeService
     public function purchaseCost(Product $product, ?ProductVariant $variant = null): ?float
     {
         $product->loadMissing(['purchases.expense', 'variants']);
-        $purchases = $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && ($product->shared_inventory || $row->individual_units))
+        $purchases = $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && ($product->shared_inventory || $row->individual_units || $row->purchase_pack))
             || (int) ($row->product_variant_id ?? 0) === (int) ($variant->id ?? 0));
         $unitCost = $this->latestPurchaseUnitCost($product, $purchases);
         $saleUnits = $product->isPhysical() ? $product->saleUnits($variant) : 1;
@@ -126,7 +126,7 @@ class ProductRecipeService
     public function purchaseCostInputs(Product $product): array
     {
         $product->loadMissing(['purchases.expense', 'variants']);
-        $scoped = fn (?int $variantId): Collection => $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && $row->individual_units)
+        $scoped = fn (?int $variantId): Collection => $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && ($row->individual_units || $row->purchase_pack))
             || (int) ($row->product_variant_id ?? 0) === (int) ($variantId ?? 0));
 
         return [
@@ -135,7 +135,7 @@ class ProductRecipeService
             'variants' => $product->variants->mapWithKeys(fn (ProductVariant $variant): array => [
                 $variant->id => $this->latestPurchaseUnitCost($product, $scoped((int) $variant->id)),
             ])->all(),
-            'newVariant' => $this->latestPurchaseUnitCost($product, $product->purchases->filter(fn (ProductPurchase $row): bool => $product->isPhysical() && $row->individual_units)),
+            'newVariant' => $this->latestPurchaseUnitCost($product, $product->purchases->filter(fn (ProductPurchase $row): bool => $product->isPhysical() && ($row->individual_units || $row->purchase_pack))),
         ];
     }
 
@@ -299,6 +299,7 @@ class ProductRecipeService
                 'material_kind' => (string) $product->material_kind,
                 'purchase_unit' => $product->purchaseUnitLabel(),
                 'purchase_quantity' => (float) ($product->purchase_quantity ?? 1),
+                'purchase_pack_units' => max(1, (int) $product->purchase_pack_units),
                 'measure_unit' => (string) ($product->material_measure_unit ?? 'mm'),
                 'pack_units' => $product->saleUnits(),
                 'unit_cost' => $this->materialCost($product),
@@ -310,6 +311,9 @@ class ProductRecipeService
                     'id' => (int) $variant->id, 'name' => (string) $variant->displayName(), 'unit_cost' => $this->materialCost($product, $variant),
                     'pack_units' => $product->saleUnits($variant),
                 ])->values()->all(),
+                'inactive_variants' => $product->variants->where('is_active', false)->map(fn (ProductVariant $variant): array => [
+                    'id' => (int) $variant->id, 'name' => (string) $variant->displayName(),
+                ])->values()->all(),
             ])->values()->all();
     }
 
@@ -317,13 +321,17 @@ class ProductRecipeService
     public function validate(Request $request, Product $product): array
     {
         $isMaterial = $request->input('product_type') === Product::PRODUCT_TYPE_MATERIAL;
-        $hasMeasurements = $isMaterial || ($request->input('product_type') === Product::PRODUCT_TYPE_PHYSICAL
-            && in_array($request->input('material_kind'), ['length', 'sheet'], true));
+        $isStoreItem = $request->input('product_type') === Product::PRODUCT_TYPE_PHYSICAL;
+        $useAsMaterial = $request->exists('use_as_material') ? $request->boolean('use_as_material')
+            : ($product->hasMaterialMeasurements() || in_array($request->input('material_kind'), ['length', 'sheet'], true));
+        $hasMeasurements = $isMaterial || ($isStoreItem && $useAsMaterial);
         $kind = $request->input('material_kind');
         $data = $request->validate([
-            'material_kind' => [Rule::requiredIf($isMaterial), 'nullable', Rule::in(['unit', 'length', 'sheet'])],
+            'use_as_material' => ['nullable', 'boolean'],
+            'material_kind' => [Rule::requiredIf($hasMeasurements), 'nullable', Rule::in(['unit', 'length', 'sheet'])],
             'purchase_unit' => [Rule::requiredIf($hasMeasurements), 'nullable', 'string', 'max:40'],
-            'purchase_quantity' => [Rule::requiredIf($hasMeasurements && $kind !== 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000', 'decimal:0,4'],
+            'purchase_quantity' => [Rule::requiredIf($hasMeasurements && ($kind === 'length' || ($isMaterial && $kind === 'unit'))), 'nullable', 'numeric', 'gt:0', 'max:10000000', 'decimal:0,4'],
+            'purchase_pack_units' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'material_measure_unit' => [Rule::requiredIf($hasMeasurements && $kind === 'length'), 'nullable', Rule::in(array_keys(ProductRecipeComponent::LENGTH_UNITS))],
             'material_length_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
             'material_width_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
@@ -342,6 +350,7 @@ class ProductRecipeService
             'recipe.*.component_variant_id' => ['nullable', 'integer'],
             'recipe.*.cut_size_id' => ['nullable', 'integer'],
             'recipe.*.quantity' => ['required', 'numeric', 'gt:0', 'max:100000', 'decimal:0,3'],
+            'recipe.*.quantity_unit' => ['nullable', Rule::in(ProductRecipeComponent::QUANTITY_UNITS)],
             'recipe.*.length' => ['nullable', 'numeric', 'gt:0', 'max:10000000', 'decimal:0,4'],
             'recipe.*.length_unit' => ['nullable', Rule::in(array_keys(ProductRecipeComponent::LENGTH_UNITS))],
             'recipe.*.note' => ['nullable', 'string', 'max:500'],
@@ -349,7 +358,8 @@ class ProductRecipeService
         ]);
         $data['material_kind'] = $hasMeasurements ? $data['material_kind'] : null;
         $data['purchase_unit'] = $hasMeasurements ? trim($data['purchase_unit']) : null;
-        $data['purchase_quantity'] = $hasMeasurements ? ($kind === 'sheet' ? 1 : (float) $data['purchase_quantity']) : null;
+        $data['purchase_quantity'] = $hasMeasurements ? ($kind === 'sheet' || ($isStoreItem && $kind === 'unit') ? 1 : (float) $data['purchase_quantity']) : null;
+        $data['purchase_pack_units'] = $isStoreItem && $hasMeasurements ? (int) ($data['purchase_pack_units'] ?? $product->purchase_pack_units ?? 1) : 1;
         $data['material_measure_unit'] = $hasMeasurements && $kind === 'length' ? $data['material_measure_unit'] : null;
         $data['material_length_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_length_mm'] : null;
         $data['material_width_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_width_mm'] : null;
@@ -357,6 +367,10 @@ class ProductRecipeService
             && ! ($product->isPhysical() && in_array($request->input('product_type'), Product::PHYSICAL_TYPES, true))
             && ($product->usedInRecipes()->exists() || $product->purchases()->exists() || $product->storeOrderItems()->exists() || $product->hasPickListReferences())) {
             throw ValidationException::withMessages(['product_type' => 'This item is used in recipes, pick lists, purchases or orders. Create a separate item for the new type.']);
+        }
+        if ($product->exists && $product->hasMaterialMeasurements() && ! $hasMeasurements
+            && ($product->usedInRecipes()->exists() || $product->hasPickListReferences() || $product->purchases()->where('purchase_pack', true)->exists())) {
+            throw ValidationException::withMessages([$isStoreItem ? 'use_as_material' : 'product_type' => 'This material is linked to recipes, pick lists or supplier pack purchases. Keep Use as a material enabled on a Store Item while those links exist.']);
         }
         if ($product->exists && $product->hasMaterialMeasurements() && ($product->usedInRecipes()->exists() || $product->hasPickListReferences())
             && ($product->material_kind !== $data['material_kind']
@@ -395,19 +409,32 @@ class ProductRecipeService
         return $data;
     }
 
-    public function validateComponent(array $row, string $key): void
+    public function validateComponent(array $row, string $key, bool $allowInactiveVariant = false): void
     {
         $component = $this->products()->get((int) $row['component_product_id']);
         if (! $component || $component->isDigital() || $component->status !== Product::STATUS_ACTIVE) {
             throw ValidationException::withMessages([$key.'.component_product_id' => 'Choose an active Store Item or Material.']);
         }
-        if (! empty($row['component_variant_id']) && ! $component->variants->where('is_active', true)->contains('id', (int) $row['component_variant_id'])) {
+        $variants = $allowInactiveVariant ? $component->variants : $component->variants->where('is_active', true);
+        if (! empty($row['component_variant_id']) && ! $variants->contains('id', (int) $row['component_variant_id'])) {
             throw ValidationException::withMessages([$key.'.component_variant_id' => 'Choose a variant belonging to this item.']);
         }
         if (! empty($row['cut_size_id']) && ($component->material_kind !== 'sheet' || ! $component->cutSizes->contains('id', (int) $row['cut_size_id']))) {
             throw ValidationException::withMessages([$key.'.cut_size_id' => 'Choose a cut size belonging to this material.']);
         }
         $hasLength = ($row['length'] ?? null) !== null && ($row['length'] ?? '') !== '';
+        $preparation = new ProductRecipeComponent($row);
+        $preparation->setRelation('component', $component);
+        $quantityUnit = $preparation->resolvedQuantityUnit();
+        if (($row['quantity_unit'] ?? null) === 'item' && ! $component->hasMaterialMeasurements()) {
+            throw ValidationException::withMessages([$key.'.quantity_unit' => 'Enable Use as a material on this Store Item before selecting individual units.']);
+        }
+        if ($component->isMaterial() && ($row['quantity_unit'] ?? null) === 'pack') {
+            throw ValidationException::withMessages([$key.'.quantity_unit' => 'Materials use individual pieces, lengths or cut sizes.']);
+        }
+        if ($quantityUnit === 'pack' && ($hasLength || ! empty($row['cut_size_id']))) {
+            throw ValidationException::withMessages([$key.'.quantity_unit' => 'Choose individual units to use a length or cut size.']);
+        }
         if ($component->material_kind === 'length' && ($component->isMaterial() || $hasLength)
             && ((float) ($row['length'] ?? 0) <= 0 || ! isset(ProductRecipeComponent::LENGTH_UNITS[$row['length_unit'] ?? '']))) {
             throw ValidationException::withMessages([$key.'.length' => 'Enter the length of each piece and its unit.']);
@@ -419,10 +446,10 @@ class ProductRecipeService
                 throw ValidationException::withMessages([$key.'.length' => 'A single piece cannot be longer than the purchased material.']);
             }
         }
-        if ($component->hasMaterialMeasurements() && in_array($component->material_kind, ['sheet', 'length'], true)
-            && ($component->isMaterial() || $hasLength || ! empty($row['cut_size_id']))
+        if ($component->hasMaterialMeasurements() && $quantityUnit === 'item'
+            && ($component->isPhysical() || in_array($component->material_kind, ['sheet', 'length'], true))
             && abs((float) $row['quantity'] - round((float) $row['quantity'])) > 0.00001) {
-            throw ValidationException::withMessages([$key.'.quantity' => 'Enter a whole number of pieces.']);
+            throw ValidationException::withMessages([$key.'.quantity' => 'Enter a whole number of units.']);
         }
         if ($component->material_kind !== 'length' && ! empty($row['length'])) {
             throw ValidationException::withMessages([$key.'.length' => 'Lengths are only used with a length material.']);
@@ -475,6 +502,7 @@ class ProductRecipeService
                 'component_variant_id' => ($row['component_variant_id'] ?? null) ?: null,
                 'cut_size_id' => ($row['cut_size_id'] ?? null) ?: null,
                 'quantity' => $row['quantity'],
+                'quantity_unit' => $row['quantity_unit'] ?? null,
                 'length' => ($row['length'] ?? null) ?: null,
                 'length_unit' => ! empty($row['length']) ? ($row['length_unit'] ?? null) : null,
                 'note' => trim((string) ($row['note'] ?? '')) ?: null,
@@ -517,6 +545,8 @@ class ProductRecipeService
                 'item_name' => $row->preparationLabel(),
                 'quantity' => $quantity,
                 'quantity_per_kit' => (float) $row->quantity * $ratio,
+                'quantity_unit' => $row->resolvedQuantityUnit(),
+                'unit' => $row->preparationUnit(),
                 'depth' => $depth,
                 'note' => (string) ($row->note ?? ''),
                 'raw_note' => $row->preparationNote($kits * $ratio),

@@ -210,7 +210,7 @@ class ShopProductController extends Controller
                 $copy->cutSizes()->create($cut->only(['length_mm', 'width_mm', 'yield', 'sort_order']));
             }
             foreach ($product->recipeComponents as $row) {
-                $copy->recipeComponents()->create($row->only(['component_product_id', 'component_variant_id', 'cut_size_id', 'quantity', 'length', 'length_unit', 'note', 'sort_order']));
+                $copy->recipeComponents()->create($row->only(['component_product_id', 'component_variant_id', 'cut_size_id', 'quantity', 'quantity_unit', 'length', 'length_unit', 'note', 'sort_order']));
             }
 
             return $copy;
@@ -500,6 +500,7 @@ class ShopProductController extends Controller
             'material_kind' => $recipeData['material_kind'],
             'purchase_unit' => $recipeData['purchase_unit'],
             'purchase_quantity' => $recipeData['purchase_quantity'],
+            'purchase_pack_units' => $recipeData['purchase_pack_units'],
             'material_measure_unit' => $recipeData['material_measure_unit'],
             'material_length_mm' => $recipeData['material_length_mm'],
             'material_width_mm' => $recipeData['material_width_mm'],
@@ -930,7 +931,8 @@ class ShopProductController extends Controller
 
             if ($existingVariant->storeOrderItems()->exists()
                 || ProductPurchase::query()->where('product_variant_id', $existingVariant->id)->exists()
-                || ProductRecipeComponent::query()->where('component_variant_id', $existingVariant->id)->exists()) {
+                || ProductRecipeComponent::query()->where('component_variant_id', $existingVariant->id)->exists()
+                || $product->hasPickListReferences(variantId: (int) $existingVariant->id)) {
                 $existingVariant->is_active = false;
                 $existingVariant->save();
 

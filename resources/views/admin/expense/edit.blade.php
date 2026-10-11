@@ -258,12 +258,16 @@
                                             <input type="hidden" x-bind:name="'product_purchases[' + index + '][product_id]'" x-model="row.product_id">
                                             <input type="hidden" x-bind:name="`product_purchases[${index}][product_variant_id]`" x-model="row.product_variant_id">
                                             <input type="hidden" x-bind:name="`product_purchases[${index}][individual_units]`" x-bind:value="row.individual_units ? 1 : 0">
+                                            <input type="hidden" x-bind:name="`product_purchases[${index}][purchase_pack]`" x-bind:value="row.purchase_pack ? 1 : 0">
                                             <div class="flex items-center gap-2">
                                                 <x-admin.product-item-field class="min-w-0 flex-1" model="row" catalog-expression="catalog" :require-selection="true" placeholder="Find a product or material" ariaLabel="Product or Material" noMatchesText="No matching active items. Use Create material above." />
-                                                <label x-cloak x-show="['physical', 'kit'].includes(productFor(row)?.product_type) && (productFor(row)?.variants?.length || productFor(row)?.pack_units > 1)" class="block w-44 shrink-0">
+                                                <label x-cloak x-show="['physical', 'kit'].includes(productFor(row)?.product_type) && (productFor(row)?.variants?.length || productFor(row)?.pack_units > 1 || productFor(row)?.purchase_pack_units > 1 || row.purchase_pack)" class="block w-52 shrink-0">
                                                     <span class="sr-only">Purchased as</span>
                                                     <x-ui.select-control class="h-11" title="Purchased as" x-model="row.purchase_choice" x-on:change="purchaseChoiceChanged(row)">
                                                         <option value="individual">Individual units</option>
+                                                        <template x-if="productFor(row)?.has_material_measurements && productFor(row)?.purchase_pack_units > 1 || row.purchase_pack">
+                                                            <option value="supplier" x-text="supplierPackLabel(row)"></option>
+                                                        </template>
                                                         <option value="" x-text="productFor(row)?.base_option_name || ''"></option>
                                                         <template x-for="variant in productFor(row)?.variants || []" :key="variant.id">
                                                             <option x-bind:value="variant.id" x-text="variant.name"></option>
@@ -273,16 +277,17 @@
                                             </div>
                                             <p x-bind:id="'expense-product-item-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
                                             <p x-show="row.aiSuggested" class="mt-1 text-xs font-medium text-sky-700">AI suggestion · review</p>
-                                            <p x-show="row.individual_units && productFor(row)?.pack_units > 1 && !productFor(row)?.shared_inventory && productFor(row)?.tracks_inventory" class="mt-1 text-xs text-slate-500">Individual purchases update costs. Enable shared stock on the product to add individual units to stock.</p>
+                                            <p x-show="(row.individual_units || row.purchase_pack) && productFor(row)?.pack_units > 1 && !productFor(row)?.shared_inventory && productFor(row)?.tracks_inventory" class="mt-1 text-xs text-slate-500">These purchases update costs. Enable shared stock on the product to add individual units to stock.</p>
+                                            <p x-show="row.purchase_pack && tracksInventory(row) && row.add_inventory && row.quantity" class="mt-1 text-xs text-slate-500" x-text="'Adds ' + (Number(row.quantity) * purchasePackUnits(row)) + ' individual stock units.'"></p>
                                             <p x-show="row.aiSuggested && row.evidence?.text" class="mt-1 text-xs text-slate-600">
                                                 Receipt evidence: “<span x-text="row.evidence?.text"></span>”<span x-show="row.evidence?.page" x-text="' · page ' + row.evidence.page"></span>
                                             </p>
                                         </td>
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.quantity'">
-                                            <label class="sr-only" x-bind:for="'expense-purchase-quantity-' + index">Quantity <span x-text="unitFor(row.product_id)"></span></label>
+                                            <label class="sr-only" x-bind:for="'expense-purchase-quantity-' + index">Quantity <span x-text="unitFor(row)"></span></label>
                                             <div class="flex items-center gap-3">
                                                 <x-ui.input-control class="h-11 w-24 shrink-0" type="number" min="0.001" step="0.001" x-bind:id="'expense-purchase-quantity-' + index" x-bind:name="'product_purchases[' + index + '][quantity]'" x-model="row.quantity" required />
-                                                <span x-show="unitFor(row.product_id) && unitFor(row.product_id).toLowerCase() !== 'each'" class="shrink-0 whitespace-nowrap text-xs text-slate-500" x-text="unitFor(row.product_id)"></span>
+                                                <span x-show="unitFor(row) && unitFor(row).toLowerCase() !== 'each'" class="shrink-0 whitespace-nowrap text-xs text-slate-500" x-text="unitFor(row)"></span>
                                                 <label class="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-xs" x-show="tracksInventory(row)">
                                                     <x-ui.checkbox :bare="true" :small="true" x-model="row.add_inventory" class="cursor-pointer" />
                                                     Add to stock
