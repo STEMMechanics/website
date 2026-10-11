@@ -30,6 +30,7 @@
             method="POST"
             action="{{ route('admin.workshop.run-sheet.save', $workshop) }}"
             class="rounded-lg border border-gray-200 p-4 mb-6 bg-white"
+            x-ref="runSheetForm"
             x-data="workshopPickListPage({
                 saveUrl: @js(route('admin.workshop.run-sheet.save', $workshop)),
                 csrfToken: @js(csrf_token()),
@@ -42,6 +43,7 @@
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
+                taskListIsCustomized: @js((bool) ($taskListIsCustomized ?? false)),
                 participantsInput: @js($pickListParticipantsInput),
                 notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
                 maxParticipants: @js($pickListParticipantsMax),
@@ -68,6 +70,7 @@
                 x-bind:value="customItemsEnabled() && !itemsEditMode ? JSON.stringify(normalizeCustomItems()) : ''"
             >
             <input type="hidden" name="reset_pick_list_customization" :value="resetCustomization ? '1' : '0'">
+            <input type="hidden" name="blueprint_task_action" x-bind:value="blueprintTaskAction">
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
@@ -185,30 +188,16 @@
             @endif
 
             <details open class="group mb-8">
-                <summary class="flex cursor-pointer list-none items-center gap-3 border-b border-gray-300 pb-1 [&::-webkit-details-marker]:hidden">
+                <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-300 pb-1 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="flex-1 text-lg font-semibold text-gray-900">Pick List</h2>
                     @if($workshop->pickListTemplate && count($templateItems ?? []) > 0)
-                        <div class="flex shrink-0 items-center gap-1.5">
-                            <span class="cursor-default" x-on:click.stop.prevent>
-                                <x-ui.button
-                                    type="button"
-                                    variant="plain"
-                                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium leading-4 text-primary-color shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-primary-color-dark disabled:opacity-50"
-                                    x-bind:disabled="saving || !isCustomized"
-                                    x-on:click.stop.prevent="resetToTemplate()"
-                                ><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>Revert to blueprint</span></x-ui.button>
-                            </span>
-                            <span class="cursor-default" x-on:click.stop.prevent>
-                                <x-ui.button
-                                    type="button"
-                                    variant="plain"
-                                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium leading-4 text-primary-color shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-primary-color-dark disabled:opacity-50"
-                                    x-bind:disabled="saving || itemsEditMode"
-                                    x-on:click.stop.prevent="addMissingBlueprintItems()"
-                                ><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Amend missing blueprint items</span></x-ui.button>
-                            </span>
-                        </div>
+                        <x-admin.workshop-blueprint-actions
+                            revert-action="resetToTemplate()"
+                            amend-action="addMissingBlueprintItems()"
+                            revert-disabled="saving || submitting || !isCustomized"
+                            amend-disabled="saving || submitting || itemsEditMode"
+                        />
                     @endif
                 </summary>
 
@@ -410,11 +399,20 @@
             </div>
             </details>
 
-            @if($workshop->pickListTemplate)
-                <details open class="group mb-8">
-                    <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+            @if($workshop->pickListTemplate || $workshop->runSheetTasks->isNotEmpty())
+                <details id="workshop-tasks" open class="group mb-8 scroll-mt-24">
+                    <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-300 pb-1 [&::-webkit-details-marker]:hidden">
                         <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
-                        <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Tasks</h2>
+                        <h2 class="flex-1 text-lg font-semibold text-gray-900">Tasks</h2>
+                        @if($workshop->pickListTemplate)
+                            <x-admin.workshop-blueprint-actions
+                                item-label="tasks"
+                                revert-action="submitBlueprintTaskAction('revert')"
+                                amend-action="submitBlueprintTaskAction('amend')"
+                                revert-disabled="saving || submitting || itemsEditMode || blueprintTaskAction !== '' || !taskListIsCustomized"
+                                amend-disabled="saving || submitting || itemsEditMode || blueprintTaskAction !== ''"
+                            />
+                        @endif
                     </summary>
                     <div id="workshop-plan-tasks" class="mt-3"></div>
                 </details>

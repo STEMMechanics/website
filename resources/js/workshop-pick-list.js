@@ -1100,6 +1100,8 @@ const registerWorkshopPickListPage = () => {
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         completedTaskIds: Array.isArray(config.completedTaskIds) ? config.completedTaskIds.map((id) => String(id)) : [],
+        taskListIsCustomized: Boolean(config.taskListIsCustomized),
+        blueprintTaskAction: '',
         participantsInput: String(config.participantsInput ?? ''),
         maxParticipants: Math.max(1, Number.parseInt(String(config.maxParticipants ?? 5000), 10) || 5000),
         pickListViewportWidth: 0,
@@ -1899,6 +1901,21 @@ const registerWorkshopPickListPage = () => {
         refreshSavedRelative() {
             this.lastSavedRelative = window.SM.relativeTimeFromIso(this.lastSavedAtIso);
         },
+        async submitBlueprintTaskAction(action) {
+            if (this.saving || this.submitting || this.itemsEditMode || this.blueprintTaskAction !== ''
+                || !['revert', 'amend'].includes(action)
+                || (action === 'revert' && !this.taskListIsCustomized)) {
+                return;
+            }
+
+            this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
+            this.blueprintTaskAction = action;
+            await this.$nextTick();
+            this.$refs.runSheetForm.requestSubmit();
+            if (!this.submitting) {
+                this.blueprintTaskAction = '';
+            }
+        },
         async submitForm(event) {
             if (!(event?.target instanceof HTMLFormElement)) {
                 return;
@@ -1919,6 +1936,13 @@ const registerWorkshopPickListPage = () => {
             } catch (error) {
                 this.submitting = false;
                 this.saveError = 'Could not prepare the canvas data for saving.';
+                if (this.blueprintTaskAction !== '') {
+                    window.SM?.notice?.('Task list update failed', this.saveError, 'danger', {
+                        toast: true,
+                        timer: 3500,
+                    });
+                    this.blueprintTaskAction = '';
+                }
             }
         },
     });

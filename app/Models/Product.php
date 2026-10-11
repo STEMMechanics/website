@@ -253,6 +253,13 @@ class Product extends Model
         return (string) $this->product_type === self::PRODUCT_TYPE_MATERIAL;
     }
 
+    public function hasMaterialMeasurements(): bool
+    {
+        return $this->isMaterial()
+            || ((string) $this->product_type === self::PRODUCT_TYPE_PHYSICAL
+                && in_array($this->material_kind, ['length', 'sheet'], true));
+    }
+
     public function isSellable(): bool
     {
         return $this->isPhysical() || $this->isDigital();

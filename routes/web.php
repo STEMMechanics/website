@@ -34,6 +34,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\PrivilegedMfaController;
 use App\Http\Controllers\ProductAllocationController;
 use App\Http\Controllers\ProductPostagePreviewController;
+use App\Http\Controllers\ProductStockController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\SearchController;
@@ -663,6 +664,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/products/create', [ShopProductController::class, 'create'])->name('admin.shop.product.create');
     Route::post('/admin/store/products', [ShopProductController::class, 'store'])->name('admin.shop.product.store');
     Route::post('/admin/store/products/{product}/duplicate', [ShopProductController::class, 'duplicate'])->name('admin.shop.product.duplicate');
+    Route::get('/admin/store/products/{product}/stock', [ProductStockController::class, 'show'])->name('admin.shop.product.stock.show');
+    Route::patch('/admin/store/products/{product}/stock', [ProductStockController::class, 'update'])->name('admin.shop.product.stock.update');
     Route::patch('/admin/store/products/{product}/archive', [ShopProductController::class, 'archive'])->name('admin.shop.product.archive');
     Route::patch('/admin/store/products/{product}/restore', [ShopProductController::class, 'restore'])->name('admin.shop.product.restore');
     Route::get('/admin/store/products/{product}', [ShopProductController::class, 'edit'])->name('admin.shop.product.edit');

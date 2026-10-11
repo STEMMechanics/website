@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast>Store Products
+    <x-mast>Products
         <x-slot:actions><x-ui.button color="mast" href="{{ route('admin.shop.product.create') }}">Create product</x-ui.button></x-slot:actions>
     </x-mast>
 
@@ -97,6 +97,9 @@
                             <td class="text-center!">
                                 <x-ui.row-actions>
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.product.edit', $product) }}" />
+                                    @if($product->isPhysical())
+                                        <x-ui.row-action label="Adjust stock" icon="fa-solid fa-boxes-stacked" tone="neutral" type="button" data-product-stock-adjustment data-stock-url="{{ route('admin.shop.product.stock.show', $product) }}" data-stock-title="{{ $product->title }}" aria-label="Adjust stock for {{ $product->title }}" />
+                                    @endif
                                     <form method="POST" action="{{ route('admin.shop.product.duplicate', $product) }}">
                                         @csrf
                                         <x-ui.row-action label="Duplicate" icon="fa-solid fa-copy" tone="neutral" type="submit" aria-label="Duplicate {{ $product->title }}" />
@@ -138,4 +141,5 @@
         @endif
         </x-ui.dynamic-list>
     </x-container>
+    <x-admin.product-stock-adjustment-dialog />
 </x-layout>

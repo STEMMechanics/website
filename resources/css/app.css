@@ -1808,6 +1808,8 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-list-dialog-header h2 { overflow-wrap: anywhere; white-space: normal; }
 .sm-list-dialog-actions .sm-list-dialog-header h2 { min-width: 0; overflow: hidden; overflow-wrap: normal; text-overflow: ellipsis; white-space: nowrap; }
 .sm-dialog-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: .75rem; padding: 1rem 1.25rem; background: white; border-top: 1px solid #e2e8f0; }
+.sm-list-dialog-small .sm-list-dialog-header { padding: .5rem 1rem; }
+.sm-list-dialog-small .sm-dialog-footer { padding: .75rem 1rem; }
 .sm-filter-sections { padding: 0 1.25rem; }
 .sm-filter-sections details { border-bottom: 1px solid #e2e8f0; padding: 1rem 0; }
 .sm-filter-sections summary { display: flex; align-items: baseline; cursor: pointer; font-weight: 400; min-height: 2rem; }
@@ -1956,6 +1958,9 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-list-dialog.sm-list-dialog-filters { inset: 0; margin: auto; width: 40rem; max-width: calc(100vw - 2rem); max-height: min(85dvh, 48rem); border-radius: .85rem; }
 .sm-list-dialog.sm-list-dialog-filters:has([data-record-wide]) { width: 64rem; }
 .sm-list-dialog.sm-list-dialog-filters::backdrop { background: rgb(15 23 42 / .35); }
+@media (min-width: 768px) {
+    .sm-list-dialog.sm-list-dialog-small { width: min(28rem, calc(100vw - 2rem)); }
+}
 
 
 /* Programmatic focus should not draw a selection box around whole result panels. */

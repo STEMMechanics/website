@@ -18,6 +18,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use JsonException;
 
@@ -30,7 +32,8 @@ class WorkshopPickListController extends Controller
 
     public function show(Request $request, Workshop $workshop)
     {
-        app(WorkshopBlueprintService::class)->ensureWorkshopTasks($workshop);
+        $blueprintService = app(WorkshopBlueprintService::class);
+        $blueprintService->ensureWorkshopTasks($workshop);
         $workshop->loadMissing('location', 'pickListTemplate.items.product', 'pickListTemplate.attachments', 'runSheetTasks', 'reminders.recipient');
         $data = $this->pickListService->build($workshop);
         $shelf = $this->pickListService->buildShelfPickList($workshop, $data['participants'], $data);
@@ -44,6 +47,7 @@ class WorkshopPickListController extends Controller
             'checkedItemIds' => $this->pickListService->normalizeCheckedItemIds($workshop->pick_list_checked_item_ids ?? [], $shelf),
             'completedTaskIds' => collect($workshop->run_sheet_completed_task_ids ?? [])->map(fn ($id): int => (int) $id)->filter(fn (int $id): bool => in_array($id, $allowedTasks, true))->values()->all(),
             'taskRemindersBySourceId' => $workshop->reminders->where('kind', ReminderService::WORKSHOP_TASK_KIND)->sortByDesc('id')->unique(fn ($reminder) => (string) $reminder->source_id)->keyBy(fn ($reminder) => (string) $reminder->source_id),
+            'taskListIsCustomized' => $workshop->pick_list_template_id !== null && ! $blueprintService->workshopTasksMatchBlueprint($workshop),
             'pickListCanvasDataJson' => is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null,
             'pickListCanvasThumbnailUrl' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
             'templateItems' => $templateItems, 'shelfPickRows' => $shelf['rows'], 'kitSummaries' => $shelf['kit_summaries'],
@@ -89,6 +93,7 @@ class WorkshopPickListController extends Controller
             'pick_list_notes' => ['nullable', 'string'],
             'pick_list_custom_items' => ['sometimes', 'nullable'],
             'reset_pick_list_customization' => ['nullable', 'boolean'],
+            'blueprint_task_action' => ['nullable', Rule::in(['revert', 'amend'])],
             'checked_item_ids' => ['nullable', 'array'],
             'checked_item_ids.*' => ['required', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ((! is_string($value) && ! is_int($value))
@@ -107,6 +112,10 @@ class WorkshopPickListController extends Controller
         $templateId = array_key_exists('pick_list_template_id', $validated)
             ? ((isset($validated['pick_list_template_id']) && (string) $validated['pick_list_template_id'] !== '') ? (int) $validated['pick_list_template_id'] : null)
             : ($workshop->pick_list_template_id !== null ? (int) $workshop->pick_list_template_id : null);
+        $blueprintTaskAction = $validated['blueprint_task_action'] ?? null;
+        if ($blueprintTaskAction !== null && $templateId === null) {
+            throw ValidationException::withMessages(['blueprint_task_action' => 'Choose a workshop blueprint before updating its tasks.']);
+        }
 
         $existingCustomized = (bool) $workshop->pick_list_is_customized;
         $resetCustomization = $request->boolean('reset_pick_list_customization');
@@ -175,9 +184,16 @@ class WorkshopPickListController extends Controller
                 $workshop->pick_list_canvas_thumbnail_path = $this->storePickListCanvasThumbnail($workshop, $thumbnailData);
             }
         }
-        DB::transaction(function () use ($workshop, $requestedCheckedIds, &$selectedIds, &$shelfPickList): void {
+        $addedTaskCount = 0;
+        DB::transaction(function () use ($workshop, $requestedCheckedIds, $blueprintTaskAction, &$addedTaskCount, &$selectedIds, &$shelfPickList): void {
             $workshop->save();
             $freshWorkshop = $workshop->fresh();
+            $blueprintService = app(WorkshopBlueprintService::class);
+            if ($blueprintTaskAction === 'revert') {
+                $blueprintService->revertWorkshopTasksToBlueprint($freshWorkshop);
+            } elseif ($blueprintTaskAction === 'amend') {
+                $addedTaskCount = $blueprintService->amendMissingBlueprintTasks($freshWorkshop);
+            }
             $shelfPickList = $this->pickListService->buildShelfPickList($freshWorkshop);
             $selectedIds = $this->pickListService->normalizeCheckedItemIds($requestedCheckedIds, $shelfPickList);
             $freshWorkshop->pick_list_checked_item_ids = $selectedIds;
@@ -185,6 +201,7 @@ class WorkshopPickListController extends Controller
         });
         $workshop->refresh();
         app(ReminderService::class)->syncWorkshop($workshop->fresh());
+        $completedTaskIds = $workshop->run_sheet_completed_task_ids ?? [];
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -205,11 +222,25 @@ class WorkshopPickListController extends Controller
             ]);
         }
 
-        session()->flash('message', 'Workshop pick list settings have been saved');
-        session()->flash('message-title', 'Pick list saved');
-        session()->flash('message-type', 'success');
+        if ($blueprintTaskAction === 'revert') {
+            session()->flash('message', 'The task list has been reverted to the blueprint. Completed matching tasks have been kept.');
+            session()->flash('message-title', 'Task list reverted');
+            session()->flash('message-type', 'success');
+        } elseif ($blueprintTaskAction === 'amend') {
+            session()->flash('message', $addedTaskCount > 0
+                ? 'Added '.$addedTaskCount.' missing '.Str::plural('task', $addedTaskCount).' from the blueprint.'
+                : 'There are no missing tasks to add.');
+            session()->flash('message-title', $addedTaskCount > 0 ? 'Task list updated' : 'Task list up to date');
+            session()->flash('message-type', $addedTaskCount > 0 ? 'success' : 'info');
+        } else {
+            session()->flash('message', 'Workshop pick list settings have been saved');
+            session()->flash('message-title', 'Pick list saved');
+            session()->flash('message-type', 'success');
+        }
 
-        return redirect()->route('admin.workshop.run-sheet', $workshop);
+        return $blueprintTaskAction !== null
+            ? redirect()->to(route('admin.workshop.run-sheet', $workshop).'#workshop-tasks')
+            : redirect()->route('admin.workshop.run-sheet', $workshop);
     }
 
     public function pdf(Workshop $workshop): Response

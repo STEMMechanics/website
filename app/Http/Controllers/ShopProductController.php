@@ -497,12 +497,12 @@ class ShopProductController extends Controller
             'low_stock_threshold' => ! $isPhysical ? null : ($validated['low_stock_threshold'] ?? 5),
         ]);
         $product->fill([
-            'material_kind' => $isMaterial ? $recipeData['material_kind'] : null,
-            'purchase_unit' => $isMaterial ? $recipeData['purchase_unit'] : null,
-            'purchase_quantity' => $isMaterial ? ($recipeData['purchase_quantity'] ?? 1) : null,
-            'material_measure_unit' => $isMaterial && $recipeData['material_kind'] === 'length' ? $recipeData['material_measure_unit'] : null,
-            'material_length_mm' => $isMaterial && $recipeData['material_kind'] === 'sheet' ? $recipeData['material_length_mm'] : null,
-            'material_width_mm' => $isMaterial && $recipeData['material_kind'] === 'sheet' ? $recipeData['material_width_mm'] : null,
+            'material_kind' => $recipeData['material_kind'],
+            'purchase_unit' => $recipeData['purchase_unit'],
+            'purchase_quantity' => $recipeData['purchase_quantity'],
+            'material_measure_unit' => $recipeData['material_measure_unit'],
+            'material_length_mm' => $recipeData['material_length_mm'],
+            'material_width_mm' => $recipeData['material_width_mm'],
             'unit_cost_ex_tax' => $recipeData['unit_cost_ex_tax'] ?? null,
             'operational_cost_ex_tax' => $isPhysical ? ($recipeData['operational_cost_ex_tax'] ?? null) : null,
             'time_cost_ex_tax' => $isPhysical ? ($recipeData['time_cost_ex_tax'] ?? null) : null,
