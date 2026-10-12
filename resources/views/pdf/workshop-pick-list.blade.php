@@ -17,10 +17,14 @@
         .section-title { color: #1da1e6; font-weight: 700; font-size: 14px; margin: 14px 0 8px; text-transform: uppercase; }
         .items-grid { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; }
         .items-grid td { width: 33.33%; vertical-align: top; padding: 0 10px 0 0; }
-        .line { min-height: 40px; height: auto; margin-bottom: 7px; font-size: 12px; page-break-inside: avoid; }
+        .line { min-height: 40px; height: auto; margin-bottom: 7px; font-size: 12px; line-height: 0.9; page-break-inside: avoid; }
         .box { display: inline-block; width: 12px; height: 12px; border: 1px solid #666; margin-right: 8px; margin-top: -2px; vertical-align: text-top }
-        .type-note { margin: -6px 0 0 22px; font-size: 9px; color: #666; line-height: 1.25; }
-        .kit-contents { margin: 3px 0 0 22px; font-size: 9px; color: #555; line-height: 1.25; }
+        .pick-item-label { position: relative; padding-left: 22px; }
+        .pick-item-label .box { position: absolute; left: 0; top: 3px; margin: 0; }
+        .type-note { margin: 1px 0 0 22px; font-size: 9px; color: #666; line-height: 1.1; }
+        .preparation-note { color: #0369a1; }
+        .type-note-quantity + .preparation-note { margin-left: 6px; }
+        .kit-contents { margin: 3px 0 0 22px; font-size: 9px; color: #555; line-height: 1; }
         .kit-component { margin: 0 0 3px; padding: 3px 5px 3px 8px; border-left: 2px solid #7dd3fc; background: #f8fafc; }
         .kit-component-note { margin: 2px 0 0 10px; color: #666; font-size: 8px; }
         .type-note p, .notes-body p { margin: 0 0 3px; }

@@ -95,9 +95,10 @@
                                 : (float) ($row['quantity'] ?? 0);
                             $rowItemLabel = $pluralizePickUnit($rowItemName, $rowItemQuantity);
                             $rowUnit = trim((string) ($row['unit'] ?? ''));
-                            $typeNoteHtml = $renderMarkdown((string) ($row['type_note'] ?? ''));
+                            $typeNote = trim((string) ($row['type_note'] ?? ''));
+                            $preparationNote = trim((string) ($row['raw_note'] ?? ''));
                         @endphp
-                        <div>
+                        <div class="pick-item-label">
                             <span class="box"></span>
                             @if($kitSummary !== null)
                                 {{ $formatPickQuantity($rowItemQuantity) }} {{ $rowItemLabel }}
@@ -107,10 +108,12 @@
                                 {{ $row['quantity_text'] }} x {{ \App\Support\ItemLabelFormatter::forQuantity($rowItemName, (int) ($row['quantity'] ?? 0)) }}
                             @endif
                         </div>
-                        @if($typeNoteHtml !== '')
-                            <div class="type-note">{!! $typeNoteHtml !!}</div>
+                        @if($typeNote !== '' || $preparationNote !== '')
+                            <div class="type-note">
+                                @if($typeNote !== '')<span class="type-note-quantity">{{ $typeNote }}</span>@endif
+                                @if($preparationNote !== '')<span class="preparation-note">{{ $preparationNote }}</span>@endif
+                            </div>
                         @endif
-                        @if(!empty($row['raw_note']))<div class="type-note">{{ $row['raw_note'] }}</div>@endif
                         @if($kitSummary !== null)
                             <div class="kit-contents">
                                 @foreach($kitSummary['contents'] ?? [] as $part)
