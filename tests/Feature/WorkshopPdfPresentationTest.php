@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\ShopAdminOrderController;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\Organisation;
 use App\Models\Quote;
 use App\Models\SiteOption;
 use App\Models\User;
@@ -29,17 +31,17 @@ class WorkshopPdfPresentationTest extends TestCase
         ];
     }
 
-    private function line(array $rows, string $notes = ''): array
+    private function line(array $rows, string $notes = '', float $rate = 14.5): array
     {
         $quantity = array_sum(array_map(fn (array $row): float => $row['workshop_hours'] * $row['workshop_seats'], $rows));
-        $gross = round($quantity * 14.5, 2);
+        $gross = round($quantity * $rate, 2);
         $net = round($gross / 1.1, 2);
 
         return [
             'kind' => 'multi_workshop', 'description' => 'Charged per hour, per seat', 'notes' => $notes,
-            'quantity' => $quantity, 'unit_price' => 14.5 / 1.1, 'gst_applicable' => true,
+            'quantity' => $quantity, 'unit_price' => $rate / 1.1, 'gst_applicable' => true,
             'line_total' => $net, 'tax_amount' => round($gross - $net, 2), 'line_total_inc_tax' => $gross,
-            'details_json' => ['inclusive_unit_price' => 14.5, 'multi_workshop' => ['rows' => $rows, 'quantity_basis' => 'seat_hours']],
+            'details_json' => ['inclusive_unit_price' => $rate, 'multi_workshop' => ['rows' => $rows, 'quantity_basis' => 'seat_hours']],
         ];
     }
 
@@ -67,6 +69,15 @@ class WorkshopPdfPresentationTest extends TestCase
             'subtotal_amount' => $quote->subtotal_amount, 'gst_amount' => $quote->gst_amount,
             'total_amount' => $quote->total_amount, 'purchase_order_number' => null, 'notes' => null,
         ]);
+    }
+
+    private function seedDocumentOptions(): void
+    {
+        foreach (SiteOption::defaultDefinitions() as $name => $definition) {
+            if (str_starts_with($name, 'document.') || str_starts_with($name, 'payments.bank-')) {
+                SiteOption::query()->create(['name' => $name, 'value' => $definition['value']]);
+            }
+        }
     }
 
     public function test_manual_workshop_details_appear_with_empty_generic_and_custom_notes(): void
@@ -196,19 +207,80 @@ class WorkshopPdfPresentationTest extends TestCase
         $this->assertSame('- 17/02/2027 - Manunda Minecraft - (1 hr × 10 seats)', InvoicePdfLines::notesForPdf($prepared[0]));
     }
 
-    public function test_quote_pagination_counts_workshop_details_even_when_notes_are_empty(): void
+    public function test_three_workshop_groups_with_fourteen_sessions_fit_on_one_pdf_page(): void
+    {
+        $groups = [
+            'Manunda Minecraft' => ['2027-02-02', '2027-03-02', '2027-05-04', '2027-06-01'],
+            'Stratford STEM' => ['2027-02-10', '2027-03-10', '2027-04-14', '2027-05-12', '2027-06-09'],
+            'Smithfield STEM' => ['2027-02-24', '2027-03-24', '2027-04-28', '2027-05-26', '2027-06-23'],
+        ];
+        $items = [];
+        foreach ($groups as $description => $dates) {
+            $items[] = $this->line(array_map(fn (string $date): array => [
+                'description' => $description,
+                'workshop_date' => $date,
+                'workshop_hours' => 1,
+                'workshop_seats' => 12,
+            ], $dates), '', 13.75);
+        }
+        $quote = $this->quote($items);
+        $quote->user->billing_address2 = 'Community Library';
+        $quote->user->setRelation('primaryOrganisation', new Organisation(['name' => 'Sample Regional Council']));
+        $this->seedDocumentOptions();
+        SiteOption::query()->create([
+            'name' => 'document.footer.terms.quote',
+            'value' => 'Prices and availability are subject to confirmation. Payment terms will be specified on the invoice unless otherwise agreed.',
+        ]);
+
+        foreach ([QuoteController::class, ShopAdminOrderController::class] as $controller) {
+            $method = new \ReflectionMethod($controller, 'buildQuotePdf');
+            $pdf = $method->invoke(app($controller), $quote);
+            $pdf->render();
+            if ($previewDir = getenv('WORKSHOP_PDF_PREVIEW_DIR')) {
+                $pdf->save($previewDir.'/fourteen-sessions-quote.pdf');
+            }
+
+            $this->assertSame(1, $pdf->getDomPDF()->getCanvas()->get_page_count(), $controller);
+        }
+    }
+
+    public function test_long_quotes_paginate_without_losing_workshops_or_splitting_the_totals_and_footer(): void
     {
         $line = $this->line($this->rows());
         $quote = $this->quote(array_fill(0, 9, $line));
-        $method = new \ReflectionMethod(QuoteController::class, 'paginateLineItemsForPdf');
-        $pages = $method->invoke(app(QuoteController::class), $quote);
+        $this->seedDocumentOptions();
 
-        $this->assertGreaterThan(1, count($pages));
-        $this->assertCount(9, array_merge(...$pages));
-        foreach (array_merge(...$pages) as $item) {
-            $this->assertCount(3, $item['workshop_details']);
-            $this->assertSame('', $item['notes']);
-            $this->assertSame($line['line_total_inc_tax'], (float) $item['line_total_inc_tax']);
+        foreach ([QuoteController::class, ShopAdminOrderController::class] as $controller) {
+            $method = new \ReflectionMethod($controller, 'buildQuotePdf');
+            $pdf = $method->invoke(app($controller), $quote);
+            $rendered = ['sessions' => [], 'totals' => [], 'footer' => []];
+            $pdf->getDomPDF()->setCallbacks([[
+                'event' => 'end_frame',
+                'f' => function ($frame, $canvas) use (&$rendered): void {
+                    $node = $frame->get_node();
+                    if (! $node instanceof \DOMElement) {
+                        return;
+                    }
+                    if ($node->tagName === 'li') {
+                        $rendered['sessions'][] = $node->textContent;
+                    }
+                    $class = $node->getAttribute('class');
+                    if (in_array($class, ['totals', 'footer'], true)) {
+                        $rendered[$class][] = $canvas->get_page_number();
+                    }
+                },
+            ]]);
+            $pdf->render();
+            $pageCount = $pdf->getDomPDF()->getCanvas()->get_page_count();
+
+            $this->assertGreaterThan(1, $pageCount);
+            $this->assertCount(27, $rendered['sessions']);
+            $this->assertSame([$pageCount], $rendered['totals']);
+            $this->assertSame([$pageCount], $rendered['footer']);
+            if ($previewDir = getenv('WORKSHOP_PDF_PREVIEW_DIR')) {
+                $pdf->save($previewDir.'/long-workshops-quote.pdf');
+            }
         }
+        $this->assertSame($quote->line_items, $quote->fresh()->line_items);
     }
 }

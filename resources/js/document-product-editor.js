@@ -1,5 +1,47 @@
 window.SM = window.SM || {};
 
+window.SM.lineItemsEditor = (isLocked = false) => {
+    const itemKeys = new WeakMap();
+    let nextItemKey = 0;
+
+    return {
+        mobileLineItemIndex: null,
+        lineItemKey(item) {
+            if (!itemKeys.has(item)) itemKeys.set(item, ++nextItemKey);
+            return itemKeys.get(item);
+        },
+        moveLineItem(index, direction) {
+            const destination = index + direction;
+            if (isLocked || !Number.isInteger(index) || ![-1, 1].includes(direction)
+                || index < 0 || index >= this.lineItems.length
+                || destination < 0 || destination >= this.lineItems.length) return;
+
+            const editingItem = this.mobileLineItemIndex === null ? null : this.lineItems[this.mobileLineItemIndex];
+            [this.lineItems[index], this.lineItems[destination]] = [this.lineItems[destination], this.lineItems[index]];
+            if (editingItem) this.mobileLineItemIndex = this.lineItems.indexOf(editingItem);
+            this.serializeLineItems();
+        },
+        mobileWorkshopRows(item) {
+            return item?.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [];
+        },
+        mobileWorkshopSummary(item) {
+            return this.mobileWorkshopRows(item).map(row => String(row.description || '').trim()).filter(Boolean).join(', ');
+        },
+        openMobileLineItem(index) {
+            this.mobileLineItemIndex = index;
+            this.$nextTick(() => {
+                const dialog = this.$refs.mobileLineItemDialog;
+                if (dialog && !dialog.open) dialog.showModal();
+            });
+        },
+        closeMobileLineItem() {
+            const dialog = this.$refs.mobileLineItemDialog;
+            if (dialog?.open) dialog.close();
+            this.mobileLineItemIndex = null;
+        },
+    };
+};
+
 window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => ({
     catalogProducts,
     itemTypeOptions: [

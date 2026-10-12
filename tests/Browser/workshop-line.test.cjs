@@ -396,6 +396,29 @@ test('workshop defaults explain charging and expanded generated notes upgrade sa
     assert.equal(item.description, 'Holiday program');
 });
 
+test('an intentionally blank multi-workshop description survives reload and row edits', () => {
+    const sm = context.window.SM;
+    const item = {
+        kind: 'multi_workshop', description: '', notes: '',
+        details_json: { workshop_notes_mode: 'manual' },
+        workshops: [{ description: 'Library workshop', workshop_hours: 1, workshop_seats: 12 }],
+    };
+    sm.defaultWorkshopDescription(item);
+    sm.initializeWorkshopNotes(item);
+    update(item);
+    assert.equal(item.description, '');
+    assert.equal(item.notes, '');
+    assert.equal(item.quantity, 12);
+    assert.equal(item.details_json.multi_workshop.rows.length, 1);
+
+    const restored = JSON.parse(JSON.stringify(item));
+    sm.defaultWorkshopDescription(restored);
+    restored.workshops[0].workshop_seats = 15;
+    update(restored);
+    assert.equal(restored.description, '');
+    assert.equal(restored.quantity, 15);
+});
+
 test('workshop funding links and allocation counts survive pricing edits without changing charged seats', () => {
     const item = { kind: 'workshop', workshop_hours: 2, workshop_seats: 20, quantity: 40, unit_price: 10, details_json: { workshop: { linked_workshop_id: 'council-session', allocation_basis: 'tickets', allocation_seats: 12 } } };
     update(item);

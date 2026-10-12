@@ -445,7 +445,7 @@
                             gst_applicable: item.gst_applicable !== false,
                             tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate || 0.1),
                         }))
-                        .filter((item) => item.kind === 'product' || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+                        .filter((item) => ['product', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                     this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });

@@ -6,6 +6,10 @@
     <title>Quote {{ $quote->quote_number }}</title>
     <style>
         @include('pdf.partials.styling')
+        .quote-page { min-height: 0; }
+        .quote-page .items { margin-bottom: 18px; }
+        .quote-page .items tbody tr { page-break-inside: avoid; }
+        .quote-page .bottom-block { position: static; page-break-inside: avoid; }
     </style>
 </head>
 
@@ -13,6 +17,7 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
     $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
+    $items = array_merge(...$pages);
     $customer = $quote->user;
     $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
     $logoPath = public_path('invoice-logo.png');
@@ -80,9 +85,7 @@
     };
     @endphp
 
-    @foreach($pages as $pageIndex => $pageItems)
-    <div class="page">
-        @if($pageIndex === 0)
+    <div class="page quote-page">
         <table class="header">
             <tr>
                 <td class="logo-wrap">
@@ -149,13 +152,7 @@
         </div>
         @endif
 
-        @else
-        <div style="text-align:right; font-size:10px; margin-bottom:8px; color:#666;">
-            Quote {{ $quote->quote_number }} (continued)
-        </div>
-        @endif
-
-        <table class="items {{ $loop->last ? 'items-last' : '' }}">
+        <table class="items">
             <thead>
                 <tr>
                     <th style="width:58%;">DESCRIPTION</th>
@@ -165,7 +162,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($pageItems as $item)
+                @forelse($items as $item)
                 @php
                 $qty = (float) ($item['quantity'] ?? 0);
                 $gstApplicable = ($item['gst_applicable'] ?? true) === true;
@@ -195,9 +192,6 @@
             </tbody>
         </table>
 
-        @if(!$loop->last)
-        <div class="continued">Continued on next page...</div>
-        @else
         @if($notes !== '')
         <div class="notes"><span class="note-title">Note: </span>{!! nl2br(e($notes)) !!}</div>
         @endif
@@ -224,9 +218,7 @@
 
             @include('pdf.partials.footer')
         </div>
-        @endif
     </div>
-    @endforeach
 </body>
 
 </html>
