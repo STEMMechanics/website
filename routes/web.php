@@ -443,6 +443,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/server/options/homepage-hero', [SiteOptionController::class, 'updateHero'])->name('admin.site_option.hero.update');
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
+    Route::delete('/admin/server/options/{siteOption}', [SiteOptionController::class, 'destroy'])->name('admin.site_option.destroy');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
     Route::get('/admin/pages', [CustomPageController::class, 'adminIndex'])->name('admin.custom-page.index');
     Route::get('/admin/pages/create', [CustomPageController::class, 'adminCreate'])->name('admin.custom-page.create');

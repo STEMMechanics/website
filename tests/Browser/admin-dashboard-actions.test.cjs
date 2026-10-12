@@ -70,5 +70,5 @@ test('refreshed attendance cards show only the workshop, schedule and location',
     ]);
     assert.equal(card.textContent.includes('Needs attendance'), false);
     assert.equal(card.textContent.includes('0 of 1 marked'), false);
-    assert.equal(copy.children[2].className, 'mt-1.5 block text-sm leading-snug text-gray-700');
+    assert.equal(copy.children[2].className, 'mt-1.5 block text-xs leading-snug text-gray-700');
 });

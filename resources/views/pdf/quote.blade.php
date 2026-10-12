@@ -12,6 +12,7 @@
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
+    $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
     $customer = $quote->user;
     $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
     $logoPath = public_path('invoice-logo.png');
@@ -168,11 +169,16 @@
                 @php
                 $qty = (float) ($item['quantity'] ?? 0);
                 $gstApplicable = ($item['gst_applicable'] ?? true) === true;
-                $lineNotes = trim((string) ($item['notes'] ?? ''));
+                $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
+                $lineDescription = (string) ($item['description'] ?? '');
+                $isWorkshop = in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true);
                 @endphp
                 <tr>
                     <td>
-                        <div class="line-desc">{{ $item['description'] ?? '' }}{{ $gstApplicable ? '' : '*' }}</div>
+                        <div class="line-desc">{{ $isWorkshop ? 'Workshop Delivery' : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
+                        @if($isWorkshop && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), 'Workshop Delivery') !== 0)
+                        <div class="line-note">{{ $lineDescription }}</div>
+                        @endif
                         @if($lineNotes !== '')
                         {!! $renderLineNotes($lineNotes) !!}
                         @endif

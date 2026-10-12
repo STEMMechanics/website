@@ -776,7 +776,7 @@ class QuoteController extends Controller
 
     private function paginateLineItemsForPdf(Quote $quote): array
     {
-        $items = is_array($quote->line_items) ? array_values($quote->line_items) : [];
+        $items = \App\Services\Finance\InvoicePdfLines::withWorkshopDetails(is_array($quote->line_items) ? array_values($quote->line_items) : []);
 
         if (count($items) === 0) {
             return [[]];
@@ -849,7 +849,7 @@ class QuoteController extends Controller
 
     private function lineItemPdfWeight(array $item): float
     {
-        $notes = trim((string) ($item['notes'] ?? ''));
+        $notes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
         if ($notes === '') {
             return 1.0;
         }

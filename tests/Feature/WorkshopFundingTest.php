@@ -452,7 +452,7 @@ class WorkshopFundingTest extends TestCase
             'adjustments' => collect(),
         ])->render();
 
-        $this->assertSame('Straw Towers', $prepared[0]['linked_workshops'][0]['title']);
+        $this->assertSame('Straw Towers', $prepared[0]['workshop_details'][0]['title']);
         $this->assertStringContainsString('22/09/2026 - Straw Towers - (2 hrs × 20 seats)', $html);
         $this->assertStringContainsString('Charged per hour, per seat, min 10 per workshop', $html);
     }
