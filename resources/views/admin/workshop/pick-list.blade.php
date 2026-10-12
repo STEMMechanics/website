@@ -201,15 +201,6 @@
                     @endif
                 </summary>
 
-                <div class="mt-3 rounded-xl border px-4 py-3 text-sm" x-bind:class="materialBudget.over_budget ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-700'" x-show="shelfPickRows.length || kitSummaries.length">
-                    <strong>Linked material estimate:</strong> <span x-text="'$' + Number(materialBudget.known_cost || 0).toFixed(2)"></span> ex GST
-                    · <span x-text="'$' + Number(materialBudget.per_participant || 0).toFixed(2)"></span> per participant
-                    · <span x-text="'$' + Number(materialBudget.budget || 0).toFixed(2) + ' ' + (materialBudget.budget_label || 'planning allowance')"></span>
-                    <span x-show="materialBudget.over_budget" class="font-semibold"> · Above allowance</span>
-                    <p class="mt-1 text-xs">Uses recipe materials only; workshop time and operations are covered by the workshop allocation.</p>
-                    <p class="mt-1 text-xs" x-show="materialBudget.manual_items || materialBudget.unknown_items"><span x-text="(materialBudget.manual_items || 0) + ' manual items and ' + (materialBudget.unknown_items || 0) + ' linked items without costs are excluded.'"></span></p>
-                </div>
-
                 <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 
                 <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -278,11 +269,18 @@
                                                     />
                                                     <span class="min-w-0 flex-1">
                                                         <span class="block font-semibold text-gray-900" x-text="entry.kind === 'kit' ? kitChecklistLabel(entry.item) : shelfRowLabel(entry.item)"></span>
+                                                        <template x-if="entry.item.type_note || entry.item.raw_note">
+                                                            <span class="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                                                                <template x-if="entry.item.type_note">
+                                                                    <span class="text-slate-500" x-text="entry.item.type_note"></span>
+                                                                </template>
+                                                                <template x-if="entry.item.raw_note">
+                                                                    <span class="font-medium text-sky-700" x-text="entry.item.raw_note"></span>
+                                                                </template>
+                                                            </span>
+                                                        </template>
                                                         <template x-if="entry.kind === 'kit'">
                                                             <span class="mt-0.5 block text-xs font-medium text-slate-600" x-text="kitAssemblyStatus(entry.item)"></span>
-                                                        </template>
-                                                        <template x-if="entry.item.raw_note">
-                                                            <span class="mt-0.5 block text-xs text-slate-500" x-text="entry.item.raw_note"></span>
                                                         </template>
                                                     </span>
                                                 </label>
@@ -398,6 +396,13 @@
                     <x-ui.button type="button" color="secondary" x-bind:disabled="saving" x-on:click="stopItemEditing()">Save &amp; Close Editor</x-ui.button>
                 </div>
             </div>
+
+                <div class="mt-4 rounded-xl border px-4 py-3 text-sm" x-bind:class="materialBudget.over_budget ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-700'" x-show="shelfPickRows.length || kitSummaries.length">
+                    <strong>Linked material estimate:</strong> <span x-text="'$' + Number(materialBudget.known_cost || 0).toFixed(2)"></span> ex GST
+                    · <span x-text="'$' + Number(materialBudget.per_participant || 0).toFixed(2)"></span> per participant
+                    · <span x-text="'$' + Number(materialBudget.budget || 0).toFixed(2) + ' ' + (materialBudget.budget_label || 'planning allowance')"></span>
+                    <span x-show="materialBudget.over_budget" class="font-semibold"> · Above allowance</span>
+                </div>
             </details>
 
             @if($workshop->pickListTemplate || $workshop->runSheetTasks->isNotEmpty())
