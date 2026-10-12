@@ -20,8 +20,9 @@ class InvoicePdfLines
         return self::withWorkshopDetails($items);
     }
 
-    public static function withWorkshopDetails(array $items): array
+    public static function withWorkshopDetails(iterable $items): array
     {
+        $items = collect($items)->toArray();
         $linkedEntries = collect($items)
             ->reject(fn (array $item): bool => isset($item['workshop_details']))
             ->flatMap(fn (array $item): array => self::workshopEntries($item))

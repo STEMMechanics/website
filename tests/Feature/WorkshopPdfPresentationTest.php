@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\QuoteController;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Quote;
@@ -126,6 +127,32 @@ class WorkshopPdfPresentationTest extends TestCase
             Pdf::loadView('pdf.quote', ['quote' => $quote])->save($previewDir.'/manual-workshops.pdf');
             Pdf::loadView('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [[$manual]], 'adjustments' => collect()])->save($previewDir.'/manual-workshops-invoice.pdf');
         }
+    }
+
+    public function test_invoice_pages_support_collections_of_saved_workshop_lines(): void
+    {
+        $line = $this->line($this->rows(), 'Bring your own laptop');
+        $quote = $this->quote([$line]);
+        $invoice = $this->invoice($quote);
+        InvoiceLine::factory()->for($invoice)->create([
+            'kind' => $line['kind'],
+            'description' => $line['description'],
+            'notes' => $line['notes'],
+            'details_json' => $line['details_json'],
+            'quantity' => $line['quantity'],
+            'unit_price_ex_tax' => $line['unit_price'],
+            'line_total_ex_tax' => $line['line_total'],
+            'tax_amount' => $line['tax_amount'],
+            'line_total_inc_tax' => $line['line_total_inc_tax'],
+        ]);
+        $lines = $invoice->lines;
+        $viewData = ['invoice' => $invoice, 'adjustments' => collect()];
+        $arrayHtml = view('pdf.invoice', $viewData + ['itemPages' => [$lines->toArray()]])->render();
+        $collectionHtml = view('pdf.invoice', $viewData + ['itemPages' => [$lines]])->render();
+
+        $this->assertSame($arrayHtml, $collectionHtml);
+        $this->assertStringContainsString('17/02/2027 - Manunda Minecraft - (1 hr × 10 seats)', $collectionHtml);
+        $this->assertStringContainsString('Bring your own laptop', $collectionHtml);
     }
 
     public function test_existing_schedule_notes_do_not_duplicate_workshops_or_hide_other_dates(): void

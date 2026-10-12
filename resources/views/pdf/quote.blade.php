@@ -12,7 +12,7 @@
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
-    $pages = array_map(fn (array $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
+    $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
     $customer = $quote->user;
     $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
     $logoPath = public_path('invoice-logo.png');

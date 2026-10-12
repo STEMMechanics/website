@@ -12,7 +12,7 @@
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
-    $pages = array_map(fn (array $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
+    $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
     $customer = $invoice->user;
     $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '' || trim((string) ($invoice->tax_treatment_code ?? '')) !== '';
     $billingAddress = $invoiceHasBillingSnapshot ? [
