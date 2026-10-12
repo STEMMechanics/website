@@ -18,6 +18,7 @@
         'materialLength' => old('material_length_mm', $product->material_length_mm ?? ''),
         'materialWidth' => old('material_width_mm', $product->material_width_mm ?? ''),
         'unitCost' => $formatCost(old('unit_cost_ex_tax', $product->unit_cost_ex_tax ?? '')),
+        'purchasePackCost' => old('purchase_pack_cost_ex_tax', isset($product) ? $costingService->fallbackPurchasePackCost($product) : ''),
         'purchaseCosts' => isset($product) ? $costingService->purchaseCostInputs($product) : [],
         'basePackUnits' => old('inventory_units', $product->inventory_units ?? 1),
         'operationalCost' => $formatCost(old('operational_cost_ex_tax', $product->operational_cost_ex_tax ?? '')),
