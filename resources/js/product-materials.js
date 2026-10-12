@@ -32,6 +32,22 @@ window.SM.productMaterials = (config = {}) => ({
     hasMaterialMeasurements() {
         return this.productType === 'material' || (this.productType === 'physical' && this.useAsMaterial);
     },
+    materialsSummary() {
+        const parts = [];
+        if (this.hasMaterialMeasurements()) {
+            let unit = this.purchaseUnit;
+            if (this.materialKind === 'length') unit += ` · ${this.purchaseQuantity} ${this.materialMeasureUnit}`;
+            if (this.materialKind === 'sheet') unit += ` · ${this.materialLength} × ${this.materialWidth} mm`;
+            parts.push(unit);
+        }
+        if (this.isPhysicalProduct()) {
+            parts.push(this.recipeRows.length
+                ? `${this.recipeRows.length} ${this.isKit ? 'recipe' : 'source'} item${this.recipeRows.length === 1 ? '' : 's'}`
+                : 'Purchased item');
+        }
+
+        return parts.join(' · ');
+    },
     initMaterials() {
         this.isKit = this.productType === 'kit';
         this.recipeRows.forEach((row) => { row.item_name = this.recipeItem(row)?.name || row.item_name || ''; });
