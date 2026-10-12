@@ -7,9 +7,13 @@ function attendanceEditor(entries, anonymousCount) {
     const blade = fs.readFileSync('resources/views/admin/workshop/attendance.blade.php', 'utf8');
     const start = blade.indexOf('                entries: @js($seedEntries),');
     const end = blade.indexOf('            }" x-init=', start);
+    assert.notEqual(start, -1);
+    assert.notEqual(end, -1);
     const methods = blade.slice(start, end)
         .replace('entries: @js($seedEntries),', 'entries: [],')
-        .replace('anonymousCount: @js($anonymousEntryCount),', `anonymousCount: ${anonymousCount},`);
+        .replace('anonymousCount: @js($anonymousEntryCount),', `anonymousCount: ${anonymousCount},`)
+        .replace("confirmNoAttendees: @js((bool) old('confirm_no_attendees', $workshop->attendance_no_attendees_confirmed_at !== null)),", 'confirmNoAttendees: false,');
+    assert.doesNotMatch(methods, /@js\(/);
     const state = vm.runInNewContext('({' + methods + '})');
     state.entries = entries;
     return state;
