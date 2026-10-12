@@ -967,7 +967,15 @@ class WorkshopVisibilityRulesTest extends TestCase
         string $type = Workshop::TYPE_PHYSICAL
     ): Workshop {
         $owner = User::factory()->create();
-        $location = $isOnline ? null : Location::factory()->create(['name' => 'City Lab']);
+        // Keep venue text stable for the public price visibility assertions.
+        $location = $isOnline ? null : Location::factory()->create([
+            'name' => 'City Lab',
+            'address' => '123 Example Street',
+            'suburb' => 'Brisbane',
+            'state' => 'QLD',
+            'postcode' => '4000',
+            'address_url' => 'https://example.com/city-lab',
+        ]);
         $heroName = 'hero-'.strtolower((string) str()->random(8)).'.png';
 
         Media::query()->create([
