@@ -223,12 +223,20 @@ class ShopProductController extends Controller
         return redirect()->route('admin.shop.product.edit', $copy);
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Request $request, Product $product): JsonResponse|RedirectResponse
     {
         if ($product->usedInRecipes()->exists() || $product->purchases()->exists() || $product->hasPickListReferences()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'This item is used in a recipe, pick list or purchase. Archive it instead.'], 409);
+            }
+
             return redirect()->route('admin.shop.product.edit', $product)->with(['message' => 'This item is used in a recipe, pick list or purchase. Archive it instead.', 'message-title' => 'Delete blocked', 'message-type' => 'danger']);
         }
         if ($product->storeOrderItems()->exists()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'This product has already been ordered and cannot be deleted. Archive it instead.'], 409);
+            }
+
             session()->flash('message', 'This product has already been ordered and cannot be deleted. Archive it instead.');
             session()->flash('message-title', 'Delete blocked');
             session()->flash('message-type', 'danger');
@@ -246,6 +254,10 @@ class ShopProductController extends Controller
         session()->flash('message', 'Product deleted.');
         session()->flash('message-title', 'Product deleted');
         session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'redirect' => route('admin.shop.product.index')]);
+        }
 
         return redirect()->route('admin.shop.product.index');
     }

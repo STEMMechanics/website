@@ -19,7 +19,7 @@
 @endphp
 
 <div
-    x-id="['product-item-options', 'product-item-input']"
+    x-id="['product-item-options', 'product-item-input', 'product-item-help']"
     @if($usesCatalogExpression)
         @if($usesItemNameSuggestionsExpression)
             x-data="SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
@@ -31,7 +31,7 @@
     @endif
     x-init="if (linkedProduct && !model.item_name) model.item_name = linkedProduct.name"
     x-effect="model = {{ $model }}"
-    x-on:keydown.escape.window="open = false"
+    x-on:keydown.escape.window="close()"
     x-on:resize.window="if (open) position($refs.productItemInput, menuWidth)"
     x-on:scroll.window="if (open) position($refs.productItemInput, menuWidth)"
     {{ $attributes->merge(['class' => 'relative']) }}
@@ -51,7 +51,7 @@
             x-bind:disabled="!linkedProduct?.url"
             x-bind:title="'Open ' + (linkedProduct?.name || 'linked item') + ' in a new tab'"
             x-bind:aria-label="'Open ' + (linkedProduct?.name || 'linked item') + ' in a new tab'"
-            x-on:click="open = false"
+            x-on:click="close()"
             target="_blank"
         />
         <x-ui.input-control
@@ -70,13 +70,16 @@
             x-bind:title="requireSelection ? 'Choose an item from the suggestions' : null"
             role="combobox"
             aria-autocomplete="list"
+            aria-haspopup="listbox"
+            x-bind:aria-describedby="$id('product-item-help')"
             x-bind:aria-expanded="open"
             x-bind:aria-controls="$id('product-item-options')"
-            x-bind:aria-activedescendant="open && matches.length ? $id('product-item-options') + '-' + selected : null"
+            x-bind:aria-activedescendant="open && matches[selected] ? $id('product-item-options') + '-' + selected : null"
             x-on:input="editDescription($el)"
-            x-on:keydown.arrow-down.prevent.stop="if (!open) browse($el); else move(1)"
-            x-on:keydown.arrow-up.prevent.stop="move(-1)"
+            x-on:keydown.arrow-down="move($event, 1)"
+            x-on:keydown.arrow-up="move($event, -1)"
             x-on:keydown.enter="handleEnter($event)"
+            x-on:keydown.tab="close()"
         />
         <x-ui.button
             type="button"
@@ -91,12 +94,14 @@
             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
         </x-ui.button>
     </div>
+    <span class="sr-only" x-bind:id="$id('product-item-help')">Use Up and Down to select a suggestion, then Enter to choose it. @if(!$requireSelection)Without a selection, Enter keeps your text. Command or Control plus Enter chooses the first suggestion. @endif Escape closes the suggestions.</span>
 
     <template x-teleport="body">
         <div
+            x-ref="productItemOptions"
             x-cloak
             x-show="open"
-            x-on:click.outside="open = false"
+            x-on:click.outside="close()"
             class="fixed z-50 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
             x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', width: menuWidth + 'px', maxHeight: menuMaxHeight + 'px' }"
         >
@@ -105,11 +110,11 @@
                     <x-ui.button variant="plain"
                         type="button"
                         role="option"
+                        tabindex="-1"
                         class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
                         x-bind:class="optionIndex === selected ? 'bg-sky-50 text-sky-800' : 'text-slate-700 hover:bg-slate-50'"
                         x-bind:id="$id('product-item-options') + '-' + optionIndex"
                         x-bind:aria-selected="optionIndex === selected"
-                        x-on:mouseenter="selected = optionIndex"
                         x-on:click="choose(option)"
                     >
                             <span class="min-w-0 truncate" x-text="option.name"></span>

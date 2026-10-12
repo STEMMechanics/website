@@ -9,7 +9,7 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
     requireSelection,
     query: '',
     open: false,
-    selected: 0,
+    selected: requireSelection ? 0 : -1,
     menuTop: 0,
     menuLeft: 0,
     menuWidth: 320,
@@ -85,38 +85,65 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
         }
 
         this.query = value;
-        this.selected = 0;
+        this.selected = this.requireSelection ? 0 : -1;
         this.position(element, Math.max(320, element.offsetWidth));
         this.open = true;
     },
     browse(element) {
-        const opening = !this.open;
-        const input = this.$refs.productItemInput || element;
-
-        if (opening) {
-            this.position(input);
+        if (this.open) {
+            this.close();
+            return;
         }
-        this.query = opening ? String(input.value || '') : '';
-        this.selected = 0;
-        this.open = opening;
-    },
-    move(step) {
-        if (!this.matches.length) return;
 
-        this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step));
+        const input = this.$refs.productItemInput || element;
+        this.position(input, Math.max(320, input.offsetWidth));
+        this.query = String(input.value || '');
+        this.selected = this.requireSelection ? 0 : -1;
+        this.open = true;
+        input.focus({ preventScroll: true });
     },
-    handleEnter(event) {
-        if (!this.open) return;
+    move(event, step) {
+        if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
         event.preventDefault();
         event.stopPropagation();
 
-        if (this.requireSelection || event.metaKey || event.ctrlKey) {
-            if (this.matches[this.selected]) this.choose(this.matches[this.selected]);
+        if (!this.open) {
+            this.browse(event.target);
+            this.selected = -1;
+        }
+
+        const count = this.matches.length;
+        if (!count) {
+            this.selected = -1;
             return;
         }
 
+        this.selected = this.selected < 0 || this.selected >= count
+            ? (step > 0 ? 0 : count - 1)
+            : (this.selected + step + count) % count;
+        this.$nextTick(() => {
+            this.$refs.productItemOptions?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+        });
+    },
+    handleEnter(event) {
+        if (!this.open || event.isComposing) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const option = this.matches[this.selected];
+        if (option || this.requireSelection || event.metaKey || event.ctrlKey) {
+            const selection = option || this.matches[0];
+            if (selection) this.choose(selection);
+            return;
+        }
+
+        this.close();
+    },
+    close() {
         this.open = false;
+        this.selected = -1;
     },
     choose(option) {
         const isBlueprintTextSuggestion = option?.suggestionType === 'blueprint-text';
@@ -128,8 +155,7 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
         this.model.quantity_unit = isBlueprintTextSuggestion ? null : defaultProductQuantityUnit(option);
         this.model.item_name = option?.name || '';
         this.query = '';
-        this.selected = 0;
-        this.open = false;
+        this.close();
         this.$dispatch('product-item-link-changed');
         this.$refs.productItemInput?.focus();
     },

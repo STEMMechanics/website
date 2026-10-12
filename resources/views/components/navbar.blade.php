@@ -125,7 +125,7 @@
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition" aria-hidden="true"></i>
                     @if($pageMenuAttentionCount > 0)
-                        <x-ui.badge color="warning" variant="solid" size="count" class="absolute -right-1 -top-2">{{ $pageMenuAttentionCount }}</x-ui.badge>
+                        <x-ui.badge color="warning" variant="solid" size="count" class="absolute -right-1 -top-1">{{ $pageMenuAttentionCount }}</x-ui.badge>
                     @endif
                 </x-ui.button>
                 <x-ui.button variant="plain" size="icon-small" type="button" class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out lg:inline-flex hidden" x-on:click.prevent="openSearchOverlay()" aria-label="Search">
