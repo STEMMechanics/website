@@ -275,6 +275,11 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         this.item.details_json.workshop.allocation_seats ??= this.item.workshop_seats ?? this.item.details_json.workshop.seats ?? null;
     },
     get linkedWorkshop() { return this.catalog.find(option => option.id === this.item.details_json.workshop.linked_workshop_id); },
+    get descriptionValue() { return this.billingLocked && this.open ? this.query : this.item.description; },
+    set descriptionValue(value) {
+        this.query = value;
+        if (!this.billingLocked) this.item.description = value;
+    },
     get seatValue() {
         const basis = this.item.details_json.workshop.allocation_basis;
         if (this.linkedWorkshop && basis === 'attendance') return Number(this.linkedWorkshop.attendance || 0);
@@ -310,13 +315,18 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
     },
     editDescription(element) {
-        if (this.item.details_json.workshop.linked_workshop_id) return;
-        this.query = this.item.description || '';
+        this.query = element.value || '';
         this.selected = 0;
         this.position(element, Math.max(320, element.offsetWidth));
         this.open = !!this.query.trim();
     },
-    browse(element) { this.position(element); this.query = ''; this.selected = 0; this.open = !this.open; },
+    browse(element) {
+        this.position(element);
+        this.query = '';
+        this.selected = 0;
+        this.open = !this.open;
+        if (this.open) this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
+    },
     move(step) { this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step)); },
     setSeats(basis) {
         const option = this.linkedWorkshop;
@@ -336,5 +346,6 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         if (option && this.item.details_json.workshop.allocation_basis !== 'manual') this.setSeats(this.item.details_json.workshop.allocation_basis);
         else if (!option) this.setSeats('manual');
         this.open = false;
+        this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
     },
 });
