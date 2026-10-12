@@ -253,7 +253,7 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => item.kind === 'product' || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+                        .filter((item) => ['product', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },

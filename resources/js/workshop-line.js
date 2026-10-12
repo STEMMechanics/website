@@ -192,6 +192,7 @@ function generatedWorkshopNotes(item) {
 }
 window.SM.defaultWorkshopDescription = item => {
     if (!['workshop', 'multi_workshop'].includes(item.kind)) return;
+    if (item.kind === 'multi_workshop' && item.description != null && item.description.trim() === '') return;
     if (!item.description?.trim() || ['workshop delivery', 'multi workshop delivery'].includes(item.description.trim().toLowerCase())) item.description = 'Charged per hour, per seat';
 };
 window.SM.initializeWorkshopNotes = item => {
