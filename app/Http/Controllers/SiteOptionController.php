@@ -144,6 +144,26 @@ class SiteOptionController extends Controller
         return redirect()->back();
     }
 
+    public function destroy(Request $request, SiteOption $siteOption): RedirectResponse|JsonResponse
+    {
+        abort_if(SiteOption::hasDefault((string) $siteOption->name), 422, 'Built-in settings cannot be deleted. Use Restore default instead.');
+
+        $siteOption->delete();
+
+        session()->flash('message', 'Site option has been deleted');
+        session()->flash('message-title', 'Site option deleted');
+        session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.site_option.index'),
+            ]);
+        }
+
+        return redirect()->route('admin.site_option.index');
+    }
+
     public function resetDefault(SiteOption $siteOption): RedirectResponse|JsonResponse
     {
         if (! SiteOption::hasDefault((string) $siteOption->name)) {

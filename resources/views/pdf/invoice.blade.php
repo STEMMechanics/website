@@ -12,6 +12,7 @@
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
+    $pages = array_map(fn (array $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
     $customer = $invoice->user;
     $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '' || trim((string) ($invoice->tax_treatment_code ?? '')) !== '';
     $billingAddress = $invoiceHasBillingSnapshot ? [
@@ -258,17 +259,9 @@
                     $qty = (float) ($item['quantity'] ?? 0);
                     $taxRate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
                     $gstApplicable = $taxRate > 0.0001;
-                    $lineNotes = trim((string) ($item['notes'] ?? ''));
+                    $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                     $lineKind = trim((string) ($item['kind'] ?? ''));
                     $lineDescription = (string) ($item['description'] ?? '');
-                    $linkedWorkshopNotes = collect(is_array($item['linked_workshops'] ?? null) ? $item['linked_workshops'] : [])
-                        ->filter(fn ($workshop) => is_array($workshop) && trim((string) ($workshop['label'] ?? '')) !== '')
-                        ->reject(function (array $workshop) use ($lineNotes): bool {
-                            $title = trim((string) ($workshop['title'] ?? ''));
-                            return $title !== '' && str_contains(mb_strtolower($lineNotes), mb_strtolower($title));
-                        })
-                        ->map(fn (array $workshop): string => '- '.trim((string) $workshop['label']))
-                        ->implode("\n");
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
@@ -283,9 +276,6 @@
                             @endif
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
-                            @endif
-                            @if($linkedWorkshopNotes !== '')
-                            {!! $renderLineNotes($linkedWorkshopNotes) !!}
                             @endif
                             @if($lineKind === 'shipping' && $shippingNoteParts !== [])
                             <div class="line-note"><strong>Ship to:</strong> {{ implode(', ', $shippingNoteParts) }}</div>

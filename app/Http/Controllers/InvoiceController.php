@@ -2433,7 +2433,7 @@ class InvoiceController extends Controller
 
     private function lineItemPdfWeight(array $item): float
     {
-        $notes = trim((string) ($item['notes'] ?? ''));
+        $notes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
         if ($notes === '') {
             return 1.0;
         }

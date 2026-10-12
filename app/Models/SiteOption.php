@@ -126,7 +126,7 @@ class SiteOption extends Model
             ],
             'document.footer.terms' => [
                 'value' => 'Payment terms are strictly 28 days from the invoice date. Long-term scheduled deliveries will be invoiced quarterly.',
-                'description' => 'Footer terms text for invoice, quote, and tax adjustment PDFs.',
+                'description' => 'Fallback terms for PDF documents. Add document.footer.terms.invoice, document.footer.terms.quote, or document.footer.terms.adjustment to override a document type. A blank override hides its Terms section.',
             ],
             'document.footer.travel' => [
                 'value' => 'Travel generally includes the first 30 minutes at no charge, with additional travel charged at {travel_rate_ex_gst} (ex GST) per 15 minutes, unless otherwise agreed.',
