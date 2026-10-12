@@ -89,7 +89,7 @@ class ProductRecipeComponent extends Model
             ? $this->component->title
             : ($this->component?->displayTitle($this->variant) ?? 'Missing item');
 
-        return trim(($size ? $size.' ' : '').$name);
+        return trim($name.($size ? ' ('.$size.')' : ''));
     }
 
     /** Convert preparation quantities to purchase units or retail packs for costing. */
@@ -154,8 +154,13 @@ class ProductRecipeComponent extends Model
                 return '';
             }
             $packUnits = $material->isPhysical() ? $material->saleUnits($this->variant) : 1;
+            $requiredUnits = (int) ceil($units * $packUnits * $multiples - 0.0000001);
 
-            return 'Allow '.self::formatNumber(ceil($units * $packUnits * $multiples - 0.0000001)).' × '.$material->purchaseUnitLabel();
+            if ($material->material_kind === 'sheet') {
+                return $requiredUnits.' full sheet'.($requiredUnits === 1 ? '' : 's').' required';
+            }
+
+            return 'Allow '.$requiredUnits.' × '.$material->purchaseUnitLabel();
         }
 
         return '';

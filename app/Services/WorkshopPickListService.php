@@ -66,6 +66,7 @@ class WorkshopPickListService
                 $kits[] = [
                     'key' => 'item:'.$item['item_id'], 'item_id' => $item['item_id'], 'product_id' => $item['product_id'],
                     'item_name' => $item['item_name'], 'required' => $item['quantity'], 'is_kit' => true,
+                    'type_note' => $item['type_note'],
                     'admin_url' => $item['admin_url'], 'contents' => $item['kit_contents'],
                     'no_recipe' => $item['kit_contents'] === [],
                 ];
@@ -73,6 +74,7 @@ class WorkshopPickListService
                 $rows[] = [
                     'key' => 'item:'.$item['item_id'], 'item_id' => $item['item_id'], 'product_id' => $item['product_id'],
                     'item_name' => $item['item_name'], 'quantity' => $item['quantity'], 'unit' => $item['unit'],
+                    'type_note' => $item['type_note'],
                     'kind' => $item['product_id'] ? 'product' : 'manual', 'admin_url' => $item['admin_url'], 'raw_note' => $item['raw_note'],
                 ];
             }

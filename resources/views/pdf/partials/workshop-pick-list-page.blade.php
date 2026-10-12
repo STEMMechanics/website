@@ -18,7 +18,7 @@
     $itemsCollection = ($calculatedItems ?? collect());
     $templateMode = isset($template) && $template instanceof \App\Models\PickListTemplate;
     $formatPickQuantity = static fn (float $quantity): string => rtrim(rtrim(number_format($quantity, 3, '.', ''), '0'), '.');
-    $pluralizePickUnit = static fn (string $unit, float $quantity): string => \Illuminate\Support\Str::plural($unit, abs($quantity - 1) < 0.0005 ? 1 : 2);
+    $pluralizePickUnit = static fn (string $unit, float $quantity): string => \App\Support\ItemLabelFormatter::forQuantity($unit, abs($quantity - 1) < 0.0005 ? 1 : 2);
     $kitSummariesByItemId = collect($kitSummaries ?? [])->keyBy(fn (array $kit): int => (int) ($kit['item_id'] ?? 0));
 @endphp
 
