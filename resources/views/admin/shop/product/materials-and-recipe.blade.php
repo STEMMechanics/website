@@ -25,6 +25,13 @@
             </div>
             <div x-show="materialKind === 'sheet'"><x-ui.input name="material_length_mm" label="Sheet length (mm)" type="number" step="any" min="0.001" x-model="materialLength" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
             <div x-show="materialKind === 'sheet'"><x-ui.input name="material_width_mm" label="Sheet width (mm)" type="number" step="any" min="0.001" x-model="materialWidth" x-bind:disabled="!hasMaterialMeasurements() || materialKind !== 'sheet'" /></div>
+            <div x-show="productType === 'physical' && !recipeRows.length">
+                <x-ui.input :name="null" id="purchase_pack_cost_ex_tax" label="Fallback supplier pack cost (ex GST)" type="number" min="0" max="10000000000000" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="purchasePackCost" x-on:input="purchasePackCostBasis = $el.value" x-bind:disabled="productType !== 'physical' || !useAsMaterial" :error="$errors->first('purchase_pack_cost_ex_tax')" info="For one supplier pack of the size above. Retail pack costs are calculated automatically. The latest tagged expense takes precedence." />
+            </div>
+            <input type="hidden" name="purchase_pack_cost_ex_tax" x-bind:value="purchasePackCostBasis" x-bind:disabled="productType !== 'physical' || !useAsMaterial">
+            <div x-show="productType === 'material'">
+                <x-ui.input name="unit_cost_ex_tax" id="material_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType !== 'material'" info="Per purchased unit described above. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
+            </div>
         </div>
         <p class="mb-4 text-xs text-slate-600" x-show="productType === 'physical' && useAsMaterial && !sharedInventory && Number(basePackUnits) > 1">For one stock count across retail pack sizes, enable “Share stock across all packs and variants” in Variants.</p>
         <div x-show="hasMaterialMeasurements() && materialKind === 'sheet'" class="mt-4">
@@ -109,8 +116,8 @@
 <x-ui.collapsible-section title="Purchase costs and pricing" variant="product" :open="!isset($product) || $errors->any()" x-show="productType !== 'digital'" x-cloak>
     <x-slot:summary><span x-text="costingMoney(recipeMaterialCost()) + (productType === 'material' ? ' per ' + purchaseUnit : ' materials')"></span></x-slot:summary>
     <div class="product-editor__fields">
-        <div x-show="!recipeRows.length || productType === 'material'">
-            <x-ui.input name="unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital'" info="Per base pack for Store Items and Kits, or per purchase unit for Materials. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
+        <div x-show="!hasMaterialMeasurements() && !recipeRows.length">
+            <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="Per base retail pack. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
         </div>
         <div x-show="isPhysicalProduct()">
             <x-ui.input name="operational_cost_ex_tax" label="Operational allowance (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="operationalCost" x-bind:placeholder="costingMoney(effectiveOperationalCost())" x-bind:disabled="!isPhysicalProduct()" info="Bags, labels and other small costs. Blank uses the item or kit default." />

@@ -18,6 +18,9 @@ window.SM.productMaterials = (config = {}) => ({
     materialLength: config.materialLength ?? '',
     materialWidth: config.materialWidth ?? '',
     unitCost: config.unitCost ?? '',
+    purchasePackCost: config.purchasePackCost === null || config.purchasePackCost === undefined || config.purchasePackCost === '' ? '' : Number(config.purchasePackCost).toFixed(2),
+    // Keep the original precision until the displayed supplier cost is edited.
+    purchasePackCostBasis: config.purchasePackCost ?? '',
     purchaseCosts: config.purchaseCosts || {},
     basePackUnits: config.basePackUnits ?? 1,
     operationalCost: config.operationalCost ?? '',
@@ -53,17 +56,44 @@ window.SM.productMaterials = (config = {}) => ({
         this.recipeRows.forEach((row) => { row.item_name = this.recipeItem(row)?.name || row.item_name || ''; });
         this.$watch('productType', (value) => {
             this.isKit = value === 'kit';
+            this.syncPurchasePackFallbackCost();
             if (!['physical', 'kit'].includes(value)) {
                 this.automaticPricing = false;
                 this.variants.forEach((variant) => { variant.automatic_pricing = false; });
             }
         });
-        ['automaticPricing', 'recipeRows', 'isKit', 'unitCost', 'operationalCost', 'timeCost', 'markup', 'productTaxRate', 'basePackUnits', 'basePrice', 'sharedInventory'].forEach((property) => {
+        this.$watch('useAsMaterial', (enabled) => {
+            if (this.productType !== 'physical') return;
+            if (enabled) {
+                const cost = this.knownCost(this.unitCost);
+                const units = this.packUnits();
+                const supplierUnits = Number(this.purchasePackUnits);
+                this.purchasePackCostBasis = cost === null || units === null || !Number.isInteger(supplierUnits) || supplierUnits < 1 ? '' : cost * supplierUnits / units;
+                this.purchasePackCost = this.purchasePackCostBasis === '' ? '' : Number(this.purchasePackCostBasis).toFixed(2);
+                this.syncPurchasePackFallbackCost();
+            } else {
+                const cost = this.knownCost(this.unitCost);
+                this.unitCost = cost === null ? '' : cost.toFixed(2);
+            }
+        });
+        ['purchasePackCostBasis', 'purchasePackUnits', 'basePackUnits'].forEach((property) => {
+            this.$watch(property, () => this.syncPurchasePackFallbackCost());
+        });
+        ['automaticPricing', 'recipeRows', 'isKit', 'unitCost', 'useAsMaterial', 'operationalCost', 'timeCost', 'markup', 'productTaxRate', 'basePackUnits', 'basePrice', 'sharedInventory'].forEach((property) => {
             this.$watch(property, () => this.syncAutomaticPrice());
         });
         // Watch the pricing inputs only: writing calculated prices must not trigger another update.
         this.$watch('variantPricingInputs()', () => this.syncAutomaticPrice());
+        this.syncPurchasePackFallbackCost();
         this.syncAutomaticPrice();
+    },
+    syncPurchasePackFallbackCost() {
+        if (this.productType !== 'physical' || !this.useAsMaterial) return;
+        const cost = this.knownCost(this.purchasePackCostBasis);
+        const units = this.packUnits();
+        const supplierUnits = Number(this.purchasePackUnits);
+        const normalized = cost === null || units === null || !Number.isInteger(supplierUnits) || supplierUnits < 1 ? null : this.roundMaterialCost(cost * units / supplierUnits);
+        this.unitCost = normalized === null || normalized > 10000000 ? '' : normalized.toFixed(4);
     },
     variantPricingInputs() {
         return JSON.stringify(this.variants.map((variant) => [variant.id, variant.inventory_units, variant.unit_cost_ex_tax, variant.bulk_discount_percent, variant.automatic_pricing]));

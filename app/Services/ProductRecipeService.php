@@ -122,6 +122,16 @@ class ProductRecipeService
         return $unitCost === null ? null : round($unitCost * $saleUnits, 4);
     }
 
+    /** Present the existing base pack fallback as a supplier pack cost without changing its stored meaning. */
+    public function fallbackPurchasePackCost(Product $product): ?float
+    {
+        if ($product->unit_cost_ex_tax === null) {
+            return null;
+        }
+
+        return (float) $product->unit_cost_ex_tax * max(1, (int) $product->purchase_pack_units) / $product->saleUnits();
+    }
+
     /** Unrounded costs per individual unit, so the editor can preview pack and stock changes. */
     public function purchaseCostInputs(Product $product): array
     {
@@ -336,6 +346,7 @@ class ProductRecipeService
             'material_length_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
             'material_width_mm' => [Rule::requiredIf($hasMeasurements && $kind === 'sheet'), 'nullable', 'numeric', 'gt:0', 'max:10000000'],
             'unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
+            'purchase_pack_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:10000000000000'],
             'operational_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'time_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'automatic_pricing' => ['nullable', 'boolean'],
@@ -360,6 +371,16 @@ class ProductRecipeService
         $data['purchase_unit'] = $hasMeasurements ? trim($data['purchase_unit']) : null;
         $data['purchase_quantity'] = $hasMeasurements ? ($kind === 'sheet' || ($isStoreItem && $kind === 'unit') ? 1 : (float) $data['purchase_quantity']) : null;
         $data['purchase_pack_units'] = $isStoreItem && $hasMeasurements ? (int) ($data['purchase_pack_units'] ?? $product->purchase_pack_units ?? 1) : 1;
+        if ($isStoreItem && $hasMeasurements && $request->exists('purchase_pack_cost_ex_tax')) {
+            $purchasePackCost = $data['purchase_pack_cost_ex_tax'] ?? null;
+            $basePackUnits = max(1, $request->integer('inventory_units', 1));
+            $baseCost = $purchasePackCost === null ? null : (float) $purchasePackCost * $basePackUnits / $data['purchase_pack_units'];
+            if ($baseCost !== null && (! is_finite($baseCost) || $baseCost > 10000000)) {
+                throw ValidationException::withMessages(['purchase_pack_cost_ex_tax' => 'The calculated base pack cost must not exceed 10,000,000. Check the supplier and retail pack sizes.']);
+            }
+            $data['unit_cost_ex_tax'] = $baseCost === null ? null : round($baseCost, 4);
+        }
+        unset($data['purchase_pack_cost_ex_tax']);
         $data['material_measure_unit'] = $hasMeasurements && $kind === 'length' ? $data['material_measure_unit'] : null;
         $data['material_length_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_length_mm'] : null;
         $data['material_width_mm'] = $hasMeasurements && $kind === 'sheet' ? $data['material_width_mm'] : null;
