@@ -1,3 +1,15 @@
+@if(request()->routeIs('admin.*'))
+<footer class="mt-6 border-t border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600 sm:px-8">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+        <span class="font-semibold">STEMMechanics administration</span>
+        <nav aria-label="Administration footer" class="flex flex-wrap gap-4">
+            <a href="{{ route('admin.dashboard') }}" class="hover:text-primary-color hover:underline">Dashboard</a>
+            <a href="{{ url('/') }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-color hover:underline">Website</a>
+            <a href="{{ route('contact') }}" class="hover:text-primary-color hover:underline">Help</a>
+        </nav>
+    </div>
+</footer>
+@else
 @php
     $footerWorkshopCategories = \App\Models\WorkshopCategory::query()
         ->where('hide_in_footer', false)
@@ -77,3 +89,4 @@
         </div>
     </section>
 </footer>
+@endif

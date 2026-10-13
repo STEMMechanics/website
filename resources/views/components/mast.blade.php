@@ -25,7 +25,7 @@
 
 @endphp
 
-<x-container class="bg-primary-color-light text-white pt-10 {{ isset($actions) ? 'pb-5 sm:pb-10' : 'pb-10' }}">
+<x-container class="{{ request()->routeIs('admin.*') ? 'sm-admin-mast' : '' }} bg-primary-color-light text-white pt-10 {{ isset($actions) ? 'pb-5 sm:pb-10' : 'pb-10' }}">
     @isset($breadcrumbs)
         <nav aria-label="Breadcrumb" class="-mt-5 mb-3 text-sm text-white/90">{{ $breadcrumbs }}</nav>
     @else
@@ -41,14 +41,14 @@
     @endisset
     <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
     <div class="min-w-0">
-    <h1 class="font-bold text-4xl">
+    <h1 class="sm-mast-title font-bold text-4xl">
         @isset($image)
             <img src="{{ $image }}" class="inline w-14 h-auto" alt="" />
         @endisset
         {{ $title ?? $slot }}
     </h1>
     @if(isset($description))
-        <div class="text-lg">{{ $description }}</div>
+        <div class="sm-mast-description text-lg">{{ $description }}</div>
     @endif
     @if(isset($backTitle) && $resolvedBackUrl && !$showBreadcrumbs)
         <div class="flex text-lg">
@@ -64,7 +64,7 @@
     @endisset
     </div>
     @isset($tabs)
-        <div class="mt-4 {{ isset($actions) ? '-mb-5 sm:-mb-10' : '-mb-10' }} overflow-x-auto">
+        <div class="sm-mast-tabs mt-4 {{ isset($actions) ? '-mb-5 sm:-mb-10' : '-mb-10' }} overflow-x-auto">
             <div class="flex min-w-max justify-start sm:w-full sm:min-w-0 sm:justify-end">
                 @foreach($tabs as $tab)
                     @php

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Media;
 use App\Models\Invoice;
+use App\Models\Media;
 use App\Models\Payment;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
@@ -11,12 +11,15 @@ use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemDownload;
 use App\Models\StoreOrderItemTracking;
 use App\Models\Token;
+use App\Services\SiteListControls;
 use App\Services\StoreOrderService;
 use App\Services\StoreShippingMethodService;
+use App\Support\ListPageSize;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -58,7 +61,7 @@ class StoreOrderController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
             ->onEachSide(1)
             ->withQueryString();
 
@@ -135,7 +138,9 @@ class StoreOrderController extends Controller
     public function trackingVerifyDownload(Request $request, string $accessToken, StoreOrderItemDownload $storeOrderItemDownload, StoreOrderService $orders): View
     {
         $order = $this->freshOrder($this->orderForAccessToken($accessToken), $orders);
-        abort_unless($order->invoice?->outstandingAmount() <= 0.0001, 403, 'This download is available after payment.');
+        $orderItem = $storeOrderItemDownload->orderItem()->first();
+        abort_unless($orderItem && (int) $orderItem->store_order_id === (int) $order->id, 404);
+        abort_unless($orderItem->isPaid(), 403, 'This download is available after payment.');
 
         $validated = $request->validate([
             'email' => ['required', 'string', 'email', 'max:255'],
@@ -213,6 +218,9 @@ class StoreOrderController extends Controller
             'invoice.allocations.customerPayment',
             'invoice.allocations.customerPayment.refunds',
             'invoice.taxAdjustments.lines',
+            'invoices.allocations.customerPayment.refunds',
+            'invoices.taxAdjustments.lines',
+            'items.invoiceLine.invoice',
             'items.product.hero',
             'items.variant',
             'items.downloads.media',
@@ -272,8 +280,7 @@ class StoreOrderController extends Controller
 
     private function orderViewPayload(Request $request, StoreOrder $order, bool $isAccountView, ?string $accessToken): array
     {
-        $isPaid = $order->invoice instanceof Invoice
-            && $order->invoice->outstandingAmount() <= 0.0001;
+        $isPaid = $order->isPaid();
         $orderItems = $order->items->values();
         $downloadableItems = $order->items->filter(fn ($item) => $item->downloads->isNotEmpty())->values();
         $canDownloadDocuments = $this->canDownloadOrderDocuments($request, $order, $isAccountView);
@@ -291,6 +298,14 @@ class StoreOrderController extends Controller
             'canDownloadDocuments' => $canDownloadDocuments,
             'canViewAddressDetails' => $canViewAddressDetails,
             'invoicePdfUrl' => $canDownloadDocuments ? $this->orderInvoicePdfUrl($order, $isAccountView) : null,
+            'linkedInvoices' => $order->invoices->map(fn (Invoice $invoice): array => [
+                'number' => $invoice->invoice_number,
+                'total' => (float) $invoice->total_amount,
+                'outstanding' => $invoice->outstandingAmount(),
+                'view_url' => $this->canUseAccountInvoiceLinks($invoice, $isAccountView) ? route('account.invoice.show', $invoice) : route('invoice.public.pay.show', $invoice),
+                'pdf_url' => $canDownloadDocuments ? $this->orderInvoicePdfUrl($order, $isAccountView, $invoice) : null,
+                'email_documents_url' => route('invoice.public.email-documents', $invoice),
+            ])->all(),
             'receiptLinks' => $canDownloadDocuments ? $this->orderReceiptLinks($order, $isAccountView) : [],
             'refundReceiptLinksByInvoiceLineId' => $canDownloadDocuments ? $this->orderRefundReceiptLinksByInvoiceLineId($order, $isAccountView) : [],
             'emailDocumentsActionUrl' => $order->invoice instanceof Invoice
@@ -397,9 +412,9 @@ class StoreOrderController extends Controller
                         'tracking_id' => (int) $tracking->id,
                         'group_key' => $this->deliveryGroupKey($tracking),
                         'parcel_number' => max(0, (int) ($tracking->parcel_number ?? 0)) ?: null,
-                        'dispatched_timestamp' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->timestamp : 0,
-                        'dispatched_label' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->format('M j, Y') : null,
-                        'recorded_timestamp' => $tracking->created_at instanceof \Illuminate\Support\Carbon ? $tracking->created_at->timestamp : 0,
+                        'dispatched_timestamp' => $dispatchedAt instanceof Carbon ? $dispatchedAt->timestamp : 0,
+                        'dispatched_label' => $dispatchedAt instanceof Carbon ? $dispatchedAt->format('M j, Y') : null,
+                        'recorded_timestamp' => $tracking->created_at instanceof Carbon ? $tracking->created_at->timestamp : 0,
                         'carrier' => $carrier !== '' ? $carrier : null,
                         'tracking_number' => $trackingNumber !== '' ? $trackingNumber : null,
                         'tracking_url' => $trackingUrl !== '' ? $trackingUrl : null,
@@ -505,32 +520,32 @@ class StoreOrderController extends Controller
             ->flatMap(function (StoreOrderItem $item) {
                 return $item->pickupCollectionEntries()
                     ->filter(function ($collection): bool {
-                        return trim((string) ($collection->pickup_state ?? \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED)) === \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
+                        return trim((string) ($collection->pickup_state ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED)) === StoreOrderItemCollection::PICKUP_STATE_COLLECTED;
                     })
                     ->map(function ($collection) use ($item): array {
-                    $collectionType = trim((string) ($collection->collection_type ?? $collection->shipment_type ?? ''));
-                    $pickupState = trim((string) ($collection->pickup_state ?? \App\Models\StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
-                    $collectedAt = $collection->collected_at ?? $collection->dispatched_at ?? $collection->created_at;
-                    $notes = trim((string) ($collection->notes ?? ''));
-                    $collector = trim((string) ($collection->collectedBy ? $collection->collectedBy->getName() : ''));
+                        $collectionType = trim((string) ($collection->collection_type ?? $collection->shipment_type ?? ''));
+                        $pickupState = trim((string) ($collection->pickup_state ?? StoreOrderItemCollection::PICKUP_STATE_COLLECTED));
+                        $collectedAt = $collection->collected_at ?? $collection->dispatched_at ?? $collection->created_at;
+                        $notes = trim((string) ($collection->notes ?? ''));
+                        $collector = trim((string) ($collection->collectedBy ? $collection->collectedBy->getName() : ''));
 
-                    return [
-                        'item_id' => (int) $item->id,
-                        'item_number' => 0,
-                        'item_sku' => $this->resolveOrderItemSku($item),
-                        'collection_id' => (int) $collection->id,
-                        'group_key' => 'collection:'.(int) $collection->id,
-                        'recorded_timestamp' => $collection->created_at instanceof \Illuminate\Support\Carbon ? $collection->created_at->timestamp : 0,
-                        'collected_timestamp' => $collectedAt instanceof \Illuminate\Support\Carbon ? $collectedAt->timestamp : 0,
-                        'collected_label' => $collectedAt instanceof \Illuminate\Support\Carbon ? $collectedAt->format('M j, Y') : null,
-                        'collection_type' => $collectionType !== '' ? $collectionType : null,
-                        'pickup_state' => $pickupState !== '' ? $pickupState : null,
-                        'collector' => $collector !== '' ? $collector : null,
-                        'notes' => $notes !== '' ? $notes : null,
-                        'item_title' => $item->displayTitle(),
-                        'quantity' => max(0, (int) $collection->quantity),
-                    ];
-                })->all();
+                        return [
+                            'item_id' => (int) $item->id,
+                            'item_number' => 0,
+                            'item_sku' => $this->resolveOrderItemSku($item),
+                            'collection_id' => (int) $collection->id,
+                            'group_key' => 'collection:'.(int) $collection->id,
+                            'recorded_timestamp' => $collection->created_at instanceof Carbon ? $collection->created_at->timestamp : 0,
+                            'collected_timestamp' => $collectedAt instanceof Carbon ? $collectedAt->timestamp : 0,
+                            'collected_label' => $collectedAt instanceof Carbon ? $collectedAt->format('M j, Y') : null,
+                            'collection_type' => $collectionType !== '' ? $collectionType : null,
+                            'pickup_state' => $pickupState !== '' ? $pickupState : null,
+                            'collector' => $collector !== '' ? $collector : null,
+                            'notes' => $notes !== '' ? $notes : null,
+                            'item_title' => $item->displayTitle(),
+                            'quantity' => max(0, (int) $collection->quantity),
+                        ];
+                    })->all();
             })
             ->sort(function (array $left, array $right): int {
                 if ((int) $left['recorded_timestamp'] !== (int) $right['recorded_timestamp']) {
@@ -582,7 +597,7 @@ class StoreOrderController extends Controller
                     : array_values(array_filter([
                         $first['collected_label'] ?? null,
                         $first['collector'] ?? null,
-                        isset($first['pickup_state']) ? (new \App\Models\StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
+                        isset($first['pickup_state']) ? (new StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
                         $first['collection_type'] !== null ? $this->pickupCollectionTypeLabel((string) $first['collection_type']) : null,
                     ]));
 
@@ -597,7 +612,7 @@ class StoreOrderController extends Controller
                             'quantity' => (int) collect($itemGroup)->sum('quantity'),
                             'sku' => trim((string) ($first['item_sku'] ?? '')) !== '' ? trim((string) ($first['item_sku'] ?? '')) : null,
                             'detail' => trim(implode(' | ', array_filter([
-                                isset($first['pickup_state']) ? (new \App\Models\StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
+                                isset($first['pickup_state']) ? (new StoreOrderItemCollection(['pickup_state' => (string) $first['pickup_state']]))->pickupStateLabel() : null,
                                 $first['collection_type'] !== null ? $this->pickupCollectionTypeLabel((string) $first['collection_type']) : null,
                                 trim((string) ($first['notes'] ?? '')) !== '' ? (string) ($first['notes'] ?? '') : null,
                             ]))),
@@ -684,7 +699,7 @@ class StoreOrderController extends Controller
     {
         $orderItem = $download->orderItem()->with('order')->first();
         abort_unless($orderItem && $orderItem->store_order_id === $order->id, 404);
-        abort_unless($order->invoice?->outstandingAmount() <= 0.0001, 403, 'This download is available after payment.');
+        abort_unless($orderItem->isPaid(), 403, 'This download is available after payment.');
 
         /** @var Media|null $media */
         $media = $download->media;
@@ -706,7 +721,7 @@ class StoreOrderController extends Controller
     ): BinaryFileResponse|View {
         $orderItem = $download->orderItem()->with('order')->first();
         abort_unless($orderItem && $orderItem->store_order_id === $order->id, 404);
-        abort_unless($order->invoice?->outstandingAmount() <= 0.0001, 403, 'This download is available after payment.');
+        abort_unless($orderItem->isPaid(), 403, 'This download is available after payment.');
 
         if ($order->isAccessibleBy($request->user())) {
             return $this->downloadResponse($order, $download);
@@ -762,14 +777,14 @@ class StoreOrderController extends Controller
         return $order;
     }
 
-    private function orderInvoicePdfUrl(StoreOrder $order, bool $isAccountView): ?string
+    private function orderInvoicePdfUrl(StoreOrder $order, bool $isAccountView, ?Invoice $invoice = null): ?string
     {
-        $invoice = $order->invoice;
+        $invoice ??= $order->invoice;
         if (! $invoice instanceof Invoice) {
             return null;
         }
 
-        if ($isAccountView) {
+        if ($this->canUseAccountInvoiceLinks($invoice, $isAccountView)) {
             return route('account.invoice.pdf', [
                 'invoice' => $invoice,
                 'download' => 1,
@@ -785,6 +800,11 @@ class StoreOrderController extends Controller
         ]);
     }
 
+    private function canUseAccountInvoiceLinks(Invoice $invoice, bool $isAccountView): bool
+    {
+        return $isAccountView && (auth()->user()?->isAdmin() || (string) $invoice->user_id === (string) auth()->id());
+    }
+
     /**
      * @return array<int, array{
      *     payment_id:int,
@@ -795,12 +815,7 @@ class StoreOrderController extends Controller
      */
     private function orderReceiptLinks(StoreOrder $order, bool $isAccountView): array
     {
-        $invoice = $order->invoice;
-        if (! $invoice instanceof Invoice) {
-            return [];
-        }
-
-        return $invoice->allocations
+        return $order->invoices->flatMap(fn (Invoice $invoice) => $invoice->allocations
             ->filter(function ($allocation) use ($invoice): bool {
                 if (((float) $allocation->allocated_amount) <= 0 || ! $allocation->customerPayment) {
                     return false;
@@ -816,7 +831,7 @@ class StoreOrderController extends Controller
                 'Download Receipt #',
                 abs(round((float) $allocation->allocated_amount, 2)),
             ))
-            ->unique('payment_id')
+        )->unique(fn ($link) => $link['invoice_id'].':'.$link['payment_id'])
             ->values()
             ->all();
     }
@@ -831,11 +846,18 @@ class StoreOrderController extends Controller
      */
     private function orderRefundReceiptLinksByInvoiceLineId(StoreOrder $order, bool $isAccountView): array
     {
-        $invoice = $order->invoice;
-        if (! $invoice instanceof Invoice) {
-            return [];
+        $links = [];
+        foreach ($order->invoices as $invoice) {
+            foreach ($this->invoiceRefundReceiptLinksByInvoiceLineId($invoice, $isAccountView) as $lineId => $receipts) {
+                $links[$lineId] = $receipts;
+            }
         }
 
+        return $links;
+    }
+
+    private function invoiceRefundReceiptLinksByInvoiceLineId(Invoice $invoice, bool $isAccountView): array
+    {
         $taxAdjustmentIdsByInvoiceLineId = $invoice->taxAdjustments
             ->flatMap(function ($adjustment) {
                 return $adjustment->lines->map(function ($line) use ($adjustment): array {
@@ -909,6 +931,7 @@ class StoreOrderController extends Controller
 
     /**
      * @return array{
+     *     invoice_id:int,
      *     payment_id:int,
      *     title:string,
      *     meta:string,
@@ -922,6 +945,7 @@ class StoreOrderController extends Controller
         string $titlePrefix,
         ?float $amount = null
     ): array {
+        $isAccountView = $this->canUseAccountInvoiceLinks($invoice, $isAccountView);
         $baseRoute = $isAccountView ? 'account.invoice.receipt.pdf' : 'invoice.receipt.pdf';
         $downloadUrl = $isAccountView
             ? route($baseRoute, ['invoice' => $invoice, 'payment' => $payment, 'download' => 1])
@@ -929,6 +953,7 @@ class StoreOrderController extends Controller
         $receivedOn = $payment->received_on?->format('M j, Y');
 
         return [
+            'invoice_id' => (int) $invoice->id,
             'payment_id' => (int) $payment->id,
             'title' => $titlePrefix.(string) $payment->id,
             'meta' => trim(collect([

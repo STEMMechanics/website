@@ -2,14 +2,35 @@
 
 namespace App\Models;
 
+use App\Support\StoreOrderDeliverySummary;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StoreOrder extends Model
 {
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        static::saved(function (StoreOrder $order): void {
+            if (! $order->wasRecentlyCreated && ! $order->wasChanged('invoice_id')) {
+                return;
+            }
+
+            $previousInvoiceId = $order->getRawOriginal('invoice_id');
+            if ($previousInvoiceId && (int) $previousInvoiceId !== (int) $order->invoice_id) {
+                $order->invoices()->detach($previousInvoiceId);
+            }
+            if ($order->invoice_id) {
+                $order->invoices()->syncWithoutDetaching([$order->invoice_id]);
+            }
+            $order->unsetRelation('invoices');
+        });
+    }
 
     public const STATUS_PENDING_PAYMENT = 'pending_payment';
 
@@ -155,6 +176,27 @@ class StoreOrder extends Model
         return $this->belongsTo(Invoice::class);
     }
 
+    /** @return BelongsToMany<Invoice, $this> */
+    public function invoices(): BelongsToMany
+    {
+        return $this->belongsToMany(Invoice::class, 'store_order_invoice')
+            ->withPivot('attached_by')->withTimestamps()->orderBy('invoices.id');
+    }
+
+    /** @return Collection<int, Invoice> */
+    public function getInvoicesAttribute(): Collection
+    {
+        /** @var Collection<int, Invoice> $invoices */
+        $invoices = $this->getRelationValue('invoices');
+
+        // Imports can preserve invoice_id without populating the new pivot table.
+        if ($this->invoice_id && ! $invoices->contains('id', $this->invoice_id) && $this->invoice) {
+            return $invoices->merge([$this->invoice])->sortBy('id')->values();
+        }
+
+        return $invoices;
+    }
+
     /**
      * @return BelongsTo<Quote, $this>
      */
@@ -194,12 +236,25 @@ class StoreOrder extends Model
 
     public function isPaid(): bool
     {
-        if ($this->relationLoaded('invoice') && $this->invoice instanceof Invoice) {
-            return $this->invoice->outstandingAmount() <= 0.0001;
-        }
+        return $this->invoices->isNotEmpty()
+            && $this->invoices->every(fn (Invoice $invoice): bool => $invoice->outstandingAmount() <= 0.0001);
+    }
 
-        return $this->invoice()->exists()
-            && ((float) $this->invoice()->first()->outstandingAmount()) <= 0.0001;
+    public function outstandingAmount(): float
+    {
+        return round($this->invoices->sum(fn (Invoice $invoice): float => max(0, $invoice->outstandingAmount())), 2);
+    }
+
+    public function canAttachInvoice(): bool
+    {
+        return $this->invoice_id !== null && in_array((string) $this->status, [
+            self::STATUS_PENDING_PAYMENT,
+            self::STATUS_PROCESSING,
+            self::STATUS_READY_FOR_PARTIAL_COLLECTION,
+            self::STATUS_READY_FOR_PICKUP,
+            self::STATUS_PARTIALLY_COLLECTED,
+            self::STATUS_PARTIALLY_SHIPPED,
+        ], true);
     }
 
     public function isAccessibleBy(?User $user, ?string $accessToken = null): bool
@@ -296,7 +351,7 @@ class StoreOrder extends Model
 
     public function shippingBreakdown(): array
     {
-        return is_array($this->shipping_breakdown_data) ? $this->shipping_breakdown_data : [];
+        return StoreOrderDeliverySummary::build($this);
     }
 
     public function shippingAddressLines(): array

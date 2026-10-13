@@ -44,7 +44,6 @@
 
     <input type="hidden" name="{{ $fieldName }}" id="{{ $resolvedFieldId }}" value="{{ old($fieldName, implode(',', array_map(fn ($file) => (string) $file['id'], $seedFiles))) }}" />
 
-    <div class="font-semibold mb-2">{{ $label }}</div>
     <div id="{{ $resolvedEmptyId }}" class="text-sm text-gray-500 {{ count($seedFiles) === 0 ? '' : 'hidden' }}">No files attached.</div>
     <ul id="{{ $resolvedListId }}" class="space-y-2 {{ count($seedFiles) === 0 ? 'hidden' : '' }}"></ul>
     <div id="{{ $resolvedErrorId }}" class="text-xs text-red-600 mt-2 hidden"></div>

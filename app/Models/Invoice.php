@@ -177,11 +177,11 @@ class Invoice extends Model
     }
 
     /**
-     * @return HasMany<StoreOrder, $this>
+     * @return BelongsToMany<StoreOrder, $this>
      */
-    public function storeOrders(): HasMany
+    public function storeOrders(): BelongsToMany
     {
-        return $this->hasMany(StoreOrder::class);
+        return $this->belongsToMany(StoreOrder::class, 'store_order_invoice')->withPivot('attached_by')->withTimestamps();
     }
 
     /**

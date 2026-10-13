@@ -36,6 +36,7 @@ import './product-materials';
 import './product-stock-adjustment';
 import './expense-product-purchases';
 import './document-product-editor';
+import './store-order-invoice';
 
 import './reminder-list';
 import './invoice-allocation-list';

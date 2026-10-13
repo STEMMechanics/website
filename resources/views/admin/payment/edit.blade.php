@@ -329,9 +329,10 @@
                 label="Customer"
                 info="Search by name/organisation/email. Select a customer for this payment."
                 :disabled="!$canEditLinkage"
+                :mobile-stacked="true"
             />
 
-            <div class="flex gap-8">
+            <div class="grid min-w-0 gap-x-8 sm:grid-cols-2">
                 <div class="flex-1">
                 <x-ui.input type="datetime-local" label="Received On" name="received_on" value="{{ old('received_on', isset($customerPayment) && $customerPayment->received_on ? $customerPayment->received_on->format('Y-m-d\\TH:i') : now()->format('Y-m-d\\TH:i')) }}" :disabled="$isCoreLocked" />
                 </div>
@@ -385,10 +386,10 @@
 
             <x-ui.input label="Reference" name="reference" value="{{ old('reference', $customerPayment->reference ?? '') }}" :disabled="!$canEditLinkage" />
 
-            <x-ui.input type="text" label="Total Amount" name="total_amount" value="{{ old('total_amount', $customerPayment->total_amount ?? (isset($prefillTotalAmount) && $prefillTotalAmount !== null ? number_format((float) $prefillTotalAmount, 2, '.', '') : '0.00')) }}" :moneyFormat="true" :disabled="$isCoreLocked" x-ref="totalAmountInput" />
+            <x-ui.input type="text" inputmode="decimal" label="Total Amount" name="total_amount" value="{{ old('total_amount', $customerPayment->total_amount ?? (isset($prefillTotalAmount) && $prefillTotalAmount !== null ? number_format((float) $prefillTotalAmount, 2, '.', '') : '0.00')) }}" :moneyFormat="true" :disabled="$isCoreLocked" x-ref="totalAmountInput" />
 
             <div class="border rounded-lg p-4 mb-4 border-gray-400" x-init="serializeAllocations()">
-                <div class="flex justify-between items-center mb-3">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
                         <div class="flex flex-wrap gap-2">
@@ -505,15 +506,15 @@
                             <label class="block text-sm pl-1">Invoice</label>
                             <x-ui.button variant="plain"
                                 type="button"
-                                class="disabled:bg-gray-100 bg-white mt-1 flex h-11 w-full items-center rounded-lg border border-gray-300 px-3 py-2 text-left text-sm text-gray-900 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                class="sm-payment-invoice-picker disabled:bg-gray-100 bg-white mt-1 flex min-h-11 w-full items-center rounded-lg border border-gray-300 px-3 py-2 text-left text-sm text-gray-900 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                                 x-bind:aria-label="selectedInvoiceLabel() + (selectedInvoiceMeta() ? ' · ' + selectedInvoiceMeta() : '')"
                                 x-bind:title="selectedInvoiceMeta()"
                                 x-on:click="open = !open; if (open) { focusSearch(); }"
                                 :disabled="! $canEditAllocations"
                             >
-                                <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                                <div class="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                     <div class="flex min-w-0 flex-1 items-center gap-2">
-                                        <div class="min-w-0 truncate font-medium" x-text="selectedInvoiceLabel()"></div>
+                                        <div class="min-w-0 whitespace-normal break-words font-medium sm:truncate" x-text="selectedInvoiceLabel()"></div>
                                         <div class="hidden max-w-[40%] truncate text-xs text-gray-500 lg:block" x-show="selectedInvoiceMeta()" x-cloak x-text="selectedInvoiceMeta()"></div>
                                     </div>
                                     <div class="flex shrink-0 items-center gap-2 text-xs text-gray-500">
@@ -840,6 +841,7 @@
 
         @if(! $isRefundRecord)
             <x-ui.editor-actions
+                :sticky-mobile="true"
                 x-data="{
                     selectedPaymentMethod: '',
                     bankTransferMethod: {{ \Illuminate\Support\Js::from(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER) }},

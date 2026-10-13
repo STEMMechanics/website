@@ -55,7 +55,7 @@ class ShopAdminOrderController extends Controller
                 $builder->where('order_number', 'like', '%'.$search.'%')
                     ->orWhere('billing_name', 'like', '%'.$search.'%')
                     ->orWhere('billing_email', 'like', '%'.$search.'%')
-                    ->orWhereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where('invoice_number', 'like', '%'.$search.'%'));
+                    ->orWhereHas('invoices', fn ($invoiceQuery) => $invoiceQuery->where('invoice_number', 'like', '%'.$search.'%'));
             });
         }
 
@@ -70,6 +70,9 @@ class ShopAdminOrderController extends Controller
             'quote',
             'invoice.quote',
             'invoice.allocations.customerPayment',
+            'invoices.allocations.customerPayment',
+            'invoices.taxAdjustments',
+            'items.invoiceLine.invoice',
             'items.downloads.media',
             'items.product.hero',
             'items.variant',
@@ -86,6 +89,9 @@ class ShopAdminOrderController extends Controller
                 'quote',
                 'invoice.quote',
                 'invoice.allocations.customerPayment',
+                'invoices.allocations.customerPayment',
+                'invoices.taxAdjustments',
+                'items.invoiceLine.invoice',
                 'items.downloads.media',
                 'items.product.hero',
                 'items.variant',
