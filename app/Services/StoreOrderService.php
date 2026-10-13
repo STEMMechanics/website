@@ -240,7 +240,7 @@ class StoreOrderService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (StoreOrder::query()->where('invoice_id', $lockedInvoice->id)->exists()) {
+            if ($lockedInvoice->storeOrders()->exists()) {
                 throw ValidationException::withMessages([
                     'quote' => 'A store order already exists for this invoice.',
                 ]);
@@ -599,7 +599,7 @@ class StoreOrderService
         $payment = Payment::query()->findOrFail($paymentId);
         $freshOrder = $order->fresh(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon']);
         $this->queueOrderPaidEmail($freshOrder);
-        $this->queueAdminOrderNotification($freshOrder, 'paid');
+        $this->queuePaidOrderAdminNotification($freshOrder);
 
         return $payment;
     }
@@ -757,61 +757,17 @@ class StoreOrderService
                 ->lockForUpdate()
                 ->get();
 
-            $invoice = $lockedItem->order->invoice_id
-                ? Invoice::query()
-                    ->with(['lines', 'allocations.customerPayment', 'user'])
-                    ->whereKey($lockedItem->order->invoice_id)
-                    ->lockForUpdate()
-                    ->first()
-                : null;
-
-            $adjustment = null;
-            $reconciliation = [
-                'allocated' => 0.0,
-                'remaining' => 0.0,
-                'consumed_outstanding' => 0.0,
-            ];
-
-            $originallyPaid = $invoice instanceof Invoice
-                ? $invoice->settledAmount() >= ($invoice->dueAmount() - 0.0001)
-                : false;
-
-            if ($invoice instanceof Invoice) {
-                $creditLines = collect();
-                $cancelledQuantity = $availableQuantity + $delayedQuantity;
-
-                $itemCreditLine = $this->buildProductCreditLineForOrderItemCancellation(
-                    $lockedItem->order,
-                    $lockedItem,
-                    $invoice,
-                    $cancelledQuantity,
-                    $orderItems,
-                );
-                if ($itemCreditLine !== null) {
-                    $creditLines->push($itemCreditLine);
-                }
-
-                $shippingCreditLine = $this->buildShippingCreditLineForOrderCancellation(
-                    $lockedItem->order,
-                    $invoice,
-                    $orderItems,
-                );
-                if ($shippingCreditLine !== null) {
-                    $creditLines->push($shippingCreditLine);
-                }
-
-                if ($creditLines->isNotEmpty()) {
-                    $adjustment = $this->createTaxAdjustmentNoteForOrderItemCancellation(
-                        $lockedItem->order,
-                        $lockedItem,
-                        $invoice,
-                        $creditLines,
-                        $reason,
-                    );
-                    $reconciliation = $this->reconcileCreditAllocationsForAdjustment($invoice, $adjustment);
-                    $this->syncInvoiceState($invoice);
-                }
-            }
+            $invoiceSummaries = $this->createCancellationAdjustments(
+                $lockedItem->order,
+                $orderItems,
+                [(int) $lockedItem->id => [
+                    'available_quantity' => $availableQuantity,
+                    'delayed_quantity' => $delayedQuantity,
+                    'reasons' => [$reason],
+                ]],
+                $actingUser,
+                $cancellation,
+            );
 
             $this->syncOrderState($lockedItem->order->fresh('invoice'));
 
@@ -820,81 +776,21 @@ class StoreOrderService
                 $this->allocator->allocateForOrderItem($lockedItem);
             }
 
-            $expectedRefundCents = $adjustment instanceof TaxAdjustment
-                ? max(0, (int) round(((float) ($reconciliation['allocated'] ?? 0)) * 100))
-                : 0;
-            $hasSquarePayment = $invoice instanceof Invoice
-                ? $this->invoiceHasRefundableSquarePayment($invoice)
-                : false;
-            $refundOperationIds = $adjustment instanceof TaxAdjustment
-                ? $this->createSquareRefundOperationsForOrderCancellation(
-                    $invoice,
-                    $adjustment,
-                    $lockedItem->order,
-                    $cancellation,
-                    $expectedRefundCents,
-                )
-                : [];
-
             return [
                 'item' => $lockedItem->fresh(['product.hero', 'variant', 'downloads.media', 'trackingEntries', 'cancellations.cancelledBy', 'order']),
                 'order_id' => (int) $lockedItem->order->id,
-                'invoice_id' => $invoice?->id,
-                'adjustment_id' => $adjustment?->id,
-                'adjustment_note_number' => $adjustment?->adjustment_number,
                 'event_id' => $update?->id,
-                'expected_refund_cents' => $expectedRefundCents,
-                'refund_operation_ids' => $refundOperationIds,
-                'originally_paid' => $originallyPaid,
-                'has_square_payment' => $hasSquarePayment,
+                ...$this->cancellationFinancialSummary($invoiceSummaries, $lockedItem->order),
             ];
         });
 
-        $refundOutcome = [
-            'refunded_cents' => 0,
-            'refund_payment_ids' => [],
-        ];
-
-        if ((int) $summary['expected_refund_cents'] > 0) {
-            $refundOutcome = $this->processSquareRefundOperations(
-                (array) $summary['refund_operation_ids'],
-                'Store order cancellation '.($summary['item'] instanceof StoreOrderItem ? (string) $summary['item']->order->order_number : (string) $order->order_number),
-                $actingUser,
-            );
-        }
-
-        $summary['refunded_cents'] = (int) $refundOutcome['refunded_cents'];
-        $summary['refund_payment_ids'] = array_values(array_unique(array_map('intval', (array) $refundOutcome['refund_payment_ids'])));
-        $summary['manual_refund_required'] = (bool) $summary['originally_paid']
-            && (int) $summary['refunded_cents'] < (int) $summary['expected_refund_cents'];
-
         $freshOrder = StoreOrder::query()
-            ->with(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon', 'user'])
+            ->with(['invoices.allocations.customerPayment', 'invoice', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon', 'user'])
             ->find((int) $summary['order_id']);
-
         if ($freshOrder instanceof StoreOrder && (int) ($summary['event_id'] ?? 0) > 0) {
             $this->queueImmediateOrderUpdateNotifications($freshOrder, [(int) $summary['event_id']], $suppressAdminNotifications);
         }
-
-        $invoice = ($freshOrder?->invoice instanceof Invoice)
-            ? $freshOrder->invoice
-            : Invoice::query()->with(['user', 'lines', 'allocations.customerPayment'])->find((int) ($summary['invoice_id'] ?? 0));
-        $adjustment = ($summary['adjustment_id'] ?? null)
-            ? TaxAdjustment::query()->with('lines')->find((int) $summary['adjustment_id'])
-            : null;
-
-        if (
-            $freshOrder instanceof StoreOrder
-            && $invoice instanceof Invoice
-            && $adjustment instanceof TaxAdjustment
-            && $summary['refund_payment_ids'] === []
-        ) {
-            $this->sendOrderAdjustmentDocumentBundle($freshOrder, $invoice, $adjustment, $actingUser);
-        }
-
-        if ($freshOrder instanceof StoreOrder && $invoice instanceof Invoice && $summary['refund_payment_ids'] !== []) {
-            $this->sendRefundReceiptEmailsForOrder($freshOrder, $invoice, $summary['refund_payment_ids']);
-        }
+        $summary = $this->completeCancellationAdjustments($summary, $freshOrder, $actingUser);
 
         return $summary;
     }
@@ -1263,18 +1159,6 @@ class StoreOrderService
                 ->get()
                 ->keyBy(fn (StoreOrderItem $item) => (int) $item->id);
 
-            $invoice = $lockedOrder->invoice_id
-                ? Invoice::query()
-                    ->with(['lines', 'allocations.customerPayment', 'user'])
-                    ->whereKey($lockedOrder->invoice_id)
-                    ->lockForUpdate()
-                    ->first()
-                : null;
-
-            $originallyPaid = $invoice instanceof Invoice
-                ? $invoice->settledAmount() >= ($invoice->dueAmount() - 0.0001)
-                : false;
-
             $releasedInventorySources = [];
             $eventIds = [];
             $cancellationSummary = [];
@@ -1344,99 +1228,14 @@ class StoreOrderService
                 }
             }
 
-            $adjustment = null;
-            $reconciliation = [
-                'allocated' => 0.0,
-                'remaining' => 0.0,
-                'consumed_outstanding' => 0.0,
-            ];
-
-            if ($invoice instanceof Invoice && $cancellationSummary !== []) {
-                $creditLines = collect();
-                $itemsCollection = $orderItems->values();
-
-                foreach ($cancellationSummary as $itemId => $itemSummary) {
-                    $item = $orderItems->get((int) $itemId);
-                    if (! $item instanceof StoreOrderItem) {
-                        continue;
-                    }
-
-                    $cancelledQuantity = max(0, (int) $itemSummary['available_quantity'])
-                        + max(0, (int) $itemSummary['delayed_quantity']);
-
-                    $creditLine = $this->buildProductCreditLineForOrderItemCancellation(
-                        $lockedOrder,
-                        $item,
-                        $invoice,
-                        $cancelledQuantity,
-                        $itemsCollection,
-                    );
-
-                    if ($creditLine === null) {
-                        continue;
-                    }
-
-                    $reasons = collect((array) $itemSummary['reasons'])
-                        ->map(fn ($reason) => trim((string) $reason))
-                        ->filter()
-                        ->unique()
-                        ->values();
-
-                    if ($reasons->isNotEmpty()) {
-                        $creditLine['notes'] = trim(implode("\n", array_filter([
-                            (string) ($creditLine['notes'] ?? ''),
-                            ...$reasons->all(),
-                        ])));
-                    }
-
-                    $creditLines->push($creditLine);
-                }
-
-                $shippingCreditLine = $this->buildShippingCreditLineForOrderCancellation(
-                    $lockedOrder,
-                    $invoice,
-                    $orderItems->values(),
-                );
-                if ($shippingCreditLine !== null) {
-                    $creditLines->push($shippingCreditLine);
-                }
-
-                if ($creditLines->isNotEmpty()) {
-                    $adjustment = $this->createTaxAdjustmentNoteForOrderBatchCancellation(
-                        $lockedOrder,
-                        $invoice,
-                        $creditLines,
-                        $cancellationSummary,
-                    );
-                    $reconciliation = $this->reconcileCreditAllocationsForAdjustment($invoice, $adjustment);
-                    $this->syncInvoiceState($invoice);
-                }
-            }
+            $invoiceSummaries = $this->createCancellationAdjustments($lockedOrder, $orderItems->values(), $cancellationSummary, $actingUser);
 
             $this->syncOrderState($lockedOrder->fresh('invoice'));
 
             return [
                 'order_id' => (int) $lockedOrder->id,
-                'invoice_id' => $invoice?->id,
-                'adjustment_id' => $adjustment?->id,
-                'adjustment_note_number' => $adjustment?->adjustment_number,
+                ...$this->cancellationFinancialSummary($invoiceSummaries, $lockedOrder),
                 'event_ids' => array_values(array_unique($eventIds)),
-                'expected_refund_cents' => $adjustment instanceof TaxAdjustment
-                    ? max(0, (int) round(((float) ($reconciliation['allocated'] ?? 0)) * 100))
-                    : 0,
-                'refund_operation_ids' => $adjustment instanceof TaxAdjustment
-                    ? $this->createSquareRefundOperationsForOrderCancellation(
-                        $invoice,
-                        $adjustment,
-                        $lockedOrder,
-                        null,
-                        max(0, (int) round(((float) ($reconciliation['allocated'] ?? 0)) * 100)),
-                    )
-                    : [],
-                'originally_paid' => $originallyPaid,
-                'has_square_payment' => $invoice instanceof Invoice
-                    ? $this->invoiceHasRefundableSquarePayment($invoice)
-                    : false,
                 'released_inventory_sources' => array_values(array_unique($releasedInventorySources)),
                 'item_action_count' => count($normalizedActions),
                 'cancellation_count' => $cancellationCount,
@@ -1448,72 +1247,122 @@ class StoreOrderService
         $this->allocateInventoryForSources((array) ($summary['released_inventory_sources'] ?? []));
         unset($summary['released_inventory_sources']);
 
-        $refundOutcome = [
-            'refunded_cents' => 0,
-            'refund_payment_ids' => [],
-        ];
-
-        if ((int) ($summary['expected_refund_cents'] ?? 0) > 0) {
-            $refundOutcome = $this->processSquareRefundOperations(
-                (array) ($summary['refund_operation_ids'] ?? []),
-                'Store order batch update '.$order->order_number,
-                $actingUser,
-            );
-        }
-
-        $summary['refunded_cents'] = (int) ($refundOutcome['refunded_cents'] ?? 0);
-        $summary['refund_payment_ids'] = array_values(array_unique(array_map('intval', (array) ($refundOutcome['refund_payment_ids'] ?? []))));
-        $summary['manual_refund_required'] = (bool) ($summary['originally_paid'] ?? false)
-            && (int) ($summary['refunded_cents'] ?? 0) < (int) ($summary['expected_refund_cents'] ?? 0);
-
-        $refundOperationIds = array_values(array_unique(array_map('intval', (array) ($summary['refund_operation_ids'] ?? []))));
-
         $freshOrder = StoreOrder::query()
-            ->with(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon', 'user'])
+            ->with(['invoices.allocations.customerPayment', 'invoice', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon', 'user'])
             ->find((int) ($summary['order_id'] ?? 0));
-
         if ($freshOrder instanceof StoreOrder && ($summary['event_ids'] ?? []) !== []) {
             $this->queueImmediateOrderUpdateNotifications($freshOrder, (array) $summary['event_ids'], $suppressAdminNotifications, $suppressCustomerNotifications);
         }
+        $summary = $this->completeCancellationAdjustments($summary, $freshOrder, $actingUser);
 
-        $invoice = ($freshOrder?->invoice instanceof Invoice)
-            ? $freshOrder->invoice
-            : Invoice::query()->with(['user', 'lines', 'allocations.customerPayment'])->find((int) ($summary['invoice_id'] ?? 0));
-        $adjustment = ($summary['adjustment_id'] ?? null)
-            ? TaxAdjustment::query()->with('lines')->find((int) $summary['adjustment_id'])
-            : null;
+        return $summary;
+    }
 
-        if (
-            (bool) ($summary['manual_refund_required'] ?? false)
-            && $refundOperationIds === []
-            && (int) ($summary['expected_refund_cents'] ?? 0) > 0
-            && $invoice instanceof Invoice
-        ) {
-            $manualRefundOperation = $this->createManualRefundOperationForOrderCancellation(
-                order: $order,
-                invoice: $invoice,
-                adjustment: $adjustment,
-                requestedCents: (int) $summary['expected_refund_cents'],
-                reason: 'Store order batch update '.$order->order_number,
-                actingUser: $actingUser,
+    /** Create credits separately for each item's invoice, including shipping when the entire order is cancelled. */
+    private function createCancellationAdjustments(StoreOrder $order, Collection $items, array $cancellations, ?User $actor, ?StoreOrderItemCancellation $cancellation = null): array
+    {
+        if ($cancellations === []) {
+            return [];
+        }
+        $invoices = $order->invoices()->with(['lines', 'allocations.customerPayment', 'user'])->lockForUpdate()->get();
+        $results = [];
+        foreach ($invoices as $invoice) {
+            $creditLines = collect();
+            $invoiceCancellations = [];
+            foreach ($cancellations as $itemId => $row) {
+                $item = $items->firstWhere('id', (int) $itemId);
+                if (! $item instanceof StoreOrderItem || (int) ($item->invoiceLine->invoice_id ?? $order->invoice_id) !== (int) $invoice->id) {
+                    continue;
+                }
+                $invoiceCancellations[$itemId] = $row;
+                $line = $this->buildProductCreditLineForOrderItemCancellation(
+                    $order, $item, $invoice,
+                    (int) $row['available_quantity'] + (int) $row['delayed_quantity'],
+                    $items,
+                );
+                if ($line !== null) {
+                    $line['notes'] = trim(implode("\n", array_filter([$line['notes'] ?? '', ...array_unique($row['reasons'])])));
+                    $creditLines->push($line);
+                }
+            }
+            foreach ($invoice->lines->where('kind', 'shipping') as $shippingInvoiceLine) {
+                $shippingLine = $this->buildShippingCreditLineForOrderCancellation($order, $invoice, $items, $shippingInvoiceLine);
+                if ($shippingLine !== null) {
+                    $creditLines->push($shippingLine);
+                }
+            }
+            if ($creditLines->isEmpty()) {
+                continue;
+            }
+            $originallyPaid = $invoice->settledAmount() >= ($invoice->dueAmount() - 0.0001);
+            $adjustment = $this->createTaxAdjustmentNoteForOrderBatchCancellation($order, $invoice, $creditLines, $invoiceCancellations ?: $cancellations);
+            $reconciliation = $this->reconcileCreditAllocationsForAdjustment($invoice, $adjustment);
+            $this->syncInvoiceState($invoice);
+            $expectedRefundCents = max(0, (int) round((float) ($reconciliation['allocated'] ?? 0) * 100));
+            $results[] = [
+                'invoice_id' => (int) $invoice->id,
+                'adjustment_id' => (int) $adjustment->id,
+                'adjustment_note_number' => $adjustment->adjustment_number,
+                'originally_paid' => $originallyPaid,
+                'has_square_payment' => $this->invoiceHasRefundableSquarePayment($invoice),
+                'expected_refund_cents' => $expectedRefundCents,
+                'refund_operation_ids' => $this->createSquareRefundOperationsForOrderCancellation($invoice, $adjustment, $order, $cancellation, $expectedRefundCents),
+            ];
+        }
+
+        return $results;
+    }
+
+    private function cancellationFinancialSummary(array $invoices, StoreOrder $order): array
+    {
+        return [
+            'invoice_id' => $invoices[0]['invoice_id'] ?? $order->invoice_id,
+            'adjustment_id' => $invoices[0]['adjustment_id'] ?? null,
+            'adjustment_note_number' => $invoices === [] ? null : implode(', ', array_column($invoices, 'adjustment_note_number')),
+            'expected_refund_cents' => array_sum(array_column($invoices, 'expected_refund_cents')),
+            'refund_operation_ids' => collect($invoices)->flatMap(fn ($row) => $row['refund_operation_ids'])->all(),
+            'originally_paid' => collect($invoices)->contains(fn ($row) => $row['originally_paid']),
+            'has_square_payment' => collect($invoices)->contains(fn ($row) => $row['has_square_payment']),
+            'cancellation_invoices' => $invoices,
+        ];
+    }
+
+    private function completeCancellationAdjustments(array $summary, ?StoreOrder $order, ?User $actor): array
+    {
+        $summary['refunded_cents'] = 0;
+        $summary['refund_payment_ids'] = [];
+        $summary['refund_operation_ids'] = [];
+        $summary['manual_refund_required'] = false;
+        foreach ($summary['cancellation_invoices'] ?? [] as $row) {
+            $invoice = Invoice::query()->with(['user', 'lines', 'allocations.customerPayment'])->findOrFail($row['invoice_id']);
+            $adjustment = TaxAdjustment::query()->with('lines')->findOrFail($row['adjustment_id']);
+            $refund = $this->processSquareRefundOperations(
+                $row['refund_operation_ids'], 'Store order cancellation '.$order?->order_number, $actor,
             );
-            if ($manualRefundOperation instanceof SquareRefundOperation) {
-                $summary['refund_operation_ids'] = [(int) $manualRefundOperation->id];
+            $manual = $refund['refunded_cents'] < $row['expected_refund_cents'];
+            if ($manual && $row['refund_operation_ids'] === [] && $order instanceof StoreOrder) {
+                $operation = $this->createManualRefundOperationForOrderCancellation(
+                    order: $order, invoice: $invoice, adjustment: $adjustment,
+                    requestedCents: $row['expected_refund_cents'], reason: 'Store order cancellation '.$order->order_number, actingUser: $actor,
+                );
+                if ($operation instanceof SquareRefundOperation) {
+                    $row['refund_operation_ids'][] = (int) $operation->id;
+                }
+            }
+            $summary['refunded_cents'] += $refund['refunded_cents'];
+            $summary['refund_payment_ids'] = array_merge($summary['refund_payment_ids'], $refund['refund_payment_ids']);
+            $summary['refund_operation_ids'] = array_merge($summary['refund_operation_ids'], $row['refund_operation_ids']);
+            $summary['manual_refund_required'] = $summary['manual_refund_required'] || $manual;
+            if ($order instanceof StoreOrder) {
+                if ($refund['refund_payment_ids'] === []) {
+                    $this->sendOrderAdjustmentDocumentBundle($order, $invoice, $adjustment, $actor);
+                } else {
+                    $this->sendRefundReceiptEmailsForOrder($order, $invoice, $refund['refund_payment_ids']);
+                }
             }
         }
-
-        if (
-            $freshOrder instanceof StoreOrder
-            && $invoice instanceof Invoice
-            && $adjustment instanceof TaxAdjustment
-            && ($summary['refund_payment_ids'] ?? []) === []
-        ) {
-            $this->sendOrderAdjustmentDocumentBundle($freshOrder, $invoice, $adjustment, $actingUser);
-        }
-
-        if ($freshOrder instanceof StoreOrder && $invoice instanceof Invoice && ($summary['refund_payment_ids'] ?? []) !== []) {
-            $this->sendRefundReceiptEmailsForOrder($freshOrder, $invoice, (array) $summary['refund_payment_ids']);
-        }
+        $summary['refund_payment_ids'] = array_values(array_unique($summary['refund_payment_ids']));
+        unset($summary['cancellation_invoices']);
 
         return $summary;
     }
@@ -1548,7 +1397,7 @@ class StoreOrderService
             return;
         }
 
-        $isPaid = $invoice->outstandingAmount() <= 0.0001;
+        $isPaid = $order->isPaid();
 
         if (! $isPaid) {
             $order->status = StoreOrder::STATUS_PENDING_PAYMENT;
@@ -1606,6 +1455,72 @@ class StoreOrderService
      * @param  array<int, mixed>  $actions
      * @return array<int, array<string, mixed>>
      */
+    /** Called with the order, invoice and products locked, inside an attachment transaction. */
+    public function appendInvoicedItem(StoreOrder $order, InvoiceLine $line, Product $product, ?ProductVariant $variant): StoreOrderItem
+    {
+        $product->refresh();
+        $variant?->refresh();
+        $quantity = (int) $line->quantity;
+        $availableInventory = $product->availableInventory($variant);
+        if (! $product->isPreorder($variant) && ! $product->allowsBackorder($variant)
+            && $availableInventory !== null && $availableInventory < $quantity) {
+            throw ValidationException::withMessages(['items' => 'Not enough stock remains for '.$product->displayTitle($variant).'.']);
+        }
+        $fulfilment = $this->resolveFulfilment($product, $quantity, $availableInventory, $variant);
+        $reserved = $this->reserveInventoryForPreparedLine((object) [
+            'product' => $product,
+            'variant' => $variant,
+            'available_now_quantity' => $fulfilment['available_now_quantity'],
+            'display_title' => $product->displayTitle($variant),
+        ]);
+        $item = $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant?->id,
+            'invoice_line_id' => $line->id,
+            'product_title' => $product->title,
+            'product_slug' => $product->slug,
+            'product_sku' => $product->sku,
+            'variant_name' => $product->variantDisplayName($variant),
+            'variant_sku' => $variant?->sku,
+            'product_type' => $product->product_type,
+            'quantity' => $quantity,
+            'available_now_quantity' => $fulfilment['available_now_quantity'],
+            'delayed_quantity' => $fulfilment['delayed_quantity'],
+            'delayed_fulfilment_type' => $fulfilment['delayed_fulfilment_type'],
+            'delayed_shipping_estimate' => $fulfilment['delayed_shipping_estimate'],
+            'is_preorder' => $product->isPreorder($variant),
+            'preorder_shipping_estimate' => $variant->preorder_shipping_estimate ?? $product->preorder_shipping_estimate,
+            'shared_inventory' => $product->shared_inventory,
+            'inventory_units' => $product->inventoryUnits($variant),
+            'inventory_reserved_quantity' => $reserved,
+            'box_only' => $product->isPhysical() && $product->boxOnlyForVariant($variant),
+            'unit_shipping_units' => $product->isPhysical() ? $product->shippingUnitsForVariant($variant) : 0,
+            'unit_min_satchel_rank' => $product->isPhysical() ? $product->minSatchelRankForVariant($variant) : null,
+            'unit_weight_grams' => $product->isPhysical() ? $product->weightGramsForVariant($variant) : null,
+            'unit_length_mm' => $product->isPhysical() ? $product->lengthMmForVariant($variant) : null,
+            'unit_width_mm' => $product->isPhysical() ? $product->widthMmForVariant($variant) : null,
+            'unit_height_mm' => $product->isPhysical() ? $product->heightMmForVariant($variant) : null,
+            'unit_price' => round((float) $line->line_total_inc_tax / $quantity, 2),
+            'unit_shipping_rate' => 0,
+            'tax_rate' => $line->tax_rate,
+            'line_price_amount' => $line->line_total_inc_tax,
+            'line_shipping_amount' => 0,
+            'line_gst_amount' => $line->tax_amount,
+            'line_total_amount' => $line->line_total_inc_tax,
+        ]);
+        if ($this->usesStockInventory($item)) {
+            $item->inventory_reserved_quantity = $this->stockInventory->reserveForStoreOrderItem($item, $fulfilment['available_now_quantity']);
+            $item->save();
+        }
+        if ($product->isDigital()) {
+            foreach ($product->downloadMedia()->get() as $index => $media) {
+                $item->downloads()->create(['media_name' => $media->name, 'title' => $media->title ?? $media->name, 'sort_order' => $index]);
+            }
+        }
+
+        return $item;
+    }
+
     private function normalizeQueuedOrderItemActions(array $actions): array
     {
         return collect($actions)
@@ -2393,21 +2308,28 @@ class StoreOrderService
     private function buildShippingCreditLineForOrderCancellation(
         StoreOrder $order,
         Invoice $invoice,
-        Collection $orderItems
+        Collection $orderItems,
+        ?InvoiceLine $shippingLine = null
     ): ?array {
         if (! $this->allOrderItemsCancelled($orderItems)) {
             return null;
         }
 
-        $shippingLine = $invoice->lines->first(fn (InvoiceLine $line) => (string) $line->kind === 'shipping');
+        $shippingLine ??= $invoice->lines->first(fn (InvoiceLine $line) => (string) $line->kind === 'shipping');
         if (! $shippingLine instanceof InvoiceLine) {
             return null;
         }
 
-        $shippingDiscount = (string) $order->coupon_type === Coupon::DISCOUNT_TYPE_FREE_SHIPPING
-            ? min((float) $order->shipping_amount, (float) $order->discount_amount)
+        $isPrimary = (int) $invoice->id === (int) $order->invoice_id;
+        $invoiceShippingTotal = (float) $invoice->lines->where('kind', 'shipping')->sum('line_total_inc_tax');
+        $shippingAmount = $isPrimary
+            ? max(0, (float) $order->shipping_amount - $this->additionalInvoiceChargeAmount($order, 'shipping'))
+            : $invoiceShippingTotal;
+        $shippingDiscount = $isPrimary && (string) $order->coupon_type === Coupon::DISCOUNT_TYPE_FREE_SHIPPING
+            ? min($shippingAmount, max(0, (float) $order->discount_amount - $this->additionalInvoiceChargeAmount($order, 'discount')))
             : 0.0;
-        $originalNetInc = max(0.0, round((float) $order->shipping_amount - $shippingDiscount, 2));
+        $share = $invoiceShippingTotal > 0 ? (float) $shippingLine->line_total_inc_tax / $invoiceShippingTotal : 0;
+        $originalNetInc = max(0.0, round(($shippingAmount - $shippingDiscount) * $share, 2));
         if ($originalNetInc <= 0.0001) {
             return null;
         }
@@ -2436,50 +2358,6 @@ class StoreOrderService
             'tax_amount' => $taxAmount,
             'line_total_inc_tax' => round($lineEx + $taxAmount, 2),
         ];
-    }
-
-    private function createTaxAdjustmentNoteForOrderItemCancellation(
-        StoreOrder $order,
-        StoreOrderItem $item,
-        Invoice $invoice,
-        Collection $creditLines,
-        string $reason
-    ): TaxAdjustment {
-        $subtotal = round((float) $creditLines->sum('line_total_ex_tax'), 2);
-        $gst = round((float) $creditLines->sum('tax_amount'), 2);
-        $total = round((float) $creditLines->sum('line_total_inc_tax'), 2);
-
-        $adjustment = new TaxAdjustment;
-        $adjustment->invoice_id = $invoice->id;
-        $adjustment->adjustment_number = $this->documentNumbers->nextTaxAdjustmentNumber();
-        $adjustment->issue_date = now()->startOfDay();
-        $adjustment->subtotal_amount = -1 * $subtotal;
-        $adjustment->gst_amount = -1 * $gst;
-        $adjustment->total_amount = -1 * $total;
-        $adjustment->notes = trim(implode("\n", array_filter([
-            'Tax adjustment note for invoice '.$invoice->invoice_number,
-            $reason,
-            'Store order '.$order->order_number,
-            'Cancelled item: '.$item->displayTitle(),
-        ])));
-        $adjustment->save();
-
-        foreach ($creditLines->values() as $index => $line) {
-            $adjustment->lines()->create([
-                'invoice_line_id' => $line['invoice_line_id'] ?? null,
-                'line_number' => $index + 1,
-                'description' => (string) $line['description'],
-                'notes' => (string) ($line['notes'] ?? ''),
-                'quantity' => abs((float) ($line['quantity'] ?? 1)),
-                'unit_price_ex_tax' => abs((float) $line['unit_price_ex_tax']),
-                'tax_rate' => (float) $line['tax_rate'],
-                'line_total_ex_tax' => abs((float) $line['line_total_ex_tax']),
-                'tax_amount' => abs((float) $line['tax_amount']),
-                'line_total_inc_tax' => abs((float) $line['line_total_inc_tax']),
-            ]);
-        }
-
-        return $adjustment;
     }
 
     private function reconcileCreditAllocationsForAdjustment(Invoice $invoice, TaxAdjustment $taxAdjustment): array
@@ -2597,10 +2475,7 @@ class StoreOrderService
                 continue;
             }
 
-            $cancellationIdPart = $cancellation instanceof StoreOrderItemCancellation
-                ? 'cn-'.$cancellation->id
-                : 'batch';
-            $idempotencyKey = 'o'.$order->id.'-'.$cancellationIdPart.'-'.$refundCents;
+            $idempotencyKey = 'order-refund-'.substr(hash('sha256', $order->id.':'.$adjustment->id.':'.$customerPayment->id), 0, 32);
 
             $operation = SquareRefundOperation::query()->firstOrCreate(
                 ['idempotency_key' => $idempotencyKey],
@@ -2826,7 +2701,7 @@ class StoreOrderService
             return null;
         }
 
-        $idempotencyKey = 'o'.$order->id.'-i'.$invoice->id.'-p'.$candidatePayment->id.'-'.$requestedCents;
+        $idempotencyKey = 'order-refund-'.substr(hash('sha256', $order->id.':'.$adjustment?->id.':'.$candidatePayment->id.':manual'), 0, 32);
 
         return SquareRefundOperation::query()->firstOrCreate(
             ['idempotency_key' => $idempotencyKey],
@@ -2853,10 +2728,16 @@ class StoreOrderService
 
     private function orderItemDiscountAllocation(StoreOrder $order, StoreOrderItem $targetItem, Collection $orderItems): float
     {
-        $discountTotal = max(0.0, round((float) $order->discount_amount, 2));
-        if ($discountTotal <= 0.0001 || (string) $order->coupon_type === Coupon::DISCOUNT_TYPE_FREE_SHIPPING) {
+        $invoiceId = (int) ($targetItem->invoiceLine->invoice_id ?? $order->invoice_id);
+        $isPrimary = $invoiceId === (int) $order->invoice_id;
+        $discountTotal = $isPrimary
+            ? max(0, round((float) $order->discount_amount - $this->additionalInvoiceChargeAmount($order, 'discount'), 2))
+            : abs(round((float) $order->invoices->firstWhere('id', $invoiceId)?->lines->where('kind', 'discount')->sum('line_total_inc_tax'), 2));
+        if ($discountTotal <= 0.0001 || ($isPrimary && (string) $order->coupon_type === Coupon::DISCOUNT_TYPE_FREE_SHIPPING)) {
             return 0.0;
         }
+
+        $orderItems = $orderItems->filter(fn (StoreOrderItem $item): bool => (int) ($item->invoiceLine->invoice_id ?? $order->invoice_id) === $invoiceId);
 
         $subtotal = max(0.0, round((float) $orderItems->sum(fn (StoreOrderItem $item) => (float) $item->line_price_amount), 2));
         if ($subtotal <= 0.0001) {
@@ -2881,6 +2762,12 @@ class StoreOrderService
         }
 
         return 0.0;
+    }
+
+    private function additionalInvoiceChargeAmount(StoreOrder $order, string $kind): float
+    {
+        return round($order->invoices->where('id', '!=', $order->invoice_id)
+            ->sum(fn (Invoice $invoice): float => abs((float) $invoice->lines->where('kind', $kind)->sum('line_total_inc_tax'))), 2);
     }
 
     private function refundedAmountsForInvoiceLine(InvoiceLine $invoiceLine): array
@@ -3626,8 +3513,10 @@ class StoreOrderService
 
     private function lockOrderItemForUpdate(StoreOrder $order, StoreOrderItem $item): StoreOrderItem
     {
+        // Serialize item changes with invoice attachments and staged order changes.
+        $lockedOrder = StoreOrder::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
         $lockedItem = StoreOrderItem::query()
-            ->with(['order', 'trackingEntries'])
+            ->with('trackingEntries')
             ->whereKey($item->id)
             ->where('store_order_id', $order->id)
             ->lockForUpdate()
@@ -3638,6 +3527,8 @@ class StoreOrderService
                 'item' => 'That item does not belong to this order.',
             ]);
         }
+
+        $lockedItem->setRelation('order', $lockedOrder);
 
         return $lockedItem;
     }
@@ -3975,42 +3866,28 @@ class StoreOrderService
 
     private function orderEmailAttachments(StoreOrder $order, bool $includeReceipts): array
     {
-        $invoice = $order->invoice;
-        if (! $invoice instanceof Invoice || ! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class) || (float) $order->total_amount <= 0.0001) {
             return [];
         }
-
-        if ((float) $order->total_amount <= 0.0001) {
-            return [];
-        }
-
         $attachments = [];
-        $invoicePdf = $this->buildInvoicePdf($invoice)->output();
-        if ($invoicePdf !== '') {
-            $attachments[] = [
-                'type' => 'invoice',
-                'content' => $invoicePdf,
-                'filename' => $this->invoicePdfFilename($invoice),
-                'mime' => 'application/pdf',
-            ];
-        }
-
-        if (! $includeReceipts) {
-            return $attachments;
-        }
-
-        foreach ($this->receiptPaymentsForInvoice($invoice) as $payment) {
-            $receiptPdf = $this->buildInvoicePaymentReceiptPdf($invoice, $payment)->output();
-            if ($receiptPdf === '') {
+        foreach ($order->invoices as $invoice) {
+            $invoicePdf = $this->buildInvoicePdf($invoice)->output();
+            if ($invoicePdf !== '') {
+                $attachments[] = ['type' => 'invoice', 'content' => $invoicePdf, 'filename' => $this->invoicePdfFilename($invoice), 'mime' => 'application/pdf'];
+            }
+            if (! $includeReceipts) {
                 continue;
             }
-
-            $attachments[] = [
-                'type' => 'receipt',
-                'content' => $receiptPdf,
-                'filename' => $this->paymentReceiptPdfFilename($payment),
-                'mime' => 'application/pdf',
-            ];
+            foreach ($this->receiptPaymentsForInvoice($invoice) as $payment) {
+                $receiptPdf = $this->buildInvoicePaymentReceiptPdf($invoice, $payment)->output();
+                if ($receiptPdf !== '') {
+                    $filename = $this->paymentReceiptPdfFilename($payment);
+                    if ($order->invoices->count() > 1) {
+                        $filename = $invoice->invoice_number.'-'.$filename;
+                    }
+                    $attachments[] = ['type' => 'receipt', 'content' => $receiptPdf, 'filename' => $filename, 'mime' => 'application/pdf'];
+                }
+            }
         }
 
         return $attachments;

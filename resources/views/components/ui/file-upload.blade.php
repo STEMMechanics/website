@@ -71,7 +71,13 @@
             ]) }}"
         >
             <div class="min-w-0 grow">
-                <div id="{{ $fileNameId }}" class="truncate font-medium text-gray-800">{{ $placeholderText }}</div>
+                <div id="{{ $fileNameId }}" class="break-words font-medium text-gray-800">
+                    @if($placeholder === '')
+                        <span class="sm:hidden">Tap to attach a file</span><span class="hidden sm:inline">{{ $placeholderText }}</span>
+                    @else
+                        {{ $placeholderText }}
+                    @endif
+                </div>
                 <div id="{{ $fileMetaId }}" class="mt-1 text-xs text-gray-500">Max upload size: {{ $maxUploadSize }}</div>
             </div>
             <span class="inline-flex shrink-0 items-center rounded-md border border-primary-color px-3 py-1.5 text-xs font-semibold text-primary-color transition group-hover:bg-primary-color group-hover:text-white">Browse</span>
@@ -149,7 +155,6 @@
             const metaElement = document.getElementById(@js($fileMetaId));
             const stateElement = document.getElementById(@js($fileStateId));
             const clearElement = document.getElementById(@js($fileClearId));
-            const placeholderText = @js($placeholderText);
             const defaultMetaText = @js('Max upload size: '.$maxUploadSize);
             const maxUploadBytes = Number(@js($maxUploadBytes));
 
@@ -157,8 +162,10 @@
                 return;
             }
 
+            const emptyNameContent = Array.from(nameElement.childNodes, node => node.cloneNode(true));
+
             const resetUi = (metaText = defaultMetaText, hasError = false) => {
-                nameElement.textContent = placeholderText;
+                nameElement.replaceChildren(...emptyNameContent.map(node => node.cloneNode(true)));
                 metaElement.textContent = metaText;
                 metaElement.classList.toggle('text-red-600', hasError);
                 metaElement.classList.toggle('text-gray-500', !hasError);

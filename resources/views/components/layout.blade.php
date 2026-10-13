@@ -128,7 +128,7 @@
         }
     </style>
 </head>
-<body class="{{ $bodyClass }} flex flex-col antialiased">
+<body class="{{ $bodyClass }} {{ request()->routeIs('admin.*') ? 'sm-admin' : '' }} flex flex-col antialiased">
 @if(trim((string)($appNotice ?? '')) !== '')
     <x-noticebar>{{ $appNotice }}</x-noticebar>
 @endif

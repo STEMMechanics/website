@@ -8,7 +8,7 @@ function element() {
     const classes = new Set(['hidden']);
     const attributes = new Map();
     return {
-        hidden: true, disabled: false, files: [], value: '',
+        hidden: true, disabled: false, files: [], value: '', childNodes: [],
         getAttribute: name => attributes.get(name) ?? null,
         setAttribute: (name, value) => attributes.set(name, value),
         removeAttribute: name => attributes.delete(name),
@@ -20,7 +20,7 @@ function element() {
         },
         addEventListener: (name, fn) => (listeners[name] ||= []).push(fn),
         dispatchEvent(event) { return Promise.all((listeners[event.type] || []).map(fn => fn(event))); },
-        replaceChildren(...children) { this.children = children; },
+        replaceChildren(...children) { this.children = children; this.childNodes = children; },
         focus() { this.focused = true; },
         scrollIntoView() {},
         setCustomValidity(message) { this.validationMessage = message; },

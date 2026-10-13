@@ -50,7 +50,7 @@
                     : 'Customer will be contacted for collection.'))
             : (trim((string) ($order->shipping_method ?? '')) !== '' ? (string) $order->shipping_method : 'Delivery');
         $orderDate = $order->created_at?->format('M j, Y g:i a') ?? '-';
-        $invoiceNumber = trim((string) ($order->invoice?->invoice_number ?? ''));
+        $invoiceNumber = $order->invoices->pluck('invoice_number')->implode(', ');
         $pickListItems = collect($pickListItems ?? [])->filter(fn ($item) => is_array($item))->values();
     @endphp
 

@@ -1214,11 +1214,14 @@
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
+                        @if($order->canAttachInvoice())
+                            @include('admin.shop.order.partials.invoice-attachment')
+                        @endif
                         @if($linkedQuote)
                             <x-ui.button href="{{ route('admin.quote.edit', $linkedQuote) }}" color="outline">Open Quote</x-ui.button>
                         @endif
                         @if($order->invoice)
-                            <x-ui.button href="{{ route('admin.invoice.edit', $order->invoice) }}" color="outline">Open Invoice</x-ui.button>
+                            <x-ui.button href="{{ route('admin.invoice.edit', $order->invoice) }}" color="outline">{{ $order->invoices->count() > 1 ? 'Open primary invoice' : 'Open Invoice' }}</x-ui.button>
                         @endif
                         <x-ui.button href="{{ route('admin.shop.order.pick-list.pdf', $order) }}" target="_blank" color="outline">Pick List PDF</x-ui.button>
                     </div>
@@ -1234,8 +1237,14 @@
                         <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3">
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Invoice</div>
-                        <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->invoice?->invoice_number ?? '-' }}</div>
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $order->invoices->count() > 1 ? 'Invoices' : 'Invoice' }}</div>
+                        <div class="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm font-semibold text-gray-900">
+                            @forelse($order->invoices as $linkedInvoice)
+                                <a class="text-primary hover:underline" href="{{ route('admin.invoice.edit', $linkedInvoice) }}">{{ $linkedInvoice->invoice_number }}</a>
+                            @empty
+                                <span>-</span>
+                            @endforelse
+                        </div>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-3">
                         <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Customer</div>
@@ -1320,7 +1329,7 @@
                         </div>
                         <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3">
                             <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Outstanding</span>
-                            <span class="text-sm font-semibold text-gray-900">{{ $isQuoteRequested ? '--' : '$'.number_format((float) ($order->invoice?->outstandingAmount() ?? 0), 2) }}</span>
+                            <span class="text-sm font-semibold text-gray-900">{{ $isQuoteRequested ? '--' : money($order->outstandingAmount()) }}</span>
                         </div>
                     </div>
                 </div>
@@ -1362,7 +1371,23 @@
 
             <div class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(340px,0.8fr)]">
                 <div class="space-y-6">
-                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                @if($order->invoices->count() > 1)
+                    <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <h2 class="mb-4 text-xl font-bold">Linked invoices</h2>
+                        <div class="space-y-3">
+                            @foreach($order->invoices as $invoice)
+                                <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 p-3">
+                                    <div>
+                                        <a class="font-semibold text-primary-color hover:underline" href="{{ route('admin.invoice.edit', $invoice) }}">{{ $invoice->invoice_number }}</a>
+                                        <div class="mt-1 text-xs text-gray-600">{{ (int) $invoice->id === (int) $order->invoice_id ? 'Original invoice' : 'Additional invoice' }} · {{ money($invoice->total_amount) }}</div>
+                                    </div>
+                                    <x-ui.badge :color="$invoice->outstandingAmount() <= 0.0001 ? 'success' : 'warning'">{{ $invoice->outstandingAmount() <= 0.0001 ? 'Paid' : money($invoice->outstandingAmount()).' outstanding' }}</x-ui.badge>
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+                <section class="sm-order-items rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-4">Items</h2>
                     @if($isQuoteRequested)
                         <div class="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
@@ -1418,7 +1443,7 @@
                                 $collectionNotesValue = $collectionOpen ? old('notes', '') : '';
                                 $collectionCollectedAtValue = $collectionOpen ? old('collected_at', now()->toDateString()) : now()->toDateString();
                             @endphp
-                                    <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif @if($collectionOpen) openCollection({{ $item->id }}, @js($collectionTypeValue), @js($collectionQtyValue), @js($collectionCollectedAtValue), @js($collectionNotesValue), @js($collectionStateValue)); @endif">
+                                    <div id="item-{{ $item->id }}" class="sm-order-item rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4" x-data="{ itemDetailsOpen: false }" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif @if($collectionOpen) openCollection({{ $item->id }}, @js($collectionTypeValue), @js($collectionQtyValue), @js($collectionCollectedAtValue), @js($collectionNotesValue), @js($collectionStateValue)); @endif">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                     $itemStoreUrl = $item->product instanceof \App\Models\Product && $item->product->isActive()
@@ -1432,7 +1457,7 @@
                                         : null;
                                 @endphp
                                 <div class="space-y-4">
-                                    <div class="grid items-start gap-4 {{ $canBulkSelect ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]' }}">
+                                    <div class="sm-order-item-header grid items-start gap-3 {{ $canBulkSelect ? 'grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto]' }}">
                                         @if($canBulkSelect)
                                         <label class="flex items-start pt-2">
                                             <x-ui.checkbox bare small
@@ -1444,8 +1469,8 @@
                                         </label>
                                         @endif
                                         <div class="min-w-0">
-                                            <div class="flex flex-wrap items-start gap-4">
-                                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-lg font-bold text-sky-800 shadow-sm">
+                                            <div class="flex items-start gap-2 sm:gap-4">
+                                                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-xs font-bold text-sky-800 sm:h-12 sm:w-12 sm:text-lg">
                                                     {{ $loop->iteration }}
                                                 </div>
                                                 <div class="min-w-0 flex-1">
@@ -1457,15 +1482,19 @@
                                                         @endif
                                                     </div>
                                                     <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                        @if($order->invoices->count() > 1 && $item->invoiceLine?->invoice)
+                                                            <a href="{{ route('admin.invoice.edit', $item->invoiceLine->invoice) }}" class="text-primary-color hover:underline">Invoice {{ $item->invoiceLine->invoice->invoice_number }}</a>
+                                                        @endif
                                                         @if((int) $item->quantity > 1)
                                                             <span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-900 ring-1 ring-inset ring-sky-200">Qty {{ $item->quantity }}</span>
                                                         @else
                                                             <span>Qty {{ $item->quantity }}</span>
                                                         @endif
                                                         @if($itemSku !== '')
-                                                            <span>SKU {{ $itemSku }}</span>
+                                                            <span class="hidden break-words sm:inline">SKU {{ $itemSku }}</span>
                                                         @endif
-                                                        <span>{{ \App\Models\Product::productTypeLabel((string) $item->product_type) }}</span>
+                                                        <span class="hidden sm:inline">{{ \App\Models\Product::productTypeLabel((string) $item->product_type) }}</span>
+                                                        <span class="ml-auto font-semibold text-gray-900 sm:hidden">${{ number_format((float) $item->line_total_amount, 2) }}</span>
                                                     </div>
                                                     @if($item->is_preorder)
                                                         <div class="mt-1 text-sm text-amber-800">Pre-order · Estimated shipping {{ $item->preorderShippingEstimateLabel() ?: 'to be confirmed' }}</div>
@@ -1481,14 +1510,28 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="text-right md:pt-1">
+                                        <div class="hidden sm:block sm:text-right md:pt-1">
                                             <div class="font-semibold text-gray-900">${{ number_format((float) $item->line_total_amount, 2) }}</div>
-                                            <div class="text-xs text-gray-500">GST ${{ number_format((float) $item->line_gst_amount, 2) }}</div>
+                                            <div class="hidden text-xs text-gray-500 sm:block">GST ${{ number_format((float) $item->line_gst_amount, 2) }}</div>
                                         </div>
                                     </div>
 
-                                    <div class="flex flex-col gap-3 ml-12 lg:flex-row lg:items-start lg:justify-between">
-                                        <div class="flex min-w-0 flex-1 flex-wrap gap-2 text-[11px] font-semibold text-gray-700">
+                                    <div class="flex flex-wrap gap-2 text-xs text-gray-600 sm:hidden">
+                                        @if($order->usesPickup())
+                                            <span x-text="readyPickup({{ $item->id }}) + ' ready for collection'"></span>
+                                            <span x-show="remainingPickupToReady({{ $item->id }}) > 0" x-text="remainingPickupToReady({{ $item->id }}) + ' to prepare'"></span>
+                                        @else
+                                            <span x-text="openQuantity({{ $item->id }}) + ' to fulfil'"></span>
+                                            <span x-show="dispatchedQuantity({{ $item->id }}) > 0" x-text="dispatchedQuantity({{ $item->id }}) + ' shipped'"></span>
+                                        @endif
+                                        <span x-show="cancelledQuantity({{ $item->id }}) > 0" x-text="cancelledQuantity({{ $item->id }}) + ' cancelled'"></span>
+                                    </div>
+                                    <div id="item-details-{{ $item->id }}" class="sm-order-item-details flex flex-col gap-3 sm:ml-12 lg:flex-row lg:items-start lg:justify-between" x-bind:data-expanded="itemDetailsOpen">
+                                        <div class="sm-order-item-stats flex min-w-0 flex-1 flex-wrap gap-2 text-[11px] font-semibold text-gray-700">
+                                            <div class="w-full break-words text-xs font-normal text-gray-500 sm:hidden">
+                                                @if($itemSku !== '')<div>SKU {{ $itemSku }}</div>@endif
+                                                <div>{{ \App\Models\Product::productTypeLabel((string) $item->product_type) }} · GST ${{ number_format((float) $item->line_gst_amount, 2) }}</div>
+                                            </div>
                                             <x-ui.badge color="gray" class="gap-1">
                                                 <i class="fa-solid fa-clipboard-list text-gray-400" aria-hidden="true"></i>
                                                 <span>Ordered <span x-text="orderedQuantity({{ $item->id }})">{{ $orderedQty }}</span></span>
@@ -1533,9 +1576,10 @@
                                             </x-ui.badge>
                                         </div>
 
-                                        <div class="flex flex-wrap flex-col sm:flex-row gap-2 justify-end">
+                                        <div class="sm-order-item-actions flex flex-wrap gap-2 sm:flex-row justify-end">
+                                            <x-ui.button type="button" class="sm:hidden" color="outline" x-on:click="itemDetailsOpen = !itemDetailsOpen" x-bind:aria-expanded="itemDetailsOpen" aria-controls="item-details-{{ $item->id }}">Details <i class="fa-solid fa-chevron-down ml-2" x-bind:class="itemDetailsOpen ? 'rotate-180' : ''" aria-hidden="true"></i></x-ui.button>
                                             @unless($itemActionsLocked)
-                                                <x-ui.button type="button" class="w-full sm:w-auto" color="danger-outline" x-on:click="openCancel({{ $item->id }})" x-bind:disabled="!canCancel({{ $item->id }})">Cancel Items</x-ui.button>
+                                                <x-ui.button type="button" class="sm-order-item-cancel w-full sm:w-auto" color="danger-outline" x-on:click="openCancel({{ $item->id }})" x-bind:disabled="!canCancel({{ $item->id }})">Cancel Items</x-ui.button>
                                                 @unless($order->usesPickup())
                                                     <x-ui.button type="button" class="w-full sm:w-auto" color="primary-outline" x-on:click="openTracking({{ $item->id }})" x-bind:disabled="!canTrack({{ $item->id }})">Add Shipment</x-ui.button>
                                                 @endunless

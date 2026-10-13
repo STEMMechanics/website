@@ -3,7 +3,7 @@
         $isQuoteRequested = (string) $order->status === \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED;
         $hasDelayedItems = $order->items->contains(fn ($item) => $item->remainingDelayedQuantity() > 0);
         $isDigitalOnly = (bool) $order->contains_digital && ! (bool) $order->contains_physical;
-        $showDownloads = $downloadableItems->isNotEmpty() && $isPaid;
+        $showDownloads = $downloadableItems->contains(fn ($item) => $item->isPaid());
         $noPaymentRequired = (float) $order->total_amount <= 0.0001;
         $documentLinks = is_array($receiptLinks ?? null) ? $receiptLinks : [];
         $canDownloadDocuments = (bool) ($canDownloadDocuments ?? false);
@@ -49,6 +49,7 @@
         $showPaymentPanel = ! $isDigitalOnly
             && ! $isPaid
             && $order->invoice instanceof \App\Models\Invoice
+            && $order->invoice->outstandingAmount() > 0.0001
             && (string) $order->status !== \App\Models\StoreOrder::STATUS_CANCELLED
             && ! $isQuoteRequested;
     @endphp
@@ -92,8 +93,8 @@
                             <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                         </div>
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Invoice</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->invoice?->invoice_number ?? '-' }}</div>
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $order->invoices->count() > 1 ? 'Invoices' : 'Invoice' }}</div>
+                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->invoices->pluck('invoice_number')->implode(', ') ?: '-' }}</div>
                         </div>
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Delivery</div>
@@ -153,12 +154,41 @@
                                     </div>
                                     <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3">
                                         <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Outstanding</span>
-                                        <span class="text-sm font-semibold text-gray-900">{{ $isQuoteRequested ? '--' : '$'.number_format((float) ($order->invoice?->outstandingAmount() ?? 0), 2) }}</span>
+                                        <span class="text-sm font-semibold text-gray-900">{{ $isQuoteRequested ? '--' : money($order->outstandingAmount()) }}</span>
                                     </div>
                                 </div>
                             </div>
                         @endif
                     </div>
+                    @endif
+
+                    @if($order->invoices->count() > 1)
+                        <div class="mt-6 rounded-2xl border border-gray-200 bg-gray-50/80 p-4">
+                            <h3 class="mb-3 font-semibold">Linked invoices</h3>
+                            <div class="space-y-3">
+                                @foreach($linkedInvoices as $linkedInvoice)
+                                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                                        <div>
+                                            <div class="font-semibold">{{ $linkedInvoice['number'] }} · {{ money($linkedInvoice['total']) }}</div>
+                                            <div class="mt-1 text-sm text-gray-600">{{ $linkedInvoice['outstanding'] <= 0.0001 ? 'Paid' : money($linkedInvoice['outstanding']).' outstanding' }}</div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            @if($linkedInvoice['outstanding'] > 0.0001)
+                                                <x-ui.button size="small" href="{{ $linkedInvoice['view_url'] }}">Pay invoice</x-ui.button>
+                                            @endif
+                                            @if($linkedInvoice['pdf_url'])
+                                                <x-ui.button size="small" color="outline" href="{{ $linkedInvoice['pdf_url'] }}" target="_blank">Download invoice</x-ui.button>
+                                            @elseif(!$canDownloadDocuments)
+                                                <form method="POST" action="{{ $linkedInvoice['email_documents_url'] }}">
+                                                    @csrf
+                                                    <x-ui.button type="submit" size="small" color="outline">Email invoice and receipts</x-ui.button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
                     @endif
 
                     @if(!$noPaymentRequired && $showDocumentsCard)
@@ -344,7 +374,7 @@
                                         @if($item->downloads->isNotEmpty() && ! $isDigitalOnly)
                                             <div class="mt-3">
 {{--                                                <div class="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Downloads</div>--}}
-                                                @if($isPaid)
+                                                @if($item->isPaid())
                                                     <ul class="ml-4">
                                                         @foreach($item->downloads as $download)
                                                             <li class="flex items-center"><i class="fa-regular fa-file mr-2" aria-hidden="true"></i><a
@@ -527,7 +557,7 @@
                             </div>
                         @endunless
                         <div class="space-y-4">
-                            @foreach($downloadableItems as $item)
+                            @foreach($downloadableItems->filter(fn ($item) => $item->isPaid()) as $item)
                                 <div class="rounded-2xl border border-gray-200 p-4">
                                     <div class="font-semibold text-gray-900 mb-3">{{ $item->displayTitle() }}</div>
                                     <div class="space-y-3">

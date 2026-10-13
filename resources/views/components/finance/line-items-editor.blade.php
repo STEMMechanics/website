@@ -1,6 +1,7 @@
-@props(['isLocked' => false, 'invoiceLayout' => false])
+@props(['isLocked' => false, 'invoiceLayout' => false, 'mobileEditor' => false])
 @php
-    $lineItemsWrapperClass = $invoiceLayout ? 'sm-invoice-line-items' : '';
+    $useMobileEditor = $invoiceLayout || $mobileEditor;
+    $lineItemsWrapperClass = $useMobileEditor ? 'sm-invoice-line-items' : '';
     $lineItemsTableClass = $invoiceLayout ? 'sm-invoice-line-items-table min-w-[44rem] w-full' : 'min-w-[44rem] w-full';
 @endphp
 <div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }})" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
@@ -48,10 +49,7 @@
             </tbody>
         </template>
     </x-ui.table>
-    @if($invoiceLayout)
-        <template x-if="lineItems.length === 0">
-            <div class="sm-invoice-mobile-empty text-sm text-gray-500">No line items yet.</div>
-        </template>
+    @if($useMobileEditor)
         <div class="sm-invoice-mobile-line-items" x-show="lineItems.length > 0" x-cloak>
             <template x-for="(item, index) in lineItems" :key="'mobile-line-item-' + lineItemKey(item)">
                 <article class="sm-invoice-mobile-line-item">
@@ -66,7 +64,7 @@
                     </div>
                     <dl class="sm-invoice-mobile-line-item-totals">
                         <div><dt>HRS / QTY</dt><dd x-text="normalizeMoney(item.quantity)"></dd></div>
-                        <div><dt>Unit price (inc GST)</dt><dd>$<span x-text="normalizeMoney(item.unit_price_inc_tax)"></span></dd></div>
+                        <div><dt>Unit price (inc GST)</dt><dd>$<span x-text="SM.formatUnitPrice(item.unit_price_inc_tax)"></span></dd></div>
                         <div><dt>GST</dt><dd x-text="item.gst_applicable ? 'Included' : 'Not applied'"></dd></div>
                         <div><dt>Total (inc GST)</dt><dd>$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></dd></div>
                     </dl>
