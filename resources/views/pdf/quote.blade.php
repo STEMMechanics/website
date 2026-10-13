@@ -157,8 +157,8 @@
                 <tr>
                     <th style="width:58%;">DESCRIPTION</th>
                     <th class="center" style="width:14%;">HRS / QTY</th>
-                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
-                    <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
+                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                    <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -181,8 +181,8 @@
                         @endif
                     </td>
                     <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                    <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
-                    <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
+                    <td class="right">$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($item) }}</td>
+                    <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['net'], 2) }}</td>
                 </tr>
                 @empty
                 <tr>

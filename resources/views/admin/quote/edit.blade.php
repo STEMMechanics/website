@@ -27,18 +27,11 @@
 
     <x-container class="mt-4">
         @isset($quote)
-            <div class="sm-quote-toolbar mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-end">
-                <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}" class="sm:order-last">
+            <div class="sm-quote-toolbar mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                <x-ui.button type="button" class="w-full sm:w-auto" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" class="w-full sm:w-auto" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
-                    <x-ui.button type="submit" class="w-full sm:w-auto whitespace-normal!">{{ $quote->hasStoreProductLines() ? 'Create Order & Invoice' : 'Create Invoice From Quote' }}</x-ui.button>
-                </form>
-                <details class="sm-disclosure sm-quote-actions">
-                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">Quote actions <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
-                    <div class="mt-2 flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
-                    @csrf
-                    <x-ui.button type="submit" x-data x-on:click.prevent="
+                    <x-ui.button type="submit" class="w-full sm:w-auto" x-data x-on:click.prevent="
                         open = true;
                     ">Email Quote</x-ui.button>
 
@@ -95,12 +88,14 @@
                         </div>
                     </div>
                 </form>
-                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
+                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}" class="w-full sm:w-auto">
                     @csrf
-                    <x-ui.button type="submit" color="outline">Duplicate Quote</x-ui.button>
+                    <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Duplicate Quote</x-ui.button>
                 </form>
-                    </div>
-                </details>
+                <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}" class="w-full sm:w-auto">
+                    @csrf
+                    <x-ui.button type="submit" class="w-full sm:w-auto whitespace-normal!">{{ $quote->hasStoreProductLines() ? 'Create Order & Invoice' : 'Create Invoice From Quote' }}</x-ui.button>
+                </form>
             </div>
         @endisset
 

@@ -138,7 +138,7 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertSame(0.0, $invoice->fresh()->displayOutstandingAmount());
     }
 
-    public function test_taxable_invoice_line_uses_saved_gross_amount_without_rounding_up_the_displayed_price(): void
+    public function test_taxable_invoice_line_uses_saved_net_amount_with_gst_added_in_the_totals(): void
     {
         $invoice = Invoice::factory()->create([
             'subtotal_amount' => 454.55,
@@ -163,7 +163,9 @@ class InvoicePdfPaymentDetailsTest extends TestCase
             'adjustments' => collect(),
         ])->render();
 
-        $this->assertStringContainsString('<td class="right">$ 500.00</td>', $html);
+        $this->assertStringContainsString('<td class="right">$ 454.55</td>', $html);
+        $this->assertStringContainsString('<td class="value">$ 45.45</td>', $html);
+        $this->assertStringContainsString('<td class="value">$ 500.00</td>', $html);
         $this->assertStringNotContainsString('$ 500.01', $html);
     }
 
@@ -196,7 +198,8 @@ class InvoicePdfPaymentDetailsTest extends TestCase
 
         $this->assertSame(45.45, (float) $items[0]['tax_amount']);
         $this->assertSame(500.00, (float) $items[0]['line_total_inc_tax']);
-        $this->assertStringContainsString('<td class="right">$ 500.00</td>', $html);
+        $this->assertStringContainsString('<td class="right">$ 454.55</td>', $html);
+        $this->assertStringContainsString('<td class="value">$ 500.00</td>', $html);
         $this->assertStringNotContainsString('$ 500.01', $html);
     }
 

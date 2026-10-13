@@ -96,8 +96,9 @@ class WorkshopPdfPresentationTest extends TestCase
                 $this->assertStringContainsString('24/03/2027 - Smithfield STEM - (1.5 hrs × 20 seats)', $html);
                 $this->assertStringContainsString('21/04/2027 - Manunda Minecraft - (1 hr × 10 seats)', $html);
                 $this->assertStringContainsString('>50</td>', $html);
-                $this->assertStringContainsString('$ 14.50', $html);
-                $this->assertStringContainsString('$ 725.00', $html);
+                $this->assertStringContainsString('(Excl GST)', $html);
+                $this->assertStringContainsString('<td class="right">$ 659.09</td>', $html);
+                $this->assertStringContainsString('<td class="value">$ 725.00</td>', $html);
                 if ($notes !== '') {
                     $this->assertStringContainsString($notes, $html);
                 }
