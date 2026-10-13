@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Quote;
+use App\Models\TaxAdjustment;
+use App\Models\TaxAdjustmentLine;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\Finance\LinePricing;
@@ -53,9 +55,10 @@ class InclusiveDocumentPricingTest extends TestCase
         $this->assertSame('405.00', $invoice->total_amount);
         $this->assertSame('368.18', $invoice->lines[0]->line_total_ex_tax);
         $html = view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [$invoice->lines->map->toArray()->all()], 'adjustments' => collect(), 'publicPayUrl' => null])->render();
-        $this->assertStringContainsString('$ 13.50', $html);
+        $this->assertStringContainsString('(Excl GST)', $html);
+        $this->assertStringContainsString('<td class="right">$ 368.18</td>', $html);
         $this->assertStringContainsString('$ 405.00', $html);
-        $this->assertStringNotContainsString('$ 12.27', $html);
+        $this->assertStringNotContainsString('<td class="right">$ 405.00</td>', $html);
     }
 
     public function test_historical_invoice_rates_totals_and_tax_survive_description_only_edit(): void
@@ -72,6 +75,90 @@ class InclusiveDocumentPricingTest extends TestCase
         $this->assertSame('368.10', $invoice->fresh()->lines[0]->line_total_ex_tax);
         $this->assertSame('36.81', $invoice->fresh()->lines[0]->tax_amount);
         $this->assertSame('12.27', $invoice->fresh()->lines[0]->unit_price_ex_tax);
+    }
+
+    public function test_finance_pdfs_show_exclusive_lines_that_add_up_to_subtotal_then_gst_and_total(): void
+    {
+        $items = [
+            ['description' => 'Workshop', 'quantity' => 30, 'unit_price' => 12.27, 'gst_applicable' => true,
+                'line_total' => 368.18, 'tax_amount' => 36.82, 'line_total_inc_tax' => 405],
+            ['description' => 'GST free materials', 'quantity' => 1.5, 'unit_price' => 10, 'gst_applicable' => false,
+                'line_total' => 15, 'tax_amount' => 0, 'line_total_inc_tax' => 15],
+            ['description' => 'Discount', 'quantity' => 1, 'unit_price' => -10, 'gst_applicable' => true,
+                'line_total' => -10, 'tax_amount' => -1, 'line_total_inc_tax' => -11],
+        ];
+        $quote = Quote::factory()->create([
+            'user_id' => auth()->id(), 'line_items' => $items,
+            'subtotal_amount' => 373.18, 'gst_amount' => 35.82, 'total_amount' => 409,
+        ]);
+        $invoice = Invoice::factory()->create([
+            'user_id' => auth()->id(), 'status' => Invoice::STATUS_ISSUED,
+            'subtotal_amount' => 373.18, 'gst_amount' => 35.82, 'total_amount' => 409,
+        ]);
+        foreach ($items as $index => $item) {
+            InvoiceLine::factory()->for($invoice)->create([
+                'line_number' => $index + 1, 'description' => $item['description'], 'quantity' => $item['quantity'],
+                'unit_price_ex_tax' => $item['unit_price'], 'tax_rate' => $item['gst_applicable'] ? 0.1 : 0,
+                'line_total_ex_tax' => $item['line_total'], 'tax_amount' => $item['tax_amount'],
+                'line_total_inc_tax' => $item['line_total_inc_tax'],
+            ]);
+        }
+        $adjustment = TaxAdjustment::factory()->for($invoice)->create([
+            'subtotal_amount' => -137.73, 'gst_amount' => -12.27, 'total_amount' => -150,
+        ]);
+        TaxAdjustmentLine::factory()->for($adjustment)->create([
+            'description' => 'Workshop credit', 'quantity' => 10, 'unit_price_ex_tax' => 12.27,
+            'tax_rate' => 0.1, 'line_total_ex_tax' => 122.73, 'tax_amount' => 12.27, 'line_total_inc_tax' => 135,
+        ]);
+        TaxAdjustmentLine::factory()->for($adjustment)->create([
+            'line_number' => 2, 'description' => 'GST free materials credit', 'quantity' => 1.5,
+            'unit_price_ex_tax' => 10, 'tax_rate' => 0, 'line_total_ex_tax' => 15, 'tax_amount' => 0, 'line_total_inc_tax' => 15,
+        ]);
+        $invoiceData = ['invoice' => $invoice, 'itemPages' => [$invoice->lines->toArray()], 'adjustments' => collect(), 'publicPayUrl' => null];
+        $views = [
+            'quote' => ['pdf.quote', ['quote' => $quote]],
+            'invoice' => ['pdf.invoice', $invoiceData],
+            'adjustment' => ['pdf.tax-adjustment', ['invoice' => $invoice, 'adjustment' => $adjustment, 'itemPages' => [$adjustment->lines->toArray()]]],
+            'invoice-with-adjustments' => ['pdf.invoice', array_replace($invoiceData, ['adjustments' => collect([$adjustment])])],
+        ];
+        $money = static fn (string $text): float => (float) str_replace(['$', ',', ' '], '', trim($text));
+
+        foreach ($views as $name => [$view, $data]) {
+            $html = view($view, $data)->render();
+            $document = new \DOMDocument;
+            $document->loadHTML($html);
+            $xpath = new \DOMXPath($document);
+            $this->assertStringNotContainsString('(Incl GST)', $html, $name);
+            foreach ($xpath->query('//table[thead/tr/th[contains(., "RATE / PRICE")]]') as $table) {
+                $this->assertSame(2, substr_count($document->saveHTML($xpath->query('./thead', $table)->item(0)), '(Excl GST)'), $name);
+                $lineTotal = 0.0;
+                foreach ($xpath->query('./tbody/tr', $table) as $row) {
+                    $cells = $xpath->query('./td', $row);
+                    $quantity = (float) trim($cells->item(1)->textContent);
+                    $price = $money($cells->item(2)->textContent);
+                    $net = $money($cells->item(3)->textContent);
+                    $this->assertEquals($net, round($quantity * $price, 2), $name);
+                    $lineTotal += $net;
+                }
+                $totals = $xpath->query('ancestor::div[contains(concat(" ", normalize-space(@class), " "), " page ")][1]//table[@class="totals"]', $table)->item(0);
+                $subtotal = $money($xpath->evaluate('string(.//tr[1]/td[@class="value"])', $totals));
+                $gst = $money($xpath->evaluate('string(.//tr[2]/td[@class="value"])', $totals));
+                $total = $money($xpath->evaluate('string(.//tr[3]/td[@class="value"])', $totals));
+                $this->assertSame('Subtotal', trim($xpath->evaluate('string(.//tr[1]/td[@class="label"])', $totals)), $name);
+                $this->assertSame('GST', trim($xpath->evaluate('string(.//tr[2]/td[@class="label"]/text()[last()])', $totals)), $name);
+                $this->assertSame('TOTAL', trim($xpath->evaluate('string(.//tr[3]/td[@class="label"])', $totals)), $name);
+                $this->assertSame(number_format($lineTotal, 2), number_format($subtotal, 2), $name);
+                $this->assertSame(number_format($subtotal + $gst, 2), number_format($total, 2), $name);
+            }
+            if ($previewDir = getenv('EXCLUSIVE_PDF_PREVIEW_DIR')) {
+                \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)->save($previewDir.'/'.$name.'.pdf');
+            }
+        }
+
+        $this->assertSame($items, $quote->fresh()->line_items);
+        $this->assertSame('373.18', $quote->fresh()->subtotal_amount);
+        $this->assertSame('409.00', $invoice->fresh()->total_amount);
+        $this->assertSame('-150.00', $adjustment->fresh()->total_amount);
     }
 
     public function test_existing_quote_retains_original_document_rounding_and_conversion_totals(): void

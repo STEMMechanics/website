@@ -4,7 +4,7 @@ namespace App\Services\Finance;
 
 use Illuminate\Contracts\Support\Arrayable;
 
-/** Inclusive presentation never recalculates a saved financial amount. */
+/** Financial presentation never recalculates a saved financial amount. */
 class LinePricing
 {
     public static function savedAmounts(array|Arrayable $item): array
@@ -38,7 +38,24 @@ class LinePricing
 
     public static function formatUnit(array|Arrayable $item): string
     {
-        $price = self::inclusiveUnit($item);
+        return self::formatPrice(self::inclusiveUnit($item));
+    }
+
+    public static function formatExclusiveUnit(array|Arrayable $item): string
+    {
+        $item = is_array($item) ? $item : $item->toArray();
+        $quantity = (float) ($item['quantity'] ?? 0);
+        $price = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
+        $net = self::savedAmounts($item)['net'];
+        if (abs($quantity) > 0.000001 && abs(round($quantity * $price, 2) - $net) >= 0.005) {
+            $price = round($net / $quantity, 8);
+        }
+
+        return self::formatPrice($price);
+    }
+
+    private static function formatPrice(float $price): string
+    {
         if (abs($price - round($price, 2)) < 0.00000001) {
             return number_format($price, 2);
         }

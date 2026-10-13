@@ -40,7 +40,6 @@
         $hasTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate > 0.0001);
         $hasMixedTaxTreatment = $hasNonTaxableItems && $hasTaxableItems;
         $taxTreatmentCode = trim((string) ($invoice->tax_treatment_code ?? ''));
-        $gstIsNotIncluded = in_array($taxTreatmentCode, ['gst_free_export', 'no_gst'], true);
         $subtotalEx=(float) $invoice->subtotal_amount;
         $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
         $billToCompany = trim((string) ($invoice->billing_company ?: $customer?->primaryOrganisation?->name ?? ''));
@@ -249,8 +248,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="center" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -282,8 +281,8 @@
                             @endif
                         </td>
                         <td class="center">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
-                        <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
+                        <td class="right">$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($item) }}</td>
+                        <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['net'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -464,8 +463,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="right" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -484,8 +483,8 @@
                             @endif
                         </td>
                         <td class="right">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
-                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line->toArray())['gross'], 2) }}</td>
+                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($line) }}</td>
+                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line)['net'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>
