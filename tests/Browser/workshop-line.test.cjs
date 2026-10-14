@@ -396,6 +396,29 @@ test('workshop defaults explain charging and expanded generated notes upgrade sa
     assert.equal(item.description, 'Holiday program');
 });
 
+test('an intentionally blank multi-workshop description survives reload and row edits', () => {
+    const sm = context.window.SM;
+    const item = {
+        kind: 'multi_workshop', description: '', notes: '',
+        details_json: { workshop_notes_mode: 'manual' },
+        workshops: [{ description: 'Library workshop', workshop_hours: 1, workshop_seats: 12 }],
+    };
+    sm.defaultWorkshopDescription(item);
+    sm.initializeWorkshopNotes(item);
+    update(item);
+    assert.equal(item.description, '');
+    assert.equal(item.notes, '');
+    assert.equal(item.quantity, 12);
+    assert.equal(item.details_json.multi_workshop.rows.length, 1);
+
+    const restored = JSON.parse(JSON.stringify(item));
+    sm.defaultWorkshopDescription(restored);
+    restored.workshops[0].workshop_seats = 15;
+    update(restored);
+    assert.equal(restored.description, '');
+    assert.equal(restored.quantity, 15);
+});
+
 test('workshop funding links and allocation counts survive pricing edits without changing charged seats', () => {
     const item = { kind: 'workshop', workshop_hours: 2, workshop_seats: 20, quantity: 40, unit_price: 10, details_json: { workshop: { linked_workshop_id: 'council-session', allocation_basis: 'tickets', allocation_seats: 12 } } };
     update(item);
@@ -425,6 +448,62 @@ test('workshop link helper suggests matching quote descriptions and dates withou
     assert.equal(item.details_json.workshop.linked_workshop_id, undefined);
 });
 
+test('the main workshop field filters suggestions and retains any existing link until selection', () => {
+    context.window.innerWidth = 1280;
+    context.window.innerHeight = 900;
+    for (const linked of [false, true]) {
+        const item = { description: 'Library session', details_json: { workshop: { linked_workshop_id: linked ? 'old' : null } } };
+        const editor = context.window.SM.workshopFundingEditor(item, [
+            { id: 'old', title: 'Library session', label: 'Library session · Cairns' },
+            { id: 'new', title: 'Paper Speakers', label: 'Paper Speakers · Smithfield' },
+        ]);
+        editor.init();
+        editor.descriptionValue = 'Smithfield';
+        editor.editDescription({ value: 'Smithfield', offsetWidth: 400, getBoundingClientRect: () => ({ left: 8, bottom: 64 }) });
+
+        assert.equal(editor.open, true);
+        assert.equal(item.description, 'Smithfield');
+        assert.deepEqual(editor.matches.map(option => option.id), ['new']);
+        assert.equal(item.details_json.workshop.linked_workshop_id, linked ? 'old' : null);
+        editor.choose(editor.matches[0]);
+        assert.equal(editor.descriptionValue, 'Paper Speakers');
+        assert.equal(item.details_json.workshop.linked_workshop_id, 'new');
+    }
+});
+
+test('searching from the main field on issued invoices never changes billed descriptions or quantities', () => {
+    context.window.innerWidth = 1280;
+    context.window.innerHeight = 900;
+    const item = {
+        description: 'Issued wording', workshop_date: '2027-02-02', workshop_hours: 1,
+        workshop_seats: 12, quantity: 12, unit_price: 12.5, details_json: {},
+    };
+    const option = { id: 'new', title: 'Paper Speakers', label: 'Paper Speakers · Smithfield', hours: 4, date: '2027-03-02' };
+    const editor = context.window.SM.workshopFundingEditor(item, [option], true);
+    const element = { value: '', offsetWidth: 400, getBoundingClientRect: () => ({ left: 8, bottom: 64 }) };
+    let focused = 0;
+    editor.$nextTick = callback => callback();
+    editor.$refs = { workshopDescription: { focus: () => focused++ } };
+    editor.init();
+    editor.browse(element);
+    assert.equal(editor.descriptionValue, '');
+    editor.descriptionValue = element.value = 'Smithfield';
+    editor.editDescription(element);
+    assert.equal(editor.descriptionValue, 'Smithfield');
+    assert.equal(item.description, 'Issued wording');
+    assert.equal(editor.matches[0], option);
+    editor.choose(option);
+
+    assert.equal(editor.descriptionValue, 'Issued wording');
+    assert.equal(item.details_json.workshop.linked_workshop_id, 'new');
+    assert.equal(item.workshop_date, '2027-02-02');
+    assert.equal(item.workshop_hours, 1);
+    assert.equal(item.workshop_seats, 12);
+    assert.equal(item.quantity, 12);
+    assert.equal(item.unit_price, 12.5);
+    assert.equal(focused, 2);
+});
+
 test('linking fills workshop hours and date while custom description edits retain the link', () => {
     const item = { kind: 'workshop', description: '', workshop_hours: 1, workshop_seats: 10, details_json: {} };
     const option = { id: 'straw', title: 'Straw Towers', label: 'Straw Towers · 22 Sep 2026', date: '2026-09-22', hours: 2, capacity: 20, tickets: 7 };
@@ -435,7 +514,7 @@ test('linking fills workshop hours and date while custom description edits retai
     assert.equal(item.workshop_date, '2026-09-22');
     assert.equal(item.description, 'Straw Towers');
     item.description = 'Morning - Straw Towers';
-    editor.editDescription(null);
+    editor.editDescription({ value: item.description, offsetWidth: 320, getBoundingClientRect: () => ({ left: 8, bottom: 64 }) });
     assert.equal(item.details_json.workshop.linked_workshop_id, 'straw');
     editor.setSeats('capacity');
     update(item);

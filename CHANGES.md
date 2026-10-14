@@ -2,6 +2,8 @@
 
 ## Current
 
+- Improved mobile administration with product and order cards, quote line-item editing, readable payment controls, compact order items and simpler navigation and save actions.
+- Added attaching additional invoices and their items to open store orders, with a popup showing recent customer or company invoices, searchable suggestions, combined balances and delivery summaries, and credits and refunds against the correct invoice.
 - Improved workshop calendars, attendance, registration and organisation management.
 - Expanded workshop templates, run sheets, pick lists and PDF exports.
 - Improved media uploads, duplicate detection and file management.

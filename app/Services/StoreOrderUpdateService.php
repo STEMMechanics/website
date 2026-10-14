@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Invoice;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
-use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemCancellation;
+use App\Models\StoreOrderItemCollection;
 use App\Models\StoreOrderItemTracking;
 use App\Models\StoreOrderUpdate;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -15,6 +17,18 @@ use Illuminate\Support\Str;
 
 class StoreOrderUpdateService
 {
+    public function recordInvoiceAttached(StoreOrder $order, Invoice $invoice, int $itemCount, string $shipmentPlan, ?User $actor): ?StoreOrderUpdate
+    {
+        return $this->createUpdate($order, null, StoreOrderUpdate::EVENT_INVOICE_ATTACHED, [
+            'invoice_id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'item_count' => $itemCount,
+            'shipment_plan' => $shipmentPlan,
+            'attached_by' => $actor?->id,
+            'attached_by_name' => $actor?->getName(),
+        ]);
+    }
+
     public function recordBackorderAllocation(StoreOrder $order, StoreOrderItem $item, int $allocatedQuantity, int $remainingDelayedQuantity): ?StoreOrderUpdate
     {
         if ($allocatedQuantity <= 0) {
@@ -377,6 +391,12 @@ class StoreOrderUpdateService
         $itemTitle = trim((string) ($payload['item_title'] ?? ''));
 
         return match ((string) $update->event_type) {
+            StoreOrderUpdate::EVENT_INVOICE_ATTACHED => [
+                'type' => StoreOrderUpdate::EVENT_INVOICE_ATTACHED,
+                'time' => $update->occurredAtLabel(),
+                'summary' => 'Additional items were added from invoice '.($payload['invoice_number'] ?? '').'.',
+                'detail' => ($payload['shipment_plan'] ?? '') === 'separate_shipment' ? 'These items will use a separate shipment.' : null,
+            ],
             StoreOrderUpdate::EVENT_BACKORDER_ALLOCATED => [
                 'type' => StoreOrderUpdate::EVENT_BACKORDER_ALLOCATED,
                 'time' => $update->occurredAtLabel(),

@@ -55,7 +55,7 @@ class ShopAdminOrderController extends Controller
                 $builder->where('order_number', 'like', '%'.$search.'%')
                     ->orWhere('billing_name', 'like', '%'.$search.'%')
                     ->orWhere('billing_email', 'like', '%'.$search.'%')
-                    ->orWhereHas('invoice', fn ($invoiceQuery) => $invoiceQuery->where('invoice_number', 'like', '%'.$search.'%'));
+                    ->orWhereHas('invoices', fn ($invoiceQuery) => $invoiceQuery->where('invoice_number', 'like', '%'.$search.'%'));
             });
         }
 
@@ -70,6 +70,9 @@ class ShopAdminOrderController extends Controller
             'quote',
             'invoice.quote',
             'invoice.allocations.customerPayment',
+            'invoices.allocations.customerPayment',
+            'invoices.taxAdjustments',
+            'items.invoiceLine.invoice',
             'items.downloads.media',
             'items.product.hero',
             'items.variant',
@@ -86,6 +89,9 @@ class ShopAdminOrderController extends Controller
                 'quote',
                 'invoice.quote',
                 'invoice.allocations.customerPayment',
+                'invoices.allocations.customerPayment',
+                'invoices.taxAdjustments',
+                'items.invoiceLine.invoice',
                 'items.downloads.media',
                 'items.product.hero',
                 'items.variant',
@@ -603,11 +609,8 @@ class ShopAdminOrderController extends Controller
             abort(500, 'Quote PDF generation requires barryvdh/laravel-dompdf.');
         }
 
-        $itemPages = $this->paginateLineItemsForPdf($quote);
-
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', [
             'quote' => $quote,
-            'itemPages' => $itemPages,
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
@@ -644,92 +647,6 @@ class ShopAdminOrderController extends Controller
             $email !== '' ? $email : null,
             $name !== '' ? $name : null,
         ];
-    }
-
-    private function paginateLineItemsForPdf(Quote $quote): array
-    {
-        $items = is_array($quote->line_items) ? array_values($quote->line_items) : [];
-
-        if (count($items) === 0) {
-            return [[]];
-        }
-
-        $weights = array_map(fn (array $item) => $this->lineItemPdfWeight($item), $items);
-        $firstLastCap = 9.0;
-        $firstCap = 16.0;
-        $middleCap = 26.0;
-        $lastCap = 9.0;
-
-        $totalWeight = array_sum($weights);
-        if ($totalWeight <= $firstLastCap) {
-            return [$items];
-        }
-
-        $pages = [];
-        $index = 0;
-
-        [$firstPageItems, $index] = $this->packPage($items, $weights, $index, $firstCap);
-        $pages[] = $firstPageItems;
-
-        while ($this->remainingWeight($weights, $index) > $lastCap) {
-            [$middlePageItems, $index] = $this->packPage($items, $weights, $index, $middleCap);
-            $pages[] = $middlePageItems;
-        }
-
-        $pages[] = array_slice($items, $index);
-
-        return $pages;
-    }
-
-    private function packPage(array $items, array $weights, int $startIndex, float $capacity): array
-    {
-        $currentWeight = 0.0;
-        $currentItems = [];
-        $index = $startIndex;
-        $count = count($items);
-
-        while ($index < $count) {
-            $nextWeight = $weights[$index] ?? 1.0;
-            if (count($currentItems) > 0 && ($currentWeight + $nextWeight) > $capacity) {
-                break;
-            }
-
-            $currentItems[] = $items[$index];
-            $currentWeight += $nextWeight;
-            $index++;
-        }
-
-        if (count($currentItems) === 0 && $startIndex < $count) {
-            $currentItems[] = $items[$startIndex];
-            $index = $startIndex + 1;
-        }
-
-        return [$currentItems, $index];
-    }
-
-    private function remainingWeight(array $weights, int $startIndex): float
-    {
-        $remaining = 0.0;
-        $count = count($weights);
-
-        for ($i = $startIndex; $i < $count; $i++) {
-            $remaining += (float) ($weights[$i] ?? 0);
-        }
-
-        return $remaining;
-    }
-
-    private function lineItemPdfWeight(array $item): float
-    {
-        $notes = trim((string) ($item['notes'] ?? ''));
-        if ($notes === '') {
-            return 1.0;
-        }
-
-        $noteLines = preg_split('/\r\n|\r|\n/', $notes) ?: [];
-        $lineCount = max(count($noteLines), 1);
-
-        return 1.0 + min($lineCount * 0.35, 4.0);
     }
 
     /**

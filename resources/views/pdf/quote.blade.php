@@ -6,12 +6,18 @@
     <title>Quote {{ $quote->quote_number }}</title>
     <style>
         @include('pdf.partials.styling')
+        .quote-page { min-height: 0; }
+        .quote-page .items { margin-bottom: 18px; }
+        .quote-page .items tbody tr { page-break-inside: avoid; }
+        .quote-page .bottom-block { position: static; page-break-inside: avoid; }
     </style>
 </head>
 
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
+    $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
+    $items = array_merge(...$pages);
     $customer = $quote->user;
     $billingAddress = $customer?->resolvedBillingAddress() ?? ['address' => '', 'address2' => '', 'city' => '', 'state' => '', 'postcode' => '', 'country' => ''];
     $logoPath = public_path('invoice-logo.png');
@@ -79,9 +85,7 @@
     };
     @endphp
 
-    @foreach($pages as $pageIndex => $pageItems)
-    <div class="page">
-        @if($pageIndex === 0)
+    <div class="page quote-page">
         <table class="header">
             <tr>
                 <td class="logo-wrap">
@@ -148,38 +152,37 @@
         </div>
         @endif
 
-        @else
-        <div style="text-align:right; font-size:10px; margin-bottom:8px; color:#666;">
-            Quote {{ $quote->quote_number }} (continued)
-        </div>
-        @endif
-
-        <table class="items {{ $loop->last ? 'items-last' : '' }}">
+        <table class="items">
             <thead>
                 <tr>
                     <th style="width:58%;">DESCRIPTION</th>
                     <th class="center" style="width:14%;">HRS / QTY</th>
-                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Incl GST)</span></th>
-                    <th class="right" style="width:14%;">TOTAL<br><span class="excl">(Incl GST)</span></th>
+                    <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                    <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                 </tr>
             </thead>
             <tbody>
-                @forelse($pageItems as $item)
+                @forelse($items as $item)
                 @php
                 $qty = (float) ($item['quantity'] ?? 0);
                 $gstApplicable = ($item['gst_applicable'] ?? true) === true;
-                $lineNotes = trim((string) ($item['notes'] ?? ''));
+                $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
+                $lineDescription = (string) ($item['description'] ?? '');
+                $isWorkshop = in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true);
                 @endphp
                 <tr>
                     <td>
-                        <div class="line-desc">{{ $item['description'] ?? '' }}{{ $gstApplicable ? '' : '*' }}</div>
+                        <div class="line-desc">{{ $isWorkshop ? 'Workshop Delivery' : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
+                        @if($isWorkshop && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), 'Workshop Delivery') !== 0)
+                        <div class="line-note">{{ $lineDescription }}</div>
+                        @endif
                         @if($lineNotes !== '')
                         {!! $renderLineNotes($lineNotes) !!}
                         @endif
                     </td>
                     <td class="center">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                    <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
-                    <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
+                    <td class="right">$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($item) }}</td>
+                    <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['net'], 2) }}</td>
                 </tr>
                 @empty
                 <tr>
@@ -189,9 +192,6 @@
             </tbody>
         </table>
 
-        @if(!$loop->last)
-        <div class="continued">Continued on next page...</div>
-        @else
         @if($notes !== '')
         <div class="notes"><span class="note-title">Note: </span>{!! nl2br(e($notes)) !!}</div>
         @endif
@@ -218,9 +218,7 @@
 
             @include('pdf.partials.footer')
         </div>
-        @endif
     </div>
-    @endforeach
 </body>
 
 </html>

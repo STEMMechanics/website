@@ -79,6 +79,11 @@
                                         type="button"
                                         data-reset-option="{{ $siteOption->id }}"
                                      />
+                                @else
+                                    <x-ui.row-action label="Delete setting" icon="fa-trash" tone="danger" type="button"
+                                        data-delete-option="{{ $siteOption->id }}" x-data
+                                        x-on:click.prevent="SM.confirmDelete(@js(csrf_token()), 'Delete setting?', @js('Delete '.e($siteOption->name).' and its saved value? Any configured fallback will be used.'), @js(route('admin.site_option.destroy', $siteOption)))"
+                                     />
                                 @endif
                             </x-ui.row-actions>
                         </td>

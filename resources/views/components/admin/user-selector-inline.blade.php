@@ -71,7 +71,7 @@ $layoutInnerClass = $mobileStacked
 $lookupGroupClass = $mobileStacked
     ? 'flex flex-col gap-3 sm:flex-row sm:items-center'
     : 'flex items-center gap-4';
-$newUserClass = $mobileStacked ? 'w-full shrink-0 sm:w-auto' : '';
+$newUserClass = $mobileStacked ? 'hidden shrink-0 sm:flex sm:w-auto' : '';
 $infoClass = $mobileStacked
     ? 'mt-2 max-w-prose text-xs text-gray-500 sm:ml-2 sm:mt-1'
     : 'text-xs text-gray-500 ml-2 mt-1';
@@ -254,8 +254,13 @@ $errorClass = $mobileStacked
     },
 }" x-init="syncLinkedUserId()">
     <div class="{{ $layoutInnerClass }}">
-        <div class="flex-1">
-            <label for="{{ $lookupName }}" class="block text-sm pl-1">{{ $label }}</label>
+        <div class="min-w-0 flex-1">
+            <div class="{{ $mobileStacked ? 'flex items-center justify-between gap-3 sm:block' : '' }}">
+                <label for="{{ $lookupName }}" class="block text-sm pl-1">{{ $label }}</label>
+                @if($mobileStacked && ! $disabled && $allowCreate)
+                    <x-ui.button type="button" variant="text" color="secondary" size="small" class="min-h-11 px-2! sm:hidden" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
+                @endif
+            </div>
             <div class="relative mt-1" x-on:click.away="linkedUserOpen = false">
                 <div class="{{ $lookupGroupClass }}">
                     <input
@@ -274,9 +279,12 @@ $errorClass = $mobileStacked
                         placeholder="Search by name/organisation/email"
                         @if($disabled) disabled @endif />
                     @if(! $disabled && $allowCreate)
-                    <x-ui.button type="button" class="{{ $newUserClass }}" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
+                    <x-ui.button type="button" color="outline" class="{{ $newUserClass }}" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
                     @endif
                 </div>
+                @if($mobileStacked)
+                    <p x-show="linkedUserMap[linkedUserLabel]" x-cloak class="mt-2 break-words text-sm text-slate-700 sm:hidden" x-text="linkedUserLabel"></p>
+                @endif
                 <div x-show="linkedUserOpen" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                     <ul class="max-h-60 overflow-auto py-1">
                         <template x-for="(item, index) in linkedUserFiltered" :key="item.id + '-' + index">
@@ -290,7 +298,7 @@ $errorClass = $mobileStacked
                     </ul>
                 </div>
             </div>
-            <div class="{{ $infoClass }}">{{ $info }}</div>
+            <div class="{{ $infoClass }}" @if($mobileStacked) x-bind:class="linkedUserMap[linkedUserLabel] ? 'hidden sm:block' : ''" @endif>{{ $info }}</div>
             @if($errors->has($fieldName))
                 <div class="{{ $errorClass }}">{{ $errors->first($fieldName) }}</div>
             @endif

@@ -1,6 +1,5 @@
                 @php
                     $paymentFooterText = trim((string) \App\Models\SiteOption::value('document.footer.payment'));
-                    $termsFooterText = trim((string) \App\Models\SiteOption::value('document.footer.terms'));
                     $travelFooterText = \App\Services\Finance\DocumentTravelFooter::render(trim((string) \App\Models\SiteOption::value('document.footer.travel')), $invoice ?? $quote ?? null);
                     $questionsFooterText = trim((string) \App\Models\SiteOption::value('document.footer.questions'));
                     $bankReferenceText = trim((string) \App\Models\SiteOption::value('document.footer.bank-reference'));
@@ -8,6 +7,7 @@
                     if ($documentType === '') {
                         $documentType = 'document';
                     }
+                    $termsFooterText = \App\Services\Finance\DocumentTermsFooter::render($documentType);
                     $questionsFooterText = str_replace('{document}', $documentType, $questionsFooterText);
                     $bankAccountName = trim((string) \App\Models\SiteOption::value('payments.bank-account-name'));
                     $bankBsb = trim((string) \App\Models\SiteOption::value('payments.bank-bsb'));

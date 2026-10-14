@@ -12,6 +12,7 @@
 <body>
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
+    $pages = array_map(fn (iterable $items): array => \App\Services\Finance\InvoicePdfLines::withWorkshopDetails($items), $pages);
     $customer = $invoice->user;
     $invoiceHasBillingSnapshot = trim((string) ($invoice->billing_address ?? '')) !== '' || trim((string) ($invoice->tax_treatment_code ?? '')) !== '';
     $billingAddress = $invoiceHasBillingSnapshot ? [
@@ -39,7 +40,6 @@
         $hasTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate > 0.0001);
         $hasMixedTaxTreatment = $hasNonTaxableItems && $hasTaxableItems;
         $taxTreatmentCode = trim((string) ($invoice->tax_treatment_code ?? ''));
-        $gstIsNotIncluded = in_array($taxTreatmentCode, ['gst_free_export', 'no_gst'], true);
         $subtotalEx=(float) $invoice->subtotal_amount;
         $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
         $billToCompany = trim((string) ($invoice->billing_company ?: $customer?->primaryOrganisation?->name ?? ''));
@@ -248,8 +248,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="center" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -258,17 +258,9 @@
                     $qty = (float) ($item['quantity'] ?? 0);
                     $taxRate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
                     $gstApplicable = $taxRate > 0.0001;
-                    $lineNotes = trim((string) ($item['notes'] ?? ''));
+                    $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                     $lineKind = trim((string) ($item['kind'] ?? ''));
                     $lineDescription = (string) ($item['description'] ?? '');
-                    $linkedWorkshopNotes = collect(is_array($item['linked_workshops'] ?? null) ? $item['linked_workshops'] : [])
-                        ->filter(fn ($workshop) => is_array($workshop) && trim((string) ($workshop['label'] ?? '')) !== '')
-                        ->reject(function (array $workshop) use ($lineNotes): bool {
-                            $title = trim((string) ($workshop['title'] ?? ''));
-                            return $title !== '' && str_contains(mb_strtolower($lineNotes), mb_strtolower($title));
-                        })
-                        ->map(fn (array $workshop): string => '- '.trim((string) $workshop['label']))
-                        ->implode("\n");
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
@@ -284,16 +276,13 @@
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
                             @endif
-                            @if($linkedWorkshopNotes !== '')
-                            {!! $renderLineNotes($linkedWorkshopNotes) !!}
-                            @endif
                             @if($lineKind === 'shipping' && $shippingNoteParts !== [])
                             <div class="line-note"><strong>Ship to:</strong> {{ implode(', ', $shippingNoteParts) }}</div>
                             @endif
                         </td>
                         <td class="center">{{ rtrim(rtrim(number_format((float) ($item['quantity'] ?? 0), 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">$ {{ \App\Services\Finance\LinePricing::formatUnit($item) }}</td>
-                        <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['gross'], 2) }}</td>
+                        <td class="right">$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($item) }}</td>
+                        <td class="right">$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($item)['net'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>
@@ -474,8 +463,8 @@
                     <tr>
                         <th style="width:58%;">DESCRIPTION</th>
                         <th class="right" style="width:14%;">HRS / QTY</th>
-                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
-                        <th class="right" style="width:14%;">TOTAL<br><span class="excl">{{ $gstIsNotIncluded ? '(Amount)' : '(Incl GST)' }}</span></th>
+                        <th class="right" style="width:14%;">RATE / PRICE<br><span class="excl">(Excl GST)</span></th>
+                        <th class="right" style="width:14%;">SUBTOTAL<br><span class="excl">(Excl GST)</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -494,8 +483,8 @@
                             @endif
                         </td>
                         <td class="right">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
-                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatUnit($line->toArray()) }}</td>
-                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line->toArray())['gross'], 2) }}</td>
+                        <td class="right">-$ {{ \App\Services\Finance\LinePricing::formatExclusiveUnit($line) }}</td>
+                        <td class="right">-$ {{ number_format(\App\Services\Finance\LinePricing::savedAmounts($line)['net'], 2) }}</td>
                     </tr>
                     @empty
                     <tr>

@@ -40,6 +40,7 @@ use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\ShopAdminOrderController;
+use App\Http\Controllers\ShopAdminOrderInvoiceController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\ShopCouponController;
 use App\Http\Controllers\ShopProductCategoryController;
@@ -443,6 +444,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/server/options/homepage-hero', [SiteOptionController::class, 'updateHero'])->name('admin.site_option.hero.update');
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
+    Route::delete('/admin/server/options/{siteOption}', [SiteOptionController::class, 'destroy'])->name('admin.site_option.destroy');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
     Route::get('/admin/pages', [CustomPageController::class, 'adminIndex'])->name('admin.custom-page.index');
     Route::get('/admin/pages/create', [CustomPageController::class, 'adminCreate'])->name('admin.custom-page.create');
@@ -693,6 +695,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/orders', [ShopAdminOrderController::class, 'index'])->name('admin.shop.order.index');
     Route::get('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'edit'])->name('admin.shop.order.edit');
     Route::get('/admin/store/orders/{storeOrder}/pick-list/pdf', [ShopAdminOrderController::class, 'pickListPdf'])->name('admin.shop.order.pick-list.pdf');
+    Route::get('/admin/store/orders/{storeOrder}/invoices/attach', [ShopAdminOrderInvoiceController::class, 'create'])->name('admin.shop.order.invoice.attach');
+    Route::get('/admin/store/orders/{storeOrder}/invoices/options', [ShopAdminOrderInvoiceController::class, 'options'])->name('admin.shop.order.invoice.options');
+    Route::post('/admin/store/orders/{storeOrder}/invoices', [ShopAdminOrderInvoiceController::class, 'store'])->name('admin.shop.order.invoice.store');
     Route::put('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'update'])->name('admin.shop.order.update');
     Route::post('/admin/store/orders/{storeOrder}/quote', [ShopAdminOrderController::class, 'sendQuote'])->name('admin.shop.order.quote.send');
     Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/cancel', [ShopAdminOrderController::class, 'cancelItem'])->name('admin.shop.order.item.cancel');

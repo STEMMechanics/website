@@ -13,7 +13,7 @@
             @php
                 $inventorySummaries = $inventorySummaries ?? [];
             @endphp
-            <x-ui.table variant="listing">
+            <x-ui.table variant="listing" :mobile-cards="true" class="sm-product-cards">
                 <x-slot:header>
                     <x-ui.list-heading label="Product" />
                     <x-ui.list-heading class="hidden lg:table-cell text-center!" label="Status" />
@@ -37,7 +37,7 @@
                             ];
                         @endphp
                         <tr>
-                            <td>
+                            <td data-mobile-primary>
                                 <div class="flex items-center gap-3">
                                     <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="h-12 w-12 rounded object-cover bg-gray-100" />
                                     <div>
@@ -51,7 +51,14 @@
                                                 @endforeach
                                             </div>
                                         @endif
-                                        <div class="text-xs text-gray-500">{{ $product->slug }}</div>
+                                        <div class="hidden text-xs text-gray-500 sm:block">{{ $product->slug }}</div>
+                                        <details class="sm-disclosure mt-1 text-xs text-gray-500 sm:hidden">
+                                            <summary class="cursor-pointer py-1">Details</summary>
+                                            <div class="space-y-1 break-words py-1">
+                                                <div>{{ \App\Models\Product::productTypeLabel((string) $product->product_type) }} · {{ \App\Models\Product::statusLabel((string) $product->status) }}</div>
+                                                <div>Slug: {{ $product->slug }}</div>
+                                            </div>
+                                        </details>
                                         @if(in_array($product->id, $allocationAttentionIds, true))
                                             <x-ui.badge class="mt-1" tone="warning" icon="fa-solid fa-circle-exclamation" :href="route('admin.shop.product.edit', $product).'#cost-centre-allocation'">Allocation needs review</x-ui.badge>
                                         @endif
@@ -60,7 +67,7 @@
                             </td>
                             <td class="hidden lg:table-cell text-center!">{{ \App\Models\Product::statusLabel((string) $product->status) }}</td>
                             <td class="hidden md:table-cell text-center!">{{ \App\Models\Product::productTypeLabel((string) $product->product_type) }}</td>
-                            <td>
+                            <td data-label="Availability">
                                 <div class="font-semibold text-gray-900">
                                     @if($product->isMaterial())
                                         Material costs only
@@ -93,9 +100,9 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="text-center!">{{ $product->isMaterial() ? '—' : \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
-                            <td class="text-center!">
-                                <x-ui.row-actions>
+                            <td class="text-center!" data-label="Price">{{ $product->isMaterial() ? '—' : \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
+                            <td class="text-center!" data-mobile-actions>
+                                <x-ui.row-actions :title="$product->title">
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.product.edit', $product) }}" />
                                     @if($product->isPhysical())
                                         <x-ui.row-action label="Adjust stock" icon="fa-solid fa-boxes-stacked" tone="neutral" type="button" data-product-stock-adjustment data-stock-url="{{ route('admin.shop.product.stock.show', $product) }}" data-stock-title="{{ $product->title }}" aria-label="Adjust stock for {{ $product->title }}" />

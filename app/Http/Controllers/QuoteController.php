@@ -696,10 +696,11 @@ class QuoteController extends Controller
             $unitPrice = (float) ($item['unit_price'] ?? 0);
             $gstApplicable = filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN);
             $isProductLine = (string) ($item['kind'] ?? '') === 'product';
+            $isMultiWorkshopLine = (string) ($item['kind'] ?? '') === 'multi_workshop';
             $hasSelectedProduct = (int) ($item['source_id'] ?? 0) > 0
                 || (int) data_get($item, 'store_context.product_id', 0) > 0;
 
-            if (($description === '' || $quantity <= 0) && (! $isProductLine || $hasSelectedProduct)) {
+            if (! $isMultiWorkshopLine && ($description === '' || $quantity <= 0) && (! $isProductLine || $hasSelectedProduct)) {
                 continue;
             }
 
@@ -774,92 +775,6 @@ class QuoteController extends Controller
         return round($gst, 2);
     }
 
-    private function paginateLineItemsForPdf(Quote $quote): array
-    {
-        $items = is_array($quote->line_items) ? array_values($quote->line_items) : [];
-
-        if (count($items) === 0) {
-            return [[]];
-        }
-
-        $weights = array_map(fn (array $item) => $this->lineItemPdfWeight($item), $items);
-        $firstLastCap = 9.0;
-        $firstCap = 16.0;
-        $middleCap = 26.0;
-        $lastCap = 9.0;
-
-        $totalWeight = array_sum($weights);
-        if ($totalWeight <= $firstLastCap) {
-            return [$items];
-        }
-
-        $pages = [];
-        $index = 0;
-
-        [$firstPageItems, $index] = $this->packPage($items, $weights, $index, $firstCap);
-        $pages[] = $firstPageItems;
-
-        while ($this->remainingWeight($weights, $index) > $lastCap) {
-            [$middlePageItems, $index] = $this->packPage($items, $weights, $index, $middleCap);
-            $pages[] = $middlePageItems;
-        }
-
-        $pages[] = array_slice($items, $index);
-
-        return $pages;
-    }
-
-    private function packPage(array $items, array $weights, int $startIndex, float $capacity): array
-    {
-        $currentWeight = 0.0;
-        $currentItems = [];
-        $index = $startIndex;
-        $count = count($items);
-
-        while ($index < $count) {
-            $nextWeight = $weights[$index] ?? 1.0;
-            if (count($currentItems) > 0 && ($currentWeight + $nextWeight) > $capacity) {
-                break;
-            }
-
-            $currentItems[] = $items[$index];
-            $currentWeight += $nextWeight;
-            $index++;
-        }
-
-        if (count($currentItems) === 0 && $startIndex < $count) {
-            $currentItems[] = $items[$startIndex];
-            $index = $startIndex + 1;
-        }
-
-        return [$currentItems, $index];
-    }
-
-    private function remainingWeight(array $weights, int $startIndex): float
-    {
-        $remaining = 0.0;
-        $count = count($weights);
-
-        for ($i = $startIndex; $i < $count; $i++) {
-            $remaining += (float) ($weights[$i] ?? 0);
-        }
-
-        return $remaining;
-    }
-
-    private function lineItemPdfWeight(array $item): float
-    {
-        $notes = trim((string) ($item['notes'] ?? ''));
-        if ($notes === '') {
-            return 1.0;
-        }
-
-        $noteLines = preg_split('/\r\n|\r|\n/', $notes) ?: [];
-        $lineCount = max(count($noteLines), 1);
-
-        return 1.0 + min($lineCount * 0.35, 4.0);
-    }
-
     private function buildQuotePdf(Quote $quote): PDF
     {
         $quote->loadMissing('user');
@@ -868,11 +783,8 @@ class QuoteController extends Controller
             abort(500, 'Quote PDF generation requires barryvdh/laravel-dompdf.');
         }
 
-        $itemPages = $this->paginateLineItemsForPdf($quote);
-
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', [
             'quote' => $quote,
-            'itemPages' => $itemPages,
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);

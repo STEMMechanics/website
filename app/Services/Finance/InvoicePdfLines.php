@@ -9,8 +9,23 @@ class InvoicePdfLines
 {
     public static function prepare(array $items): array
     {
+        foreach ($items as &$item) {
+            if (($item['kind'] ?? '') === 'travel' && isset($item['details_json']['travel']['billable_units']) && ($item['details_json']['travel']['quantity_basis'] ?? '') !== 'hours') {
+                $item['quantity'] = $item['details_json']['travel']['billable_units'] / 4;
+                $item['unit_price_ex_tax'] = ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0) * 4;
+            }
+        }
+        unset($item);
+
+        return self::withWorkshopDetails($items);
+    }
+
+    public static function withWorkshopDetails(iterable $items): array
+    {
+        $items = collect($items)->toArray();
         $linkedEntries = collect($items)
-            ->flatMap(fn (array $item): array => self::linkedWorkshopEntries($item))
+            ->reject(fn (array $item): bool => isset($item['workshop_details']))
+            ->flatMap(fn (array $item): array => self::workshopEntries($item))
             ->filter(fn (array $entry): bool => trim((string) ($entry['id'] ?? '')) !== '')
             ->values();
         $workshops = $linkedEntries->isEmpty()
@@ -22,26 +37,44 @@ class InvoicePdfLines
 
         $result = [];
         foreach ($items as $item) {
-            if (($item['kind'] ?? '') === 'travel' && isset($item['details_json']['travel']['billable_units']) && ($item['details_json']['travel']['quantity_basis'] ?? '') !== 'hours') {
-                $item['quantity'] = $item['details_json']['travel']['billable_units'] / 4;
-                $item['unit_price_ex_tax'] = ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0) * 4;
-            }
-            $linkedWorkshops = self::presentableLinkedWorkshops($item, $workshops);
-            if ($linkedWorkshops !== []) {
-                $item['linked_workshops'] = $linkedWorkshops;
+            if (! isset($item['workshop_details'])) {
+                $details = self::presentableWorkshops($item, $workshops);
+                if ($details !== []) {
+                    $item['workshop_details'] = $details;
+                }
             }
             $result[] = $item;
         }
+
         return $result;
     }
 
-    private static function linkedWorkshopEntries(array $item): array
+    public static function notesForPdf(array $item): string
+    {
+        $notes = trim((string) ($item['notes'] ?? ''));
+        $noteLines = preg_split('/\r\n|\r|\n/', $notes) ?: [];
+        $existing = array_map(fn (string $line): string => trim(preg_replace('/^[-*]\s+/', '', trim($line))), $noteLines);
+        $workshopNotes = collect($item['workshop_details'] ?? [])
+            ->filter(fn (array $workshop): bool => $workshop['label'] !== '' && ! in_array($workshop['label'], $existing, true))
+            ->map(fn (array $workshop): string => '- '.$workshop['label'])
+            ->implode("\n");
+
+        return implode("\n", array_filter([$notes, $workshopNotes], fn (string $value): bool => $value !== ''));
+    }
+
+    private static function workshopEntries(array $item): array
     {
         $kind = (string) ($item['kind'] ?? '');
         if ($kind === 'workshop') {
             $settings = is_array($item['details_json']['workshop'] ?? null) ? $item['details_json']['workshop'] : [];
 
-            return self::linkedWorkshopEntry($settings, $item);
+            if ($settings === [] && ! isset($item['workshop_date']) && ! isset($item['workshop_hours']) && ! isset($item['workshop_seats'])) {
+                return [];
+            }
+
+            $entry = self::workshopEntry($settings, $item);
+
+            return $entry !== [] ? [$entry] : [];
         }
 
         if ($kind !== 'multi_workshop') {
@@ -49,12 +82,12 @@ class InvoicePdfLines
         }
 
         $entries = [];
-        foreach (($item['details_json']['multi_workshop']['rows'] ?? []) as $row) {
+        foreach (($item['details_json']['multi_workshop']['rows'] ?? $item['workshops'] ?? []) as $row) {
             if (! is_array($row)) {
                 continue;
             }
             $settings = is_array($row['details_json']['workshop'] ?? null) ? $row['details_json']['workshop'] : [];
-            $entry = self::linkedWorkshopEntry($settings, $row);
+            $entry = self::workshopEntry($settings, $row);
             if ($entry !== []) {
                 $entries[] = $entry;
             }
@@ -63,25 +96,26 @@ class InvoicePdfLines
         return $entries;
     }
 
-    private static function linkedWorkshopEntry(array $settings, array $source): array
+    private static function workshopEntry(array $settings, array $source): array
     {
         $id = trim((string) ($settings['linked_workshop_id'] ?? ''));
-        if ($id === '') {
+        $description = trim((string) ($source['description'] ?? ''));
+        if ($id === '' && $description === '') {
             return [];
         }
 
         return [
             'id' => $id,
-            'description' => trim((string) ($source['description'] ?? '')),
+            'description' => $description,
             'date' => $source['workshop_date'] ?? $settings['date'] ?? null,
             'hours' => $source['workshop_hours'] ?? $settings['hours'] ?? null,
             'seats' => $source['workshop_seats'] ?? $settings['seats'] ?? null,
         ];
     }
 
-    private static function presentableLinkedWorkshops(array $item, $workshops): array
+    private static function presentableWorkshops(array $item, $workshops): array
     {
-        return collect(self::linkedWorkshopEntries($item))
+        return collect(self::workshopEntries($item))
             ->map(function (array $entry) use ($workshops): array {
                 $workshop = $workshops->get($entry['id']);
                 $title = trim((string) (data_get($workshop, 'title') ?? $entry['description'] ?? ''));

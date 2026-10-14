@@ -8,10 +8,10 @@
         @if($orders->isEmpty())
             <x-none-found item="orders" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table variant="listing">
+            <x-ui.table variant="listing" :mobile-cards="true" class="sm-order-cards">
                 <x-slot:header>
                     <x-ui.list-heading label="Order" />
-                    <x-ui.list-heading class="hidden md:table-cell" label="Customer" />
+                    <x-ui.list-heading label="Customer" />
                     <x-ui.list-heading class="text-center!" label="Status" />
                     <x-ui.list-heading class="text-center!" label="Total" />
                     <x-ui.list-heading class="text-center!" label="Actions" />
@@ -19,18 +19,19 @@
                 <x-slot:body>
                     @foreach($orders as $order)
                         <tr>
-                            <td>
+                            <td data-mobile-primary>
                                 <a href="{{ route('admin.shop.order.edit', $order) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $order->order_number }}</a>
                                 <div class="text-xs text-gray-500"><x-ui.date-time>{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</x-ui.date-time></div>
                             </td>
-                            <td class="hidden md:table-cell">
+                            <td data-label="Customer" data-mobile-wide>
                                 <div>{{ $order->billing_name ?: '-' }}</div>
-                                <div class="text-xs text-gray-500">{{ $order->billing_email ?: '-' }}</div>
+                                @if($order->billing_company)<div class="text-xs text-gray-500">{{ $order->billing_company }}</div>@endif
+                                <div class="hidden text-xs text-gray-500 sm:block">{{ $order->billing_email ?: '-' }}</div>
                             </td>
-                            <td class="text-center!"><x-ui.store-order-status-badge :order="$order" /></td>
-                            <td class="text-center!">${{ number_format((float) $order->total_amount, 2) }}</td>
-                            <td class="">
-                                <x-ui.row-actions class="whitespace-nowrap">
+                            <td class="text-center!" data-label="Status"><x-ui.store-order-status-badge :order="$order" /></td>
+                            <td class="text-center!" data-label="Total">${{ number_format((float) $order->total_amount, 2) }}</td>
+                            <td data-mobile-actions>
+                                <x-ui.row-actions class="whitespace-nowrap" :title="'Order '.$order->order_number">
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.order.edit', $order) }}" aria-label="Edit order {{ $order->order_number }}" />
                                     @if($order->invoice)
                                         <x-ui.row-action label="View invoice PDF" icon="fa-regular fa-file-pdf" tone="neutral" href="{{ route('admin.invoice.pdf', $order->invoice) }}" target="_blank" aria-label="View invoice PDF for order {{ $order->order_number }}" />

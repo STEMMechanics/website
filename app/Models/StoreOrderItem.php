@@ -112,6 +112,13 @@ class StoreOrderItem extends Model
         return $this->belongsTo(InvoiceLine::class);
     }
 
+    public function isPaid(): bool
+    {
+        $invoice = $this->invoiceLine->invoice ?? $this->order?->invoice;
+
+        return $invoice instanceof Invoice && $invoice->outstandingAmount() <= 0.0001;
+    }
+
     /**
      * @return HasMany<StoreOrderItemDownload, $this>
      */

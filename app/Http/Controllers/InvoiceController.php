@@ -2433,7 +2433,7 @@ class InvoiceController extends Controller
 
     private function lineItemPdfWeight(array $item): float
     {
-        $notes = trim((string) ($item['notes'] ?? ''));
+        $notes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
         if ($notes === '') {
             return 1.0;
         }
@@ -2597,7 +2597,7 @@ class InvoiceController extends Controller
             ? (float) $item['tax_rate']
             : (filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN) ? 0.10 : 0.00);
 
-        if ($kind !== 'product' && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
+        if (! in_array($kind, ['product', 'multi_workshop'], true) && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
             return null;
         }
 

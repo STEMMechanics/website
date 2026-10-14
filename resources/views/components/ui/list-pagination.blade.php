@@ -10,7 +10,7 @@
     <p>Showing {{ $paginator->firstItem() ?? 0 }}–{{ $paginator->lastItem() ?? 0 }} of {{ number_format($paginator->total()) }} {{ $label }}</p>
     @endif
     @isset($actions)<div class="min-w-0">{{ $actions }}</div>@endisset
-    <div class="ml-auto flex flex-wrap items-center gap-4">
+    <div data-pagination-controls class="ml-auto flex flex-wrap items-center gap-4">
         {{ $slot }}
         <form method="GET" action="{{ request()->url() }}" class="flex items-center gap-2 whitespace-nowrap" data-dynamic-form>
             @foreach(\Illuminate\Support\Arr::dot($pageSizeQuery) as $key => $value)
@@ -28,7 +28,7 @@
                 @php($pages = collect([1, ...range(max(1, $paginator->currentPage() - 1), min($paginator->lastPage(), $paginator->currentPage() + 1)), $paginator->lastPage()])->unique()->sort()->values())
                 @foreach($pages as $index => $page)
                     @if($index > 0 && $page - $pages[$index - 1] > 1)<span class="hidden sm:inline" aria-hidden="true">…</span>@endif
-                    @if($page === $paginator->currentPage())<span class="sm-page-link sm-page-current" aria-current="page" aria-label="Page {{ $page }}">{{ $page }}</span>@else<a class="sm-page-link {{ abs($page - $paginator->currentPage()) > 1 ? 'hidden! sm:inline-flex!' : '' }}" href="{{ $paginator->url($page) }}" aria-label="Go to page {{ $page }}">{{ $page }}</a>@endif
+                    @if($page === $paginator->currentPage())<span class="sm-page-link sm-page-current" aria-current="page" aria-label="Page {{ $page }} of {{ $paginator->lastPage() }}"><span class="sm:hidden">{{ $page }}/{{ $paginator->lastPage() }}</span><span class="hidden sm:inline">{{ $page }}</span></span>@else<a class="sm-page-link hidden! sm:inline-flex!" href="{{ $paginator->url($page) }}" aria-label="Go to page {{ $page }}">{{ $page }}</a>@endif
                 @endforeach
                 @if($paginator->hasMorePages())<a class="sm-page-link" href="{{ $paginator->nextPageUrl() }}" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></a>@else<span class="sm-page-link opacity-40" aria-disabled="true" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></span>@endif
             </nav>

@@ -1,29 +1,10 @@
-@props(['isLocked' => false, 'invoiceLayout' => false])
+@props(['isLocked' => false, 'invoiceLayout' => false, 'mobileEditor' => false])
 @php
-    $lineItemsWrapperClass = $invoiceLayout ? 'sm-invoice-line-items' : '';
+    $useMobileEditor = $invoiceLayout || $mobileEditor;
+    $lineItemsWrapperClass = $useMobileEditor ? 'sm-invoice-line-items' : '';
     $lineItemsTableClass = $invoiceLayout ? 'sm-invoice-line-items-table min-w-[44rem] w-full' : 'min-w-[44rem] w-full';
 @endphp
-<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="{
-    mobileLineItemIndex: null,
-    mobileWorkshopRows(item) {
-        return item?.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [];
-    },
-    mobileWorkshopSummary(item) {
-        return this.mobileWorkshopRows(item).map(row => String(row.description || '').trim()).filter(Boolean).join(', ');
-    },
-    openMobileLineItem(index) {
-        this.mobileLineItemIndex = index;
-        this.$nextTick(() => {
-            const dialog = this.$refs.mobileLineItemDialog;
-            if (dialog && !dialog.open) dialog.showModal();
-        });
-    },
-    closeMobileLineItem() {
-        const dialog = this.$refs.mobileLineItemDialog;
-        if (dialog?.open) dialog.close();
-        this.mobileLineItemIndex = null;
-    },
-}" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
+<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }})" x-init="lineItems.forEach(item => { SM.defaultWorkshopDescription(item); SM.initializeWorkshopNotes(item); }); serializeLineItems()">
     <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-bold text-lg">Line Items</h3>
     </div>
@@ -36,8 +17,8 @@
     </template>
 
     <x-ui.table variant="listing" class="{{ $lineItemsWrapperClass }}" table-class="{{ $lineItemsTableClass }}">
-        <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="w-16 text-center">Actions</th></tr></thead>
-        <template x-for="(item, index) in lineItems" :key="index">
+        <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="{{ $isLocked ? 'w-16' : 'w-44' }} text-center">Actions</th></tr></thead>
+        <template x-for="(item, index) in lineItems" :key="lineItemKey(item)">
             <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; item.kind === 'workshop') }" class="[&>tr>td]:bg-white!">
                 <tr>
                     <td data-label="Description" data-mobile-wide class="min-w-64">
@@ -52,7 +33,15 @@
                     <td data-label="Unit price (inc GST)"><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price including GST" type="number" step="any" class="h-11 pl-6! pr-11!" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div></td>
                     <td data-label="GST" class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     <td data-label="Total (inc GST)" class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></td>
-                    <td data-label="Actions" data-mobile-actions class="text-center">@if(! $isLocked)<x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />@endif</td>
+                    <td data-label="Actions" data-mobile-actions class="text-center">
+                        @if(! $isLocked)
+                            <x-ui.row-actions :menu="false">
+                                <x-ui.row-action label="Move up" icon="fa-arrow-up" x-on:click.prevent="moveLineItem(index, -1)" x-bind:disabled="index === 0" />
+                                <x-ui.row-action label="Move down" icon="fa-arrow-down" x-on:click.prevent="moveLineItem(index, 1)" x-bind:disabled="index === lineItems.length - 1" />
+                                <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />
+                            </x-ui.row-actions>
+                        @endif
+                    </td>
                 </tr>
                 <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
                     <x-finance.line-item-details :invoice-layout="$invoiceLayout" class="ml-10" />
@@ -60,12 +49,9 @@
             </tbody>
         </template>
     </x-ui.table>
-    @if($invoiceLayout)
-        <template x-if="lineItems.length === 0">
-            <div class="sm-invoice-mobile-empty text-sm text-gray-500">No line items yet.</div>
-        </template>
+    @if($useMobileEditor)
         <div class="sm-invoice-mobile-line-items" x-show="lineItems.length > 0" x-cloak>
-            <template x-for="(item, index) in lineItems" :key="'mobile-line-item-' + index">
+            <template x-for="(item, index) in lineItems" :key="'mobile-line-item-' + lineItemKey(item)">
                 <article class="sm-invoice-mobile-line-item">
                     <div class="sm-invoice-mobile-line-item-header">
                         <div class="min-w-0">
@@ -78,7 +64,7 @@
                     </div>
                     <dl class="sm-invoice-mobile-line-item-totals">
                         <div><dt>HRS / QTY</dt><dd x-text="normalizeMoney(item.quantity)"></dd></div>
-                        <div><dt>Unit price (inc GST)</dt><dd>$<span x-text="normalizeMoney(item.unit_price_inc_tax)"></span></dd></div>
+                        <div><dt>Unit price (inc GST)</dt><dd>$<span x-text="SM.formatUnitPrice(item.unit_price_inc_tax)"></span></dd></div>
                         <div><dt>GST</dt><dd x-text="item.gst_applicable ? 'Included' : 'Not applied'"></dd></div>
                         <div><dt>Total (inc GST)</dt><dd>$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></dd></div>
                     </dl>
@@ -91,6 +77,12 @@
                             <p class="mt-1 break-words text-sm text-slate-600" x-show="mobileWorkshopSummary(item)" x-text="mobileWorkshopSummary(item)"></p>
                         </div>
                     </template>
+                    @if(! $isLocked)
+                        <x-ui.row-actions :menu="false" class="mt-3 justify-end!">
+                            <x-ui.row-action label="Move up" icon="fa-arrow-up" x-on:click.prevent="moveLineItem(index, -1)" x-bind:disabled="index === 0" />
+                            <x-ui.row-action label="Move down" icon="fa-arrow-down" x-on:click.prevent="moveLineItem(index, 1)" x-bind:disabled="index === lineItems.length - 1" />
+                        </x-ui.row-actions>
+                    @endif
                 </article>
             </template>
         </div>

@@ -23,6 +23,8 @@ class StoreOrderUpdate extends Model
 
     public const EVENT_PUBLIC_NOTE_UPDATED = 'public_note_updated';
 
+    public const EVENT_INVOICE_ATTACHED = 'invoice_attached';
+
     protected $fillable = [
         'store_order_id',
         'store_order_item_id',

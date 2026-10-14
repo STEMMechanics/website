@@ -27,16 +27,16 @@
 
     <x-container class="mt-4">
         @isset($quote)
-            <div class="flex justify-end mb-4 gap-3">
-                <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
+            <div class="sm-quote-toolbar mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                <x-ui.button type="button" class="w-full sm:w-auto" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" class="w-full sm:w-auto" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
-                    <x-ui.button type="submit" x-data x-on:click.prevent="
+                    <x-ui.button type="submit" class="w-full sm:w-auto" x-data x-on:click.prevent="
                         open = true;
                     ">Email Quote</x-ui.button>
 
                     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="open = false">
-                        <div class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg">
+                        <div class="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg" role="dialog" aria-modal="true" aria-label="Email Quote">
                             <div class="mb-3 flex items-center justify-between">
                                 <h3 class="text-lg font-semibold">Email Quote</h3>
                                 <x-ui.button size="icon-small" aria-label="Close quote email" variant="text" color="secondary" type="button"  x-on:click.prevent="open = false">
@@ -88,13 +88,13 @@
                         </div>
                     </div>
                 </form>
-                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
+                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}" class="w-full sm:w-auto">
                     @csrf
-                    <x-ui.button type="submit" color="outline">Duplicate Quote</x-ui.button>
+                    <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Duplicate Quote</x-ui.button>
                 </form>
-                <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
+                <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}" class="w-full sm:w-auto">
                     @csrf
-                    <x-ui.button type="submit">{{ isset($quote) && $quote->hasStoreProductLines() ? 'Create Order & Invoice' : 'Create Invoice From Quote' }}</x-ui.button>
+                    <x-ui.button type="submit" class="w-full sm:w-auto whitespace-normal!">{{ $quote->hasStoreProductLines() ? 'Create Order & Invoice' : 'Create Invoice From Quote' }}</x-ui.button>
                 </form>
             </div>
         @endisset
@@ -253,7 +253,7 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => item.kind === 'product' || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+                        .filter((item) => ['product', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },
@@ -346,14 +346,16 @@
                 lookup-name="quote_linked_user_lookup"
                 label="Linked User"
                 info="Search by name/organisation/email. Select a suggestion to link the quote."
+                :mobile-stacked="true"
             />
 
             @if($editing)
-                <div class="mb-4">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-sm pl-1">Linked Invoices</label>
+                <details class="sm-disclosure mb-3" @if($linkedInvoices->isNotEmpty()) open @endif>
+                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                        <span class="text-sm font-medium">Linked Invoices</span>
                         <span class="text-xs text-gray-500">{{ $linkedInvoices->count() }} linked</span>
-                    </div>
+                        <i class="fa-solid fa-chevron-down text-xs text-gray-500" aria-hidden="true"></i>
+                    </summary>
                     @if($linkedInvoices->isEmpty())
                         <div class="mt-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600">
                             No invoices linked yet. Create a new invoice from this quote, or link an existing invoice from the invoice edit page.
@@ -375,13 +377,14 @@
                         </div>
                     @endif
                     <div class="text-xs text-gray-500 ml-2 mt-1">Each invoice can link to one quote. A quote can link to multiple invoices for staged or progress billing.</div>
-                </div>
+                </details>
 
-                <div class="mb-4">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-sm pl-1">Linked Orders</label>
+                <details class="sm-disclosure mb-4" @if(($quote->storeOrders ?? collect())->isNotEmpty()) open @endif>
+                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                        <span class="text-sm font-medium">Linked Orders</span>
                         <span class="text-xs text-gray-500">{{ ($quote->storeOrders ?? collect())->count() }} linked</span>
-                    </div>
+                        <i class="fa-solid fa-chevron-down text-xs text-gray-500" aria-hidden="true"></i>
+                    </summary>
                     @if(($quote->storeOrders ?? collect())->isEmpty())
                         <div class="mt-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600">
                             No store orders linked yet.
@@ -403,7 +406,7 @@
                         </div>
                     @endif
                     <div class="text-xs text-gray-500 ml-2 mt-1">Store orders created from this quote are linked here.</div>
-                </div>
+                </details>
             @endif
 
             <x-ui.select label="Status" name="status" x-model="quoteStatus">
@@ -448,9 +451,9 @@
                 </div>
             </div>
 
-            <x-finance.line-items-editor />
+            <x-finance.line-items-editor :mobile-editor="true" />
 
-            <div class="flex gap-8">
+            <div class="grid gap-x-8 sm:grid-cols-2">
                 <div class="flex-1">
                     <x-ui.input type="text" label="Subtotal (Ex GST, Auto)" name="subtotal_amount_display" x-bind:value="subtotalAmountFormatted()" value="{{ old('subtotal_amount_display', $quote->subtotal_amount ?? '0.00') }}" readonly="true" />
                 </div>
@@ -459,11 +462,10 @@
                 </div>
             </div>
 
-            <div class="flex gap-8">
+            <div class="grid gap-x-8 sm:grid-cols-2">
                 <div class="flex-1">
                     <x-ui.input type="text" label="Total Amount (Auto, incl GST)" name="total_amount_display" x-bind:value="totalAmountFormatted()" value="{{ old('total_amount_display', $quote->total_amount ?? '0.00') }}" readonly="true" />
                 </div>
-                <div class="flex-1"></div>
             </div>
 
             <x-ui.input type="textarea" label="Notes" name="notes" value="{{ old('notes', $quote->notes ?? '') }}" />
@@ -479,14 +481,23 @@
                 :files="$privateFinanceFiles"
             />
 
-            <x-ui.editor-actions>
+            @isset($quote)
+                <p id="quote-save-email-info" x-show="quoteStatus !== {{ \Illuminate\Support\Js::from(\App\Models\Quote::STATUS_OPEN) }}" x-cloak class="mt-4 text-sm text-gray-600">Save and Email is available when the quote status is Open.</p>
+            @endisset
+            <x-ui.editor-actions :sticky-mobile="true">
                 @isset($quote)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete</x-ui.button>
+                    <details class="sm-disclosure sm-editor-secondary-actions">
+                        <summary class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">More <i class="fa-solid fa-chevron-up" aria-hidden="true"></i></summary>
+                        <div class="sm-editor-secondary-menu">
+                            <x-ui.button data-editor-delete type="button" color="danger-outline" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete quote</x-ui.button>
+                        </div>
+                    </details>
                     <x-ui.button
                         type="submit"
                         color="primary-outline"
                         name="save_and_email"
                         value="1"
+                        aria-describedby="quote-save-email-info"
                         x-bind:disabled="quoteStatus !== {{ \Illuminate\Support\Js::from(\App\Models\Quote::STATUS_OPEN) }}"
                     >
                         Save and Email
