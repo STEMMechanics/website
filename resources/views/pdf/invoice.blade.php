@@ -88,7 +88,7 @@
     $shippingComparison = $shippingAddress ? $normalizeAddress(array_values($shippingAddress)) : '';
     $showShippingAddress = $storeOrder
         && (bool) $storeOrder->contains_physical
-        && (string) $storeOrder->shipping_method_code !== \App\Models\StoreShippingMethod::CODE_PICKUP
+        && ! $storeOrder->usesPickup()
         && $shippingAddress['address'] !== ''
         && $shippingComparison !== $billingComparison;
     $showShippingCountry = $showShippingAddress

@@ -318,13 +318,28 @@ class StoreCartService
         $shippingCountry = trim((string) ($options['shipping_country'] ?? 'Australia')) ?: 'Australia';
         $consolidateShipments = (bool) ($options['consolidate_shipments'] ?? $this->consolidateShipments());
         $requestedShippingMethodCode = trim((string) ($options['shipping_method_code'] ?? $this->shippingMethodCode() ?? ''));
+        $subtotal = round((float) $lines->sum('line_price'), 2);
+        $requestedCouponCode = $options['coupon_code'] ?? $this->couponCode();
+        $couponEvaluation = $this->coupons->evaluate(
+            $requestedCouponCode,
+            $subtotal,
+            0.0,
+            $options['user'] ?? null,
+            $options['billing_email'] ?? null,
+            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
+            [
+                'product_ids' => $lines->pluck('product.id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            ],
+        );
+        $cartValue = $this->coupons->discountedSubtotal($subtotal, $couponEvaluation);
         $methodQuotes = $this->shipping->availableMethods($lines)
-            ->map(function (StoreShippingMethod $method) use ($lines, $shippingCountry, $consolidateShipments): array {
+            ->map(function (StoreShippingMethod $method) use ($lines, $shippingCountry, $consolidateShipments, $cartValue): array {
                 $methodQuote = $this->shipping->quote(
                     $lines,
                     $shippingCountry,
                     (string) $method->code,
                     $consolidateShipments,
+                    $cartValue,
                 );
 
                 return [
@@ -361,21 +376,11 @@ class StoreCartService
             $methodQuotesForPresentation,
             $shippingMethods,
             $selectedShippingMethodCode,
+            $cartValue,
         );
 
         $shippingAmount = round((float) ($shippingQuote['amount'] ?? 0), 2);
-        $requestedCouponCode = $options['coupon_code'] ?? $this->couponCode();
-        $couponEvaluation = $this->coupons->evaluate(
-            $requestedCouponCode,
-            (float) $lines->sum('line_price'),
-            $shippingAmount,
-            $options['user'] ?? null,
-            $options['billing_email'] ?? null,
-            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
-            [
-                'product_ids' => $lines->pluck('product.id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
-            ],
-        );
+        $couponEvaluation = $this->coupons->withShippingAmount($couponEvaluation, $subtotal, $shippingAmount);
         $normalizedRequestedCouponCode = Coupon::normalizeCode($requestedCouponCode);
         $normalizedStoredCouponCode = Coupon::normalizeCode($this->couponCode());
 
@@ -385,7 +390,6 @@ class StoreCartService
             $this->clearCoupon();
         }
 
-        $subtotal = round((float) $lines->sum('line_price'), 2);
         $shipping = round((float) ($shippingQuote['amount'] ?? 0), 2);
         $discount = round(min($subtotal + $shipping, (float) ($couponEvaluation['discount_amount'] ?? 0)), 2);
         $itemGst = round((float) $lines->sum('line_gst'), 2);
@@ -854,7 +858,8 @@ class StoreCartService
         bool $consolidateShipments,
         Collection $methodQuotes,
         Collection $shippingMethods,
-        ?string $selectedShippingMethodCode
+        ?string $selectedShippingMethodCode,
+        float $cartValue,
     ): array {
         $selectedCode = trim((string) $selectedShippingMethodCode);
 
@@ -867,7 +872,7 @@ class StoreCartService
             );
 
             if (is_array($manualQuoteMethod)) {
-                $shippingQuote = $this->shipping->quote($lines, $shippingCountry, (string) ($manualQuoteMethod['code'] ?? ''), $consolidateShipments);
+                $shippingQuote = $this->shipping->quote($lines, $shippingCountry, (string) ($manualQuoteMethod['code'] ?? ''), $consolidateShipments, $cartValue);
                 $shippingQuote['selected_method_code'] = StoreShippingService::REQUEST_QUOTE_METHOD_CODE;
                 $shippingQuote['method'] = 'Request quote';
                 $shippingQuote['note'] = is_array($requestQuoteOption) ? ($requestQuoteOption['description'] ?? null) : ($shippingQuote['reason'] ?? null);
@@ -883,10 +888,10 @@ class StoreCartService
         }
 
         if ($selectedCode !== '') {
-            return $this->shipping->quote($lines, $shippingCountry, $selectedCode, $consolidateShipments);
+            return $this->shipping->quote($lines, $shippingCountry, $selectedCode, $consolidateShipments, $cartValue);
         }
 
-        return $this->shipping->quote($lines, $shippingCountry, null, $consolidateShipments);
+        return $this->shipping->quote($lines, $shippingCountry, null, $consolidateShipments, $cartValue);
     }
 
     private function persistContents(array $contents): void

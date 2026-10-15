@@ -15,14 +15,14 @@
             <div class="min-w-0 rounded-lg border border-gray-200 bg-white p-3">
                 <div class="flex items-start justify-between gap-3">
                     <h4 class="text-sm font-semibold text-gray-900" x-text="option.channel"></h4>
-                    <span class="shrink-0 text-sm font-bold text-gray-900" x-show="option.fits" x-text="money(option.amount)"></span>
+                    <span class="shrink-0 text-sm font-bold text-gray-900" x-show="option.fits" x-text="option.pricing_type === 'cart_value' ? 'Cart value pricing' : money(option.amount)"></span>
                 </div>
                 <template x-if="option.fits">
                     <div class="mt-1 space-y-1 text-xs text-gray-600">
                         <p class="font-medium text-primary-color" x-text="option.package"></p>
                         <p x-show="option.dimensions_mm" x-text="(option.dimensions_mm || []).join(' × ') + ' mm' + (option.max_weight_grams ? ' · Up to ' + option.max_weight_grams + ' g' : '')"></p>
                         <p x-show="option.chargeable_weight_grams !== null" x-text="'Chargeable weight: ' + option.chargeable_weight_grams + ' g'"></p>
-                        <p x-show="option.packaging_cost > 0" x-text="'Includes ' + money(option.packaging_cost) + ' packaging'"></p>
+                        <p x-show="option.packaging_cost > 0 && option.pricing_type !== 'cart_value'" x-text="'Includes ' + money(option.packaging_cost) + ' packaging'"></p>
                     </div>
                 </template>
                 <p class="mt-1 text-xs text-amber-800" x-show="!option.fits" x-text="option.reason"></p>

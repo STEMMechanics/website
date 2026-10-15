@@ -65,6 +65,40 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->assertSame(2, $workshop->tickets()->count());
     }
 
+    public function test_equipment_cart_value_shipping_uses_equipment_total_without_workshop_ticket_prices(): void
+    {
+        Queue::fake();
+        \App\Models\StoreShippingMethod::query()->where('code', 'regular')->firstOrFail()->update([
+            'pricing_type' => 'cart_value',
+            'cart_value_tiers' => [['min_cart_value' => 0, 'price' => 12.95], ['min_cart_value' => 150, 'price' => 0]],
+        ]);
+        $product = \App\Models\Product::factory()->create([
+            'status' => 'active', 'product_type' => 'physical', 'price' => 149.99,
+            'inventory_quantity' => 10, 'shipping_units' => 0.5, 'min_satchel_rank' => 1, 'weight_grams' => 200,
+        ]);
+        $workshop = $this->createTicketedWorkshop(['optional_product_ids' => [$product->id]]);
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1, 'firstname' => 'Freight', 'surname' => 'Example',
+            'email' => 'freight-workshop@example.com', 'phone' => '0400123456',
+        ])->assertSessionHasNoErrors();
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), [
+            'action' => 'select', 'quantities' => [$product->id => 1],
+        ])->assertSessionHasNoErrors();
+        $delivery = [
+            'action' => 'quote', 'shipping_method_code' => 'regular', 'shipping_name' => 'Freight Example',
+            'shipping_phone' => '0400123456', 'shipping_address' => '123 Maker Street', 'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD', 'shipping_postcode' => '4000', 'shipping_country' => 'Australia',
+        ];
+        $this->get(route('workshop.ticket.flow.delivery', $workshop))->assertOk()->assertViewHas('ticketAmount', 15.0);
+        $this->postJson(route('workshop.ticket.flow.delivery.save', $workshop), $delivery)->assertOk()
+            ->assertJsonPath('summary.shipping', 12.95)->assertJsonPath('summary.shipping_quote.cart_value', 149.99);
+        $this->post(route('workshop.ticket.flow.equipment.save', $workshop), [
+            'action' => 'select', 'quantities' => [$product->id => 2],
+        ])->assertSessionHasNoErrors();
+        $this->postJson(route('workshop.ticket.flow.delivery.save', $workshop), $delivery)->assertOk()
+            ->assertJsonPath('summary.shipping', 0)->assertJsonPath('summary.shipping_quote.cart_value', 299.98);
+    }
+
     public function test_optional_equipment_holds_last_twenty_minutes_in_countdown_availability_and_cleanup(): void
     {
         Queue::fake();
