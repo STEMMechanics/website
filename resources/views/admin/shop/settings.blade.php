@@ -356,6 +356,60 @@
                 </section>
             </div>
 
+            <section class="{{ $settingsCardClasses }} space-y-5"
+                x-data="{ selectedImage: @js(old('sidebar_shipping_image', $sidebarShippingImage) ?? '') }"
+                x-on:sm-media-updated.window="if ($event.detail.name === 'sidebar_shipping_image') selectedImage = $event.detail.value || ''"
+                x-on:click="if ($event.target.closest('button')?.id.startsWith('sidebar_shipping_image_clear_')) selectedImage = ''">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Sidebar Shipping Notice</h2>
+                    <p class="mt-1 text-sm text-gray-600">Show an image or a text notice below the store categories on desktop and mobile.</p>
+                </div>
+                <div class="grid gap-6 lg:grid-cols-2">
+                    <div class="min-w-0">
+                        <x-ui.media
+                            name="sidebar_shipping_image"
+                            label="Notice image (optional)"
+                            :value="$sidebarShippingImage"
+                            allow_uploads="true"
+                            public_usable_only="true"
+                            passwordless_only="true"
+                            info="Replaces the text notice. The whole image is shown without cropping. Clear the image to use the text again."
+                        />
+                        <x-ui.input
+                            name="sidebar_shipping_image_alt"
+                            label="Image description"
+                            :value="$sidebarShippingImageAlt"
+                            x-bind:required="selectedImage !== ''"
+                            maxlength="500"
+                            info="Required when using an image. Include any shipping prices or thresholds shown so everyone can read the offer."
+                            class="mb-0!"
+                        />
+                    </div>
+                    <div class="space-y-4">
+                        <x-ui.input
+                            type="textarea"
+                            name="sidebar_shipping_notice"
+                            label="Text notice"
+                            :value="$sidebarShippingNotice"
+                            placeholder="Flat rate shipping $12.95. Free on orders $150 and over."
+                            info="Shown when no image is selected. Leave both the image and text blank to hide the notice. This does not change delivery prices."
+                            rows="5"
+                            maxlength="500"
+                            class="mb-0!"
+                        />
+                        <input type="hidden" name="sidebar_shipping_divider" value="0">
+                        <x-ui.checkbox
+                            name="sidebar_shipping_divider"
+                            value="1"
+                            label="Show divider above notice"
+                            :checked="(bool) old('sidebar_shipping_divider', $sidebarShippingDivider)"
+                            info="Applies to both image and text notices."
+                            class="mb-0!"
+                        />
+                    </div>
+                </div>
+            </section>
+
             <section class="{{ $settingsCardClasses }} space-y-5">
                 <div class="flex items-start justify-between gap-4">
                     <div>
@@ -414,7 +468,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900">Delivery Channels</h2>
-                        <p class="mt-1 text-sm text-gray-600">Create delivery options with their own package sizes, pricing, ETA, and customer-facing notes.</p>
+                        <p class="mt-1 text-sm text-gray-600">Create delivery options with their own pricing, ETA, and customer-facing notes.</p>
                     </div>
                     <x-ui.button type="button" color="outline" x-on:click="addShippingMethod()">Add Delivery Channel</x-ui.button>
                 </div>
@@ -533,7 +587,7 @@
                                 <div class="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <h4 class="font-semibold text-gray-900">Cart Value Pricing</h4>
-                                        <p class="mt-1 text-sm text-gray-600">Uses the goods total including GST, after product discounts and excluding freight. One charge covers the whole order, including split shipments.</p>
+                                        <p class="mt-1 text-sm text-gray-600">Uses the goods total including GST, after product discounts and excluding freight. Product dimensions and weight do not affect the charge. One charge covers the whole order, including split shipments.</p>
                                     </div>
                                     <x-ui.button type="button" color="outline" x-on:click="method.cart_value_tiers.push({ min_cart_value: method.cart_value_tiers.length ? '' : '0.00', price: '' })">Add Tier</x-ui.button>
                                 </div>
@@ -560,8 +614,7 @@
                                 <p class="mt-3 text-sm text-gray-500">Include a $0.00 tier for the default price. The highest qualifying threshold applies; enter a freight charge of $0.00 for free delivery. Tiers are sorted when saved.</p>
                             </fieldset>
 
-                            <fieldset class="min-w-0" x-show="!method.is_pickup" x-bind:disabled="method.is_pickup" x-cloak>
-                            <p class="mt-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900" x-show="method.pricing_type === 'cart_value'" x-cloak>Box and weight settings below determine which items this channel can deliver. Their calculated prices remain saved; the cart value tier sets the customer's freight charge.</p>
+                            <fieldset class="min-w-0" x-show="method.pricing_type === 'calculated'" x-bind:disabled="method.pricing_type !== 'calculated'" x-cloak>
                             <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(`shipping_methods.${index}.weight_tiers`) || key === `shipping_methods.${index}.cubic_divisor` || key === `shipping_methods.${index}.calculated_packaging_cost`)">
                                 <x-slot:summary><span x-text="method.weight_tiers.length ? `${method.weight_tiers.length} weight tier${method.weight_tiers.length === 1 ? '' : 's'} · $${Number(method.calculated_packaging_cost || 0).toFixed(2)} packaging per box` : 'Not configured'"></span></x-slot:summary>
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

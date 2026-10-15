@@ -39,6 +39,9 @@ class ShopCartValueShippingTest extends TestCase
         $this->assertSame($freight, $summary['shipping']);
         $this->assertSame($freight, $summary['shipping_methods'][0]['estimated_amount']);
         $this->assertSame($goodsValue, (float) $summary['shipping_quote']['cart_value']);
+        $payload = app(StoreCartService::class)->payload();
+        $this->assertFalse($payload['has_selected_shipping_method']);
+        $this->assertSame($freight, $payload['summary']['shipping']);
         $this->assertOrderMatchesSummary($summary);
     }
 
@@ -70,7 +73,7 @@ class ShopCartValueShippingTest extends TestCase
         $this->assertOrderMatchesSummary($summary, 'FREIGHTTEST');
     }
 
-    public function test_split_shipments_and_multiple_parcels_have_only_one_order_charge(): void
+    public function test_split_shipments_have_only_one_order_charge_without_packing(): void
     {
         $this->configureCartValuePricing();
         $this->addProduct(20, [
@@ -80,7 +83,9 @@ class ShopCartValueShippingTest extends TestCase
         $cart = app(StoreCartService::class);
         $split = $cart->summary();
         $this->assertTrue($split['shipping_quote']['split_shipments']);
-        $this->assertSame(3, $split['shipping_quote']['parcel_count']);
+        $this->assertSame(0, $split['shipping_quote']['parcel_count']);
+        $this->assertSame([], $split['shipping_quote']['parcels']);
+        $this->assertSame([], $split['shipping_quote']['package_breakdown']);
         $this->assertSame(12.95, $split['shipping']);
         $this->assertSame([12.95, 0.0], array_column($split['shipping_quote']['shipments'], 'amount'));
         $this->assertSame(0.0, $split['shipping_quote']['second_shipment_charge_amount']);
@@ -93,15 +98,43 @@ class ShopCartValueShippingTest extends TestCase
         $this->assertOrderMatchesSummary($split);
     }
 
-    public function test_cart_value_prices_do_not_bypass_manual_quote_requirements(): void
+    public static function productMeasurements(): array
     {
-        $this->configureCartValuePricing();
-        $this->addProduct(200, ['shipping_units' => 0]);
+        return [
+            'missing measurements' => [[
+                'shipping_units' => 0, 'weight_grams' => null,
+                'length_mm' => null, 'width_mm' => null, 'height_mm' => null,
+            ]],
+            'oversized and overweight' => [[
+                'shipping_units' => 999, 'min_satchel_rank' => 99, 'box_only' => true,
+                'length_mm' => 10000, 'width_mm' => 10000, 'height_mm' => 10000, 'weight_grams' => 100000000,
+            ]],
+        ];
+    }
+
+    #[DataProvider('productMeasurements')]
+    public function test_cart_value_prices_ignore_product_measurements_and_saved_box_limits(array $attributes): void
+    {
+        $method = $this->configureCartValuePricing();
+        $method->update([
+            'cubic_divisor' => 4000, 'calculated_packaging_cost' => 99,
+            'weight_tiers' => [['max_weight_grams' => 1, 'price' => 99]],
+        ]);
+        $method->packageOptions()->create([
+            'code' => 'tiny', 'label' => 'Tiny box', 'capacity' => 0.01, 'price' => 99,
+            'internal_length_mm' => 1, 'internal_width_mm' => 1, 'internal_height_mm' => 1,
+            'max_weight_grams' => 1, 'is_active' => true,
+        ]);
+        $this->addProduct(20, $attributes, 2);
         $summary = app(StoreCartService::class)->summary(['shipping_method_code' => 'regular']);
 
-        $this->assertFalse($summary['can_checkout']);
-        $this->assertSame('request_quote', $summary['shipping_method_code']);
-        $this->assertTrue($summary['shipping_quote']['requires_manual_quote']);
+        $this->assertTrue($summary['can_checkout']);
+        $this->assertSame('regular', $summary['shipping_method_code']);
+        $this->assertFalse($summary['shipping_quote']['requires_manual_quote']);
+        $this->assertFalse($summary['shipping_quote']['is_pickup']);
+        $this->assertSame([], $summary['shipping_quote']['parcels']);
+        $this->assertSame(12.95, $summary['shipping']);
+        $this->assertOrderMatchesSummary($summary);
     }
 
     public function test_highest_matching_tier_wins_and_other_channels_keep_calculated_prices(): void
@@ -129,6 +162,7 @@ class ShopCartValueShippingTest extends TestCase
         $quote = app(StoreShippingService::class)->quote(app(StoreCartService::class)->lines(), 'Australia', 'regular');
         $this->assertFalse($quote['can_checkout']);
         $this->assertTrue($quote['requires_manual_quote']);
+        $this->assertSame('This delivery channel has no matching cart value price.', $quote['reason']);
     }
 
     public function test_any_channel_can_use_pickup_and_orders_remember_their_original_delivery_type(): void
@@ -157,6 +191,7 @@ class ShopCartValueShippingTest extends TestCase
             ['min_cart_value' => 0, 'price' => 12.95],
             ['min_cart_value' => 150, 'price' => 0],
         ]]);
+        $method->packageOptions()->delete();
 
         return $method;
     }

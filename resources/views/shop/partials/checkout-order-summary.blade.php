@@ -118,8 +118,16 @@
 
         <div class="flex items-center justify-between gap-4">
             <span x-text="checkoutShippingLabel()">{{ $shippingLabel }}</span>
-            <span class="font-semibold text-gray-900" x-text="requiresManualQuote() ? '--' : (canCheckout() ? formatMoney(cartState?.summary?.shipping || 0) : 'Manual quote')">
-                {{ $requiresManualQuote ? '--' : ($canCheckout ? '$'.number_format((float) ($resolvedSummary['shipping'] ?? 0), 2) : 'Manual quote') }}
+            <span class="font-semibold text-gray-900" x-text="requiresManualQuote() ? '--' : (canCheckout() ? (Number(cartState?.summary?.shipping || 0) === 0 ? 'Free' : formatMoney(cartState?.summary?.shipping)) : 'Manual quote')">
+                @if($requiresManualQuote)
+                    --
+                @elseif(!$canCheckout)
+                    Manual quote
+                @elseif((float) ($resolvedSummary['shipping'] ?? 0) === 0.0)
+                    Free
+                @else
+                    ${{ number_format((float) $resolvedSummary['shipping'], 2) }}
+                @endif
             </span>
         </div>
 

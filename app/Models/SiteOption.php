@@ -175,6 +175,24 @@ class SiteOption extends Model
                 'description' => 'Optional date that pauses shipping processing while the store is away. Orders can still be placed and will be processed from this date onward.',
                 'input_type' => 'date',
             ],
+            'store.shipping.sidebar-notice' => [
+                'value' => '',
+                'description' => 'Optional plain-text notice below the store categories. For example: Flat rate shipping $12.95. Free on orders $150 and over. Leave blank to hide. Also editable in Store Settings.',
+            ],
+            'store.shipping.sidebar-notice-image' => [
+                'value' => '',
+                'description' => 'Optional media image shown instead of the store sidebar notice text. Select a public image without password protection in Store Settings. Clear to show the text notice.',
+                'input_type' => 'media',
+            ],
+            'store.shipping.sidebar-notice-image-alt' => [
+                'value' => '',
+                'description' => 'Text alternative for the sidebar notice image. Include any shipping prices or thresholds shown in the image.',
+            ],
+            'store.shipping.sidebar-notice-divider' => [
+                'value' => '1',
+                'description' => 'Show a divider above the store sidebar notice or image.',
+                'input_type' => 'boolean',
+            ],
             'store.shipping.request-quote-sort-order' => [
                 'value' => '2',
                 'description' => 'Sort order of the system Request Quote checkout option.',

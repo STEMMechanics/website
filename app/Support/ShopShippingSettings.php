@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Media;
 use App\Models\SiteOption;
 use App\Models\StoreOrderItemTracking;
 use Illuminate\Support\Carbon;
@@ -28,6 +29,14 @@ class ShopShippingSettings
     public const BOXED_AMOUNT_OPTION = 'store.shipping.boxed-shipping-amount';
 
     public const PROCESSING_PAUSE_UNTIL_OPTION = 'store.shipping.processing-pause-until';
+
+    public const SIDEBAR_NOTICE_OPTION = 'store.shipping.sidebar-notice';
+
+    public const SIDEBAR_NOTICE_IMAGE_OPTION = 'store.shipping.sidebar-notice-image';
+
+    public const SIDEBAR_NOTICE_IMAGE_ALT_OPTION = 'store.shipping.sidebar-notice-image-alt';
+
+    public const SIDEBAR_NOTICE_DIVIDER_OPTION = 'store.shipping.sidebar-notice-divider';
 
     public const TRACKING_LINK_TEMPLATES_OPTION = 'store.shipping.tracking-link-templates';
 
@@ -100,6 +109,39 @@ class ShopShippingSettings
                 self::LEGACY_BOXED_MESSAGE_OPTION,
             ),
             'amount' => $amount !== '' && is_numeric($amount) ? round((float) $amount, 2) : null,
+        ];
+    }
+
+    public static function sidebarNotice(): string
+    {
+        return self::stringOption(self::SIDEBAR_NOTICE_OPTION);
+    }
+
+    public static function sidebarNoticeImageName(): string
+    {
+        return self::stringOption(self::SIDEBAR_NOTICE_IMAGE_OPTION);
+    }
+
+    public static function sidebarNoticeDivider(): bool
+    {
+        return self::stringOption(self::SIDEBAR_NOTICE_DIVIDER_OPTION, '1') === '1';
+    }
+
+    /** @return array{text:string,image_url:string,image_alt:string,show_divider:bool} */
+    public static function sidebarNoticeContent(): array
+    {
+        $imageName = self::sidebarNoticeImageName();
+        $image = $imageName !== ''
+            ? Media::query()->whereKey($imageName)->where('visibility', 'public')->whereNull('password')
+                ->where('mime_type', 'like', 'image/%')->first()
+            : null;
+        $text = self::sidebarNotice();
+
+        return [
+            'text' => $text,
+            'image_url' => $image?->url('md') ?? '',
+            'image_alt' => self::stringOption(self::SIDEBAR_NOTICE_IMAGE_ALT_OPTION, $text ?: 'Delivery information'),
+            'show_divider' => self::sidebarNoticeDivider(),
         ];
     }
 
@@ -242,10 +284,6 @@ class ShopShippingSettings
         return trim($value);
     }
 
-    /**
-     * @param  array  $fallback
-     * @return array
-     */
     private static function jsonOption(string $name, array $fallback, ?string $legacyName = null): array
     {
         $raw = self::stringOption($name, '', $legacyName);

@@ -12,6 +12,69 @@ function methods(path, start, end) {
 }
 
 const pricing = methods('resources/views/admin/shop/settings.blade.php', 'changePricingType(method) {', 'addShippingMethod() {');
+const drawer = methods('resources/views/components/navbar.blade.php', 'drawerSubtotalAmount() {', 'currentShippingMethodCode() {');
+
+test('the cart drawer includes a quoted default delivery price before an explicit selection', () => {
+    const state = {
+        ...drawer,
+        cartState: {
+            has_selected_shipping_method: false,
+            summary: {
+                subtotal: 50, shipping: 12.95, total: 62.95, discount: 0,
+                item_gst: 4.55, gst: 5.72, can_checkout: true,
+                shipping_quote: { pricing_type: 'cart_value', requires_manual_quote: false },
+            },
+        },
+    };
+
+    assert.equal(state.drawerHasShippingPrice(), true);
+    assert.equal(state.drawerDisplayedTotal(), 62.95);
+    assert.equal(state.drawerGstAmount(), 5.72);
+});
+
+test('the cart drawer shows free delivery and applies shipping vouchers to the default quote', () => {
+    const state = {
+        ...drawer,
+        cartState: {
+            has_selected_shipping_method: false,
+            summary: {
+                subtotal: 150, shipping: 0, total: 150, discount: 0,
+                item_gst: 13.64, gst: 13.64, can_checkout: true,
+                shipping_quote: { pricing_type: 'cart_value', requires_manual_quote: false },
+            },
+        },
+    };
+
+    assert.equal(state.drawerHasShippingPrice(), true);
+    assert.equal(state.drawerDisplayedTotal(), 150);
+    assert.equal(state.drawerGstAmount(), 13.64);
+
+    Object.assign(state.cartState.summary, {
+        subtotal: 50, shipping: 12.95, total: 50, discount: 12.95,
+        coupon_type: 'free_shipping', item_gst: 4.55, gst: 4.55,
+    });
+    assert.equal(state.drawerDiscountAmount(), 12.95);
+    assert.equal(state.drawerDisplayedTotal(), 50);
+    assert.equal(state.drawerGstAmount(), 4.55);
+});
+
+test('the cart drawer keeps shipping unknown when a manual quote is required', () => {
+    const state = {
+        ...drawer,
+        cartState: {
+            has_selected_shipping_method: true,
+            summary: {
+                subtotal: 50, shipping: 0, total: null, discount: 0,
+                item_gst: 4.55, gst: 4.55, can_checkout: false,
+                shipping_quote: { requires_manual_quote: true },
+            },
+        },
+    };
+
+    assert.equal(state.drawerHasShippingPrice(), false);
+    assert.equal(state.drawerDisplayedTotal(), 50);
+    assert.equal(state.drawerGstAmount(), 4.55);
+});
 
 test('switching pricing types retains calculated rates, package sizes, and draft cart value tiers', () => {
     const method = {

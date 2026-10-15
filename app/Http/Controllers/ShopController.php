@@ -12,6 +12,7 @@ use App\Services\ProductRecommendationService;
 use App\Services\StoreCartService;
 use App\Services\StoreCheckoutAnalytics;
 use App\Services\StoreOrderService;
+use App\Support\ShopShippingSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -121,6 +122,7 @@ class ShopController extends Controller
             'selectedCategoryRecord' => $selectedCategoryRecord,
             'selectedView' => $selectedView,
             'selectedSort' => $selectedSort,
+            'sidebarShippingNotice' => ShopShippingSettings::sidebarNoticeContent(),
             'cartPayload' => $cart->payload([
                 'shipping_country' => 'Australia',
                 'user' => $request->user(),

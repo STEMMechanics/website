@@ -20,7 +20,7 @@ class ProductPostagePreviewTest extends TestCase
         $this->actingAs($admin);
     }
 
-    public function test_cart_value_preview_checks_packing_without_presenting_a_calculated_customer_price(): void
+    public function test_cart_value_channels_are_excluded_from_postage_fit_preview(): void
     {
         $this->admin();
         StoreShippingMethod::query()->update(['is_active' => false]);
@@ -28,17 +28,19 @@ class ProductPostagePreviewTest extends TestCase
             'pricing_type' => StoreShippingMethod::PRICING_CART_VALUE,
             'cart_value_tiers' => [['min_cart_value' => 0, 'price' => 12.95], ['min_cart_value' => 150, 'price' => 0]],
         ]);
+        $measurements = ['length_mm' => 200, 'width_mm' => 100, 'height_mm' => 50, 'weight_grams' => 500];
+        $this->postJson(route('admin.shop.product.postage-preview'), $measurements)->assertOk()
+            ->assertJsonCount(0, 'options');
+
         $method->packageOptions()->create([
             'code' => 'small', 'label' => 'Small box', 'capacity' => 1, 'price' => 6,
             'internal_length_mm' => 200, 'internal_width_mm' => 100, 'internal_height_mm' => 50,
             'max_weight_grams' => 500, 'is_active' => true,
         ]);
-        $measurements = ['length_mm' => 200, 'width_mm' => 100, 'height_mm' => 50, 'weight_grams' => 500];
         $this->postJson(route('admin.shop.product.postage-preview'), $measurements)->assertOk()
-            ->assertJsonPath('options.0.fits', true)->assertJsonPath('options.0.pricing_type', 'cart_value')
-            ->assertJsonPath('options.0.amount', null)->assertJsonPath('options.0.package', 'Small box');
+            ->assertJsonCount(0, 'options');
         $this->postJson(route('admin.shop.product.postage-preview'), array_replace($measurements, ['weight_grams' => 501]))
-            ->assertOk()->assertJsonPath('options.0.fits', false);
+            ->assertOk()->assertJsonCount(0, 'options');
     }
 
     public function test_preview_uses_rotated_box_fit_and_calculated_cost_and_excludes_pickup(): void

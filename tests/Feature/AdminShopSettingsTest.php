@@ -46,11 +46,24 @@ class AdminShopSettingsTest extends TestCase
             ['min_cart_value' => '150.00', 'price' => '0.00'],
             ['min_cart_value' => '0.00', 'price' => '12.95'],
         ];
+        $payload['shipping_methods'][$index]['packages'] = [['code' => 'invalid code', 'price' => -1]];
+        $payload['shipping_methods'][$index]['cubic_divisor'] = -1;
+        $payload['shipping_methods'][$index]['calculated_packaging_cost'] = -1;
+        $payload['shipping_methods'][$index]['weight_tiers'] = [['max_weight_grams' => '', 'price' => '']];
         $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors()->assertRedirect();
         $method->refresh();
         $this->assertSame('cart_value', $method->pricingType());
         $this->assertSame([0, 150], array_column($method->cart_value_tiers, 'min_cart_value'));
         $savedTiers = $method->cart_value_tiers;
+
+        // Disabled controls are omitted by the browser and must preserve saved box settings.
+        unset(
+            $payload['shipping_methods'][$index]['packages'],
+            $payload['shipping_methods'][$index]['cubic_divisor'],
+            $payload['shipping_methods'][$index]['calculated_packaging_cost'],
+            $payload['shipping_methods'][$index]['weight_tiers'],
+        );
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors();
 
         // Hidden inactive drafts must neither block saving nor erase the saved configuration.
         $payload['shipping_methods'][$index]['pricing_type'] = 'pickup';
@@ -77,6 +90,32 @@ class AdminShopSettingsTest extends TestCase
         $this->assertSame('1.50', $method->rate_adjustment_amount);
         $this->assertEquals($packageAttributes, $method->packageOptions()->get()
             ->map(fn ($package) => collect($package->getAttributes())->except(['created_at', 'updated_at'])->all())->all());
+    }
+
+    public function test_cart_value_channels_can_be_saved_without_box_or_weight_settings(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual shipping quote required.',
+            'shipping_methods' => [[
+                'code' => 'cart-freight', 'name' => 'Cart freight', 'is_active' => '1',
+                'pricing_type' => 'cart_value', 'sort_order' => 0,
+                'cart_value_tiers' => [['min_cart_value' => '0.00', 'price' => '12.95']],
+            ]],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $method = StoreShippingMethod::query()->where('code', 'cart-freight')->firstOrFail();
+        $this->assertTrue($method->usesCartValuePricing());
+        $this->assertFalse($method->isPickup());
+        $this->assertNull($method->cubic_divisor);
+        $this->assertEmpty($method->weight_tiers);
+        $this->assertSame(0, $method->packageOptions()->count());
+        $this->get(route('admin.shop.settings.edit'))->assertOk()
+            ->assertViewHas('shippingMethods', fn (array $rows): bool => $rows[0]['pricing_type'] === 'cart_value'
+                && $rows[0]['cart_value_tiers'] === [['min_cart_value' => 0, 'price' => 12.95]]);
     }
 
     public function test_cart_value_tiers_require_a_zero_default_unique_thresholds_and_valid_money(): void
