@@ -203,6 +203,7 @@ class SiteOption extends Model
                 'description' => 'JSON object of courier-name keys to tracking URL templates. Use {tracking} as the placeholder for the parcel number.',
             ],
             'store.costing.markup-percent' => ['value' => '30', 'description' => 'Default markup percentage for suggested Store Item prices. Products can override it. Automatic pricing is enabled per product.', 'input_type' => 'number'],
+            'store.costing.bulk-discount-percent' => ['value' => (string) config('product-costing.bulk_discount_percent', 20), 'description' => 'Default bulk discount percentage for larger selling packs, relative to the smallest active pack. Products and individual variants can override it. Cost-based minimum prices still apply.', 'input_type' => 'number'],
             'store.costing.item-operational' => ['value' => '0.50', 'description' => 'Default operational allowance per Store Item, excluding GST.', 'input_type' => 'number'],
             'store.costing.kit-operational' => ['value' => '1.00', 'description' => 'Default operational allowance per kit, excluding GST.', 'input_type' => 'number'],
             'store.costing.item-time' => ['value' => '3.50', 'description' => 'Default time allowance per Store Item, excluding GST.', 'input_type' => 'number'],

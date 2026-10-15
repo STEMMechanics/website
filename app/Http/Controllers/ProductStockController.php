@@ -110,6 +110,9 @@ class ProductStockController extends Controller
             'unit' => $this->unitLabel($product),
             'plural_unit' => Str::plural($this->unitLabel($product)),
         ]];
+        if ($product->usesVariantRecords() && ! $product->shared_inventory) {
+            $choices = [];
+        }
         if (! $product->shared_inventory) {
             foreach ($product->variants as $variant) {
                 $choices[] = [

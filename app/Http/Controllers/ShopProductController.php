@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Models\ProductPurchase;
-use App\Models\ProductRecipeComponent;
 use App\Models\ProductVariant;
 use App\Models\StoreOrderItem;
 use App\Services\Finance\ProductAllocationEditor;
 use App\Services\ProductAttention;
 use App\Services\ProductPurchaseService;
 use App\Services\ProductRecipeService;
+use App\Services\ProductVariantUpgrade;
 use App\Services\SiteListControls;
 use App\Services\StoreInventoryAllocatorService;
 use App\Support\ListPageSize;
+use App\Support\ShopShippingSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -183,6 +183,8 @@ class ShopProductController extends Controller
             $copy->status = Product::STATUS_DRAFT;
             $copy->is_featured = false;
             $copy->low_stock_alert_sent_at = null;
+            $copy->legacy_base_variant_id = null;
+            $copy->default_variant_id = null;
             $copy->save();
 
             $categoryAssignments = DB::table('product_category_product')
@@ -204,6 +206,12 @@ class ShopProductController extends Controller
                 $variantCopy->low_stock_alert_sent_at = null;
                 $variantCopy->save();
                 $variantCopies[(int) $variant->id] = $variantCopy;
+            }
+            if ($product->usesVariantRecords()) {
+                $copy->legacy_base_variant_id = $variantCopies[$product->legacy_base_variant_id]->id;
+                $copy->default_variant_id = isset($variantCopies[$product->default_variant_id])
+                    ? $variantCopies[$product->default_variant_id]->id : null;
+                $copy->save();
             }
 
             foreach ($product->cutSizes as $cut) {
@@ -289,8 +297,32 @@ class ShopProductController extends Controller
 
     private function saveProduct(Request $request, Product $product, StoreInventoryAllocatorService $allocator): void
     {
+        if ($product->usesVariantRecords() && ! $request->boolean('variant_editor')) {
+            throw ValidationException::withMessages(['variants' => 'Refresh the product editor before saving these variants.']);
+        }
+        $unified = $request->boolean('variant_editor');
+        $previousDefaultVariant = $product->usesVariantRecords()
+            ? $product->variants()->find($product->default_variant_id) : null;
         $isMaterial = $request->input('product_type') === Product::PRODUCT_TYPE_MATERIAL;
         $isPhysical = in_array($request->input('product_type'), Product::PHYSICAL_TYPES, true);
+        if ($unified && ! ShopShippingSettings::hasCalculatedChannels()) {
+            $request->merge($product->only(['length_mm', 'width_mm', 'height_mm', 'weight_grams', 'box_only', 'shipping_units', 'min_satchel_rank']));
+            $rows = $request->input('variants', []);
+            if (is_array($rows)) {
+                foreach ($rows as &$row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $savedId = ($row['id'] ?? null) ?: (! empty($row['original_option']) ? $product->legacy_base_variant_id : null);
+                    $saved = $product->exists ? $product->variants()->find($savedId) : null;
+                    foreach (['length_mm', 'width_mm', 'height_mm', 'weight_grams'] as $field) {
+                        $row[$field] = $saved?->$field;
+                    }
+                }
+                unset($row);
+                $request->merge(['variants' => $rows]);
+            }
+        }
         if ($isMaterial) {
             // Hidden selling controls must not prevent a material from saving.
             $request->merge(['price' => 0, 'variants' => [], 'category_ids' => [], 'allow_backorder' => false, 'is_featured' => false, 'inventory_quantity' => null, 'product_details' => [], 'length_mm' => null, 'width_mm' => null, 'height_mm' => null]);
@@ -394,6 +426,8 @@ class ShopProductController extends Controller
             'variants.*.backorder_shipping_offset_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'variants.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['nullable', 'boolean'],
+            'variants.*.is_base' => ['nullable', 'boolean'],
+            'variants.*.original_option' => ['nullable', 'boolean'],
         ], [
             'sku.required' => 'The Base SKU field is required.',
         ]);
@@ -441,6 +475,7 @@ class ShopProductController extends Controller
         }
 
         $variantSkuExists = ProductVariant::query()
+            ->when($product->legacy_base_variant_id, fn ($query) => $query->where('id', '!=', $product->legacy_base_variant_id))
             ->whereRaw('LOWER(sku) = ?', [$productSkuKey])
             ->exists();
         if ($variantSkuExists) {
@@ -449,7 +484,34 @@ class ShopProductController extends Controller
             ]);
         }
 
-        $normalizedVariants = $this->normalizeVariants($validated['variants'] ?? [], $product);
+        $variantRows = $validated['variants'] ?? [];
+        foreach ($variantRows as &$row) {
+            if ($unified && $product->usesVariantRecords() && ! empty($row['original_option']) && empty($row['id'])) {
+                $row['id'] = $product->legacy_base_variant_id;
+            }
+            if ($unified && ! $product->usesVariantRecords() && ! empty($row['original_option']) && empty($row['sku'])) {
+                $row['sku'] = $productSku;
+            }
+        }
+        unset($row);
+        $normalizedVariants = $this->normalizeVariants($variantRows, $product);
+        if ($unified && ! $isMaterial) {
+            if ($normalizedVariants->where('original_option', true)->count() > 1
+                || $normalizedVariants->pluck('id')->filter()->duplicates()->isNotEmpty()) {
+                throw ValidationException::withMessages(['variants' => 'Each variant can only appear once.']);
+            }
+            if ($normalizedVariants->where('is_base', true)->count() > 1) {
+                throw ValidationException::withMessages(['variants' => 'Choose only one base variant.']);
+            }
+            foreach ($normalizedVariants as $row) {
+                if ($row['is_base'] && ! $row['is_active']) {
+                    throw ValidationException::withMessages(['variants.'.$row['row_index'].'.is_base' => 'The base variant must be active.']);
+                }
+            }
+            if ($validated['status'] === Product::STATUS_ACTIVE && ! $normalizedVariants->contains('is_active', true)) {
+                throw ValidationException::withMessages(['variants' => 'An active product needs at least one active variant. Activate another variant or change the product to draft or archived.']);
+            }
+        }
         $selectedCategories = $this->resolveSelectedCategories($validated, (string) ($validated['category'] ?? ''));
         $isFeatured = (string) $validated['status'] === Product::STATUS_ACTIVE && $request->boolean('is_featured');
         $product->fill([
@@ -521,6 +583,7 @@ class ShopProductController extends Controller
             'time_cost_ex_tax' => $isPhysical ? ($recipeData['time_cost_ex_tax'] ?? null) : null,
             'automatic_pricing' => $isPhysical && $request->boolean('automatic_pricing'),
             'markup_percent' => $isPhysical ? ($recipeData['markup_percent'] ?? null) : null,
+            'bulk_discount_percent' => $isPhysical ? (array_key_exists('bulk_discount_percent', $recipeData) ? $recipeData['bulk_discount_percent'] : $product->bulk_discount_percent) : null,
         ]);
         $product->save();
         $product->categories()->sync(
@@ -534,7 +597,47 @@ class ShopProductController extends Controller
         $product->updateFiles($request->input('gallery_files'), 'gallery');
         $product->updateFiles($isDigital ? $request->input('download_files') : null, 'downloads');
 
+        if ($unified && ! $isMaterial && ! $product->usesVariantRecords()) {
+            $original = app(ProductVariantUpgrade::class)->convert($product, migrateReferences: ! $product->wasRecentlyCreated);
+            $normalizedVariants = $normalizedVariants->map(function (array $row) use ($original): array {
+                if ($row['original_option'] && $row['id'] === null) {
+                    $row['id'] = $original->id;
+                }
+
+                return $row;
+            });
+            if ($previousAutomaticPricing['base']) {
+                $previousAutomaticPricing['variants'][] = $original->id;
+            }
+        }
+        if ($unified && ! $product->shared_inventory && ! $isMaterial) {
+            $product->inventory_quantity = null;
+            $product->save();
+        }
         $savedVariants = $this->syncVariants($product, $normalizedVariants, ! $isPhysical);
+        if ($unified && ! $isMaterial) {
+            $active = $normalizedVariants->where('is_active', true)->sortBy('sort_order');
+            $oldBase = $normalizedVariants->firstWhere('id', $product->default_variant_id);
+            $next = $active->first(function (array $row) use ($oldBase, $previousDefaultVariant): bool {
+                $order = $oldBase['sort_order'] ?? $previousDefaultVariant->sort_order ?? -1;
+
+                return $row['sort_order'] > $order
+                    || $row['sort_order'] === $order && ($oldBase
+                        ? $row['row_index'] > $oldBase['row_index']
+                        : strcasecmp($row['name'], $previousDefaultVariant->name ?? '') > 0);
+            }) ?? $active->first();
+            $base = $active->firstWhere('is_base', true)
+                ?? $active->firstWhere('id', $product->default_variant_id)
+                ?? $next;
+            $product->default_variant_id = $base ? $savedVariants[$base['row_index']]->id : null;
+            $product->save();
+            $product->load('variants');
+            foreach ($product->orderedVariants() as $index => $variant) {
+                if ((int) $variant->sort_order !== $index) {
+                    $variant->update(['sort_order' => $index]);
+                }
+            }
+        }
         app(ProductAllocationEditor::class)->save($product, $savedVariants, $productAllocations, $request->user()->id);
         $recipes->save($product, $recipeData, $savedVariants, $previousAutomaticPricing);
         $product->refresh();
@@ -774,7 +877,7 @@ class ShopProductController extends Controller
                     'unit_cost_ex_tax' => ($variant['unit_cost_ex_tax'] ?? '') !== '' && ($variant['unit_cost_ex_tax'] ?? null) !== null ? round((float) $variant['unit_cost_ex_tax'], 4) : null,
                     'bulk_discount_percent' => ($variant['bulk_discount_percent'] ?? '') !== '' && ($variant['bulk_discount_percent'] ?? null) !== null
                         ? round((float) $variant['bulk_discount_percent'], 2)
-                        : (float) config('product-costing.bulk_discount_percent', 20),
+                        : null,
                     'automatic_pricing' => filter_var($variant['automatic_pricing'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
                     'length_mm' => ($variant['length_mm'] ?? '') !== '' ? (int) $variant['length_mm'] : null,
@@ -791,6 +894,8 @@ class ShopProductController extends Controller
                     'backorder_shipping_offset_days' => ($variant['backorder_shipping_offset_days'] ?? '') !== '' ? (int) $variant['backorder_shipping_offset_days'] : null,
                     'sort_order' => (int) ($variant['sort_order'] ?? $index),
                     'is_active' => filter_var($variant['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
+                    'is_base' => filter_var($variant['is_base'] ?? false, FILTER_VALIDATE_BOOL),
+                    'original_option' => filter_var($variant['original_option'] ?? false, FILTER_VALIDATE_BOOL),
                 ];
             })
             ->filter(function (array $variant): bool {
@@ -802,7 +907,7 @@ class ShopProductController extends Controller
                     || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
                     || $variant['unit_cost_ex_tax'] !== null
-                    || $variant['bulk_discount_percent'] !== (float) config('product-costing.bulk_discount_percent', 20)
+                    || $variant['bulk_discount_percent'] !== null
                     || $variant['automatic_pricing']
                     || $variant['weight_grams'] !== null
                     || $variant['length_mm'] !== null
@@ -849,7 +954,10 @@ class ShopProductController extends Controller
                 }
                 $seenSkus[] = $normalizedSku;
 
+                $isOriginal = $variant['id'] !== null && $variant['id'] === $product->legacy_base_variant_id
+                    || ! $product->usesVariantRecords() && $variant['original_option'] && $variant['id'] === null;
                 $productSkuExists = Product::query()
+                    ->when($isOriginal && $product->exists, fn ($query) => $query->where('id', '!=', $product->id))
                     ->where('sku', $variant['sku'])
                     ->exists();
                 if ($productSkuExists) {
@@ -941,10 +1049,7 @@ class ShopProductController extends Controller
                 continue;
             }
 
-            if ($existingVariant->storeOrderItems()->exists()
-                || ProductPurchase::query()->where('product_variant_id', $existingVariant->id)->exists()
-                || ProductRecipeComponent::query()->where('component_variant_id', $existingVariant->id)->exists()
-                || $product->hasPickListReferences(variantId: (int) $existingVariant->id)) {
+            if ($existingVariant->deletionDisabledReason($product) !== null) {
                 $existingVariant->is_active = false;
                 $existingVariant->save();
 

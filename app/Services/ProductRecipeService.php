@@ -51,7 +51,12 @@ class ProductRecipeService
 
     public function defaultBulkDiscount(): float
     {
-        return (float) config('product-costing.bulk_discount_percent', 20);
+        return (float) SiteOption::value('store.costing.bulk-discount-percent', (string) config('product-costing.bulk_discount_percent', 20));
+    }
+
+    public function bulkDiscount(Product $product, ?ProductVariant $variant = null): float
+    {
+        return (float) ($variant->bulk_discount_percent ?? $product->bulk_discount_percent ?? $this->defaultBulkDiscount());
     }
 
     public function operationalCost(Product $product): float
@@ -186,27 +191,55 @@ class ProductRecipeService
         if ($materials === null) {
             return $pricing;
         }
-        $cost = $materials + $this->operationalCost($product) + $this->timeCost($product);
-        $incTax = $cost * (1 + (float) ($product->markup_percent ?? $this->defaultMarkup()) / 100)
-            * (1 + (float) $product->tax_rate);
+        $handling = $this->operationalCost($product) + $this->timeCost($product);
+        $priceFactor = (1 + (float) ($product->markup_percent ?? $this->defaultMarkup()) / 100) * (1 + (float) $product->tax_rate);
+        $incTax = ($materials + $handling) * $priceFactor;
         $minimum = $this->roundSellingPrice($incTax);
         $pricing['minimum_price'] = $minimum;
         if ($minimum === null) {
             return $pricing;
         }
-        if (! $variant || $product->saleUnits($variant) <= $product->saleUnits()) {
+        $minimumPack = $product->usesVariantRecords()
+            ? $product->purchasableVariants()->sortBy(fn (ProductVariant $option): array => [$product->saleUnits($option), (int) $option->id])->first()
+            : null;
+        $minimumUnits = $minimumPack ? $product->saleUnits($minimumPack) : $product->saleUnits();
+        if (! $variant || $product->saleUnits($variant) <= $minimumUnits || $product->usesVariantRecords() && ! $minimumPack) {
             $pricing['price'] = $minimum;
 
             return $pricing;
         }
 
-        // The base selling price already includes GST. Automatic base prices follow current costs.
-        $basePrice = $product->automatic_pricing ? ($this->suggestedPrice($product) ?? (float) $product->price) : (float) $product->price;
-        $discount = (float) ($variant->bulk_discount_percent ?? $this->defaultBulkDiscount());
-        if (! is_finite($basePrice) || $basePrice < 0 || ! is_finite($discount) || $discount < 0 || $discount > 100) {
-            return $pricing;
+        if ($minimumPack) {
+            // The smallest active selling pack sets the commercial unit price.
+            // Its cost-based suggestion is independent of the larger pack, so
+            // automatic prices never depend on update order or their old value.
+            $basePrice = $minimumPack->automatic_pricing
+                ? $this->suggestedPrice($product, $minimumPack)
+                : $minimumPack->effectivePrice();
+            $discount = $this->bulkDiscount($product, $variant);
+            if ($basePrice === null || ! is_finite($basePrice) || $basePrice < 0 || ! is_finite($discount) || $discount < 0 || $discount > 100) {
+                return $pricing;
+            }
+            $bulkPrice = $this->roundSellingPrice($basePrice * $product->saleUnits($variant) / $minimumUnits * (1 - $discount / 100));
+        } else {
+            // Scale only the item portion. Handling belongs to the finished pack once,
+            // and rounding a small pack must not be multiplied into larger packs.
+            $baseMaterials = $this->materialCost($product);
+            if ($product->automatic_pricing && $baseMaterials === null) {
+                $pricing['price'] = $minimum;
+
+                return $pricing;
+            }
+            $handlingPrice = $handling * $priceFactor;
+            $itemPrice = $product->automatic_pricing
+                ? $baseMaterials * $priceFactor
+                : max(0, (float) $product->price - $handlingPrice);
+            $discount = $this->bulkDiscount($product, $variant);
+            if (! is_finite($itemPrice) || $itemPrice < 0 || ! is_finite($discount) || $discount < 0 || $discount > 100) {
+                return $pricing;
+            }
+            $bulkPrice = $this->roundSellingPrice($handlingPrice + $itemPrice * $product->saleUnits($variant) / $product->saleUnits() * (1 - $discount / 100));
         }
-        $bulkPrice = $this->roundSellingPrice($basePrice * $product->saleUnits($variant) / $product->saleUnits() * (1 - $discount / 100));
         if ($bulkPrice === null) {
             return $pricing;
         }
@@ -301,7 +334,7 @@ class ProductRecipeService
                 'id' => (int) $product->id,
                 'name' => (string) $product->title,
                 'sku' => (string) $product->sku,
-                'base_option_name' => $product->baseOptionName(),
+                'base_option_name' => $product->usesVariantRecords() ? 'Reference pack' : $product->baseOptionName(),
                 'status' => (string) $product->status,
                 'is_kit' => $product->isKit(),
                 'product_type' => (string) $product->product_type,
@@ -351,6 +384,7 @@ class ProductRecipeService
             'time_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'automatic_pricing' => ['nullable', 'boolean'],
             'markup_percent' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'bulk_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
             'cut_sizes' => ['nullable', 'array', 'max:100'],
             'cut_sizes.*.id' => ['nullable', 'integer'],
             'cut_sizes.*.length_mm' => ['required', 'numeric', 'gt:0'],

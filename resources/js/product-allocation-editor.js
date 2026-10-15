@@ -74,7 +74,7 @@ window.SM.productAllocationEditor = (config) => ({
             missing: net > 0 && (allocated !== net) };
     },
     get summary() {
-        const missing = this.columns.filter(column => column.variant?.is_active !== false && this.total(column).missing).length;
+        const missing = this.columns.filter(column => (!this.variantEditor || column.variant) && column.variant?.is_active !== false && this.total(column).missing).length;
         return missing ? `${missing} option${missing === 1 ? '' : 's'} need allocation review` : 'All options allocated';
     },
     get payload() {

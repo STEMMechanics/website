@@ -192,7 +192,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         const state = this.productSearchState(item);
         if (parseInt(item.source_id || 0, 10) !== parseInt(product.id || 0, 10)) {
             item.source_id = String(product.id);
-            item.source_variant_id = '0';
+            item.source_variant_id = String(product.default_variant_id || 0);
         }
         state.query = String(product.title || '');
         state.open = false;
@@ -230,6 +230,10 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         const product = this.findProduct(item.source_id);
         if (!product || !product.has_option_choices) {
             return [];
+        }
+
+        if (product.uses_variant_records) {
+            return Array.isArray(product.variants) ? product.variants : [];
         }
 
         return [

@@ -126,9 +126,10 @@ class ProductPurchaseService
             return;
         }
         $product = Product::query()->whereKey($purchase->product_id)->lockForUpdate()->firstOrFail();
-        $inventory = $product->shared_inventory || ! $purchase->product_variant_id
+        $variantId = $purchase->product_variant_id ?: $product->legacy_base_variant_id;
+        $inventory = $product->shared_inventory || ! $variantId
             ? $product
-            : $product->variants()->whereKey($purchase->product_variant_id)->lockForUpdate()->firstOrFail();
+            : $product->variants()->whereKey($variantId)->lockForUpdate()->firstOrFail();
         if ($inventory->inventory_quantity === null) {
             return;
         }
@@ -151,7 +152,7 @@ class ProductPurchaseService
             ->orderBy('title')->get()->map(fn (Product $product): array => [
                 'id' => (int) $product->id, 'name' => (string) $product->title, 'sku' => (string) $product->sku,
                 'url' => route('admin.shop.product.edit', $product),
-                'base_option_name' => $product->baseOptionName(),
+                'base_option_name' => $product->usesVariantRecords() ? 'Reference pack' : $product->baseOptionName(),
                 'pack_units' => $product->saleUnits(), 'shared_inventory' => (bool) $product->shared_inventory,
                 'product_type' => (string) $product->product_type, 'is_kit' => $product->isKit(),
                 'has_material_measurements' => $product->hasMaterialMeasurements(),

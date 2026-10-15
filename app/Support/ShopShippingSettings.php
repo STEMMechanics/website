@@ -5,12 +5,19 @@ namespace App\Support;
 use App\Models\Media;
 use App\Models\SiteOption;
 use App\Models\StoreOrderItemTracking;
+use App\Models\StoreShippingMethod;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class ShopShippingSettings
 {
+    public static function hasCalculatedChannels(): bool
+    {
+        return StoreShippingMethod::query()->where('is_active', true)->get()
+            ->contains(fn (StoreShippingMethod $method) => $method->pricingType() === StoreShippingMethod::PRICING_CALCULATED && $method->usesPackageCalculation());
+    }
+
     public const REQUEST_QUOTE_SORT_ORDER_OPTION = 'store.shipping.request-quote-sort-order';
 
     public static function requestQuoteSortOrder(): int

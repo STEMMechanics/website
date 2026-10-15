@@ -1,4 +1,5 @@
 @php
+    $hasCalculatedShipping = \App\Support\ShopShippingSettings::hasCalculatedChannels();
     $editorProductType = (string) old('product_type', $product->product_type ?? \App\Models\Product::PRODUCT_TYPE_PHYSICAL);
     $editorIsPhysical = in_array($editorProductType, [\App\Models\Product::PRODUCT_TYPE_PHYSICAL, \App\Models\Product::PRODUCT_TYPE_KIT], true);
     $editorSharedInventory = (bool) old('shared_inventory', $product->shared_inventory ?? false);
@@ -17,7 +18,7 @@
         'measureUnit' => old('material_measure_unit', $product->material_measure_unit ?? 'm'),
         'materialLength' => old('material_length_mm', $product->material_length_mm ?? ''),
         'materialWidth' => old('material_width_mm', $product->material_width_mm ?? ''),
-        'unitCost' => $formatCost(old('unit_cost_ex_tax', $product->unit_cost_ex_tax ?? '')),
+        'unitCost' => old('unit_cost_ex_tax', $product->unit_cost_ex_tax ?? ''),
         'purchasePackCost' => old('purchase_pack_cost_ex_tax', isset($product) ? $costingService->fallbackPurchasePackCost($product) : ''),
         'purchaseCosts' => isset($product) ? $costingService->purchaseCostInputs($product) : [],
         'basePackUnits' => old('inventory_units', $product->inventory_units ?? 1),
@@ -25,6 +26,7 @@
         'timeCost' => $formatCost(old('time_cost_ex_tax', $product->time_cost_ex_tax ?? '')),
         'automaticPricing' => (bool) old('automatic_pricing', $product->automatic_pricing ?? false),
         'markup' => old('markup_percent', $product->markup_percent ?? ''),
+        'bulkDiscount' => old('bulk_discount_percent', $product->bulk_discount_percent ?? ''),
         'priceEnding' => (float) config('product-costing.price_ending', 0.95),
         'defaults' => ['markup' => $costingService->defaultMarkup(), 'bulkDiscount' => $costingService->defaultBulkDiscount(), 'itemOperational' => \App\Models\SiteOption::value('store.costing.item-operational', '0.50'), 'kitOperational' => \App\Models\SiteOption::value('store.costing.kit-operational', '1.00'), 'itemTime' => \App\Models\SiteOption::value('store.costing.item-time', '3.50'), 'kitTime' => 2 * (float) \App\Models\SiteOption::value('store.costing.item-time', '3.50')],
     ];
@@ -43,6 +45,9 @@
             ],
         ])
         ->all();
+    $variantDeletionReasons = isset($product)
+        ? $product->variants->mapWithKeys(fn ($variant) => [$variant->id => $variant->deletionDisabledReason($product)])->all()
+        : [];
     $galleryFilesValue = isset($product)
         ? implode(',', $product->galleryMedia->pluck('name')->all())
         : '';
@@ -91,12 +96,18 @@
     $productBackorderOffsetDays = old('backorder_shipping_offset_days', isset($product)
         ? ($product->backorder_shipping_offset_days !== null ? (string) $product->backorder_shipping_offset_days : '')
         : '');
+    $productAllowsBackorder = (bool) old('allow_backorder', isset($product) ? ((bool) $product->allow_backorder || (bool) $product->is_preorder) : false);
+    $productBackorderEstimate = old('backorder_shipping_estimate', isset($product)
+        ? ($product->backorder_shipping_estimate?->format('Y-m-d') ?? $product->preorder_shipping_estimate?->format('Y-m-d') ?? '')
+        : '');
     $variantRows = old('variants');
     if ($variantRows === null) {
         $variantRows = isset($product)
             ? ($product->variants->isNotEmpty()
                 ? $product->variants->map(fn ($variant) => [
                     'id' => $variant->id,
+                    'original_option' => $variant->id === $product->legacy_base_variant_id,
+                    'is_base' => $variant->id === $product->default_variant_id,
                     'name' => $variant->name,
                     'description' => $variant->description,
                     'product_details' => collect($variant->product_details ?? [])->map(fn ($detail) => [
@@ -108,7 +119,7 @@
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
                     'unit_cost_ex_tax' => $variant->unit_cost_ex_tax,
-                    'bulk_discount_percent' => $variant->bulk_discount_percent ?? $costingService->defaultBulkDiscount(),
+                    'bulk_discount_percent' => $variant->bulk_discount_percent ?? '',
                     'automatic_pricing' => (bool) $variant->automatic_pricing,
                     'inventory_units' => $variant->inventory_units ?? 1,
                     'weight_grams' => $variant->weight_grams,
@@ -124,18 +135,41 @@
                     'backorder_shipping_offset_days' => $variant->backorder_shipping_offset_days !== null ? (string) $variant->backorder_shipping_offset_days : '',
                     'sort_order' => $variant->sort_order,
                     'is_active' => (bool) $variant->is_active,
+                    'deletion_disabled_reason' => $variantDeletionReasons[$variant->id] ?? null,
                     'awaiting_fulfilment' => (int) data_get($variantInventoryContextMap, (string) $variant->id.'.awaiting', 0),
                     'reserved_quantity' => (int) data_get($variantInventoryContextMap, (string) $variant->id.'.reserved', 0),
                 ])->values()->all()
                 : [])
             : [];
+        if (!isset($product) || !$product->usesVariantRecords()) {
+            array_unshift($variantRows, [
+                'id' => null, 'original_option' => true, 'is_base' => true, 'is_active' => true,
+                'name' => isset($product) ? $product->baseOptionName() : 'Base',
+                'description' => $product->base_variant_description ?? '', 'product_details' => [],
+                'sku' => $product->sku ?? '', 'price' => $product->price ?? '0.00',
+                'compare_at_price' => $product->compare_at_price ?? '',
+                'inventory_units' => $product->inventory_units ?? 1,
+                'inventory_quantity' => $editorSharedInventory ? '' : ($product->inventory_quantity ?? ''),
+                'unit_cost_ex_tax' => '', 'bulk_discount_percent' => '',
+                'automatic_pricing' => (bool) ($product->automatic_pricing ?? false),
+                'weight_grams' => $product->weight_grams ?? '',
+                'length_mm' => $product->length_mm ?? '', 'width_mm' => $product->width_mm ?? '', 'height_mm' => $product->height_mm ?? '',
+                'low_stock_threshold' => $product->low_stock_threshold ?? '',
+                'allow_backorder' => $productAllowsBackorder,
+                'backorder_shipping_estimate_type' => $productBackorderEstimateType,
+                'backorder_shipping_estimate' => $productBackorderEstimate,
+                'backorder_shipping_offset_days' => $productBackorderOffsetDays,
+                'sort_order' => 0, 'awaiting_fulfilment' => $baseInventoryContext['awaiting'], 'reserved_quantity' => $baseInventoryContext['reserved'],
+            ]);
+        }
     } else {
         $variantRows = collect($variantRows)
-            ->map(function ($variant) use ($variantInventoryContextMap) {
+            ->map(function ($variant) use ($variantInventoryContextMap, $variantDeletionReasons) {
                 $variantId = (string) data_get($variant, 'id', '');
                 $context = $variantInventoryContextMap[$variantId] ?? ['awaiting' => 0, 'reserved' => 0];
 
                 return array_merge($variant, [
+                    'deletion_disabled_reason' => $variantDeletionReasons[(int) $variantId] ?? null,
                     'description' => data_get($variant, 'description', ''),
                     'product_details' => collect(data_get($variant, 'product_details', []))->map(fn ($detail) => [
                         'key' => (string) data_get($detail, 'key', ''),
@@ -152,22 +186,19 @@
             ->values()
             ->all();
     }
-    $variantRows = collect($variantRows)->map(function ($variant) use ($formatCost): array {
+    $variantRows = collect($variantRows)->map(function ($variant): array {
         $variant = is_array($variant) ? $variant : [];
         $details = collect($variant['product_details'] ?? []);
         [$skuRows, $otherRows] = $details->partition(fn ($detail): bool => mb_strtolower(trim((string) data_get($detail, 'key', ''))) === 'sku');
 
         return array_merge($variant, [
             'product_details' => $otherRows->concat($skuRows)->values()->all(),
-            'unit_cost_ex_tax' => $formatCost($variant['unit_cost_ex_tax'] ?? ''),
-            'bulk_discount_percent' => $variant['bulk_discount_percent'] ?? config('product-costing.bulk_discount_percent', 20),
+            'unit_cost_ex_tax' => $variant['unit_cost_ex_tax'] ?? '',
+            'bulk_discount_percent' => $variant['bulk_discount_percent'] ?? '',
             'automatic_pricing' => filter_var($variant['automatic_pricing'] ?? false, FILTER_VALIDATE_BOOL),
         ]);
     })->values()->all();
-    $productAllowsBackorder = (bool) old('allow_backorder', isset($product) ? ((bool) $product->allow_backorder || (bool) $product->is_preorder) : false);
-    $productBackorderEstimate = old('backorder_shipping_estimate', isset($product)
-        ? ($product->backorder_shipping_estimate?->format('Y-m-d') ?? $product->preorder_shipping_estimate?->format('Y-m-d') ?? '')
-        : '');
+
 @endphp
 <x-layout>
     <x-mast backRoute="admin.shop.product.index" backTitle="Products">{{ isset($product) ? 'Edit' : 'Create' }} Product
@@ -189,6 +220,8 @@
             action="{{ route('admin.shop.product.'.(isset($product) ? 'update' : 'store'), $product ?? []) }}"
             x-data="{
                 ...SM.productMaterials(@js($materialsConfig)),
+                ...SM.productVariantEditor(),
+                variantErrors: @js(array_keys($errors->getMessages())),
                 sharedInventory: @js($editorSharedInventory),
                 baseInventoryQuantity: @js(old('inventory_quantity', $product->inventory_quantity ?? '')),
                 baseLowStockThreshold: @js(old('low_stock_threshold', isset($product) ? ($product->low_stock_threshold ?? '') : 5)),
@@ -246,9 +279,7 @@
                     return this.productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Home' : 'Base';
                 },
                 baseOptionDisplayName() {
-                    const explicitName = String(this.baseVariantName || '').trim();
-
-                    return explicitName !== '' ? explicitName : this.defaultBaseOptionLabel() + ' Variant';
+                    return 'Shared allocation defaults';
                 },
                 displayVariantName(variant, index) {
                     const explicitName = String(variant?.name || '').trim();
@@ -257,7 +288,7 @@
                 },
                 packStockSummary(quantity, unitsPerPack, shared = false) {
                     if (quantity === null || quantity === undefined || String(quantity).trim() === '') {
-                        return shared ? 'Shared stock is not tracked.' : 'Stock level is not tracked.';
+                        return shared ? '' : 'Stock level is not tracked.';
                     }
 
                     const count = Number(quantity);
@@ -399,14 +430,14 @@
                 },
                 syncVariantSku(index) {
                     const variant = this.variants[index];
-                    if (!variant) {
+                    if (!variant || String(variant.sku || '').trim() !== '') {
                         return;
                     }
 
                     variant.sku = this.ensureUniqueVariantSku(this.variantSkuSeed(variant, index), index);
                 },
                 addVariant() {
-                    this.variants.push({
+                    this.variants.push(this.prepareNewVariant({
                         id: null,
                         name: '',
                         description: '',
@@ -416,7 +447,7 @@
                         compare_at_price: '',
                         inventory_quantity: '',
                         unit_cost_ex_tax: '',
-                        bulk_discount_percent: this.costingDefaults.bulkDiscount ?? 20,
+                        bulk_discount_percent: '',
                         automatic_pricing: false,
                         inventory_units: 1,
                         weight_grams: '',
@@ -432,14 +463,8 @@
                         backorder_shipping_offset_days: '',
                         sort_order: this.variants.length,
                         is_active: true,
-                    });
-                },
-                removeVariant(index) {
-                    this.variants.splice(index, 1);
-                    this.variants = this.variants.map((variant, currentIndex) => ({
-                        ...variant,
-                        sort_order: variant.sort_order === '' || variant.sort_order === null ? currentIndex : variant.sort_order,
                     }));
+                    this.normalizeVariantOrder();
                 },
                 addVariantProductDetail(index) {
                     this.variants[index].product_details ??= [];
@@ -641,6 +666,7 @@
                     this.productDetails = [...movableRows, ...skuRows];
                 },
                 init() {
+                    this.initVariantEditor();
                     this.initMaterials();
                     this.productDetails = this.normalizeBaseProductDetails(this.productDetails);
                     this.variants = this.variants.map((variant) => ({
@@ -663,6 +689,7 @@
             }"
         >
             @csrf
+            <input type="hidden" name="variant_editor" value="1">
             @isset($product)
                 @method('PUT')
             @endisset
@@ -825,18 +852,15 @@
             @include('admin.shop.product.materials-and-recipe')
 
             <x-ui.collapsible-section title="Variants" x-show="productType !== 'material'" x-cloak titleExpression="productType === 'digital' ? 'Licence Tiers' : 'Variants'" variant="product" :open="!isset($product) || $errors->any()" data-product-price-inventory>
-                <x-slot:summary><span x-text="'$' + Number(basePrice || 0).toFixed(2) + ' · ' + variants.length + ' additional option' + (variants.length === 1 ? '' : 's')"></span></x-slot:summary>
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p x-show="isPhysicalProduct()" x-cloak class="text-sm text-gray-600">Set up the base variant below, then add other pack sizes, colours, or options. Extra variants can inherit its price and packaging.</p>
-                        <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Add only the extra tiers you want to offer.</p>
-                    </div>
-                    <x-ui.button type="button" color="primary-outline" size="small" class="shrink-0" x-on:click="addVariant()" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add Custom Tier' : 'Add Variant'">Add Variant</x-ui.button>
-                </div>
+                <x-slot:summary><span x-text="variants.filter(variant => variant.is_active).length + ' active option' + (variants.filter(variant => variant.is_active).length === 1 ? '' : 's')"></span></x-slot:summary>
+                <x-slot:actions>
+                    <x-ui.button type="button" color="primary-outline" size="small" x-on:click.stop.prevent="addVariant(); $el.closest('details').open = true" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add tier' : 'Add variant'">Add variant</x-ui.button>
+                </x-slot:actions>
+                <p x-show="isPhysicalProduct()" x-cloak class="text-sm text-gray-600">Choose an active base variant as the default option. Each pack size, colour or option can override the shared defaults.</p>
+                <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Choose one active tier as the default.</p>
 
-                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3" x-show="isPhysicalProduct()" x-cloak>
-                    <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" x-bind:disabled="!isPhysicalProduct()" class="mb-0" />
-                    <p class="text-xs text-gray-600" x-show="!sharedInventory">Count finished packs separately in each variant. A quantity of 5 for a 10-pack means 5 packs, containing 50 individual units.</p>
+                <div class="space-y-3" x-show="isPhysicalProduct()" x-cloak>
+                    <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" x-bind:disabled="!isPhysicalProduct()" noWrapper="true" />
                     <div x-show="sharedInventory" x-cloak class="space-y-3">
                         <p class="text-xs text-gray-600">Count individual units once for all variants. For example, 50 units can make five 10-packs or twenty-five 2-packs.</p>
                         <div class="product-editor__fields">
@@ -849,227 +873,57 @@
                     @endif
                 </div>
 
-                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-4" data-base-variant>
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <div class="text-base font-semibold text-gray-900" x-text="baseOptionDisplayName()"></div>
-                            <div class="mt-1 text-sm text-gray-600" x-text="productType === 'digital' ? 'Other licence tiers use this price when their price is left blank.' : 'Other variants use this price and packaging when their fields are left blank.'"></div>
-                        </div>
-                        <span class="shrink-0 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-800">Base variant</span>
-                    </div>
-
+                <div class="space-y-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Shared defaults and cost basis</h3>
+                    <p class="text-sm text-gray-600">Defaults apply when a variant has no override. The cost basis quantity describes the shared purchase cost or recipe; each selling pack gets one operations and time allowance.</p>
                     <div class="product-editor__fields">
-                        <x-ui.input name="base_variant_name" label="Variant Name" x-model="baseVariantName" :value="old('base_variant_name', $product->base_variant_name ?? '')" info="Optional display name for the base variant." />
-                        <x-ui.input id="base-variant-sku" name="sku" label="SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" :disabled="$editorProductType === \App\Models\Product::PRODUCT_TYPE_MATERIAL" x-bind:disabled="productType === 'material'" required info="Required. Used on orders and inventory records." />
-                        <x-ui.input name="price" label="Price" labelInfo="(inc GST)" x-bind:readonly="automaticPricing" moneyFormat="true" :value="isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00'" x-model="basePrice" />
-                        <x-ui.input name="compare_at_price" label="Recommended Price" labelInfo="(inc GST, optional)" moneyFormat="true" :value="isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : ''" x-model="baseCompareAtPrice" />
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block pl-1 text-sm" for="base-variant-description" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Details' : 'Variant Details'"></label>
-                        <x-ui.textarea-control id="base-variant-description" x-bind:class="variantTextareaClasses" name="base_variant_description" rows="3">{{ old('base_variant_description', $product->base_variant_description ?? '') }}</x-ui.textarea-control>
-                        @error('base_variant_description')
-                            <div class="mt-1 pl-1 text-xs text-red-600">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="product-editor__fields" x-show="isPhysicalProduct()" x-cloak>
-                        <div data-base-pack-units>
-                            <x-ui.input id="inventory_units" name="inventory_units" label="Units per pack" type="number" min="1" step="1" x-model="basePackUnits" :disabled="!$editorIsPhysical" x-bind:disabled="!isPhysicalProduct()" info="Individual items sold together. Enter 10 for a 10-pack, or 1 for a single item." />
-                        </div>
+                        <x-ui.input name="sku" label="Product code" x-model="baseSku" x-on:input="handleBaseSkuInput()" :value="$product->sku ?? ''" x-bind:disabled="productType === 'material'" info="Identifies the product group. Each selling variant also has its own SKU." />
+                        <x-ui.input name="price" label="Fallback selling price" labelInfo="(inc GST)" x-bind:readonly="automaticPricing" moneyFormat="true" x-model="basePrice" />
+                        <x-ui.input name="compare_at_price" label="Recommended price default" moneyFormat="true" x-model="baseCompareAtPrice" />
+                        <x-ui.input name="inventory_units" label="Cost basis quantity" type="number" min="1" step="1" x-model="basePackUnits" x-bind:disabled="!isPhysicalProduct()" info="Units covered by the shared purchase cost or recipe. Each variant sets its own units per pack." />
                         <div x-show="!sharedInventory" x-cloak>
-                            <x-ui.input id="base-inventory-quantity" name="inventory_quantity" label="Packs in stock" type="number" min="0" step="1" x-model="baseInventoryQuantity" :value="old('inventory_quantity', $product->inventory_quantity ?? '')" :disabled="$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Finished packs of this variant. Leave blank to stop tracking stock, or enter 0 when sold out." />
+                            <x-ui.input name="low_stock_threshold" label="Default low-stock threshold" type="number" min="1" step="1" x-model="baseLowStockThreshold" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Packs per variant. Individual variants can override this threshold." />
                         </div>
-                        <div x-show="!sharedInventory" x-cloak>
-                            <x-ui.input id="base-low-stock-threshold" name="low_stock_threshold" label="Low-stock alert threshold" labelInfo="(packs)" type="number" min="1" step="1" x-model="baseLowStockThreshold" :value="old('low_stock_threshold', isset($product) ? ($product->low_stock_threshold ?? '') : 5)" :disabled="$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Emails a warning at this number of packs. Extra variants use this threshold unless overridden. Leave blank to disable." />
-                        </div>
-                        <p class="md:col-span-2 text-xs text-gray-600" x-text="packStockSummary(baseInventoryQuantity, basePackUnits, sharedInventory)"></p>
                     </div>
-
-                    <div class="border-t border-gray-200 pt-4 space-y-3" x-show="isPhysicalProduct()" x-cloak>
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Packaging</h3>
-                            <p class="mt-1 text-xs text-gray-500">Measure one finished pack as it will be placed in the shipping box.</p>
-                        </div>
-                        <input type="hidden" name="shipping_units" value="0" step="0.001">
-                        <input type="hidden" name="min_satchel_rank" value="1">
-                        <div class="product-editor__compact-fields">
-                            <x-ui.input x-model="basePackedLength" name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" step="1" min="1" :value="old('length_mm', $product->length_mm ?? '')" class="w-40" />
-                            <x-ui.input x-model="basePackedWidth" name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" step="1" min="1" :value="old('width_mm', $product->width_mm ?? '')" class="w-40" />
-                            <x-ui.input x-model="basePackedHeight" name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" step="1" min="1" :value="old('height_mm', $product->height_mm ?? '')" class="w-40" />
-                            <x-ui.input name="weight_grams" x-model="basePackedWeight" label="Packed Weight" labelInfo="(g)" placeholder="Optional" type="number" min="0" :value="$product->weight_grams ?? ''" class="w-40" />
-                        </div>
-                        <x-ui.checkbox name="box_only" label="Requires rigid parcel shipping" :checked="(bool) old('box_only', $product->box_only ?? false)" class="mb-0" x-model="boxOnly" />
-                        <x-product-postage-preview />
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 bg-white p-4" x-show="isPhysicalProduct()" x-cloak>
-                        <x-ui.checkbox name="allow_backorder" label="Allow back ordering" :checked="$productAllowsBackorder" x-model="allowBackorder" noWrapper />
-                        <div class="mt-4 product-editor__fields" x-show="allowBackorder" x-cloak>
-                            <x-ui.select name="backorder_shipping_estimate_type" label="Backorder Estimate Type" x-model="productBackorderEstimateType">
-                                <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}">Specific date</option>
-                                <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}">Days from today</option>
-                            </x-ui.select>
-                            <div x-show="productBackorderEstimateType === '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
-                                <x-ui.input name="backorder_shipping_offset_days" type="number" min="1" step="1" label="Days from today" :value="$productBackorderOffsetDays" x-model="productBackorderOffsetDays" />
+                    @if($hasCalculatedShipping)
+                        <div class="space-y-3 border-t border-gray-200 pt-4" x-show="isPhysicalProduct()" x-cloak>
+                            <h3 class="text-sm font-semibold text-gray-900">Packaging defaults</h3>
+                            <div class="product-editor__compact-fields">
+                                <x-ui.input name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedLength" class="w-40" />
+                                <x-ui.input name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedWidth" class="w-40" />
+                                <x-ui.input name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedHeight" class="w-40" />
+                                <x-ui.input name="weight_grams" label="Packed Weight" labelInfo="(g)" type="number" min="0" x-model="basePackedWeight" class="w-40" />
                             </div>
-                            <div x-show="productBackorderEstimateType !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
-                                <x-ui.input name="backorder_shipping_estimate" type="date" label="Shipping Date" :value="$productBackorderEstimate" />
-                            </div>
-                        </div>
-                    </div>
-                    @if(isset($product) && $product->isPhysical())
-                        <div class="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-                            <span><span class="font-semibold">Awaiting fulfilment:</span> {{ $baseInventoryContext['awaiting'] }}</span>
-                            <span><span class="font-semibold">Reserved now:</span> {{ $baseInventoryContext['reserved'] }}</span>
+                            <x-ui.checkbox name="box_only" label="Requires rigid parcel shipping" x-model="boxOnly" class="mb-0" />
+                            <x-product-postage-preview />
                         </div>
                     @endif
                 </div>
 
+                @error('variants')<p class="text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
+                <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !variants.some(variant => variant.is_active)" x-cloak>Activate a variant or change this product to draft or archived.</p>
+
                 <div class="space-y-4">
-                    <template x-for="(variant, index) in variants" :key="index">
-                        <div class="rounded-2xl border border-gray-200 p-4 space-y-4 bg-gray-50">
-                            <input type="hidden" :name="`variants[${index}][id]`" x-model="variant.id">
-                            <input type="hidden" :name="`variants[${index}][is_active]`" :value="variant.is_active ? 1 : 0">
-
-                            <div class="flex items-center justify-between gap-4">
-                                <div class="text-base font-semibold text-gray-900" x-text="displayVariantName(variant, index)"></div>
-                                <x-ui.button variant="plain" type="button" class="text-sm text-red-600 hover:underline" x-on:click="removeVariant(index)">Remove</x-ui.button>
-                            </div>
-
-                            <div class="product-editor__fields">
-                                <x-ui.input label="Variant Name" x-bind:name="`variants[${index}][name]`" x-model="variant.name" x-on:blur="syncVariantSku(index)" info="Each added option needs its own name." />
-                                <x-ui.input label="SKU" x-bind:name="`variants[${index}][sku]`" x-model="variant.sku" />
-                                <x-ui.input label="Price" labelInfo="(inc GST)" type="number" step="0.01" min="0" :moneyFormat="true" inputmode="decimal" x-bind:name="`variants[${index}][price]`" x-model="variant.price" x-bind:readonly="isPhysicalProduct() && variant.automatic_pricing" placeholder="Inherit base price" />
-                                <x-ui.input label="Recommended Price" labelInfo="(inc GST, optional)" type="number" step="0.01" min="0" :moneyFormat="true" inputmode="decimal" x-bind:name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="Optional" />
-                                <div class="md:col-span-2 flex flex-wrap items-start gap-6">
-                                    <x-ui.input label="Sort Order" type="number" min="0" x-bind:name="`variants[${index}][sort_order]`" x-model="variant.sort_order" class="mb-0 w-24" />
-                                    <x-ui.checkbox label="Is Active" x-model="variant.is_active" class="mb-0 mt-7" />
-                                </div>
-                            </div>
-
-                            <div class="product-editor__fields" x-show="isPhysicalProduct()" x-cloak>
-                                <div>
-                                    <input type="hidden" x-bind:name="`variants[${index}][bulk_discount_percent]`" x-bind:value="variant.bulk_discount_percent ?? costingDefaults.bulkDiscount" x-bind:disabled="!isPhysicalProduct()">
-                                    <x-ui.input label="Bulk discount" labelInfo="(%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-bind:name="`variants[${index}][bulk_discount_percent]`" x-model="variant.bulk_discount_percent" x-bind:disabled="!isBulkPack(variant)" x-bind:placeholder="costingDefaults.bulkDiscount" info="For packs larger than the base pack. Discounts the equivalent base selling price, with a minimum that covers costs and markup. Blank uses the 20% default. Use suggested price or enable automatic pricing to apply it." class="mb-0" />
-                                </div>
-                                <div class="pt-7" x-bind:data-validation-field="`variants[${index}][automatic_pricing]`">
-                                    <input type="hidden" x-bind:name="`variants[${index}][automatic_pricing]`" value="0" x-bind:disabled="!isPhysicalProduct()">
-                                    <x-ui.checkbox label="Update this variant price automatically from costs" x-bind:name="`variants[${index}][automatic_pricing]`" x-model="variant.automatic_pricing" x-bind:disabled="!isPhysicalProduct()" class="mb-0" />
-                                    <div data-validation-error class="mt-2 text-xs text-red-600" role="alert" hidden></div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="mb-1 block pl-1 text-sm" x-bind:for="`variant-description-${index}`" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Licence Details' : 'Variant Details'"></label>
-                                <x-ui.textarea-control rows="3" x-bind:id="`variant-description-${index}`" x-bind:class="variantTextareaClasses" x-bind:name="`variants[${index}][description]`" x-model="variant.description" x-bind:placeholder="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Describe who this licence tier covers and where it may be used.' : 'Optional extra notes for this option.'"></x-ui.textarea-control>
-                            </div>
-
-                            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                                <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-100 px-3 py-2">
-                                    <div>
-                                        <h3 class="text-sm font-semibold text-gray-900">Product detail overrides</h3>
-                                        <p class="text-xs text-gray-500">Matching names replace the base value; new names are appended.</p>
-                                    </div>
-                                    <x-ui.button type="button" color="primary-outline" x-on:click="addVariantProductDetail(index)" size="small">Add detail</x-ui.button>
-                                </div>
-                                <x-ui.table variant="plain" table-class="w-full table-fixed border-collapse" x-show="(variant.product_details || []).length > 0" x-cloak>
-                                    <thead class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        <tr>
-                                            <th class="w-2/5 px-3 py-2">Detail</th>
-                                            <th class="px-3 py-2">Override value</th>
-                                            <th class="w-12 px-2 py-2"><span class="sr-only">Actions</span></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                        <template x-for="(detail, detailIndex) in (variant.product_details || [])" :key="detailIndex">
-                                            <tr>
-                                                <td class="border-r border-gray-200 p-0">
-                                                    <x-ui.input-control type="text" x-bind:name="`variants[${index}][product_details][${detailIndex}][key]`" x-model="detail.key" x-on:blur="variant.product_details = skuLastDetails(variant.product_details || [])" x-bind:data-variant-detail-key="`${index}-${detailIndex}`" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="e.g. Pack size" />
-                                                </td>
-                                                <td class="border-r border-gray-200 p-0">
-                                                    <x-ui.input-control type="text" x-bind:name="`variants[${index}][product_details][${detailIndex}][value]`" x-model="detail.value" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300" placeholder="Variant value" x-on:keydown.tab="addVariantProductDetailAfterTab($event, index, detailIndex)" />
-                                                </td>
-                                                <td class="p-0 text-center">
-                                                    <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" x-on:click="removeVariantProductDetail(index, detailIndex)" title="Remove detail" aria-label="Remove detail">
-                                                        <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-                                                    </x-ui.button>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </x-ui.table>
-                                <p class="px-3 py-3 text-sm text-gray-500" x-show="(variant.product_details || []).length === 0">No detail overrides.</p>
-                            </div>
-
-                            <div class="product-editor__fields" x-show="isPhysicalProduct()" x-cloak data-variant-inventory>
-                                <div data-variant-pack-units>
-                                    <x-ui.input label="Units per pack" type="number" min="1" step="1" x-bind:name="`variants[${index}][inventory_units]`" x-model="variant.inventory_units" x-bind:disabled="!isPhysicalProduct()" info="Individual items sold together. Enter 10 for a 10-pack, or 1 for a single item." class="mb-0" />
-                                </div>
-                                <div x-show="!sharedInventory" x-cloak>
-                                    <x-ui.input label="Packs in stock" type="number" min="0" step="1" class="mb-0" x-bind:name="`variants[${index}][inventory_quantity]`" x-model="variant.inventory_quantity" x-bind:disabled="!isPhysicalProduct()" info="Finished packs of this variant. Leave blank to stop tracking stock, or enter 0 when sold out." />
-                                </div>
-
-                                <div x-show="!sharedInventory" x-cloak>
-                                    <x-ui.input label="Low-stock alert threshold" labelInfo="(packs)" type="number" min="1" step="1" class="mb-0" x-bind:name="`variants[${index}][low_stock_threshold]`" x-model="variant.low_stock_threshold" x-bind:disabled="!isPhysicalProduct()" placeholder="Use base value" info="Leave blank to use the base variant threshold." />
-                                </div>
-                                <x-ui.input label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-bind:name="`variants[${index}][unit_cost_ex_tax]`" x-model="variant.unit_cost_ex_tax" x-bind:disabled="!isPhysicalProduct()" info="Blank uses the base item cost. Tagged variant expenses take precedence." class="mb-0" />
-                                <p class="md:col-span-2 text-xs text-gray-600" x-text="packStockSummary(sharedInventory ? baseInventoryQuantity : variant.inventory_quantity, variant.inventory_units, sharedInventory)"></p>
-                            </div>
-
-
-                            <div class="border-t border-gray-200 pt-4" x-show="isPhysicalProduct()" x-cloak>
-                                <div class="mb-3">
-                                    <h3 class="text-sm font-semibold text-gray-900">Packaging overrides</h3>
-                                    <p class="mt-1 text-xs text-gray-500">Only fill these in when this pack has different packed measurements from the base option.</p>
-                                </div>
-                                <div class="product-editor__compact-fields">
-                                    <x-ui.input label="Packed Length" labelInfo="(mm)" type="number" min="1" max="10000" x-bind:name="`variants[${index}][length_mm]`" x-model="variant.length_mm" placeholder="Use base value" class="w-40" />
-                                    <x-ui.input label="Packed Width" labelInfo="(mm)" type="number" min="1" max="10000" x-bind:name="`variants[${index}][width_mm]`" x-model="variant.width_mm" placeholder="Use base value" class="w-40" />
-                                    <x-ui.input label="Packed Height" labelInfo="(mm)" type="number" min="1" max="10000" x-bind:name="`variants[${index}][height_mm]`" x-model="variant.height_mm" placeholder="Use base value" class="w-40" />
-                                    <x-ui.input label="Packed Weight" labelInfo="(g)" type="number" min="0" x-bind:name="`variants[${index}][weight_grams]`" x-model="variant.weight_grams" placeholder="Use base value" class="w-40" />
-                                </div>
-                                <x-product-postage-preview :variant="true" />
-                            </div>
-
-                            <div class="space-y-3" x-show="isPhysicalProduct()" x-cloak>
-                                <div class="rounded-2xl border border-gray-200 bg-white px-4 py-4">
-                                    <x-ui.checkbox
- label="Allow back ordering"
- noWrapper="true"
- inline="true"
- x-bind:name="`variants[${index}][allow_backorder]`"
- x-model="variant.allow_backorder"
- />
-                                    <div class="mt-4" x-show="variant.allow_backorder" x-cloak>
-                                        <div class="product-editor__fields">
-                                            <div>
-                                                <label class="mb-1 block pl-1 text-sm">Backorder Estimate Type</label>
-                                                <x-ui.select-control x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_estimate_type]`" x-model="variant.backorder_shipping_estimate_type">
-                                                    <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}">Specific date</option>
-                                                    <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}">Days from today</option>
-                                                </x-ui.select-control>
-                                            </div>
-
-                                            <div x-show="variant.backorder_shipping_estimate_type === '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
-                                                <label class="mb-1 block pl-1 text-sm">Days from today</label>
-                                                <x-ui.input-control type="number" min="1" step="1" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_offset_days]`" x-model="variant.backorder_shipping_offset_days" />
-                                            </div>
-
-                                            <div x-show="variant.backorder_shipping_estimate_type !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
-                                                <label class="mb-1 block pl-1 text-sm">Shipping Date</label>
-                                                <x-ui.input-control type="date" x-bind:class="variantInputClasses" x-bind:name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-wrap gap-x-4 gap-y-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950" x-show="variant.id" x-cloak>
-                                    <span><span class="font-semibold">Awaiting fulfilment:</span> <span x-text="Number(variant.awaiting_fulfilment || 0)"></span></span>
-                                    <span><span class="font-semibold">Reserved now:</span> <span x-text="Number(variant.reserved_quantity || 0)"></span></span>
-                                </div>
-                            </div>
-                        </div>
+                    <template x-for="{ variant, index } in orderedVariantRows()" :key="variant.editor_key">
+                        <x-ui.collapsible-section title="Variant" titleExpression="displayVariantName(variant, index)" variant="product" x-bind:open="variant.open" x-on:toggle="variant.open = $el.open" class="product-variant" x-bind:class="{ 'product-variant--inactive': !variant.is_active }">
+                            <x-slot:summary>
+                                <span x-text="formatAud(variantSalePrice(variant)) + (isPhysicalProduct() ? ' · ' + (variant.inventory_units || 1) + ' per pack' : '')"></span>
+                                <span x-show="variant.is_base" class="ml-2 font-semibold text-sky-800">Base</span>
+                                <span x-show="!variant.is_active" class="ml-2 text-gray-500">Inactive</span>
+                            </x-slot:summary>
+                            <x-slot:actions>
+                                <span class="inline-flex" x-bind:data-tooltip="variantMoveDisabledReason(variant, -1) || 'Move up'" x-bind:tabindex="variantMoveDisabledReason(variant, -1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-up" label="Move variant up" x-bind:disabled="!!variantMoveDisabledReason(variant, -1)" x-on:click.stop.prevent="moveVariant(index, -1)" />
+                                </span>
+                                <span class="inline-flex" x-bind:data-tooltip="variantMoveDisabledReason(variant, 1) || 'Move down'" x-bind:tabindex="variantMoveDisabledReason(variant, 1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-down" label="Move variant down" x-bind:disabled="!!variantMoveDisabledReason(variant, 1)" x-on:click.stop.prevent="moveVariant(index, 1)" />
+                                </span>
+                                <span class="inline-flex" x-bind:data-tooltip="variantDeletionDisabledReason(variant) || 'Delete variant'" x-bind:tabindex="variantDeletionDisabledReason(variant) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="danger" size="icon-small" icon="trash" label="Delete variant" x-bind:disabled="!!variantDeletionDisabledReason(variant)" x-on:click.stop.prevent="removeVariant(index)" />
+                                </span>
+                            </x-slot:actions>
+                            @include('admin.shop.product.variant-fields')
+                        </x-ui.collapsible-section>
                     </template>
                 </div>
             </x-ui.collapsible-section>

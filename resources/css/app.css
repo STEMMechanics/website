@@ -395,6 +395,51 @@ details.ui-collapsible-section--product > .ui-collapsible-section__content {
     max-width: 100%;
 }
 
+.product-variant__body {
+    display: grid;
+    gap: 1.5rem;
+}
+
+details.ui-collapsible-section.product-variant--inactive {
+    @apply border-gray-300 bg-gray-100;
+}
+
+.product-variant--inactive > summary .ui-collapsible-section__summary-text--title {
+    @apply text-gray-500;
+}
+
+.product-variant__identity,
+.product-variant__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+}
+
+.product-variant__body [data-validation-field] {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.product-variant__numbers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 28rem;
+    gap: 1rem 1.5rem;
+}
+
+@media (min-width: 48rem) {
+    .product-variant__identity {
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 64rem) {
+    .product-variant__columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 2rem;
+    }
+}
+
 .product-editor input[type="number"] {
     max-width: 10rem;
     font-variant-numeric: tabular-nums;
@@ -1294,6 +1339,23 @@ body.image-resize-active {
 }
 
 /* resources/views/components/ui/checkbox.blade.php */
+.sm-radio-input:checked::after {
+    content: '';
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: #0370A1;
+}
+
+.sm-radio-input:checked:disabled::after {
+    background-color: #9CA3AF;
+}
+
+.sm-ui-radio > input:disabled ~ span {
+    color: #9CA3AF;
+    cursor: not-allowed;
+}
+
 /* :disabled also matches checkboxes inside a disabled fieldset. */
 .sm-ui-checkbox > input[type="checkbox"]:disabled ~ div,
 .sm-ui-checkbox > input[type="checkbox"]:disabled ~ div > div {

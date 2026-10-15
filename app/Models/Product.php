@@ -60,7 +60,7 @@ class Product extends Model
     protected $fillable = [
         'material_kind', 'purchase_unit', 'purchase_quantity', 'purchase_pack_units', 'material_measure_unit',
         'material_length_mm', 'material_width_mm', 'unit_cost_ex_tax', 'operational_cost_ex_tax',
-        'time_cost_ex_tax', 'automatic_pricing', 'markup_percent',
+        'time_cost_ex_tax', 'automatic_pricing', 'markup_percent', 'bulk_discount_percent',
         'shared_inventory',
         'inventory_units',
         'slug',
@@ -83,6 +83,8 @@ class Product extends Model
         'caution_message',
         'base_variant_name',
         'base_variant_description',
+        'legacy_base_variant_id',
+        'default_variant_id',
         'private_notes',
         'hero_media_name',
         'price',
@@ -108,6 +110,8 @@ class Product extends Model
 
     protected $casts = [
         'automatic_pricing' => 'boolean',
+        'legacy_base_variant_id' => 'integer',
+        'default_variant_id' => 'integer',
         'purchase_quantity' => 'float',
         'purchase_pack_units' => 'integer',
         'material_length_mm' => 'float',
@@ -116,6 +120,7 @@ class Product extends Model
         'operational_cost_ex_tax' => 'float',
         'time_cost_ex_tax' => 'float',
         'markup_percent' => 'float',
+        'bulk_discount_percent' => 'float',
         'shared_inventory' => 'boolean',
         'inventory_units' => 'integer',
         'price' => 'decimal:2',
@@ -436,13 +441,24 @@ class Product extends Model
     /**
      * @return Collection<int, ProductVariant>
      */
+    public function orderedVariants(): Collection
+    {
+        $variants = $this->relationLoaded('variants') ? $this->variants : $this->variants()->get();
+
+        return $variants->sortBy(fn (ProductVariant $variant): array => [
+            $variant->is_active ? ($variant->id === $this->default_variant_id ? 0 : 1) : 2,
+            (int) $variant->sort_order,
+            (string) $variant->name,
+            (int) $variant->id,
+        ])->values();
+    }
+
+    /**
+     * @return Collection<int, ProductVariant>
+     */
     public function purchasableVariants(): Collection
     {
-        if ($this->relationLoaded('variants')) {
-            return $this->variants->filter(fn (ProductVariant $variant) => $variant->is_active)->values();
-        }
-
-        return $this->variants()->active()->get();
+        return $this->orderedVariants()->filter(fn (ProductVariant $variant) => $variant->is_active)->values();
     }
 
     public function variantById(?int $variantId): ?ProductVariant
@@ -461,7 +477,27 @@ class Product extends Model
 
     public function defaultPurchasableVariant(): ?ProductVariant
     {
+        if ($this->usesVariantRecords()) {
+            return $this->purchasableVariants()->firstWhere('id', $this->default_variant_id)
+                ?? $this->purchasableVariants()->first();
+        }
+
         return $this->purchasableVariants()->first();
+    }
+
+    public function usesVariantRecords(): bool
+    {
+        return $this->legacy_base_variant_id !== null;
+    }
+
+    /** Null in an old order or document always means the original option, never today's default. */
+    public function originalVariant(): ?ProductVariant
+    {
+        if (! $this->usesVariantRecords()) {
+            return null;
+        }
+
+        return $this->variants()->find($this->legacy_base_variant_id);
     }
 
     public function priceForVariant(?ProductVariant $variant = null): float
@@ -510,11 +546,19 @@ class Product extends Model
 
     public function hasOptionChoices(): bool
     {
+        if ($this->usesVariantRecords()) {
+            return $this->purchasableVariants()->count() > 1;
+        }
+
         return $this->hasVariants();
     }
 
     public function optionChoiceCount(): int
     {
+        if ($this->usesVariantRecords()) {
+            return $this->purchasableVariants()->count();
+        }
+
         return $this->hasOptionChoices() ? $this->purchasableVariants()->count() + 1 : 0;
     }
 
@@ -583,6 +627,10 @@ class Product extends Model
 
     public function tracksInventory(?ProductVariant $variant = null): bool
     {
+        if ($variant === null && $this->usesVariantRecords() && ! $this->shared_inventory) {
+            return $this->originalVariant()?->tracksInventory() ?? false;
+        }
+
         if ($this->hasLinkedStock($variant)) {
             return app(StockInventoryService::class)->isStockManaged($this, $variant);
         }
@@ -599,6 +647,10 @@ class Product extends Model
 
     public function availableInventory(?ProductVariant $variant = null): ?int
     {
+        if ($variant === null && $this->usesVariantRecords() && ! $this->shared_inventory) {
+            return $this->originalVariant()?->availableInventory();
+        }
+
         if ($this->hasLinkedStock($variant)) {
             return app(StockInventoryService::class)->availableProductQuantity($this, $variant);
         }
@@ -660,6 +712,10 @@ class Product extends Model
 
     public function isInStock(?ProductVariant $variant = null): bool
     {
+        if ($variant === null && $this->usesVariantRecords()) {
+            return $this->purchasableVariants()->contains(fn (ProductVariant $item) => $this->isSelectionInStock($item));
+        }
+
         if ($variant instanceof ProductVariant) {
             return $this->isSelectionInStock($variant);
         }
@@ -677,6 +733,10 @@ class Product extends Model
 
     public function isPurchasable(?ProductVariant $variant = null): bool
     {
+        if ($variant === null && $this->usesVariantRecords()) {
+            return $this->purchasableVariants()->contains(fn (ProductVariant $item) => $this->isSelectionPurchasable($item));
+        }
+
         if ($variant instanceof ProductVariant) {
             return $this->isSelectionPurchasable($variant);
         }
@@ -871,12 +931,22 @@ class Product extends Model
 
     public function priceLabel(?ProductVariant $variant = null): string
     {
+        if ($variant === null && $this->usesVariantRecords()) {
+            $variant = $this->defaultPurchasableVariant();
+        }
+
         return self::priceAmountLabel($this->priceForVariant($variant));
     }
 
     public function priceRangeLabel(): string
     {
         $variants = $this->purchasableVariants();
+        if ($this->usesVariantRecords()) {
+            $prices = $variants->map(fn (ProductVariant $variant) => $variant->effectivePrice())->unique()->sort()->values();
+
+            return $prices->isEmpty() ? 'Unavailable' : ($prices->count() > 1 ? 'From ' : '').self::priceAmountLabel((float) $prices->first());
+        }
+
         if ($variants->isEmpty()) {
             return $this->priceLabel();
         }

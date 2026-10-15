@@ -877,6 +877,15 @@ class ShopController extends Controller
 
     private function resolveVariantSelection(Product $product, mixed $variantId): ?ProductVariant
     {
+        if ($product->usesVariantRecords() && ($variantId === null || (string) $variantId === '')) {
+            $variant = $product->defaultPurchasableVariant();
+            if (! $variant) {
+                throw ValidationException::withMessages(['product_variant_id' => 'This item has no active variants.']);
+            }
+
+            return $variant;
+        }
+
         if (! $product->hasVariants()) {
             return null;
         }
@@ -900,14 +909,14 @@ class ShopController extends Controller
         switch ($selectedSort) {
             case 'price_low':
                 $query
-                    ->orderByRaw("COALESCE((select min(case when products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) asc")
+                    ->orderByRaw("COALESCE((select min(case when products.legacy_base_variant_id is not null or products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) asc")
                     ->orderBy('title');
 
                 return;
 
             case 'price_high':
                 $query
-                    ->orderByRaw("COALESCE((select max(case when products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) desc")
+                    ->orderByRaw("COALESCE((select max(case when products.legacy_base_variant_id is not null or products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) desc")
                     ->orderBy('title');
 
                 return;

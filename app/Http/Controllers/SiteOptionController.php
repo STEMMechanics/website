@@ -274,6 +274,9 @@ class SiteOptionController extends Controller
         if (str_starts_with($optionName, 'store.costing.')) {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
         }
+        if ($optionName === 'store.costing.bulk-discount-percent') {
+            $rules['value'] = ['required', 'numeric', 'min:0', 'max:100', 'decimal:0,2'];
+        }
 
         if ($optionName === 'tickets.hold-minutes') {
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];

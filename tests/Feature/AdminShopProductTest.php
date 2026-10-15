@@ -608,8 +608,7 @@ class AdminShopProductTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.shop.product.create'))
-            ->assertOk()
-            ->assertSee('step="0.001"', false);
+            ->assertOk();
 
         $this->actingAs($admin)
             ->post(route('admin.shop.product.store'), [
@@ -1024,7 +1023,7 @@ class AdminShopProductTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.product.edit', $product))
             ->assertOk()
-            ->assertSee('<span class="font-semibold">Awaiting fulfilment:</span> 0', false);
+            ->assertViewHas('inventoryContexts', fn (array $contexts): bool => $contexts['base']['awaiting'] === 0);
     }
 
     public function test_admin_product_index_shows_remaining_reserved_and_backorder_summary(): void

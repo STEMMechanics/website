@@ -33,6 +33,7 @@ import './workshop-booking';
 import './workshop-line';
 import './product-item-link';
 import './product-materials';
+import './product-variant-editor';
 import './product-stock-adjustment';
 import './expense-product-purchases';
 import './document-product-editor';

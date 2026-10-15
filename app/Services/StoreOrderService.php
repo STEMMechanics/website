@@ -268,7 +268,7 @@ class StoreOrderService
                     ->lockForUpdate()
                     ->findOrFail($productId);
 
-                $variantId = (int) ($storeContext['variant_id'] ?? 0);
+                $variantId = (int) (($storeContext['variant_id'] ?? null) ?: $product->legacy_base_variant_id);
                 $variant = $variantId > 0
                     ? ProductVariant::query()->lockForUpdate()->find($variantId)
                     : null;

@@ -29,6 +29,7 @@ class InvoiceInventory
                     continue;
                 }
                 $variantId = data_get($line->details_json, 'variant_id') ?: data_get($line->details_json, 'store_context.variant_id');
+                $variantId = $variantId ?: $product->legacy_base_variant_id;
                 $variant = $variantId ? $product->variants()->find($variantId) : null;
                 if ($variantId && ! $variant) {
                     throw ValidationException::withMessages(['line_items' => 'The selected product variant is no longer available.']);
