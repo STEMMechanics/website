@@ -27,6 +27,7 @@ window.SM.productMaterials = (config = {}) => ({
     timeCost: config.timeCost ?? '',
     automaticPricing: Boolean(config.automaticPricing),
     markup: config.markup ?? '',
+    productBulkDiscount: config.bulkDiscount ?? '',
     priceEnding: Number(config.priceEnding ?? 0.95),
     costingDefaults: config.defaults || {},
     isPhysicalProduct() {
@@ -73,13 +74,13 @@ window.SM.productMaterials = (config = {}) => ({
                 this.syncPurchasePackFallbackCost();
             } else {
                 const cost = this.knownCost(this.unitCost);
-                this.unitCost = cost === null ? '' : cost.toFixed(2);
+                this.unitCost = cost === null ? '' : cost.toFixed(4);
             }
         });
         ['purchasePackCostBasis', 'purchasePackUnits', 'basePackUnits'].forEach((property) => {
             this.$watch(property, () => this.syncPurchasePackFallbackCost());
         });
-        ['automaticPricing', 'recipeRows', 'isKit', 'unitCost', 'useAsMaterial', 'operationalCost', 'timeCost', 'markup', 'productTaxRate', 'basePackUnits', 'basePrice', 'sharedInventory'].forEach((property) => {
+        ['automaticPricing', 'recipeRows', 'isKit', 'unitCost', 'useAsMaterial', 'operationalCost', 'timeCost', 'markup', 'productBulkDiscount', 'productTaxRate', 'basePackUnits', 'basePrice', 'sharedInventory'].forEach((property) => {
             this.$watch(property, () => this.syncAutomaticPrice());
         });
         // Watch the pricing inputs only: writing calculated prices must not trigger another update.
@@ -96,7 +97,9 @@ window.SM.productMaterials = (config = {}) => ({
         this.unitCost = normalized === null || normalized > 10000000 ? '' : normalized.toFixed(4);
     },
     variantPricingInputs() {
-        return JSON.stringify(this.variants.map((variant) => [variant.id, variant.inventory_units, variant.unit_cost_ex_tax, variant.bulk_discount_percent, variant.automatic_pricing]));
+        return JSON.stringify(this.variants.map((variant) => [variant.id, variant.inventory_units, variant.unit_cost_ex_tax,
+            variant.bulk_discount_percent, variant.automatic_pricing, variant.is_active,
+            variant.automatic_pricing ? null : variant.price]));
     },
     syncAutomaticPrice() {
         if (!this.isPhysicalProduct()) return;
@@ -229,15 +232,23 @@ window.SM.productMaterials = (config = {}) => ({
     },
     isBulkPack(variant = null) {
         const units = this.packUnits(variant);
-        const baseUnits = this.packUnits();
+        const minimumPack = this.pricingComparisonVariant();
+        if (this.variantEditor && !minimumPack) return false;
+        const baseUnits = this.packUnits(minimumPack);
         return this.isPhysicalProduct() && variant !== null && units !== null && baseUnits !== null && units > baseUnits;
+    },
+    effectiveProductBulkDiscount() {
+        const value = this.productBulkDiscount;
+        const discount = value === null || value === undefined || String(value).trim() === ''
+            ? Number(this.costingDefaults.bulkDiscount ?? 20)
+            : Number(value);
+        return Number.isFinite(discount) && discount >= 0 && discount <= 100 ? discount : null;
     },
     bulkDiscount(variant = null) {
         if (!this.isBulkPack(variant)) return 0;
         const value = variant.bulk_discount_percent;
-        const discount = value === null || value === undefined || String(value).trim() === ''
-            ? Number(this.costingDefaults.bulkDiscount ?? 20)
-            : Number(value);
+        if (value === null || value === undefined || String(value).trim() === '') return this.effectiveProductBulkDiscount();
+        const discount = Number(value);
         return Number.isFinite(discount) && discount >= 0 && discount <= 100 ? discount : null;
     },
     roundSellingPrice(price) {
@@ -249,16 +260,36 @@ window.SM.productMaterials = (config = {}) => ({
         if (!this.isPhysicalProduct()) return null;
         const total = this.totalEstimatedCost(variant);
         if (total === null) return null;
+        const factor = this.costPriceFactor();
+        return factor === null ? null : this.roundSellingPrice(total * factor);
+    },
+    costPriceFactor() {
         const markup = String(this.markup).trim() === '' ? Number(this.costingDefaults.markup) : Number(this.markup);
-        if (!Number.isFinite(markup) || markup < 0) return null;
-        return this.roundSellingPrice(total * (1 + markup / 100) * (1 + Number(this.productTaxRate)));
+        const tax = Number(this.productTaxRate);
+        if (!Number.isFinite(markup) || markup < 0 || !Number.isFinite(tax) || tax < 0) return null;
+        return (1 + markup / 100) * (1 + tax);
     },
     discountedBulkPrice(variant) {
         if (!this.isBulkPack(variant)) return null;
-        const basePrice = this.automaticPricing ? (this.costBasedMinimumPrice() ?? this.sellingPrice()) : this.sellingPrice();
         const discount = this.bulkDiscount(variant);
-        if (basePrice === null || discount === null) return null;
-        return this.roundSellingPrice(basePrice * this.packUnits(variant) / this.packUnits() * (1 - discount / 100));
+        if (discount === null) return null;
+        const minimumPack = this.pricingComparisonVariant();
+        if (minimumPack) {
+            const basePrice = minimumPack.automatic_pricing
+                ? this.costBasedMinimumPrice(minimumPack)
+                : this.sellingPrice(minimumPack);
+            return basePrice === null ? null : this.roundSellingPrice(basePrice * this.packUnits(variant) / this.packUnits(minimumPack) * (1 - discount / 100));
+        }
+        const factor = this.costPriceFactor();
+        const handling = this.knownCost(this.effectiveOperationalCost() + this.effectiveTimeCost());
+        const basePrice = this.sellingPrice();
+        const materials = this.recipeMaterialCost();
+        if (factor === null || handling === null) return null;
+        if (this.automaticPricing && materials === null) return this.costBasedMinimumPrice(variant);
+        if (!this.automaticPricing && basePrice === null) return null;
+        const handlingPrice = handling * factor;
+        const itemPrice = this.automaticPricing ? materials * factor : Math.max(0, basePrice - handlingPrice);
+        return this.roundSellingPrice(handlingPrice + itemPrice * this.packUnits(variant) / this.packUnits() * (1 - discount / 100));
     },
     suggestedSellingPrice(variant = null) {
         const minimum = this.costBasedMinimumPrice(variant);
@@ -292,7 +323,9 @@ window.SM.productMaterials = (config = {}) => ({
         return price === null || units === null ? null : price / units;
     },
     savingFromBase(variant) {
-        const base = this.pricePerItem();
+        const comparison = this.pricingComparisonVariant();
+        if (this.variantEditor && (!comparison || comparison === variant)) return null;
+        const base = this.pricePerItem(comparison);
         const price = this.pricePerItem(variant);
         if (base === null || base <= 0 || price === null) return null;
         return 100 * (1 - price / base);
@@ -300,8 +333,21 @@ window.SM.productMaterials = (config = {}) => ({
     savingLabel(variant) {
         const saving = this.savingFromBase(variant);
         if (saving === null) return '';
-        if (Math.abs(saving) < 0.05) return 'Same per-item price as base';
-        return `${Math.abs(saving).toFixed(1)}% ${saving > 0 ? 'less' : 'more'} per item vs base`;
+        const comparison = this.pricingComparisonVariant();
+        const name = comparison ? this.displayVariantName(comparison, this.variants.indexOf(comparison)) : 'reference';
+        if (Math.abs(saving) < 0.5) return '';
+        return `${Math.abs(saving).toFixed(1)}% ${saving > 0 ? 'less' : 'more'} per item vs ${name}`;
+    },
+    pricingComparisonVariant() {
+        if (!this.variantEditor) return null;
+        return this.variants.filter(variant => variant.is_active && this.packUnits(variant) !== null)
+            .sort((a, b) => this.packUnits(a) - this.packUnits(b) || Number(a.id || Number.MAX_SAFE_INTEGER) - Number(b.id || Number.MAX_SAFE_INTEGER))[0] || null;
+    },
+    minimumPackNotice() {
+        const pack = this.pricingComparisonVariant();
+        const base = this.variants.find(variant => variant.is_base && variant.is_active);
+        if (!this.isPhysicalProduct() || !pack || !base || this.packUnits(base) <= this.packUnits(pack)) return '';
+        return `Bulk pricing uses ${this.displayVariantName(pack, this.variants.indexOf(pack))}, the smallest active pack.`;
     },
     isBelowCost(variant = null, suggested = false) {
         const price = suggested ? this.suggestedSellingPrice(variant) : this.sellingPrice(variant);
@@ -309,12 +355,14 @@ window.SM.productMaterials = (config = {}) => ({
         return price !== null && cost !== null && price / (1 + Number(this.productTaxRate)) < cost - 0.0001;
     },
     pricingRows() {
+        const rows = typeof this.orderedVariantRows === 'function' ? this.orderedVariantRows() : this.variants.map((variant, index) => ({ variant, index }));
         return [
-            { key: 'base', name: this.baseVariantName || 'Base', variant: null, automatic: this.automaticPricing, active: true },
-            ...this.variants.map((variant, index) => ({ key: `variant-${variant.id || `new-${index}`}`, name: this.displayVariantName(variant, index), variant, automatic: variant.automatic_pricing, active: variant.is_active })),
+            ...(this.variantEditor ? [] : [{ key: 'base', name: this.baseVariantName || 'Base', variant: null, automatic: this.automaticPricing, active: true }]),
+            ...rows.map(({ variant, index }) => ({ key: `variant-${variant.id || `new-${index}`}`, name: this.displayVariantName(variant, index), variant, automatic: variant.automatic_pricing, active: variant.is_active })),
         ];
     },
     costingMoney(amount, missing = 'Cost needed') {
-        return amount === null || !Number.isFinite(amount) ? missing : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
+        return amount === null || !Number.isFinite(amount) ? missing
+            : new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Math.round((amount + Number.EPSILON) * 100) / 100);
     },
 });

@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\StoreShippingMethod;
 use App\Support\ShopShippingSettings;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class StoreCartService
 {
@@ -187,6 +188,9 @@ class StoreCartService
                 continue;
             }
 
+            if ($variantId === null && $product->usesVariantRecords()) {
+                $variantId = $product->legacy_base_variant_id;
+            }
             $variant = $product->variantById($variantId);
             if ($variantId !== null && ! $variant instanceof ProductVariant) {
                 $inventoryChangeNotices[] = $this->inventoryChangeNotice(
@@ -531,6 +535,13 @@ class StoreCartService
 
     public function add(Product $product, ?ProductVariant $variant = null, int $quantity = 1): void
     {
+        if ($variant === null && $product->usesVariantRecords()) {
+            $variant = $product->defaultPurchasableVariant();
+            if (! $variant) {
+                throw ValidationException::withMessages(['cart' => 'This item has no active variants.']);
+            }
+        }
+
         $contents = $this->contents();
         $lines = (array) ($contents['lines'] ?? []);
         $key = $this->lineKey($product->id, $variant?->id);

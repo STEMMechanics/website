@@ -27,6 +27,8 @@ class DocumentProductCatalog
                     'sku' => (string) ($product->sku ?? ''),
                     'base_option_name' => (string) $product->baseOptionName(),
                     'has_option_choices' => $product->hasOptionChoices() || $product->variants->isNotEmpty(),
+                    'uses_variant_records' => $product->usesVariantRecords(),
+                    'default_variant_id' => $product->default_variant_id,
                     'price' => round((float) $product->price, 2),
                     'tax_rate' => round((float) $product->tax_rate, 4),
                     'product_type' => (string) ($product->product_type ?? ''),

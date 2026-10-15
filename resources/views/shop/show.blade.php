@@ -6,7 +6,7 @@
     $oldVariantId = trim((string) old('product_variant_id', ''));
     $defaultOptionInput = $hasOldVariantInput
         ? $oldVariantId
-        : (isset($linkedVariantId) ? (string) $linkedVariantId : ($hasOptionChoices ? '' : null));
+        : (isset($linkedVariantId) ? (string) $linkedVariantId : ($product->usesVariantRecords() ? (string) $product->defaultPurchasableVariant()?->id : ($hasOptionChoices ? '' : null)));
     $defaultAddQuantity = max(1, (int) old('quantity', 1));
     $chooserHeading = $product->isDigital() ? 'Choose a licence' : 'Choose a variant';
     $chooserErrorMessage = $product->isDigital()
@@ -28,7 +28,7 @@
             : $variantCountLabel.' available. Choose an option when adding to cart.')
         : $availabilityLabel();
     $optionPayload = collect();
-    if ($hasOptionChoices) {
+    if ($hasOptionChoices && !$product->usesVariantRecords()) {
         $optionPayload->push([
             'key' => 'base',
             'input_value' => '',
@@ -63,7 +63,7 @@
                 'value' => trim((string) data_get($detail, 'value')),
             ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all(),
             'price_label' => $product->priceLabel($variant),
-            'compare_at_price_label' => $variant->compare_at_price !== null ? '$'.number_format((float) $variant->compare_at_price, 2) : null,
+            'compare_at_price_label' => $product->compareAtPriceForVariant($variant) !== null ? '$'.number_format($product->compareAtPriceForVariant($variant), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
             'actual_inventory_quantity' => $product->availableInventory($variant),
             'is_in_stock' => $product->isSelectionPurchasable($variant),

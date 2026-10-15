@@ -109,7 +109,7 @@ class ProductAllocationEditor
             $allocations = app(ProductAllocation::class);
             foreach ($products as $product) {
                 $base = $configs->get($allocations->scope($product->id));
-                $options = [['price' => $product->price, 'config' => $base]];
+                $options = $product->usesVariantRecords() ? [] : [['price' => $product->price, 'config' => $base]];
                 foreach ($product->variants->where('is_active', true) as $variant) {
                     $options[] = ['price' => $variant->price ?? $product->price, 'config' => $configs->get($allocations->scope($product->id, $variant->id)) ?? $base];
                 }

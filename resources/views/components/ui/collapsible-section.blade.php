@@ -35,9 +35,12 @@
             @endif
         </div>
 
-        @if($variant !== 'product')
+        @if(isset($actions) || $variant !== 'product')
             <div class="ui-collapsible-section__summary-actions">
-                <i class="fa-solid fa-chevron-down ui-collapsible-section__chevron" aria-hidden="true"></i>
+                @isset($actions){{ $actions }}@endisset
+                @if($variant !== 'product')
+                    <i class="fa-solid fa-chevron-down ui-collapsible-section__chevron" aria-hidden="true"></i>
+                @endif
             </div>
         @endif
     </summary>

@@ -14,10 +14,6 @@ class ProductVariant extends Model
 {
     use HasFactory;
 
-    protected $attributes = [
-        'bulk_discount_percent' => 20,
-    ];
-
     protected $fillable = [
         'unit_cost_ex_tax',
         'bulk_discount_percent',
@@ -129,6 +125,22 @@ class ProductVariant extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function deletionDisabledReason(Product $product): ?string
+    {
+        if ($this->id === $product->legacy_base_variant_id) {
+            return 'The original variant is kept for existing links. Deactivate it to retire it.';
+        }
+        if ($this->storeOrderItems()->exists() || ProductPurchase::query()->where('product_variant_id', $this->id)->exists()) {
+            return 'This variant has order or purchase history. Deactivate it to retire it.';
+        }
+        if (ProductRecipeComponent::query()->where('component_variant_id', $this->id)->exists()
+            || $product->hasPickListReferences(variantId: (int) $this->id)) {
+            return 'This variant is used in a recipe or pick list. Deactivate it to retire it.';
+        }
+
+        return null;
     }
 
     public function effectivePrice(): float

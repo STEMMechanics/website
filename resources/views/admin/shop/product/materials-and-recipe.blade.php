@@ -117,7 +117,7 @@
     <x-slot:summary><span x-text="costingMoney(recipeMaterialCost()) + (productType === 'material' ? ' per ' + purchaseUnit : ' materials')"></span></x-slot:summary>
     <div class="product-editor__fields">
         <div x-show="!hasMaterialMeasurements() && !recipeRows.length">
-            <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="Per base retail pack. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
+            <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.0001" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="For the cost basis quantity in Shared defaults. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
         </div>
         <div x-show="isPhysicalProduct()">
             <x-ui.input name="operational_cost_ex_tax" label="Operational allowance (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="operationalCost" x-bind:placeholder="costingMoney(effectiveOperationalCost())" x-bind:disabled="!isPhysicalProduct()" info="Bags, labels and other small costs. Blank uses the item or kit default." />
@@ -128,17 +128,24 @@
         <div x-show="isPhysicalProduct()">
             <x-ui.input name="markup_percent" label="Markup (%)" type="number" min="0" step="0.01" x-model="markup" x-bind:placeholder="costingDefaults.markup" x-bind:disabled="!isPhysicalProduct()" info="Blank uses the default markup in Site Options." />
         </div>
+        <div x-show="isPhysicalProduct()">
+            <x-ui.input name="bulk_discount_percent" label="Bulk discount (%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-model="productBulkDiscount" x-bind:placeholder="costingDefaults.bulkDiscount" x-bind:disabled="!isPhysicalProduct()" :info="'For larger packs. Blank uses the site default ('.$costingService->defaultBulkDiscount().'%).'" />
+        </div>
     </div>
     <div x-show="isPhysicalProduct()">
         <input type="hidden" name="automatic_pricing" value="0">
-        <x-ui.checkbox name="automatic_pricing" label="Update the base price automatically from costs" x-model="automaticPricing" :checked="old('automatic_pricing', $product->automatic_pricing ?? false)" x-bind:disabled="!isPhysicalProduct()" />
+        <x-ui.checkbox name="automatic_pricing" label="Update the fallback price automatically from costs" x-model="automaticPricing" :checked="old('automatic_pricing', $product->automatic_pricing ?? false)" x-bind:disabled="!isPhysicalProduct()" />
         @error('automatic_pricing')<p class="mb-3 text-sm text-red-700">{{ $message }}</p>@enderror
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4" data-variant-pricing-summary>
             <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                 <h3 class="font-semibold text-sky-900">Pricing by variant</h3>
-                <p class="text-xs text-slate-600">Operations + time: <strong class="tabular-nums" x-text="costingMoney(effectiveOperationalCost() + effectiveTimeCost())"></strong> ex GST per pack</p>
+                <p class="text-xs text-slate-600">Operations + time: <strong class="tabular-nums" x-text="costingMoney(effectiveOperationalCost() + effectiveTimeCost())"></strong> ex GST, once per pack</p>
             </div>
-            <x-ui.table variant="plain" caption="Costs and pricing for the base pack and all variants" table-class="min-w-[52rem] text-sm">
+            <p class="mb-4 flex items-start gap-2 text-xs text-slate-600" x-show="minimumPackNotice()" x-cloak>
+                <i class="fa-solid fa-circle-info mt-0.5 shrink-0" aria-hidden="true"></i>
+                <span x-text="minimumPackNotice()"></span>
+            </p>
+            <x-ui.table variant="plain" caption="Costs and pricing for selling variants" table-class="min-w-[52rem] text-sm">
                 <x-slot:header>
                     <th scope="col" class="pb-3 pr-4 text-left">Pack</th>
                     <th scope="col" class="px-3 pb-3 text-right whitespace-nowrap">Materials <span class="block text-xs font-normal text-slate-600">ex GST</span></th>
@@ -149,11 +156,11 @@
                 </x-slot:header>
                 <x-slot:body>
                     <template x-for="row in pricingRows()" :key="row.key">
-                        <tr class="border-t border-sky-200 align-top">
+                        <tr class="border-t border-sky-200 align-top" x-bind:class="{ 'text-slate-500': !row.active }">
                             <td class="py-3 pr-4">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <strong x-text="row.name"></strong>
-                                    <x-ui.badge color="primary" x-show="!row.variant">Base</x-ui.badge>
+                                    <x-ui.badge color="primary" x-show="row.variant?.is_base">Base</x-ui.badge>
                                     <x-ui.badge color="gray" x-show="!row.active">Inactive</x-ui.badge>
                                 </div>
                                 <p class="mt-1 text-xs text-slate-600" x-text="packUnits(row.variant) === null ? 'Check pack size' : packUnits(row.variant) + (packUnits(row.variant) === 1 ? ' item per pack' : ' items per pack')"></p>
@@ -163,16 +170,16 @@
                             <td class="px-3 py-3 text-right tabular-nums">
                                 <strong class="text-base text-sky-900" x-text="costingMoney(suggestedSellingPrice(row.variant))"></strong>
                                 <p class="mt-1 text-xs text-slate-600" x-show="pricePerItem(row.variant, true) !== null" x-text="costingMoney(pricePerItem(row.variant, true)) + ' per item'"></p>
-                                <p class="mt-1 text-xs text-slate-600" x-show="isBulkPack(row.variant)" x-text="bulkDiscount(row.variant) + '% bulk discount'"></p>
-                                <p class="mt-1 text-xs text-slate-600" x-show="isBulkPack(row.variant)" x-text="'Minimum: ' + costingMoney(costBasedMinimumPrice(row.variant))"></p>
+                                <p class="mt-1 text-xs text-slate-600" x-show="isBulkPack(row.variant) && bulkDiscount(row.variant) > 0" x-text="bulkDiscount(row.variant) + '% bulk discount'"></p>
+                                <p class="mt-1 text-xs text-slate-600" x-show="costBasedMinimumPrice(row.variant) !== null && suggestedSellingPrice(row.variant) > costBasedMinimumPrice(row.variant)" x-text="'Cost floor: ' + costingMoney(costBasedMinimumPrice(row.variant))"></p>
                                 <x-ui.badge color="warning" class="mt-2" x-show="minimumPriceApplied(row.variant)">Minimum price applied</x-ui.badge>
                                 <x-ui.badge color="danger" class="mt-2" x-show="isBelowCost(row.variant, true)">Below cost</x-ui.badge>
                             </td>
                             <td class="px-3 py-3 text-right tabular-nums">
                                 <strong class="text-base" x-text="costingMoney(sellingPrice(row.variant), 'Price needed')"></strong>
-                                <p class="mt-1 text-xs text-slate-600" x-show="row.variant && String(row.variant.price ?? '').trim() === ''">Uses base price</p>
+                                <p class="mt-1 text-xs text-slate-600" x-show="row.variant && String(row.variant.price ?? '').trim() === ''">Uses fallback price</p>
                                 <p class="mt-1 text-xs text-slate-600" x-show="pricePerItem(row.variant) !== null" x-text="costingMoney(pricePerItem(row.variant)) + ' per item'"></p>
-                                <p class="mt-1 text-xs text-slate-600" x-show="row.variant" x-text="savingLabel(row.variant)"></p>
+                                <p class="mt-1 text-xs text-slate-600" x-show="row.variant && row.active" x-text="savingLabel(row.variant)"></p>
                                 <x-ui.badge color="danger" class="mt-2" x-show="isBelowCost(row.variant)">Below cost</x-ui.badge>
                             </td>
                             <td class="py-3 pl-3 text-right">
@@ -185,9 +192,7 @@
                 </x-slot:body>
             </x-ui.table>
         </div>
-        <p class="mt-2 text-xs text-slate-600">Larger packs scale the base selling price by their quantity, then apply the bulk discount (20% by default). The minimum covers the pack's materials, allowances, markup and GST. Prices round up to .95. Base and other variant prices use costs plus markup and GST.</p>
-        <p class="mt-2 text-xs text-slate-600">Per-item savings compare selling prices with the base pack after rounding and any minimum price adjustment. Set each variant's bulk discount and automatic pricing in Variants.</p>
-        <p class="mt-2 text-xs text-slate-600" x-show="automaticPricing || variants.some(variant => variant.automatic_pricing)">Automatic pricing keeps the last price if a cost becomes unknown. It updates the related Consumables, Operational and Owner remuneration allocations; review the remaining allocation.</p>
+        <p class="mt-2 text-xs text-slate-600">Bulk prices use the smallest active pack's price per item, with costs protected. Rounded up to .95.</p>
         @foreach($errors->getMessages() as $field => $messages)
             @if(str_starts_with($field, 'variants.') && (str_ends_with($field, '.bulk_discount_percent') || str_ends_with($field, '.automatic_pricing')))
                 <p class="mt-2 text-sm text-red-700" role="alert">{{ $messages[0] }}</p>
