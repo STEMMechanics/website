@@ -42,7 +42,7 @@ window.SM.productPostagePreview = (url, csrf) => ({
             const payload = await response.json();
             if (version !== this.version || this.disposed) return;
             this.options = payload.options;
-            this.message = this.options.length ? '' : 'No postage channels are available.';
+            this.message = this.options.length ? '' : 'No calculated weight / volume delivery channels are available.';
         } catch {
             if (version === this.version && !this.disposed) this.message = 'Could not check postage. Edit a measurement to try again.';
         } finally {

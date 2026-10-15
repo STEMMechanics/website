@@ -24,6 +24,10 @@ class ShopSettingsController extends Controller
             'maxSatchelWeightGrams' => ShopShippingSettings::maxSatchelWeightGrams(),
             'boxedShipping' => ShopShippingSettings::boxedShipping(),
             'processingPauseUntil' => SiteOption::value(ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION),
+            'sidebarShippingNotice' => ShopShippingSettings::sidebarNotice(),
+            'sidebarShippingImage' => ShopShippingSettings::sidebarNoticeImageName(),
+            'sidebarShippingImageAlt' => SiteOption::value(ShopShippingSettings::SIDEBAR_NOTICE_IMAGE_ALT_OPTION, ''),
+            'sidebarShippingDivider' => ShopShippingSettings::sidebarNoticeDivider(),
             'trackingLinkTemplates' => array_map(
                 static fn (string $carrier, string $template): array => [
                     'carrier' => $carrier,
@@ -62,6 +66,14 @@ class ShopSettingsController extends Controller
             'boxed_shipping_message' => ['required', 'string', 'max:500'],
             'boxed_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
             'processing_pause_until' => ['nullable', 'date'],
+            'sidebar_shipping_notice' => ['nullable', 'string', 'max:500'],
+            'sidebar_shipping_image' => [
+                'nullable', 'string', 'max:255',
+                Rule::exists('media', 'name')->where(fn ($query) => $query->where('visibility', 'public')
+                    ->whereNull('password')->where('mime_type', 'like', 'image/%')),
+            ],
+            'sidebar_shipping_image_alt' => ['required_with:sidebar_shipping_image', 'nullable', 'string', 'max:500'],
+            'sidebar_shipping_divider' => ['sometimes', 'boolean'],
             'tracking_link_templates' => ['nullable', 'array'],
             'tracking_link_templates.*.carrier' => ['required', 'string', 'max:120'],
             'tracking_link_templates.*.template' => ['required', 'string', 'max:500'],
@@ -119,18 +131,21 @@ class ShopSettingsController extends Controller
             }
         }
 
-        // Pickup ignores pricing fields, including incomplete drafts hidden by the editor.
+        // Ignore pricing fields from inactive modes, including incomplete hidden drafts.
         foreach ($rules as $field => &$fieldRules) {
             if (str_starts_with($field, 'shipping_methods.*.cart_value_tiers')) {
                 array_unshift($fieldRules, 'exclude_unless:shipping_methods.*.pricing_type,cart_value');
             }
             if (preg_match('/^shipping_methods\.\*\.(packages|weight_tiers|cubic_divisor|calculated_packaging_cost)(\.|$)/', $field)) {
                 array_unshift($fieldRules, 'exclude_if:shipping_methods.*.is_pickup,1');
+                array_unshift($fieldRules, 'exclude_if:shipping_methods.*.pricing_type,cart_value');
             }
         }
         unset($fieldRules);
 
         $validated = $request->validate($rules, [
+            'sidebar_shipping_image.exists' => 'Choose a public image without password protection.',
+            'sidebar_shipping_image_alt.required_with' => 'Describe the shipping notice image, including any prices or thresholds it shows.',
             'shipping_methods.*.code.regex' => 'Shipping channel codes may only contain lowercase letters, numbers, hyphens, and underscores.',
             'shipping_methods.*.packages.*.code.regex' => 'Package codes may only contain lowercase letters, numbers, hyphens, and underscores.',
         ]);
@@ -157,6 +172,24 @@ class ShopSettingsController extends Controller
             ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION,
             trim((string) ($validated['processing_pause_until'] ?? ''))
         );
+        if (array_key_exists('sidebar_shipping_notice', $validated)) {
+            $this->storeOption(
+                ShopShippingSettings::SIDEBAR_NOTICE_OPTION,
+                trim((string) ($validated['sidebar_shipping_notice'] ?? ''))
+            );
+        }
+        foreach ([
+            'sidebar_shipping_image' => ShopShippingSettings::SIDEBAR_NOTICE_IMAGE_OPTION,
+            'sidebar_shipping_image_alt' => ShopShippingSettings::SIDEBAR_NOTICE_IMAGE_ALT_OPTION,
+            'sidebar_shipping_divider' => ShopShippingSettings::SIDEBAR_NOTICE_DIVIDER_OPTION,
+        ] as $field => $option) {
+            if (array_key_exists($field, $validated)) {
+                $value = $field === 'sidebar_shipping_divider'
+                    ? (string) (int) $validated[$field]
+                    : trim((string) ($validated[$field] ?? ''));
+                $this->storeOption($option, $value);
+            }
+        }
         $this->storeOption(
             ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
             $this->normalizeTrackingLinkTemplatesValue($validated['tracking_link_templates'] ?? [])
@@ -585,7 +618,7 @@ class ShopSettingsController extends Controller
             if ($methodData['pricing_type'] === StoreShippingMethod::PRICING_CART_VALUE) {
                 $method->cart_value_tiers = $methodData['cart_value_tiers'];
             }
-            if (! $methodData['is_pickup']) {
+            if ($methodData['pricing_type'] === StoreShippingMethod::PRICING_CALCULATED) {
                 $method->fill([
                     'cubic_divisor' => $methodData['cubic_divisor'],
                     'calculated_packaging_cost' => $methodData['calculated_packaging_cost'],
@@ -594,7 +627,7 @@ class ShopSettingsController extends Controller
             }
             $method->save();
 
-            if (! $methodData['is_pickup']) {
+            if ($methodData['pricing_type'] === StoreShippingMethod::PRICING_CALCULATED) {
                 $this->syncShippingMethodPackages($method, $methodData['packages']);
             }
 

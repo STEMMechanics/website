@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Workshop;
+use App\Support\HomeHero;
+use App\Support\ShopShippingSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -17,8 +19,14 @@ class MediaUsageService
     public function usedMediaNames(): array
     {
         $usedMediaNames = [];
-        $heroImage = \App\Support\HomeHero::content()['image'];
-        if ($heroImage !== '') $usedMediaNames[$heroImage] = true;
+        $heroImage = HomeHero::content()['image'];
+        if ($heroImage !== '') {
+            $usedMediaNames[$heroImage] = true;
+        }
+        $sidebarImage = ShopShippingSettings::sidebarNoticeImageName();
+        if ($sidebarImage !== '') {
+            $usedMediaNames[$sidebarImage] = true;
+        }
 
         $this->collectPivotReferences($usedMediaNames);
         $this->collectDirectReferences($usedMediaNames);
@@ -38,8 +46,14 @@ class MediaUsageService
         }
 
         $usages = [];
-        if (\App\Support\HomeHero::content()['image'] === $mediaName) {
+        if (HomeHero::content()['image'] === $mediaName) {
             $usages[] = ['type' => 'Homepage hero', 'label' => 'Homepage', 'detail' => 'Hero background image', 'url' => route('admin.site_option.hero'), 'public' => true];
+        }
+        if (ShopShippingSettings::sidebarNoticeImageName() === $mediaName) {
+            $usages[] = [
+                'type' => 'Store sidebar notice', 'label' => 'Store', 'detail' => 'Shipping notice image',
+                'url' => route('admin.shop.settings.edit'), 'public' => true,
+            ];
         }
 
         $this->collectDirectUsageDetails($usages, $mediaName);
@@ -49,7 +63,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectDirectUsageDetails(array &$usages, string $mediaName): void
     {
@@ -61,7 +75,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectWorkshopHeroUsageDetails(array &$usages, string $mediaName): void
     {
@@ -92,7 +106,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectColumnUsageDetails(array &$usages, string $mediaName, string $table, string $column, string $type, string $labelColumn, ?string $routeName, bool $public): void
     {
@@ -114,7 +128,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectContentUsageDetails(array &$usages, string $mediaName): void
     {
@@ -124,7 +138,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}> $usages
+     * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectContentUsageDetailsForTable(array &$usages, string $mediaName, string $table, string $column, string $type, string $labelColumn, string $routeName, bool $public): void
     {
@@ -149,7 +163,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<string, bool> $usedMediaNames
+     * @param  array<string, bool>  $usedMediaNames
      */
     private function collectPivotReferences(array &$usedMediaNames): void
     {
@@ -169,7 +183,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<string, bool> $usedMediaNames
+     * @param  array<string, bool>  $usedMediaNames
      */
     private function collectDirectReferences(array &$usedMediaNames): void
     {
@@ -181,7 +195,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<string, bool> $usedMediaNames
+     * @param  array<string, bool>  $usedMediaNames
      */
     private function collectContentReferences(array &$usedMediaNames): void
     {
@@ -191,7 +205,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<string, bool> $usedMediaNames
+     * @param  array<string, bool>  $usedMediaNames
      */
     private function markColumnValues(array &$usedMediaNames, string $table, string $column): void
     {
@@ -211,7 +225,7 @@ class MediaUsageService
     }
 
     /**
-     * @param array<string, bool> $usedMediaNames
+     * @param  array<string, bool>  $usedMediaNames
      */
     private function markContentMatches(array &$usedMediaNames, string $table, string $column): void
     {

@@ -250,7 +250,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span>Shipping</span>
-                        <span x-text="cartState.summary.can_checkout ? formatMoney(cartState.summary.shipping) : 'Manual quote'"></span>
+                        <span x-text="cartState.summary.can_checkout ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'Manual quote'"></span>
                     </div>
                     <div x-show="Number(cartState.summary.discount || 0) > 0" class="flex items-center justify-between gap-4 text-emerald-700">
                         <span x-text="cartState.summary.coupon_code ? `Discount (${cartState.summary.coupon_code})` : 'Discount'"></span>

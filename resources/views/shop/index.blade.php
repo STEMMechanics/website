@@ -381,8 +381,8 @@
         <div data-shop-catalog data-current-view="{{ $selectedView }}">
             <div class="flex items-start gap-3">
                 @if(($categories ?? collect())->isNotEmpty())
-                    <aside class="hidden lg:block">
-                        <div class="sticky top-24 min-w-56">
+                    <aside class="hidden w-56 shrink-0 lg:block">
+                        <div class="sticky top-24">
                             <h2 class="mt-1 text-2xl font-bold text-gray-900">Categories</h2>
                             <div class="mt-3 space-y-1">
                                 <a
@@ -413,6 +413,7 @@
                                     </a>
                                 </div>
                             </div>
+                            @include('shop.partials.sidebar-shipping-notice', ['notice' => $sidebarShippingNotice])
                         </div>
                     </aside>
                 @endif
@@ -463,6 +464,7 @@
                                     </div>
                                 </div>
                             </details>
+                            @include('shop.partials.sidebar-shipping-notice', ['notice' => $sidebarShippingNotice])
                         </section>
                     @endif
 

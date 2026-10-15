@@ -413,7 +413,7 @@
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <span>Shipping</span>
-                            <span x-text="drawerHasSelectedShipping() ? formatMoney(cartState.summary.shipping) : 'TBD'"></span>
+                            <span x-text="drawerHasShippingPrice() ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'TBD'"></span>
                         </div>
                         <div x-show="drawerDiscountAmount() > 0" class="flex items-center justify-between gap-4 text-emerald-700">
                             <span x-text="cartState.summary.coupon_code ? `Voucher (${cartState.summary.coupon_code})` : 'Discount'"></span>
@@ -424,7 +424,7 @@
                             <span x-text="formatMoney(drawerGstAmount())"></span>
                         </div>
                         <div class="border-t border-gray-200 pt-3 flex items-center justify-between gap-4">
-                            <span class="text-base font-bold text-gray-900" x-text="drawerHasSelectedShipping() ? 'Total' : 'Sub-Total'"></span>
+                            <span class="text-base font-bold text-gray-900" x-text="drawerHasShippingPrice() ? 'Total' : 'Sub-Total'"></span>
                             <span class="text-right text-xl font-bold text-gray-900" x-text="formatMoney(drawerDisplayedTotal())"></span>
                         </div>
                     </div>
@@ -705,19 +705,26 @@
             },
 
             drawerDiscountAmount() {
-                if (!this.drawerHasSelectedShipping() && this.cartState?.summary?.coupon_type === 'free_shipping') {
+                if (!this.drawerHasShippingPrice() && this.cartState?.summary?.coupon_type === 'free_shipping') {
                     return 0;
                 }
 
                 return Number(this.cartState?.summary?.discount || 0);
             },
 
-            drawerHasSelectedShipping() {
-                return Boolean(this.cartState?.has_selected_shipping_method);
+            drawerHasShippingPrice() {
+                const summary = this.cartState?.summary;
+                const shipping = summary?.shipping;
+
+                return Boolean(summary?.can_checkout)
+                    && !Boolean(summary?.shipping_quote?.requires_manual_quote)
+                    && shipping !== null
+                    && shipping !== undefined
+                    && Number.isFinite(Number(shipping));
             },
 
             drawerDisplayedTotal() {
-                if (this.drawerHasSelectedShipping()) {
+                if (this.drawerHasShippingPrice()) {
                     return Number(this.cartState?.summary?.total || 0);
                 }
 
@@ -725,7 +732,7 @@
             },
 
             drawerGstAmount() {
-                if (this.drawerHasSelectedShipping()) {
+                if (this.drawerHasShippingPrice()) {
                     return Number(this.cartState?.summary?.gst || 0);
                 }
 

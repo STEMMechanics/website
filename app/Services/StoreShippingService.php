@@ -41,7 +41,7 @@ class StoreShippingService
         ];
         $lines = collect([$line]);
 
-        return $this->availableMethods($lines)->reject(fn ($method) => $method->isPickup())
+        return $this->availableMethods($lines)->reject(fn ($method) => $method->isPickup() || $method->usesCartValuePricing())
             ->map(function ($method) use ($lines): array {
                 $quote = $this->singleShipmentQuote($lines, $method);
                 $parcel = $quote['parcels'][0] ?? null;
@@ -54,7 +54,7 @@ class StoreShippingService
                     'max_weight_grams' => $parcel['max_weight_grams'] ?? null,
                     'chargeable_weight_grams' => $parcel['chargeable_weight_grams'] ?? null,
                     'packaging_cost' => $parcel['packaging_cost'] ?? 0,
-                    'amount' => $method->usesCartValuePricing() ? null : $quote['amount'],
+                    'amount' => $quote['amount'],
                     'pricing_type' => $method->pricingType(),
                     'reason' => $quote['reason'] ?? ($parcel === null ? 'No box size is configured for this channel.' : null),
                 ];
@@ -225,7 +225,7 @@ class StoreShippingService
         );
     }
 
-    /** Price the whole order after packing, without bypassing delivery eligibility. */
+    /** Price the whole order once using the goods total. */
     private function applyCartValuePricing(array $quote, ?StoreShippingMethod $method, float $cartValue): array
     {
         if (! $method?->usesCartValuePricing()) {
@@ -238,7 +238,6 @@ class StoreShippingService
         $quote['cart_value'] = $cartValueCents / 100;
         $quote['cart_value_tiers'] = $tiers->all();
         $quote['matched_cart_value_tier'] = $tier;
-        $quote['calculated_amount'] = (float) $quote['amount'];
         $quote['consolidation_savings_amount'] = 0.0;
 
         if (! $quote['can_checkout']) {
@@ -256,7 +255,6 @@ class StoreShippingService
         $quote['amount'] = round((float) $tier['price'], 2);
         // Allocate the order's charge to its first shipment so shipment totals reconcile.
         foreach ($quote['shipments'] as $index => &$shipment) {
-            $shipment['calculated_amount'] = (float) $shipment['amount'];
             $shipment['amount'] = $index === 0 ? $quote['amount'] : 0.0;
         }
         unset($shipment);
@@ -502,7 +500,8 @@ class StoreShippingService
 
     private function singleShipmentQuote(Collection $lines, ?StoreShippingMethod $method): array
     {
-        if ($lines->isEmpty()) {
+        // Cart value tiers are applied to the whole order without packing each shipment.
+        if ($lines->isEmpty() || $method?->usesCartValuePricing()) {
             return $this->decorateShipmentQuote([
                 'can_checkout' => true,
                 'boxed_shipping_required' => false,
