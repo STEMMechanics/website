@@ -43,6 +43,18 @@ class ShopSettingsController extends Controller
         $hasShippingMethodsTable = Schema::hasTable('store_shipping_methods');
         $hasShippingMethodPackagesTable = Schema::hasTable('store_shipping_method_packages');
 
+        // The selector is authoritative; retain support for older is_pickup submissions.
+        $rawMethods = $request->input('shipping_methods');
+        if (is_array($rawMethods)) {
+            foreach ($rawMethods as &$method) {
+                if (is_array($method) && isset($method['pricing_type'])) {
+                    $method['is_pickup'] = $method['pricing_type'] === StoreShippingMethod::PRICING_PICKUP ? '1' : '0';
+                }
+            }
+            unset($method);
+            $request->merge(['shipping_methods' => $rawMethods]);
+        }
+
         $rules = [
             'public_enabled' => ['required', 'boolean'],
             'max_satchel_weight_grams' => ['required', 'integer', 'min:0', 'max:50000'],
@@ -69,6 +81,15 @@ class ShopSettingsController extends Controller
                 'shipping_methods.*.delivery_estimate_min_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.delivery_estimate_max_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.is_pickup' => ['nullable', 'boolean'],
+                'shipping_methods.*.pricing_type' => ['nullable', Rule::in([
+                    StoreShippingMethod::PRICING_PICKUP,
+                    StoreShippingMethod::PRICING_CALCULATED,
+                    StoreShippingMethod::PRICING_CART_VALUE,
+                ])],
+                'shipping_methods.*.cart_value_tiers' => ['required', 'array', 'min:1', 'max:100'],
+                'shipping_methods.*.cart_value_tiers.*' => ['required', 'array'],
+                'shipping_methods.*.cart_value_tiers.*.min_cart_value' => ['required', 'numeric', 'min:0', 'max:9999999.99', 'decimal:0,2'],
+                'shipping_methods.*.cart_value_tiers.*.price' => ['required', 'numeric', 'min:0', 'max:9999.99', 'decimal:0,2'],
                 'shipping_methods.*.calculated_packaging_cost' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
                 'shipping_methods.*.cubic_divisor' => ['nullable', 'integer', 'min:1', 'max:99999999'],
                 'shipping_methods.*.weight_tiers' => ['nullable', 'array', 'max:100'],
@@ -100,6 +121,9 @@ class ShopSettingsController extends Controller
 
         // Pickup ignores pricing fields, including incomplete drafts hidden by the editor.
         foreach ($rules as $field => &$fieldRules) {
+            if (str_starts_with($field, 'shipping_methods.*.cart_value_tiers')) {
+                array_unshift($fieldRules, 'exclude_unless:shipping_methods.*.pricing_type,cart_value');
+            }
             if (preg_match('/^shipping_methods\.\*\.(packages|weight_tiers|cubic_divisor|calculated_packaging_cost)(\.|$)/', $field)) {
                 array_unshift($fieldRules, 'exclude_if:shipping_methods.*.is_pickup,1');
             }
@@ -216,7 +240,7 @@ class ShopSettingsController extends Controller
                             'internal_length_mm' => (string) ($package->internal_length_mm ?? ''),
                             'internal_width_mm' => (string) ($package->internal_width_mm ?? ''),
                             'internal_height_mm' => (string) ($package->internal_height_mm ?? ''),
-                            'max_weight_grams' => (string) ($package->max_weight_grams ?? 5000),
+                            'max_weight_grams' => (string) ($package->max_weight_grams ?? ''),
                             'price' => number_format((float) $package->price, 2, '.', ''),
                             'is_active' => (bool) $package->is_active,
                         ];
@@ -239,6 +263,8 @@ class ShopSettingsController extends Controller
                     'delivery_estimate_min_days' => $method->delivery_estimate_min_days !== null ? (string) $method->delivery_estimate_min_days : '',
                     'delivery_estimate_max_days' => $method->delivery_estimate_max_days !== null ? (string) $method->delivery_estimate_max_days : '',
                     'is_pickup' => $method->isPickup(),
+                    'pricing_type' => $method->pricingType(),
+                    'cart_value_tiers' => $method->cart_value_tiers ?? [],
                     'cubic_divisor' => $method->cubic_divisor,
                     'calculated_packaging_cost' => $method->calculated_packaging_cost ?? '0.00',
                     'weight_tiers' => $method->weight_tiers ?? [],
@@ -288,6 +314,8 @@ class ShopSettingsController extends Controller
      *     immediate_status_label:string,
      *     delayed_status_label:string,
      *     calculator:string,
+     *     pricing_type:string,
+     *     cart_value_tiers:list<array{min_cart_value:float,price:float}>,
      *     flat_rate_amount:float|null,
      *     delivery_estimate_min_days:int|null,
      *     delivery_estimate_max_days:int|null,
@@ -351,9 +379,12 @@ class ShopSettingsController extends Controller
                     'price' => round((float) $tier['price'], 2),
                 ])->values()->all();
                 $divisor = ($method['cubic_divisor'] ?? '') !== '' ? (int) $method['cubic_divisor'] : null;
-                $isPickup = array_key_exists('is_pickup', $method)
-                    ? (bool) $method['is_pickup']
-                    : $packages === [] && $tiers === [] && $divisor === null;
+                $pricingType = $method['pricing_type'] ?? null;
+                $isPickup = $pricingType !== null
+                    ? $pricingType === StoreShippingMethod::PRICING_PICKUP
+                    : (array_key_exists('is_pickup', $method)
+                        ? (bool) $method['is_pickup']
+                        : $packages === [] && $tiers === [] && $divisor === null);
                 $terminology = $this->defaultShippingTerminology($isPickup);
 
                 return [
@@ -371,6 +402,12 @@ class ShopSettingsController extends Controller
                     'rate_multiplier' => 1.00,
                     'rate_adjustment_amount' => 0.00,
                     'is_pickup' => $isPickup,
+                    'pricing_type' => $pricingType ?? ($isPickup ? StoreShippingMethod::PRICING_PICKUP : StoreShippingMethod::PRICING_CALCULATED),
+                    'cart_value_tiers' => collect($method['cart_value_tiers'] ?? [])
+                        ->map(fn (array $tier): array => [
+                            'min_cart_value' => round((float) $tier['min_cart_value'], 2),
+                            'price' => round((float) $tier['price'], 2),
+                        ])->sortBy('min_cart_value')->values()->all(),
                     'cubic_divisor' => $divisor,
                     'calculated_packaging_cost' => round((float) ($method['calculated_packaging_cost'] ?? 0), 2),
                     'weight_tiers' => $tiers,
@@ -403,6 +440,14 @@ class ShopSettingsController extends Controller
 
         $errors = [];
         foreach ($methods as $index => $method) {
+            if ($method['pricing_type'] === StoreShippingMethod::PRICING_CART_VALUE) {
+                if (($method['cart_value_tiers'][0]['min_cart_value'] ?? null) !== 0.0) {
+                    $errors['shipping_methods.'.$index.'.cart_value_tiers'][] = 'Add a tier starting at $0.00 so every cart has a freight price.';
+                }
+                if (collect($method['cart_value_tiers'])->duplicates('min_cart_value')->isNotEmpty()) {
+                    $errors['shipping_methods.'.$index.'.cart_value_tiers'][] = 'Cart value thresholds must be unique within a channel.';
+                }
+            }
             if (
                 $method['delivery_estimate_min_days'] !== null
                 && $method['delivery_estimate_max_days'] !== null
@@ -467,6 +512,8 @@ class ShopSettingsController extends Controller
      *     immediate_status_label:string,
      *     delayed_status_label:string,
      *     calculator:string,
+     *     pricing_type:string,
+     *     cart_value_tiers:list<array{min_cart_value:float,price:float}>,
      *     flat_rate_amount:float|null,
      *     delivery_estimate_min_days:int|null,
      *     delivery_estimate_max_days:int|null,
@@ -511,6 +558,11 @@ class ShopSettingsController extends Controller
                 continue;
             }
 
+            $calculator = $method->calculator ?: $methodData['calculator'];
+            if (! $methodData['is_pickup'] && $calculator === StoreShippingMethod::CALCULATOR_PICKUP) {
+                $calculator = StoreShippingMethod::CALCULATOR_PACKAGES;
+            }
+
             $method->fill([
                 'code' => $methodData['code'],
                 'name' => $methodData['name'],
@@ -518,17 +570,21 @@ class ShopSettingsController extends Controller
                 'shipment_label' => $methodData['shipment_label'],
                 'immediate_status_label' => $methodData['immediate_status_label'],
                 'delayed_status_label' => $methodData['delayed_status_label'],
-                'calculator' => $methodData['calculator'],
-                'flat_rate_amount' => $methodData['flat_rate_amount'],
+                'calculator' => $calculator,
+                'flat_rate_amount' => $method->flat_rate_amount ?? $methodData['flat_rate_amount'],
+                'pricing_type' => $methodData['pricing_type'],
                 'delivery_estimate_min_days' => $methodData['delivery_estimate_min_days'],
                 'delivery_estimate_max_days' => $methodData['delivery_estimate_max_days'],
-                'rate_multiplier' => $methodData['rate_multiplier'],
-                'rate_adjustment_amount' => $methodData['rate_adjustment_amount'],
+                'rate_multiplier' => $method->rate_multiplier ?? $methodData['rate_multiplier'],
+                'rate_adjustment_amount' => $method->rate_adjustment_amount ?? $methodData['rate_adjustment_amount'],
                 'is_pickup' => $methodData['is_pickup'],
                 'suppresses_request_quote' => $methodData['suppresses_request_quote'],
                 'is_active' => $methodData['is_active'],
                 'sort_order' => $methodData['sort_order'],
             ]);
+            if ($methodData['pricing_type'] === StoreShippingMethod::PRICING_CART_VALUE) {
+                $method->cart_value_tiers = $methodData['cart_value_tiers'];
+            }
             if (! $methodData['is_pickup']) {
                 $method->fill([
                     'cubic_divisor' => $methodData['cubic_divisor'],

@@ -54,7 +54,8 @@ class StoreShippingService
                     'max_weight_grams' => $parcel['max_weight_grams'] ?? null,
                     'chargeable_weight_grams' => $parcel['chargeable_weight_grams'] ?? null,
                     'packaging_cost' => $parcel['packaging_cost'] ?? 0,
-                    'amount' => $quote['amount'],
+                    'amount' => $method->usesCartValuePricing() ? null : $quote['amount'],
+                    'pricing_type' => $method->pricingType(),
                     'reason' => $quote['reason'] ?? ($parcel === null ? 'No box size is configured for this channel.' : null),
                 ];
             })->sortBy(fn ($option) => [$option['fits'] ? 0 : 1, $option['amount']])->values()->all();
@@ -75,6 +76,7 @@ class StoreShippingService
         ?string $country = null,
         ?string $methodCode = null,
         bool $consolidateShipments = false,
+        ?float $cartValue = null,
     ): array {
         $physicalLines = $lines
             ->filter(fn ($line) => $line->product->isPhysical() && (int) $line->quantity > 0)
@@ -186,7 +188,7 @@ class StoreShippingService
             ->values()
             ->all();
 
-        return $this->applyProcessingPauseMetadata($this->decorateAggregateQuote([
+        $quote = $this->decorateAggregateQuote([
             'can_checkout' => $canCheckout,
             'boxed_shipping_required' => $shipmentQuotes->contains(
                 fn (array $shipment) => (bool) ($shipment['quote']['boxed_shipping_required'] ?? false)
@@ -213,7 +215,54 @@ class StoreShippingService
             'second_shipment_charge_amount' => round((float) $shipments->slice(1)->sum('amount'), 2),
             'consolidation_savings_amount' => $consolidationSavingsAmount,
             'delayed_dispatch_date' => $shipmentGroups['delayed_dispatch_date'] ?? null,
-        ], $selectedMethod), $processingPauseUntil);
+        ], $selectedMethod);
+
+        $cartValue ??= (float) $lines->sum(fn ($line): float => (float) ($line->line_price ?? ((float) ($line->unit_price ?? 0) * (int) $line->quantity)));
+
+        return $this->applyProcessingPauseMetadata(
+            $this->applyCartValuePricing($quote, $selectedMethod, $cartValue),
+            $processingPauseUntil,
+        );
+    }
+
+    /** Price the whole order after packing, without bypassing delivery eligibility. */
+    private function applyCartValuePricing(array $quote, ?StoreShippingMethod $method, float $cartValue): array
+    {
+        if (! $method?->usesCartValuePricing()) {
+            return $quote;
+        }
+
+        $cartValueCents = max(0, (int) round($cartValue * 100));
+        $tiers = collect($method->cart_value_tiers ?? [])->sortBy('min_cart_value')->values();
+        $tier = $tiers->last(fn (array $tier): bool => (int) round((float) $tier['min_cart_value'] * 100) <= $cartValueCents);
+        $quote['cart_value'] = $cartValueCents / 100;
+        $quote['cart_value_tiers'] = $tiers->all();
+        $quote['matched_cart_value_tier'] = $tier;
+        $quote['calculated_amount'] = (float) $quote['amount'];
+        $quote['consolidation_savings_amount'] = 0.0;
+
+        if (! $quote['can_checkout']) {
+            return $quote;
+        }
+
+        if ($tier === null) {
+            $quote['can_checkout'] = false;
+            $quote['requires_manual_quote'] = true;
+            $quote['reason'] = 'This delivery channel has no matching cart value price.';
+
+            return $quote;
+        }
+
+        $quote['amount'] = round((float) $tier['price'], 2);
+        // Allocate the order's charge to its first shipment so shipment totals reconcile.
+        foreach ($quote['shipments'] as $index => &$shipment) {
+            $shipment['calculated_amount'] = (float) $shipment['amount'];
+            $shipment['amount'] = $index === 0 ? $quote['amount'] : 0.0;
+        }
+        unset($shipment);
+        $quote['second_shipment_charge_amount'] = 0.0;
+
+        return $quote;
     }
 
     /**
@@ -1157,6 +1206,7 @@ class StoreShippingService
 
     private function decorateAggregateQuote(array $quote, ?StoreShippingMethod $method): array
     {
+        $quote['pricing_type'] = $method?->pricingType();
         $quote['selected_method_code'] = $method instanceof StoreShippingMethod ? $method->code : ($quote['selected_method_code'] ?? null);
         $quote['method'] = $method instanceof StoreShippingMethod ? (string) $method->name : ($quote['method'] ?? 'Shipping');
         $quote['note'] = $method instanceof StoreShippingMethod
@@ -1359,7 +1409,7 @@ class StoreShippingService
 
     private function consolidationSavingsAmount(array $shipmentGroups, ?StoreShippingMethod $method): float
     {
-        if (! (bool) ($shipmentGroups['offers_consolidation'] ?? false)) {
+        if ($method?->usesCartValuePricing() || ! (bool) ($shipmentGroups['offers_consolidation'] ?? false)) {
             return 0.0;
         }
 

@@ -24,6 +24,12 @@ class StoreShippingMethod extends Model
 
     public const CALCULATOR_FLAT_RATE = 'flat_rate';
 
+    public const PRICING_PICKUP = 'pickup';
+
+    public const PRICING_CALCULATED = 'calculated';
+
+    public const PRICING_CART_VALUE = 'cart_value';
+
     protected $fillable = [
         'code',
         'name',
@@ -33,6 +39,8 @@ class StoreShippingMethod extends Model
         'delayed_status_label',
         'calculator',
         'flat_rate_amount',
+        'pricing_type',
+        'cart_value_tiers',
         'cubic_divisor',
         'calculated_packaging_cost',
         'weight_tiers',
@@ -48,6 +56,7 @@ class StoreShippingMethod extends Model
 
     protected $casts = [
         'flat_rate_amount' => 'decimal:2',
+        'cart_value_tiers' => 'array',
         'cubic_divisor' => 'integer',
         'calculated_packaging_cost' => 'decimal:2',
         'weight_tiers' => 'array',
@@ -63,7 +72,27 @@ class StoreShippingMethod extends Model
 
     public function isPickup(): bool
     {
+        if (in_array($this->pricing_type, [self::PRICING_PICKUP, self::PRICING_CALCULATED, self::PRICING_CART_VALUE], true)) {
+            return $this->pricing_type === self::PRICING_PICKUP;
+        }
+
         return (bool) $this->is_pickup || (string) $this->calculator === self::CALCULATOR_PICKUP;
+    }
+
+    public function pricingType(): string
+    {
+        if ($this->isPickup()) {
+            return self::PRICING_PICKUP;
+        }
+
+        return $this->pricing_type === self::PRICING_CART_VALUE
+            ? self::PRICING_CART_VALUE
+            : self::PRICING_CALCULATED;
+    }
+
+    public function usesCartValuePricing(): bool
+    {
+        return $this->pricingType() === self::PRICING_CART_VALUE;
     }
 
     public function suppressesRequestQuote(): bool

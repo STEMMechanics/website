@@ -65,7 +65,15 @@ class InvoicePdfPaymentDetailsTest extends TestCase
         $this->assertStringNotContainsString('Ship to', $render());
 
         $order->update([
+            'shipping_method_code' => 'workshop-collection',
+            'shipping_breakdown_data' => ['is_pickup' => true],
+            'shipping_address' => '22 Delivery Road',
+        ]);
+        $this->assertStringNotContainsString('Ship to', $render());
+
+        $order->update([
             'shipping_method_code' => StoreShippingMethod::CODE_PICKUP,
+            'shipping_breakdown_data' => null,
             'shipping_address' => '22 Delivery Road',
         ]);
         $this->assertStringNotContainsString('Ship to', $render());

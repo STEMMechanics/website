@@ -135,7 +135,7 @@
                             </label>
                         </template>
 
-                        <label x-show="cartState.summary.shipping_quote.offers_consolidation && selectedShippingMethodCode !== 'pickup'" x-cloak class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700">
+                        <label x-show="cartState.summary.shipping_quote.offers_consolidation && !selectedShippingIsPickup()" x-cloak class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700">
                             <x-ui.checkbox bare small
 
  name="consolidate_shipments"
@@ -151,7 +151,7 @@
 
                         <div class="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-950" x-show="splitShipmentLabel()" x-cloak>
                             <div class="font-semibold text-sky-900" x-text="splitShipmentLabel()"></div>
-                            <div class="mt-1" x-show="!cartState.summary.shipping_quote.consolidate_shipments && selectedShippingMethodCode !== 'pickup'">
+                            <div class="mt-1" x-show="!cartState.summary.shipping_quote.consolidate_shipments && !cartState.summary.shipping_quote.is_pickup && Number(cartState.summary.shipping_quote.second_shipment_charge_amount || 0) > 0">
                                 The later shipment currently adds
                                 <span class="font-semibold text-sky-950" x-text="formatMoney(cartState.summary.shipping_quote.second_shipment_charge_amount || 0)"></span>
                                 in extra shipping.
@@ -429,7 +429,12 @@
                     return this.formatMoney(0);
                 }
 
-                return method.is_pickup ? 'Free' : this.formatMoney(method.estimated_amount || 0);
+                return method.is_pickup || Number(method.estimated_amount || 0) === 0 ? 'Free' : this.formatMoney(method.estimated_amount);
+            },
+
+            selectedShippingIsPickup() {
+                const method = (this.cartState?.summary?.shipping_methods || []).find(method => method.code === this.selectedShippingMethodCode);
+                return Boolean(method?.is_pickup);
             },
 
             consolidationSavingsLabel() {
@@ -533,7 +538,7 @@
                     return;
                 }
 
-                if (String(this.selectedShippingMethodCode || '') === 'pickup') {
+                if (this.selectedShippingIsPickup()) {
                     this.consolidateShipments = false;
                 }
 
@@ -555,7 +560,7 @@
                     return;
                 }
 
-                if (String(this.selectedShippingMethodCode || '') === 'pickup') {
+                if (this.selectedShippingIsPickup()) {
                     this.consolidateShipments = false;
                 }
 

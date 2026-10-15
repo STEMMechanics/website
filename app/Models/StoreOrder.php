@@ -296,6 +296,11 @@ class StoreOrder extends Model
 
     public function usesPickup(): bool
     {
+        $breakdown = is_array($this->shipping_breakdown_data) ? $this->shipping_breakdown_data : [];
+        if (array_key_exists('is_pickup', $breakdown)) {
+            return (bool) $breakdown['is_pickup'];
+        }
+
         return (string) $this->shipping_method_code === StoreShippingMethod::CODE_PICKUP;
     }
 

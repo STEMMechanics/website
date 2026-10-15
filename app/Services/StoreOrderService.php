@@ -2902,11 +2902,24 @@ class StoreOrderService
     private function prepareCheckout(Collection $lines, array $customer, ?User $user, bool $allowManualQuote = false): array
     {
         $preparedLines = $this->lockAndPrepareLines($lines);
+        $subtotal = round((float) $preparedLines->sum('line_price'), 2);
+        $couponEvaluation = $this->coupons->evaluate(
+            $customer['coupon_code'],
+            $subtotal,
+            0.0,
+            $user,
+            $customer['billing_email'],
+            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
+            [
+                'product_ids' => $preparedLines->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            ],
+        );
         $shippingQuote = $this->shipping->quote(
             $preparedLines,
             $customer['shipping_country'],
             $customer['shipping_method_code'] ?? null,
             (bool) ($customer['consolidate_shipments'] ?? false),
+            $this->coupons->discountedSubtotal($subtotal, $couponEvaluation),
         );
 
         if (! ($shippingQuote['can_checkout'] ?? true) && ! ($allowManualQuote && (bool) ($shippingQuote['requires_manual_quote'] ?? false))) {
@@ -2915,16 +2928,10 @@ class StoreOrderService
             ]);
         }
 
-        $couponEvaluation = $this->coupons->evaluate(
-            $customer['coupon_code'],
-            (float) $preparedLines->sum('line_price'),
+        $couponEvaluation = $this->coupons->withShippingAmount(
+            $couponEvaluation,
+            $subtotal,
             (float) ($shippingQuote['amount'] ?? 0),
-            $user,
-            $customer['billing_email'],
-            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
-            [
-                'product_ids' => $preparedLines->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
-            ],
         );
 
         if (($couponEvaluation['error'] ?? null) !== null) {

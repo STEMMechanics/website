@@ -19,6 +19,99 @@ class AdminShopSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_pricing_selector_saves_sorted_tiers_and_preserves_rates_across_all_modes(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $method = StoreShippingMethod::query()->where('code', 'regular')->firstOrFail();
+        $method->update([
+            'cubic_divisor' => 4000, 'calculated_packaging_cost' => 2.50,
+            'weight_tiers' => [['max_weight_grams' => 2000, 'price' => 8]],
+            'rate_multiplier' => 1.25, 'rate_adjustment_amount' => 1.50,
+        ]);
+        $packageAttributes = $method->packageOptions()->get()
+            ->map(fn ($package) => collect($package->getAttributes())->except(['created_at', 'updated_at'])->all())->all();
+        $page = $this->actingAs($admin)->get(route('admin.shop.settings.edit'))
+            ->assertOk()->assertSeeText('Pricing type')->assertSeeText('Cart value pricing')
+            ->assertSeeText('Calculated weight / volume pricing');
+        $rows = $page->viewData('shippingMethods');
+        $index = array_search('regular', array_column($rows, 'code'), true);
+        $payload = [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual shipping quote required.',
+            'shipping_methods' => $rows,
+        ];
+        $payload['shipping_methods'][$index]['pricing_type'] = 'cart_value';
+        $payload['shipping_methods'][$index]['cart_value_tiers'] = [
+            ['min_cart_value' => '150.00', 'price' => '0.00'],
+            ['min_cart_value' => '0.00', 'price' => '12.95'],
+        ];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $method->refresh();
+        $this->assertSame('cart_value', $method->pricingType());
+        $this->assertSame([0, 150], array_column($method->cart_value_tiers, 'min_cart_value'));
+        $savedTiers = $method->cart_value_tiers;
+
+        // Hidden inactive drafts must neither block saving nor erase the saved configuration.
+        $payload['shipping_methods'][$index]['pricing_type'] = 'pickup';
+        $payload['shipping_methods'][$index]['cart_value_tiers'] = [['min_cart_value' => '', 'price' => -1]];
+        $payload['shipping_methods'][$index]['packages'] = [['code' => 'invalid code', 'price' => -1]];
+        $payload['shipping_methods'][$index]['cubic_divisor'] = -1;
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors();
+        $this->assertTrue($method->fresh()->isPickup());
+        $this->assertSame($savedTiers, $method->fresh()->cart_value_tiers);
+
+        $rows = $this->get(route('admin.shop.settings.edit'))->assertOk()->viewData('shippingMethods');
+        $this->assertSame('pickup', $rows[$index]['pricing_type']);
+        $payload['shipping_methods'] = $rows;
+        $payload['shipping_methods'][$index]['pricing_type'] = 'calculated';
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasNoErrors();
+        $method->refresh();
+        $this->assertFalse($method->isPickup());
+        $this->assertSame('calculated', $method->pricingType());
+        $this->assertSame($savedTiers, $method->cart_value_tiers);
+        $this->assertSame(4000, $method->cubic_divisor);
+        $this->assertSame('2.50', $method->calculated_packaging_cost);
+        $this->assertSame([['max_weight_grams' => 2000, 'price' => 8]], $method->weight_tiers);
+        $this->assertSame('1.25', $method->rate_multiplier);
+        $this->assertSame('1.50', $method->rate_adjustment_amount);
+        $this->assertEquals($packageAttributes, $method->packageOptions()->get()
+            ->map(fn ($package) => collect($package->getAttributes())->except(['created_at', 'updated_at'])->all())->all());
+    }
+
+    public function test_cart_value_tiers_require_a_zero_default_unique_thresholds_and_valid_money(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $payload = [
+            'public_enabled' => '1', 'max_satchel_weight_grams' => 5000,
+            'boxed_shipping_label' => 'Manual quote', 'boxed_shipping_message' => 'Manual shipping quote required.',
+            'shipping_methods' => [[
+                'code' => 'custom', 'name' => 'Freight', 'is_active' => '1', 'pricing_type' => 'cart_value', 'sort_order' => 0,
+                'cart_value_tiers' => [],
+            ]],
+        ];
+        $this->actingAs($admin)->put(route('admin.shop.settings.update'), $payload)
+            ->assertSessionHasErrors('shipping_methods.0.cart_value_tiers');
+        $payload['shipping_methods'][0]['cart_value_tiers'] = [['min_cart_value' => 150, 'price' => 0]];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors('shipping_methods.0.cart_value_tiers');
+        $payload['shipping_methods'][0]['cart_value_tiers'] = [
+            ['min_cart_value' => '0.00', 'price' => 12.95], ['min_cart_value' => '0', 'price' => 0],
+        ];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors('shipping_methods.0.cart_value_tiers');
+        $payload['shipping_methods'][0]['cart_value_tiers'] = [['min_cart_value' => -1, 'price' => -1]];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors([
+            'shipping_methods.0.cart_value_tiers.0.min_cart_value', 'shipping_methods.0.cart_value_tiers.0.price',
+        ]);
+        $payload['shipping_methods'][0]['cart_value_tiers'] = [['min_cart_value' => '0.001', 'price' => '12.955']];
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors([
+            'shipping_methods.0.cart_value_tiers.0.min_cart_value', 'shipping_methods.0.cart_value_tiers.0.price',
+        ]);
+        $payload['shipping_methods'][0]['pricing_type'] = 'unknown';
+        $this->put(route('admin.shop.settings.update'), $payload)->assertSessionHasErrors('shipping_methods.0.pricing_type');
+        $this->assertDatabaseMissing('store_shipping_methods', ['code' => 'custom']);
+    }
+
     public function test_calculated_only_channels_save_reload_and_remove_pricing_without_becoming_pickup(): void
     {
         $admin = User::factory()->create();
@@ -355,8 +448,7 @@ class AdminShopSettingsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.settings.edit'))
             ->assertOk()
-            ->assertViewHas('carrierSuggestions', fn (array $suggestions): bool =>
-                in_array('Australia Post', $suggestions, true)
+            ->assertViewHas('carrierSuggestions', fn (array $suggestions): bool => in_array('Australia Post', $suggestions, true)
                 && in_array('Courier Please', $suggestions, true)
             )
             ->assertSee('fa-trash', false);

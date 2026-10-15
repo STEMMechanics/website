@@ -323,7 +323,7 @@
                                 </template>
                             </div>
 
-                            <label x-show="currentCanOfferConsolidation() && shippingMethodCode !== 'pickup' && shippingMethodCode !== 'request_quote'" x-cloak class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                            <label x-show="currentCanOfferConsolidation() && !selectedShippingIsPickup() && shippingMethodCode !== 'request_quote'" x-cloak class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                                 <x-ui.checkbox bare small
 
  name="consolidate_shipments"
@@ -601,7 +601,12 @@
                     return '';
                 }
 
-                return method.is_pickup ? 'Free' : this.formatMoney(method.estimated_amount || 0);
+                return method.is_pickup || Number(method.estimated_amount || 0) === 0 ? 'Free' : this.formatMoney(method.estimated_amount);
+            },
+
+            selectedShippingIsPickup() {
+                const method = (this.cartState?.summary?.shipping_methods || []).find(method => method.code === this.shippingMethodCode);
+                return Boolean(method?.is_pickup);
             },
 
             consolidationSavingsLabel() {
@@ -700,7 +705,7 @@
             },
 
             needsShippingAddress() {
-                return this.hasPhysicalItems() && String(this.shippingMethodCode || '') !== 'pickup';
+                return this.hasPhysicalItems() && !this.selectedShippingIsPickup();
             },
 
             hasShipmentPlan() {
@@ -871,7 +876,7 @@
                     return 'Delivery';
                 }
 
-                return String(this.shippingMethodCode || '') === 'pickup' ? 'Pickup' : 'Shipping';
+                return this.selectedShippingIsPickup() ? 'Pickup' : 'Shipping';
             },
 
             discountLabel() {
@@ -918,7 +923,7 @@
                     return;
                 }
 
-                if (String(this.shippingMethodCode || '') === 'pickup') {
+                if (this.selectedShippingIsPickup()) {
                     this.consolidateShipments = false;
                 }
 
@@ -955,7 +960,7 @@
                     return true;
                 }
 
-                if (String(this.shippingMethodCode || '') === 'pickup') {
+                if (this.selectedShippingIsPickup()) {
                     this.consolidateShipments = false;
                 }
 

@@ -7,6 +7,26 @@ use App\Models\User;
 
 class StoreCouponService
 {
+    public function discountedSubtotal(float $subtotal, array $evaluation): float
+    {
+        $discount = ($evaluation['discount_type'] ?? null) === Coupon::DISCOUNT_TYPE_FREE_SHIPPING
+            ? 0.0
+            : (float) ($evaluation['discount_amount'] ?? 0);
+
+        return round(max(0, $subtotal - $discount), 2);
+    }
+
+    /** Reuse the evaluated voucher after delivery pricing is known. */
+    public function withShippingAmount(array $evaluation, float $subtotal, float $shipping): array
+    {
+        $coupon = $evaluation['coupon'] ?? null;
+        if ($coupon instanceof Coupon && ($evaluation['error'] ?? null) === null) {
+            $evaluation['discount_amount'] = $coupon->discountAmountFor($subtotal, $shipping);
+        }
+
+        return $evaluation;
+    }
+
     public function evaluate(
         ?string $couponCode,
         float $subtotal,
