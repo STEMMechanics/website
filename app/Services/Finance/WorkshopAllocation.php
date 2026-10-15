@@ -7,6 +7,7 @@ use App\Models\Ticket;
 use App\Models\Workshop;
 use App\Support\RequestMemo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -95,7 +96,9 @@ class WorkshopAllocation
             $unresolved = $unresolved || isset($parts->weights($invoice)['unresolved']);
             $received = app(FinancePlanner::class)->income([$invoice->id], null, $reportData)['gross'];
             $due = $invoice->status === Invoice::STATUS_CANCELLED ? 0 : (int) round($invoice->dueAmount() * 100);
-            if (in_array($invoice->id, $fundingInvoiceIds, true) && ! in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true)) continue;
+            if (in_array($invoice->id, $fundingInvoiceIds, true) && ! in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true)) {
+                continue;
+            }
             if ($invoice->status === Invoice::STATUS_DRAFT || ($invoice->status !== Invoice::STATUS_WRITTEN_OFF && $received < $due) || $received > $due) {
                 $pending++;
             }
@@ -124,12 +127,38 @@ class WorkshopAllocation
                 ])
                 ->all();
         }
+        $legacyHash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
+        if ($hasFundingPlan) {
+            $fundingLine = $invoices
+                ->reject(fn ($invoice) => in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true))
+                ->flatMap(fn ($invoice) => $invoice->lines->flatMap(fn ($line) => app(WorkshopFunding::class)->entries($line)))
+                ->first(fn ($line) => ($line->details_json['workshop']['linked_workshop_id'] ?? null) === $workshop->id);
+            $basis = $fundingLine->details_json['workshop']['allocation_basis'] ?? 'manual';
+
+            // Closing registrations does not change an invoice-funded cost plan; cancellation does.
+            $source['workshop'][2] = $workshop->status === 'cancelled' ? 'cancelled' : 'open';
+            $source['tickets'] = $tickets
+                ->filter(fn ($ticket) => ! in_array($basis, ['manual', 'capacity'], true)
+                    || $ticket->invoice_id
+                    || in_array($ticket->status, [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT], true))
+                ->map(fn ($ticket) => [$ticket->id, $ticket->status, $ticket->invoice_id, $ticket->invoice_line_id, $basis === 'attendance' ? $ticket->attended_at?->toIso8601String() : null])
+                ->values()->all();
+            // Attendance affects costs only when the funding line uses attended participants.
+            if ($basis !== 'attendance') {
+                $source['drop_in_attendance_count'] = 0;
+                if (isset($source['session_attendance'])) {
+                    $source['session_attendance'] = [];
+                }
+            }
+        }
         $hash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
         // Settled cancellations with no retained receipts need no initial allocation.
         $noAllocationRequired = $workshop->status === 'cancelled' && ! $budget?->finalised_at
             && $pending === 0 && ! $unresolved && array_sum(array_column($events, 'gross')) === 0;
         $ready = ! $noAllocationRequired && ($hasFundingPlan || ($workshop->effectiveEndsAt() && $workshop->effectiveEndsAt()->lte(now()))) && $pending === 0 && ! $unresolved;
-        $current = $budget && $budget->finalised_at && hash_equals((string) $budget->source_hash, $hash);
+        // Keep unchanged snapshots made before funding inputs were normalised current.
+        $current = $budget && $budget->finalised_at && (hash_equals((string) $budget->source_hash, $hash)
+            || ($hasFundingPlan && hash_equals((string) $budget->source_hash, $legacyHash)));
         $status = match (true) {
             (bool) $current => 'Finalised',
             (bool) $budget?->finalised_at => 'Allocation needs review',
@@ -180,7 +209,7 @@ class WorkshopAllocation
 
     public function finalise(Workshop $workshop, array $data, ?string $userId): void
     {
-        $data = \Illuminate\Support\Facades\Validator::make($data, ['source_hash' => 'required|string|size:64', 'revision' => 'nullable|string', 'override' => 'nullable|boolean', 'supplied_categories' => 'sometimes|array|max:100', 'supplied_categories.*' => 'boolean', 'targets' => 'required_if:override,1|array|min:1', 'targets.*' => 'required|numeric|min:0|max:10000000'])->validate();
+        $data = Validator::make($data, ['source_hash' => 'required|string|size:64', 'revision' => 'nullable|string', 'override' => 'nullable|boolean', 'supplied_categories' => 'sometimes|array|max:100', 'supplied_categories.*' => 'boolean', 'targets' => 'required_if:override,1|array|min:1', 'targets.*' => 'required|numeric|min:0|max:10000000'])->validate();
         DB::transaction(function () use ($workshop, $data, $userId) {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $workshop = Workshop::whereKey($workshop->id)->lockForUpdate()->firstOrFail();

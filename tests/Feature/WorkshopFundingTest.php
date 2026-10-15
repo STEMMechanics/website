@@ -174,6 +174,56 @@ class WorkshopFundingTest extends TestCase
         $this->assertNotSame($initialHash, app(WorkshopAllocation::class)->state($workshop)['hash']);
     }
 
+    public function test_fixed_funding_stays_finalised_when_workshop_closes_and_attendance_is_recorded(): void
+    {
+        $user = $this->admin();
+        $service = app(WorkshopAllocation::class);
+
+        foreach (['manual' => 12, 'capacity' => 20] as $basis => $participants) {
+            $workshop = $this->workshop();
+            $workshop->update(['status' => 'open']);
+            $line = $this->line($workshop, $basis);
+            $line['workshop_seats'] = 12;
+            $this->createInvoice([$line]);
+            $hash = $service->state($workshop)['hash'];
+            $service->finalise($workshop, ['source_hash' => $hash, 'override' => 1, 'targets' => [1 => '240.00']], $user->id);
+            $budget = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first();
+
+            $workshop->update(['status' => 'closed']);
+            WorkshopAttendance::factory()->count(4)->create(['workshop_id' => $workshop->id, 'ticket_id' => null]);
+            Ticket::factory()->create(['workshop_id' => $workshop->id, 'invoice_id' => null, 'attended_at' => now()]);
+
+            $this->assertSame($participants, $service->context($workshop)['assumptions']['participants']);
+            $this->assertSame($hash, $service->state($workshop)['hash']);
+            $this->assertTrue($service->state($workshop)['current']);
+            $reportData = new FinanceReportData(collect(), collect([$budget]));
+            $this->assertTrue($service->state($workshop->fresh(), $budget, $reportData)['current']);
+            $this->assertNotContains($workshop->id, array_map(fn ($row) => $row['workshop']->id, $service->attention()));
+            $this->get(route('admin.workshop.allocation.edit', $workshop))->assertOk()
+                ->assertSeeText('Finalised')->assertDontSee('Allocation needs review');
+            $this->assertSame($budget->targets, DB::table('finance_budgets')->where('id', $budget->id)->value('targets'));
+
+            $workshop->update(['status' => 'cancelled']);
+            $this->assertSame('Allocation needs review', $service->state($workshop)['status']);
+        }
+    }
+
+    public function test_attendance_funding_requires_review_when_attendee_count_changes(): void
+    {
+        $user = $this->admin();
+        $workshop = $this->workshop();
+        $this->createInvoice([$this->line($workshop, 'attendance')]);
+        $service = app(WorkshopAllocation::class);
+        $hash = $service->state($workshop)['hash'];
+        $service->finalise($workshop, ['source_hash' => $hash], $user->id);
+
+        WorkshopAttendance::factory()->create(['workshop_id' => $workshop->id, 'ticket_id' => null]);
+
+        $this->assertSame(1, $service->context($workshop)['assumptions']['participants']);
+        $this->assertNotSame($hash, $service->state($workshop)['hash']);
+        $this->assertSame('Allocation needs review', $service->state($workshop)['status']);
+    }
+
     public function test_existing_issued_invoice_can_be_linked_and_unlinked_without_changing_price(): void
     {
         $this->admin();
