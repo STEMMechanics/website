@@ -31,7 +31,7 @@ class ShopProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Product::query()->with(['hero', 'variants', 'categories'])->withExists('storeOrderItems');
+        $query = Product::query()->with(['hero', 'variants' => fn ($relation) => $relation->chaperone(), 'categories'])->withExists('storeOrderItems');
         $legacyFilter = $this->normalizeIndexFilter($request->query('filter'));
         $scope = $request->query('status_scope', $legacyFilter === 'archived' ? 'archived' : 'current') ?: 'all';
         $inventory = $request->query('inventory', $legacyFilter === 'low_stock' ? 'low_stock' : '');
