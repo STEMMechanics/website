@@ -265,6 +265,9 @@
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
                     $typeLabel = ['multi_workshop' => 'Workshop Delivery', 'workshop' => 'Workshop Delivery', 'travel' => 'Travel Fee', 'product' => 'Store Product', 'ticket' => 'Ticket', 'shipping' => 'Shipping'][$lineKind] ?? '';
+                    if (in_array($lineKind, ['product', 'shipping'], true) && trim($lineDescription) !== '') {
+                    $typeLabel = '';
+                    }
                     @endphp
                     <tr>
                         <td>
