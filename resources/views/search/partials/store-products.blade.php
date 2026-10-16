@@ -112,7 +112,7 @@
                             'cartPayload' => $cartPayload,
                         ])
                     @else
-                        <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link px-5!">{{ $variantCount > 1 ? 'View product' : 'View' }}</x-ui.button>
+                        <x-ui.button color="secondary" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full px-5!">View product</x-ui.button>
                     @endif
                 </div>
             </div>
