@@ -32,6 +32,7 @@ window.SM.productMaterials = (config = {}) => ({
     markup: config.markup ?? '',
     productBulkDiscount: config.bulkDiscount ?? '',
     priceEnding: Number(config.priceEnding ?? 0.95),
+    minimumPackHandlingTarget: Number(config.minimumPackHandlingTarget ?? 1),
     costingDefaults: config.defaults || {},
     isPhysicalProduct() {
         return ['physical', 'kit'].includes(this.productType);
@@ -283,9 +284,10 @@ window.SM.productMaterials = (config = {}) => ({
         const discount = Number(value);
         return Number.isFinite(discount) && discount >= 0 && discount <= 100 ? discount : null;
     },
-    roundSellingPrice(price) {
+    roundSellingPrice(price, roundUp = true) {
         if (!Number.isFinite(price) || price < 0) return null;
-        const suggestion = Math.max(this.priceEnding, Math.ceil(price - this.priceEnding - 0.0000001) + this.priceEnding);
+        const rounded = roundUp ? Math.ceil(price - this.priceEnding - 0.0000001) : Math.floor(price - this.priceEnding + 0.0000001);
+        const suggestion = Math.max(this.priceEnding, rounded + this.priceEnding);
         return Number.isFinite(suggestion) && suggestion <= 99999999.99 ? Math.round(suggestion * 100) / 100 : null;
     },
     costBasedMinimumPrice(variant = null) {
@@ -312,7 +314,12 @@ window.SM.productMaterials = (config = {}) => ({
                 const sellingPrice = this.sellingPrice(minimumPack);
                 if (sellingPrice !== null) basePrice = Math.max(basePrice ?? 0, sellingPrice);
             }
-            return basePrice === null ? null : this.roundSellingPrice(basePrice * this.packUnits(variant) / this.packUnits(minimumPack) * (1 - discount / 100));
+            if (basePrice === null) return null;
+            const referencePrice = basePrice * this.packUnits(variant) / this.packUnits(minimumPack);
+            const bulkPrice = this.roundSellingPrice(referencePrice * (1 - discount / 100));
+            // A price ending must not make a bulk pack dearer per item than its reference.
+            const ceiling = this.roundSellingPrice(referencePrice, false);
+            return bulkPrice === null || ceiling === null ? null : Math.min(bulkPrice, ceiling);
         }
         const factor = this.costPriceFactor();
         const handling = this.knownCost(this.effectiveOperationalCost() + this.effectiveTimeCost());
@@ -372,12 +379,35 @@ window.SM.productMaterials = (config = {}) => ({
         if (Math.abs(saving) < 0.5) return '';
         return `${Math.abs(saving).toFixed(1)}% ${saving > 0 ? 'less' : 'more'} per item vs ${name}`;
     },
-    pricingComparisonVariant() {
-        if (!this.variantEditor) return null;
+    activePricingPacks() {
+        if (!this.variantEditor) return [];
         return this.variants.filter(variant => variant.is_active && this.packUnits(variant) !== null)
-            .sort((a, b) => this.packUnits(a) - this.packUnits(b) || Number(a.id || Number.MAX_SAFE_INTEGER) - Number(b.id || Number.MAX_SAFE_INTEGER))[0] || null;
+            .sort((a, b) => this.packUnits(a) - this.packUnits(b) || Number(a.id || Number.MAX_SAFE_INTEGER) - Number(b.id || Number.MAX_SAFE_INTEGER));
+    },
+    pricingComparisonVariant() {
+        return this.activePricingPacks()[0] || null;
+    },
+    minimumPackRecommendation() {
+        if (!this.isPhysicalProduct()) return null;
+        const operational = this.knownCost(this.effectiveOperationalCost());
+        const time = this.knownCost(this.effectiveTimeCost());
+        const target = this.knownCost(this.minimumPackHandlingTarget);
+        if (operational === null || time === null || target === null || target <= 0) return null;
+        const handling = operational + time;
+        if (!Number.isFinite(handling) || handling <= 0) return null;
+        const packs = this.activePricingPacks();
+        const smallest = packs[0];
+        if (!smallest || handling / this.packUnits(smallest) <= target + 0.0000001) return null;
+        const pack = packs.find(variant => handling / this.packUnits(variant) <= target + 0.0000001);
+        if (!pack) return null;
+        return { pack, previousHandling: handling / this.packUnits(smallest), handling: handling / this.packUnits(pack) };
     },
     minimumPackNotice() {
+        const recommendation = this.minimumPackRecommendation();
+        if (recommendation) {
+            const name = this.displayVariantName(recommendation.pack, this.variants.indexOf(recommendation.pack));
+            return `Recommended minimum pack: ${name}. Handling falls from ${this.costingMoney(recommendation.previousHandling)} to ${this.costingMoney(recommendation.handling)} per item.`;
+        }
         const pack = this.pricingComparisonVariant();
         const base = this.variants.find(variant => variant.is_base && variant.is_active);
         if (!this.isPhysicalProduct() || !pack || !base || this.packUnits(base) <= this.packUnits(pack)) return '';

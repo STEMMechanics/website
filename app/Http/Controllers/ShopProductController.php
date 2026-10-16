@@ -137,6 +137,19 @@ class ShopProductController extends Controller
         return response()->json(['item' => $item], 201);
     }
 
+    public function variantCopySku(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'sku' => ['nullable', 'string', 'max:120'],
+            'reserved_skus' => ['sometimes', 'array', 'max:1000'],
+            'reserved_skus.*' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        return response()->json([
+            'sku' => $this->uniqueCopySku(trim((string) ($data['sku'] ?? '')) ?: 'variant', $data['reserved_skus'] ?? [], '-COPY'),
+        ]);
+    }
+
     public function store(Request $request, StoreInventoryAllocatorService $allocator): RedirectResponse
     {
         $product = new Product;
@@ -756,23 +769,21 @@ class ShopProductController extends Controller
         return $candidate;
     }
 
-    private function uniqueCopySku(string $source): string
+    private function uniqueCopySku(string $source, array $reservedSkus = [], string $marker = '-copy'): string
     {
         $base = trim($source);
         if ($base === '') {
             $base = 'product';
         }
 
-        $suffixText = '-copy';
-        $candidate = rtrim(substr($base, 0, 120 - strlen($suffixText)), '-').$suffixText;
-        $suffix = 2;
-
-        while ($this->skuExists($candidate)) {
-            $suffixText = '-copy-'.$suffix;
-            $candidateBase = rtrim(substr($base, 0, 120 - strlen($suffixText)), '-');
+        $reserved = array_fill_keys(array_map(fn ($sku): string => mb_strtolower(trim((string) $sku)), $reservedSkus), true);
+        $suffix = 1;
+        do {
+            $suffixText = $marker.($suffix > 1 ? '-'.$suffix : '');
+            $candidateBase = rtrim(mb_substr($base, 0, 120 - strlen($suffixText)), '-');
             $candidate = ($candidateBase !== '' ? $candidateBase : 'product').$suffixText;
             $suffix++;
-        }
+        } while (isset($reserved[mb_strtolower($candidate)]) || $this->skuExists($candidate));
 
         return $candidate;
     }

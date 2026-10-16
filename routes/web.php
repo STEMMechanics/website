@@ -663,6 +663,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/products', [ShopProductController::class, 'index'])->name('admin.shop.product.index');
     Route::post('/admin/store/products/postage-preview', ProductPostagePreviewController::class)->name('admin.shop.product.postage-preview');
     Route::post('/admin/store/products/quick-create', [ShopProductController::class, 'quickStore'])->name('admin.shop.product.quick-store');
+    Route::post('/admin/store/products/variant-copy-sku', [ShopProductController::class, 'variantCopySku'])->name('admin.shop.product.variant-copy-sku');
     Route::get('/admin/store/products/create', [ShopProductController::class, 'create'])->name('admin.shop.product.create');
     Route::post('/admin/store/products', [ShopProductController::class, 'store'])->name('admin.shop.product.store');
     Route::post('/admin/store/products/{product}/duplicate', [ShopProductController::class, 'duplicate'])->name('admin.shop.product.duplicate');
