@@ -100,7 +100,7 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="text-center!" data-label="Price">{{ $product->isMaterial() ? '—' : \App\Models\Product::priceAmountLabel((float) $product->price) }}</td>
+                            <td class="text-center!" data-label="Price">{{ $product->isMaterial() ? '—' : $product->priceRangeLabel() }}</td>
                             <td class="text-center!" data-mobile-actions>
                                 <x-ui.row-actions :title="$product->title">
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.shop.product.edit', $product) }}" />
