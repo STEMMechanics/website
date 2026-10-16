@@ -204,6 +204,7 @@ class SiteOption extends Model
             ],
             'store.costing.markup-percent' => ['value' => '30', 'description' => 'Default markup percentage for suggested Store Item prices. Products can override it. Automatic pricing is enabled per product.', 'input_type' => 'number'],
             'store.costing.bulk-discount-percent' => ['value' => (string) config('product-costing.bulk_discount_percent', 20), 'description' => 'Default bulk discount percentage for larger selling packs, relative to the smallest active pack. Products and individual variants can override it. Cost-based minimum prices still apply.', 'input_type' => 'number'],
+            'store.costing.remainder-allocation' => ['value' => '{}', 'description' => 'Default allocation of store funds remaining after purchase costs, operational allowance and owner remuneration. Products can override it. Unassigned funds remain available business cash.'],
             'store.costing.item-operational' => ['value' => '0.50', 'description' => 'Default operational allowance per Store Item, excluding GST.', 'input_type' => 'number'],
             'store.costing.kit-operational' => ['value' => '1.00', 'description' => 'Default operational allowance per kit, excluding GST.', 'input_type' => 'number'],
             'store.costing.item-time' => ['value' => '3.50', 'description' => 'Default time allowance per Store Item, excluding GST.', 'input_type' => 'number'],

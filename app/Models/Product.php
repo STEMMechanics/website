@@ -61,6 +61,7 @@ class Product extends Model
         'material_kind', 'purchase_unit', 'purchase_quantity', 'purchase_pack_units', 'material_measure_unit',
         'material_length_mm', 'material_width_mm', 'unit_cost_ex_tax', 'operational_cost_ex_tax',
         'time_cost_ex_tax', 'automatic_pricing', 'markup_percent', 'bulk_discount_percent',
+        'automatic_allocation', 'purchase_cost_centre', 'allocation_remainder',
         'shared_inventory',
         'inventory_units',
         'slug',
@@ -110,6 +111,8 @@ class Product extends Model
 
     protected $casts = [
         'automatic_pricing' => 'boolean',
+        'automatic_allocation' => 'boolean',
+        'allocation_remainder' => 'array',
         'legacy_base_variant_id' => 'integer',
         'default_variant_id' => 'integer',
         'purchase_quantity' => 'float',
