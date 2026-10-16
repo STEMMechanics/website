@@ -208,7 +208,7 @@
                 </x-slot:body>
             </x-ui.table>
         </div>
-        <p class="mt-2 text-xs text-slate-600">Bulk prices use the smallest active pack's price per item, with costs protected. Rounded up to .95.</p>
+        <p class="mt-2 text-xs text-slate-600">Bulk prices use the smallest active pack's selling price or cost minimum, whichever is higher. Rounded up to .95.</p>
         @foreach($errors->getMessages() as $field => $messages)
             @if(str_starts_with($field, 'variants.') && (str_ends_with($field, '.bulk_discount_percent') || str_ends_with($field, '.automatic_pricing')))
                 <p class="mt-2 text-sm text-red-700" role="alert">{{ $messages[0] }}</p>

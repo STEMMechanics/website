@@ -307,9 +307,11 @@ window.SM.productMaterials = (config = {}) => ({
         if (discount === null) return null;
         const minimumPack = this.pricingComparisonVariant();
         if (minimumPack) {
-            const basePrice = minimumPack.automatic_pricing
-                ? this.costBasedMinimumPrice(minimumPack)
-                : this.sellingPrice(minimumPack);
+            let basePrice = this.costBasedMinimumPrice(minimumPack);
+            if (!minimumPack.automatic_pricing) {
+                const sellingPrice = this.sellingPrice(minimumPack);
+                if (sellingPrice !== null) basePrice = Math.max(basePrice ?? 0, sellingPrice);
+            }
             return basePrice === null ? null : this.roundSellingPrice(basePrice * this.packUnits(variant) / this.packUnits(minimumPack) * (1 - discount / 100));
         }
         const factor = this.costPriceFactor();

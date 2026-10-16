@@ -283,12 +283,12 @@ class ProductRecipeService
         }
 
         if ($minimumPack) {
-            // The smallest active selling pack sets the commercial unit price.
-            // Its cost-based suggestion is independent of the larger pack, so
-            // automatic prices never depend on update order or their old value.
-            $basePrice = $minimumPack->automatic_pricing
-                ? $this->suggestedPrice($product, $minimumPack)
-                : $minimumPack->effectivePrice();
+            // An underpriced manual pack must not lower the bulk reference.
+            // Automatic references remain independent of update order and old prices.
+            $basePrice = $this->suggestedPrice($product, $minimumPack);
+            if (! $minimumPack->automatic_pricing) {
+                $basePrice = max($basePrice ?? 0, $minimumPack->effectivePrice());
+            }
             $discount = $this->bulkDiscount($product, $variant);
             if ($basePrice === null || ! is_finite($basePrice) || $basePrice < 0 || ! is_finite($discount) || $discount < 0 || $discount > 100) {
                 return $pricing;

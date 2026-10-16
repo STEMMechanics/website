@@ -87,6 +87,27 @@ test('manual minimum-pack edits affect automatic bulk prices and retirement sele
     assert.equal(state.minimumPackNotice(), '');
 });
 
+test('an underpriced manual minimum pack cannot lower bulk suggestions or make applying suggestions change other suggestions', () => {
+    const state = editor({ unitCost: .02, markup: 15, automaticPricing: false, basePrice: '2.95' });
+    const minimum = state.variants[0], large = state.variants[1];
+    minimum.automatic_pricing = false;
+    minimum.price = '4.95';
+    large.automatic_pricing = false;
+    large.price = '9.95';
+    assert.equal(state.suggestedSellingPrice(minimum), 12.95);
+    assert.equal(state.costBasedMinimumPrice(large), 12.95);
+    assert.equal(state.suggestedSellingPrice(large), 32.95);
+    state.useSuggestedPrice(minimum);
+    assert.equal(state.suggestedSellingPrice(large), 32.95);
+    minimum.price = '4.95';
+    large.bulk_discount_percent = 20;
+    large.automatic_pricing = true;
+    state.syncAutomaticPrice();
+    assert.equal(large.price, '25.95');
+    assert.equal(minimum.price, '4.95');
+    assert.equal(state.basePrice, '2.95');
+});
+
 test('unknown automatic minimum-pack costs keep the last prices rather than using a stale pricing anchor', () => {
     const state = editor();
     state.unitCost = '';

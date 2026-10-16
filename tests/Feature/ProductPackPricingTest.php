@@ -137,6 +137,29 @@ class ProductPackPricingTest extends TestCase
         $this->assertSame(24.95, $pricing->suggestedPrice($product->fresh(), $large));
     }
 
+    public function test_an_underpriced_manual_minimum_pack_does_not_lower_bulk_suggestions(): void
+    {
+        $product = $this->product(['unit_cost_ex_tax' => .02, 'markup_percent' => 15, 'price' => 2.95, 'automatic_pricing' => false]);
+        $retired = app(ProductVariantUpgrade::class)->convert($product);
+        $retired->update(['inventory_units' => 5, 'is_active' => false]);
+        $minimum = ProductVariant::factory()->create(['product_id' => $product->id, 'inventory_units' => 10, 'price' => 4.95, 'automatic_pricing' => false]);
+        $large = ProductVariant::factory()->create(['product_id' => $product->id, 'inventory_units' => 25, 'price' => 9.95, 'bulk_discount_percent' => 0, 'automatic_pricing' => false]);
+        $product->update(['default_variant_id' => $minimum->id]);
+        $pricing = app(ProductRecipeService::class);
+
+        $this->assertSame(12.95, $pricing->suggestedPrice($product, $minimum));
+        $this->assertSame(12.95, $pricing->pricingDetails($product, $large)['minimum_price']);
+        $this->assertSame(32.95, $pricing->suggestedPrice($product, $large));
+        $minimum->update(['price' => 12.95]);
+        $this->assertSame(32.95, $pricing->suggestedPrice($product->fresh(), $large));
+        $minimum->update(['price' => 4.95]);
+        $large->update(['bulk_discount_percent' => 20, 'automatic_pricing' => true]);
+        $pricing->refreshPrices();
+        $this->assertSame('25.95', $large->fresh()->price);
+        $this->assertSame('4.95', $minimum->fresh()->price);
+        $this->assertSame('2.95', $product->fresh()->price);
+    }
+
     public function test_an_unknown_automatic_minimum_pack_cost_preserves_existing_bulk_prices(): void
     {
         [$product, $minimum, $large] = $this->sellingPacks();
