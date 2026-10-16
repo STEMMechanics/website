@@ -734,11 +734,13 @@
                                 @enderror
                                 <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
 
-                                <div class="flex items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
-                                    <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
-                                    <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
-                                    <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
-                                </div>
+                                @unless($hasOptionChoices)
+                                    <div class="flex items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
+                                        <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
+                                        <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
+                                        <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
+                                    </div>
+                                @endunless
 
                                 <form
                                         method="POST"
