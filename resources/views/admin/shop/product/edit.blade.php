@@ -32,7 +32,14 @@
         'bulkDiscount' => old('bulk_discount_percent', $product->bulk_discount_percent ?? ''),
         'priceEnding' => (float) config('product-costing.price_ending', 0.95),
         'minimumPackHandlingTarget' => (float) config('product-costing.minimum_pack_handling_target', 1),
-        'defaults' => ['markup' => $costingService->defaultMarkup(), 'bulkDiscount' => $costingService->defaultBulkDiscount(), 'itemOperational' => \App\Models\SiteOption::value('store.costing.item-operational', '0.50'), 'kitOperational' => \App\Models\SiteOption::value('store.costing.kit-operational', '1.00'), 'itemTime' => \App\Models\SiteOption::value('store.costing.item-time', '3.50'), 'kitTime' => 2 * (float) \App\Models\SiteOption::value('store.costing.item-time', '3.50')],
+        'defaults' => [
+            'markup' => $costingService->defaultMarkup(),
+            'bulkDiscount' => $costingService->defaultBulkDiscount(),
+            'itemOperational' => $costingService->defaultOperationalCost(),
+            'kitOperational' => $costingService->defaultOperationalCost(true),
+            'itemTime' => $costingService->defaultTimeCost(),
+            'kitTime' => $costingService->defaultTimeCost(true),
+        ],
     ];
     $inventoryContexts = is_array($inventoryContexts ?? null)
         ? $inventoryContexts

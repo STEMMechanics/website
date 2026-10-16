@@ -60,14 +60,26 @@ class ProductRecipeService
 
     public function operationalCost(Product $product): float
     {
-        return (float) ($product->operational_cost_ex_tax ?? SiteOption::value('store.costing.'.($product->isKit() ? 'kit' : 'item').'-operational', (string) config('product-costing.'.($product->isKit() ? 'kit' : 'item').'_operational_cost')));
+        return (float) ($product->operational_cost_ex_tax ?? $this->defaultOperationalCost($product->isKit()));
     }
 
     public function timeCost(Product $product): float
     {
+        return (float) ($product->time_cost_ex_tax ?? $this->defaultTimeCost($product->isKit()));
+    }
+
+    public function defaultOperationalCost(bool $isKit = false): float
+    {
+        $type = $isKit ? 'kit' : 'item';
+
+        return (float) SiteOption::value('store.costing.'.$type.'-operational', (string) config('product-costing.'.$type.'_operational_cost'));
+    }
+
+    public function defaultTimeCost(bool $isKit = false): float
+    {
         $itemTime = (float) SiteOption::value('store.costing.item-time', (string) config('product-costing.item_time_cost'));
 
-        return (float) ($product->time_cost_ex_tax ?? $itemTime * ($product->isKit() ? 2 : 1));
+        return $itemTime * ($isKit ? 2 : 1);
     }
 
     public function materialCost(Product $product, ?ProductVariant $variant = null, array $seen = []): ?float

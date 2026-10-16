@@ -61,7 +61,7 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.shop.product.index" backTitle="Store Products">Store Settings</x-mast>
+    <x-mast backRoute="admin.shop.product.index" backTitle="Products">Store Settings</x-mast>
 
     <x-container class="mt-4" inner-class="max-w-screen-2xl">
         @if($errors->any())
@@ -355,6 +355,85 @@
                     />
                 </section>
             </div>
+
+            <section id="pricing-defaults" class="{{ $settingsCardClasses }} space-y-5">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Purchase costs and pricing defaults</h2>
+                    <p class="mt-1 text-sm text-gray-600">Products inherit these defaults when their fields are blank. Allowances apply once per selling pack. Saving changes recalculates automatic prices.</p>
+                </div>
+                <div class="grid gap-4 md:grid-cols-3">
+                    <x-ui.input
+                        name="item_operational_cost_ex_tax"
+                        label="Item operational allowance (ex GST)"
+                        type="number"
+                        min="0"
+                        max="10000"
+                        step="0.01"
+                        :moneyFormat="true"
+                        inputmode="decimal"
+                        :value="number_format($itemOperationalCost, 2, '.', '')"
+                        info="Bags, labels and other small costs for a Store Item."
+                        class="mb-0!"
+                        required
+                    />
+                    <x-ui.input
+                        name="kit_operational_cost_ex_tax"
+                        label="Kit operational allowance (ex GST)"
+                        type="number"
+                        min="0"
+                        max="10000"
+                        step="0.01"
+                        :moneyFormat="true"
+                        inputmode="decimal"
+                        :value="number_format($kitOperationalCost, 2, '.', '')"
+                        info="Bags, labels and other small costs for a kit."
+                        class="mb-0!"
+                        required
+                    />
+                    <x-ui.input
+                        name="item_time_cost_ex_tax"
+                        label="Item time allowance (ex GST)"
+                        type="number"
+                        min="0"
+                        max="10000"
+                        step="0.01"
+                        :moneyFormat="true"
+                        inputmode="decimal"
+                        :value="number_format($itemTimeCost, 2, '.', '')"
+                        info="Kits use twice this time allowance. Enter 0 for no allowance."
+                        class="mb-0!"
+                        required
+                    />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <x-ui.input
+                        name="markup_percent"
+                        label="Markup (%)"
+                        type="number"
+                        min="0"
+                        max="10000"
+                        step="0.01"
+                        inputmode="decimal"
+                        :value="number_format($markupPercent, 2, '.', '')"
+                        info="Used for suggested prices. Products can override it."
+                        class="mb-0!"
+                        required
+                    />
+                    <x-ui.input
+                        name="bulk_discount_percent"
+                        label="Bulk discount (%)"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        inputmode="decimal"
+                        :value="number_format($bulkDiscountPercent, 2, '.', '')"
+                        info="For larger selling packs relative to the smallest active pack. Products and variants can override it. Minimum prices still apply."
+                        class="mb-0!"
+                        required
+                    />
+                </div>
+            </section>
 
             <section class="{{ $settingsCardClasses }} space-y-5"
                 x-data="{ selectedImage: @js(old('sidebar_shipping_image', $sidebarShippingImage) ?? '') }"

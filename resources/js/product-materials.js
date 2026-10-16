@@ -363,6 +363,16 @@ window.SM.productMaterials = (config = {}) => ({
         const units = this.packUnits(variant);
         return price === null || units === null ? null : price / units;
     },
+    extraPerItem(variant = null, suggested = false) {
+        const price = suggested ? this.suggestedSellingPrice(variant) : this.sellingPrice(variant);
+        const cost = this.totalEstimatedCost(variant);
+        const units = this.packUnits(variant);
+        const tax = Number(this.productTaxRate);
+        if (price === null || cost === null || units === null || !Number.isFinite(tax) || tax < 0) return null;
+        const extra = (price / (1 + tax) - cost) / units;
+        if (!Number.isFinite(extra)) return null;
+        return Math.abs(extra) < 0.0000001 ? 0 : extra;
+    },
     savingFromBase(variant) {
         const comparison = this.pricingComparisonVariant();
         if (this.variantEditor && (!comparison || comparison === variant)) return null;
