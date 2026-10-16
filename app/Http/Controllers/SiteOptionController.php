@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
+use App\Services\Finance\ProductCostAllocation;
 use App\Services\OnlineVisitors;
 use App\Services\ProductRecipeService;
 use App\Services\ServerMaintenanceService;
@@ -252,6 +253,9 @@ class SiteOptionController extends Controller
             return;
         }
         app(RequestMemo::class)->clear();
+        if ($optionName === ProductCostAllocation::REMAINDER_OPTION) {
+            return;
+        }
         app(ProductRecipeService::class)->refreshPrices();
     }
 
@@ -364,6 +368,14 @@ class SiteOptionController extends Controller
         if (str_starts_with($optionName, 'stemcraft.monthly-challenge.')
             || str_starts_with($optionName, 'stemcraft.community-builds.')) {
             $rules['value'] = ['nullable', 'string', 'max:2048'];
+        }
+
+        if ($optionName === ProductCostAllocation::REMAINDER_OPTION) {
+            $rules['value'] = ['required', 'string', 'max:10000'];
+            $data = $request->validate($rules);
+            $data['value'] = json_encode((object) app(ProductCostAllocation::class)->parseRemainder($data['value'], 'value'));
+
+            return $data;
         }
 
         return $request->validate($rules);

@@ -16,6 +16,16 @@ class ProductAllocation
 
     public function resolve(int $product, ?int $variant = null): ?array
     {
+        $item = Product::query()->find($product);
+        if ($item?->automatic_allocation && $item->isPhysical()) {
+            // Old null selections refer to the original selling pack, never the cost basis or today's default.
+            $selected = $variant ?: $item->legacy_base_variant_id;
+            $option = $selected ? $item->variants()->find($selected) : null;
+            $rules = $selected && ! $option ? null : app(ProductCostAllocation::class)->rules($item, $option);
+
+            return $rules === null ? null : ['product_id' => $product, 'variant_id' => $selected,
+                'profile' => 'Automatic', 'updated_by' => null, 'rules' => $rules];
+        }
         $scopes = [$this->scope($product)];
         if ($variant) {
             array_unshift($scopes, $this->scope($product, $variant));

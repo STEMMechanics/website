@@ -22,6 +22,9 @@ window.SM.productMaterials = (config = {}) => ({
     // Keep the original precision until the displayed supplier cost is edited.
     purchasePackCostBasis: config.purchasePackCost ?? '',
     purchaseCosts: config.purchaseCosts || {},
+    purchaseCostCentres: config.purchaseCostCentres || {},
+    purchaseCostCentre: config.purchaseCostCentre || 'auto',
+    automaticAllocation: Boolean(config.automaticAllocation),
     basePackUnits: config.basePackUnits ?? 1,
     operationalCost: config.operationalCost ?? '',
     timeCost: config.timeCost ?? '',
@@ -59,6 +62,7 @@ window.SM.productMaterials = (config = {}) => ({
             this.isKit = value === 'kit';
             this.syncPurchasePackFallbackCost();
             if (!['physical', 'kit'].includes(value)) {
+                this.automaticAllocation = false;
                 this.automaticPricing = false;
                 this.variants.forEach((variant) => { variant.automatic_pricing = false; });
             }
@@ -220,6 +224,34 @@ window.SM.productMaterials = (config = {}) => ({
     },
     effectiveOperationalCost() {
         return String(this.operationalCost).trim() === '' ? Number(this.costingDefaults[this.isKit ? 'kitOperational' : 'itemOperational']) : Number(this.operationalCost);
+    },
+    materialCostsByCentre(variant = null) {
+        const cost = this.recipeMaterialCost(variant);
+        if (cost === null) return null;
+        if (this.purchaseCostCentre !== 'auto') return { [this.purchaseCostCentre]: cost };
+        if (this.recipeRows.length) {
+            const costs = { stock: 0, consumables: 0 };
+            for (const row of this.recipeRows) {
+                const item = this.recipeItem(row);
+                const option = item?.variants?.find(value => String(value.id) === String(row.component_variant_id));
+                const parts = (option || item)?.cost_centres;
+                const units = this.recipeUnits(row);
+                if (!parts || units === null) return null;
+                for (const [name, amount] of Object.entries(parts)) costs[name] = (costs[name] || 0) + units * Number(amount);
+            }
+            const total = Object.values(costs).reduce((sum, amount) => sum + amount, 0);
+            return Object.fromEntries(Object.entries(costs).map(([name, amount]) => [name, total > 0 ? amount * cost / total : 0]));
+        }
+        const scope = this.sharedInventory ? 'shared' : variant ? (variant.id ? 'variants' : 'newVariant') : 'base';
+        const purchase = scope === 'variants' ? this.purchaseCosts.variants?.[variant.id] : this.purchaseCosts[scope];
+        if (variant && !this.sharedInventory && this.knownCost(purchase) === null && this.knownCost(variant.unit_cost_ex_tax) === null) {
+            const base = this.materialCostsByCentre();
+            const total = base === null ? 0 : Object.values(base).reduce((sum, amount) => sum + amount, 0);
+            return base === null ? null : Object.fromEntries(Object.entries(base).map(([name, amount]) => [name, total > 0 ? amount * cost / total : 0]));
+        }
+        const centre = this.knownCost(purchase) === null ? 'stock'
+            : scope === 'variants' ? this.purchaseCostCentres.variants?.[variant.id] : this.purchaseCostCentres[scope];
+        return { [centre || 'stock']: cost };
     },
     effectiveTimeCost() {
         return String(this.timeCost).trim() === '' ? Number(this.costingDefaults[this.isKit ? 'kitTime' : 'itemTime']) : Number(this.timeCost);

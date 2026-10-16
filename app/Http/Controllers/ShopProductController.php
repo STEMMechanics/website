@@ -584,6 +584,9 @@ class ShopProductController extends Controller
             'automatic_pricing' => $isPhysical && $request->boolean('automatic_pricing'),
             'markup_percent' => $isPhysical ? ($recipeData['markup_percent'] ?? null) : null,
             'bulk_discount_percent' => $isPhysical ? (array_key_exists('bulk_discount_percent', $recipeData) ? $recipeData['bulk_discount_percent'] : $product->bulk_discount_percent) : null,
+            'automatic_allocation' => $isPhysical && ($request->exists('automatic_allocation') ? $request->boolean('automatic_allocation') : (bool) $product->automatic_allocation),
+            'purchase_cost_centre' => $recipeData['purchase_cost_centre'] ?? $product->purchase_cost_centre ?? 'auto',
+            'allocation_remainder' => array_key_exists('allocation_remainder', $recipeData) ? $recipeData['allocation_remainder'] : $product->allocation_remainder,
         ]);
         $product->save();
         $product->categories()->sync(

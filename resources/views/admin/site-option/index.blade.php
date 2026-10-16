@@ -70,10 +70,14 @@
                         </td>
                         <td class="text-center!">
                             <x-ui.row-actions>
+                                @if($siteOption->name === \App\Services\Finance\ProductCostAllocation::REMAINDER_OPTION)
+                                    <x-ui.row-action label="Edit value" icon="fa-solid fa-pen-to-square" tone="primary" :href="route('admin.site_option.edit', $siteOption)" />
+                                @else
                                 <x-ui.row-action label="Edit value" icon="fa-solid fa-pen-to-square" tone="primary"
                                     type="button"
                                     data-edit-option="{{ $siteOption->id }}"
                                  />
+                                @endif
                                 @if($hasDefault)
                                     <x-ui.row-action label="Restore default" icon="fa-solid fa-rotate-left" tone="neutral"
                                         type="button"

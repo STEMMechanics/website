@@ -19,7 +19,11 @@
                 :readonly="isset($siteOption)"
             />
 
-            @if($inputType === 'boolean')
+            @if(($siteOption->name ?? '') === \App\Services\Finance\ProductCostAllocation::REMAINDER_OPTION)
+                <div x-data="SM.allocationRemainder({{ \Illuminate\Support\Js::from(json_decode(old('value', $siteOption->value ?? '{}'), true) ?: (object) []) }})">
+                    <x-admin.allocation-remainder name="value" :categories="app(\App\Services\Finance\ProductAllocationEditor::class)->categories()" />
+                </div>
+            @elseif($inputType === 'boolean')
                 <x-ui.select
                     label="Value"
                     name="value"

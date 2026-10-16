@@ -131,6 +131,22 @@
         <div x-show="isPhysicalProduct()">
             <x-ui.input name="bulk_discount_percent" label="Bulk discount (%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-model="productBulkDiscount" x-bind:placeholder="costingDefaults.bulkDiscount" x-bind:disabled="!isPhysicalProduct()" :info="'For larger packs. Blank uses the site default ('.$costingService->defaultBulkDiscount().'%).'" />
         </div>
+        <div x-show="isPhysicalProduct()">
+            <x-ui.select name="purchase_cost_centre" label="Purchase cost centre" x-model="purchaseCostCentre" x-bind:disabled="!isPhysicalProduct()" info="Automatic follows a clear expense allocation; otherwise Stock. Kits follow their components.">
+                <option value="auto">Automatic (expense or Stock)</option>
+                <option value="stock">Stock</option>
+                <option value="consumables">Consumables</option>
+            </x-ui.select>
+        </div>
+    </div>
+    <div class="product-editor__fields" x-show="isPhysicalProduct()" x-cloak>
+        <div>
+            <input type="hidden" name="automatic_allocation" value="0">
+            <x-ui.checkbox name="automatic_allocation" label="Automatic cost centre allocation" x-model="automaticAllocation" :checked="old('automatic_allocation', $product->automatic_allocation ?? !isset($product))" x-bind:disabled="!isPhysicalProduct()" noWrapper="true" />
+        </div>
+        <div x-show="automaticAllocation" x-cloak>
+            <x-admin.allocation-remainder name="allocation_remainder_json" :categories="app(\App\Services\Finance\ProductAllocationEditor::class)->categories()" :allow-default="true" :show-cash-summary="false" disabled-expression="!automaticAllocation || !isPhysicalProduct()" />
+        </div>
     </div>
     <div x-show="isPhysicalProduct()">
         <input type="hidden" name="automatic_pricing" value="0">

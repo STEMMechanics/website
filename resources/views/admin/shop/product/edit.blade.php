@@ -21,6 +21,9 @@
         'unitCost' => old('unit_cost_ex_tax', $product->unit_cost_ex_tax ?? ''),
         'purchasePackCost' => old('purchase_pack_cost_ex_tax', isset($product) ? $costingService->fallbackPurchasePackCost($product) : ''),
         'purchaseCosts' => isset($product) ? $costingService->purchaseCostInputs($product) : [],
+        'purchaseCostCentres' => isset($product) ? $costingService->purchaseCostCentres($product) : [],
+        'purchaseCostCentre' => old('purchase_cost_centre', $product->purchase_cost_centre ?? 'auto'),
+        'automaticAllocation' => $editorIsPhysical && (bool) old('automatic_allocation', $product->automatic_allocation ?? !isset($product)),
         'basePackUnits' => old('inventory_units', $product->inventory_units ?? 1),
         'operationalCost' => $formatCost(old('operational_cost_ex_tax', $product->operational_cost_ex_tax ?? '')),
         'timeCost' => $formatCost(old('time_cost_ex_tax', $product->time_cost_ex_tax ?? '')),
@@ -220,6 +223,7 @@
             action="{{ route('admin.shop.product.'.(isset($product) ? 'update' : 'store'), $product ?? []) }}"
             x-data="{
                 ...SM.productMaterials(@js($materialsConfig)),
+                ...SM.allocationRemainder(@js(json_decode(old('allocation_remainder_json', json_encode($product->allocation_remainder ?? null)), true)), @js(app(\App\Services\Finance\ProductCostAllocation::class)->defaultRemainder())),
                 ...SM.productVariantEditor(),
                 variantErrors: @js(array_keys($errors->getMessages())),
                 sharedInventory: @js($editorSharedInventory),

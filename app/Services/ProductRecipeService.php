@@ -8,10 +8,9 @@ use App\Models\ProductPurchase;
 use App\Models\ProductRecipeComponent;
 use App\Models\ProductVariant;
 use App\Models\SiteOption;
-use App\Services\Finance\ProductAllocation;
+use App\Services\Finance\ProductCostAllocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -118,13 +117,82 @@ class ProductRecipeService
     /** Convert the latest purchase cost to the units in the chosen retail pack. */
     public function purchaseCost(Product $product, ?ProductVariant $variant = null): ?float
     {
-        $product->loadMissing(['purchases.expense', 'variants']);
-        $purchases = $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && ($product->shared_inventory || $row->individual_units || $row->purchase_pack))
-            || (int) ($row->product_variant_id ?? 0) === (int) ($variant->id ?? 0));
+        $purchases = $this->scopedPurchases($product, $variant);
         $unitCost = $this->latestPurchaseUnitCost($product, $purchases);
         $saleUnits = $product->isPhysical() ? $product->saleUnits($variant) : 1;
 
         return $unitCost === null ? null : round($unitCost * $saleUnits, 4);
+    }
+
+    private function scopedPurchases(Product $product, ?ProductVariant $variant = null): Collection
+    {
+        $product->loadMissing(['purchases.expense', 'variants']);
+
+        return $product->purchases->filter(fn (ProductPurchase $row): bool => ($product->isPhysical() && ($product->shared_inventory || $row->individual_units || $row->purchase_pack))
+            || ($variant === null || $variant->exists) && (int) ($row->product_variant_id ?? 0) === (int) ($variant->id ?? 0));
+    }
+
+    public function purchaseSource(Product $product, ?ProductVariant $variant = null): ?ProductPurchase
+    {
+        return $this->latestPurchase($this->scopedPurchases($product, $variant));
+    }
+
+    /** Keep component classifications while scaling the same material costs used in pricing. */
+    public function materialCostsByCentre(Product $product, ?ProductVariant $variant = null, array $seen = []): ?array
+    {
+        $product = $this->products()->get((int) $product->id) ?? $product;
+        if (isset($seen[$product->id])) {
+            return null;
+        }
+        $cost = $this->materialCost($product, $variant);
+        if ($cost === null) {
+            return null;
+        }
+        $centre = $product->purchase_cost_centre ?? 'auto';
+        if ($centre !== 'auto') {
+            return [$centre => $cost];
+        }
+        if ($product->recipeComponents->isEmpty()) {
+            if ($variant && $variant->unit_cost_ex_tax === null && $this->purchaseCost($product, $variant) === null) {
+                $base = $this->materialCostsByCentre($product, null, $seen);
+                $total = $base === null ? 0 : array_sum($base);
+
+                return $base === null ? null : array_map(fn ($amount): float => $total > 0 ? $amount * $cost / $total : 0.0, $base);
+            }
+
+            return [app(ProductCostAllocation::class)->purchaseCentre($product, $variant) => $cost];
+        }
+        $seen[$product->id] = true;
+        $costs = ['stock' => 0.0, 'consumables' => 0.0];
+        $ratio = $variant && $product->isPhysical() ? $product->saleUnits($variant) / $product->saleUnits() : 1;
+        foreach ($product->recipeComponents as $row) {
+            $component = $this->products()->get((int) $row->component_product_id);
+            $units = $row->purchasedUnits();
+            $parts = $component ? $this->materialCostsByCentre($component, $row->variant, $seen) : null;
+            if ($parts === null || $units === null) {
+                return null;
+            }
+            foreach ($parts as $name => $amount) {
+                $costs[$name] += $units * $amount * $ratio;
+            }
+        }
+
+        $total = array_sum($costs);
+
+        return array_map(fn ($amount): float => $total > 0 ? $amount * $cost / $total : 0.0, $costs);
+    }
+
+    public function purchaseCostCentres(Product $product): array
+    {
+        $service = app(ProductCostAllocation::class);
+        $separate = (clone $product)->forceFill(['shared_inventory' => false]);
+
+        return [
+            'base' => $service->purchaseCentre($separate),
+            'shared' => $service->purchaseCentre((clone $product)->forceFill(['shared_inventory' => true])),
+            'variants' => $product->variants->mapWithKeys(fn (ProductVariant $variant): array => [$variant->id => $service->purchaseCentre($separate, $variant)])->all(),
+            'newVariant' => $service->purchaseCentre($separate, new ProductVariant),
+        ];
     }
 
     /** Present the existing base pack fallback as a supplier pack cost without changing its stored meaning. */
@@ -156,7 +224,7 @@ class ProductRecipeService
 
     private function latestPurchaseUnitCost(Product $product, Collection $purchases): ?float
     {
-        $latest = $purchases->sortByDesc(fn (ProductPurchase $row): string => ($row->expense?->paid_on?->format('Y-m-d') ?? $row->created_at?->format('Y-m-d') ?? '').str_pad((string) $row->id, 20, '0', STR_PAD_LEFT))->first();
+        $latest = $this->latestPurchase($purchases);
         if (! $latest) {
             return null;
         }
@@ -173,6 +241,11 @@ class ProductRecipeService
         $cost = $quantity > 0 ? (float) $lines->sum('total_cost_ex_tax') / $quantity : null;
 
         return $cost !== null && is_finite($cost) ? $cost : null;
+    }
+
+    private function latestPurchase(Collection $purchases): ?ProductPurchase
+    {
+        return $purchases->sortByDesc(fn (ProductPurchase $row): string => ($row->expense?->paid_on?->format('Y-m-d') ?? $row->created_at?->format('Y-m-d') ?? '').str_pad((string) $row->id, 20, '0', STR_PAD_LEFT))->first();
     }
 
     public function suggestedPrice(Product $product, ?ProductVariant $variant = null): ?float
@@ -275,7 +348,6 @@ class ProductRecipeService
                 if (abs((float) $product->price - $price) > 0.001) {
                     $product->update(['price' => $price]);
                 }
-                $this->syncCostAllocations($product);
             }
             foreach ($product->variants as $variant) {
                 if ($variant->automatic_pricing) {
@@ -286,41 +358,9 @@ class ProductRecipeService
                     if ($variant->price === null || abs((float) $variant->price - $variantPrice) > 0.001) {
                         $variant->update(['price' => $variantPrice]);
                     }
-                    $this->syncCostAllocations($product, $variant);
-                } elseif ($price !== null && $variant->is_active) {
-                    $this->syncCostAllocations($product, $variant);
                 }
             }
         }
-    }
-
-    private function syncCostAllocations(Product $product, ?ProductVariant $variant = null): void
-    {
-        $materials = $this->materialCost($product, $variant);
-        if ($materials === null) {
-            return;
-        }
-        $categories = DB::table('finance_categories')->where('active', true)->get();
-        $amounts = [
-            'consumables' => $materials,
-            'operational' => $this->operationalCost($product),
-            'owner remuneration' => $this->timeCost($product),
-        ];
-        $allocation = app(ProductAllocation::class);
-        $scope = $allocation->scope((int) $product->id, $variant ? (int) $variant->id : null);
-        $existing = $allocation->resolve((int) $product->id, $variant ? (int) $variant->id : null);
-        $rules = $existing['rules'] ?? ['fixed' => [], 'percent' => []];
-        foreach ($categories as $category) {
-            $name = mb_strtolower(trim((string) $category->name));
-            if (array_key_exists($name, $amounts)) {
-                $rules['fixed'][$category->id] = (int) round($amounts[$name] * 100);
-            }
-        }
-        DB::table('finance_product_allocations')->updateOrInsert(['scope' => $scope], [
-            'product_id' => $product->id, 'variant_id' => $variant?->id, 'profile_id' => null,
-            'rules' => json_encode($rules), 'updated_by' => $existing['updated_by'] ?? null,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
     }
 
     /** @return list<array<string, mixed>> */
@@ -346,6 +386,7 @@ class ProductRecipeService
                 'measure_unit' => (string) ($product->material_measure_unit ?? 'mm'),
                 'pack_units' => $product->saleUnits(),
                 'unit_cost' => $this->materialCost($product),
+                'cost_centres' => $this->materialCostsByCentre($product),
                 'url' => route('admin.shop.product.edit', $product),
                 'cut_sizes' => $product->cutSizes->map(fn (ProductCutSize $cut): array => [
                     'id' => (int) $cut->id, 'label' => $cut->label(), 'yield' => (int) $cut->yield,
@@ -353,6 +394,7 @@ class ProductRecipeService
                 'variants' => $product->variants->where('is_active', true)->map(fn (ProductVariant $variant): array => [
                     'id' => (int) $variant->id, 'name' => (string) $variant->displayName(), 'unit_cost' => $this->materialCost($product, $variant),
                     'pack_units' => $product->saleUnits($variant),
+                    'cost_centres' => $this->materialCostsByCentre($product, $variant),
                 ])->values()->all(),
                 'inactive_variants' => $product->variants->where('is_active', false)->map(fn (ProductVariant $variant): array => [
                     'id' => (int) $variant->id, 'name' => (string) $variant->displayName(),
@@ -385,6 +427,9 @@ class ProductRecipeService
             'automatic_pricing' => ['nullable', 'boolean'],
             'markup_percent' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'bulk_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
+            'automatic_allocation' => ['nullable', 'boolean'],
+            'purchase_cost_centre' => ['nullable', Rule::in(['auto', 'stock', 'consumables'])],
+            'allocation_remainder_json' => ['sometimes', 'required', 'string', 'max:10000'],
             'cut_sizes' => ['nullable', 'array', 'max:100'],
             'cut_sizes.*.id' => ['nullable', 'integer'],
             'cut_sizes.*.length_mm' => ['required', 'numeric', 'gt:0'],
@@ -402,6 +447,9 @@ class ProductRecipeService
             'variants.*.unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
         ]);
         $data['material_kind'] = $hasMeasurements ? $data['material_kind'] : null;
+        if ($request->exists('allocation_remainder_json')) {
+            $data['allocation_remainder'] = app(ProductCostAllocation::class)->parseRemainder($data['allocation_remainder_json'], 'allocation_remainder_json', inherit: true);
+        }
         $data['purchase_unit'] = $hasMeasurements ? trim($data['purchase_unit']) : null;
         $data['purchase_quantity'] = $hasMeasurements ? ($kind === 'sheet' || ($isStoreItem && $kind === 'unit') ? 1 : (float) $data['purchase_quantity']) : null;
         $data['purchase_pack_units'] = $isStoreItem && $hasMeasurements ? (int) ($data['purchase_pack_units'] ?? $product->purchase_pack_units ?? 1) : 1;

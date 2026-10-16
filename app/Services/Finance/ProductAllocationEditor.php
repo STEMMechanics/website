@@ -31,13 +31,13 @@ class ProductAllocationEditor
     /** Validate before changing the product or its variants. Values are integer cents / basis points. */
     public function validate(Request $request): ?array
     {
-        if (! $request->has('product_allocations_json')) {
+        if ($request->boolean('automatic_allocation') || ! $request->has('product_allocations_json')) {
             return null;
         }
         $data = json_decode((string) $request->input('product_allocations_json'), true);
         $validator = validator(['allocation' => $data], [
             'allocation' => 'required|array:base,variants',
-            'allocation.base' => 'required|array:fixed,percent',
+            'allocation.base' => 'present|array:fixed,percent',
             'allocation.variants' => 'present|array',
             'allocation.variants.*' => 'required|array:inherit,rules',
             'allocation.variants.*.inherit' => 'required|boolean',
@@ -59,7 +59,9 @@ class ProductAllocationEditor
 
             return $rules;
         };
-        $data['base'] = $validateRules($data['base']);
+        if (! $request->boolean('variant_editor')) {
+            $data['base'] = $validateRules($data['base']);
+        }
         $submittedVariants = $request->input('variants', []);
         if (! is_array($submittedVariants)) {
             throw ValidationException::withMessages(['variants' => 'Check the product variants and try again.']);
@@ -68,7 +70,11 @@ class ProductAllocationEditor
             if (! array_key_exists($index, $submittedVariants)) {
                 throw ValidationException::withMessages(['product_allocations_json' => 'An allocation refers to a removed variant. Refresh the editor and try again.']);
             }
-            $variant['rules'] = $validateRules($variant['rules']);
+            if ($variant['inherit']) {
+                $variant['rules'] = ['fixed' => [], 'percent' => []];
+            } elseif (filter_var($submittedVariants[$index]['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
+                $variant['rules'] = $validateRules($variant['rules']);
+            }
         }
 
         return $data;
@@ -77,22 +83,35 @@ class ProductAllocationEditor
     /** Variant IDs come from the saved, ownership-checked product rows, never the allocation payload. */
     public function save(Product $product, array $variants, ?array $data, string $userId): void
     {
-        if ($data === null) {
+        if ($data === null || $product->automatic_allocation) {
             return;
         }
-        $this->saveRules($product->id, null, $data['base'], $userId);
+        $configs = $this->configs([$product->id]);
+        $scopes = app(ProductAllocation::class);
+        if (! $product->usesVariantRecords()) {
+            $this->saveRules($product->id, null, $data['base'], $userId, $configs->get($scopes->scope($product->id)));
+        }
         foreach ($variants as $index => $variant) {
+            if (! $variant->is_active) {
+                continue;
+            }
             $allocation = $data['variants'][$index] ?? ['inherit' => true];
             if ($allocation['inherit']) {
                 DB::table('finance_product_allocations')->where('scope', app(ProductAllocation::class)->scope($product->id, $variant->id))->delete();
             } else {
-                $this->saveRules($product->id, $variant->id, $allocation['rules'], $userId);
+                $this->saveRules($product->id, $variant->id, $allocation['rules'], $userId, $configs->get($scopes->scope($product->id, $variant->id)));
             }
         }
     }
 
-    private function saveRules(int $productId, ?int $variantId, array $rules, string $userId): void
+    private function saveRules(int $productId, ?int $variantId, array $rules, string $userId, ?object $existing = null): void
     {
+        if ($existing) {
+            $current = $this->rules($existing);
+            if (['fixed' => array_filter($current['fixed'] ?? []), 'percent' => array_filter($current['percent'] ?? [])] == $rules) {
+                return;
+            }
+        }
         DB::table('finance_product_allocations')->updateOrInsert(['scope' => app(ProductAllocation::class)->scope($productId, $variantId)], [
             'product_id' => $productId, 'variant_id' => $variantId, 'profile_id' => null, 'rules' => json_encode($rules),
             'updated_by' => $userId, 'created_at' => now(), 'updated_at' => now(),
@@ -109,16 +128,22 @@ class ProductAllocationEditor
             $allocations = app(ProductAllocation::class);
             foreach ($products as $product) {
                 $base = $configs->get($allocations->scope($product->id));
-                $options = $product->usesVariantRecords() ? [] : [['price' => $product->price, 'config' => $base]];
+                $options = $product->usesVariantRecords() ? [] : [['price' => $product->price, 'config' => $base, 'variant' => null]];
                 foreach ($product->variants->where('is_active', true) as $variant) {
-                    $options[] = ['price' => $variant->price ?? $product->price, 'config' => $configs->get($allocations->scope($product->id, $variant->id)) ?? $base];
+                    $options[] = ['price' => $variant->price ?? $product->price, 'config' => $configs->get($allocations->scope($product->id, $variant->id)) ?? $base, 'variant' => $variant];
                 }
                 foreach ($options as $option) {
                     $net = (int) round((float) $option['price'] * 100 / (1 + (float) $product->tax_rate));
-                    $rules = $option['config'] ? $this->rules($option['config']) : ['fixed' => [], 'percent' => []];
+                    $rules = $product->automatic_allocation
+                        ? app(ProductCostAllocation::class)->rules($product, $option['variant'])
+                        : ($option['config'] ? $this->rules($option['config']) : ['fixed' => [], 'percent' => []]);
+                    if ($rules === null) {
+                        $ids[] = $product->id;
+                        break;
+                    }
                     $targets = $allocations->targets($rules, 1, $net);
                     $activeTargets = array_intersect_key($targets, array_flip($allowed));
-                    if ($net > 0 && (array_sum($activeTargets) < $net || array_sum($rules['fixed'] ?? []) > $net)) {
+                    if (($net > 0 || $product->automatic_allocation) && ((! $product->automatic_allocation && array_sum($activeTargets) < $net) || array_sum($rules['fixed'] ?? []) > $net)) {
                         $ids[] = $product->id;
                         break;
                     }
