@@ -1,8 +1,10 @@
 window.SM = window.SM || {};
 
-window.SM.productVariantEditor = () => ({
+window.SM.productVariantEditor = (config = {}) => ({
     variantEditor: true,
     nextVariantKey: 0,
+    duplicatingVariantKey: null,
+    variantCopyError: '',
     orderedVariantRows() {
         const group = variant => variant.is_active ? (variant.is_base ? 0 : 1) : 2;
         return this.variants.map((variant, index) => ({ variant, index }))
@@ -71,11 +73,68 @@ window.SM.productVariantEditor = () => ({
         this.variants.splice(index, 1);
         this.normalizeVariantOrder();
     },
+    variantCopyName(source, index) {
+        const base = String(source.name || '').trim() || `Variant ${index + 1}`;
+        const names = new Set(this.variants.map(variant => String(variant.name || '').trim().toLowerCase()));
+        let suffix = 1;
+        let name;
+        do {
+            const marker = ` - COPY${suffix > 1 ? `-${suffix}` : ''}`;
+            name = Array.from(base).slice(0, 120 - marker.length).join('').trimEnd() + marker;
+            suffix++;
+        } while (names.has(name.toLowerCase()));
+        return name;
+    },
+    async duplicateVariant(index) {
+        const source = this.variants[index];
+        if (!source || this.duplicatingVariantKey !== null) return null;
+        this.duplicatingVariantKey = source.editor_key;
+        this.variantCopyError = '';
+        try {
+            const copy = JSON.parse(JSON.stringify(source));
+            const response = await fetch(config.copySkuUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf },
+                body: JSON.stringify({
+                    sku: copy.sku || '',
+                    reserved_skus: [this.baseSku || '', ...this.variants.map(variant => variant.sku || '')],
+                }),
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!response.ok) throw new Error('SKU check failed');
+            const { sku } = await response.json();
+            if (!this.variants.includes(source)) return null;
+            // The form may have changed while the saved SKUs were being checked.
+            if (!sku || [this.baseSku, ...this.variants.map(variant => variant.sku)]
+                .some(value => String(value || '').trim().toLowerCase() === sku.toLowerCase())) {
+                throw new Error('SKU changed');
+            }
+            Object.assign(copy, {
+                id: null,
+                name: this.variantCopyName(copy, index),
+                sku,
+                is_base: false,
+                deletion_disabled_reason: '',
+                inventory_quantity: copy.inventory_quantity === '' || copy.inventory_quantity == null ? '' : 0,
+                awaiting_fulfilment: 0,
+                reserved_quantity: 0,
+                sort_order: Number(source.sort_order || 0) + 0.5,
+            });
+            this.variants.push(this.prepareNewVariant(copy));
+            this.normalizeVariantOrder();
+            return copy;
+        } catch {
+            this.variantCopyError = 'Could not duplicate this variant. Please try again.';
+            return null;
+        } finally {
+            this.duplicatingVariantKey = null;
+        }
+    },
     prepareNewVariant(variant) {
         variant.editor_key = `new-${++this.nextVariantKey}`;
         variant.open = true;
         variant.original_option = false;
-        variant.is_base = !this.variants.some(row => row.is_base && row.is_active);
+        variant.is_base = !!variant.is_active && !this.variants.some(row => row.is_base && row.is_active);
         return variant;
     },
 });

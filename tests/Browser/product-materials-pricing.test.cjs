@@ -30,15 +30,15 @@ test('larger packs follow the minimum active pack without scaling a fictional si
     const state = editor();
     state.syncAutomaticPrice();
     assert.equal(state.variants[0].price, '17.95');
-    assert.equal(state.variants[1].price, '44.95');
+    assert.equal(state.variants[1].price, '43.95');
     state.basePrice = '999.00';
-    assert.equal(state.suggestedSellingPrice(state.variants[1]), 44.95);
+    assert.equal(state.suggestedSellingPrice(state.variants[1]), 43.95);
     state.basePackUnits = 100;
     state.unitCost = 29.1;
-    assert.equal(state.suggestedSellingPrice(state.variants[1]), 44.95);
+    assert.equal(state.suggestedSellingPrice(state.variants[1]), 43.95);
     state.syncAutomaticPrice();
     state.syncAutomaticPrice();
-    assert.equal(state.variants[1].price, '44.95');
+    assert.equal(state.variants[1].price, '43.95');
 });
 
 test('bulk discounts are explicit and cannot reduce a pack below its own cost floor', () => {
@@ -53,18 +53,119 @@ test('bulk discounts are explicit and cannot reduce a pack below its own cost fl
     assert.equal(state.minimumPriceApplied(large), true);
 });
 
+test('zero-discount bulk rounding cannot make the screenshot pack dearer per item', () => {
+    const state = editor({ unitCost: 2.28, operationalCost: 3, timeCost: 3.5, markup: 0, productBulkDiscount: 0, automaticPricing: false });
+    const minimum = state.variants[0], large = state.variants[1];
+    large.bulk_discount_percent = '';
+    state.syncAutomaticPrice();
+    assert.equal(minimum.price, '32.95');
+    assert.equal(state.costBasedMinimumPrice(large), 69.95);
+    assert.equal(large.price, '81.95');
+    assert.ok(state.pricePerItem(large) <= state.pricePerItem(minimum));
+    assert.equal(state.isBelowCost(large), false);
+    state.syncAutomaticPrice();
+    assert.equal(large.price, '81.95');
+});
+
+test('small discounts and different pack sizes cannot round above the protected reference rate', () => {
+    const state = editor({ unitCost: 2.28, operationalCost: 3, timeCost: 3.5, markup: 0 });
+    const minimum = state.variants[0], large = state.variants[1];
+    const referenceRate = state.suggestedSellingPrice(minimum) / state.packUnits(minimum);
+    for (const units of [11, 12, 15, 20, 25, 50]) {
+        large.inventory_units = units;
+        for (const discount of [0, .01, .1, 5, 20]) {
+            large.bulk_discount_percent = discount;
+            const price = state.suggestedSellingPrice(large);
+            assert.ok(price / units <= referenceRate, `${units} items, ${discount}% discount`);
+            assert.ok(price >= state.costBasedMinimumPrice(large));
+        }
+    }
+});
+
+test('a bulk pack with independently higher costs still keeps its own minimum price', () => {
+    const state = editor({ unitCost: 2.28, operationalCost: 3, timeCost: 3.5, markup: 0 });
+    const large = state.variants[1];
+    large.unit_cost_ex_tax = 200;
+    assert.equal(state.costBasedMinimumPrice(large), 227.95);
+    assert.equal(state.suggestedSellingPrice(large), 227.95);
+    assert.equal(state.minimumPriceApplied(large), true);
+    assert.equal(state.isBelowCost(large, true), false);
+});
+
 test('the chart uses actual variants and keeps the smallest active pack as its minimum', () => {
     const state = editor();
     state.syncAutomaticPrice();
     assert.deepEqual(Array.from(state.pricingRows(), row => row.name), ['10 Pack', '25 Pack', '2 Pack']);
     assert.equal(state.savingLabel(state.variants[0]), '');
-    assert.equal(state.savingLabel(state.variants[1]), '');
+    assert.equal(state.savingLabel(state.variants[1]), '2.1% less per item vs 10 Pack');
     assert.equal(state.minimumPackNotice(), '');
     state.selectBaseVariant(state.variants[1]);
     assert.deepEqual(Array.from(state.pricingRows(), row => row.name), ['25 Pack', '10 Pack', '2 Pack']);
     assert.equal(state.pricingComparisonVariant().id, 2);
     assert.equal(state.minimumPackNotice(), 'Bulk pricing uses 10 Pack, the smallest active pack.');
-    assert.equal(state.suggestedSellingPrice(state.variants[1]), 44.95);
+    assert.equal(state.suggestedSellingPrice(state.variants[1]), 43.95);
+});
+
+test('handling costs recommend a larger minimum while smaller packs are active', () => {
+    const state = editor();
+    state.variants[2].is_active = true;
+    const prices = state.variants.map(variant => variant.price);
+    assert.equal(state.minimumPackRecommendation().pack.name, '10 Pack');
+    assert.equal(state.minimumPackNotice(), 'Recommended minimum pack: 10 Pack. Handling falls from $4.75 to $0.95 per item.');
+    state.selectBaseVariant(state.variants[1]);
+    assert.equal(state.minimumPackRecommendation().pack.name, '10 Pack');
+    assert.equal(state.minimumPackNotice(), 'Recommended minimum pack: 10 Pack. Handling falls from $4.75 to $0.95 per item.');
+    assert.deepEqual(state.variants.map(variant => variant.price), prices);
+    assert.equal(state.variants[2].is_active, true);
+});
+
+test('minimum-pack advice clears when followed and only considers active pack sizes', () => {
+    const state = editor();
+    assert.equal(state.minimumPackRecommendation(), null);
+    assert.equal(state.minimumPackNotice(), '');
+    state.variants[2].is_active = true;
+    state.variants[0].is_active = false;
+    assert.equal(state.minimumPackRecommendation().pack.name, '25 Pack');
+    state.variants[1].is_active = false;
+    assert.equal(state.minimumPackRecommendation(), null);
+    state.variants[1].is_active = true;
+    state.variants[2].is_active = false;
+    assert.equal(state.minimumPackRecommendation(), null);
+});
+
+test('minimum-pack recommendations react to handling allowances and the target', () => {
+    const state = editor();
+    state.minimumPackHandlingTarget = .5;
+    assert.equal(state.minimumPackRecommendation().pack.name, '25 Pack');
+    state.minimumPackHandlingTarget = 1;
+    state.variants[2].is_active = true;
+    state.operationalCost = .5;
+    state.timeCost = 1.5;
+    assert.equal(state.minimumPackRecommendation(), null);
+    state.timeCost = 1.51;
+    assert.equal(state.minimumPackRecommendation().pack.name, '10 Pack');
+    state.variants[0].inventory_units = 0;
+    assert.equal(state.minimumPackRecommendation().pack.name, '25 Pack');
+});
+
+test('missing allowances, invalid targets and nonphysical products do not produce minimum-pack advice', () => {
+    const state = editor();
+    state.variants[2].is_active = true;
+    for (const target of [0, -1, NaN, Infinity]) {
+        state.minimumPackHandlingTarget = target;
+        assert.equal(state.minimumPackRecommendation(), null);
+    }
+    state.minimumPackHandlingTarget = 1;
+    state.operationalCost = '';
+    assert.equal(state.minimumPackRecommendation(), null);
+    state.operationalCost = 3;
+    state.timeCost = -1;
+    assert.equal(state.minimumPackRecommendation(), null);
+    state.timeCost = 6.5;
+    state.productType = 'digital';
+    assert.equal(state.minimumPackRecommendation(), null);
+    state.productType = 'kit';
+    assert.equal(state.minimumPackRecommendation().pack.name, '10 Pack');
 });
 
 test('manual minimum-pack edits affect automatic bulk prices and retirement selects the next active size', () => {
@@ -96,9 +197,9 @@ test('an underpriced manual minimum pack cannot lower bulk suggestions or make a
     large.price = '9.95';
     assert.equal(state.suggestedSellingPrice(minimum), 12.95);
     assert.equal(state.costBasedMinimumPrice(large), 12.95);
-    assert.equal(state.suggestedSellingPrice(large), 32.95);
+    assert.equal(state.suggestedSellingPrice(large), 31.95);
     state.useSuggestedPrice(minimum);
-    assert.equal(state.suggestedSellingPrice(large), 32.95);
+    assert.equal(state.suggestedSellingPrice(large), 31.95);
     minimum.price = '4.95';
     large.bulk_discount_percent = 20;
     large.automatic_pricing = true;
@@ -131,14 +232,14 @@ test('bulk discounts inherit from the site and product, while variant overrides 
     large.bulk_discount_percent = '5';
     assert.equal(state.suggestedSellingPrice(large), 42.95);
     large.bulk_discount_percent = '0';
-    assert.equal(state.suggestedSellingPrice(large), 44.95);
+    assert.equal(state.suggestedSellingPrice(large), 43.95);
     large.bulk_discount_percent = null;
     state.productBulkDiscount = 0;
-    assert.equal(state.suggestedSellingPrice(large), 44.95);
+    assert.equal(state.suggestedSellingPrice(large), 43.95);
     state.productBulkDiscount = '';
     assert.equal(state.suggestedSellingPrice(large), 35.95);
     state.costingDefaults.bulkDiscount = 0;
-    assert.equal(state.suggestedSellingPrice(large), 44.95);
+    assert.equal(state.suggestedSellingPrice(large), 43.95);
     assert.equal(state.bulkDiscount(state.variants[0]), 0);
 });
 
@@ -153,7 +254,7 @@ test('invalid inherited discounts preserve the last price, and product discount 
     state.productBulkDiscount = 101;
     state.syncAutomaticPrice();
     assert.equal(state.suggestedSellingPrice(large), null);
-    assert.equal(large.price, '44.95');
+    assert.equal(large.price, '43.95');
     large.bulk_discount_percent = 5;
     assert.equal(state.suggestedSellingPrice(large), 42.95);
     large.bulk_discount_percent = -1;

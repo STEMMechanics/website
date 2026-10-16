@@ -293,7 +293,11 @@ class ProductRecipeService
             if ($basePrice === null || ! is_finite($basePrice) || $basePrice < 0 || ! is_finite($discount) || $discount < 0 || $discount > 100) {
                 return $pricing;
             }
-            $bulkPrice = $this->roundSellingPrice($basePrice * $product->saleUnits($variant) / $minimumUnits * (1 - $discount / 100));
+            $referencePrice = $basePrice * $product->saleUnits($variant) / $minimumUnits;
+            $bulkPrice = $this->roundSellingPrice($referencePrice * (1 - $discount / 100));
+            // A price ending must not make a bulk pack dearer per item than its reference.
+            $ceiling = $this->roundSellingPrice($referencePrice, roundUp: false);
+            $bulkPrice = $bulkPrice === null || $ceiling === null ? null : min($bulkPrice, $ceiling);
         } else {
             // Scale only the item portion. Handling belongs to the finished pack once,
             // and rounding a small pack must not be multiplied into larger packs.
@@ -323,14 +327,15 @@ class ProductRecipeService
         return $pricing;
     }
 
-    private function roundSellingPrice(float $amount): ?float
+    private function roundSellingPrice(float $amount, bool $roundUp = true): ?float
     {
         if (! is_finite($amount) || $amount < 0) {
             return null;
         }
         $ending = (float) config('product-costing.price_ending', 0.95);
 
-        $price = round(max($ending, ceil($amount - $ending - 0.0000001) + $ending), 2);
+        $rounded = $roundUp ? ceil($amount - $ending - 0.0000001) : floor($amount - $ending + 0.0000001);
+        $price = round(max($ending, $rounded + $ending), 2);
 
         return is_finite($price) && $price <= 99999999.99 ? $price : null;
     }

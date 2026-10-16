@@ -201,14 +201,14 @@
                             <td class="py-3 pl-3 text-right">
                                 <x-ui.badge color="primary" x-show="row.automatic">Automatic</x-ui.badge>
                                 <p class="mt-2 text-xs text-slate-600" x-show="row.automatic && suggestedSellingPrice(row.variant) === null">Last price kept until costs are known.</p>
-                                <x-ui.button size="small" color="primary-outline" x-show="!row.automatic" x-bind:disabled="!canUseSuggestedPrice(row.variant)" x-bind:aria-label="'Use suggested price for ' + row.name" x-on:click="useSuggestedPrice(row.variant)">Use suggested price</x-ui.button>
+                                <x-ui.button size="small" color="primary-outline" class="ml-auto" x-show="!row.automatic" x-bind:disabled="!canUseSuggestedPrice(row.variant)" x-bind:aria-label="'Use suggested price for ' + row.name" x-on:click="useSuggestedPrice(row.variant)">Use suggested price</x-ui.button>
                             </td>
                         </tr>
                     </template>
                 </x-slot:body>
             </x-ui.table>
         </div>
-        <p class="mt-2 text-xs text-slate-600">Bulk prices use the smallest active pack's selling price or cost minimum, whichever is higher. Rounded up to .95.</p>
+        <p class="mt-2 text-xs text-slate-600">Bulk prices follow the smallest active pack, with the chosen discount and a cost minimum. Rounded to .95 without adding a bulk surcharge.</p>
         @foreach($errors->getMessages() as $field => $messages)
             @if(str_starts_with($field, 'variants.') && (str_ends_with($field, '.bulk_discount_percent') || str_ends_with($field, '.automatic_pricing')))
                 <p class="mt-2 text-sm text-red-700" role="alert">{{ $messages[0] }}</p>

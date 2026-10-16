@@ -66,10 +66,10 @@ class BulkDiscountInheritanceTest extends TestCase
         $large->update(['bulk_discount_percent' => 5]);
         $this->assertSame(42.95, $pricing->suggestedPrice($product, $large));
         $large->update(['bulk_discount_percent' => 0]);
-        $this->assertSame(44.95, $pricing->suggestedPrice($product, $large));
+        $this->assertSame(43.95, $pricing->suggestedPrice($product, $large));
         $large->update(['bulk_discount_percent' => null]);
         $product->update(['bulk_discount_percent' => 0]);
-        $this->assertSame(44.95, $pricing->suggestedPrice($product, $large));
+        $this->assertSame(43.95, $pricing->suggestedPrice($product, $large));
         $product->update(['bulk_discount_percent' => null]);
         $this->assertSame(35.95, $pricing->suggestedPrice($product, $large));
     }
@@ -78,7 +78,7 @@ class BulkDiscountInheritanceTest extends TestCase
     {
         $this->admin();
         [$product, $large] = $this->packs();
-        foreach ([[10, '', '40.95'], [5, 0, '44.95'], ['', '', '35.95'], [0, '', '44.95']] as [$productDiscount, $variantDiscount, $price]) {
+        foreach ([[10, '', '40.95'], [5, 0, '43.95'], ['', '', '35.95'], [0, '', '43.95']] as [$productDiscount, $variantDiscount, $price]) {
             $data = $this->payload($product->fresh());
             $data['bulk_discount_percent'] = $productDiscount;
             foreach ($data['variants'] as &$row) {
@@ -123,12 +123,12 @@ class BulkDiscountInheritanceTest extends TestCase
         $this->postJson(route('admin.site_option.store'), ['name' => 'store.costing.bulk-discount-percent', 'value' => '25'])->assertOk();
         $this->assertSame('33.95', $inherited->fresh()->price);
         $this->assertSame('40.95', $productOverride->fresh()->price);
-        $this->assertSame('44.95', $variantOverride->fresh()->price);
+        $this->assertSame('43.95', $variantOverride->fresh()->price);
         $this->assertSame('99.00', $manual->fresh()->price);
         $setting = SiteOption::query()->where('name', 'store.costing.bulk-discount-percent')->firstOrFail();
         $this->putJson(route('admin.site_option.update', $setting), ['value' => '0'])->assertOk();
         $this->assertSame(0.0, app(ProductRecipeService::class)->defaultBulkDiscount());
-        $this->assertSame('44.95', $inherited->fresh()->price);
+        $this->assertSame('43.95', $inherited->fresh()->price);
         $this->assertSame('40.95', $productOverride->fresh()->price);
     }
 

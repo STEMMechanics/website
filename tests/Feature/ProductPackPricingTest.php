@@ -102,7 +102,7 @@ class ProductPackPricingTest extends TestCase
         [$product, $minimum, $large] = $this->sellingPacks();
         $pricing = app(ProductRecipeService::class);
         $this->assertSame(17.95, $pricing->suggestedPrice($product, $minimum));
-        $this->assertSame(44.95, $pricing->suggestedPrice($product, $large));
+        $this->assertSame(43.95, $pricing->suggestedPrice($product, $large));
         $this->assertSame(24.95, $pricing->pricingDetails($product, $large)['minimum_price']);
         $large->update(['bulk_discount_percent' => 20]);
         $this->assertSame(35.95, $pricing->suggestedPrice($product, $large));
@@ -111,18 +111,61 @@ class ProductPackPricingTest extends TestCase
         $this->assertTrue($pricing->pricingDetails($product, $large)['minimum_applied']);
     }
 
+    public function test_zero_discount_bulk_rounding_does_not_make_a_larger_pack_dearer_per_item(): void
+    {
+        [$product, $minimum, $large] = $this->sellingPacks();
+        $product->update(['unit_cost_ex_tax' => 2.28, 'operational_cost_ex_tax' => 3, 'time_cost_ex_tax' => 3.5, 'markup_percent' => 0]);
+        $pricing = app(ProductRecipeService::class);
+        $this->assertSame(32.95, $pricing->suggestedPrice($product, $minimum));
+        $details = $pricing->pricingDetails($product, $large);
+        $this->assertSame(69.95, $details['minimum_price']);
+        $this->assertSame(81.95, $details['price']);
+        $this->assertLessThanOrEqual(32.95 / 10, $details['price'] / 25);
+        $pricing->refreshPrices();
+        $pricing->refreshPrices();
+        $this->assertSame('81.95', $large->fresh()->price);
+    }
+
+    public function test_small_discounts_and_other_pack_sizes_cannot_round_above_the_bulk_reference_rate(): void
+    {
+        [$product, $minimum, $large] = $this->sellingPacks();
+        $product->update(['unit_cost_ex_tax' => 2.28, 'operational_cost_ex_tax' => 3, 'time_cost_ex_tax' => 3.5, 'markup_percent' => 0]);
+        $pricing = app(ProductRecipeService::class);
+        $referenceRate = $pricing->suggestedPrice($product, $minimum) / 10;
+        foreach ([11, 12, 15, 20, 25, 50] as $units) {
+            foreach ([0, .01, .1, 5, 20] as $discount) {
+                $large->update(['inventory_units' => $units, 'bulk_discount_percent' => $discount]);
+                $pricing->reset();
+                $details = $pricing->pricingDetails($product->fresh(), $large);
+                $this->assertLessThanOrEqual($referenceRate, $details['price'] / $units, $units.' items, '.$discount.'% discount');
+                $this->assertGreaterThanOrEqual($details['minimum_price'], $details['price']);
+            }
+        }
+    }
+
+    public function test_an_independently_costed_bulk_pack_keeps_its_cost_minimum_above_the_reference_rate(): void
+    {
+        [$product, , $large] = $this->sellingPacks();
+        $large->update(['unit_cost_ex_tax' => 200]);
+        $pricing = app(ProductRecipeService::class);
+        $details = $pricing->pricingDetails($product, $large);
+        $this->assertSame($details['minimum_price'], $details['price']);
+        $this->assertTrue($details['minimum_applied']);
+        $this->assertGreaterThanOrEqual(209.5, $details['price'] / 1.1);
+    }
+
     public function test_automatic_minimum_pack_pricing_is_stable_across_refreshes_and_default_changes(): void
     {
         [$product, $minimum, $large] = $this->sellingPacks();
         $pricing = app(ProductRecipeService::class);
         $pricing->refreshPrices();
         $this->assertSame('17.95', $minimum->fresh()->price);
-        $this->assertSame('44.95', $large->fresh()->price);
+        $this->assertSame('43.95', $large->fresh()->price);
         $product->update(['default_variant_id' => $large->id, 'price' => 999, 'inventory_units' => 100, 'unit_cost_ex_tax' => 29.1]);
         $pricing->refreshPrices();
         $pricing->refreshPrices();
         $this->assertSame('17.95', $minimum->fresh()->price);
-        $this->assertSame('44.95', $large->fresh()->price);
+        $this->assertSame('43.95', $large->fresh()->price);
     }
 
     public function test_manual_minimum_pack_prices_and_retirement_change_the_bulk_price_basis(): void
@@ -149,9 +192,9 @@ class ProductPackPricingTest extends TestCase
 
         $this->assertSame(12.95, $pricing->suggestedPrice($product, $minimum));
         $this->assertSame(12.95, $pricing->pricingDetails($product, $large)['minimum_price']);
-        $this->assertSame(32.95, $pricing->suggestedPrice($product, $large));
+        $this->assertSame(31.95, $pricing->suggestedPrice($product, $large));
         $minimum->update(['price' => 12.95]);
-        $this->assertSame(32.95, $pricing->suggestedPrice($product->fresh(), $large));
+        $this->assertSame(31.95, $pricing->suggestedPrice($product->fresh(), $large));
         $minimum->update(['price' => 4.95]);
         $large->update(['bulk_discount_percent' => 20, 'automatic_pricing' => true]);
         $pricing->refreshPrices();

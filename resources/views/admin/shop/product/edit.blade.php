@@ -31,6 +31,7 @@
         'markup' => old('markup_percent', $product->markup_percent ?? ''),
         'bulkDiscount' => old('bulk_discount_percent', $product->bulk_discount_percent ?? ''),
         'priceEnding' => (float) config('product-costing.price_ending', 0.95),
+        'minimumPackHandlingTarget' => (float) config('product-costing.minimum_pack_handling_target', 1),
         'defaults' => ['markup' => $costingService->defaultMarkup(), 'bulkDiscount' => $costingService->defaultBulkDiscount(), 'itemOperational' => \App\Models\SiteOption::value('store.costing.item-operational', '0.50'), 'kitOperational' => \App\Models\SiteOption::value('store.costing.kit-operational', '1.00'), 'itemTime' => \App\Models\SiteOption::value('store.costing.item-time', '3.50'), 'kitTime' => 2 * (float) \App\Models\SiteOption::value('store.costing.item-time', '3.50')],
     ];
     $inventoryContexts = is_array($inventoryContexts ?? null)
@@ -224,7 +225,7 @@
             x-data="{
                 ...SM.productMaterials(@js($materialsConfig)),
                 ...SM.allocationRemainder(@js(json_decode(old('allocation_remainder_json', json_encode($product->allocation_remainder ?? null)), true)), @js(app(\App\Services\Finance\ProductCostAllocation::class)->defaultRemainder())),
-                ...SM.productVariantEditor(),
+                ...SM.productVariantEditor({ copySkuUrl: @js(route('admin.shop.product.variant-copy-sku')), csrf: @js(csrf_token()) }),
                 variantErrors: @js(array_keys($errors->getMessages())),
                 sharedInventory: @js($editorSharedInventory),
                 baseInventoryQuantity: @js(old('inventory_quantity', $product->inventory_quantity ?? '')),
@@ -906,6 +907,7 @@
 
                 @error('variants')<p class="text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
                 <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !variants.some(variant => variant.is_active)" x-cloak>Activate a variant or change this product to draft or archived.</p>
+                <p class="text-sm text-red-700" role="alert" x-show="variantCopyError" x-text="variantCopyError" x-cloak></p>
 
                 <div class="space-y-4">
                     <template x-for="{ variant, index } in orderedVariantRows()" :key="variant.editor_key">
@@ -916,14 +918,15 @@
                                 <span x-show="!variant.is_active" class="ml-2 text-gray-500">Inactive</span>
                             </x-slot:summary>
                             <x-slot:actions>
-                                <span class="inline-flex" x-bind:data-tooltip="variantMoveDisabledReason(variant, -1) || 'Move up'" x-bind:tabindex="variantMoveDisabledReason(variant, -1) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-up" label="Move variant up" x-bind:disabled="!!variantMoveDisabledReason(variant, -1)" x-on:click.stop.prevent="moveVariant(index, -1)" />
+                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, -1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, -1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-up" label="Move variant up" x-bind:title="variantMoveDisabledReason(variant, -1) || 'Move variant up'" x-bind:disabled="!!variantMoveDisabledReason(variant, -1)" x-on:click.stop.prevent="moveVariant(index, -1)" />
                                 </span>
-                                <span class="inline-flex" x-bind:data-tooltip="variantMoveDisabledReason(variant, 1) || 'Move down'" x-bind:tabindex="variantMoveDisabledReason(variant, 1) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-down" label="Move variant down" x-bind:disabled="!!variantMoveDisabledReason(variant, 1)" x-on:click.stop.prevent="moveVariant(index, 1)" />
+                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, 1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, 1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-down" label="Move variant down" x-bind:title="variantMoveDisabledReason(variant, 1) || 'Move variant down'" x-bind:disabled="!!variantMoveDisabledReason(variant, 1)" x-on:click.stop.prevent="moveVariant(index, 1)" />
                                 </span>
-                                <span class="inline-flex" x-bind:data-tooltip="variantDeletionDisabledReason(variant) || 'Delete variant'" x-bind:tabindex="variantDeletionDisabledReason(variant) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="danger" size="icon-small" icon="trash" label="Delete variant" x-bind:disabled="!!variantDeletionDisabledReason(variant)" x-on:click.stop.prevent="removeVariant(index)" />
+                                <x-ui.button variant="text" color="secondary" size="icon-small" icon="copy" label="Duplicate variant" x-bind:disabled="duplicatingVariantKey !== null" x-bind:aria-busy="duplicatingVariantKey === variant.editor_key" x-on:click.stop.prevent="duplicateVariant(index)" />
+                                <span class="inline-flex" x-bind:title="variantDeletionDisabledReason(variant) || null" x-bind:tabindex="variantDeletionDisabledReason(variant) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="danger" size="icon-small" icon="trash" label="Delete variant" x-bind:title="variantDeletionDisabledReason(variant) || 'Delete variant'" x-bind:disabled="!!variantDeletionDisabledReason(variant)" x-on:click.stop.prevent="removeVariant(index)" />
                                 </span>
                             </x-slot:actions>
                             @include('admin.shop.product.variant-fields')
