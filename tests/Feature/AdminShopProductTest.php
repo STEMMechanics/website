@@ -12,8 +12,10 @@ use App\Models\StoreOrderItemCollection;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\ProductAttention;
+use App\Services\ProductVariantUpgrade;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AdminShopProductTest extends TestCase
@@ -1090,6 +1092,36 @@ class AdminShopProductTest extends TestCase
             ->assertSeeText('Digital')
             ->assertSeeText('Instant download')
             ->assertSeeText('Free');
+    }
+
+    public static function activeVariantPriceLabels(): array
+    {
+        return [
+            'one active price' => [[14.95], '$14.95'],
+            'different active prices' => [[34.95, 14.95], 'From $14.95'],
+            'matching active prices' => [[14.95, 14.95], '$14.95'],
+            'inherited fallback price' => [[null, 14.95], 'From $4.95'],
+            'free active variant' => [[0, 14.95], 'From Free'],
+            'no active variants' => [[], 'Unavailable'],
+        ];
+    }
+
+    #[DataProvider('activeVariantPriceLabels')]
+    public function test_product_index_prices_use_only_active_selling_variants(array $prices, string $expected): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create(['user_id' => (string) $admin->id, 'slug' => 'admin']);
+        $product = Product::factory()->create(['price' => 4.95]);
+        $original = app(ProductVariantUpgrade::class)->convert($product);
+        $original->update(['is_active' => false]);
+        ProductVariant::factory()->create(['product_id' => $product->id, 'price' => .95, 'is_active' => false]);
+        foreach ($prices as $price) {
+            ProductVariant::factory()->create(['product_id' => $product->id, 'price' => $price, 'is_active' => true]);
+        }
+
+        $this->actingAs($admin)->get(route('admin.shop.product.index'))
+            ->assertOk()
+            ->assertSee('data-label="Price">'.$expected.'</td>', false);
     }
 
     public function test_product_stock_attention_excludes_orders_awaiting_fulfilment(): void
