@@ -115,6 +115,7 @@
 
 <x-ui.collapsible-section title="Purchase costs and pricing" variant="product" :open="!isset($product) || $errors->any()" x-show="productType !== 'digital'" x-cloak>
     <x-slot:summary><span x-text="costingMoney(recipeMaterialCost()) + (productType === 'material' ? ' per ' + purchaseUnit : ' materials')"></span></x-slot:summary>
+    <p class="mb-4 text-sm text-slate-600" x-show="isPhysicalProduct()">Blank allowances and percentages use the <a href="{{ route('admin.shop.settings.edit') }}#pricing-defaults" target="_blank" rel="noopener" class="text-sky-700 underline hover:text-sky-900">defaults in Store Settings</a>. Enter 0 to override a default.</p>
     <div class="product-editor__fields">
         <div x-show="!hasMaterialMeasurements() && !recipeRows.length">
             <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.0001" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="For the cost basis quantity in Shared defaults. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
@@ -126,10 +127,10 @@
             <x-ui.input name="time_cost_ex_tax" label="Time allowance (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="timeCost" x-bind:placeholder="costingMoney(effectiveTimeCost())" x-bind:disabled="!isPhysicalProduct()" info="Blank uses the default. Kits have twice the item time allowance." />
         </div>
         <div x-show="isPhysicalProduct()">
-            <x-ui.input name="markup_percent" label="Markup (%)" type="number" min="0" step="0.01" x-model="markup" x-bind:placeholder="costingDefaults.markup" x-bind:disabled="!isPhysicalProduct()" info="Blank uses the default markup in Site Options." />
+            <x-ui.input name="markup_percent" label="Markup (%)" type="number" min="0" step="0.01" x-model="markup" x-bind:placeholder="costingDefaults.markup" x-bind:disabled="!isPhysicalProduct()" info="Blank uses the default markup in Store Settings." />
         </div>
         <div x-show="isPhysicalProduct()">
-            <x-ui.input name="bulk_discount_percent" label="Bulk discount (%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-model="productBulkDiscount" x-bind:placeholder="costingDefaults.bulkDiscount" x-bind:disabled="!isPhysicalProduct()" :info="'For larger packs. Blank uses the site default ('.$costingService->defaultBulkDiscount().'%).'" />
+            <x-ui.input name="bulk_discount_percent" label="Bulk discount (%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-model="productBulkDiscount" x-bind:placeholder="costingDefaults.bulkDiscount" x-bind:disabled="!isPhysicalProduct()" :info="'For larger packs. Blank uses the Store Settings default ('.$costingService->defaultBulkDiscount().'%).'" />
         </div>
         <div x-show="isPhysicalProduct()">
             <x-ui.select name="purchase_cost_centre" label="Purchase cost centre" x-model="purchaseCostCentre" x-bind:disabled="!isPhysicalProduct()" info="Automatic follows a clear expense allocation; otherwise Stock. Kits follow their components.">
@@ -186,6 +187,7 @@
                             <td class="px-3 py-3 text-right tabular-nums">
                                 <strong class="text-base text-sky-900" x-text="costingMoney(suggestedSellingPrice(row.variant))"></strong>
                                 <p class="mt-1 text-xs text-slate-600" x-show="pricePerItem(row.variant, true) !== null" x-text="costingMoney(pricePerItem(row.variant, true)) + ' per item'"></p>
+                                <p class="mt-1 text-xs" x-show="extraPerItem(row.variant, true) !== null" x-bind:class="extraPerItem(row.variant, true) < 0 ? 'text-red-700' : 'text-slate-600'" x-text="'Extra: ' + costingMoney(extraPerItem(row.variant, true)) + ' per item (ex GST)'"></p>
                                 <p class="mt-1 text-xs text-slate-600" x-show="isBulkPack(row.variant) && bulkDiscount(row.variant) > 0" x-text="bulkDiscount(row.variant) + '% bulk discount'"></p>
                                 <p class="mt-1 text-xs text-slate-600" x-show="costBasedMinimumPrice(row.variant) !== null && suggestedSellingPrice(row.variant) > costBasedMinimumPrice(row.variant)" x-text="'Cost floor: ' + costingMoney(costBasedMinimumPrice(row.variant))"></p>
                                 <x-ui.badge color="warning" class="mt-2" x-show="minimumPriceApplied(row.variant)">Minimum price applied</x-ui.badge>
@@ -195,6 +197,7 @@
                                 <strong class="text-base" x-text="costingMoney(sellingPrice(row.variant), 'Price needed')"></strong>
                                 <p class="mt-1 text-xs text-slate-600" x-show="row.variant && String(row.variant.price ?? '').trim() === ''">Uses fallback price</p>
                                 <p class="mt-1 text-xs text-slate-600" x-show="pricePerItem(row.variant) !== null" x-text="costingMoney(pricePerItem(row.variant)) + ' per item'"></p>
+                                <p class="mt-1 text-xs" x-show="extraPerItem(row.variant) !== null" x-bind:class="extraPerItem(row.variant) < 0 ? 'text-red-700' : 'text-slate-600'" x-text="'Extra: ' + costingMoney(extraPerItem(row.variant)) + ' per item (ex GST)'"></p>
                                 <p class="mt-1 text-xs text-slate-600" x-show="row.variant && row.active" x-text="savingLabel(row.variant)"></p>
                                 <x-ui.badge color="danger" class="mt-2" x-show="isBelowCost(row.variant)">Below cost</x-ui.badge>
                             </td>
@@ -208,6 +211,7 @@
                 </x-slot:body>
             </x-ui.table>
         </div>
+        <p class="mt-2 text-xs text-slate-600">Extra is the amount left after materials, Operational and Time allowances, excluding GST.</p>
         <p class="mt-2 text-xs text-slate-600">Bulk prices follow the smallest active pack, with the chosen discount and a cost minimum. Rounded to .95 without adding a bulk surcharge.</p>
         @foreach($errors->getMessages() as $field => $messages)
             @if(str_starts_with($field, 'variants.') && (str_ends_with($field, '.bulk_discount_percent') || str_ends_with($field, '.automatic_pricing')))

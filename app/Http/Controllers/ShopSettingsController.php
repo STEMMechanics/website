@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\SiteOption;
 use App\Models\StoreShippingMethod;
 use App\Models\StoreShippingMethodPackage;
+use App\Services\ProductRecipeService;
+use App\Support\RequestMemo;
 use App\Support\ShopAvailability;
 use App\Support\ShopShippingSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -17,10 +20,15 @@ use Illuminate\View\View;
 
 class ShopSettingsController extends Controller
 {
-    public function edit(ShopAvailability $availability): View
+    public function edit(ShopAvailability $availability, ProductRecipeService $costing): View
     {
         return view('admin.shop.settings', [
             'publicEnabled' => $availability->isPublicEnabled(),
+            'itemOperationalCost' => $costing->defaultOperationalCost(),
+            'kitOperationalCost' => $costing->defaultOperationalCost(true),
+            'itemTimeCost' => $costing->defaultTimeCost(),
+            'markupPercent' => $costing->defaultMarkup(),
+            'bulkDiscountPercent' => $costing->defaultBulkDiscount(),
             'maxSatchelWeightGrams' => ShopShippingSettings::maxSatchelWeightGrams(),
             'boxedShipping' => ShopShippingSettings::boxedShipping(),
             'processingPauseUntil' => SiteOption::value(ShopShippingSettings::PROCESSING_PAUSE_UNTIL_OPTION),
@@ -61,6 +69,11 @@ class ShopSettingsController extends Controller
 
         $rules = [
             'public_enabled' => ['required', 'boolean'],
+            'item_operational_cost_ex_tax' => ['sometimes', 'required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'],
+            'kit_operational_cost_ex_tax' => ['sometimes', 'required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'],
+            'item_time_cost_ex_tax' => ['sometimes', 'required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'],
+            'markup_percent' => ['sometimes', 'required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'],
+            'bulk_discount_percent' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
             'max_satchel_weight_grams' => ['required', 'integer', 'min:0', 'max:50000'],
             'boxed_shipping_label' => ['required', 'string', 'max:120'],
             'boxed_shipping_message' => ['required', 'string', 'max:500'],
@@ -194,12 +207,43 @@ class ShopSettingsController extends Controller
             ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
             $this->normalizeTrackingLinkTemplatesValue($validated['tracking_link_templates'] ?? [])
         );
+        $this->updateCostingDefaults($validated);
 
         session()->flash('message', 'Store settings updated.');
         session()->flash('message-title', 'Settings saved');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    private function updateCostingDefaults(array $validated): void
+    {
+        DB::transaction(function () use ($validated): void {
+            $changed = false;
+            foreach ([
+                'item_operational_cost_ex_tax' => 'store.costing.item-operational',
+                'kit_operational_cost_ex_tax' => 'store.costing.kit-operational',
+                'item_time_cost_ex_tax' => 'store.costing.item-time',
+                'markup_percent' => 'store.costing.markup-percent',
+                'bulk_discount_percent' => 'store.costing.bulk-discount-percent',
+            ] as $field => $name) {
+                if (! array_key_exists($field, $validated)) {
+                    continue;
+                }
+
+                $option = SiteOption::query()->firstOrNew(['name' => $name]);
+                $option->value = number_format((float) $validated[$field], 2, '.', '');
+                if ($option->isDirty('value')) {
+                    $option->save();
+                    $changed = true;
+                }
+            }
+
+            if ($changed) {
+                app(RequestMemo::class)->clear();
+                app(ProductRecipeService::class)->refreshPrices();
+            }
+        });
     }
 
     private function storeOption(string $name, string $value): void

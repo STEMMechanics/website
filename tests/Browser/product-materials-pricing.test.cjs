@@ -26,6 +26,29 @@ function editor(overrides = {}) {
     return state;
 }
 
+test('blank allowances inherit item or kit defaults while explicit zero overrides them', () => {
+    const state = editor({
+        operationalCost: '', timeCost: '',
+        costingDefaults: { itemOperational: 1.25, kitOperational: 2.50, itemTime: 4, kitTime: 8, bulkDiscount: 20 },
+    });
+    assert.equal(state.effectiveOperationalCost(), 1.25);
+    assert.equal(state.effectiveTimeCost(), 4);
+    state.syncAutomaticPrice();
+    assert.equal(state.variants[0].price, '11.95');
+    state.isKit = true;
+    state.productType = 'kit';
+    assert.equal(state.effectiveOperationalCost(), 2.50);
+    assert.equal(state.effectiveTimeCost(), 8);
+    state.syncAutomaticPrice();
+    assert.equal(state.variants[0].price, '19.95');
+    state.operationalCost = '0.00';
+    state.timeCost = 0;
+    assert.equal(state.effectiveOperationalCost(), 0);
+    assert.equal(state.effectiveTimeCost(), 0);
+    state.syncAutomaticPrice();
+    assert.equal(state.variants[0].price, '4.95');
+});
+
 test('larger packs follow the minimum active pack without scaling a fictional single-item reference', () => {
     const state = editor();
     state.syncAutomaticPrice();
@@ -104,6 +127,61 @@ test('the chart uses actual variants and keeps the smallest active pack as its m
     assert.equal(state.pricingComparisonVariant().id, 2);
     assert.equal(state.minimumPackNotice(), 'Bulk pricing uses 10 Pack, the smallest active pack.');
     assert.equal(state.suggestedSellingPrice(state.variants[1]), 43.95);
+});
+
+test('extra per item excludes GST and deducts materials plus handling once per pack', () => {
+    const state = editor({ unitCost: 2, operationalCost: 2, timeCost: 3, markup: 0, automaticPricing: false, basePrice: '11.00' });
+    const minimum = state.variants[0];
+    minimum.inventory_units = 5;
+    minimum.price = '22.00';
+    minimum.automatic_pricing = false;
+    assert.equal(state.pricePerItem(minimum), 4.4);
+    assert.equal(state.extraPerItem(minimum), 1);
+    assert.equal(state.costingMoney(state.extraPerItem(minimum, true)), '$0.08');
+    assert.equal(state.extraPerItem(), 3);
+    minimum.price = '16.50';
+    assert.equal(state.extraPerItem(minimum), 0);
+    assert.equal(state.costingMoney(state.extraPerItem(minimum)), '$0.00');
+    minimum.price = '22.00';
+
+    state.productTaxRate = 0;
+    assert.equal(state.extraPerItem(minimum), 1.4);
+    state.basePackUnits = 10;
+    state.unitCost = 20;
+    assert.equal(state.extraPerItem(minimum), 1.4);
+    minimum.unit_cost_ex_tax = 5;
+    assert.equal(state.extraPerItem(minimum), 2.4);
+});
+
+test('extra per item respects inherited allowances, shows losses and hides unknown amounts', () => {
+    const state = editor({
+        unitCost: 2, operationalCost: '', timeCost: '', markup: 0, basePrice: '',
+        costingDefaults: { itemOperational: 2, itemTime: 3, bulkDiscount: 20 },
+    });
+    const minimum = state.variants[0];
+    minimum.inventory_units = 5;
+    minimum.price = '0.00';
+    assert.equal(state.extraPerItem(minimum), -3);
+    assert.equal(state.costingMoney(state.extraPerItem(minimum)), '-$3.00');
+    assert.equal(state.isBelowCost(minimum), true);
+    minimum.price = '';
+    assert.equal(state.extraPerItem(minimum), null);
+    assert.notEqual(state.extraPerItem(minimum, true), null);
+    state.unitCost = '';
+    assert.equal(state.extraPerItem(minimum, true), null);
+    state.unitCost = 2;
+    minimum.price = '22.00';
+    for (const units of [0, 1.5, 'invalid']) {
+        minimum.inventory_units = units;
+        assert.equal(state.extraPerItem(minimum), null);
+        assert.equal(state.extraPerItem(minimum, true), null);
+    }
+    minimum.inventory_units = 5;
+    for (const tax of [-1, 'invalid', Infinity]) {
+        state.productTaxRate = tax;
+        assert.equal(state.extraPerItem(minimum), null);
+        assert.equal(state.extraPerItem(minimum, true), null);
+    }
 });
 
 test('handling costs recommend a larger minimum while smaller packs are active', () => {
