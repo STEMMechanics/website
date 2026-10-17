@@ -6,11 +6,7 @@
     <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
         <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
         <x-slot:actions>
-            <div class="flex w-full flex-col gap-2 sm:w-56">
-                <x-admin.workshop-public-page-action :workshop="$workshop" />
-                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-upload', { id: 'photos' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
-                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-browse', { id: 'photos' })">Browse media</x-ui.button>
-            </div>
+            <x-admin.workshop-public-page-action :workshop="$workshop" />
         </x-slot:actions>
     </x-mast>
 
@@ -1043,7 +1039,7 @@
                                 </div>
                             </td>
                             <td class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"><span data-photo-tags-label x-text="tags.join(', ') || 'No tags'" :class="tags.length ? '' : 'italic text-gray-400'"></span></td><td class="hidden px-3 py-3 text-center capitalize md:table-cell" data-photo-storage-label x-text="storage"></td><td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></td>
-                            <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
+                            <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-photo-actions-'.md5($photo->name)" :title="$photo->title"><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
                                         <x-ui.row-action label="Open media editor" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" />
                                         <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
                                         <x-ui.row-action label="Remove from workshop" icon="fa-solid fa-ban" tone="warning"
@@ -1068,7 +1064,7 @@
                                                 'Delete permanently'
                                             )"
                                          />
-                                    </x-ui.row-actions>
+                                    </x-ui.action-menu></x-ui.row-actions>
                                 <input type="hidden" name="photos[{{ $photo->name }}][title]" x-bind:value="title"><input type="hidden" name="photos[{{ $photo->name }}][photographed_at]" x-bind:value="photographedAt"><input type="hidden" name="photos[{{ $photo->name }}][tags]" x-bind:value="tags.join(', ')" data-photo-tags><input type="hidden" name="photos[{{ $photo->name }}][storage_disk]" x-bind:value="storage" data-photo-storage><input type="hidden" name="photos[{{ $photo->name }}][visibility]" x-bind:value="visibility" data-photo-visibility><input type="hidden" name="photos[{{ $photo->name }}][caption]" x-bind:value="caption"><input type="hidden" name="photos[{{ $photo->name }}][consent_notes]" x-bind:value="notes">
                                 <template x-teleport="body"><div x-show="editing" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"><div class="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="editing = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Edit media</h3><div class="text-xs text-gray-500">{{ $photo->name }}</div></div><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="editing = false" /></div><div class="grid gap-4 sm:grid-cols-2"><div><x-ui.input label="Title" :name="null" x-model="title" /><x-ui.input label="Original Name" name="original_name_{{ $loop->index }}" value="{{ $photo->name }}" disabled="true" /><x-ui.input label="Photographed At" type="date" :name="null" x-model="photographedAt" /><x-ui.tags :name="null" :options="$tagOptions ?? []" x-model-tags="tags" x-model-draft="tagDraft" /></div><div><x-ui.select label="Storage" :name="null" x-model="storage"><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="visibility"><option value="public">Public</option><option value="private">Private</option></x-ui.select><x-ui.input label="Caption" :name="null" x-model="caption" /><x-ui.input label="Notes" type="textarea" :name="null" x-model="notes" /></div></div><div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="editing = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="saving" x-on:click="save()"><span x-show="!saving">Save</span><span x-show="saving">Saving…</span></x-ui.button></div></div></div></template>
                             </td>

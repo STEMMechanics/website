@@ -33,16 +33,17 @@
         .' : '.json_encode($emptyText);
 @endphp
 
+@include('components.ui.partials.image-paste')
+
 <div
     @if($pageUpload)
     data-workshop-page-upload
-    x-on:workshop-upload.window="if ($event.detail.id === @js($inputId) && !({{ $disabled }})) $refs.{{ $inputRef }}.click()"
-    x-on:workshop-browse.window="if ($event.detail.id === @js($inputId) && !({{ $disabled }})) {{ $onBrowseExisting }}()"
     x-on:dragenter.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); if (!({{ $disabled }})) pageUploadDragDepth++; }"
     x-on:dragover.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); $event.dataTransfer.dropEffect = ({{ $disabled }}) ? 'none' : 'copy'; }"
     x-on:dragleave.window="pageUploadDragDepth = Math.max(0, pageUploadDragDepth - 1)"
     x-on:drop.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { const handled = $event.defaultPrevented; $event.preventDefault(); pageUploadDragDepth = 0; if (!handled && !({{ $disabled }})) {{ $onFiles }}($event.dataTransfer.files); }"
     x-on:blur.window="pageUploadDragDepth = 0"
+    x-on:dragend.window="pageUploadDragDepth = 0"
     @endif
 >
     @if($pageUpload)
@@ -60,12 +61,16 @@
         x-bind:disabled="{{ $disabled }}"
     >
 
-    @unless($pageUpload)
     <div
-        {{ $attributes->class(['mt-1 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-sm transition']) }}
-        x-on:dragover.prevent="$el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color')"
-        x-on:dragleave.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
-        x-on:drop.prevent="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); {{ $onFiles }}($event.dataTransfer.files)"
+        {{ $attributes->class(['mt-1 rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-5 text-sm transition focus:outline-none focus:ring-2 focus:ring-primary-color focus:border-primary-color']) }}
+        data-image-paste
+        role="group"
+        aria-label="Upload media"
+        x-bind:tabindex="({{ $disabled }}) ? -1 : 0"
+        x-init="window.SMImagePaste.register($el, files => { if (!({{ $disabled }})) {{ $onFiles }}(files); })"
+        x-on:dragover="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); if (!({{ $disabled }})) $el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color'); }"
+        x-on:dragleave="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
+        x-on:drop="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); $el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); if (!({{ $disabled }})) {{ $onFiles }}($event.dataTransfer.files); }"
     >
         <div class="flex flex-col items-center justify-center gap-3 text-center">
             <div>
@@ -78,15 +83,17 @@
                 @endif
             </div>
 
-            <div class="flex flex-wrap justify-center gap-2">
+            <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center">
                 <x-ui.button
                     type="button"
                     color="primary-outline"
+                    class="min-h-11 sm:min-h-0"
                     x-on:click.prevent="$refs.{{ $inputRef }}.click()"
                     x-bind:disabled="{{ $disabled }}" size="small">{{ $localButtonText }}</x-ui.button>
                 <x-ui.button
                     type="button"
                     color="primary-outline"
+                    class="min-h-11 sm:min-h-0"
                     x-on:click.prevent="{{ $onBrowseExisting }}()"
                     x-bind:disabled="{{ $disabled }}" size="small">{{ $existingButtonText }}</x-ui.button>
             </div>
@@ -96,8 +103,6 @@
             @endif
         </div>
     </div>
-
-    @endunless
 
     {{ $slot }}
 

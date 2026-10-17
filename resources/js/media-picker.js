@@ -730,11 +730,11 @@ const SMMediaPicker = {
                         </div>
                     </div>
                 </div>
-                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
+                <div id="content-browser" class="flex flex-col h-full min-h-0 min-w-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
-                        <div class="flex mb-2">
-                            <input class="bg-white grow px-2.5 py-1 text-xs text-gray-900 rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
-                            <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass"></i></button>
+                        <div class="flex min-w-0 w-full mb-2">
+                            <input class="bg-white min-w-0 w-0 flex-1 px-2.5 py-1 text-base sm:text-xs text-gray-900 rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search" aria-label="Search media" type="search" enterkeyhint="search" name="search" x-bind:disabled="$store.media.uploading" />
+                            <button type="submit" aria-label="Search media" class="shrink-0 min-h-11 sm:min-h-0 hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
                         </div>
                     </form>
                     <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap" :class="{ 'pointer-events-none opacity-60': $store.media.uploading }">

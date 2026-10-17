@@ -26,6 +26,7 @@
         data-media-name="{{ $name }}"
         data-mime-type="{{ $mime_type }}"
         data-allow-uploads="{{ $allowUploads ? '1' : '0' }}"
+        @if($allowUploads) data-image-paste @endif
         tabindex="{{ $allowUploads ? '0' : '-1' }}"
         class="relative mt-1 rounded-2xl border-2 border-dashed {{ $hasError ? 'border-red-600' : 'border-gray-300' }} bg-white p-5 text-center transition focus:outline-none focus:ring-2 focus:ring-primary-color focus:border-primary-color {{ $allowUploads ? 'hover:border-primary-color hover:bg-sky-50' : '' }}"
     >
@@ -64,7 +65,7 @@
                 </x-ui.button>
             </div>
             @if($allowUploads)
-                <div class="text-xs text-gray-500 mt-2">Paste an image here or drag and drop one.</div>
+                <div class="sm-media-paste-hint text-xs text-gray-500 mt-2">Paste an image here or drag and drop one.</div>
             @endif
             <div class="text-xs text-gray-500 mt-2">Max upload size: {{ $maxUploadSize }}</div>
             @if(isset($info) && $info !== '')
@@ -79,107 +80,9 @@
     <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $selectedValue }}">
 </div>
 
+@include('components.ui.partials.image-paste')
+
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-    window.SMImagePaste = window.SMImagePaste || {
-        activeDropzone: null,
-        handlers: new WeakMap(),
-        listenerAttached: false,
-        register(dropzone, handler) {
-            if (!(dropzone instanceof HTMLElement) || typeof handler !== 'function') {
-                return;
-            }
-
-            this.handlers.set(dropzone, handler);
-            dropzone.addEventListener('click', (event) => {
-                this.activeDropzone = dropzone;
-
-                if (!(event.target instanceof Element) || !event.target.closest('button, a, input, select, textarea')) {
-                    dropzone.focus({ preventScroll: true });
-                }
-            });
-
-            if (this.listenerAttached) {
-                return;
-            }
-
-            this.listenerAttached = true;
-            const pasteState = this;
-
-            document.addEventListener('focusin', (event) => {
-                const focusedDropzone = event.target instanceof Element
-                    ? event.target.closest('[data-media-name][data-allow-uploads="1"]')
-                    : null;
-
-                pasteState.activeDropzone = focusedDropzone && pasteState.handlers.has(focusedDropzone)
-                    ? focusedDropzone
-                    : null;
-            }, true);
-
-            document.addEventListener('pointerdown', (event) => {
-                const clickedDropzone = event.target instanceof Element
-                    ? event.target.closest('[data-media-name][data-allow-uploads="1"]')
-                    : null;
-
-                if (!clickedDropzone) {
-                    pasteState.activeDropzone = null;
-                }
-            }, true);
-
-            document.addEventListener('paste', (event) => {
-                const focusedDropzone = document.activeElement instanceof Element
-                    ? document.activeElement.closest('[data-media-name][data-allow-uploads="1"]')
-                    : null;
-                const dropzone = pasteState.activeDropzone?.isConnected
-                    ? pasteState.activeDropzone
-                    : focusedDropzone;
-                const handler = dropzone ? pasteState.handlers.get(dropzone) : null;
-
-                if (!handler) {
-                    return;
-                }
-
-                const clipboardFiles = [];
-                const seen = new Set();
-                const addFile = (file) => {
-                    if (!file || !String(file.type || '').startsWith('image/')) {
-                        return;
-                    }
-
-                    const key = `${file.name || ''}:${file.size}:${file.lastModified}:${file.type}`;
-                    if (seen.has(key)) {
-                        return;
-                    }
-
-                    seen.add(key);
-                    if (String(file.name || '').trim() === '') {
-                        const extension = String(file.type || '').split('/')[1]?.replace(/[^a-z0-9]+/gi, '') || 'png';
-                        clipboardFiles.push(new File([file], `pasted-image-${Date.now()}.${extension}`, {
-                            type: file.type,
-                            lastModified: Date.now(),
-                        }));
-                        return;
-                    }
-
-                    clipboardFiles.push(file);
-                };
-
-                Array.from(event.clipboardData?.files || []).forEach(addFile);
-                Array.from(event.clipboardData?.items || [])
-                    .filter((item) => item.kind === 'file')
-                    .map((item) => item.getAsFile())
-                    .forEach(addFile);
-
-                if (clipboardFiles.length === 0) {
-                    return;
-                }
-
-                event.preventDefault();
-                event.stopPropagation();
-                handler(clipboardFiles);
-            }, true);
-        },
-    };
-
     function syncMediaActions(name, details = null) {
         const input = document.getElementById(name);
         const actions = document.getElementById(input?.dataset.actionsId);
