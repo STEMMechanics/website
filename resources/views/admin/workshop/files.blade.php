@@ -10,11 +10,7 @@
     <x-mast :title="$workshop->title" backRoute="admin.workshop.index" backTitle="Workshops" :tabs="$workshopTabs">
         <x-slot:description>@include('admin.workshop.partials.mast-context', ['workshop' => $workshop])</x-slot:description>
         <x-slot:actions>
-            <div class="flex w-full flex-col gap-2 sm:w-56">
-                <x-admin.workshop-public-page-action :workshop="$workshop" />
-                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-upload', { id: 'workshop_files_pending' })"><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Upload</x-ui.button>
-                <x-ui.button color="mast" class="w-full" x-data x-on:click="$dispatch('workshop-browse', { id: 'workshop_files_pending' })">Browse media</x-ui.button>
-            </div>
+            <x-admin.workshop-public-page-action :workshop="$workshop" />
         </x-slot:actions>
     </x-mast>
 
@@ -533,7 +529,7 @@
                                     </td>
                                     <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
                                     <td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></td>
-                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.row-actions></td>
+                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-file-actions-'.md5($file->name)" :title="$file->title"><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.action-menu></x-ui.row-actions></td>
                                 </tr>
                             @endforeach
                         </tbody>

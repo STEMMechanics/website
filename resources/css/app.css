@@ -1611,6 +1611,7 @@ table tr.highlight-row {
         overflow: hidden;
         display: flex;
         flex: 1 1 auto;
+        min-width: 0;
         min-height: 0;
     }
 }
@@ -1618,8 +1619,10 @@ table tr.highlight-row {
 .sm-media-picker {
     width: min(70rem, calc(100vw - 2rem));
     height: min(50rem, calc(100vh - 2rem));
+    height: min(50rem, calc(100dvh - 2rem));
     max-width: 70rem;
     max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
     margin: 0;
 
     grid-template-rows: minmax(min-content, auto) 1fr minmax(min-content, auto);
@@ -1634,12 +1637,18 @@ table tr.highlight-row {
     @media (max-width: 640px) {
         width: calc(100vw - 1rem);
         height: calc(100vh - 1rem);
+        height: calc(100dvh - 1rem);
         max-height: calc(100vh - 1rem);
+        max-height: calc(100dvh - 1rem);
+
+        .swal2-html-container { margin: .75rem; }
     }
 }
 
 .sm-media-picker #content-browser form {
     flex-shrink: 0;
+    min-width: 0;
+    width: 100%;
 }
 
 .sm-media-picker #content-browser ul {
@@ -1652,11 +1661,13 @@ table tr.highlight-row {
 
 .sm-media-picker #content-upload,
 .sm-media-picker #content-browser {
+    min-width: 0;
     min-height: 0;
 }
 
 .sm-media-picker .swal2-html-container > div {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 0;
 }
 
@@ -1713,7 +1724,7 @@ table tr.highlight-row {
 }
 
 .content ul {
-    @apply ml-2 sm:ml-6;
+    @apply ml-6;
 }
 
 /* Feedback sits below navigation geometrically, above it in the stacking order. */
@@ -1894,6 +1905,10 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-page-drop-overlay { position: fixed; inset: .75rem; z-index: 3000; display: grid; place-items: center; border: 3px dashed var(--color-primary-color); border-radius: 1.5rem; color: var(--color-primary-color); background: rgb(240 249 255 / .96); pointer-events: none; text-align: center; padding: 2rem; }
 .sm-page-drop-overlay[hidden] { display: none; }
 [data-page-upload] [role="status"]:not(.hidden) { position: fixed; right: 1rem; bottom: 1rem; z-index: 150; width: min(24rem, calc(100vw - 2rem)); padding: 1rem; border-radius: .75rem; box-shadow: 0 4px 20px rgb(15 23 42 / .15); background: white; color: #334155; white-space: normal; }
+[data-image-paste], [data-image-paste] * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: default; }
+@media (pointer: coarse) {
+    [data-image-paste] .sm-media-paste-hint { display: none; }
+}
 /* Invoice line items use summary cards and a focused editor on phones. */
 .sm-invoice-mobile-line-items { display: none; }
 
