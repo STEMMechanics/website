@@ -207,6 +207,63 @@ class UnifiedProductVariantsTest extends TestCase
         $this->assertSame(6, $original->fresh()->inventory_quantity);
     }
 
+    public function test_saved_variant_ids_determine_the_original_option_when_restored_flags_are_stale(): void
+    {
+        $this->admin();
+        $product = Product::factory()->create();
+        $original = app(ProductVariantUpgrade::class)->convert($product);
+        $other = ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'OTHER-PACK']);
+        $data = $this->payload($product);
+        foreach ($data['variants'] as &$row) {
+            $row['original_option'] = '1';
+        }
+        unset($row);
+
+        $this->put(route('admin.shop.product.update', $product), $data)->assertSessionHasNoErrors();
+
+        $this->assertSame(2, $product->variants()->count());
+        $this->assertSame($original->id, $product->fresh()->legacy_base_variant_id);
+        $this->assertSame('OTHER-PACK', $other->fresh()->sku);
+    }
+
+    public function test_the_same_saved_variant_cannot_be_submitted_twice_even_with_different_skus(): void
+    {
+        $this->admin();
+        $product = Product::factory()->create();
+        app(ProductVariantUpgrade::class)->convert($product);
+        $data = $this->payload($product);
+        $data['variants'][] = [...$data['variants'][0], 'name' => 'Another pack', 'sku' => 'DIFFERENT-CODE', 'is_base' => false, 'original_option' => false];
+
+        $this->put(route('admin.shop.product.update', $product), $data)->assertSessionHasErrors('variants');
+        $this->assertSame(1, $product->variants()->count());
+    }
+
+    public function test_enabling_automatic_pricing_identifies_the_variant_that_needs_purchase_costs(): void
+    {
+        $this->admin();
+        $product = Product::factory()->create(['unit_cost_ex_tax' => null, 'automatic_pricing' => false]);
+        $original = app(ProductVariantUpgrade::class)->convert($product);
+        $original->update(['name' => '200 Pack', 'sku' => 'PACK-200', 'inventory_units' => 200]);
+        $other = ProductVariant::factory()->create(['product_id' => $product->id, 'name' => '50 Pack', 'sku' => 'PACK-50', 'inventory_units' => 50, 'is_active' => false]);
+        $data = $this->payload($product);
+        $data['variants'][0]['automatic_pricing'] = true;
+
+        $this->put(route('admin.shop.product.update', $product), $data)
+            ->assertSessionHasErrors(['variants.0.automatic_pricing' => 'Automatic pricing for "200 Pack" (PACK-200) needs purchase costs. Enter a purchase cost for this variant or a Default item cost, or tag a purchase expense to this product.']);
+        $this->assertFalse($original->fresh()->automatic_pricing);
+
+        $data['unit_cost_ex_tax'] = 10;
+        $data['inventory_units'] = 200;
+        $this->put(route('admin.shop.product.update', $product), $data)->assertSessionHasNoErrors();
+        $this->assertTrue($original->fresh()->automatic_pricing);
+        $this->assertFalse($other->fresh()->automatic_pricing);
+        $this->assertFalse($other->fresh()->is_active);
+        $this->assertSame(2, $product->variants()->count());
+        $this->assertSame(200, $product->fresh()->inventory_units);
+        $this->assertSame(10.0, app(ProductRecipeService::class)->materialCost($product, $original));
+        $this->assertSame(2.5, app(ProductRecipeService::class)->materialCost($product, $other));
+    }
+
     public function test_new_products_use_the_same_variant_editor_and_can_be_duplicated(): void
     {
         $this->admin();

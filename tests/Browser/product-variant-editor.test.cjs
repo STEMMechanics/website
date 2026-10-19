@@ -49,6 +49,33 @@ test('variant cards have stable identities and open for new rows and validation 
     assert.equal(variants[0].is_base, true);
 });
 
+test('restored form flags keep distinct variants from becoming the original option', () => {
+    const variants = [
+        { id: 1, is_active: '1', is_base: '1', original_option: '1' },
+        { id: 2, is_active: '1', is_base: '0', original_option: '0' },
+        { id: null, is_active: '0', is_base: '0', original_option: '0' },
+    ];
+    const state = editor(variants, ['variants.1.automatic_pricing']);
+    assert.deepEqual(variants.map(variant => variant.original_option), [true, false, false]);
+    assert.equal(state.variantDeletionDisabledReason(variants[1]), '');
+    assert.equal(variants[1].open, true);
+    assert.equal(variants[2].is_active, false);
+});
+
+test('deactivating a non-base variant collapses it while allowing it to be reopened', () => {
+    const variants = [{ id: 1, is_active: true, is_base: true }, { id: 2, is_active: true }];
+    const state = editor(variants);
+    variants[1].open = true;
+    variants[1].is_active = false;
+    state.variantActiveChanged(variants[1]);
+    assert.equal(variants[1].open, false);
+    variants[1].open = true;
+    variants[1].is_active = true;
+    state.variantActiveChanged(variants[1]);
+    assert.equal(variants[1].open, true);
+    assert.equal(variants[0].is_base, true);
+});
+
 test('display order pins the base first and inactive variants last without changing form indices', () => {
     const variants = [
         { id: 1, sort_order: 0, is_active: false },
@@ -85,7 +112,7 @@ test('arrows reorder within active and inactive groups and respect the base boun
     assert.deepEqual(Array.from(state.orderedVariantRows(), row => row.variant.id), [1, 3, 2, 5, 4]);
 });
 
-test('changing base and activity updates display order while retaining each variant data and expansion state', () => {
+test('changing base and activity updates display order and collapses the retired variant', () => {
     const variants = [
         { id: 1, is_active: true, is_base: true, sort_order: 0, sku: 'ONE' },
         { id: 2, is_active: true, sort_order: 1, sku: 'TWO', allocation: { amount: 9 } },
@@ -94,11 +121,12 @@ test('changing base and activity updates display order while retaining each vari
     const state = editor(variants);
     variants[1].open = true;
     state.selectBaseVariant(variants[1]);
+    assert.equal(variants[1].open, true);
     assert.deepEqual(Array.from(state.orderedVariantRows(), row => row.variant.sku), ['TWO', 'ONE', 'THREE']);
     variants[1].is_active = false;
     state.variantActiveChanged(variants[1]);
     assert.equal(variants[0].is_base, true);
-    assert.equal(variants[1].open, true);
+    assert.equal(variants[1].open, false);
     assert.equal(variants[1].allocation.amount, 9);
     assert.deepEqual(Array.from(state.orderedVariantRows(), row => row.variant.sku), ['ONE', 'TWO', 'THREE']);
     variants[2].is_active = true;
@@ -129,7 +157,7 @@ test('duplicating copies unsaved settings independently and clears identity, sto
     const source = {
         id: 1, name: '10 Pack', sku: 'AAA-10', is_active: true, is_base: true, original_option: true,
         description: 'Current unsaved notes', product_details: [{ key: 'Colour', value: 'Black' }],
-        price: '19.95', compare_at_price: '24.95', unit_cost_ex_tax: '0.25', inventory_units: 10,
+        price: '19.95', unit_cost_ex_tax: '0.25', inventory_units: 10,
         bulk_discount_percent: '15', automatic_pricing: true, weight_grams: 120,
         length_mm: 100, width_mm: 50, height_mm: 20, inventory_quantity: 7, low_stock_threshold: 2,
         awaiting_fulfilment: 3, reserved_quantity: 4, deletion_disabled_reason: 'Used by an order.',
@@ -158,7 +186,7 @@ test('duplicating copies unsaved settings independently and clears identity, sto
     assert.equal(copy.awaiting_fulfilment, 0);
     assert.equal(copy.reserved_quantity, 0);
     assert.equal(state.variantDeletionDisabledReason(copy), '');
-    for (const field of ['description', 'price', 'compare_at_price', 'unit_cost_ex_tax', 'inventory_units',
+    for (const field of ['description', 'price', 'unit_cost_ex_tax', 'inventory_units',
         'bulk_discount_percent', 'automatic_pricing', 'weight_grams', 'length_mm', 'width_mm', 'height_mm',
         'low_stock_threshold', 'allow_backorder', 'backorder_shipping_estimate_type', 'backorder_shipping_offset_days']) {
         assert.equal(copy[field], source[field], field);

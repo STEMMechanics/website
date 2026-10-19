@@ -18,7 +18,6 @@ class ProductVariantFactory extends Factory
             'description' => null,
             'sku' => 'VAR-'.fake()->unique()->numerify('####'),
             'price' => fake()->randomFloat(2, 5, 150),
-            'compare_at_price' => null,
             'shipping_rate' => null,
             'shipping_units' => null,
             'inventory_quantity' => null,

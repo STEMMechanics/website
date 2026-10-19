@@ -90,7 +90,7 @@ class ProductVariantCopyTest extends TestCase
         $original = app(ProductVariantUpgrade::class)->convert($product);
         $original->update([
             'description' => 'Variant notes', 'product_details' => [['key' => 'Colour', 'value' => 'Black']],
-            'price' => 19.95, 'compare_at_price' => 24.95, 'inventory_units' => 10, 'unit_cost_ex_tax' => 0.25,
+            'price' => 19.95, 'inventory_units' => 10, 'unit_cost_ex_tax' => 0.25,
             'bulk_discount_percent' => 15, 'low_stock_threshold' => 2,
             'allow_backorder' => true, 'backorder_shipping_estimate_type' => 'dynamic', 'backorder_shipping_offset_days' => 7,
             'weight_grams' => 120, 'length_mm' => 100, 'width_mm' => 50, 'height_mm' => 20,
@@ -110,7 +110,7 @@ class ProductVariantCopyTest extends TestCase
         $this->assertSame($original->id, $product->fresh()->default_variant_id);
         $this->assertSame($original->id, $product->fresh()->legacy_base_variant_id);
         $this->assertSame($original->id, $orderItem->fresh()->product_variant_id);
-        foreach (['description', 'product_details', 'price', 'compare_at_price', 'inventory_units', 'unit_cost_ex_tax',
+        foreach (['description', 'product_details', 'price', 'inventory_units', 'unit_cost_ex_tax',
             'bulk_discount_percent', 'automatic_pricing', 'low_stock_threshold', 'allow_backorder',
             'backorder_shipping_estimate_type', 'backorder_shipping_offset_days',
             'weight_grams', 'length_mm', 'width_mm', 'height_mm', 'is_active'] as $field) {

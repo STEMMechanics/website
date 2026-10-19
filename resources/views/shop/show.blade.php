@@ -39,7 +39,6 @@
             'description' => $product->baseOptionDescription(),
             'product_details' => [],
             'price_label' => $product->priceLabel(),
-            'compare_at_price_label' => $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase(),
             'actual_inventory_quantity' => $product->availableInventory(),
             'is_in_stock' => $product->isSelectionPurchasable(),
@@ -63,7 +62,6 @@
                 'value' => trim((string) data_get($detail, 'value')),
             ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all(),
             'price_label' => $product->priceLabel($variant),
-            'compare_at_price_label' => $product->compareAtPriceForVariant($variant) !== null ? '$'.number_format($product->compareAtPriceForVariant($variant), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
             'actual_inventory_quantity' => $product->availableInventory($variant),
             'is_in_stock' => $product->isSelectionPurchasable($variant),
@@ -114,7 +112,6 @@
                 ])->filter(fn (array $detail) => $detail['key'] !== '')->values()->all()),
                 priceRangeLabel: @js($product->priceRangeLabel()),
                 basePriceLabel: @js($product->priceLabel()),
-                baseCompareAtPriceLabel: @js($product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null),
                 baseInventoryQuantity: @js($product->availableInventoryForPurchase()),
                 baseIsPurchasable: @js($product->isPurchasable()),
                 baseStockTone: @js($availabilityTone()),
@@ -150,13 +147,6 @@
                     }
 
                     return this.basePriceLabel;
-                },
-                currentCompareAtPriceLabel() {
-                    if (this.options.length > 0) {
-                        return this.selectedOption?.compare_at_price_label || null;
-                    }
-
-                    return this.baseCompareAtPriceLabel;
                 },
                 currentStockLabel() {
                     if (this.options.length > 0) {
@@ -637,12 +627,6 @@
 
                             <div class="mt-5 flex items-center gap-4">
                                 <div class="text-3xl font-bold tracking-tight text-gray-900" x-text="currentPriceLabel()">{{ $product->priceRangeLabel() }}</div>
-                                <div
-                                        x-show="currentCompareAtPriceLabel()"
-                                        x-cloak
-                                        class="text-base text-gray-400 line-through"
-                                        x-text="currentCompareAtPriceLabel()"
-                                >{{ $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : '' }}</div>
                             </div>
 
                             <div class="mt-8 mb-12">

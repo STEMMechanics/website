@@ -118,8 +118,13 @@
     <p class="mb-4 text-sm text-slate-600" x-show="isPhysicalProduct()">Blank allowances and percentages use the <a href="{{ route('admin.shop.settings.edit') }}#pricing-defaults" target="_blank" rel="noopener" class="text-sky-700 underline hover:text-sky-900">defaults in Store Settings</a>. Enter 0 to override a default.</p>
     <div class="product-editor__fields">
         <div x-show="!hasMaterialMeasurements() && !recipeRows.length">
-            <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Fallback purchase cost (ex GST)" type="number" min="0" step="0.0001" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="For the cost basis quantity in Shared defaults. The latest tagged expense takes precedence. Leave blank when the cost is unknown." />
+            <x-ui.input name="unit_cost_ex_tax" id="base_unit_cost_ex_tax" label="Default item cost" labelInfo="(ex GST)" type="number" min="0" step="0.0001" inputmode="decimal" x-model="unitCost" x-bind:disabled="productType === 'digital' || hasMaterialMeasurements()" info="Total purchase cost for the Default item units beside this field. For example, $10 for 200 items. Tagged purchase expenses take precedence. Leave blank when unknown." />
         </div>
+        <div x-show="isPhysicalProduct()" x-cloak>
+            <x-ui.input name="inventory_units" label="Default item units" type="number" min="1" step="1" x-model="basePackUnits" x-bind:disabled="!isPhysicalProduct()" info="Number of individual items covered by Default item cost, or made by the recipe. For example, 200 items for a $10 cost. Each variant sets its own units per pack." />
+        </div>
+    </div>
+    <div class="product-editor__fields">
         <div x-show="isPhysicalProduct()">
             <x-ui.input name="operational_cost_ex_tax" label="Operational allowance (ex GST)" type="number" min="0" step="0.01" :moneyFormat="true" inputmode="decimal" x-model="operationalCost" x-bind:placeholder="costingMoney(effectiveOperationalCost())" x-bind:disabled="!isPhysicalProduct()" info="Bags, labels and other small costs. Blank uses the item or kit default." />
         </div>
@@ -151,7 +156,7 @@
     </div>
     <div x-show="isPhysicalProduct()">
         <input type="hidden" name="automatic_pricing" value="0">
-        <x-ui.checkbox name="automatic_pricing" label="Update the fallback price automatically from costs" x-model="automaticPricing" :checked="old('automatic_pricing', $product->automatic_pricing ?? false)" x-bind:disabled="!isPhysicalProduct()" />
+        <x-ui.checkbox name="automatic_pricing" label="Update the item cost automatically" x-model="automaticPricing" :checked="old('automatic_pricing', $product->automatic_pricing ?? false)" x-bind:disabled="!isPhysicalProduct()" />
         @error('automatic_pricing')<p class="mb-3 text-sm text-red-700">{{ $message }}</p>@enderror
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4" data-variant-pricing-summary>
             <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">

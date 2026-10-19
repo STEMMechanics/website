@@ -31,9 +31,6 @@
                 <div x-show="!isPhysicalProduct() || !variant.automatic_pricing" x-cloak>
                     <x-ui.input label="Price" labelInfo="(inc GST)" type="number" step="0.01" min="0" :moneyFormat="true" inputmode="decimal" x-bind:name="`variants[${index}][price]`" x-model="variant.price" x-bind:readonly="isPhysicalProduct() && variant.automatic_pricing" placeholder="Use fallback price" />
                 </div>
-                <div x-show="!isPhysicalProduct() || !variant.automatic_pricing" x-cloak>
-                    <x-ui.input label="Recommended Price" labelInfo="(inc GST)" type="number" step="0.01" min="0" :moneyFormat="true" inputmode="decimal" x-bind:name="`variants[${index}][compare_at_price]`" x-model="variant.compare_at_price" placeholder="Optional" />
-                </div>
                 <div x-show="isPhysicalProduct()" x-cloak>
                     <input type="hidden" x-bind:name="`variants[${index}][bulk_discount_percent]`" x-bind:value="variant.bulk_discount_percent ?? ''" x-bind:disabled="!isPhysicalProduct() || isBulkPack(variant)">
                     <x-ui.input label="Bulk discount" labelInfo="(%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-bind:name="`variants[${index}][bulk_discount_percent]`" x-model="variant.bulk_discount_percent" x-bind:disabled="!isBulkPack(variant)" x-bind:placeholder="effectiveProductBulkDiscount()" info="Blank inherits the product discount; 0 means no discount." />
