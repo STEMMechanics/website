@@ -85,9 +85,17 @@ class SiteListControlsTest extends TestCase
         foreach (range(1, 15) as $number) {
             Location::create(['name' => sprintf('Place %02d', $number), 'address' => 'Cairns']);
         }
-        $response = $this->get(route('admin.location.index', ['list_sort' => 'name', 'list_direction' => 'desc']))->assertOk();
-        $this->assertSame('Place 15', $response->viewData('locations')->first()->name);
-        $response->assertSee('aria-sort="descending"', false)->assertSee('Filter results');
+        foreach (['asc' => 'Place 01', 'desc' => 'Place 15'] as $direction => $first) {
+            $response = $this->get(route('admin.location.index', ['list_sort' => 'name', 'list_direction' => $direction]))->assertOk();
+            $this->assertSame($first, $response->viewData('locations')->first()->name);
+            $response->assertSee('Filter results');
+            $document = new \DOMDocument;
+            @$document->loadHTML($response->getContent());
+            $heading = (new \DOMXPath($document))->query('//th[a[starts-with(@aria-label, "Sort by Name,")]]')->item(0);
+            $this->assertSame($direction === 'asc' ? 'ascending' : 'descending', $heading->getAttribute('aria-sort'));
+            $this->assertStringContainsString($direction === 'asc' ? 'fa-arrow-up' : 'fa-arrow-down', $heading->getElementsByTagName('i')->item(0)->getAttribute('class'));
+            $this->assertStringContainsString($direction === 'asc' ? 'Sort by Name, descending' : 'Sort by Name, ascending', $heading->getElementsByTagName('a')->item(0)->getAttribute('aria-label'));
+        }
         $response = $this->get(route('admin.location.index', ['list_name' => '* 0?', 'list_sort' => 'name']))->assertOk();
         $this->assertSame(9, $response->viewData('locations')->total());
         $response->assertSee('Name: * 0?');
@@ -143,9 +151,18 @@ class SiteListControlsTest extends TestCase
         foreach (range(1, 15) as $number) {
             Location::create(['name' => 'Place '.$number]);
         }
-        $response = $this->get(route('admin.location.index', ['list_sort' => 'name', 'list_direction' => 'desc', 'context' => ['ids' => [12, 34]]]));
+        $response = $this->get(route('admin.location.index', ['list_sort' => 'name', 'list_direction' => 'desc', 'per_page' => 10, 'other_per_page' => 20, 'page' => 1, 'other_page' => 3, 'context' => ['ids' => [12, 34]]]));
         $response->assertOk()->assertSee('name="context[ids][0]" value="12"', false)
             ->assertSee('list_direction=desc', false)->assertSee('page=2', false);
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $link = (new \DOMXPath($document))->query('//th/a[starts-with(@aria-label, "Sort by Name,")]')->item(0);
+        parse_str(parse_url($link->getAttribute('href'), PHP_URL_QUERY), $query);
+        $this->assertSame('10', $query['per_page']);
+        $this->assertSame('20', $query['other_per_page']);
+        $this->assertSame(['ids' => ['12', '34']], $query['context']);
+        $this->assertArrayNotHasKey('page', $query);
+        $this->assertArrayNotHasKey('other_page', $query);
     }
 
     public function test_account_filters_keep_invoice_ownership_and_include_both_date_boundaries(): void

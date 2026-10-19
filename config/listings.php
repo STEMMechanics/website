@@ -130,6 +130,7 @@ $lists = [
     ]],
     'admin.expense.index' => ['model' => Expense::class, 'fields' => [
         'supplier' => ['label' => 'Supplier', 'type' => 'text'],
+        'invoice_id' => ['label' => 'Invoice ID', 'type' => 'text', 'filter' => false],
         'description' => ['label' => 'Description', 'type' => 'text'],
         'paid_on' => ['label' => 'Paid', 'type' => 'date'],
         'total_amount' => ['label' => 'Amount', 'type' => 'number'],

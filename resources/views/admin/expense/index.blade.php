@@ -86,11 +86,11 @@
                         <th class="w-10 text-center border-r-0!">
                             <x-ui.checkbox id="admin-expense-select-page" aria-label="Select visible expenses or clear all selected expenses" :noWrapper="true" inputClass="admin-expense-select-page mx-auto" />
                         </th>
-                        <x-ui.list-heading field="description" class="border-l-0! pl-1!" label="Expense" />
+                        <x-ui.list-heading field="paid_on" class="border-l-0! pl-1!" label="Date" />
                         <x-ui.list-heading class="hidden md:table-cell" label="Supplier" />
                         <x-ui.list-heading class="hidden md:table-cell" label="Invoice ID" />
                         <x-ui.list-heading class="hidden lg:table-cell" label="Description" />
-                        <th class="text-center!">Amount <span class="whitespace-nowrap font-normal text-xs">(incl GST)</span></th>
+                        <x-ui.list-heading field="total_amount" class="text-center!" label="Amount" suffix="(incl GST)" />
                         <x-ui.list-heading class="text-center!" label="Actions" />
                     </x-slot:header>
                     <x-slot:body>
