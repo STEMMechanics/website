@@ -122,13 +122,14 @@
                 </div>
                 @php
                     $combinedLineItems = collect();
+                    $presentedLines = collect(\App\Services\Finance\InvoicePdfLines::withWorkshopDetails($invoice->lines))->keyBy('id');
 
                     foreach ($invoice->lines as $line) {
                         $combinedLineItems->push([
                             'kind' => 'invoice',
                             'label' => '',
                             'description' => (string) ($line->description ?? ''),
-                            'notes' => (string) ($line->notes ?? ''),
+                            'notes' => \App\Services\Finance\InvoicePdfLines::notesForPdf($presentedLines->get($line->id)),
                             'quantity' => (float) ($line->quantity ?? 0),
                             'quantity_label' => \App\Services\Finance\WorkshopLine::quantityLabel($line->toArray()),
                             'unit_price_ex_tax' => (float) ($line->unit_price_ex_tax ?? 0),

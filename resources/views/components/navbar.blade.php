@@ -458,8 +458,11 @@
         })">
         <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
+            <x-ui.button type="button" variant="plain" size="icon" aria-label="Close site search" class="sm-dialog-close absolute right-1 top-1 rounded-lg text-slate-500" x-on:click="showSearch = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
             <form method="GET" action="{{ route('search.index') }}" class="p-3 sm:p-4" x-on:submit="searchScopeError = !searchProducts && !searchWorkshops; if (searchScopeError) $event.preventDefault();">
-                <label for="site-search-query" class="mb-2 block text-lg font-semibold text-gray-900">Search</label>
+                <div class="mb-3 pr-10">
+                    <label for="site-search-query" class="block text-lg font-semibold text-gray-900">Search</label>
+                </div>
                 <div class="flex">
                     <x-ui.input-control id="site-search-query" x-ref="siteSearchInput" type="search" name="q" placeholder="Search the site" class="min-w-0 flex-1 rounded-r-none" />
                     <x-ui.button type="submit" class="rounded-l-none shrink-0 px-4" aria-label="Search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></x-ui.button>

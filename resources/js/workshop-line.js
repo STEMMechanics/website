@@ -30,7 +30,7 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
     const hours = Number(item.workshop_hours), seats = Number(item.workshop_seats);
     if (hours > 0 && seats >= 0 && item.workshop_seats !== '' && item.workshop_seats != null) {
         item.quantity = Math.round(hours * seats * 100) / 100;
-        item.details_json = { ...(item.details_json || {}), workshop: { ...(item.details_json?.workshop || {}), hours, seats, date: item.workshop_date || item.details_json?.workshop?.date || null, venue_supplied: !!item.venue_supplied, supplied_categories: { ...(item.supplied_categories || {}) } } };
+        item.details_json = { ...(item.details_json || {}), workshop: { ...(item.details_json?.workshop || {}), hours, seats, date: (item.workshop_date ?? item.details_json?.workshop?.date) || null, venue_supplied: !!item.venue_supplied, supplied_categories: { ...(item.supplied_categories || {}) } } };
         syncWorkshopNotes(item);
         applyPlanPrice(item, plan, inclusive);
     }
@@ -44,13 +44,16 @@ function applyPlanPrice(item, plan, inclusive) {
         ex = travelRules.length ? travelRules.reduce((sum, rule) => sum + Number(rule.rate_cents), 0) : Number(plan.travel_cents) / (taxed ? 1.1 : 1);
         ex = Math.max(0, ex - (plan.rules || []).filter(rule => rule.basis === 'travel' && rule.suppliable && item.supplied_categories?.[rule.category_id]).reduce((total, rule) => total + Number(rule.rate_cents), 0));
     } else {
+        const participants = Number(plan.pricing_participants || 10);
+        const hours = Number(item.workshop_hours);
         const costs = (plan.rules || []).reduce((total, rule) => {
             if (rule.suppliable && (item.supplied_categories?.[rule.category_id] ?? (rule.venue_default && item.venue_supplied))) return total;
-            const units = { workshop: 1, hour: Number(item.workshop_hours), participant: Number(item.workshop_seats),
-                venue_hour: (item.supplied_categories?.[rule.category_id] ?? item.venue_supplied) ? 0 : Number(item.workshop_hours), travel: 0 }[rule.basis] ?? 0;
+            const units = { workshop: 1, hour: hours, participant: participants,
+                venue_hour: (item.supplied_categories?.[rule.category_id] ?? item.venue_supplied) ? 0 : hours, travel: 0 }[rule.basis] ?? 0;
             return total + Math.round(Number(rule.rate_cents) * units);
         }, 0);
-        ex = costs / Number(item.quantity);
+        ex = costs / (hours * participants);
+        item.details_json.pricing_basis = { participants };
     }
     if (!Number.isFinite(ex) || ex < 0) return;
     if (item.kind === 'travel' && item.travel_hours !== '' && item.travel_hours != null) {
@@ -61,11 +64,17 @@ function applyPlanPrice(item, plan, inclusive) {
     let grossCents = ex * (taxed ? 1.1 : 1);
     const step = Number((item.kind === 'workshop' ? plan.rounding_step : plan.travel_rounding_step) || 0);
     if (step > 0) grossCents = Math.ceil((grossCents - 0.000001) / step) * step;
-    const gross = Number((grossCents / 100).toFixed(2));
+    const cleanPricing = inclusive && plan.clean_prices;
+    const gross = cleanPricing ? grossCents / 100 : Number((grossCents / 100).toFixed(2));
     if (step > 0 || inclusive) item.details_json = { ...(item.details_json || {}), inclusive_unit_price: gross };
     else if (item.details_json) delete item.details_json.inclusive_unit_price;
-    const value = (inclusive ? gross : step > 0 ? gross / (taxed ? 1.1 : 1) : ex / 100).toFixed(2);
+    const value = cleanPricing ? String(gross) : (inclusive ? gross : step > 0 ? gross / (taxed ? 1.1 : 1) : ex / 100).toFixed(2);
     item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = value;
+    if (cleanPricing) {
+        delete item.details_json.price_rounding;
+        window.SM.roundWorkshopPrice(item, true);
+        item.unit_price_inc_tax = Number(item.unit_price_inc_tax).toFixed(2);
+    }
 }
 window.SM = window.SM || {};
 window.SM.updateWorkshopLine = updateWorkshopLine;
@@ -83,6 +92,84 @@ window.SM.refreshLinePrice = item => {
 };
 
 const moneyRound = value => Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * 100) / 100;
+
+// A clean rate has exact cent values before/after GST and for the billable quantity.
+window.SM.cleanPriceQuote = (inclusive, quantity, taxRate = 0.1) => {
+    inclusive = Number(inclusive);
+    quantity = Number(quantity);
+    taxRate = Number(taxRate);
+    if (![inclusive, quantity, taxRate].every(Number.isFinite) || inclusive < 0 || quantity < 0 || taxRate < 0) return null;
+    const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return Math.abs(a); };
+    const lcm = (a, b) => a / gcd(a, b) * b;
+    const denominator = 1000000;
+    const numerator = denominator + Math.round(taxRate * denominator);
+    const divisor = gcd(numerator, denominator);
+    const baseEx = denominator / divisor;
+    const baseTax = numerator / divisor - baseEx;
+    const quantityCents = Math.round(quantity * 100);
+    const quantityDenominator = 100 / gcd(quantityCents, 100);
+    const multiplier = taxRate > 0 ? lcm(quantityDenominator / gcd(baseEx, quantityDenominator), quantityDenominator / gcd(baseTax, quantityDenominator)) : 1;
+    const stepEx = baseEx * multiplier;
+    const stepInc = numerator / divisor * multiplier;
+    const index = inclusive * 100 / stepInc;
+    const clean = Math.abs(index - Math.round(index)) < 0.00000001;
+    const at = number => {
+        const unitEx = number * stepEx / 100;
+        const unitInc = number * stepInc / 100;
+        const net = moneyRound(quantity * unitEx);
+        const tax = moneyRound(net * taxRate);
+        return { unitEx, unitInc, net, tax, gross: moneyRound(net + tax) };
+    };
+    const gross = moneyRound(quantity * inclusive);
+    const net = moneyRound(gross / (1 + taxRate));
+    const ceiling = Math.ceil(index - 0.00000001);
+    return {
+        clean, quantity, taxRate, requested: inclusive,
+        current: { unitEx: inclusive / (1 + taxRate), unitInc: inclusive, net, tax: moneyRound(gross - net), gross },
+        suggested: at(ceiling), previous: at(Math.max(0, ceiling - 1)), next: at(clean ? ceiling + 1 : ceiling),
+    };
+};
+window.SM.priceRoundingForLine = item => {
+    if (!item || !['workshop', 'multi_workshop', 'travel'].includes(item.kind)) return null;
+    const inclusive = Number(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? 0);
+    const taxRate = item.gst_applicable !== false ? Number(item.tax_rate ?? 0.1) : 0;
+    const quote = window.SM.cleanPriceQuote(inclusive, item.quantity, taxRate);
+    if (!quote) return null;
+    const saved = item.details_json?.price_rounding;
+    const requested = saved && Number.isFinite(Number(saved.requested)) && Number(saved.requested) >= 0 && Math.abs(Number(saved.applied) - inclusive) < 0.00000001 ? Number(saved.requested) : inclusive;
+    const original = window.SM.cleanPriceQuote(requested, item.quantity, taxRate);
+    return { ...quote, original: original.current, adjusted: Math.abs(requested - inclusive) > 0.00000001, amounts: window.SM.lineAmounts(item) };
+};
+window.SM.applyCleanPrice = (item, inclusive, requested = null, automatic = false) => {
+    const taxRate = item.gst_applicable !== false ? Number(item.tax_rate ?? 0.1) : 0;
+    const quote = window.SM.cleanPriceQuote(inclusive, item.quantity, taxRate);
+    if (!quote) return;
+    const selected = quote.suggested;
+    const wasAutomatic = item.auto_pricing;
+    item.details_json ??= {};
+    item.details_json.price_rounding = { requested: requested ?? quote.requested, applied: selected.unitInc };
+    item.details_json.inclusive_unit_price = selected.unitInc;
+    item.unit_price_inc_tax = selected.unitInc.toFixed(2);
+    item.unit_price = selected.unitEx.toFixed(2);
+    item.unit_price_ex_tax = selected.unitEx;
+    item.saved_pricing = null;
+    item.auto_pricing = automatic ? wasAutomatic : false;
+};
+window.SM.roundWorkshopPrice = (item, automatic = false) => {
+    const quote = window.SM.priceRoundingForLine(item);
+    if (quote && !quote.clean) window.SM.applyCleanPrice(item, quote.suggested.unitInc, quote.original.unitInc, automatic);
+};
+window.SM.priceRoundingSummary = items => {
+    const lines = items.map(item => ({ item, quote: window.SM.priceRoundingForLine(item) }));
+    const adjusted = lines.filter(line => line.quote?.adjusted);
+    const pending = lines.filter(line => line.quote && !line.quote.clean);
+    return {
+        adjusted: adjusted.length, pending: pending.length,
+        increase: moneyRound(adjusted.reduce((sum, line) => sum + line.quote.amounts.gross - line.quote.original.gross, 0)),
+        roundedTotal: moneyRound(lines.reduce((sum, line) => sum + (line.quote && !line.quote.clean ? line.quote.suggested.gross : window.SM.lineAmounts(line.item).gross), 0)),
+        first: pending[0]?.item ?? adjusted[0]?.item ?? null,
+    };
+};
 window.SM.lineAmounts = item => {
     const qty = Number(item.quantity || 0), rate = item.gst_applicable !== false ? Number(item.tax_rate || 0.1) : 0;
     const inclusive = item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price;
@@ -162,13 +249,21 @@ window.SM.invoiceRoundingAllowance = (items, rules, prices) => window.SM.expandW
     if (!(step > 0)) return sum;
     const priced = JSON.parse(JSON.stringify(item));
     priced.auto_pricing = true;
-    updateWorkshopLine(priced, { ...prices, rules });
-    const cost = Object.values(window.SM.lineCostAllocations([item], rules)).reduce((total, cents) => total + cents, 0);
-    return sum + Math.max(0, Math.round(window.SM.lineAmounts(priced).net * 100) - cost);
+    delete priced.unit_price_inc_tax;
+    priced.saved_pricing = null;
+    // Historical lines keep their attendance-based rounding calculation until repriced.
+    const participants = Number(item.details_json?.pricing_basis?.participants || item.workshop_seats);
+    updateWorkshopLine(priced, { ...prices, rules, pricing_participants: participants });
+    const reference = item.kind === 'workshop' ? { ...item, workshop_seats: participants } : item;
+    const referenceCost = Object.values(window.SM.lineCostAllocations([reference], rules)).reduce((total, cents) => total + cents, 0);
+    const cost = item.kind === 'workshop' ? referenceCost * Number(item.workshop_seats) / participants : referenceCost;
+    const net = window.SM.lineAmounts(priced).gross / (item.gst_applicable === false ? 1 : 1.1) * 100;
+    return sum + Math.max(0, Math.round(net - cost));
 }, 0);
 
 window.SM.expandWorkshopGroups = items => items.flatMap(item => item.kind === 'multi_workshop'
-    ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).map(row => ({ ...row, kind: 'workshop', gst_applicable: item.gst_applicable }))
+    ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).map(row => ({ ...row, kind: 'workshop', gst_applicable: item.gst_applicable,
+        details_json: { ...(row.details_json || {}), ...(item.details_json?.pricing_basis ? { pricing_basis: item.details_json.pricing_basis } : {}) } }))
     : [item]);
 window.SM.addWorkshopRow = item => {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
@@ -192,6 +287,17 @@ function generatedWorkshopNotes(item) {
 }
 window.SM.defaultWorkshopDescription = item => {
     if (!['workshop', 'multi_workshop'].includes(item.kind)) return;
+    if (item.kind === 'workshop') {
+        if (item.legacy_workshop) return;
+        item.details_json ??= {};
+        item.details_json.workshop ??= {};
+        if (!Object.hasOwn(item.details_json.workshop, 'name')) {
+            const description = String(item.description ?? '').trim();
+            item.details_json.workshop.name = ['', 'workshop delivery', 'charged per hour, per seat'].includes(description.toLowerCase()) ? '' : description;
+            item.description = 'Charged per hour, per seat';
+        }
+        return;
+    }
     if (item.kind === 'multi_workshop' && item.description != null && item.description.trim() === '') return;
     if (!item.description?.trim() || ['workshop delivery', 'multi workshop delivery'].includes(item.description.trim().toLowerCase())) item.description = 'Charged per hour, per seat';
 };
@@ -209,9 +315,13 @@ window.SM.initializeWorkshopNotes = item => {
 };
 window.SM.markWorkshopNotesEdited = item => {
     item.details_json ??= {};
-    item.details_json.workshop_notes_mode = 'manual';
+    if (item.details_json.workshop_notes_mode !== 'template') item.details_json.workshop_notes_mode = 'manual';
 };
 window.SM.refreshWorkshopNotes = item => {
+    if (item.details_json?.workshop_notes_mode === 'template') {
+        item.notes = window.SM.defaultWorkshopText;
+        return;
+    }
     item.notes = generatedWorkshopNotes(item);
     item.details_json ??= {};
     item.details_json.workshop_notes_mode = 'auto';
@@ -225,6 +335,50 @@ function syncWorkshopNotes(item) {
     }
     window.SM.refreshWorkshopNotes(item);
 }
+
+window.SM.defaultWorkshopText = '- {date} - {workshop} - ({duration} x {seats})';
+window.SM.initializeWorkshopText = item => {
+    if (!['workshop', 'multi_workshop'].includes(item.kind) || (item.kind === 'workshop' && item.legacy_workshop)) return;
+    window.SM.defaultWorkshopDescription(item);
+    if (item.details_json?.workshop_notes_mode === 'template') return;
+    const notes = String(item.notes ?? '').trim();
+    const generated = generatedWorkshopNotes(item);
+    const generatedLines = generated.split('\n');
+    if (item.kind === 'workshop') generatedLines.push(generatedWorkshopNotes({ kind: 'multi_workshop', workshops: [{ ...item, description: item.details_json?.workshop?.name || '', workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '' }] }));
+    const variants = line => [line, line.replace(/(\d+(?:\.\d+)?) hrs? × (\d+) seats/g, '$1 hr / $2 seats'), line.replace(/(\d+(?:\.\d+)?) (hrs?) × (\d+) seats/g, (_, hours, unit, seats) => `${hours} ${unit} × ${seats} seats = ${Math.round(Number(hours) * Number(seats) * 100) / 100} seat-hours`)];
+    const automatic = new Set(generatedLines.flatMap(variants));
+    const retained = notes.split(/\r\n|\r|\n/).filter(line => !automatic.has(line.trim())).join('\n').trim();
+    const intentionallyEmpty = item.details_json?.workshop_notes_mode === 'manual' && !notes;
+    item.notes = intentionallyEmpty || /\{(?:date|workshop|duration|seats)\}/.test(notes)
+        ? notes
+        : [retained, window.SM.defaultWorkshopText].filter(Boolean).join('\n');
+    item.details_json ??= {};
+    item.details_json.workshop_notes_mode = 'template';
+    delete item.details_json.generated_workshop_notes;
+};
+window.SM.workshopNotesPreview = (item, catalog = []) => {
+    const rows = item.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [item];
+    const entries = rows.map(row => {
+        const settings = row.details_json?.workshop ?? {};
+        const linked = catalog.find(option => option.id === settings.linked_workshop_id);
+        const date = row.workshop_date ?? settings.date ?? linked?.date ?? '';
+        const hours = row.workshop_hours ?? settings.hours;
+        const seats = row.workshop_seats ?? settings.seats;
+        return {
+            date: date ? date.split('T')[0].split('-').reverse().join('/') : '',
+            workshop: (item.kind === 'workshop' ? settings.name : row.description) || linked?.title || '',
+            duration: hours !== '' && hours != null ? `${Number(hours)} ${Number(hours) === 1 ? 'hr' : 'hrs'}` : '',
+            seats: seats !== '' && seats != null ? `${Number(seats)} seats` : '',
+        };
+    });
+    return String(item.notes ?? '').split(/\r\n|\r|\n/).flatMap(line => /\{(?:date|workshop|duration|seats)\}/.test(line)
+        ? entries.map(entry => {
+            let text = line;
+            for (const optional of ['date', 'workshop']) if (!entry[optional]) text = text.replace(new RegExp(`\\{${optional}\\}\\s*-\\s*`), '');
+            return text.replace(/\{(date|workshop|duration|seats)\}/g, (_, token) => entry[token]);
+        })
+        : [line]).join('\n').trim();
+};
 function updateMultipleWorkshops(item, plan, inclusive) {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
     const quantity = Math.round(item.workshops.reduce((sum, row) => sum + Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0), 0) * 100) / 100;
@@ -251,7 +405,15 @@ function updateMultipleWorkshops(item, plan, inclusive) {
         gross += Math.round((amounts.net + amounts.tax) * 100);
     }
     item.details_json.inclusive_unit_price = gross / 100 / quantity;
+    item.details_json.pricing_basis = { participants: Number(plan.pricing_participants || 10) };
     item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive ? formatUnitPrice(gross / 100 / quantity) : (gross / 100 / quantity / (item.gst_applicable === false ? 1 : 1.1)).toFixed(2);
+    if (inclusive && plan.clean_prices) {
+        // Keep the exact combined rate until the clean-price calculation rounds up.
+        item.unit_price_inc_tax = String(gross / 100 / quantity);
+        delete item.details_json.price_rounding;
+        window.SM.roundWorkshopPrice(item, true);
+        item.unit_price_inc_tax = Number(item.unit_price_inc_tax).toFixed(2);
+    }
 }
 
 // Historical document totals may use document-level instead of line-level rounding.
@@ -275,10 +437,16 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         this.item.details_json.workshop.allocation_seats ??= this.item.workshop_seats ?? this.item.details_json.workshop.seats ?? null;
     },
     get linkedWorkshop() { return this.catalog.find(option => option.id === this.item.details_json.workshop.linked_workshop_id); },
-    get descriptionValue() { return this.billingLocked && this.open ? this.query : this.item.description; },
+    get usesWorkshopName() { return this.item.kind === 'workshop' && Object.hasOwn(this.item.details_json.workshop, 'name'); },
+    get workshopName() { return this.usesWorkshopName ? this.item.details_json.workshop.name : this.item.description; },
+    set workshopName(value) {
+        if (this.usesWorkshopName) this.item.details_json.workshop.name = value;
+        else this.item.description = value;
+    },
+    get descriptionValue() { return this.billingLocked && this.open ? this.query : this.workshopName; },
     set descriptionValue(value) {
         this.query = value;
-        if (!this.billingLocked) this.item.description = value;
+        if (!this.billingLocked) this.workshopName = value;
     },
     get seatValue() {
         const basis = this.item.details_json.workshop.allocation_basis;
@@ -303,7 +471,7 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
     get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets', attendance: 'Attendance count' }[this.item.details_json.workshop.allocation_basis]; },
     get matches() {
         const query = this.query.trim().toLowerCase();
-        const description = String(this.item.description || '').toLowerCase();
+        const description = String(this.workshopName || '').toLowerCase();
         const date = this.item.workshop_date || this.item.details_json.workshop.date;
         const score = option => (date && option.date === date ? 4 : 0) + (option.title && description.includes(option.title.toLowerCase()) ? 3 : 0);
         return this.catalog.filter(option => !query || option.label.toLowerCase().includes(query)).sort((a, b) => score(b) - score(a)).slice(0, 12);
@@ -339,7 +507,7 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
     choose(option) {
         this.item.details_json.workshop.linked_workshop_id = option?.id || null;
         if (option && !this.billingLocked) {
-            this.item.description = option.title || option.label;
+            this.workshopName = option.title || option.label;
             if (option.hours > 0) this.item.workshop_hours = option.hours;
             this.item.workshop_date = option.date || '';
         }

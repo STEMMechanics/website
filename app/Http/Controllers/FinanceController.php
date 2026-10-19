@@ -47,12 +47,17 @@ class FinanceController extends Controller
     public function pricing(Request $request, FinancePlanner $planner): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
+            'clean_prices' => 'sometimes|boolean',
             'travel_rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_step' => ['nullable', Rule::in([0, 10, 50, 100, 500])], 'rounding_category_id' => ['nullable', Rule::exists('finance_categories', 'id')->where(fn ($query) => $query->where('active', true)->whereIn('kind', ['cost', 'owner']))], 'pricing_participants' => 'nullable|integer|min:1|max:10000', 'edit_id' => 'nullable|integer|exists:finance_pricing_versions,id', 'make_default' => 'nullable|boolean', 'return_to' => 'nullable|in:versions', 'travel_price' => 'nullable|numeric|min:0|max:100000', 'travel_free_minutes' => 'nullable|integer|min:0|max:10000', 'name' => 'required|string|max:100', 'effective_from' => 'sometimes|date_format:Y-m-d', 'rules' => 'required|array|min:1|max:100',
             'rules.*.category_id' => ['required', 'integer', Rule::exists('finance_categories', 'id')->where(fn ($query) => $query->where('active', true)->whereIn('kind', ['cost', 'owner']))], 'rules.*.basis' => ['required', Rule::in(['workshop', 'participant', 'hour', 'venue_hour', 'travel'])],
             'rules.*.suppliable' => 'nullable|boolean', 'rules.*.venue_default' => 'nullable|boolean', 'rules.*.rate' => 'required|numeric|min:0|max:100000',
             'public' => 'sometimes|array|size:4', 'public.*' => 'required|numeric|min:0|max:100000', 'organisation' => 'sometimes|array|size:4', 'organisation.*' => 'required|numeric|min:0|max:100000',
         ]);
-        $rules = array_map(fn ($row) => ['category_id' => (int) $row['category_id'], 'basis' => $row['basis'], 'rate_cents' => $planner->cents($row['rate']), 'suppliable' => (bool) ($row['suppliable'] ?? false), 'venue_default' => (bool) ($row['venue_default'] ?? false)], $data['rules']);
+        if ($request->boolean('clean_prices')) {
+            $data['rounding_step'] = $data['travel_rounding_step'] = 0;
+            $data['rounding_category_id'] = null;
+        }
+        $rules = array_map(fn ($row) => ['category_id' => (int) $row['category_id'], 'basis' => $row['basis'], 'rate_cents' => $planner->cents($row['rate']), 'suppliable' => (bool) ($row['suppliable'] ?? false), 'venue_default' => (bool) ($row['venue_default'] ?? false)], array_values($data['rules']));
         DB::transaction(function () use ($request, $data, $rules, $planner): void {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $ids = array_unique(array_column($rules, 'category_id'));

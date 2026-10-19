@@ -115,8 +115,8 @@
                         <tr class="border-b border-gray-100">
                             <td class="py-2 pr-3 pl-3">
                                 <div class="font-medium">{{ $line->description }}</div>
-                                @if((string) ($line->notes ?? '') !== '')
-                                    <div class="text-xs text-gray-600">{{ $line->notes }}</div>
+                                @if($row['notes'] !== '')
+                                    <div class="whitespace-pre-line text-xs text-gray-600">{{ $row['notes'] }}</div>
                                 @endif
                             </td>
                             <td class="py-2 pr-3 text-right">{{ number_format((float) $row['original_qty'], 2) }}</td>

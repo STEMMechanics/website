@@ -85,6 +85,9 @@ class InvoiceAllocation
                         continue;
                     }
                     $inputs = ['participants' => (int) $details['seats'], 'hours' => (float) $details['hours'], 'venue_supplied' => (bool) ($details['venue_supplied'] ?? true), 'travel_minutes' => 0, 'supplied_categories' => $details['supplied_categories'] ?? [], 'gst_applicable' => (float) $line->tax_rate > 0];
+                    if (isset($line->details_json['pricing_basis']['participants'])) {
+                        $inputs['pricing_participants'] = max(1, min(10000, (int) $line->details_json['pricing_basis']['participants']));
+                    }
                     $assumptions['lines'][] = ['line_number' => $line->line_number] + $inputs;
                     foreach ($planner->targets(array_filter($rules, fn ($rule) => $rule['basis'] !== 'travel'), $inputs) as $id => $amount) {
                         $suggestedTargets[$id] = ($suggestedTargets[$id] ?? 0) + $amount;

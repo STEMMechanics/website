@@ -253,7 +253,7 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => ['product', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+                        .filter((item) => ['product', 'workshop', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },
@@ -336,6 +336,8 @@
             @csrf
 
             <input type="hidden" name="line_items_json" x-ref="lineItemsJson" value="{{ $savedLineItems }}" />
+
+            <x-finance.price-rounding-summary document-label="quote" />
 
             <x-ui.input label="Quote Number" name="quote_number" value="{{ old('quote_number', $quote->quote_number ?? ($nextQuoteNumber ?? '')) }}" />
 

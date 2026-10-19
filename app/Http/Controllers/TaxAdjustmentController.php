@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\TaxAdjustment;
 use App\Services\DocumentNumberService;
+use App\Services\Finance\InvoicePdfLines;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,15 +36,17 @@ class TaxAdjustmentController extends Controller
         $invoice->loadMissing('lines', 'taxAdjustments.lines');
         $refundedQtyByLine = $this->lineRefundedQuantities($invoice);
         $refundableAmounts = $this->refundableAmounts($invoice);
+        $presentedLines = collect(InvoicePdfLines::withWorkshopDetails($invoice->lines))->keyBy('id');
         $refundableLines = $invoice->lines
             ->filter(fn ($line) => abs((float) $line->quantity) > 0.0001)
-            ->map(function ($line) use ($refundedQtyByLine, $refundableAmounts) {
+            ->map(function ($line) use ($refundedQtyByLine, $refundableAmounts, $presentedLines) {
                 $originalQty = round(abs((float) $line->quantity), 2);
                 $refundedQty = round((float) ($refundedQtyByLine[$line->id] ?? 0), 2);
                 $remainingQty = max(0, round($originalQty - $refundedQty, 2));
 
                 return [
                     'line' => $line,
+                    'notes' => InvoicePdfLines::notesForPdf($presentedLines->get($line->id)),
                     'original_qty' => $originalQty,
                     'refunded_qty' => $refundedQty,
                     'remaining_qty' => $remainingQty,
@@ -81,6 +84,7 @@ class TaxAdjustmentController extends Controller
         $refundableAmounts = $this->refundableAmounts($invoice);
         $refundQtyInput = is_array($validated['refund_qty'] ?? null) ? $validated['refund_qty'] : [];
         $selectedLines = [];
+        $presentedLines = collect(InvoicePdfLines::withWorkshopDetails($invoice->lines))->keyBy('id');
         $subtotalExact = 0.0;
         $gstExact = 0.0;
         $totalExact = 0.0;
@@ -119,7 +123,7 @@ class TaxAdjustmentController extends Controller
                 'invoice_line_id' => $lineId,
                 'line_number' => count($selectedLines) + 1,
                 'description' => (string) $line->description,
-                'notes' => (string) ($line->notes ?? ''),
+                'notes' => InvoicePdfLines::notesForPdf($presentedLines->get($lineId)),
                 'quantity' => round($requestedQty, 2),
                 'unit_price_ex_tax' => round($unitEx, 2),
                 'tax_rate' => $taxRate,
@@ -295,6 +299,8 @@ class TaxAdjustmentController extends Controller
         $invoice->loadMissing('user', 'lines');
         $itemPages = [$invoice->lines->map(function ($line): array {
             return [
+                'kind' => $line->kind,
+                'details_json' => $line->details_json ?? [],
                 'description' => (string) $line->description,
                 'notes' => (string) ($line->notes ?? ''),
                 'quantity' => (float) $line->quantity,

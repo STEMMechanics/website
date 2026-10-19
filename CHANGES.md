@@ -2,6 +2,7 @@
 
 ## Current
 
+- Improved workshop quote text, stable row deletion, GST rate rounding and allocation plan pricing previews.
 - Fixed expense date sorting, enabled invoice ID and amount sorting, and preserved selected page sizes when sorting or filtering lists.
 - Improved mobile administration with product and order cards, quote line-item editing, readable payment controls, compact order items and simpler navigation and save actions.
 - Added attaching additional invoices and their items to open store orders, with a popup showing recent customer or company invoices, searchable suggestions, combined balances and delivery summaries, and credits and refunds against the correct invoice.

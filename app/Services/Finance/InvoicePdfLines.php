@@ -49,10 +49,38 @@ class InvoicePdfLines
         return $result;
     }
 
+    public static function descriptionForPdf(array $item): string
+    {
+        if (($item['kind'] ?? '') === 'workshop' && ! empty($item['workshop_details']) && ! array_key_exists('name', $item['details_json']['workshop'] ?? [])) {
+            return 'Charged per hour, per seat';
+        }
+
+        return (string) ($item['description'] ?? '');
+    }
+
     public static function notesForPdf(array $item): string
     {
         $notes = trim((string) ($item['notes'] ?? ''));
+        if (in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true)
+            && (($item['details_json']['workshop_notes_mode'] ?? '') === 'template' || preg_match('/\{(?:date|workshop|duration|seats)\}/', $notes))) {
+            return self::renderWorkshopText($notes, $item['workshop_details'] ?? []);
+        }
         $noteLines = preg_split('/\r\n|\r|\n/', $notes) ?: [];
+        if (($item['kind'] ?? '') === 'workshop' && ! empty($item['workshop_details'])) {
+            $entry = self::workshopEntries($item)[0] ?? [];
+            if (is_numeric($entry['hours'] ?? null) && is_numeric($entry['seats'] ?? null)) {
+                $hours = self::formatNumber((float) $entry['hours']);
+                $seats = self::formatNumber((float) $entry['seats']);
+                $calculation = $hours.' '.((float) $entry['hours'] === 1.0 ? 'hr' : 'hrs').' × '.$seats.' seats';
+                $redundant = [
+                    $calculation,
+                    $hours.' hr / '.$seats.' seats',
+                    $calculation.' = '.self::formatNumber(round($entry['hours'] * $entry['seats'], 2)).' seat-hours',
+                ];
+                $noteLines = array_filter($noteLines, fn (string $line): bool => ! in_array(trim(preg_replace('/^[-*]\s+/', '', trim($line))), $redundant, true));
+                $notes = trim(implode("\n", $noteLines));
+            }
+        }
         $existing = array_map(fn (string $line): string => trim(preg_replace('/^[-*]\s+/', '', trim($line))), $noteLines);
         $workshopNotes = collect($item['workshop_details'] ?? [])
             ->filter(fn (array $workshop): bool => $workshop['label'] !== '' && ! in_array($workshop['label'], $existing, true))
@@ -60,6 +88,32 @@ class InvoicePdfLines
             ->implode("\n");
 
         return implode("\n", array_filter([$notes, $workshopNotes], fn (string $value): bool => $value !== ''));
+    }
+
+    private static function renderWorkshopText(string $template, array $workshops): string
+    {
+        $lines = [];
+        foreach (preg_split('/\r\n|\r|\n/', $template) ?: [] as $line) {
+            if (! preg_match('/\{(?:date|workshop|duration|seats)\}/', $line)) {
+                $lines[] = $line;
+
+                continue;
+            }
+            foreach ($workshops as $workshop) {
+                $text = $line;
+                foreach (['date', 'workshop'] as $optional) {
+                    if (($workshop[$optional] ?? '') === '') {
+                        $text = preg_replace('/\{'.$optional.'\}\s*-\s*/', '', $text);
+                    }
+                }
+                $lines[] = strtr($text, [
+                    '{date}' => $workshop['date'], '{workshop}' => $workshop['workshop'],
+                    '{duration}' => $workshop['duration'], '{seats}' => $workshop['seats'],
+                ]);
+            }
+        }
+
+        return trim(implode("\n", $lines));
     }
 
     private static function workshopEntries(array $item): array
@@ -99,8 +153,11 @@ class InvoicePdfLines
     private static function workshopEntry(array $settings, array $source): array
     {
         $id = trim((string) ($settings['linked_workshop_id'] ?? ''));
-        $description = trim((string) ($source['description'] ?? ''));
-        if ($id === '' && $description === '') {
+        $description = trim((string) ($settings['name'] ?? $source['description'] ?? ''));
+        if (($source['kind'] ?? '') === 'workshop' && in_array(strtolower($description), ['charged per hour, per seat', 'workshop delivery'], true)) {
+            $description = '';
+        }
+        if ($id === '' && $description === '' && ! isset($source['workshop_hours'], $source['workshop_seats']) && ! isset($settings['hours'], $settings['seats'])) {
             return [];
         }
 
@@ -118,7 +175,7 @@ class InvoicePdfLines
         return collect(self::workshopEntries($item))
             ->map(function (array $entry) use ($workshops): array {
                 $workshop = $workshops->get($entry['id']);
-                $title = trim((string) (data_get($workshop, 'title') ?? $entry['description'] ?? ''));
+                $title = trim((string) ($entry['description'] !== '' ? $entry['description'] : data_get($workshop, 'title', '')));
                 $date = self::formatDate($entry['date'] ?? null, $workshop);
                 $hours = is_numeric($entry['hours'] ?? null) ? (float) $entry['hours'] : null;
                 $seats = is_numeric($entry['seats'] ?? null) ? (float) $entry['seats'] : null;
@@ -127,7 +184,12 @@ class InvoicePdfLines
                     : '';
                 $label = implode(' - ', array_filter([$date, $title, $details], fn (string $part): bool => $part !== ''));
 
-                return ['id' => $entry['id'], 'title' => $title, 'label' => $label];
+                return [
+                    'id' => $entry['id'], 'title' => $title, 'label' => $label,
+                    'date' => $date, 'workshop' => $title,
+                    'duration' => $hours !== null ? self::formatNumber($hours).' '.($hours === 1.0 ? 'hr' : 'hrs') : '',
+                    'seats' => $seats !== null ? self::formatNumber($seats).' seats' : '',
+                ];
             })
             ->filter(fn (array $workshop): bool => $workshop['label'] !== '')
             ->values()

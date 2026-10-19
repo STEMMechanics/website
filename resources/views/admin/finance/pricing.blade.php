@@ -1,14 +1,14 @@
 @php($defaultVersionId = $defaultVersionId ?? \Illuminate\Support\Facades\DB::table('finance_settings')->where('id', 1)->value('default_pricing_version_id'))
 
     <x-ui.table variant="listing" mobileCards>
-        <thead><tr><x-ui.list-heading field="name" label="Plan" /><th class="text-center">Actions</th></tr></thead>
+        <thead><tr><x-ui.list-heading field="name" label="Plan" /><th class="w-px whitespace-nowrap text-center">Actions</th></tr></thead>
         <tbody data-list-results>
             @foreach($versions as $version)
                 <tr>
                     <td data-mobile-primary><div class="flex flex-wrap items-center gap-2"><span>{{ $version->name }}</span>@if((int) ($defaultVersionId ?? 0) === $version->id)<x-ui.badge color="success">Default</x-ui.badge>@endif @if($version->archived)<x-ui.badge color="gray">Archived</x-ui.badge>@endif</div></td>
-                    <td data-mobile-actions class="text-center whitespace-nowrap"><x-ui.row-actions>
-                        <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'edit_id' => $version->id]) }}" />
-                        <x-ui.row-action label="Copy" icon="fa-copy" data-record-editor href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'template_id' => $version->id]) }}" />
+                    <td data-mobile-actions class="text-right whitespace-nowrap"><x-ui.row-actions class="sm:justify-end">
+                        <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit allocation plan: {{ $version->name }}" href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'edit_id' => $version->id]) }}" />
+                        <x-ui.row-action label="Copy" icon="fa-copy" data-record-editor data-record-title="Copy allocation plan: {{ $version->name }}" href="{{ route('admin.cost-centre.allocations', ['tab' => 'editor', 'template_id' => $version->id]) }}" />
                         @if(! $version->archived && (int) ($defaultVersionId ?? 0) !== $version->id)
                             <form method="POST" action="{{ route('admin.cost-centre.default-version') }}">@csrf<input type="hidden" name="version_id" value="{{ $version->id }}"><x-ui.row-action type="submit" label="Make default" icon="fa-star" tone="warning" /></form>
                         @endif

@@ -3,7 +3,7 @@
     $plan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString());
     $supplyCategories = \Illuminate\Support\Facades\DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->pluck('name', 'id');
     $supplyRules = collect(json_decode($plan->rules, true))->filter(fn ($rule) => ($rule['suppliable'] ?? false) || $rule['basis'] === 'venue_hour')->unique('category_id');
-    $planPricing = array_merge(json_decode($plan->prices, true), ['rules' => json_decode($plan->rules, true)]);
+    $planPricing = array_merge(json_decode($plan->prices, true), ['rules' => json_decode($plan->rules, true), 'clean_prices' => true]);
 @endphp
 <div class="col-span-full space-y-3" x-data="{ planPricing: @js($planPricing), priceInclusive: @js($inclusive) }" x-init="if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.registerLinePlan(item, planPricing, priceInclusive); if (item.kind === 'multi_workshop') SM.updateWorkshopLine(item)">
     <x-finance.multi-workshop-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" :invoice-layout="$invoiceLayout" />

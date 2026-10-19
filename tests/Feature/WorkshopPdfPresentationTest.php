@@ -208,6 +208,60 @@ class WorkshopPdfPresentationTest extends TestCase
         $this->assertSame('- 17/02/2027 - Manunda Minecraft - (1 hr × 10 seats)', InvoicePdfLines::notesForPdf($prepared[0]));
     }
 
+    public function test_single_workshops_show_one_bullet_without_repeating_the_name_or_calculation(): void
+    {
+        $row = $this->rows()[0];
+        $this->seedDocumentOptions();
+
+        foreach (['', '1 hr × 10 seats', '1 hr / 10 seats', '1 hr × 10 seats = 10 seat-hours', '- 17/02/2027 - Manunda Minecraft - (1 hr × 10 seats)', "1 hr × 10 seats\nBring your own laptop"] as $notes) {
+            $line = array_replace($this->line([$row], $notes), [
+                'kind' => 'workshop',
+                'description' => $row['description'],
+                'details_json' => ['inclusive_unit_price' => 14.5, 'workshop' => ['hours' => 1, 'seats' => 10, 'date' => $row['workshop_date']]],
+            ]);
+            $quote = $this->quote([$line]);
+            $invoice = $this->invoice($quote);
+
+            foreach ([
+                view('pdf.quote', ['quote' => $quote])->render(),
+                view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [[$line]], 'adjustments' => collect()])->render(),
+            ] as $html) {
+                $this->assertStringContainsString('Workshop Delivery', $html);
+                $this->assertStringContainsString('<li>17/02/2027 - Manunda Minecraft - (1 hr × 10 seats)</li>', $html);
+                $this->assertSame(1, substr_count($html, 'Manunda Minecraft'), $notes);
+                $this->assertSame(1, substr_count($html, '1 hr × 10 seats'), $notes);
+                $this->assertStringNotContainsString('1 hr / 10 seats', $html);
+                $this->assertStringNotContainsString('10 seat-hours', $html);
+                if (str_contains($notes, 'Bring your own laptop')) {
+                    $this->assertStringContainsString('Bring your own laptop', $html);
+                }
+            }
+            $this->assertSame($notes, $quote->fresh()->line_items[0]['notes']);
+        }
+
+        if ($previewDir = getenv('WORKSHOP_PDF_PREVIEW_DIR')) {
+            Pdf::loadView('pdf.quote', ['quote' => $quote])->save($previewDir.'/single-workshop-quote.pdf');
+            Pdf::loadView('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [[$line]], 'adjustments' => collect()])->save($previewDir.'/single-workshop-invoice.pdf');
+        }
+    }
+
+    public function test_legacy_workshops_without_details_keep_their_description_and_notes(): void
+    {
+        $line = array_replace($this->line([$this->rows()[0]], 'Original delivery notes'), [
+            'kind' => 'workshop', 'description' => 'Original workshop description', 'details_json' => [],
+        ]);
+        $quote = $this->quote([$line]);
+        $invoice = $this->invoice($quote);
+
+        foreach ([
+            view('pdf.quote', ['quote' => $quote])->render(),
+            view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [[$line]], 'adjustments' => collect()])->render(),
+        ] as $html) {
+            $this->assertStringContainsString('Original workshop description', $html);
+            $this->assertStringContainsString('Original delivery notes', $html);
+        }
+    }
+
     public function test_three_workshop_groups_with_fourteen_sessions_fit_on_one_pdf_page(): void
     {
         $groups = [

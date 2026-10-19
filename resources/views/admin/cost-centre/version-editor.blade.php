@@ -1,60 +1,83 @@
 <x-layout>
-<x-mast :title="$editing ? 'Edit allocation plan' : 'Create allocation plan'" />
+@php($latest = $templateVersion ?? $versions->first())
+@php($editorTitle = $editing ? 'Edit allocation plan: '.$latest->name : (request()->filled('template_id') ? 'Copy allocation plan: '.$latest->name : 'Create allocation plan'))
+<x-mast :title="$editorTitle" />
 <x-container class="py-5">
 @php($defaultVersionId = $defaultVersionId ?? \Illuminate\Support\Facades\DB::table('finance_settings')->where('id', 1)->value('default_pricing_version_id'))
-@php($latest = $templateVersion ?? $versions->first())
 @php($rules = array_values(array_filter($planner->decode($latest->rules), fn ($rule) => $categories->where('active', true)->contains('id', $rule['category_id']))))
 @php($prices = $planner->decode($latest->prices))
 
-    <form method="POST" action="{{ route('admin.finance.pricing') }}" x-data="SM.allocationPlanPreview()" x-init="$nextTick(() => refresh($el))" x-on:focusout="$nextTick(() => refresh($el))" x-on:change="$nextTick(() => refresh($el))" data-record-form data-record-wide>@csrf
+    <form method="POST" action="{{ route('admin.finance.pricing') }}" x-data="SM.allocationPlanPreview(@js($rules))" x-init="$nextTick(() => refresh($el))" x-on:input="$nextTick(() => refresh($el))" x-on:focusout="$nextTick(() => refresh($el))" x-on:change="$nextTick(() => refresh($el))" data-record-form data-record-wide data-record-title="{{ $editorTitle }}">@csrf
+        <div data-record-body>
     @if($editing)<input type="hidden" name="edit_id" value="{{ $latest->id }}">@endif
         <input type="hidden" name="return_to" value="versions">
+        <input type="hidden" name="clean_prices" value="1">
         <input type="hidden" name="travel_free_minutes" value="{{ $prices['travel_free_minutes'] ?? 30 }}">
         <div class="grid gap-x-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <x-ui.input name="name" label="Plan name" :value="$editing ? $latest->name : ''" placeholder="2026-27" required />
         <div class="mb-4 flex h-11 items-center"><x-ui.checkbox :noWrapper="true" :disabled="$editing && $latest->archived" name="make_default" value="1" label="Set as default" :checked="$editing && (int) $defaultVersionId === (int) $latest->id" /></div>
         </div>
         <div class="space-y-5">
-        <x-finance.panel title="Cost centre allocations">
-        <x-ui.table variant="listing"><thead><tr><th class="w-2/5 min-w-48">Category</th><th class="min-w-52">Basis</th><th class="w-32 text-center">Amount <span class="whitespace-nowrap">(ex GST)</span></th><th class="w-24 text-center">Suppliable</th></tr></thead><tbody>
-            @foreach($rules as $key => $rule)<tr><td><x-ui.select :name="'rules['.$key.'][category_id]'" label="Category" :noLabel="true">@foreach($categories->where('active', true) as $category)<option value="{{ $category->id }}" @selected($category->id === $rule['category_id'])>{{ $category->name }}</option>@endforeach</x-ui.select></td><td><x-ui.select :name="'rules['.$key.'][basis]'" label="Basis" :noLabel="true">@foreach(['workshop' => 'Per workshop', 'participant' => 'Per participant', 'hour' => 'Per delivery hour', 'travel' => 'Per billable travel unit'] as $value => $label)<option value="{{ $value }}" @selected($value === ($rule['basis'] === 'venue_hour' ? 'hour' : $rule['basis']))>{{ $label }}</option>@endforeach</x-ui.select></td><td class="w-32"><div class="w-28"><x-ui.money-input :name="'rules['.$key.'][rate]'" label="Amount" :noLabel="true" :value="$rule['rate_cents'] / 100" required /></div></td><td class="text-center"><input type="hidden" name="rules[{{ $key }}][venue_default]" value="{{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? 1 : 0 }}"><x-ui.checkbox :name="'rules['.$key.'][suppliable]'" value="1" label="Suppliable" :labelHidden="true" :noWrapper="true" :checked="($rule['suppliable'] ?? false) || $rule['basis'] === 'venue_hour'" class="mb-4 justify-center" /></td></tr>@endforeach
-        </tbody></x-ui.table>
-        <template x-for="i in extra" :key="i"><div class="mt-4 grid gap-x-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_6rem]">
-            <x-ui.select x-bind:name="'rules[' + ({{ count($rules) }} + i - 1) + '][category_id]'" label="Extra category">@foreach($categories->where('active', true) as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</x-ui.select>
-            <x-ui.select x-bind:name="'rules[' + ({{ count($rules) }} + i - 1) + '][basis]'" label="Basis"><option value="workshop">Per workshop</option><option value="participant">Per participant</option><option value="hour">Per delivery hour</option><option value="travel">Per billable travel unit</option></x-ui.select>
-            <x-ui.money-input x-bind:name="'rules[' + ({{ count($rules) }} + i - 1) + '][rate]'" label="Amount" value="0.00" required />
-            <x-ui.checkbox x-bind:name="'rules[' + ({{ count($rules) }} + i - 1) + '][suppliable]'" value="1" label="Suppliable" />
-        </div></template>
-        <x-ui.button color="outline" class="my-4" x-on:click="extra++">Add cost rule</x-ui.button>
-        <p class="text-sm text-slate-600">Set an amount to zero to omit a cost. Each billable travel unit is 15 minutes.</p>
-        </x-finance.panel>
-        <div class="grid gap-5 lg:grid-cols-2">
-            <x-finance.panel title="Workshop pricing">
-                <x-ui.input name="pricing_participants" label="Pricing participants" type="number" min="1" max="10000" :value="$prices['pricing_participants'] ?? 10" info="Ticket pricing uses this figure, or Max tickets when it is lower. Duration still applies to hourly costs." />
-                <x-ui.select name="rounding_step" label="Round price up (including GST)">
-                    @foreach([0 => 'No rounding', 10 => 'Next $0.10', 50 => 'Next $0.50', 100 => 'Next $1', 500 => 'Next $5'] as $step => $label)
-                        <option value="{{ $step }}" @selected(($prices['rounding_step'] ?? 0) == $step)>{{ $label }}</option>
-                    @endforeach
-                </x-ui.select>
+            <x-finance.panel title="Cost centre allocations">
+                <x-ui.table variant="listing" mobileCards>
+                    <thead><tr><th class="w-2/5 min-w-44">Cost centre</th><th class="min-w-48">Basis</th><th class="w-32 text-center">Amount <span class="whitespace-nowrap">(ex GST)</span></th><th class="w-28 text-center">Suppliable</th><th class="w-12"><span class="sr-only">Actions</span></th></tr></thead>
+                    <tbody>
+                        <template x-for="(rule, index) in costRules" :key="rule.id">
+                            <tr x-bind:data-cost-rule="rule.id">
+                                <td data-label="Cost centre" data-mobile-primary>
+                                    <x-ui.select x-bind:name="'rules[' + index + '][category_id]'" label="Cost centre" :noLabel="true" x-model="rule.category_id" required>
+                                        <option value="" disabled>Choose cost centre</option>
+                                        @foreach($categories->where('active', true) as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach
+                                    </x-ui.select>
+                                </td>
+                                <td data-label="Basis" data-mobile-wide>
+                                    <x-ui.select x-bind:name="'rules[' + index + '][basis]'" label="Basis" :noLabel="true" x-model="rule.basis">
+                                        <option value="workshop">Per workshop</option><option value="participant">Per participant</option><option value="hour">Per delivery hour</option><option value="travel">Per 15 minutes of travel</option>
+                                    </x-ui.select>
+                                </td>
+                                <td data-label="Amount (ex GST)"><div class="w-28 max-w-full"><x-ui.money-input x-bind:name="'rules[' + index + '][rate]'" label="Amount" :noLabel="true" x-model="rule.rate" required /></div></td>
+                                <td data-label="Suppliable" class="text-center">
+                                    <input type="hidden" x-bind:name="'rules[' + index + '][venue_default]'" x-bind:value="rule.venue_default ? 1 : 0">
+                                    <x-ui.checkbox x-bind:name="'rules[' + index + '][suppliable]'" value="1" label="Suppliable" :labelHidden="true" :noWrapper="true" x-model="rule.suppliable" class="mb-4 justify-center" />
+                                </td>
+                                <td data-mobile-actions><x-ui.row-action label="Remove cost allocation" icon="fa-trash" tone="danger" x-on:click="removeCostRule(rule.id, $el.closest('form'))" x-bind:disabled="costRules.length &lt;= 1" /></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </x-ui.table>
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p class="min-w-48 flex-1 text-sm text-slate-600">Use another allocation for a new cost centre or a second charging basis. Set an amount to zero to omit a cost.</p>
+                    <x-ui.button color="outline" size="small" icon="plus" x-on:click="addCostRule($el.closest('form'))" x-bind:disabled="costRules.length &gt;= 100">Add cost allocation</x-ui.button>
+                </div>
             </x-finance.panel>
-            <x-finance.panel title="Travel pricing">
-                <x-ui.money-input name="travel_price" label="Calculated travel price (including GST, before rounding)" readonly x-bind:value="travelBase" :value="array_sum(array_column(array_filter($rules, fn ($rule) => $rule['basis'] === 'travel'), 'rate_cents')) * 1.1 / 100" />
-                <x-ui.select name="travel_rounding_step" label="Round travel price up (including GST)">
-                    @foreach([0 => 'No rounding', 10 => 'Next $0.10', 50 => 'Next $0.50', 100 => 'Next $1', 500 => 'Next $5'] as $step => $label)
-                        <option value="{{ $step }}" @selected(($prices['travel_rounding_step'] ?? 0) == $step)>{{ $label }}</option>
-                    @endforeach
-                </x-ui.select>
-            </x-finance.panel>
+            <x-finance.plan-preview :pricing-participants="$prices['pricing_participants'] ?? 10" :has-legacy-increments="($prices['rounding_step'] ?? 0) > 0 || ($prices['travel_rounding_step'] ?? 0) > 0" />
         </div>
-        <x-ui.select name="rounding_category_id" label="Allocate rounding differences to" info="Applies to both workshop and travel pricing.">
-            <option value="">Leave unallocated</option>
-            @foreach($categories->where('active', true) as $category)
-                <option value="{{ $category->id }}" @selected(($prices['rounding_category_id'] ?? null) == $category->id)>{{ $category->name }}</option>
-            @endforeach
-        </x-ui.select>
         </div>
-        <x-finance.plan-preview />
-        <x-finance.save>{{ $editing ? 'Save' : 'Create' }}</x-finance.save>
+        <footer class="sm-dialog-footer sm-plan-preview-footer" data-record-footer data-plan-summary>
+            <div x-show="preview" class="flex min-w-0 flex-1 flex-wrap gap-x-10 gap-y-2" x-cloak>
+                <div class="min-w-0">
+                    <p class="text-xs text-slate-600">Workshop rate / hr / participant</p>
+                    <p class="flex gap-3 text-sm">
+                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitEx)"></strong> <span class="text-xs">ex GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitInc)"></span> <span class="text-xs">inc GST</span></span>
+                    </p>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs text-slate-600">Actual cost / participant</p>
+                    <p class="flex gap-3 text-sm">
+                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant)"></strong> <span class="text-xs">ex GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * 1.1)"></span> <span class="text-xs">inc GST</span></span>
+                    </p>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs text-slate-600">Example quote total</p>
+                    <p class="text-sm"><strong class="tabular-nums" x-text="money(preview?.cleanInvoiceGross)"></strong> <span class="whitespace-nowrap text-xs">inc GST</span></p>
+                    <p x-show="preview?.roundingIncrease" class="text-xs text-amber-800" x-text="'Includes ' + money(preview?.roundingIncrease) + ' GST cent adjustment'"></p>
+                </div>
+            </div>
+            <p x-show="!preview" class="text-sm text-slate-600">Enter valid preview quantities to see costs.</p>
+            <x-ui.button type="submit" class="ml-auto shrink-0 px-5 py-2">{{ $editing ? 'Save' : 'Create' }}</x-ui.button>
+        </footer>
     </form>
 
 

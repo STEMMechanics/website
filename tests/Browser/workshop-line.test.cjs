@@ -49,6 +49,76 @@ test('saved prices and manual overrides are preserved', () => {
     update(item, { rules: [{ basis: 'hour', rate_cents: 6000 }] });
     assert.equal(item.unit_price, '25.00');
 });
+
+test('refresh uses the plan pricing attendance while actual seats set quantity and cost allocations', () => {
+    const sm = context.window.SM;
+    const plan = { pricing_participants: 10, clean_prices: true, rules: [
+        { category_id: 1, basis: 'hour', rate_cents: 8500, suppliable: true },
+        { category_id: 2, basis: 'participant', rate_cents: 400 },
+    ] };
+    const item = { kind: 'workshop', workshop_hours: 1, workshop_seats: 15, unit_price_inc_tax: '10.67', gst_applicable: true };
+    sm.registerLinePlan(item, plan, true);
+    sm.refreshLinePrice(item);
+    for (const seats of [10, 15, 35, 5]) {
+        item.workshop_seats = seats;
+        update(item);
+        assert.equal(item.unit_price_inc_tax, '13.75');
+        assert.equal(item.quantity, seats);
+        assert.equal(sm.lineAmounts(item).net, seats * 12.5);
+        assert.equal(sm.lineAmounts(item).gross, seats * 13.75);
+        assert.equal(item.details_json.pricing_basis.participants, 10);
+        assert.equal(sm.lineCostAllocations([item], plan.rules)[2], seats * 400);
+    }
+    item.supplied_categories = { 1: true };
+    sm.refreshLinePrice(item);
+    assert.equal(item.unit_price_inc_tax, '4.40');
+    assert.equal(sm.lineCostAllocations([item], plan.rules)[1], undefined);
+    item.supplied_categories = {};
+    plan.pricing_participants = 5;
+    sm.refreshLinePrice(item);
+    assert.equal(item.unit_price_inc_tax, '23.10');
+    assert.equal(item.details_json.pricing_basis.participants, 5);
+});
+
+test('grouped workshops keep their plan unit rate as seats change or rows are removed', () => {
+    const sm = context.window.SM;
+    const plan = { pricing_participants: 10, clean_prices: true, rules: [
+        { category_id: 1, basis: 'workshop', rate_cents: 8500 },
+        { category_id: 2, basis: 'participant', rate_cents: 400 },
+    ] };
+    const item = { kind: 'multi_workshop', auto_pricing: true, gst_applicable: true, workshops: [
+        { description: 'Morning', workshop_hours: 1, workshop_seats: 10 },
+        { description: 'Afternoon', workshop_hours: 1, workshop_seats: 15 },
+    ] };
+    update(item, plan, true);
+    assert.equal(item.unit_price_inc_tax, '13.75');
+    assert.equal(item.quantity, 25);
+    assert.equal(sm.lineAmounts(item).gross, 343.75);
+    assert.equal(sm.expandWorkshopGroups([item])[1].details_json.pricing_basis.participants, 10);
+    item.workshops.splice(0, 1);
+    update(item);
+    assert.equal(item.unit_price_inc_tax, '13.75');
+    assert.equal(item.quantity, 15);
+    assert.equal(sm.lineAmounts(item).gross, 206.25);
+});
+
+test('reference pricing surplus is excluded from the rounding allocation allowance', () => {
+    const sm = context.window.SM;
+    const plan = { pricing_participants: 10, clean_prices: true, rounding_step: 50, rules: [
+        { category_id: 1, basis: 'workshop', rate_cents: 8500 },
+        { category_id: 2, basis: 'participant', rate_cents: 400 },
+    ] };
+    const item = { kind: 'workshop', workshop_hours: 1, workshop_seats: 15, auto_pricing: true, gst_applicable: true };
+    update(item, plan, true);
+    assert.equal(item.unit_price_inc_tax, '14.08');
+    assert.equal(sm.lineCostAllocations([item], plan.rules)[1], 8500);
+    assert.equal(sm.invoiceRoundingAllowance([item], plan.rules, plan), 341);
+    const legacy = { ...item, details_json: {} };
+    assert.equal(sm.invoiceRoundingAllowance([legacy], plan.rules, plan), 500);
+    plan.rules[0].rate_cents = 8501;
+    update(item);
+    assert.equal(sm.invoiceRoundingAllowance([item], plan.rules, plan), 339);
+});
 test('travel price respects invoice versus quote tax basis and free-of-GST lines', () => {
     const item = { kind: 'travel', auto_pricing: true, travel_units: 2, gst_applicable: true };
     update(item, { travel_cents: 3400 });

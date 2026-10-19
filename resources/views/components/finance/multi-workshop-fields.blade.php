@@ -7,7 +7,7 @@
     <x-ui.table variant="listing" class="{{ $workshopsWrapperClass }}" table-class="{{ $workshopsTableClass }}">
         <thead><tr><th>Workshop</th><th class="w-40">Date</th><th class="w-24 text-center">Hours</th><th class="w-32 text-center">Seats</th><th>Supplied</th><th class="w-14 text-center">Actions</th></tr></thead>
         <tbody>
-            <template x-for="(row, rowIndex) in item.workshops" :key="rowIndex">
+            <template x-for="(row, rowIndex) in item.workshops" :key="lineItemKey(row)">
                 <tr>
                     <td data-label="Workshop" data-mobile-wide class="min-w-64"><x-finance.workshop-funding-fields model="row" /></td>
                     <td data-label="Date"><x-ui.input-control aria-label="Workshop date" type="date" x-model="row.workshop_date" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>

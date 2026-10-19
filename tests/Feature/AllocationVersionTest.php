@@ -94,7 +94,7 @@ class AllocationVersionTest extends TestCase
             ->assertViewIs('admin.cost-centre.versions')->assertSee('data-record-editor', false)
             ->assertDontSee('name="travel_price"', false);
         $this->get(route('admin.cost-centre.allocations', ['tab' => 'editor']))->assertOk()
-            ->assertSee('data-record-form', false)->assertSee('name="travel_price"', false)
+            ->assertSee('data-record-form', false)->assertSee('name="clean_prices"', false)->assertDontSee('name="travel_price"', false)
             ->assertDontSee('Price per participant, including GST')->assertDontSee('name="effective_from"', false)->assertSee('Set as default');
         $this->postJson(route('admin.finance.pricing'), [
             'name' => 'Calculated costs',
@@ -111,6 +111,40 @@ class AllocationVersionTest extends TestCase
         // Two hours at $60 + GST; a plan without travel cost rules has no travel charge.
         $this->assertSame(13200, $preview['rows'][0]['suggested_price_cents']);
         $this->assertSame(12000, $preview['rows'][0]['targets'][1]);
+    }
+
+    public function test_clean_pricing_editor_saves_without_extra_increments_and_keeps_the_previous_revision(): void
+    {
+        $this->admin();
+        $this->postJson(route('admin.finance.pricing'), [
+            'name' => 'Legacy increments', 'make_default' => true, 'pricing_participants' => 10,
+            'rounding_step' => 50, 'travel_rounding_step' => 100, 'rounding_category_id' => 2,
+            'rules' => [['category_id' => 1, 'basis' => 'hour', 'rate' => 60]],
+        ])->assertOk();
+        $previous = DB::table('finance_pricing_versions')->where('name', 'Legacy increments')->first();
+        $this->get(route('admin.cost-centre.allocations', ['tab' => 'editor', 'edit_id' => $previous->id]))->assertOk()
+            ->assertSee('Saving will remove them and use automatic GST cent adjustments.')
+            ->assertSee('Example quote')->assertSee('Add cost allocation')
+            ->assertDontSee('Add cost rule')->assertDontSee('Optional price increment')
+            ->assertDontSee('name="rounding_step"', false)->assertDontSee('name="travel_rounding_step"', false)
+            ->assertDontSee('name="rounding_category_id"', false);
+        $this->postJson(route('admin.finance.pricing'), [
+            'name' => 'Automatic GST', 'edit_id' => $previous->id, 'clean_prices' => 1, 'pricing_participants' => 10,
+            'rounding_step' => 500, 'travel_rounding_step' => 500, 'rounding_category_id' => 2,
+            'rules' => [3 => ['category_id' => 1, 'basis' => 'hour', 'rate' => 60], 8 => ['category_id' => 1, 'basis' => 'travel', 'rate' => 15]],
+        ])->assertOk();
+        $version = DB::table('finance_pricing_versions')->where('name', 'Automatic GST')->first();
+        $prices = json_decode($version->prices, true);
+        $this->assertSame(0, $prices['rounding_step']);
+        $this->assertSame(0, $prices['travel_rounding_step']);
+        $this->assertNull($prices['rounding_category_id']);
+        $rules = json_decode($version->rules, true);
+        $this->assertTrue(array_is_list($rules));
+        $this->assertCount(2, $rules);
+        $this->assertSame(['hour', 'travel'], array_column($rules, 'basis'));
+        $this->assertDatabaseHas('finance_pricing_versions', ['id' => $previous->id, 'is_snapshot' => true]);
+        $this->assertSame(50, json_decode(DB::table('finance_pricing_versions')->where('id', $previous->id)->value('prices'), true)['rounding_step']);
+        $this->assertDatabaseHas('finance_settings', ['id' => 1, 'default_pricing_version_id' => $version->id]);
     }
 
     public function test_default_and_explicit_historical_version_do_not_change_existing_allocations(): void

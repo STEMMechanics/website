@@ -49,6 +49,11 @@ class WorkshopLine
         $date = $item['workshop_date'] ?? $details['workshop']['date'] ?? null;
         Validator::make(['date' => $date], ['date' => 'nullable|date_format:Y-m-d'])->validate();
         $details['workshop'] = ['date' => $date ?: null, 'hours' => round((float) $data['hours'], 2), 'seats' => (int) $data['seats'], 'venue_supplied' => (bool) $data['venue_supplied'], 'supplied_categories' => array_map(fn ($value) => (bool) $value, $data['supplied_categories'])];
+        if (array_key_exists('name', $item['details_json']['workshop'] ?? [])) {
+            $name = $item['details_json']['workshop']['name'];
+            Validator::make(['name' => $name], ['name' => 'nullable|string|max:500'])->validate();
+            $details['workshop']['name'] = trim((string) $name);
+        }
         $details['workshop'] += WorkshopFunding::settings(array_merge($item['details_json']['workshop'] ?? [], $item, ['seats' => $data['seats']]));
         if (($details['workshop']['allocation_basis'] ?? null) === 'manual') $details['workshop']['allocation_seats'] = (int) $data['seats'];
         $item['details_json'] = $details;
@@ -118,6 +123,7 @@ class WorkshopLine
                 continue;
             }
             foreach ($item['details_json']['multi_workshop']['rows'] ?? [] as $row) {
+                if (isset($item['details_json']['pricing_basis'])) $row['details_json']['pricing_basis'] = $item['details_json']['pricing_basis'];
                 $result[] = self::normalize(array_merge($row, ['kind' => 'workshop', 'tax_rate' => $item['tax_rate'] ?? 0.1, 'line_number' => $item['line_number'] ?? null]));
             }
         }
