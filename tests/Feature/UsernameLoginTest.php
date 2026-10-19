@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Token;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -17,7 +17,7 @@ class UsernameLoginTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         Token::query()->where('type', 'login')->delete();
         User::query()->where('email', 'member@example.com')->delete();

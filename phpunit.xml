@@ -18,7 +18,7 @@
         </include>
     </source>
     <php>
-        <ini name="memory_limit" value="256M"/>
+        <ini name="memory_limit" value="512M"/>
         <server name="APP_NAME" value="STEMMechanics" force="true"/>
         <server name="APP_ENV" value="testing" force="true"/>
         <server name="APP_TIMEZONE" value="Australia/Brisbane" force="true"/>

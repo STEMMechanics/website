@@ -8,7 +8,7 @@ use App\Models\PickListTemplateItem;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\WorkshopCategory;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -107,7 +107,7 @@ class WorkshopTemplateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_admin_can_create_a_complete_workshop_template(): void

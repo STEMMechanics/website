@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopCategory;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -23,7 +23,7 @@ class WorkshopTypeNormalizationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_admin_can_choose_a_blank_workshop_or_start_from_a_blueprint(): void

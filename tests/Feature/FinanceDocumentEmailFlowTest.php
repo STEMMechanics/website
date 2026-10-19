@@ -9,7 +9,7 @@ use App\Models\InvoiceLine;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use ReflectionClass;
@@ -22,7 +22,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_quote_email_parses_dedupes_recipients_and_filters_cc(): void

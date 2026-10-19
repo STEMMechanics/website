@@ -9,7 +9,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\PdfTextExtractor;
 use Dom\HTMLDocument;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -26,7 +26,7 @@ class ExpenseDocumentNamingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_expense_editor_renders_field_errors_and_the_standard_notification(): void

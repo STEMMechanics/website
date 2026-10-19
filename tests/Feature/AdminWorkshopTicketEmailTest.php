@@ -20,7 +20,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Services\SquareApiService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -35,7 +35,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_bulk_ticket_email_dedupes_recipients_and_queues_single_job(): void

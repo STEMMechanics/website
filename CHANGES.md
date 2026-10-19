@@ -13,7 +13,7 @@
 - Improved administrative reporting and document workflows.
 - Refined shared interface components and mobile layouts.
 - Improved application configuration, build reliability and deployment tooling.
-- Updated dependencies and automated checks.
+- Upgraded Laravel to 13, QR code generation to php-qrcode 6 and web push delivery to web-push 11, with expanded compatibility checks.
 
 ## 1.4.5
 

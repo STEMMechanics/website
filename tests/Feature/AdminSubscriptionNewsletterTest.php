@@ -9,7 +9,7 @@ use App\Models\EmailSubscriptions;
 use App\Models\SentEmail;
 use App\Models\User;
 use App\Models\UserGroup;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
@@ -22,7 +22,7 @@ class AdminSubscriptionNewsletterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_admin_can_queue_newsletter_for_confirmed_subscription(): void
