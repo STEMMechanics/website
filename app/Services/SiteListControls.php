@@ -31,7 +31,9 @@ class SiteListControls
 
     public function paginationReset(): array
     {
-        $keys = array_filter(array_keys(request()->query()), fn ($key) => $key === 'page' || str_ends_with($key, '_page') || (request()->routeIs('search.index') && in_array($key, ['product', 'workshop'])));
+        $keys = array_filter(array_keys(request()->query()), fn ($key) => $key === 'page'
+            || (str_ends_with($key, '_page') && $key !== 'per_page' && ! str_ends_with($key, '_per_page'))
+            || (request()->routeIs('search.index') && in_array($key, ['product', 'workshop'])));
 
         return array_fill_keys([...$keys, 'page'], null);
     }
