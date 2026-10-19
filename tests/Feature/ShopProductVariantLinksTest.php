@@ -5,11 +5,28 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ShopProductVariantLinksTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_legacy_comparison_prices_are_ignored_on_product_pages_and_in_catalog_options(): void
+    {
+        $product = Product::factory()->create(['status' => Product::STATUS_ACTIVE, 'price' => 12.95, 'inventory_quantity' => 10]);
+        $variant = ProductVariant::factory()->create(['product_id' => $product->id, 'price' => 19.95, 'inventory_quantity' => 10]);
+        DB::table('products')->where('id', $product->id)->update(['compare_at_price' => 9999.95]);
+        DB::table('product_variants')->where('id', $variant->id)->update(['compare_at_price' => 8888.95]);
+
+        foreach ([route('shop.product.show', $product), route('shop.product.show', [$product, 'variant' => $variant->id]), route('shop.index')] as $url) {
+            $this->get($url)->assertOk()
+                ->assertSee('$12.95')->assertSee('$19.95')
+                ->assertDontSee('$9,999.95')->assertDontSee('$8,888.95')
+                ->assertDontSee('compare_at_price', false)
+                ->assertDontSee('currentCompareAtPriceLabel', false);
+        }
+    }
 
     public function test_variant_sku_path_opens_the_parent_product_with_the_variant_selected(): void
     {

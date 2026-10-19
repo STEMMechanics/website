@@ -24,7 +24,7 @@ class ProductVariantUpgrade
             }
 
             $fields = [
-                'sku', 'price', 'compare_at_price', 'inventory_units', 'weight_grams',
+                'sku', 'price', 'inventory_units', 'weight_grams',
                 'length_mm', 'width_mm', 'height_mm', 'low_stock_threshold', 'low_stock_alert_sent_at',
                 'is_preorder', 'preorder_shipping_estimate', 'allow_backorder',
                 'backorder_shipping_estimate', 'backorder_shipping_estimate_type',
@@ -66,7 +66,7 @@ class ProductVariantUpgrade
                 return;
             }
             $locked->forceFill([
-                ...$original->only(['sku', 'price', 'compare_at_price', 'inventory_units', 'weight_grams', 'length_mm', 'width_mm', 'height_mm', 'low_stock_threshold', 'low_stock_alert_sent_at', 'is_preorder', 'preorder_shipping_estimate', 'allow_backorder', 'backorder_shipping_estimate', 'backorder_shipping_estimate_type', 'backorder_shipping_offset_days', 'automatic_pricing']),
+                ...$original->only(['sku', 'price', 'inventory_units', 'weight_grams', 'length_mm', 'width_mm', 'height_mm', 'low_stock_threshold', 'low_stock_alert_sent_at', 'is_preorder', 'preorder_shipping_estimate', 'allow_backorder', 'backorder_shipping_estimate', 'backorder_shipping_estimate_type', 'backorder_shipping_offset_days', 'automatic_pricing']),
                 'price' => $original->effectivePrice(),
                 'base_variant_name' => $original->name,
                 'base_variant_description' => $original->description,

@@ -188,7 +188,6 @@ class AdminShopProductTest extends TestCase
                 ],
                 'caution_message' => 'Not suitable for children under 3 years.',
                 'price' => '24.95',
-                'compare_at_price' => '29.95',
                 'inventory_quantity' => '12',
                 'shipping_units' => '1.00',
                 'min_satchel_rank' => '3',
@@ -769,7 +768,6 @@ class AdminShopProductTest extends TestCase
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
-                'compare_at_price' => '15.00',
                 'sku' => 'DIGI-PACK',
                 'private_notes' => '02/04/26 - ordered 12 from supplier',
             ])
@@ -821,7 +819,6 @@ class AdminShopProductTest extends TestCase
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
-                'compare_at_price' => '',
                 'variants' => [],
             ])
             ->assertRedirect();
@@ -1208,7 +1205,6 @@ class AdminShopProductTest extends TestCase
         $this->assertSame('Uses the base product configuration.', $product->fresh()->base_variant_description);
         $this->assertSame('Extended Kit', (string) $variant->name);
         $this->assertNull($variant->price);
-        $this->assertNull($variant->compare_at_price);
         $this->assertNull($variant->shipping_units);
         $this->assertNull($variant->weight_grams);
         $this->assertSame('39.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
@@ -1429,7 +1425,6 @@ class AdminShopProductTest extends TestCase
                         'name' => 'Rigid Large',
                         'sku' => 'RIGID-LARGE',
                         'price' => '49.95',
-                        'compare_at_price' => '59.95',
                         'inventory_quantity' => '6',
                         'shipping_units' => '2.50',
                         'min_satchel_rank' => '4',
@@ -1449,7 +1444,6 @@ class AdminShopProductTest extends TestCase
         $variant = $product->fresh()->variants()->firstOrFail();
 
         $this->assertSame('49.95', number_format((float) $variant->price, 2, '.', ''));
-        $this->assertSame('59.95', number_format((float) $variant->compare_at_price, 2, '.', ''));
         $this->assertNull($variant->shipping_units);
         $this->assertSame(900, $variant->weight_grams);
         $this->assertSame(300, $variant->length_mm);
@@ -1458,7 +1452,6 @@ class AdminShopProductTest extends TestCase
         $this->assertSame(3, $variant->low_stock_threshold);
         $this->assertSame(3, $variant->effectiveLowStockThreshold());
         $this->assertSame('49.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
-        $this->assertSame('59.95', number_format((float) $variant->effectiveCompareAtPrice(), 2, '.', ''));
         $this->assertSame(900, $variant->effectiveWeightGrams());
         $this->assertSame(300, $variant->effectiveLengthMm());
         $this->assertSame(180, $variant->effectiveWidthMm());

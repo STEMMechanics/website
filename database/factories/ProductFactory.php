@@ -34,7 +34,6 @@ class ProductFactory extends Factory
             'private_notes' => null,
             'hero_media_name' => null,
             'price' => fake()->randomFloat(2, 5, 150),
-            'compare_at_price' => null,
             'shipping_rate' => 0,
             'tax_rate' => 0.1000,
             'inventory_quantity' => null,

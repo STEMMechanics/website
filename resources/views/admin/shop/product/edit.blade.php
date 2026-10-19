@@ -127,7 +127,6 @@
                     ])->values()->all(),
                     'sku' => $variant->sku,
                     'price' => $variant->price !== null ? number_format((float) $variant->price, 2, '.', '') : '',
-                    'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
                     'unit_cost_ex_tax' => $variant->unit_cost_ex_tax,
                     'bulk_discount_percent' => $variant->bulk_discount_percent ?? '',
@@ -158,7 +157,6 @@
                 'name' => isset($product) ? $product->baseOptionName() : 'Base',
                 'description' => $product->base_variant_description ?? '', 'product_details' => [],
                 'sku' => $product->sku ?? '', 'price' => $product->price ?? '0.00',
-                'compare_at_price' => $product->compare_at_price ?? '',
                 'inventory_units' => $product->inventory_units ?? 1,
                 'inventory_quantity' => $editorSharedInventory ? '' : ($product->inventory_quantity ?? ''),
                 'unit_cost_ex_tax' => '', 'bulk_discount_percent' => '',
@@ -253,7 +251,6 @@
                 basePackedWeight: @js(old('weight_grams', $product->weight_grams ?? '')),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
                 productTaxRate: @js((float) ($product->tax_rate ?? 0.1)),
-                baseCompareAtPrice: @js(old('compare_at_price', isset($product) && $product->compare_at_price !== null ? number_format((float) $product->compare_at_price, 2, '.', '') : '')),
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
                 baseVariantName: @js(old('base_variant_name', $product->base_variant_name ?? '')),
@@ -456,7 +453,6 @@
                         product_details: [],
                         sku: '',
                         price: '',
-                        compare_at_price: '',
                         inventory_quantity: '',
                         unit_cost_ex_tax: '',
                         bulk_discount_percent: '',
@@ -886,13 +882,11 @@
                 </div>
 
                 <div class="space-y-4">
-                    <h3 class="text-sm font-semibold text-gray-900">Shared defaults and cost basis</h3>
-                    <p class="text-sm text-gray-600">Defaults apply when a variant has no override. The cost basis quantity describes the shared purchase cost or recipe; each selling pack gets one operations and time allowance.</p>
+                    <h3 class="text-sm font-semibold text-gray-900">Shared defaults</h3>
+                    <p class="text-sm text-gray-600">Defaults apply when a variant has no override. Default item costs and units are set in Purchase costs and pricing.</p>
                     <div class="product-editor__fields">
                         <x-ui.input name="sku" label="Product code" x-model="baseSku" x-on:input="handleBaseSkuInput()" :value="$product->sku ?? ''" x-bind:disabled="productType === 'material'" info="Identifies the product group. Each selling variant also has its own SKU." />
                         <x-ui.input name="price" label="Fallback selling price" labelInfo="(inc GST)" x-bind:readonly="automaticPricing" moneyFormat="true" x-model="basePrice" />
-                        <x-ui.input name="compare_at_price" label="Recommended price default" moneyFormat="true" x-model="baseCompareAtPrice" />
-                        <x-ui.input name="inventory_units" label="Cost basis quantity" type="number" min="1" step="1" x-model="basePackUnits" x-bind:disabled="!isPhysicalProduct()" info="Units covered by the shared purchase cost or recipe. Each variant sets its own units per pack." />
                         <div x-show="!sharedInventory" x-cloak>
                             <x-ui.input name="low_stock_threshold" label="Default low-stock threshold" type="number" min="1" step="1" x-model="baseLowStockThreshold" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Packs per variant. Individual variants can override this threshold." />
                         </div>

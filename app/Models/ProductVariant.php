@@ -25,7 +25,6 @@ class ProductVariant extends Model
         'product_details',
         'sku',
         'price',
-        'compare_at_price',
         'shipping_rate',
         'shipping_units',
         'inventory_quantity',
@@ -54,7 +53,6 @@ class ProductVariant extends Model
         'automatic_pricing' => 'boolean',
         'inventory_units' => 'integer',
         'price' => 'decimal:2',
-        'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
         'shipping_units' => 'decimal:3',
         'inventory_quantity' => 'integer',
@@ -148,16 +146,6 @@ class ProductVariant extends Model
         $product = $this->product;
 
         return round((float) ($this->price ?? ($product instanceof Product ? $product->price : 0)), 2);
-    }
-
-    public function effectiveCompareAtPrice(): ?float
-    {
-        $value = $this->compare_at_price;
-        if ($value === null) {
-            $value = $this->product?->compare_at_price;
-        }
-
-        return $value !== null ? round((float) $value, 2) : null;
     }
 
     public function effectiveShippingRate(): float

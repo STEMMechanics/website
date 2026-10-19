@@ -20,6 +20,7 @@ window.SM.productVariantEditor = (config = {}) => ({
             variant.editor_key = variant.id ? `saved-${variant.id}` : `new-${++this.nextVariantKey}`;
             variant.is_active = variant.is_active === true || Number(variant.is_active) === 1;
             variant.is_base = variant.is_base === true || Number(variant.is_base) === 1;
+            variant.original_option = variant.original_option === true || Number(variant.original_option) === 1;
             variant.open = !variant.id || (this.variantErrors || []).some(key => key.startsWith(`variants.${index}.`));
         });
         const selected = this.variants.find(variant => variant.is_base && variant.is_active);
@@ -37,6 +38,7 @@ window.SM.productVariantEditor = (config = {}) => ({
         return after.find(variant => variant.is_active) || null;
     },
     variantActiveChanged(variant) {
+        if (!variant.is_active) variant.open = false;
         if (variant.is_base && !variant.is_active) {
             this.selectBaseVariant(this.nextActiveVariant(variant));
         } else if (variant.is_active && !this.variants.some(row => row.is_base)) {

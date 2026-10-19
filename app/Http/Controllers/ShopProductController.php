@@ -394,7 +394,6 @@ class ShopProductController extends Controller
             'private_notes' => ['nullable', 'string'],
             'hero_media_name' => ['nullable', 'exists:media,name'],
             'price' => ['required', 'numeric', 'min:0'],
-            'compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'shared_inventory' => ['sometimes', 'boolean'],
             'inventory_units' => ['nullable', 'integer', 'min:1'],
             'inventory_quantity' => ['nullable', 'integer', 'min:0'],
@@ -419,7 +418,6 @@ class ShopProductController extends Controller
             'variants.*.product_details.*.value' => ['nullable', 'string', 'max:500'],
             'variants.*.sku' => ['nullable', 'string', 'max:120'],
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
-            'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_units' => ['nullable', 'integer', 'min:1'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
             'variants.*.unit_cost_ex_tax' => ['nullable', 'numeric', 'min:0'],
@@ -499,8 +497,11 @@ class ShopProductController extends Controller
 
         $variantRows = $validated['variants'] ?? [];
         foreach ($variantRows as &$row) {
-            if ($unified && $product->usesVariantRecords() && ! empty($row['original_option']) && empty($row['id'])) {
-                $row['id'] = $product->legacy_base_variant_id;
+            if ($unified && $product->usesVariantRecords()) {
+                if (! empty($row['original_option']) && empty($row['id'])) {
+                    $row['id'] = $product->legacy_base_variant_id;
+                }
+                $row['original_option'] = (int) ($row['id'] ?? 0) === (int) $product->legacy_base_variant_id;
             }
             if ($unified && ! $product->usesVariantRecords() && ! empty($row['original_option']) && empty($row['sku'])) {
                 $row['sku'] = $productSku;
@@ -564,7 +565,6 @@ class ShopProductController extends Controller
             'price' => $isPhysical && $request->boolean('automatic_pricing') && $product->exists
                 ? (float) $product->price
                 : round((float) $validated['price'], 2),
-            'compare_at_price' => ($validated['compare_at_price'] ?? null) !== null ? round((float) $validated['compare_at_price'], 2) : null,
             'shipping_rate' => 0,
             'tax_rate' => 0.10,
             'shared_inventory' => $isPhysical && $request->boolean('shared_inventory'),
@@ -885,7 +885,6 @@ class ShopProductController extends Controller
                         ->all()),
                     'sku' => trim((string) ($variant['sku'] ?? '')),
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
-                    'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
                     'inventory_units' => max(1, (int) ($variant['inventory_units'] ?? 1)),
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
                     'unit_cost_ex_tax' => ($variant['unit_cost_ex_tax'] ?? '') !== '' && ($variant['unit_cost_ex_tax'] ?? null) !== null ? round((float) $variant['unit_cost_ex_tax'], 4) : null,
@@ -918,7 +917,6 @@ class ShopProductController extends Controller
                     || $variant['product_details'] !== []
                     || $variant['sku'] !== ''
                     || $variant['price'] !== null
-                    || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
                     || $variant['unit_cost_ex_tax'] !== null
                     || $variant['bulk_discount_percent'] !== null
@@ -1018,7 +1016,6 @@ class ShopProductController extends Controller
             if ($isDigital || ! $variantData['automatic_pricing'] || ! $variant->exists) {
                 $variant->price = $variantData['price'];
             }
-            $variant->compare_at_price = $variantData['compare_at_price'];
             $variant->shipping_rate = null;
             $variant->shipping_units = null;
             $variant->inventory_units = $variantData['inventory_units'];

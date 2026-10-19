@@ -89,7 +89,6 @@ class Product extends Model
         'private_notes',
         'hero_media_name',
         'price',
-        'compare_at_price',
         'shipping_rate',
         'tax_rate',
         'inventory_quantity',
@@ -127,7 +126,6 @@ class Product extends Model
         'shared_inventory' => 'boolean',
         'inventory_units' => 'integer',
         'price' => 'decimal:2',
-        'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
         'tax_rate' => 'decimal:4',
         'is_preorder' => 'boolean',
@@ -508,15 +506,6 @@ class Product extends Model
         return $variant instanceof ProductVariant
             ? $variant->effectivePrice()
             : round((float) $this->price, 2);
-    }
-
-    public function compareAtPriceForVariant(?ProductVariant $variant = null): ?float
-    {
-        if ($variant instanceof ProductVariant) {
-            return $variant->effectiveCompareAtPrice();
-        }
-
-        return $this->compare_at_price !== null ? round((float) $this->compare_at_price, 2) : null;
     }
 
     public function shippingUnitsForVariant(?ProductVariant $variant = null): float

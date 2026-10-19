@@ -631,12 +631,19 @@ class ProductRecipeService
         }
         $this->reset();
         if ($product->automatic_pricing && empty($previousAutomaticPricing['base']) && $this->suggestedPrice($product) === null) {
-            throw ValidationException::withMessages(['automatic_pricing' => 'Add valid purchase costs for every recipe item before enabling automatic pricing.']);
+            $help = $data['recipe'] !== []
+                ? 'Add purchase costs to every item in the kit recipe.'
+                : 'Enter a Default item cost or tag a purchase expense to this product.';
+            throw ValidationException::withMessages(['automatic_pricing' => 'Automatic pricing for the fallback price needs purchase costs. '.$help]);
         }
         foreach ($savedVariants as $index => $variant) {
             if ($variant->automatic_pricing && ! in_array((int) $variant->id, $previousAutomaticPricing['variants'] ?? [], true)
                 && $this->suggestedPrice($product, $variant) === null) {
-                throw ValidationException::withMessages(['variants.'.$index.'.automatic_pricing' => 'Add valid purchase costs for this variant before enabling automatic pricing.']);
+                $label = '"'.$variant->name.'"'.($variant->sku ? ' ('.$variant->sku.')' : '');
+                $help = $data['recipe'] !== []
+                    ? 'Add purchase costs to every item in the kit recipe.'
+                    : 'Enter a purchase cost for this variant or a Default item cost, or tag a purchase expense to this product.';
+                throw ValidationException::withMessages(['variants.'.$index.'.automatic_pricing' => 'Automatic pricing for '.$label.' needs purchase costs. '.$help]);
             }
         }
         $this->refreshPrices();
