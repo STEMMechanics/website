@@ -265,6 +265,19 @@ if (isset($workshop)) {
             ticketGroupRaw: @js(old('ticket_group_slug', $workshopModel?->ticket_group_slug ?? '')),
             manualStartsAt: @js($workshopStartValue),
             manualEndsAt: @js($workshopEndValue),
+            updatedStartsAt(value) {
+                this.manualStartsAt = value;
+                const startsAt = new Date(value);
+                if (!this.manualEndsAt && Number.isFinite(startsAt.getTime())) {
+                    startsAt.setHours(startsAt.getHours() + 1);
+                    this.manualEndsAt = SM.toLocalISOString(startsAt);
+                }
+                this.$nextTick(() => syncWorkshopClosesAt(true));
+            },
+            updatedEndsAt(value) {
+                this.manualEndsAt = value;
+                this.$nextTick(() => syncWorkshopClosesAt(!isStemcraftWorkshopType()));
+            },
             originalCourseSessions: @js($workshopModel?->course_sessions ?? []),
             originalFormat: @js($workshopModel?->format ?? 'workshop'),
             originalStartsAt: @js(isset($workshopModel) ? $workshopStartValue : ''),
@@ -817,7 +830,7 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" novalidate x-init="initLocationSelection(); initCourseSchedule()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" novalidate x-init="initLocationSelection(); initCourseSchedule(); updatedStartsAt(manualStartsAt)" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
@@ -917,14 +930,21 @@ if (isset($workshop)) {
                         contactSearch: @js($selectedContactLabel),
                         contactResults: [],
                         contactSearching: false,
+                        contactSearchOpen: false,
+                        contactSelectedIndex: -1,
                         hostId: @js((string) old('hosted_for_organisation_id', $workshopModel?->hosted_for_organisation_id ?? '')),
                         hostSearch: @js($selectedHostLabel),
                         hostResults: [],
                         hostSearching: false,
                         contactSequence: 0,
                         hostSequence: 0,
-                        async findContacts() {
+                        editContact() {
+                            this.closeContacts();
                             this.contactId = '';
+                            this.contactSearchOpen = true;
+                        },
+                        async findContacts() {
+                            if (!this.contactSearchOpen) return;
                             const term = this.contactSearch.trim();
                             const sequence = ++this.contactSequence;
                             if (term.length < 2) { this.contactResults = []; return; }
@@ -935,7 +955,10 @@ if (isset($workshop)) {
                                 url.searchParams.set('include_ghost', '1');
                                 const response = await fetch(url, { headers: { Accept: 'application/json' } });
                                 const data = response.ok ? await response.json() : { users: [] };
-                                if (sequence === this.contactSequence) this.contactResults = data.users || [];
+                                if (sequence === this.contactSequence) {
+                                    this.contactResults = data.users || [];
+                                    this.contactSelectedIndex = -1;
+                                }
                             } finally {
                                 if (sequence === this.contactSequence) this.contactSearching = false;
                             }
@@ -943,7 +966,7 @@ if (isset($workshop)) {
                         chooseContact(contact) {
                             this.contactId = contact.id;
                             this.contactSearch = `${contact.name} · ${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`;
-                            this.contactResults = [];
+                            this.closeContacts();
                             if (!this.hostId && contact.organisation_id) {
                                 this.hostId = contact.organisation_id;
                                 this.hostSearch = contact.organisation_name;
@@ -952,7 +975,26 @@ if (isset($workshop)) {
                         clearContact() {
                             this.contactId = '';
                             this.contactSearch = '';
+                            this.closeContacts();
+                        },
+                        moveContact(step) {
+                            if (this.contactSearching || this.contactResults.length === 0) return;
+                            this.contactSelectedIndex = this.contactSelectedIndex < 0
+                                ? (step > 0 ? 0 : this.contactResults.length - 1)
+                                : (this.contactSelectedIndex + step + this.contactResults.length) % this.contactResults.length;
+                            this.$nextTick(() => this.$refs.contactResults?.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'nearest' }));
+                        },
+                        confirmContact() {
+                            if (!this.contactSearching && this.contactResults[this.contactSelectedIndex]) {
+                                this.chooseContact(this.contactResults[this.contactSelectedIndex]);
+                            }
+                        },
+                        closeContacts() {
+                            ++this.contactSequence;
                             this.contactResults = [];
+                            this.contactSelectedIndex = -1;
+                            this.contactSearchOpen = false;
+                            this.contactSearching = false;
                         },
                         async findHosts() {
                             this.hostId = '';
@@ -982,15 +1024,18 @@ if (isset($workshop)) {
                         },
                     }"
                 >
-                    <div class="relative mb-4 flex-1" x-on:click.outside="contactResults = []">
+                    <div class="relative mb-4 flex-1" x-on:click.outside="closeContacts()">
                         <input type="hidden" name="requested_by_user_id" :value="contactId">
                         <label for="requested_by_user_search" class="mb-1 block pl-1 text-sm">Requested by / Contact</label>
                         <div class="flex gap-2">
-                            <x-ui.input-control id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input.debounce.350ms="findContacts()" autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
+                            <x-ui.input-control id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input="editContact()" x-on:input.debounce.350ms="findContacts()"
+                                x-on:keydown.down.prevent="moveContact(1)" x-on:keydown.up.prevent="moveContact(-1)" x-on:keydown.enter.prevent.stop="confirmContact()" x-on:keydown.escape.prevent.stop="closeContacts()" x-on:keydown.tab="closeContacts()"
+                                role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="requested_by_user_results" x-bind:aria-expanded="contactSearchOpen && !contactSearching && contactResults.length > 0" x-bind:aria-activedescendant="contactResults[contactSelectedIndex] ? 'requested_by_user_option_' + contactResults[contactSelectedIndex].id : null"
+                                autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
                         </div>
-                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearch.trim().length >= 2 && !contactSearching && contactResults.length > 0" x-cloak>
-                            <template x-for="contact in contactResults" :key="contact.id">
-                                <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseContact(contact)">
+                        <div id="requested_by_user_results" x-ref="contactResults" role="listbox" aria-label="Matching contacts" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearchOpen && !contactSearching && contactResults.length > 0" x-cloak>
+                            <template x-for="(contact, contactIndex) in contactResults" :key="contact.id">
+                                <x-ui.button variant="plain" type="button" role="option" tabindex="-1" x-bind:id="'requested_by_user_option_' + contact.id" x-bind:aria-selected="contactSelectedIndex === contactIndex" x-bind:class="contactSelectedIndex === contactIndex ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="contactSelectedIndex = contactIndex" x-on:mousedown.prevent x-on:click="chooseContact(contact)">
                                     <span class="block text-gray-900" x-text="contact.name"></span>
                                     <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
                                 </x-ui.button>
@@ -1065,10 +1110,9 @@ if (isset($workshop)) {
                             label="Start Date"
                             name="starts_at"
                             value="{{ $workshopStartValue }}"
-                            x-on:change="updatedStartsAt()"
-                            x-ref="startsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
-                            x-on:input="manualStartsAt = $event.target.value"
                             x-on:change="manualStartsAt = $event.target.value"
+                            x-ref="startsAt" x-on:blur="updatedStartsAt($event.target.value); $dispatch('workshop-pricing-changed')"
+                            x-on:input="manualStartsAt = $event.target.value"
                             x-bind:value="manualStartsAt"
                         />
                     </div>
@@ -1078,10 +1122,9 @@ if (isset($workshop)) {
                             label="End Date"
                             name="ends_at"
                             value="{{ $workshopEndValue }}"
-                            x-on:change="updatedEndsAt()"
+                            x-on:change="updatedEndsAt($event.target.value)"
                             x-ref="endsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
                             x-on:input="manualEndsAt = $event.target.value"
-                            x-on:change="manualEndsAt = $event.target.value"
                             x-bind:value="manualEndsAt"
                         />
                     </div>
@@ -1869,6 +1912,21 @@ if (isset($workshop)) {
                         <h2 class="text-lg font-semibold text-gray-950">Review and publish</h2>
                         <p class="mt-1 text-sm text-gray-600">Check the workshop details, then save. You can return to any step before saving.</p>
                     </div>
+                    <div class="mb-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-ui.select label="Status" name="status" x-model="status">
+                                <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
+                                <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
+                                <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
+                                <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
+                                <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
+                                <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </x-ui.select>
+                        </div>
+                        <div>
+                            <x-ui.input x-data type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" x-on:change="updatedPublishAt()" />
+                        </div>
+                    </div>
                     <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div class="rounded-lg bg-gray-50 p-3">
                             <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Workshop</dt>
@@ -1908,21 +1966,6 @@ if (isset($workshop)) {
                         </div>
                     </dl>
 
-                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <x-ui.select label="Status" name="status" x-model="status">
-                                <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
-                                <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
-                                <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
-                                <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
-                                <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
-                                <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </x-ui.select>
-                        </div>
-                        <div>
-                            <x-ui.input x-data type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" x-on:change="updatedPublishAt()" />
-                        </div>
-                    </div>
                     @isset($workshop)
                         <div class="mt-4">
                             <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
@@ -1993,25 +2036,9 @@ if (isset($workshop)) {
         }
 
         let closesAt = new Date(startsAtElement.value);
+        if (!Number.isFinite(closesAt.getTime())) return;
         closesAt.setHours(closesAt.getHours() - 2);
         closesAtElement.value = SM.toLocalISOString(closesAt);
-    }
-
-    function updatedStartsAt() {
-        const startsAt = document.getElementsByName('starts_at')[0].value;
-
-        const elemEndsAt = document.getElementsByName('ends_at')[0];
-        if (elemEndsAt.value === '') {
-            let endsAt = new Date(startsAt);
-            endsAt.setHours(endsAt.getHours() + 1);
-            document.getElementsByName('ends_at')[0].value = SM.toLocalISOString(endsAt);
-        }
-
-        syncWorkshopClosesAt();
-    }
-
-    function updatedEndsAt() {
-        syncWorkshopClosesAt();
     }
 
     function updatedPublishAt() {

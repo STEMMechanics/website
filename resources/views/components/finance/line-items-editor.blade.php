@@ -29,7 +29,7 @@
                         <x-finance.line-type-picker />
                         </div>
                     </td>
-                    <td data-label="HRS / QTY"><div class="relative"><x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats" x-on:input="if (item.kind === 'travel') { item.travel_hours = item.quantity; SM.updateWorkshopLine(item); } serializeLineItems()" /><x-finance.line-refresh /></div></td>
+                    <td data-label="HRS / QTY"><x-finance.line-quantity /></td>
                     <td data-label="Unit price (inc GST)"><div class="relative"><span class="pointer-events-none absolute left-2 top-3">$</span><x-ui.input-control aria-label="Unit price including GST" type="number" step="any" class="h-11 pl-6! pr-11!" x-model="item.unit_price_inc_tax" x-on:input="item.auto_pricing = false; delete item.details_json.inclusive_unit_price; serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" /><x-finance.line-refresh :price="true" /></div></td>
                     <td data-label="GST" class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     <td data-label="Total (inc GST)" class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></td>
@@ -107,7 +107,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="mb-1 block text-sm">HRS / QTY</label>
-                                <div class="relative"><x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-bind:readonly="item.kind === 'multi_workshop' || item.kind === 'workshop' &amp;&amp; !!item.workshop_hours &amp;&amp; !!item.workshop_seats" x-on:input="if (item.kind === 'travel') { item.travel_hours = item.quantity; SM.updateWorkshopLine(item); } serializeLineItems()" /><x-finance.line-refresh /></div>
+                                <x-finance.line-quantity />
                             </div>
                             <div>
                                 <label class="mb-1 block text-sm">Unit price (inc GST)</label>
