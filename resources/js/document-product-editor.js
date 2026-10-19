@@ -6,6 +6,9 @@ window.SM.lineItemsEditor = (isLocked = false) => {
 
     return {
         mobileLineItemIndex: null,
+        quantityIsCalculated(item) {
+            return item.kind === 'multi_workshop' || (item.kind === 'workshop' && !!item.workshop_hours && !!item.workshop_seats);
+        },
         lineItemKey(item) {
             if (!itemKeys.has(item)) itemKeys.set(item, ++nextItemKey);
             return itemKeys.get(item);
