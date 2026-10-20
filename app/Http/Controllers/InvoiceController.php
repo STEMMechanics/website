@@ -2587,15 +2587,14 @@ class InvoiceController extends Controller
 
     private function normalizeLineItem(array $item, ?array $saved = null): ?array
     {
+        $taxRate = \App\Services\Finance\GstRate::forLine($item, $saved ? \App\Services\Finance\GstRate::forLine($saved) : \App\Services\Finance\GstRate::current());
+        $item['tax_rate'] = $taxRate;
         $item = WorkshopLine::normalize($item);
         $description = trim((string) ($item['description'] ?? ''));
         $notes = trim((string) ($item['notes'] ?? ''));
         $kind = trim((string) ($item['kind'] ?? 'generic')) ?: 'generic';
         $quantity = (float) ($item['quantity'] ?? $item['qty'] ?? 0);
         $unitPriceExTax = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
-        $taxRate = array_key_exists('tax_rate', $item)
-            ? (float) $item['tax_rate']
-            : (filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN) ? 0.10 : 0.00);
 
         if (! in_array($kind, ['product', 'workshop', 'multi_workshop'], true) && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
             return null;

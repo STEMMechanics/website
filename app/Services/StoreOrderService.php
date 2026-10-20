@@ -282,7 +282,7 @@ class StoreOrderService
                 $fulfilment = $this->resolveFulfilment($product, $quantity, $actualInventory, $variant);
                 $displayTitle = trim((string) ($lineItem['description'] ?? '')) ?: $product->displayTitle($variant);
                 $unitPriceExTax = round((float) ($lineItem['unit_price'] ?? 0), 2);
-                $taxRate = ($lineItem['gst_applicable'] ?? true) === true ? 0.10 : 0.00;
+                $taxRate = \App\Services\Finance\GstRate::forLine($lineItem);
                 $lineTotalExTax = round((float) ($lineItem['line_total'] ?? ($unitPriceExTax * $quantity)), 2);
 
                 $reservationLine = (object) [
@@ -2854,7 +2854,7 @@ class StoreOrderService
         $firstPhysicalLine = $lines->first(fn ($line) => $line->product->isPhysical());
         $shippingTaxRate = is_object($firstPhysicalLine) && isset($firstPhysicalLine->tax_rate)
             ? (float) $firstPhysicalLine->tax_rate
-            : 0.1;
+            : \App\Services\Finance\GstRate::current();
         $shippingBreakdown = $this->inclusiveBreakdown($shipping, $shippingTaxRate);
         $shippingGst = round((float) $shippingBreakdown['tax_amount'], 2);
         $discountTaxRate = (string) ($couponEvaluation['discount_type'] ?? '') === Coupon::DISCOUNT_TYPE_FREE_SHIPPING
@@ -4198,6 +4198,7 @@ class StoreOrderService
                 'unit_price' => $unitBreakdown['unit_ex_tax'],
                 'line_total' => $lineBreakdown['line_ex_tax'],
                 'gst_applicable' => $taxRate > 0,
+                'tax_rate' => $taxRate,
                 'source_id' => (int) ($line->product->id ?? 0),
                 'source_variant_id' => $variantId,
                 'product_title' => (string) ($line->product->title ?? ''),
@@ -4248,6 +4249,7 @@ class StoreOrderService
                 'unit_price' => $discountBreakdown['unit_ex_tax'],
                 'line_total' => $discountBreakdown['line_ex_tax'],
                 'gst_applicable' => ((float) ($totals['discount_tax_rate'] ?? 0)) > 0,
+                'tax_rate' => (float) ($totals['discount_tax_rate'] ?? 0),
             ];
         }
 
@@ -4279,7 +4281,7 @@ class StoreOrderService
                 return 0.0;
             }
 
-            return ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
+            return ((float) ($lineItem['line_total'] ?? 0)) * \App\Services\Finance\GstRate::forLine($lineItem);
         }), 2);
     }
 

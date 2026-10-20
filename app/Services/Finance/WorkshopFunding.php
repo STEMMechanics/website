@@ -73,6 +73,7 @@ class WorkshopFunding
 
         return [
             'funding_line_id' => $line->id,
+            'tax_rate' => (float) $line->tax_rate,
             'allocation_basis' => $basis,
             'participants' => match ($basis) {
                 'capacity' => (int) $workshop->max_tickets,

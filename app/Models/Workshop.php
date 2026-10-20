@@ -23,7 +23,17 @@ use Illuminate\Support\Str;
  */
 class Workshop extends Model
 {
-    use HasFactory, HasFiles, Slug;
+    use HasFactory, HasFiles, Slug, \App\Traits\HasGstPrices;
+
+    public function getEarlyBirdPriceAttribute(mixed $value): mixed
+    {
+        return $this->gstPrice('early_bird_price', $value);
+    }
+
+    public function setEarlyBirdPriceAttribute(mixed $value): void
+    {
+        $this->setGstPrice('early_bird_price', $value);
+    }
 
     public const PARTICIPANT_ATTACHMENT_COLLECTION = 'participant_attachments';
 

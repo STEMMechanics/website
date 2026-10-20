@@ -38,10 +38,12 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
 function applyPlanPrice(item, plan, inclusive) {
     if (!plan || !item.auto_pricing || !(Number(item.quantity) > 0)) return;
     const taxed = item.gst_applicable !== false;
+    item.tax_rate = taxed ? window.SM.currentGstRate() : 0;
+    const multiplier = 1 + item.tax_rate;
     let ex;
     if (item.kind === 'travel') {
         const travelRules = (plan.rules || []).filter(rule => rule.basis === 'travel');
-        ex = travelRules.length ? travelRules.reduce((sum, rule) => sum + Number(rule.rate_cents), 0) : Number(plan.travel_cents) / (taxed ? 1.1 : 1);
+        ex = travelRules.length ? travelRules.reduce((sum, rule) => sum + Number(rule.rate_cents), 0) : Number(plan.travel_cents) / multiplier;
         ex = Math.max(0, ex - (plan.rules || []).filter(rule => rule.basis === 'travel' && rule.suppliable && item.supplied_categories?.[rule.category_id]).reduce((total, rule) => total + Number(rule.rate_cents), 0));
     } else {
         const participants = Number(plan.pricing_participants || 10);
@@ -58,17 +60,17 @@ function applyPlanPrice(item, plan, inclusive) {
     if (!Number.isFinite(ex) || ex < 0) return;
     if (item.kind === 'travel' && item.travel_hours !== '' && item.travel_hours != null) {
         const unitStep = Number(plan.travel_rounding_step || 0);
-        const unitGross = ex * (taxed ? 1.1 : 1);
-        ex = (unitStep > 0 ? Math.ceil((unitGross - 0.000001) / unitStep) * unitStep / (taxed ? 1.1 : 1) : ex) * 4;
+        const unitGross = ex * multiplier;
+        ex = (unitStep > 0 ? Math.ceil((unitGross - 0.000001) / unitStep) * unitStep / multiplier : ex) * 4;
     }
-    let grossCents = ex * (taxed ? 1.1 : 1);
+    let grossCents = ex * multiplier;
     const step = Number((item.kind === 'workshop' ? plan.rounding_step : plan.travel_rounding_step) || 0);
     if (step > 0) grossCents = Math.ceil((grossCents - 0.000001) / step) * step;
     const cleanPricing = inclusive && plan.clean_prices;
     const gross = cleanPricing ? grossCents / 100 : Number((grossCents / 100).toFixed(2));
     if (step > 0 || inclusive) item.details_json = { ...(item.details_json || {}), inclusive_unit_price: gross };
     else if (item.details_json) delete item.details_json.inclusive_unit_price;
-    const value = cleanPricing ? String(gross) : (inclusive ? gross : step > 0 ? gross / (taxed ? 1.1 : 1) : ex / 100).toFixed(2);
+    const value = cleanPricing ? String(gross) : (inclusive ? gross : step > 0 ? gross / multiplier : ex / 100).toFixed(2);
     item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = value;
     if (cleanPricing) {
         delete item.details_json.price_rounding;
@@ -77,6 +79,28 @@ function applyPlanPrice(item, plan, inclusive) {
     }
 }
 window.SM = window.SM || {};
+window.SM.currentGstRate = () => Number(typeof document !== 'undefined' ? document.querySelector?.('meta[name="gst-rate"]')?.content ?? 0.10 : 0.10);
+window.SM.lineTaxRate = item => item.gst_applicable === false ? 0 : Number(item.tax_rate ?? window.SM.currentGstRate());
+window.SM.gstRateForDate = date => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return window.SM.currentGstRate();
+    const schedule = JSON.parse(typeof document !== 'undefined' ? document.querySelector?.('meta[name="gst-rates"]')?.content || '[]' : '[]');
+    return schedule.reduce((rate, entry) => entry.effective_from <= date ? Number(entry.rate) : rate, 0.10);
+};
+window.SM.applyCurrentGst = item => {
+    if (item.gst_applicable === false || window.SM.lineTaxRate(item) === 0) return;
+    const netUnit = Number(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? 0) / (1 + window.SM.lineTaxRate(item));
+    item.tax_rate = window.SM.currentGstRate();
+    item.unit_price = netUnit;
+    item.unit_price_ex_tax = netUnit;
+    item.unit_price_inc_tax = window.SM.formatUnitPrice(netUnit * (1 + item.tax_rate));
+    item.details_json ??= {};
+    item.details_json.inclusive_unit_price = Number(item.unit_price_inc_tax);
+    delete item.details_json.price_rounding;
+    item.saved_pricing = null;
+    item.auto_pricing = false;
+    window.SM.roundWorkshopPrice(item);
+};
+window.SM.changeLineGst = item => { item.tax_rate = item.gst_applicable === false ? 0 : window.SM.currentGstRate(); };
 window.SM.updateWorkshopLine = updateWorkshopLine;
 // PHP encodes empty maps as []; numeric category keys must not create sparse arrays.
 window.SM.suppliedCategoryMap = supplied => Object.fromEntries(Object.entries(supplied || {}).filter(([, value]) => value != null));
@@ -96,7 +120,7 @@ window.SM.refreshLinePrice = item => {
 const moneyRound = value => Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * 100) / 100;
 
 // A clean rate has exact cent values before/after GST and for the billable quantity.
-window.SM.cleanPriceQuote = (inclusive, quantity, taxRate = 0.1) => {
+window.SM.cleanPriceQuote = (inclusive, quantity, taxRate = window.SM.currentGstRate()) => {
     inclusive = Number(inclusive);
     quantity = Number(quantity);
     taxRate = Number(taxRate);
@@ -134,7 +158,8 @@ window.SM.cleanPriceQuote = (inclusive, quantity, taxRate = 0.1) => {
 window.SM.priceRoundingForLine = item => {
     if (!item || !['workshop', 'multi_workshop', 'travel'].includes(item.kind)) return null;
     const inclusive = Number(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? 0);
-    const taxRate = item.gst_applicable !== false ? Number(item.tax_rate ?? 0.1) : 0;
+    const taxRate = window.SM.lineTaxRate(item);
+    if (taxRate > 0 && Math.abs(taxRate - window.SM.currentGstRate()) > 0.00000001) return null;
     const quote = window.SM.cleanPriceQuote(inclusive, item.quantity, taxRate);
     if (!quote) return null;
     const saved = item.details_json?.price_rounding;
@@ -143,7 +168,7 @@ window.SM.priceRoundingForLine = item => {
     return { ...quote, original: original.current, adjusted: Math.abs(requested - inclusive) > 0.00000001, amounts: window.SM.lineAmounts(item) };
 };
 window.SM.applyCleanPrice = (item, inclusive, requested = null, automatic = false) => {
-    const taxRate = item.gst_applicable !== false ? Number(item.tax_rate ?? 0.1) : 0;
+    const taxRate = window.SM.lineTaxRate(item);
     const quote = window.SM.cleanPriceQuote(inclusive, item.quantity, taxRate);
     if (!quote) return;
     const selected = quote.suggested;
@@ -173,7 +198,7 @@ window.SM.priceRoundingSummary = items => {
     };
 };
 window.SM.lineAmounts = item => {
-    const qty = Number(item.quantity || 0), rate = item.gst_applicable !== false ? Number(item.tax_rate || 0.1) : 0;
+    const qty = Number(item.quantity || 0), rate = window.SM.lineTaxRate(item);
     const inclusive = item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price;
     const saved = item.saved_pricing;
     if (saved && qty === Number(saved.quantity) && Math.abs(Number(inclusive) - Number(saved.price)) < 0.0000001 && rate === Number(saved.rate)) return { net: saved.net, tax: saved.tax, gross: saved.gross ?? moneyRound(saved.net + saved.tax), saved: true };
@@ -189,7 +214,7 @@ window.SM.suggestTicketPrice = (plan, hours, seats, venueSupplied = false) => {
         const units = { workshop: 1, hour: hours, participant: seats, venue_hour: venueSupplied ? 0 : hours, travel: 0 }[rule.basis] ?? 0;
         return total + Math.round(rule.rate_cents * units);
     }, 0);
-    const raw = costs * 1.1 / seats, step = Number(plan.rounding_step || 1);
+    const raw = costs * (1 + window.SM.currentGstRate()) / seats, step = Number(plan.rounding_step || 1);
     return (Math.ceil((raw - 0.000001) / step) * step / 100).toFixed(2);
 };
 
@@ -259,7 +284,7 @@ window.SM.invoiceRoundingAllowance = (items, rules, prices) => window.SM.expandW
     const reference = item.kind === 'workshop' ? { ...item, workshop_seats: participants } : item;
     const referenceCost = Object.values(window.SM.lineCostAllocations([reference], rules)).reduce((total, cents) => total + cents, 0);
     const cost = item.kind === 'workshop' ? referenceCost * Number(item.workshop_seats) / participants : referenceCost;
-    const net = window.SM.lineAmounts(priced).gross / (item.gst_applicable === false ? 1 : 1.1) * 100;
+    const net = window.SM.lineAmounts(priced).gross / (1 + window.SM.lineTaxRate(item)) * 100;
     return sum + Math.max(0, Math.round(net - cost));
 }, 0);
 
@@ -386,7 +411,7 @@ function updateMultipleWorkshops(item, plan, inclusive) {
     const quantity = Math.round(item.workshops.reduce((sum, row) => sum + Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0), 0) * 100) / 100;
     if (quantity > 0 && Number(item.quantity) === 1 && item.details_json?.multi_workshop && !item.details_json.multi_workshop.quantity_basis) {
         if (item.details_json.inclusive_unit_price == null) {
-            const amount = window.SM.lineAmounts(inclusive ? { ...item, unit_price: Number(item.unit_price_inc_tax || 0) / (item.gst_applicable === false ? 1 : 1.1) } : item);
+            const amount = window.SM.lineAmounts(inclusive ? { ...item, unit_price: Number(item.unit_price_inc_tax || 0) / (1 + window.SM.lineTaxRate(item)) } : item);
             item.details_json.inclusive_unit_price = Math.round((amount.net + amount.tax) * 100) / 100;
         }
         for (const field of ['unit_price', 'unit_price_inc_tax']) {
@@ -406,9 +431,10 @@ function updateMultipleWorkshops(item, plan, inclusive) {
         const amounts = window.SM.lineAmounts(priced);
         gross += Math.round((amounts.net + amounts.tax) * 100);
     }
+    item.tax_rate = item.gst_applicable === false ? 0 : window.SM.currentGstRate();
     item.details_json.inclusive_unit_price = gross / 100 / quantity;
     item.details_json.pricing_basis = { participants: Number(plan.pricing_participants || 10) };
-    item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive ? formatUnitPrice(gross / 100 / quantity) : (gross / 100 / quantity / (item.gst_applicable === false ? 1 : 1.1)).toFixed(2);
+    item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive ? formatUnitPrice(gross / 100 / quantity) : (gross / 100 / quantity / (1 + window.SM.lineTaxRate(item))).toFixed(2);
     if (inclusive && plan.clean_prices) {
         // Keep the exact combined rate until the clean-price calculation rounds up.
         item.unit_price_inc_tax = String(gross / 100 / quantity);

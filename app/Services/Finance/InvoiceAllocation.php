@@ -57,7 +57,7 @@ class InvoiceAllocation
             $date = $workshop->starts_at->toDateString();
         }
         $version = PricingVersion::forDate($date, $budget ? (int) $budget->pricing_version_id : ($versionId ?? $workshop?->pricing_version_id));
-        $assumptions = $budget ? $planner->decode($budget->assumptions) : ['participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? $workshop->teachingHours() : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
+        $assumptions = $budget ? $planner->decode($budget->assumptions) : ['tax_rate' => GstRate::forLine($invoice->lines->first() ?? [], $invoice->exists ? GstRate::LEGACY : GstRate::current()), 'participants' => $workshop ? Ticket::where('workshop_id', $workshopId)->whereIn('status', [Ticket::STATUS_PAID, Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])->count() : 0, 'hours' => $workshop ? $workshop->teachingHours() : 0, 'travel_minutes' => 0, 'venue_supplied' => false];
         if ($supplied !== null && $workshop) {
             $assumptions['supplied_categories'] = $supplied;
         }
@@ -84,7 +84,7 @@ class InvoiceAllocation
 
                         continue;
                     }
-                    $inputs = ['participants' => (int) $details['seats'], 'hours' => (float) $details['hours'], 'venue_supplied' => (bool) ($details['venue_supplied'] ?? true), 'travel_minutes' => 0, 'supplied_categories' => $details['supplied_categories'] ?? [], 'gst_applicable' => (float) $line->tax_rate > 0];
+                    $inputs = ['participants' => (int) $details['seats'], 'hours' => (float) $details['hours'], 'venue_supplied' => (bool) ($details['venue_supplied'] ?? true), 'travel_minutes' => 0, 'supplied_categories' => $details['supplied_categories'] ?? [], 'tax_rate' => (float) $line->tax_rate, 'gst_applicable' => (float) $line->tax_rate > 0];
                     if (isset($line->details_json['pricing_basis']['participants'])) {
                         $inputs['pricing_participants'] = max(1, min(10000, (int) $line->details_json['pricing_basis']['participants']));
                     }
@@ -99,7 +99,7 @@ class InvoiceAllocation
 
                         continue;
                     }
-                    $assumptions['lines'][] = ['kind' => 'travel', 'units' => (int) $units, 'gst_applicable' => (float) $line->tax_rate > 0, 'supplied_categories' => $line->details_json['travel']['supplied_categories'] ?? []];
+                    $assumptions['lines'][] = ['kind' => 'travel', 'units' => (int) $units, 'tax_rate' => (float) $line->tax_rate, 'gst_applicable' => (float) $line->tax_rate > 0, 'supplied_categories' => $line->details_json['travel']['supplied_categories'] ?? []];
                     foreach ($rules as $rule) {
                         if ($rule['basis'] === 'travel') {
                             $id = $rule['category_id'];

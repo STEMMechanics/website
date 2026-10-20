@@ -564,7 +564,8 @@
             }
 
             totalInput.value = total.toFixed(2);
-            const gst = Math.round((total / 11) * 100) / 100;
+            const rate = window.SM.gstRateForDate(document.querySelector('[name="paid_on"]')?.value);
+            const gst = Math.round((total - total / (1 + rate)) * 100) / 100;
             gstInput.value = gst.toFixed(2);
             gstInput.dispatchEvent(new Event('input', { bubbles: true }));
         };

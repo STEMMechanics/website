@@ -250,7 +250,7 @@
                 basePackedHeight: @js(old('height_mm', $product->height_mm ?? '')),
                 basePackedWeight: @js(old('weight_grams', $product->weight_grams ?? '')),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
-                productTaxRate: @js((float) ($product->tax_rate ?? 0.1)),
+                productTaxRate: @js((float) ($product->tax_rate ?? \App\Services\Finance\GstRate::current())),
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
                 baseVariantName: @js(old('base_variant_name', $product->base_variant_name ?? '')),

@@ -4,7 +4,7 @@
     $lineItemsWrapperClass = $useMobileEditor ? 'sm-invoice-line-items' : '';
     $lineItemsTableClass = $invoiceLayout ? 'sm-invoice-line-items-table min-w-[44rem] w-full' : 'min-w-[44rem] w-full';
 @endphp
-<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }})" x-init="if (!isLocked) lineItems.forEach(item => SM.initializeWorkshopText(item)); serializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()">
+<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }})" x-init="if (!isLocked) lineItems.forEach(item => SM.initializeWorkshopText(item)); serializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()" x-on:apply-current-gst.window="applyCurrentGst()">
     <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-bold text-lg">Line Items</h3>
     </div>
@@ -31,7 +31,7 @@
                     </td>
                     <td data-label="HRS / QTY"><x-finance.line-quantity /></td>
                     <td data-label="Unit price (inc GST)"><x-finance.unit-price-field /></td>
-                    <td data-label="GST" class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></td>
+                    <td data-label="GST" class="text-center"><x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.changeLineGst(item); SM.updateWorkshopLine(item); serializeLineItems()" /></td>
                     <td data-label="Total (inc GST)" class="text-center whitespace-nowrap font-semibold">$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></td>
                     <td data-label="Actions" data-mobile-actions class="text-center">
                         @if(! $isLocked)
@@ -115,7 +115,7 @@
                             </div>
                             <div>
                                 <label class="mb-1 block text-sm">GST</label>
-                                <x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" />
+                                <x-ui.checkbox :bare="true" :small="true" aria-label="GST applies" x-model="item.gst_applicable" x-on:change="SM.changeLineGst(item); SM.updateWorkshopLine(item); serializeLineItems()" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-sm">Total (inc GST)</label>

@@ -21,7 +21,7 @@ class SponsorshipTaxService
             ? self::TAXABLE
             : ($exportEnabled && $nonResidentDeclaration ? self::GST_FREE_EXPORT : self::NO_GST);
         $rate = $treatment === self::TAXABLE
-            ? max(0, (float) SiteOption::value('finance.gst-rate', '0.10'))
+            ? GstRate::current()
             : 0.0;
         $gst = $rate > 0 ? round($total - ($total / (1 + $rate)), 2) : 0.0;
         $subtotal = round($total - $gst, 2);

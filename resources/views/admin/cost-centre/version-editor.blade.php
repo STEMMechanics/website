@@ -66,7 +66,7 @@
                     <p class="text-xs text-slate-600">Actual cost / participant</p>
                     <p class="flex gap-3 text-sm">
                         <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant)"></strong> <span class="text-xs">ex GST</span></span>
-                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * 1.1)"></span> <span class="text-xs">inc GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * (1 + SM.currentGstRate()))"></span> <span class="text-xs">inc GST</span></span>
                     </p>
                 </div>
                 <div class="min-w-0">

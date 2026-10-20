@@ -16,7 +16,7 @@ class DocumentTravelFooter
         foreach ($items as $item) {
             if (($item['kind'] ?? '') !== 'travel') continue;
             $details = $item['details_json'] ?? [];
-            $tax = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
+            $tax = GstRate::forLine($item);
             $rate = isset($details['inclusive_unit_price'])
                 ? (float) $details['inclusive_unit_price'] / (1 + $tax)
                 : (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
@@ -31,10 +31,11 @@ class DocumentTravelFooter
                 $rules = array_filter(json_decode($plan->rules, true), fn ($rule) => $rule['basis'] === 'travel');
                 $prices = json_decode($plan->prices, true);
                 if ($rules) {
-                    $gross = array_sum(array_column($rules, 'rate_cents')) * 1.1;
+                    $tax = (float) ($document->lines->first(fn ($line) => (float) $line->tax_rate > 0)->tax_rate ?? GstRate::LEGACY);
+                    $gross = array_sum(array_column($rules, 'rate_cents')) * (1 + $tax);
                     $step = (int) ($prices['travel_rounding_step'] ?? 0);
                     if ($step > 0) $gross = ceil(($gross - 0.000001) / $step) * $step;
-                    $rates[] = round($gross / 110, 2);
+                    $rates[] = round($gross / (100 * (1 + $tax)), 2);
                 }
             }
         }

@@ -65,6 +65,17 @@ class Quote extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    public function getLineItemsAttribute(mixed $value): array
+    {
+        $items = is_array($value) ? $value : json_decode((string) $value, true);
+
+        return array_map(function (array $line): array {
+            $line['tax_rate'] = \App\Services\Finance\GstRate::forLine($line);
+
+            return $line;
+        }, is_array($items) ? $items : []);
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */

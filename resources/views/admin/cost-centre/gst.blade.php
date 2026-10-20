@@ -1,5 +1,7 @@
 <x-layout>
-    <x-mast title="GST" backRoute="admin.cost-centre.index" backTitle="Cost centres" description="Protected tax reserve for monthly BAS." />
+    <x-mast title="GST" backRoute="admin.cost-centre.index" backTitle="Cost centres" description="Protected tax reserve for monthly BAS.">
+        <x-slot:actions><x-ui.button color="outline" :href="route('admin.finance.gst-rates')">GST rates</x-ui.button></x-slot:actions>
+    </x-mast>
     <x-container class="py-5 sm:py-8">
         <x-ui.dynamic-list name="cost-centre-gst" :showPresets="false">
             <x-finance.panel title="GST balance"><p class="text-2xl font-semibold">{{ money($cash['gst'] / 100) }}</p></x-finance.panel>

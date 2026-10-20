@@ -394,9 +394,9 @@
                         }
 
                         return parsed.map((item) => SM.hydrateTravelLine({
-                            unit_price_inc_tax: SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (item.gst_applicable === false ? 1 : 1.1)),
+                            unit_price_inc_tax: SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (1 + SM.lineTaxRate(item))),
                             saved_pricing: item.saved_pricing ?? null,
-                            tax_rate: item.tax_rate ?? 0.1,
+                            tax_rate: item.tax_rate ?? SM.currentGstRate(),
                             id: item.id ?? null, source_type: item.source_type ?? (item.kind === 'product' ? 'App\\Models\\Product' : null), source_id: item.source_id ?? item.details_json?.store_context?.product_id ?? null,
                             source_variant_id: String(item.source_variant_id ?? item.details_json?.variant_id ?? item.details_json?.store_context?.variant_id ?? 0),
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
@@ -416,7 +416,7 @@
                                 const parsedUnit = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
                                 return Number.isFinite(parsedUnit) ? parsedUnit.toFixed(2) : '0.00';
                             })(),
-                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? 0.1) || 0) > 0),
+                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? SM.currentGstRate()) || 0) > 0),
                         }));
                     } catch (e) {
                         return [];
@@ -439,11 +439,11 @@
                             description: (item.description || '').trim(),
                             notes: (item.notes || '').trim(),
                             quantity: parseFloat(item.quantity || 0),
-                            unit_price: Number(item.unit_price_inc_tax || 0) / (item.gst_applicable === false ? 1 : 1.1),
+                            unit_price: Number(item.unit_price_inc_tax || 0) / (1 + SM.lineTaxRate(item)),
                             unit_price_inc_tax: Number(item.unit_price_inc_tax || 0),
                             saved_pricing: item.saved_pricing ?? null,
                             gst_applicable: item.gst_applicable !== false,
-                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate || 0.1),
+                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? SM.currentGstRate()),
                         }))
                         .filter((item) => ['product', 'workshop', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
@@ -454,7 +454,7 @@
                     if (this.isLocked) {
                         return;
                     }
-                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true });
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: SM.currentGstRate() });
                 },
                 removeLineItem(index) {
                     if (this.isLocked) {
@@ -709,6 +709,7 @@
             <input type="hidden" name="send_scheduled_now" value="0" x-ref="sendScheduledNow" />
             <input type="hidden" name="line_items_json" x-ref="lineItemsJson" value="{{ $savedLineItems }}" />
 
+            <x-finance.gst-rate-notice />
             <x-finance.price-rounding-summary document-label="invoice" />
 
             <div

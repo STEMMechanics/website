@@ -1,7 +1,7 @@
 @php
     $allocationEditor = app(\App\Services\Finance\ProductAllocationEditor::class);
     $allocationCategories = $allocationEditor->categories();
-    $allocationEditorConfig = ['categories' => $allocationCategories->pluck('id')->all(), 'centres' => app(\App\Services\Finance\ProductCostAllocation::class)->centres(), 'taxRate' => (float) ($product->tax_rate ?? 0.1), 'data' => $allocationEditor->data($product ?? null), 'old' => old('product_allocations_json') ? json_decode(old('product_allocations_json'), true) : null];
+    $allocationEditorConfig = ['categories' => $allocationCategories->pluck('id')->all(), 'centres' => app(\App\Services\Finance\ProductCostAllocation::class)->centres(), 'taxRate' => (float) ($product->tax_rate ?? \App\Services\Finance\GstRate::current()), 'data' => $allocationEditor->data($product ?? null), 'old' => old('product_allocations_json') ? json_decode(old('product_allocations_json'), true) : null];
 @endphp
 <div x-data="SM.productAllocationEditor(@js($allocationEditorConfig))" id="cost-centre-allocation">
     <x-ui.collapsible-section title="Cost centre allocation" variant="product" :open="!isset($product) || $errors->has('product_allocations_json')">

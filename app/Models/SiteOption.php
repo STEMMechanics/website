@@ -105,11 +105,6 @@ class SiteOption extends Model
                 'value' => "STEMMechanics\n63 Dalton Street\nWestcourt, QLD, 4870\nABN 15 772 281 735\n\n0400 130 190\nhello@stemmechanics.com.au\nstemmechanics.com.au",
                 'description' => 'Business contact block shown on PDF documents.',
             ],
-            'finance.gst-rate' => [
-                'value' => '0.10',
-                'description' => 'GST rate used by sponsorship tax calculations. Enter a decimal rate such as 0.10 for 10%.',
-                'input_type' => 'number',
-            ],
             'sponsorship.tax.gst-free-exports-enabled' => [
                 'value' => '1',
                 'description' => 'Allow sponsorship payments declared as non-resident and outside Australia to use GST-free export rules.',

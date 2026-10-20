@@ -17,7 +17,7 @@ export function calculatePlanPreview(plan, hours, seats, travelUnits, supplied =
         updateWorkshopLine(travel, { ...settings, clean_prices: true }, true);
         const quote = item => {
             const rate = window.SM.priceRoundingForLine(item).original.unitInc;
-            return window.SM.cleanPriceQuote(rate, item.quantity);
+            return window.SM.cleanPriceQuote(rate, item.quantity, window.SM.currentGstRate());
         };
         const travelRate = quote(travel);
         return { workshop: quote(workshop), travel: travelUnits > 0 ? travelRate : null, travelRate };
@@ -39,7 +39,7 @@ export function calculatePlanPreview(plan, hours, seats, travelUnits, supplied =
         planRoundingIncrease: Math.round((workshopGross + travelGross - baseInvoiceGross) * 100) / 100,
         totalRoundingIncrease: Math.round((cleanInvoiceGross - baseInvoiceGross) * 100) / 100,
         workshopGross, travelGross, invoiceGross: workshopGross + travelGross,
-        unitNet: unitGross / 1.1, unitGross,
+        unitNet: unitGross / (1 + window.SM.currentGstRate()), unitGross,
         quantity: hours * seats, workshopRounding, travelRounding, travelRate: planned.travelRate,
         roundingNeeded: !workshopRounding.clean || !!(travelRounding && !travelRounding.clean),
         cleanWorkshopGross, cleanTravelGross, cleanInvoiceGross,
@@ -78,7 +78,7 @@ window.SM.allocationPlanPreview = (initialRules = []) => ({
         const parsed = Object.values(rules).map(rule => ({ ...rule, rate_cents: Math.round(Number(rule.rate) * 100), suppliable: rule.suppliable === '1' }));
         const ids = new Set();
         this.supplies = parsed.filter(rule => rule.suppliable && !ids.has(rule.category_id) && ids.add(rule.category_id)).map(rule => ({ id: rule.category_id, name: form.querySelector(`[name="rules[${Object.keys(rules).find(key => rules[key].category_id === rule.category_id)}][category_id]"]`)?.selectedOptions[0]?.textContent.trim() || 'Cost centre' }));
-        const travelCents = Math.round(parsed.filter(rule => rule.basis === 'travel').reduce((sum, rule) => sum + rule.rate_cents, 0) * 1.1);
+        const travelCents = Math.round(parsed.filter(rule => rule.basis === 'travel').reduce((sum, rule) => sum + rule.rate_cents, 0) * (1 + window.SM.currentGstRate()));
         const plan = { rules: parsed, pricing_participants: Number(data.get('pricing_participants')), travel_cents: travelCents, rounding_step: 0, travel_rounding_step: 0 };
         const seats = data.get('preview_seats') === '' ? Number(data.get('pricing_participants')) : Number(data.get('preview_seats'));
         this.preview = calculatePlanPreview(plan, Number(data.get('preview_hours')), seats, Number(data.get('preview_travel_units')) * 4, supplied);

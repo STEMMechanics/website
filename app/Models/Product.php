@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    use HasFactory, HasFiles;
+    use HasFactory, HasFiles, \App\Traits\HasGstPrices;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -107,6 +107,11 @@ class Product extends Model
         'low_stock_alert_sent_at',
         'restocked_at',
     ];
+
+    public function getTaxRateAttribute(mixed $value): string
+    {
+        return number_format((float) $value > 0 ? \App\Services\Finance\GstRate::current() : 0, 4, '.', '');
+    }
 
     protected $casts = [
         'automatic_pricing' => 'boolean',

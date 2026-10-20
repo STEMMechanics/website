@@ -21,7 +21,7 @@
     $issueDate = $adjustment->issue_date?->format('M d, Y') ?? '-';
     $dueDate = $adjustment->due_date?->format('M d, Y') ?? '-';
     $allLineItems = collect($pages)->flatten(1)->all();
-    $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ((float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0))) <= 0.0001);
+    $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => (\App\Services\Finance\GstRate::forLine($item)) <= 0.0001);
         $subtotalEx=(float) $adjustment->subtotal_amount;
         $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
     $billToCompany = trim((string) ($customer?->primaryOrganisation?->name ?? ''));
@@ -153,7 +153,7 @@
                     @forelse($adjustment->lines as $line)
                     @php
                     $qty = (float) ($line->quantity ?? 0);
-                    $taxRate = (float) ($line->tax_rate ?? (($line->gst_applicable ?? true) ? 0.1 : 0));
+                    $taxRate = \App\Services\Finance\GstRate::forLine($line);
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($line->notes ?? ''));
                     @endphp

@@ -1993,7 +1993,7 @@ class WorkshopTicketFlowController extends Controller
         foreach ($tickets as $index => $ticket) {
             $lineWorkshop = $ticket->workshop ?? $workshop;
             $lineTotalInc = round((float) ($linePrices[$index] ?? $this->ticketCheckoutUnitPrice($ticket->workshop ?? $workshop, $ticket)), 2);
-            $lineTotalEx = round($lineTotalInc / 1.1, 2);
+            $lineTotalEx = round($lineTotalInc / (1 + \App\Services\Finance\GstRate::current()), 2);
             $taxAmount = round($lineTotalInc - $lineTotalEx, 2);
             $ticketReference = $ticket->ensureReferenceCode();
 
@@ -2011,7 +2011,7 @@ class WorkshopTicketFlowController extends Controller
             ];
             $line->quantity = 1;
             $line->unit_price_ex_tax = $lineTotalEx;
-            $line->tax_rate = 0.10;
+            $line->tax_rate = \App\Services\Finance\GstRate::current();
             $line->line_total_ex_tax = $lineTotalEx;
             $line->tax_amount = $taxAmount;
             $line->line_total_inc_tax = $lineTotalInc;
@@ -2026,7 +2026,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         if ($voucherAmount > 0.0001) {
-            $voucherExTax = round($voucherAmount / 1.1, 2);
+            $voucherExTax = round($voucherAmount / (1 + \App\Services\Finance\GstRate::current()), 2);
             $voucherTax = round($voucherAmount - $voucherExTax, 2);
 
             $discountLine = new InvoiceLine;
@@ -2044,7 +2044,7 @@ class WorkshopTicketFlowController extends Controller
             ];
             $discountLine->quantity = 1;
             $discountLine->unit_price_ex_tax = -1 * $voucherExTax;
-            $discountLine->tax_rate = 0.10;
+            $discountLine->tax_rate = \App\Services\Finance\GstRate::current();
             $discountLine->line_total_ex_tax = -1 * $voucherExTax;
             $discountLine->tax_amount = -1 * $voucherTax;
             $discountLine->line_total_inc_tax = -1 * $voucherAmount;
