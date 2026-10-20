@@ -204,6 +204,7 @@ if (isset($workshop)) {
                 if (index >= 0 && index < this.editorStepOrder.length - 1) this.setEditorStep(this.editorStepOrder[index + 1]);
             },
             reviewValue(name) {
+                if (this.editorStep !== 'review') return '';
                 const field = this.$refs.workshopForm?.elements?.namedItem(name);
                 return field && typeof field.value === 'string' ? field.value : '';
             },

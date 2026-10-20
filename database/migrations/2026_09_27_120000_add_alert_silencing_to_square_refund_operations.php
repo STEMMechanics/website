@@ -14,7 +14,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('square_refund_operations', 'notification_silenced_by')) {
-                $table->unsignedBigInteger('notification_silenced_by')->nullable()->after('notification_silenced_at');
+                $table->uuid('notification_silenced_by')->nullable()->after('notification_silenced_at');
             }
         });
 

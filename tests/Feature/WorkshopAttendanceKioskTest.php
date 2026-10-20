@@ -18,7 +18,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use ReflectionMethod;
@@ -31,7 +31,7 @@ class WorkshopAttendanceKioskTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_non_ticketed_workshop_standard_kiosk_sign_in_redirects_back_to_blank_form(): void

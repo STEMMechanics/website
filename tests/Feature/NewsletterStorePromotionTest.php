@@ -13,7 +13,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\NewsletterProductSelectionService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -25,7 +25,7 @@ class NewsletterStorePromotionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_next_newsletter_has_two_sections_with_three_category_products_each(): void

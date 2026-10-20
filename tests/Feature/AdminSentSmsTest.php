@@ -6,7 +6,7 @@ use App\Models\InboundSms;
 use App\Models\SentSms;
 use App\Models\User;
 use App\Models\UserGroup;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -19,7 +19,7 @@ class AdminSentSmsTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_admin_sent_sms_page_shows_balance_and_message_history(): void

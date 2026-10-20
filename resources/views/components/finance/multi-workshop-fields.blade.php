@@ -15,7 +15,7 @@
                     <td data-label="Seats"><x-finance.workshop-seats-field model="row" /></td>
                     <td data-label="Supplied" data-mobile-wide class="space-y-2">
                         @foreach($supplyRules->where('basis', '!=', 'travel') as $rule)
-                            <div x-init="row.supplied_categories ??= {}; row.supplied_categories['{{ $rule['category_id'] }}'] ??= {{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? '!!row.venue_supplied' : 'false' }}">
+                            <div x-init="row.supplied_categories = SM.suppliedCategoryMap(row.supplied_categories); row.supplied_categories['{{ $rule['category_id'] }}'] ??= {{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? '!!row.venue_supplied' : 'false' }}">
                                 <x-ui.checkbox :small="true" :noWrapper="true" :label="$supplyCategories[$rule['category_id']] ?? 'Cost centre'" x-model="row.supplied_categories['{{ $rule['category_id'] }}']" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" />
                             </div>
                         @endforeach

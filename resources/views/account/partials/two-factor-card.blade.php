@@ -6,7 +6,7 @@
     $passwordLoginAvailable = (bool) ($user?->canUsePasswordLogin() ?? false);
 @endphp
 
-<section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+<section x-data class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <h2 class="text-lg font-semibold text-gray-900">Login Authentication</h2>

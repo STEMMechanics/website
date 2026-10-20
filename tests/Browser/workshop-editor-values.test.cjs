@@ -4,6 +4,35 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const blade = fs.readFileSync('resources/views/admin/workshop/edit.blade.php', 'utf8');
 
+test('reviewing a workshop shows the latest price after registration edits', async () => {
+    const { JSDOM } = require('jsdom');
+    const review = blade.match(/<dd[^>]*x-text="reviewValue\('price'\)[^>]*><\/dd>/)[0];
+    const method = blade.match(/reviewValue\(name\) \{[\s\S]*?\n {12}\}/)[0];
+    const dom = new JSDOM(`<!doctype html><form x-data="reviewFixture" x-ref="workshopForm"><div x-data="{ price: '' }"><input name="price" x-model="price"></div>${review}</form>`, { runScripts: 'outside-only', pretendToBeVisual: true });
+    const { window } = dom;
+    try {
+        window.livewireScriptConfig = {};
+        window.eval(fs.readFileSync('vendor/livewire/livewire/dist/livewire.js', 'utf8'));
+        const methods = window.eval(`({${method}})`);
+        window.Alpine.data('reviewFixture', () => ({ editorStep: 'registration', ...methods }));
+        window.Alpine.start();
+        await window.Alpine.nextTick();
+        const form = window.document.querySelector('form');
+        const state = window.Alpine.$data(form);
+        const input = form.elements.namedItem('price');
+        for (const price of ['13.75', '22.00', '']) {
+            state.editorStep = 'registration';
+            await window.Alpine.nextTick();
+            input.value = price;
+            input.dispatchEvent(new window.Event('input', { bubbles: true }));
+            await window.Alpine.nextTick();
+            state.editorStep = 'review';
+            await window.Alpine.nextTick();
+            assert.equal(form.querySelector('dd').textContent, price || 'No price set');
+        }
+    } finally { window.close(); }
+});
+
 function scheduleEditor(type = 'physical', initial = {}) {
     const values = Object.fromEntries(Object.entries({ type, starts_at: '', ends_at: '', closes_at: '', publish_at: '2026-10-01T09:00', ...initial })
         .map(([name, value]) => [name, { value }]));

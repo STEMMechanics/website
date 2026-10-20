@@ -14,7 +14,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\UploadedFile;
@@ -30,7 +30,7 @@ class AdminAiWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         config(['services.openai.api_key' => 'test-api-key']);
     }
 

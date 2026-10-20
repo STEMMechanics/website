@@ -8,7 +8,7 @@ use App\Models\Media;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -20,7 +20,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_multiple_invoices_can_link_to_the_same_quote(): void

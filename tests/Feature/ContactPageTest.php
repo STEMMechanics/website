@@ -6,7 +6,7 @@ use App\Jobs\SendEmail;
 use App\Mail\ContactMessage;
 use App\Models\User;
 use App\Support\FormGuard;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -19,7 +19,7 @@ class ContactPageTest extends TestCase
     {
         parent::setUp();
 
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         config()->set('security.altcha_enabled', false);
         config()->set('security.form_protection.minimum_seconds', 2);
         config()->set('security.form_protection.rate_limit_per_minute', 5);

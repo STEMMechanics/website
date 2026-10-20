@@ -25,7 +25,9 @@ return new class extends Migration
 
         Schema::table('class_sessions', function (Blueprint $table): void {
             if (! Schema::hasColumn('class_sessions', 'workshop_id')) {
-                $table->foreignUuid('workshop_id')->nullable()->after('duplicated_from_class_session_id')->constrained('workshops')->nullOnDelete();
+                // Workshops use a string primary key, including on MariaDB with native UUID columns.
+                $table->string('workshop_id')->nullable()->after('duplicated_from_class_session_id');
+                $table->foreign('workshop_id')->references('id')->on('workshops')->nullOnDelete();
             }
 
             if (! Schema::hasColumn('class_sessions', 'term_number')) {

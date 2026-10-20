@@ -12,7 +12,7 @@ use App\Models\Workshop;
 use App\Models\WorkshopTemplateTask;
 use App\Services\ReminderService;
 use App\Services\WorkshopBlueprintService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -25,7 +25,7 @@ class WorkshopPickListAutosaveTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
     }
 
     public function test_run_sheet_task_checkboxes_are_saved_for_the_workshop(): void

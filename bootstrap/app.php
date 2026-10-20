@@ -2,17 +2,26 @@
 
 use App\Http\Middleware\Admin;
 use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\CanonicalHost;
 use App\Http\Middleware\EnsureFullAccount;
 use App\Http\Middleware\EnsurePublicShopAvailable;
 use App\Http\Middleware\LogoutAnonymizedUser;
 use App\Http\Middleware\NoCache;
+use App\Http\Middleware\ProfileRequests;
 use App\Http\Middleware\ProtectFormSubmission;
+use App\Http\Middleware\RenderFragment;
+use App\Http\Middleware\RequirePrivilegedMfa;
+use App\Http\Middleware\RestoreRememberedDevice;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackAnalytics;
+use App\Http\Middleware\TrackStoreCheckout;
+use App\Http\Middleware\TrustedIngress;
 use App\Services\SiteErrorNotificationService;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trimStrings(except: ['verification_text']);
-        $middleware->replace(\Illuminate\Http\Middleware\TrustProxies::class, \App\Http\Middleware\TrustedIngress::class);
+        $middleware->replace(TrustProxies::class, TrustedIngress::class);
         $middleware->trustHosts(at: fn () => array_map(
             fn (string $host): string => '^'.preg_quote($host, '/').'$',
             config('security.trusted_hosts', [])
@@ -37,22 +46,22 @@ return Application::configure(basePath: dirname(__DIR__))
             'shop.public' => EnsurePublicShopAvailable::class,
         ]);
         $middleware->prependToPriorityList(
-            \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
-            \App\Http\Middleware\RestoreRememberedDevice::class,
+            AuthenticatesRequests::class,
+            RestoreRememberedDevice::class,
         );
         $middleware->web(append: [
             SecurityHeaders::class,
             NoCache::class,
-            \App\Http\Middleware\RestoreRememberedDevice::class,
+            RestoreRememberedDevice::class,
             LogoutAnonymizedUser::class,
-            \App\Http\Middleware\RequirePrivilegedMfa::class,
-            \App\Http\Middleware\CanonicalHost::class,
+            RequirePrivilegedMfa::class,
+            CanonicalHost::class,
             TrackAnalytics::class,
-            \App\Http\Middleware\TrackStoreCheckout::class,
-            \App\Http\Middleware\ProfileRequests::class,
-            \App\Http\Middleware\RenderFragment::class,
+            TrackStoreCheckout::class,
+            ProfileRequests::class,
+            RenderFragment::class,
         ]);
-        $middleware->validateCsrfTokens(except: [
+        $middleware->preventRequestForgery(except: [
             'webhooks/square',
             'webhooks/stemcraft/server',
             'webhooks/minecraft/server',
@@ -63,7 +72,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->report(function (\Throwable $exception): void {
+        $exceptions->report(function (Throwable $exception): void {
             app(SiteErrorNotificationService::class)->notify(
                 $exception,
                 app()->bound('request') ? request() : null
