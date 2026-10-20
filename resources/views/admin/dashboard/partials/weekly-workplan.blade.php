@@ -2,7 +2,6 @@
     $followUpCount = $workplan['quotes']->count()
         + $workplan['orders']->count()
         + $workplan['interests']->count()
-        + $workplan['enquiries']->count()
         + $workplan['overdue']->count()
         + $workplan['pendingTransfers']->count()
         + $workplan['lowStock']->count();
@@ -114,9 +113,6 @@
                     @endforeach
                     @foreach($workplan['interests'] as $interest)
                         <a href="mailto:{{ $interest->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Workshop interest · {{ $interest->name }}</span><span class="block text-xs text-gray-500">{{ $interest->workshop?->title }} · {{ $interest->email }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
-                    @endforeach
-                    @foreach($workplan['enquiries'] as $enquiry)
-                        <a href="mailto:{{ $enquiry->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Website enquiry · {{ $enquiry->name }}</span><span class="block text-xs text-gray-500">{{ $enquiry->subject }} · {{ $enquiry->created_at->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
                     @if($followUpCount === 0)
                         <p class="p-4 text-sm text-gray-500">No follow-ups are currently suggested.</p>
