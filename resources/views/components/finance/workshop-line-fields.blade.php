@@ -21,7 +21,7 @@
         <div class="flex min-h-11 min-w-48 flex-1 flex-wrap items-center gap-x-5 gap-y-2">
             @isset($options){{ $options }}@endisset
             @foreach($supplyRules as $rule)
-                <div class="shrink-0" x-show="item.kind === '{{ $rule['basis'] === 'travel' ? 'travel' : 'workshop' }}'" x-init="item.supplied_categories ??= {}; item.supplied_categories['{{ $rule['category_id'] }}'] ??= {{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? '!!item.venue_supplied' : 'false' }}">
+                <div class="shrink-0" x-show="item.kind === '{{ $rule['basis'] === 'travel' ? 'travel' : 'workshop' }}'" x-init="item.supplied_categories = SM.suppliedCategoryMap(item.supplied_categories); item.supplied_categories['{{ $rule['category_id'] }}'] ??= {{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? '!!item.venue_supplied' : 'false' }}">
                     <x-ui.checkbox :small="true" :noWrapper="true" :label="($supplyCategories[$rule['category_id']] ?? 'Cost centre').' supplied'" x-model="item.supplied_categories['{{ $rule['category_id'] }}']" x-on:change="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />
                 </div>
             @endforeach

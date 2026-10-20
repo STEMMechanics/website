@@ -133,7 +133,11 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                 </div>
                             </div>
                             @if($user->isAdmin())
-                                <x-push-settings :embedded="true" />
+                                @if(config('security.admin_mfa_required') && $user->tfa_secret === null)
+                                    <p class="text-sm text-gray-600">Set up two-factor authentication to manage browser notifications.</p>
+                                @else
+                                    <x-push-settings :embedded="true" />
+                                @endif
                             @endif
                         </x-ui.grid>
                     </section>
@@ -275,10 +279,12 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                     document.getElementById('tfa_image').src = '/account/2fa/image';
                     document.getElementById('tfa_key').textContent = response.data.secret;
                 } else {
+                    document.getElementById('tfa_button').disabled = false;
                     SM.alert('2FA Error', 'An error occurred while setting up two-factor authentication. Please try again later', 'danger');
                 }
             })
             .catch(() => {
+                document.getElementById('tfa_button').disabled = false;
                 SM.alert('2FA Error', 'An error occurred while setting up two-factor authentication. Please try again later', 'danger');
             });
     }
@@ -290,7 +296,6 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             secret: Alpine.store('tfa').secret,
         })
             .then(response => {
-                console.log(response.data);
                 if(response.data.success) {
                     SM.alert('2FA Linked', 'Two-factor authentication has been successfully linked to your account', 'success');
                     document.getElementById('tfa_button').disabled = false;

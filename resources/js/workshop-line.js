@@ -78,6 +78,8 @@ function applyPlanPrice(item, plan, inclusive) {
 }
 window.SM = window.SM || {};
 window.SM.updateWorkshopLine = updateWorkshopLine;
+// PHP encodes empty maps as []; numeric category keys must not create sparse arrays.
+window.SM.suppliedCategoryMap = supplied => Object.fromEntries(Object.entries(supplied || {}).filter(([, value]) => value != null));
 
 window.SM.registerLinePlan = (item, plan, inclusive) => pricingPlans.set(item, { plan, inclusive });
 window.SM.refreshLineQuantity = item => {

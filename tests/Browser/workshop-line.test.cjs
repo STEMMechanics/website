@@ -6,6 +6,34 @@ const context = { window: {} };
 vm.runInNewContext(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'), context);
 vm.runInNewContext(fs.readFileSync('public/workshop-course.js', 'utf8'), context);
 const update = context.updateWorkshopLine;
+
+for (const [component, model] of [['workshop-line-fields', 'item'], ['multi-workshop-fields', 'row']]) {
+    test(`${component} serializes supplied checkboxes as a keyed map after loading empty PHP arrays`, async () => {
+        const { JSDOM } = require('jsdom');
+        const source = fs.readFileSync(`resources/views/components/finance/${component}.blade.php`, 'utf8');
+        const initialization = source.match(/x-init="([^"]*\.supplied_categories[^"]*)"/)[1];
+        const controls = [3, 17].map(id => {
+            const init = initialization.replaceAll("{{ $rule['category_id'] }}", String(id)).replace(/\{\{.*?\}\}/g, 'false');
+            return `<div x-init="${init}"><input type="checkbox" x-model="${model}.supplied_categories['${id}']"></div>`;
+        }).join('');
+        const dom = new JSDOM(`<!doctype html><div x-data="suppliedFixture">${controls}</div>`, { runScripts: 'outside-only', pretendToBeVisual: true });
+        const { window } = dom;
+        try {
+            window.livewireScriptConfig = {};
+            window.eval(fs.readFileSync('vendor/livewire/livewire/dist/livewire.js', 'utf8'));
+            window.eval(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'));
+            window.Alpine.data('suppliedFixture', () => ({ [model]: { supplied_categories: [] } }));
+            window.Alpine.start();
+            await window.Alpine.nextTick();
+            const state = window.Alpine.$data(window.document.querySelector('[x-data]'))[model];
+            assert.deepEqual(JSON.parse(JSON.stringify(state.supplied_categories)), { 3: false, 17: false });
+            window.document.querySelectorAll('input')[1].click();
+            await window.Alpine.nextTick();
+            assert.deepEqual(JSON.parse(JSON.stringify(state.supplied_categories)), { 3: false, 17: true });
+        } finally { window.close(); }
+    });
+}
+
 test('hours and seats calculate quantity without losing other metadata', () => {
     const item = { kind: 'workshop', workshop_hours: '2', workshop_seats: '15', venue_supplied: false, details_json: { reference: 'keep' } };
     update(item);
