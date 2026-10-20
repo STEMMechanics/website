@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ContactEnquiry;
 use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\Media;
@@ -112,6 +113,24 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($regularUser)
             ->get(route('admin.dashboard'))
             ->assertForbidden();
+    }
+
+    public function test_website_enquiries_are_not_suggested_dashboard_follow_ups(): void
+    {
+        $admin = $this->createAdminUser();
+        ContactEnquiry::query()->create([
+            'name' => 'Website visitor',
+            'email' => 'visitor@example.com',
+            'subject' => 'Website question',
+            'message' => 'A question sent through the website.',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('No follow-ups are currently suggested.')
+            ->assertDontSee('Website enquiry')
+            ->assertDontSee('Website question');
     }
 
     public function test_all_time_dashboard_has_no_period_comparisons_or_filter_chips(): void
