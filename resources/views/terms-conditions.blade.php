@@ -466,7 +466,7 @@
             already placed your order. All prices are subject to change without
             notice. Prices displayed on the Sites may vary from those in the
             store or from store-advertised prices. All purchases on applicable
-            products include GST at the rate of 10%.
+            products include GST at the rate of {{ \App\Services\Finance\GstRate::current() * 100 }}%.
         </p>
         <x-heading class="mt-8">17. Errors</x-heading>
         <p class="mb-2">

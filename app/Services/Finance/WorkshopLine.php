@@ -95,7 +95,7 @@ class WorkshopLine
         // Preserve the amount of previously saved one-group lines when adopting seat-hours.
         if ($quantity > 0 && (float) ($item['quantity'] ?? 0) === 1.0 && empty($details['multi_workshop']['quantity_basis'])) {
             if (!isset($details['inclusive_unit_price'])) {
-                $rate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
+                $rate = GstRate::forLine($item);
                 $net = round((float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0), 2);
                 $details['inclusive_unit_price'] = round($net + round($net * $rate, 2), 2);
             }
@@ -124,7 +124,7 @@ class WorkshopLine
             }
             foreach ($item['details_json']['multi_workshop']['rows'] ?? [] as $row) {
                 if (isset($item['details_json']['pricing_basis'])) $row['details_json']['pricing_basis'] = $item['details_json']['pricing_basis'];
-                $result[] = self::normalize(array_merge($row, ['kind' => 'workshop', 'tax_rate' => $item['tax_rate'] ?? 0.1, 'line_number' => $item['line_number'] ?? null]));
+                $result[] = self::normalize(array_merge($row, ['kind' => 'workshop', 'tax_rate' => GstRate::forLine($item), 'line_number' => $item['line_number'] ?? null]));
             }
         }
         return $result;

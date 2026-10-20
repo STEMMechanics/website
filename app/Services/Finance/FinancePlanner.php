@@ -72,7 +72,7 @@ class FinancePlanner
                     $rows[] = ['workshop_id' => $context['workshopId'], 'name' => $context['workshop']->title ?? 'Invoice '.$invoice->invoice_number, 'date' => $context['date'], 'invoice_ids' => $context['ids'], 'assumptions' => $context['assumptions'], 'version_id' => $version->id, 'targets' => $context['suggestedTargets'], 'warning' => $warning, 'income' => $context['income'], 'suggested_price_cents' => null, 'structured' => true];
                     continue;
                 }
-                $assumptions = ['participants' => (int) $input['participants'], 'hours' => (float) $input['hours'], 'travel_minutes' => (int) $input['travel_minutes'], 'venue_supplied' => (bool) $input['venue_supplied']];
+                $assumptions = ['tax_rate' => GstRate::forLine($invoice->lines->first() ?? []), 'participants' => (int) $input['participants'], 'hours' => (float) $input['hours'], 'travel_minutes' => (int) $input['travel_minutes'], 'venue_supplied' => (bool) $input['venue_supplied']];
                 $rows[] = $this->previewRow(null, 'Invoice '.$invoice->invoice_number, $invoice->issue_date?->toDateString() ?? now()->toDateString(), [$invoice->id], $assumptions, $version, $rules);
             }
         } else {
@@ -125,6 +125,7 @@ class FinancePlanner
             $warning = 'Shared invoice: allocate this invoice separately once, with a combined cost breakdown.';
         }
         $prices = $this->decode($version->prices);
+        $inputs['tax_rate'] ??= GstRate::current();
         $inputs['travel_free_minutes'] = $prices['travel_free_minutes'] ?? 30;
         $targets = $this->targets($rules, $inputs);
         $hourIndex = (int) ceil($inputs['hours']) - 1;
@@ -132,9 +133,9 @@ class FinancePlanner
         $travelUnits = (int) ceil(max(0, $inputs['travel_minutes'] - ($prices['travel_free_minutes'] ?? 30)) / 15);
         // New versions derive the workshop charge from costs; keep historical price tables intact.
         $workshopCosts = $this->targets($rules, array_replace($inputs, ['travel_minutes' => 0]));
-        $workshopPrice = $price === null ? (int) round(array_sum($workshopCosts) * 1.1) : $price * $inputs['participants'];
+        $workshopPrice = $price === null ? (int) round(array_sum($workshopCosts) * (1 + GstRate::forLine($inputs))) : $price * $inputs['participants'];
         $travelRules = array_filter($rules, fn ($rule) => $rule['basis'] === 'travel');
-        $travelPrice = $travelRules ? array_sum(array_column($travelRules, 'rate_cents')) * 1.1 : ($prices['travel_cents'] ?? 3400);
+        $travelPrice = $travelRules ? array_sum(array_column($travelRules, 'rate_cents')) * (1 + GstRate::forLine($inputs)) : ($prices['travel_cents'] ?? 3400);
         $travelStep = (int) ($prices['travel_rounding_step'] ?? 0);
         $travelPrice = $travelStep > 0 ? ceil(($travelPrice - 0.000001) / $travelStep) * $travelStep : round($travelPrice);
         $suggested = $workshopPrice + (int) ($travelUnits * $travelPrice);
@@ -321,7 +322,7 @@ class FinancePlanner
             foreach ($assumptions['lines'] ?? [$assumptions] as $inputs) {
                 if (($inputs['kind'] ?? '') === 'travel') {
                     $travelStep = (int) ($prices['travel_rounding_step'] ?? 0);
-                    $multiplier = ($inputs['gst_applicable'] ?? true) ? 1.1 : 1;
+                    $multiplier = 1 + GstRate::forLine($inputs);
                     $travelRules = array_filter($this->decode($version->rules), fn ($rule) => $rule['basis'] === 'travel');
                     $raw = $travelRules ? array_sum(array_column($travelRules, 'rate_cents')) * $multiplier : (float) ($prices['travel_cents'] ?? 3400);
                     foreach ($this->decode($version->rules) as $rule) {
@@ -346,7 +347,7 @@ class FinancePlanner
                     $pricingUnits = $pricingInputs['participants'] * (isset($assumptions['lines']) ? (float) ($inputs['hours'] ?? 0) : 1);
                 }
                 $cost = array_sum($this->targets($rules, $pricingInputs + ['travel_minutes' => 0, 'venue_supplied' => false]));
-                $multiplier = ($inputs['gst_applicable'] ?? true) ? 1.1 : 1;
+                $multiplier = 1 + GstRate::forLine($inputs);
                 $gross = (int) round(ceil(($cost * $multiplier / $pricingUnits - 0.000001) / $step) * $step * $units);
                 $limit += max(0, (int) round($gross / $multiplier - $cost * $units / $pricingUnits));
             }

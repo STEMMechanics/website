@@ -132,7 +132,7 @@ class SquareWebhookSyncService
             if ($customerPayment->isAutoImportedSquarePos() && $incomingAmount > 0) {
                 $customerPayment->total_amount = $incomingAmount;
                 if (! $customerPayment->allocations()->where('allocated_amount', '>', 0)->exists()) {
-                    $customerPayment->gst_amount = $this->estimateInclusiveGst($incomingAmount);
+                    $customerPayment->gst_amount = $this->estimateInclusiveGst($incomingAmount, $customerPayment->received_on);
                 }
                 if ($this->isLegacyAutoNote((string) ($customerPayment->notes ?? ''))) {
                     $customerPayment->notes = null;
@@ -204,7 +204,7 @@ class SquareWebhookSyncService
         $paymentRecord->received_on = $receivedOn;
         $paymentRecord->payment_method = Payment::PAYMENT_METHOD_EFTPOS;
         $paymentRecord->total_amount = $amount;
-        $paymentRecord->gst_amount = $this->estimateInclusiveGst($amount);
+        $paymentRecord->gst_amount = $this->estimateInclusiveGst($amount, $receivedOn);
         $paymentRecord->notes = null;
         $paymentRecord->gateway_provider = 'square';
         $paymentRecord->gateway_status = (string) ($payment['status'] ?? '');
@@ -227,13 +227,13 @@ class SquareWebhookSyncService
         return [$paymentRecord, true];
     }
 
-    private function estimateInclusiveGst(float $totalInc): float
+    private function estimateInclusiveGst(float $totalInc, mixed $receivedOn): float
     {
         if ($totalInc <= 0) {
             return 0.0;
         }
 
-        return round($totalInc / 11, 2);
+        return \App\Services\Finance\GstRate::inclusiveTax($totalInc, \App\Services\Finance\GstRate::forDate($receivedOn));
     }
 
     /**

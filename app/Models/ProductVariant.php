@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ProductVariant extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\HasGstPrices;
 
     protected $fillable = [
         'unit_cost_ex_tax',

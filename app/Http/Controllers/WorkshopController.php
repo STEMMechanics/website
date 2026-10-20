@@ -4685,7 +4685,7 @@ class WorkshopController extends Controller
         $quantityBase = $invoiceLine ? max(1, (int) round(abs((float) $invoiceLine->quantity))) : $ticketCount;
         $lineTotalEx = $invoiceLine ? (float) $invoiceLine->line_total_ex_tax : round(((float) $invoice->subtotal_amount) / max(1, $ticketCount), 2);
         $lineTotalInc = $invoiceLine ? (float) $invoiceLine->line_total_inc_tax : round(((float) $invoice->total_amount) / max(1, $ticketCount), 2);
-        $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : 0.10;
+        $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : \App\Services\Finance\GstRate::forDate($ticket->created_at);
         $description = ($invoiceLine?->description) ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket waived');
 
         $unitEx = round($lineTotalEx / max(1, $quantityBase), 2);

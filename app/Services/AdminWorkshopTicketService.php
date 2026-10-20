@@ -108,7 +108,7 @@ class AdminWorkshopTicketService
         ?string $linkedUserId
     ): Invoice {
         $ticketPriceAmount = round($ticketPriceAmount, 2);
-        $lineTotalEx = round($ticketPriceAmount / 1.1, 2);
+        $lineTotalEx = round($ticketPriceAmount / (1 + \App\Services\Finance\GstRate::current()), 2);
         $taxAmount = round($ticketPriceAmount - $lineTotalEx, 2);
         $ticketReference = $ticket->ensureReferenceCode();
 
@@ -151,7 +151,7 @@ class AdminWorkshopTicketService
         ];
         $line->quantity = 1;
         $line->unit_price_ex_tax = $lineTotalEx;
-        $line->tax_rate = 0.10;
+        $line->tax_rate = \App\Services\Finance\GstRate::current();
         $line->line_total_ex_tax = $lineTotalEx;
         $line->tax_amount = $taxAmount;
         $line->line_total_inc_tax = $ticketPriceAmount;

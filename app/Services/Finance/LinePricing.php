@@ -11,7 +11,7 @@ class LinePricing
     {
         $item = is_array($item) ? $item : $item->toArray();
         $net = (float) ($item['line_total_ex_tax'] ?? $item['line_total'] ?? 0);
-        $rate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
+        $rate = GstRate::forLine($item);
         $tax = (float) ($item['tax_amount'] ?? round($net * $rate, 2));
         $gross = (float) ($item['line_total_inc_tax'] ?? round($net + $tax, 2));
 
@@ -31,7 +31,7 @@ class LinePricing
             return round($amounts['gross'] / $quantity, 8);
         }
 
-        $rate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
+        $rate = GstRate::forLine($item);
 
         return (float) ($price ?? ((float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0) * (1 + $rate)));
     }
@@ -73,11 +73,12 @@ class LinePricing
 
     public static function forEditor(array $item): array
     {
+        $item['tax_rate'] = GstRate::forLine($item);
         $price = self::inclusiveUnit($item);
         $item['unit_price_inc_tax'] = $price;
         $item['saved_pricing'] = self::savedAmounts($item) + [
             'quantity' => (float) ($item['quantity'] ?? 0), 'price' => $price,
-            'rate' => (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0)),
+            'rate' => GstRate::forLine($item),
         ];
 
         return $item;
@@ -88,8 +89,8 @@ class LinePricing
     {
         $quantity = (float) ($item['quantity'] ?? 0);
         $savedQuantity = (float) ($saved['quantity'] ?? 0);
-        $rate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
-        $savedRate = (float) ($saved['tax_rate'] ?? (($saved['gst_applicable'] ?? true) ? 0.1 : 0));
+        $rate = GstRate::forLine($item);
+        $savedRate = GstRate::forLine($saved);
         $price = $item['details_json']['inclusive_unit_price'] ?? $item['unit_price_inc_tax'] ?? null;
         // Legacy API callers can continue submitting exclusive prices.
         if ($price === null) {

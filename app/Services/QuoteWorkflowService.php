@@ -217,7 +217,7 @@ class QuoteWorkflowService
             $quantity = (float) ($lineItem['quantity'] ?? 0);
             $unitPrice = (float) ($lineItem['unit_price'] ?? 0);
             $lineTotal = round($quantity * $unitPrice, 2);
-            $taxRate = (($lineItem['gst_applicable'] ?? true) === true) ? 0.10 : 0.00;
+            $taxRate = \App\Services\Finance\GstRate::forLine($lineItem);
             $amounts = \App\Services\Finance\LinePricing::savedAmounts($lineItem);
             $lineItem['details_json']['inclusive_unit_price'] = \App\Services\Finance\LinePricing::inclusiveUnit($lineItem);
             $lineTotal = $amounts['net'];

@@ -2,6 +2,7 @@
 
 ## Current
 
+- Added scheduled GST rates across pricing and checkout, preserving historical document and refund tax details, with current-rate rounding checks and explicit repricing.
 - Improved workshop quote text, stable row deletion, GST rate rounding and allocation plan pricing previews.
 - Fixed authenticator setup visibility, saving workshop lines with supplied costs, and workshop price reviews.
 - Fixed expense date sorting, enabled invoice ID and amount sorting, and preserved selected page sizes when sorting or filtering lists.

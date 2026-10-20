@@ -397,7 +397,7 @@ class StoreCartService
         $shipping = round((float) ($shippingQuote['amount'] ?? 0), 2);
         $discount = round(min($subtotal + $shipping, (float) ($couponEvaluation['discount_amount'] ?? 0)), 2);
         $itemGst = round((float) $lines->sum('line_gst'), 2);
-        $shippingTaxRate = (float) ($lines->first(fn ($line) => $line->product->isPhysical())?->product->tax_rate ?? 0.1);
+        $shippingTaxRate = (float) ($lines->first(fn ($line) => $line->product->isPhysical())?->product->tax_rate ?? \App\Services\Finance\GstRate::current());
         $shippingGst = $this->inclusiveTaxAmount($shipping, $shippingTaxRate);
         $discountTaxRate = (string) ($couponEvaluation['discount_type'] ?? '') === Coupon::DISCOUNT_TYPE_FREE_SHIPPING
             ? $shippingTaxRate

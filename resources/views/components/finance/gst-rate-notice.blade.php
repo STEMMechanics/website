@@ -1,0 +1,4 @@
+<div x-data="{ get previousRates() { return [...new Set(lineItems.map(item => SM.lineTaxRate(item)).filter(rate => rate > 0 &amp;&amp; Math.abs(rate - SM.currentGstRate()) > 0.00000001))]; } }" x-cloak x-show="previousRates.length" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm" role="status">
+    <p class="min-w-0 flex-1">Saved GST rate: <strong x-text="previousRates.map(rate => (rate * 100).toFixed(2) + '%').join(', ')"></strong>. Current GST rate: <strong x-text="(SM.currentGstRate() * 100).toFixed(2) + '%'"></strong>. Saved rates and totals are retained. <span x-show="!isLocked">Applying current GST uses the existing ex-GST prices and current rounding checks.</span></p>
+    <x-ui.button type="button" color="outline" size="small" x-show="!isLocked" x-on:click="$dispatch('apply-current-gst')">Apply current GST</x-ui.button>
+</div>

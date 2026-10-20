@@ -27,6 +27,13 @@ window.SM.lineItemsEditor = (isLocked = false) => {
             this.lineItems.forEach(item => window.SM.roundWorkshopPrice(item));
             this.serializeLineItems();
         },
+        applyCurrentGst() {
+            if (isLocked) return;
+            this.lineItems.forEach(item => {
+                if (Math.abs(window.SM.lineTaxRate(item) - window.SM.currentGstRate()) > 0.00000001) window.SM.applyCurrentGst(item);
+            });
+            this.serializeLineItems();
+        },
         openPriceRounding(item) {
             if (isLocked || !item) return;
             const quote = this.priceRoundingInfo(item);
@@ -41,16 +48,16 @@ window.SM.lineItemsEditor = (isLocked = false) => {
         },
         get roundingPreview() {
             if (!this.roundingItem) return null;
-            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            const rate = window.SM.lineTaxRate(this.roundingItem);
             return window.SM.cleanPriceQuote(this.roundingProposed, this.roundingItem.quantity, rate)?.suggested;
         },
         get roundingOriginal() {
             if (!this.roundingItem) return null;
-            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            const rate = window.SM.lineTaxRate(this.roundingItem);
             return window.SM.cleanPriceQuote(this.roundingRequested, this.roundingItem.quantity, rate)?.current;
         },
         moveRoundingPrice(direction) {
-            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            const rate = window.SM.lineTaxRate(this.roundingItem);
             const quote = window.SM.cleanPriceQuote(this.roundingProposed, this.roundingItem.quantity, rate);
             this.roundingProposed = direction > 0 ? quote.next.unitInc : quote.previous.unitInc;
         },
@@ -213,6 +220,8 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
     },
     clearProductSelection(item) {
         item.source_id = '';
+        item.saved_pricing = null;
+        item.tax_rate = item.gst_applicable === false ? 0 : window.SM.currentGstRate();
         item.source_type = null;
         item.source_variant_id = 0;
         item.store_context = null;

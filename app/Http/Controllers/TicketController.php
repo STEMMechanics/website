@@ -1103,7 +1103,7 @@ class TicketController extends Controller
         $quantityBase = $invoiceLine ? max(1, (int) round(abs((float) $invoiceLine->quantity))) : $ticketCount;
         $lineTotalEx = $invoiceLine ? (float) $invoiceLine->line_total_ex_tax : ((float) $invoice->subtotal_amount);
         $lineTotalInc = $invoiceLine ? (float) $invoiceLine->line_total_inc_tax : ((float) $invoice->total_amount);
-        $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : 0.10;
+        $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : \App\Services\Finance\GstRate::forDate($ticket->created_at);
         $description = ($invoiceLine?->description) ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket refund');
         $sourceType = $invoiceLine?->source_type;
         $sourceId = $invoiceLine?->source_id;

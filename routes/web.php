@@ -18,6 +18,7 @@ use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\GstRateController;
 use App\Http\Controllers\FinanceFileController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceAllocationController;
@@ -750,6 +751,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/cost-centres/transfer', [CostCentreController::class, 'transferEditor'])->name('admin.cost-centre.transfer.edit');
     Route::post('/admin/cost-centres/transfer', [CostCentreController::class, 'transfer'])->name('admin.cost-centre.transfer');
     Route::get('/admin/cost-centres/gst', [CostCentreController::class, 'gst'])->name('admin.cost-centre.gst');
+    Route::get('/admin/finance/gst-rates', [GstRateController::class, 'index'])->name('admin.finance.gst-rates');
+    Route::post('/admin/finance/gst-rates', [GstRateController::class, 'store'])->name('admin.finance.gst-rates.store');
+    Route::delete('/admin/finance/gst-rates/{gstRate}', [GstRateController::class, 'destroy'])->whereNumber('gstRate')->name('admin.finance.gst-rates.destroy');
     Route::get('/admin/cost-centres/contributions', [CostCentreController::class, 'contributions'])->name('admin.cost-centre.contributions');
     Route::get('/admin/cost-centres/{centre}', [CostCentreController::class, 'show'])->whereNumber('centre')->name('admin.cost-centre.show');
     Route::get('/admin/finance/workshop-costings', [WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.index');

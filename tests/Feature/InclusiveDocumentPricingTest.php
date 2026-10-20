@@ -155,7 +155,7 @@ class InclusiveDocumentPricingTest extends TestCase
             }
         }
 
-        $this->assertSame($items, $quote->fresh()->line_items);
+        $this->assertSame($items, json_decode($quote->fresh()->getRawOriginal('line_items'), true));
         $this->assertSame('373.18', $quote->fresh()->subtotal_amount);
         $this->assertSame('409.00', $invoice->fresh()->total_amount);
         $this->assertSame('-150.00', $adjustment->fresh()->total_amount);

@@ -120,7 +120,7 @@
                             const sourceId = item.source_id ?? storeContext.product_id ?? '';
                             const sourceVariantId = item.source_variant_id ?? storeContext.variant_id ?? 0;
                             const gstApplicable = typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true;
-                            const taxMultiplier = gstApplicable ? 1.1 : 1.0;
+                            const taxMultiplier = 1 + SM.lineTaxRate(item);
                             const quantity = parseFloat(item.quantity || 0);
                             const legacyUnitEx = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
                             const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? ''))
@@ -183,7 +183,7 @@
                         line_total: 0,
                         line_total_ex_tax: 0,
                         line_total_inc_tax: 0,
-                        gst_applicable: true,
+                        gst_applicable: true, tax_rate: SM.currentGstRate(),
                     };
                 },
                 addLineItem(kind = 'custom') {
@@ -196,7 +196,7 @@
                         ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
                         : 0;
                     const unitPriceEx = item.gst_applicable !== false
-                        ? unitPriceInc / 1.1
+                        ? unitPriceInc / (1 + SM.lineTaxRate(item))
                         : unitPriceInc;
                     const amounts = SM.lineAmounts(item);
                     const lineTotalEx = amounts.net;
@@ -238,7 +238,7 @@
                             unit_shipping_units: parseFloat(product.shipping_units || 0),
                             unit_min_satchel_rank: product.min_satchel_rank ?? null,
                             unit_weight_grams: product.weight_grams ?? null,
-                            tax_rate: parseFloat(product.tax_rate || 0),
+                            tax_rate: SM.lineTaxRate(item),
                             unit_price_inc_tax: Number.isFinite(parseFloat(cleaned.unit_price_inc_tax || 0)) ? parseFloat(cleaned.unit_price_inc_tax || 0) : 0,
                             line_price_inc_tax: Number.isFinite(parseFloat(cleaned.line_total_inc_tax || 0)) ? parseFloat(cleaned.line_total_inc_tax || 0) : 0,
                         } : (item.store_context || null);
@@ -284,7 +284,7 @@
                     return multiplier > 0 ? unitPriceInc / multiplier : unitPriceInc;
                 },
                 lineItemGstMultiplier(item) {
-                    return item.gst_applicable !== false ? 1.10 : 1.00;
+                    return 1 + SM.lineTaxRate(item);
                 },
                 unitPriceIncGst(item) {
                     return this.normalizeMoney(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0));
@@ -337,6 +337,7 @@
 
             <input type="hidden" name="line_items_json" x-ref="lineItemsJson" value="{{ $savedLineItems }}" />
 
+            <x-finance.gst-rate-notice />
             <x-finance.price-rounding-summary document-label="quote" />
 
             <x-ui.input label="Quote Number" name="quote_number" value="{{ old('quote_number', $quote->quote_number ?? ($nextQuoteNumber ?? '')) }}" />

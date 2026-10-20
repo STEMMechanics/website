@@ -64,9 +64,9 @@ class WorkshopCosting
         $workshop = $this->line($cost - $travelCost, $quantity, (int) ($prices['rounding_step'] ?? 0));
         $travelUnits = $inputs['travel_hours'] * 4;
         $travelRules = array_filter($rules, fn ($rule) => $rule['basis'] === 'travel');
-        $travel = $this->line($travelRules ? $travelCost : ($prices['travel_cents'] ?? 0) / 1.1 * $travelUnits, $travelUnits, (int) ($prices['travel_rounding_step'] ?? 0));
+        $travel = $this->line($travelRules ? $travelCost : ($prices['travel_cents'] ?? 0) / (1 + GstRate::current()) * $travelUnits, $travelUnits, (int) ($prices['travel_rounding_step'] ?? 0));
         $ticketStep = max(1, (int) ($prices['rounding_step'] ?? 0));
-        $ticket = (int) (ceil((($cost - $travelCost) * 1.1 / $inputs['participants'] - 0.000001) / $ticketStep) * $ticketStep);
+        $ticket = (int) (ceil((($cost - $travelCost) * (1 + GstRate::current()) / $inputs['participants'] - 0.000001) / $ticketStep) * $ticketStep);
 
         return ['rows' => $rows, 'cost' => $cost, 'workshop' => $workshop, 'travel' => $travel,
             'gross' => $workshop['gross'] + $travel['gross'], 'tax' => $workshop['tax'] + $travel['tax'],
@@ -80,17 +80,17 @@ class WorkshopCosting
         }
         // Match the quote/invoice editor: rounded inclusive units when a step is set,
         // otherwise a cent-rounded net unit and GST rounded on the line total.
-        $unitGross = $cost * 1.1 / $quantity;
+        $unitGross = $cost * (1 + GstRate::current()) / $quantity;
         if ($step > 0) {
             $unitGross = ceil(($unitGross - 0.000001) / $step) * $step;
             $gross = (int) round($unitGross * $quantity);
-            $net = (int) round($gross / 1.1);
+            $net = (int) round($gross / (1 + GstRate::current()));
             $tax = $gross - $net;
         } else {
             $net = (int) round(round($cost / $quantity) * $quantity);
-            $tax = (int) round($net * 0.1);
+            $tax = (int) round($net * GstRate::current());
             $gross = $net + $tax;
-            $unitGross = round(round($cost / $quantity) * 1.1);
+            $unitGross = round(round($cost / $quantity) * (1 + GstRate::current()));
         }
 
         return ['net' => $net, 'tax' => $tax, 'gross' => $gross, 'unit_gross' => (int) round($unitGross)];

@@ -49,7 +49,7 @@ test('unallocated expense totals need attention even when automatic allocation i
     assert.equal(tally.needsAttention, false);
 });
 
-function expenseGstUpdater(inputs, tally) {
+function expenseGstUpdater(inputs, tally, paidOn = '2026-10-20') {
     const source = fs.readFileSync('resources/views/admin/expense/edit.blade.php', 'utf8');
     const updater = source.slice(source.indexOf('const updateGstFromTotal ='), source.indexOf('const resetPreviewVisibility ='));
     inputs.gst.dispatchEvent = event => {
@@ -57,8 +57,22 @@ function expenseGstUpdater(inputs, tally) {
         assert.equal(event.bubbles, true);
         tally.refreshTotal({ target: { id: 'gst' } });
     };
-    return vm.runInNewContext(`${updater}\nupdateGstFromTotal;`, { totalInput: inputs.total, gstInput: inputs.gst, Event });
+    const context = { totalInput: inputs.total, gstInput: inputs.gst, Event, window: {}, document: { querySelector: selector => selector.includes('paid_on')
+        ? { value: paidOn } : { content: selector.includes('gst-rates') ? JSON.stringify([{ effective_from: '2000-07-01', rate: 0.1 }, { effective_from: '2027-07-01', rate: 0.15 }]) : '0.15' } } };
+    vm.runInNewContext(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'), context);
+    return vm.runInNewContext(`${updater}\nupdateGstFromTotal;`, context);
 }
+
+test('expense GST calculation uses the expense date on either side of a rate change', () => {
+    const inputs = { total: { value: '115.00' }, gst: { value: '' } };
+    const { tally } = setup({ values: { 5: '0' }, enabled: false, exact: true, totalInput: 'total', gstInput: 'gst' }, inputs);
+    expenseGstUpdater(inputs, tally, '2027-07-01')();
+    assert.equal(inputs.gst.value, '15.00');
+    assert.equal(tally.total, 10000);
+    expenseGstUpdater(inputs, tally, '2027-06-30')();
+    assert.equal(inputs.gst.value, '10.45');
+    assert.equal(tally.total, 10455);
+});
 
 test('automatically calculated GST refreshes the net expense and supplier allocation', () => {
     const inputs = { total: { value: '12.15' }, gst: { value: '' }, supplier: { value: 'Vendor' } };

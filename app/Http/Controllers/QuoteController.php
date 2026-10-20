@@ -689,6 +689,8 @@ class QuoteController extends Controller
                 continue;
             }
 
+            $saved = $savedItems[$item['saved_line_index'] ?? $index] ?? null;
+            $item['tax_rate'] = \App\Services\Finance\GstRate::forLine($item, $saved ? \App\Services\Finance\GstRate::forLine($saved) : \App\Services\Finance\GstRate::current());
             $item = WorkshopLine::normalize($item);
             $description = trim((string) ($item['description'] ?? ''));
             $notes = trim((string) ($item['notes'] ?? ''));
@@ -708,13 +710,12 @@ class QuoteController extends Controller
             if (isset($item['unit_price_inc_tax'])) {
                 validator($item, ['unit_price_inc_tax' => 'numeric'])->validate();
                 $item['details_json']['inclusive_unit_price'] = (float) $item['unit_price_inc_tax'];
-                $unitPrice = (float) $item['unit_price_inc_tax'] / ($gstApplicable ? 1.1 : 1);
+                $unitPrice = (float) $item['unit_price_inc_tax'] / (1 + $item['tax_rate']);
             }
-            $saved = $savedItems[$item['saved_line_index'] ?? $index] ?? null;
             $unchanged = $saved && LinePricing::unchanged($item, $saved);
             $amounts = $unchanged
                 ? LinePricing::savedAmounts($saved)
-                : WorkshopLine::amounts($item, $quantity, $unitPrice, $gstApplicable ? 0.1 : 0);
+                : WorkshopLine::amounts($item, $quantity, $unitPrice, $item['tax_rate']);
             if ($unchanged && (float) $saved['quantity'] === $quantity) {
                 $unitPrice = (float) $saved['unit_price'];
             }

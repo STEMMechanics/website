@@ -130,7 +130,7 @@ class ShopProductController extends Controller
         }
         $product->fill(['title' => $data['title'], 'sku' => $sku, 'product_type' => Product::PRODUCT_TYPE_MATERIAL,
             'status' => Product::STATUS_ACTIVE, 'material_kind' => 'unit', 'purchase_unit' => $data['purchase_unit'],
-            'purchase_quantity' => 1, 'price' => 0, 'tax_rate' => 0.10, 'shipping_rate' => 0]);
+            'purchase_quantity' => 1, 'price' => 0, 'tax_rate' => \App\Services\Finance\GstRate::current(), 'shipping_rate' => 0]);
         $product->save();
         $item = collect(app(ProductPurchaseService::class)->catalog())->firstWhere('id', (int) $product->id);
 
@@ -566,7 +566,7 @@ class ShopProductController extends Controller
                 ? (float) $product->price
                 : round((float) $validated['price'], 2),
             'shipping_rate' => 0,
-            'tax_rate' => 0.10,
+            'tax_rate' => \App\Services\Finance\GstRate::current(),
             'shared_inventory' => $isPhysical && $request->boolean('shared_inventory'),
             'inventory_units' => (int) ($validated['inventory_units'] ?? 1),
             'inventory_quantity' => $isPhysical ? ($validated['inventory_quantity'] ?? null) : null,

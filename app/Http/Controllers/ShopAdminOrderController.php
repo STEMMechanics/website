@@ -458,7 +458,7 @@ class ShopAdminOrderController extends Controller
         $shippingAmount = round(max(0, $shippingAmount), 2);
         $lineItems = $order->items
             ->map(function (StoreOrderItem $item): array {
-                $taxRate = (float) ($item->tax_rate ?? 0.1);
+                $taxRate = (float) ($item->tax_rate ?? \App\Services\Finance\GstRate::LEGACY);
                 $unitPriceIncTax = (float) ($item->unit_price ?? 0);
                 $unitPriceExTax = round($unitPriceIncTax / (1 + $taxRate), 2);
 
@@ -470,6 +470,7 @@ class ShopAdminOrderController extends Controller
                     'unit_price' => $unitPriceExTax,
                     'line_total' => round($unitPriceExTax * max(1, (int) $item->quantity), 2),
                     'gst_applicable' => $taxRate > 0,
+                    'tax_rate' => $taxRate,
                     'store_context' => [
                         'product_id' => $item->product_id ? (int) $item->product_id : null,
                         'variant_id' => $item->product_variant_id ? (int) $item->product_variant_id : null,
@@ -497,7 +498,7 @@ class ShopAdminOrderController extends Controller
             ->all();
 
         if ($shippingAmount > 0.0001) {
-            $shippingUnitPrice = round($shippingAmount / 1.1, 2);
+            $shippingUnitPrice = round($shippingAmount / (1 + \App\Services\Finance\GstRate::current()), 2);
             $lineItems[] = [
                 'kind' => 'shipping',
                 'description' => trim((string) ($order->shipping_method ?: 'Shipping')),
@@ -506,6 +507,7 @@ class ShopAdminOrderController extends Controller
                 'unit_price' => $shippingUnitPrice,
                 'line_total' => $shippingUnitPrice,
                 'gst_applicable' => true,
+                'tax_rate' => \App\Services\Finance\GstRate::current(),
             ];
         }
 
@@ -520,7 +522,7 @@ class ShopAdminOrderController extends Controller
         $quote->line_items = $lineItems;
         $quote->subtotal_amount = round((float) collect($lineItems)->sum('line_total'), 2);
         $quote->gst_amount = round((float) collect($lineItems)->sum(function (array $item): float {
-            return $item['gst_applicable'] ? ((float) $item['line_total'] * 0.10) : 0.0;
+            return ((float) $item['line_total']) * \App\Services\Finance\GstRate::forLine($item);
         }), 2);
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
         $quote->notes = trim((string) ($order->public_notes ?? '')) ?: null;
@@ -581,7 +583,7 @@ class ShopAdminOrderController extends Controller
             $quantity = (float) ($lineItem['quantity'] ?? 0);
             $unitPrice = (float) ($lineItem['unit_price'] ?? 0);
             $lineTotal = round($quantity * $unitPrice, 2);
-            $taxRate = $lineItem['gst_applicable'] === true ? 0.10 : 0.00;
+            $taxRate = \App\Services\Finance\GstRate::forLine($lineItem);
 
             $invoice->lines()->create([
                 'line_number' => $index + 1,

@@ -35,7 +35,7 @@
     $dueDate = $invoice->due_date?->format('M d, Y') ?? '-';
     $purchaseOrder = trim((string) ($invoice->purchase_order_number ?? ''));
     $allLineItems = collect($pages)->flatten(1)->all();
-        $lineTaxRates = collect($allLineItems)->map(fn ($item) => (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0)));
+        $lineTaxRates = collect($allLineItems)->map(fn ($item) => \App\Services\Finance\GstRate::forLine($item));
         $hasNonTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate <= 0.0001);
         $hasTaxableItems = $lineTaxRates->contains(fn (float $taxRate): bool => $taxRate > 0.0001);
         $hasMixedTaxTreatment = $hasNonTaxableItems && $hasTaxableItems;
@@ -256,7 +256,7 @@
                     @forelse($pageItems as $item)
                     @php
                     $qty = (float) ($item['quantity'] ?? 0);
-                    $taxRate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
+                    $taxRate = \App\Services\Finance\GstRate::forLine($item);
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                     $lineKind = trim((string) ($item['kind'] ?? ''));
@@ -402,7 +402,7 @@
         $adjustmentSubtotalEx = (float) $adjustment->subtotal_amount;
         $adjustmentLines = $adjustment->lines ?? collect();
         $adjustmentHasNonTaxableItems = collect($adjustmentLines)
-        ->contains(fn ($line) => ((float) ($line->tax_rate ?? 0.1)) <= 0.0001);
+        ->contains(fn ($line) => ((float) ($line->tax_rate ?? \App\Services\Finance\GstRate::LEGACY)) <= 0.0001);
         @endphp
         <div class="page">
             <table class="header">
@@ -474,7 +474,7 @@
                     @forelse($adjustmentLines as $line)
                     @php
                     $qty = (float) ($line->quantity ?? 0);
-                    $taxRate = (float) ($line->tax_rate ?? 0.1);
+                    $taxRate = (float) ($line->tax_rate ?? \App\Services\Finance\GstRate::LEGACY);
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($line->notes ?? ''));
                     @endphp
