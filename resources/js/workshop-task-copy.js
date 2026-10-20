@@ -81,14 +81,26 @@ const formatCost = (value) => {
     return raw;
 };
 
+const isSafeHttpUrl = (value) => {
+    try {
+        const url = new URL(String(value || '').trim());
+        return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+        return false;
+    }
+};
+
+const isEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
 window.SM = window.SM || {};
-window.SM.workshopTaskCopy = ({ publicUrl = '' } = {}) => ({
+window.SM.workshopTaskCopy = ({ publicUrl = '', bookingsUrl = '' } = {}) => ({
     workshopPublicUrl: String(publicUrl || ''),
+    workshopBookingsUrl: String(bookingsUrl || ''),
 
     taskPreviewAvailable(task) {
         const content = htmlToPlainText(task?.notes || '').trim();
         const name = String(task?.name || '').toLowerCase();
-        return content !== '' && (/social|facebook|instagram|\bpost\b/.test(name) || /\{(?:date-|start-time|end-time|time-range|location|ages|cost|workshop-url)/i.test(content));
+        return content !== '' && (/social|facebook|instagram|\bpost\b/.test(name) || /\{(?:date-|start-time|end-time|time-range|location|ages|cost|workshop-url|bookings)/i.test(content));
     },
 
     workshopTaskPlaceholderValues() {
@@ -118,6 +130,16 @@ window.SM.workshopTaskCopy = ({ publicUrl = '' } = {}) => ({
 
         const ages = read('ages') || 'Not specified';
         const cost = formatCost(read('price'));
+        const registration = String(this.registration || read('registration') || 'none').toLowerCase();
+        const registrationData = read('registration_data');
+        const bookings = {
+            none: 'No Bookings Required',
+            tickets: this.workshopBookingsUrl,
+            link: isSafeHttpUrl(registrationData) ? registrationData : this.workshopPublicUrl,
+            email: isEmailAddress(registrationData) ? registrationData : this.workshopPublicUrl,
+            interest: this.workshopPublicUrl,
+            message: registrationData || this.workshopPublicUrl,
+        }[registration] ?? 'No Bookings Required';
         const startTime = startDate ? formatTime(startDate) : 'Not specified';
         const endTime = endDate ? formatTime(endDate) : 'Not specified';
         let timeRange = 'Not specified';
@@ -148,9 +170,11 @@ window.SM.workshopTaskCopy = ({ publicUrl = '' } = {}) => ({
             '{end-time}': endTime,
             '{time-range}': timeRange,
             '{location}': location,
+            '{LOCATION}': location.toUpperCase(),
             '{ages}': ages,
             '{cost}': cost,
             '{workshop-url}': this.workshopPublicUrl,
+            '{bookings}': bookings,
         };
     },
 
