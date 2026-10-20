@@ -260,7 +260,7 @@
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                     $lineKind = trim((string) ($item['kind'] ?? ''));
-                    $lineDescription = (string) ($item['description'] ?? '');
+                    $lineDescription = \App\Services\Finance\InvoicePdfLines::descriptionForPdf($item);
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }

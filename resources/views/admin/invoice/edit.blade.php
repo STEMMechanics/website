@@ -445,7 +445,7 @@
                             gst_applicable: item.gst_applicable !== false,
                             tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate || 0.1),
                         }))
-                        .filter((item) => ['product', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+                        .filter((item) => ['product', 'workshop', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                     this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
@@ -708,6 +708,8 @@
 
             <input type="hidden" name="send_scheduled_now" value="0" x-ref="sendScheduledNow" />
             <input type="hidden" name="line_items_json" x-ref="lineItemsJson" value="{{ $savedLineItems }}" />
+
+            <x-finance.price-rounding-summary document-label="invoice" />
 
             <div
                 x-show="scheduledSendModalOpen"

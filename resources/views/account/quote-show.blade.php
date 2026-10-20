@@ -110,9 +110,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
-                        @foreach((array) ($quote->line_items ?? []) as $item)
+                        @foreach(\App\Services\Finance\InvoicePdfLines::withWorkshopDetails((array) ($quote->line_items ?? [])) as $item)
                             @php
-                                $notes = trim((string) ($item['notes'] ?? ''));
+                                $notes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                             @endphp
                             <tr>
                                 <td class="px-6 py-4 align-top">

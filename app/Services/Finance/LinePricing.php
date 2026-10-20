@@ -48,7 +48,15 @@ class LinePricing
         $price = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
         $net = self::savedAmounts($item)['net'];
         if (abs($quantity) > 0.000001 && abs(round($quantity * $price, 2) - $net) >= 0.005) {
-            $price = round($net / $quantity, 8);
+            $price = $net / $quantity;
+        }
+
+        // Display only the precision needed for quantity × rate to reproduce the saved subtotal.
+        for ($precision = 2; $precision <= 12; $precision++) {
+            $displayPrice = round($price, $precision);
+            if (abs(round($quantity * $displayPrice, 2) - $net) < 0.005) {
+                return number_format($displayPrice, $precision);
+            }
         }
 
         return self::formatPrice($price);

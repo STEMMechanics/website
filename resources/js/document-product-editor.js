@@ -6,6 +6,60 @@ window.SM.lineItemsEditor = (isLocked = false) => {
 
     return {
         mobileLineItemIndex: null,
+        roundingItem: null,
+        roundingProposed: 0,
+        roundingRequested: 0,
+        priceRoundingInfo(item) { return window.SM.priceRoundingForLine(item); },
+        priceRoundingTitle(item) {
+            const quote = this.priceRoundingInfo(item);
+            if (!quote) return '';
+            if (quote.adjusted && quote.clean) return `Rounded from $${quote.original.unitInc.toFixed(2)} to $${quote.current.unitInc.toFixed(2)} including GST. Click to review.`;
+            return `This rate does not break down into exact cents. Suggested: $${quote.suggested.unitInc.toFixed(2)} including GST ($${quote.suggested.unitEx.toFixed(2)} ex GST). Click to review.`;
+        },
+        finishUnitPrice(item, index) {
+            const saved = window.SM.lineAmounts(item).saved;
+            if (!isLocked && !saved) window.SM.roundWorkshopPrice(item);
+            this.normalizeLineItem(index, 'unit_price_inc_tax');
+            this.serializeLineItems();
+        },
+        applyPendingPriceRounding() {
+            if (isLocked) return;
+            this.lineItems.forEach(item => window.SM.roundWorkshopPrice(item));
+            this.serializeLineItems();
+        },
+        openPriceRounding(item) {
+            if (isLocked || !item) return;
+            const quote = this.priceRoundingInfo(item);
+            if (!quote) return;
+            this.roundingItem = item;
+            this.roundingRequested = quote.original.unitInc;
+            this.roundingProposed = quote.suggested.unitInc;
+            this.$nextTick(() => {
+                const dialog = document.getElementById('finance-price-rounding');
+                if (dialog && !dialog.open) dialog.showModal();
+            });
+        },
+        get roundingPreview() {
+            if (!this.roundingItem) return null;
+            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            return window.SM.cleanPriceQuote(this.roundingProposed, this.roundingItem.quantity, rate)?.suggested;
+        },
+        get roundingOriginal() {
+            if (!this.roundingItem) return null;
+            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            return window.SM.cleanPriceQuote(this.roundingRequested, this.roundingItem.quantity, rate)?.current;
+        },
+        moveRoundingPrice(direction) {
+            const rate = this.roundingItem.gst_applicable !== false ? Number(this.roundingItem.tax_rate ?? 0.1) : 0;
+            const quote = window.SM.cleanPriceQuote(this.roundingProposed, this.roundingItem.quantity, rate);
+            this.roundingProposed = direction > 0 ? quote.next.unitInc : quote.previous.unitInc;
+        },
+        applyRoundingPrice() {
+            if (isLocked || !this.roundingItem) return;
+            window.SM.applyCleanPrice(this.roundingItem, this.roundingProposed, this.roundingRequested);
+            this.serializeLineItems();
+            document.getElementById('finance-price-rounding')?.close();
+        },
         quantityIsCalculated(item) {
             return item.kind === 'multi_workshop' || (item.kind === 'workshop' && !!item.workshop_hours && !!item.workshop_seats);
         },
@@ -280,6 +334,12 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
             item.notes = '';
         }
 
+        if (['workshop', 'multi_workshop'].includes(item.kind)) {
+            item.details_json ??= {};
+            delete item.details_json.workshop_notes_mode;
+            SM.initializeWorkshopText(item);
+        }
+
         this.serializeLineItems();
     },
     selectItemType(index, kind) {
@@ -288,6 +348,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
             return;
         }
 
+        if (kind === 'workshop' && item.kind !== 'workshop') item.legacy_workshop = false;
         item.kind = kind;
         if (kind === 'multi_workshop') {
             item.auto_pricing = true;

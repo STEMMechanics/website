@@ -341,9 +341,9 @@ class FinancePlanner
                 if ($units <= 0) { continue; }
                 $pricingInputs = $inputs;
                 $pricingUnits = $units;
-                if (! isset($assumptions['lines'])) {
+                if (! isset($assumptions['lines']) || isset($inputs['pricing_participants'])) {
                     $pricingInputs['participants'] = max(1, (int) ($inputs['pricing_participants'] ?? $prices['pricing_participants'] ?? 10));
-                    $pricingUnits = $pricingInputs['participants'];
+                    $pricingUnits = $pricingInputs['participants'] * (isset($assumptions['lines']) ? (float) ($inputs['hours'] ?? 0) : 1);
                 }
                 $cost = array_sum($this->targets($rules, $pricingInputs + ['travel_minutes' => 0, 'venue_supplied' => false]));
                 $multiplier = ($inputs['gst_applicable'] ?? true) ? 1.1 : 1;

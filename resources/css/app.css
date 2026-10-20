@@ -1881,6 +1881,14 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
 .sm-list-dialog-header h2 { overflow-wrap: anywhere; white-space: normal; }
 .sm-list-dialog-actions .sm-list-dialog-header h2 { min-width: 0; overflow: hidden; overflow-wrap: normal; text-overflow: ellipsis; white-space: nowrap; }
 .sm-dialog-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: .75rem; padding: 1rem 1.25rem; background: white; border-top: 1px solid #e2e8f0; }
+.sm-plan-preview-footer { align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+/* Keep the header and footer outside the only scrollable area, including during overscroll. */
+#record-editor[open]:has([data-record-footer]) { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(85dvh, 48rem); overflow: clip; }
+#record-editor:has([data-record-footer]) > .sm-list-dialog-header { position: static; }
+#record-editor:has([data-record-footer]) > [data-record-content] { display: grid; min-height: 0; overflow: clip; padding: 0; }
+#record-editor:has([data-record-footer]) [data-record-form] { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; overflow: clip; }
+#record-editor:has([data-record-footer]) [data-record-body] { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 1.25rem; }
+#record-editor [data-record-footer] { position: static; }
 .sm-list-dialog-small .sm-list-dialog-header { padding: .5rem 1rem; }
 .sm-list-dialog-small .sm-dialog-footer { padding: .75rem 1rem; }
 .sm-filter-sections { padding: 0 1.25rem; }

@@ -12,6 +12,7 @@ document.addEventListener('click', async event => {
     controller = new AbortController();
     const signal = controller.signal;
     const content = dialog.querySelector('[data-record-content]');
+    dialog.querySelector('h2').textContent = link.getAttribute('data-record-title') || 'Edit details';
     content.replaceChildren(dialog.querySelector('[data-record-loader]').content.cloneNode(true));
     content.setAttribute('aria-busy', 'true');
     openListDialog(dialog, link);
@@ -23,7 +24,9 @@ document.addEventListener('click', async event => {
         if (!form) throw new Error('The editor could not be loaded. Refresh the page and try again.');
         if (signal.aborted || !dialog.open) return;
         content.replaceChildren(form);
-        dialog.querySelector('h2').textContent = link.getAttribute('data-record-title') || link.textContent.trim() || link.getAttribute('aria-label') || 'Edit details';
+        const title = form.getAttribute('data-record-title') || link.getAttribute('data-record-title') || link.textContent.trim() || link.getAttribute('aria-label') || 'Edit details';
+        dialog.querySelector('h2').textContent = title;
+        dialog.querySelector('[data-close-dialog]')?.setAttribute('aria-label', `Close ${title}`);
         form.querySelector('input:not([type="hidden"]), select, textarea')?.focus();
     } catch (error) {
         if (signal.aborted) return;

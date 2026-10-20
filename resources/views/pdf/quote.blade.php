@@ -167,7 +167,7 @@
                 $qty = (float) ($item['quantity'] ?? 0);
                 $gstApplicable = ($item['gst_applicable'] ?? true) === true;
                 $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
-                $lineDescription = (string) ($item['description'] ?? '');
+                $lineDescription = \App\Services\Finance\InvoicePdfLines::descriptionForPdf($item);
                 $isWorkshop = in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true);
                 @endphp
                 <tr>
