@@ -183,18 +183,18 @@ class WorkshopBlueprintService
 
     private function restorePlaceholderTemplate(string $current, string $template): string
     {
-        if ($current === '' || $template === '' || ! preg_match('/\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url)\}/', $template)) {
+        if ($current === '' || $template === '' || ! preg_match('/\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url|bookings)\}/i', $template)) {
             return $current;
         }
 
-        $parts = preg_split('/(\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url)\})/', $template, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $parts = preg_split('/(\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url|bookings)\})/i', $template, -1, PREG_SPLIT_DELIM_CAPTURE);
         if (! is_array($parts)) {
             return $current;
         }
 
         $pattern = '';
         foreach ($parts as $part) {
-            $pattern .= preg_match('/^\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url)\}$/', $part)
+            $pattern .= preg_match('/^\{(?:date-[^{}]+|start-time|end-time|time-range|location|ages|cost|workshop-url|bookings)\}$/i', $part)
                 ? '[\s\S]*?'
                 : preg_quote($part, '~');
         }

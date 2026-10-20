@@ -1508,7 +1508,10 @@ if (isset($workshop)) {
                 @include('admin.workshop.partials.welcome-settings')
                 </div>
                 <div x-data="{
-                    ...SM.workshopTaskCopy({ publicUrl: @js($workshopModel ? route('workshop.show', $workshopModel) : '') }),
+                    ...SM.workshopTaskCopy({
+                        publicUrl: @js($workshopModel ? route('workshop.show', $workshopModel) : ''),
+                        bookingsUrl: @js($workshopModel ? route('workshop.ticket.flow.start', $workshopModel) : ''),
+                    }),
                     previewTask: null,
                     tasks: @js($workshopTaskDrafts).map((task) => {
                         const reminderOffset = Number(task.reminder_offset_days || 0);

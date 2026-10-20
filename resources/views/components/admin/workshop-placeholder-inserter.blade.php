@@ -16,8 +16,10 @@
         <option value="{end-time}">{end-time}</option>
         <option value="{time-range}">{time-range}</option>
         <option value="{location}">{location}</option>
+        <option value="{LOCATION}">{LOCATION} · INNOVATION CENTRE</option>
         <option value="{ages}">{ages}</option>
         <option value="{cost}">{cost}</option>
         <option value="{workshop-url}">{workshop-url}</option>
+        <option value="{bookings}">{bookings} · Booking URL or No Bookings Required</option>
     </select>
 </div>

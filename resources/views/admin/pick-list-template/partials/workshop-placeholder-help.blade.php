@@ -12,9 +12,11 @@
                 <code>{end-time}</code><span>4:30pm</span>
                 <code>{time-range}</code><span>3:30-4:30pm</span>
                 <code>{location}</code><span>Innovation Centre</span>
+                <code>{LOCATION}</code><span>INNOVATION CENTRE</span>
                 <code>{ages}</code><span>8–12</span>
                 <code>{cost}</code><span>$25.00 or Free</span>
                 <code>{workshop-url}</code><span>Public workshop page URL</span>
+                <code>{bookings}</code><span>Booking page, external URL, email, custom message, or No Bookings Required</span>
             </div>
             <p class="mt-3 border-t border-gray-100 pt-3 text-gray-500">Custom dates support d, dd, ddd, dddd, m, mm, mmm, mmmm, yy, and yyyy.</p>
         </div>

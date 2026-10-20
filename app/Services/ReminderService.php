@@ -148,16 +148,19 @@ class ReminderService
 
         $startsAt = $workshop->starts_at;
         $endsAt = $workshop->ends_at;
+        $location = $workshop->getLocationName() ?: 'Not specified';
         $message = strtr($message, [
             '{date-short}' => $startsAt?->format('d/m/Y') ?? 'Not specified',
             '{date-long}' => $startsAt?->format('l j F') ?? 'Not specified',
             '{start-time}' => $startsAt?->format('g:ia') ?? 'Not specified',
             '{end-time}' => $endsAt?->format('g:ia') ?? 'Not specified',
             '{time-range}' => $this->workshopTimeRange($startsAt, $endsAt),
-            '{location}' => $workshop->getLocationName() ?: 'Not specified',
+            '{location}' => $location,
+            '{LOCATION}' => mb_strtoupper($location, 'UTF-8'),
             '{ages}' => trim((string) ($workshop->ages ?? '')) ?: 'Not specified',
             '{cost}' => $this->workshopCost($workshop),
             '{workshop-url}' => route('workshop.show', $workshop),
+            '{bookings}' => $this->workshopBookings($workshop),
         ]);
 
         if ($startsAt !== null) {
@@ -169,6 +172,33 @@ class ReminderService
         }
 
         return $message;
+    }
+
+    private function workshopBookings(Workshop $workshop): string
+    {
+        $registrationData = trim((string) ($workshop->registration_data ?? ''));
+
+        return match ((string) ($workshop->registration ?? 'none')) {
+            'tickets' => route('workshop.ticket.flow.start', $workshop),
+            'link' => $this->isSafeHttpUrl($registrationData)
+                ? $registrationData
+                : route('workshop.show', $workshop),
+            'email' => filter_var($registrationData, FILTER_VALIDATE_EMAIL)
+                ? $registrationData
+                : route('workshop.show', $workshop),
+            'interest' => route('workshop.show', $workshop),
+            'message' => $registrationData !== '' ? $registrationData : route('workshop.show', $workshop),
+            default => 'No Bookings Required',
+        };
+    }
+
+    private function isSafeHttpUrl(string $url): bool
+    {
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        return in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true);
     }
 
     private function workshopTimeRange(?Carbon $startsAt, ?Carbon $endsAt): string

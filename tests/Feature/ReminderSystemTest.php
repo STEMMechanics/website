@@ -11,7 +11,6 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
-use App\Models\WorkshopRunSheetTask;
 use App\Services\ReminderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -119,8 +118,10 @@ class ReminderSystemTest extends TestCase
                 '{start-time}–{end-time}',
                 '{time-range}',
                 '{location}',
+                '{LOCATION}',
                 'Ages {ages}',
                 '{cost}',
+                '{bookings}',
             ]),
             'reminder_enabled' => true,
             'reminder_offset_days' => -5,
@@ -137,6 +138,8 @@ class ReminderSystemTest extends TestCase
             'ends_at' => '2026-08-27 11:00:00',
             'ages' => '8–12',
             'price' => '25',
+            'registration' => 'tickets',
+            'max_tickets' => 10,
         ]);
 
         app(ReminderService::class)->syncWorkshop($workshop);
@@ -148,14 +151,63 @@ class ReminderSystemTest extends TestCase
             '9:30am–11:00am',
             '9:30-11:00am',
             'Innovation Centre',
+            'INNOVATION CENTRE',
             'Ages 8–12',
             '$25.00',
+            route('workshop.ticket.flow.start', $workshop),
         ]), Reminder::query()->sole()->message);
 
         $workshop->update(['price' => 'Free']);
         app(ReminderService::class)->syncWorkshop($workshop->fresh());
 
-        $this->assertStringEndsWith("\nFree", (string) Reminder::query()->sole()->message);
+        $this->assertStringEndsWith(
+            "\nFree\n".route('workshop.ticket.flow.start', $workshop->fresh()),
+            (string) Reminder::query()->sole()->message,
+        );
+    }
+
+    public function test_workshop_bookings_placeholder_uses_the_registration_destination(): void
+    {
+        $user = User::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'bookings-placeholder-workshop.png',
+            'title' => 'Bookings Placeholder Workshop',
+            'hash' => str_repeat('f', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $user->id,
+        ]);
+        $location = Location::factory()->create(['name' => 'Innovation Centre']);
+        $workshop = Workshop::factory()->create([
+            'user_id' => $user->id,
+            'hero_media_name' => $media->name,
+            'location_id' => $location->id,
+            'registration' => 'none',
+        ]);
+        $service = app(ReminderService::class);
+
+        $this->assertSame('No Bookings Required', $service->renderWorkshopPlaceholders('{bookings}', $workshop));
+
+        $workshop->update(['registration' => 'tickets', 'max_tickets' => 10]);
+        $this->assertSame(route('workshop.ticket.flow.start', $workshop), $service->renderWorkshopPlaceholders('{bookings}', $workshop->fresh()));
+
+        $workshop->update([
+            'registration' => 'link',
+            'registration_data' => 'https://booking.example.test/paper-speakers',
+        ]);
+        $this->assertSame('https://booking.example.test/paper-speakers', $service->renderWorkshopPlaceholders('{bookings}', $workshop->fresh()));
+
+        $workshop->update([
+            'registration' => 'email',
+            'registration_data' => 'bookings@example.com',
+        ]);
+        $this->assertSame('bookings@example.com', $service->renderWorkshopPlaceholders('{bookings}', $workshop->fresh()));
+
+        $workshop->update([
+            'registration' => 'message',
+            'registration_data' => 'Contact the organiser to reserve a place.',
+        ]);
+        $this->assertSame('Contact the organiser to reserve a place.', $service->renderWorkshopPlaceholders('{bookings}', $workshop->fresh()));
     }
 
     public function test_resync_updates_the_same_workshop_task_reminder_without_duplication(): void
