@@ -5,3 +5,7 @@ Accept: application/json
 ### Get media item
 GET http://127.0.0.1:8001/media/SC-After-Dark.png
 Accept: application/json
+
+### Get public workshop RSS feed
+GET http://127.0.0.1:8001/workshops/feed
+Accept: application/rss+xml
