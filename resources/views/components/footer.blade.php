@@ -23,29 +23,30 @@
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
-            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">STEMCraft</a></li>
-            <li class="mb-3"><a href="https://stemmech.com.au/discord" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li>
-            <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
-            <li><a href="https://instagram.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Instagram</a></li>
-            <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">YouTube</a></li>
-            <li><a href="https://linkedin.com/company/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Linked-In</a></li>
+            <li><a href="{{ route('stemcraft.index') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><span class="sm-icon-stemcraft shrink-0" aria-hidden="true"></span>STEMCraft</a></li>
+            <li class="mb-3"><a href="https://stemmech.com.au/discord" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start" referrerpolicy="no-referrer"><i class="fa-brands fa-discord w-4 text-center" aria-hidden="true"></i>Discord</a></li>
+            <li><a href="https://www.facebook.com/stemmechanics" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start" referrerpolicy="no-referrer"><i class="fa-brands fa-facebook-f w-4 text-center" aria-hidden="true"></i>Facebook</a></li>
+            <li><a href="https://instagram.com/stemmechanics" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start" referrerpolicy="no-referrer"><i class="fa-brands fa-instagram w-4 text-center" aria-hidden="true"></i>Instagram</a></li>
+            <li><a href="https://youtube.com/@STEMMechanics" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start" referrerpolicy="no-referrer"><i class="fa-brands fa-youtube w-4 text-center" aria-hidden="true"></i>YouTube</a></li>
+            <li><a href="https://linkedin.com/company/stemmechanics" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start" referrerpolicy="no-referrer"><i class="fa-brands fa-linkedin-in w-4 text-center" aria-hidden="true"></i>Linked-In</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>
                 <h3 class="font-bold mb-2">Sponsorships</h3>
             </li>
-            <li><a href="{{ route('sponsor.index') }}" class="text-sm hover:text-primary-color">Sponsor us</a></li>
-            <li><a href="{{ route('sponsors.index') }}" class="text-sm hover:text-primary-color">Our sponsors</a></li>
-            <li><a href="{{ route('sponsor.manage.request') }}" class="text-sm hover:text-primary-color">Manage</a></li>
+            <li><a href="{{ route('sponsor.index') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-heart w-4 shrink-0 text-center" aria-hidden="true"></i>Sponsor us</a></li>
+            <li><a href="{{ route('sponsors.index') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-handshake w-4 shrink-0 text-center" aria-hidden="true"></i>Our sponsors</a></li>
+            <li><a href="{{ route('sponsor.manage.request') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-sliders w-4 shrink-0 text-center" aria-hidden="true"></i>Manage</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center lg:text-left">
             <li>
                 <h3 class="font-bold mb-2">Workshops</h3>
             </li>
-            <li class="mb-3"><a href="{{ route('workshop.index') }}" class="text-sm hover:text-primary-color">All workshops</a></li>
+            <li class="mb-3"><a href="{{ route('workshop.index') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-layer-group w-4 shrink-0 text-center" aria-hidden="true"></i>All workshops</a></li>
             @foreach($footerWorkshopCategories as $category)
                 <li>
-                    <a href="{{ route('workshop.index', ['category' => $category->slug]) }}" class="inline-flex items-center justify-center gap-1.5 text-sm hover:text-primary-color md:justify-start">
+                    <a href="{{ route('workshop.index', ['category' => $category->slug]) }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start">
+                        <i class="{{ $category->iconClass() }} w-4 shrink-0 text-center" aria-hidden="true"></i>
                         {{ $category->name }}
                     </a>
                 </li>
@@ -55,13 +56,13 @@
             <li>
                 <h3 class="font-bold mb-2">STEMMechanics</h3>
             </li>
-            <li class="mb-3"><a href="{{ route('tickets.request') }}" class="text-sm hover:text-primary-color">My tickets</a></li>
-            <li><a href="{{ route('about') }}" class="text-sm hover:text-primary-color">About</a></li>
-            <li class="mb-3"><a href="{{ route('contact') }}" class="text-sm hover:text-primary-color">Contact</a></li>
-            <li><a href="{{ route('code-of-conduct') }}" class="text-sm hover:text-primary-color">Code of Conduct</a></li>
-            <li><a href="{{ route('terms-conditions') }}" class="text-sm hover:text-primary-color">Terms & Conditions</a></li>
-            <li><a href="{{ route('privacy') }}" class="text-sm hover:text-primary-color">Privacy Policy</a></li>
-            <li><a href="https://status.stemmechanics.com.au/" class="text-sm hover:text-primary-color">Status</a></li>
+            <li class="mb-3"><a href="{{ route('tickets.request') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-ticket w-4 shrink-0 text-center" aria-hidden="true"></i>My tickets</a></li>
+            <li><a href="{{ route('about') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-circle-info w-4 shrink-0 text-center" aria-hidden="true"></i>About</a></li>
+            <li class="mb-3"><a href="{{ route('contact') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-envelope w-4 shrink-0 text-center" aria-hidden="true"></i>Contact</a></li>
+            <li><a href="{{ route('code-of-conduct') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-shield-halved w-4 shrink-0 text-center" aria-hidden="true"></i>Code of Conduct</a></li>
+            <li><a href="{{ route('terms-conditions') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-file-contract w-4 shrink-0 text-center" aria-hidden="true"></i>Terms & Conditions</a></li>
+            <li><a href="{{ route('privacy') }}" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-lock w-4 shrink-0 text-center" aria-hidden="true"></i>Privacy Policy</a></li>
+            <li><a href="https://status.stemmechanics.com.au/" class="inline-flex items-center justify-center gap-2 text-sm hover:text-primary-color lg:justify-start"><i class="fa-solid fa-signal w-4 shrink-0 text-center" aria-hidden="true"></i>Status</a></li>
         </ul>
     </section>
     <section class="border-t border-t-gray-600 pt-8 flex justify-between text-xs items-center flex-col sm:flex-row">
