@@ -23,12 +23,19 @@
         @if(! empty($item['endDate']))
         <sm:endDate>{{ \Illuminate\Support\Carbon::parse($item['endDate'])->toAtomString() }}</sm:endDate>
         @endif
+        <sm:id>{{ $item['id'] }}</sm:id>
         <sm:location>{{ $item['location'] }}</sm:location>
         @if($item['price'] !== '')
         <sm:price>{{ $item['price'] }}</sm:price>
         @endif
         <sm:ages>{{ $item['ages'] !== '' ? $item['ages'] : 'All ages' }}</sm:ages>
+        <sm:registrationType>{{ $item['registrationType'] }}</sm:registrationType>
+        @if(! empty($item['registrationUrl']))
+        <sm:registrationUrl>{{ $item['registrationUrl'] }}</sm:registrationUrl>
+        @endif
         <sm:status>{{ $item['status'] }}</sm:status>
+        <sm:statusCode>{{ $item['statusCode'] }}</sm:statusCode>
+        <sm:type>{{ $item['type'] }}</sm:type>
     </item>
 @endforeach
 </channel>

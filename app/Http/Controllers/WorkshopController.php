@@ -70,6 +70,12 @@ class WorkshopController extends Controller
 {
     private const ATTENDANCE_PAYMENT_METHOD_COMP = 'comp';
 
+    private const WORKSHOP_FEED_CANCELLED_RETENTION_DAYS = 30;
+
+    private const WORKSHOP_FEED_CANCELLED_LIMIT = 20;
+
+    private const WORKSHOP_FEED_UPCOMING_LIMIT = 20;
+
     private const SCHOOL_HOLIDAYS_OPTION = 'workshops.school-holidays';
 
     private const SCHOOL_HOLIDAYS_LABEL_OPTION = 'workshops.school-holidays-label';
@@ -92,30 +98,23 @@ class WorkshopController extends Controller
 
     public function feed(): Response
     {
-        $workshops = $this->publicWorkshopListingQuery(false)
-            ->limit(20)
-            ->get()
-            ->map(function (Workshop $workshop): array {
-                $descriptionParts = array_filter([
-                    $workshop->newsletterSummary(240),
-                    $this->workshopFeedDetailLine($workshop),
-                ]);
+        $upcoming = $this->publicWorkshopListingQuery(false)
+            ->where('status', '!=', 'cancelled')
+            ->limit(self::WORKSHOP_FEED_UPCOMING_LIMIT)
+            ->get();
 
-                return [
-                    'description' => implode("\n\n", $descriptionParts),
-                    'guid' => route('workshop.show', $workshop),
-                    'ages' => trim((string) ($workshop->ages ?? '')),
-                    'enclosure' => $this->workshopFeedEnclosure($workshop),
-                    'link' => route('workshop.show', $workshop),
-                    'location' => trim((string) $workshop->getPublicLocationLabel()),
-                    'price' => $this->workshopFeedPriceLabel($workshop),
-                    'pubDate' => $workshop->updated_at ?? $workshop->publish_at ?? $workshop->created_at ?? now(),
-                    'status' => $workshop->publicStatusLabel(),
-                    'title' => $workshop->title,
-                    'startDate' => $workshop->effectiveStartsAt(),
-                    'endDate' => $workshop->effectiveEndsAt(),
-                ];
-            });
+        $recentlyCancelled = $this->publicWorkshopFeedQuery()
+            ->where('status', 'cancelled')
+            ->where('updated_at', '>=', now()->subDays(self::WORKSHOP_FEED_CANCELLED_RETENTION_DAYS))
+            ->orderByDesc('updated_at')
+            ->limit(self::WORKSHOP_FEED_CANCELLED_LIMIT)
+            ->get();
+
+        $workshops = $upcoming
+            ->concat($recentlyCancelled)
+            ->unique('id')
+            ->values()
+            ->map(fn (Workshop $workshop): array => $this->workshopFeedItem($workshop));
 
         return response()
             ->view('workshop.feed', [
@@ -946,14 +945,84 @@ class WorkshopController extends Controller
     /**
      * @return Builder<Workshop>
      */
-    private function publicWorkshopListingQuery(bool $past, ?WorkshopCategory $category = null): Builder
+    private function publicWorkshopFeedQuery(): Builder
     {
-        $query = Workshop::query()
+        return Workshop::query()
             ->publiclyVisible()
             ->with(['categories', 'hero', 'location'])
             ->withCount([
                 'tickets as active_tickets_count' => fn ($ticketQuery) => $ticketQuery->whereIn('status', Ticket::activePurchasedStatuses()),
             ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function workshopFeedItem(Workshop $workshop): array
+    {
+        $descriptionParts = array_filter([
+            $workshop->newsletterSummary(240),
+            $this->workshopFeedDetailLine($workshop),
+        ]);
+
+        return [
+            'description' => implode("\n\n", $descriptionParts),
+            'guid' => route('workshop.show', $workshop),
+            'id' => (string) $workshop->getKey(),
+            'ages' => trim((string) ($workshop->ages ?? '')),
+            'enclosure' => $this->workshopFeedEnclosure($workshop),
+            'link' => route('workshop.show', $workshop),
+            'location' => trim((string) $workshop->getPublicLocationLabel()),
+            'price' => $this->workshopFeedPriceLabel($workshop),
+            'pubDate' => $workshop->updated_at ?? $workshop->publish_at ?? $workshop->created_at ?? now(),
+            'registrationType' => $this->workshopFeedRegistrationType($workshop),
+            'registrationUrl' => $this->workshopFeedRegistrationUrl($workshop),
+            'status' => $workshop->publicStatusLabel(),
+            'statusCode' => $workshop->publicStatus(),
+            'title' => $workshop->title,
+            'type' => $workshop->locationType(),
+            'startDate' => $workshop->effectiveStartsAt(),
+            'endDate' => $workshop->effectiveEndsAt(),
+        ];
+    }
+
+    private function workshopFeedRegistrationType(Workshop $workshop): string
+    {
+        $registration = strtolower(trim((string) ($workshop->registration ?? '')));
+
+        return in_array($registration, ['tickets', 'link', 'interest', 'email', 'message'], true)
+            ? $registration
+            : 'none';
+    }
+
+    private function workshopFeedRegistrationUrl(Workshop $workshop): ?string
+    {
+        $registrationType = $this->workshopFeedRegistrationType($workshop);
+        if ($registrationType === 'none' || $workshop->publicStatus() !== 'open' || $workshop->isPrivate()) {
+            return null;
+        }
+
+        $registrationData = trim((string) ($workshop->registration_data ?? ''));
+
+        return match ($registrationType) {
+            'tickets' => route('workshop.ticket.flow.start', $workshop),
+            'link' => $this->isSafeHttpUrl($registrationData)
+                ? $registrationData
+                : route('workshop.show', $workshop),
+            'interest', 'message' => route('workshop.show', $workshop),
+            'email' => filter_var($registrationData, FILTER_VALIDATE_EMAIL)
+                ? 'mailto:'.$registrationData
+                : route('workshop.show', $workshop),
+            default => null,
+        };
+    }
+
+    /**
+     * @return Builder<Workshop>
+     */
+    private function publicWorkshopListingQuery(bool $past, ?WorkshopCategory $category = null): Builder
+    {
+        $query = $this->publicWorkshopFeedQuery();
 
         if ($category instanceof WorkshopCategory) {
             $query->whereHas('categories', fn (Builder $categoryQuery): Builder => $categoryQuery->whereKey($category->id));

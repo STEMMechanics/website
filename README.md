@@ -47,5 +47,6 @@ npm run build
 - [Architecture](ARCHITECTURE.md)
 - [Release notes](CHANGES.md)
 - [Contributing](CONTRIBUTING.md)
+- [Workshop RSS feed](docs/workshop-feed.md)
 - [Security policy](SECURITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)

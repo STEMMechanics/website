@@ -252,6 +252,158 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertSame(1, $document->getElementsByTagName('item')->length);
     }
 
+    public function test_public_workshop_feed_publishes_registration_workflows_and_explicit_type(): void
+    {
+        $ticketed = $this->createWorkshop(
+            title: 'Ticketed feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'tickets'
+        );
+        $external = $this->createWorkshop(
+            title: 'External feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'link'
+        );
+        $interest = $this->createWorkshop(
+            title: 'Interest feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'interest'
+        );
+        $email = $this->createWorkshop(
+            title: 'Email feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'email'
+        );
+        $message = $this->createWorkshop(
+            title: 'STEMCraft feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'message',
+            isOnline: true,
+            type: Workshop::TYPE_STEMCRAFT
+        );
+        $none = $this->createWorkshop(
+            title: 'No registration feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'none'
+        );
+        $privateExternal = $this->createWorkshop(
+            title: 'Private external feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            isPrivate: true,
+            registration: 'link'
+        );
+
+        $external->update(['registration_data' => 'https://tickets.example.com/register']);
+        $email->update(['registration_data' => 'bookings@example.com']);
+        $privateExternal->update(['registration_data' => 'https://private.example.com/register']);
+
+        $xml = $this->workshopFeedXml();
+
+        $expected = [
+            [$ticketed, [
+                'registrationType' => 'tickets',
+                'registrationUrl' => route('workshop.ticket.flow.start', $ticketed),
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+            [$external, [
+                'registrationType' => 'link',
+                'registrationUrl' => 'https://tickets.example.com/register',
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+            [$interest, [
+                'registrationType' => 'interest',
+                'registrationUrl' => route('workshop.show', $interest),
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+            [$email, [
+                'registrationType' => 'email',
+                'registrationUrl' => 'mailto:bookings@example.com',
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+            [$message, [
+                'registrationType' => 'message',
+                'registrationUrl' => route('workshop.show', $message),
+                'type' => Workshop::TYPE_STEMCRAFT,
+            ]],
+            [$none, [
+                'registrationType' => 'none',
+                'registrationUrl' => '',
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+            [$privateExternal, [
+                'registrationType' => 'link',
+                'registrationUrl' => '',
+                'type' => Workshop::TYPE_PHYSICAL,
+            ]],
+        ];
+
+        foreach ($expected as [$workshop, $values]) {
+            $item = $this->workshopFeedItem($xml, $workshop);
+            $namespaced = $item->children('https://stemmechanics.com/ns/rss/workshop');
+
+            $this->assertSame((string) $workshop->id, (string) $namespaced->id);
+            $this->assertSame($values['registrationType'], (string) $namespaced->registrationType);
+            $this->assertSame($values['registrationUrl'], (string) $namespaced->registrationUrl);
+            $this->assertSame($workshop->isPrivate() ? 'private' : 'open', (string) $namespaced->statusCode);
+            $this->assertSame($values['type'], (string) $namespaced->type);
+        }
+    }
+
+    public function test_public_workshop_feed_retains_recent_cancellations_and_omits_hidden_or_deleted_workshops(): void
+    {
+        $cancelled = $this->createWorkshop(
+            title: 'Recently cancelled feed workshop',
+            status: 'cancelled',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'tickets'
+        );
+        $cancelled->update([
+            'starts_at' => now()->subDays(20),
+            'ends_at' => now()->subDays(20)->addHours(2),
+            'closes_at' => now()->subDays(21),
+        ]);
+
+        $hidden = $this->createWorkshop(
+            title: 'Hidden feed workshop',
+            status: 'open',
+            isHidden: true,
+            publishAt: now()->subDay()
+        );
+        $deleted = $this->createWorkshop(
+            title: 'Deleted feed workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+        $deleted->delete();
+
+        $xml = $this->workshopFeedXml();
+        $cancelledItem = $this->workshopFeedItem($xml, $cancelled);
+        $cancelledNamespaced = $cancelledItem->children('https://stemmechanics.com/ns/rss/workshop');
+
+        $this->assertSame('Cancelled', (string) $cancelledNamespaced->status);
+        $this->assertSame('cancelled', (string) $cancelledNamespaced->statusCode);
+        $this->assertSame('tickets', (string) $cancelledNamespaced->registrationType);
+        $this->assertSame('', (string) $cancelledNamespaced->registrationUrl);
+        $this->assertCount(0, $xml->xpath('//item[sm:id = '.(int) $hidden->id.']'));
+        $this->assertCount(0, $xml->xpath('//item[sm:id = '.(int) $deleted->id.']'));
+    }
+
     public function test_public_workshop_feed_hides_private_addresses_and_shows_hosted_for_labels(): void
     {
         $privateVenue = Location::query()->create([
@@ -1039,6 +1191,31 @@ class WorkshopVisibilityRulesTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
         ]);
+    }
+
+    private function workshopFeedXml(): \SimpleXMLElement
+    {
+        $response = $this->get(route('workshop.feed'));
+        $response->assertOk();
+
+        $xml = simplexml_load_string($response->getContent());
+        $this->assertInstanceOf(\SimpleXMLElement::class, $xml);
+        $xml->registerXPathNamespace('sm', 'https://stemmechanics.com/ns/rss/workshop');
+
+        return $xml;
+    }
+
+    private function workshopFeedItem(\SimpleXMLElement $xml, Workshop $workshop): \SimpleXMLElement
+    {
+        $items = $xml->xpath('//item');
+        foreach ($items as $item) {
+            $namespaced = $item->children('https://stemmechanics.com/ns/rss/workshop');
+            if ((string) $namespaced->id === (string) $workshop->id) {
+                return $item;
+            }
+        }
+
+        $this->fail('Workshop '.$workshop->id.' was not found in the feed.');
     }
 
     private function createAdminUser(): User
