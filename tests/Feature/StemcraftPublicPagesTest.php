@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SiteOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class StemcraftPublicPagesTest extends TestCase
@@ -46,6 +47,20 @@ class StemcraftPublicPagesTest extends TestCase
 
         $this->get('/account/stemcraft')
             ->assertRedirect(route('stemcraft.join'));
+    }
+
+    public function test_server_status_card_does_not_check_the_upstream_server_during_page_render(): void
+    {
+        SiteOption::query()->updateOrCreate(['name' => 'stemcraft.server-status.enabled'], ['value' => '1']);
+        SiteOption::query()->updateOrCreate(['name' => 'stemcraft.server-status.endpoint-url'], ['value' => 'https://status.example.test/status']);
+        Http::fake();
+
+        $this->get(route('stemcraft.join'))
+            ->assertOk()
+            ->assertSee('data-stemcraft-server-status-card', false)
+            ->assertSee('Checking server status');
+
+        Http::assertNothingSent();
     }
 
     public function test_stemcraft_landing_uses_editable_challenge_and_community_build_options(): void
