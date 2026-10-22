@@ -83,6 +83,8 @@
 @once
     <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         (() => {
+            const refreshDelayMs = 20 * 1000;
+
             const statusConfigurations = {
                 online: {
                     icon: 'fa-circle-check',
@@ -224,9 +226,17 @@
                 }
             };
 
+            const refreshIfMounted = (card) => {
+                if (card.isConnected) {
+                    loadStatus(card);
+                }
+            };
+
             const initialise = () => {
                 document.querySelectorAll('[data-stemcraft-server-status-card]').forEach((card) => {
-                    loadStatus(card);
+                    loadStatus(card).finally(() => {
+                        window.setTimeout(() => refreshIfMounted(card), refreshDelayMs);
+                    });
                 });
             };
 
