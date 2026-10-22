@@ -32,7 +32,7 @@
         "@tiptap/extension-text-align": "^3.31.4",
         "@tiptap/extension-typography": "^3.31.4",
         "@tiptap/extension-underline": "^3.31.4",
-        "@tiptap/pm": "^3.31.4",
+        "@tiptap/pm": "^3.32.0",
         "@tiptap/react": "^3.31.4",
         "@tiptap/starter-kit": "^3.31.4",
         "fabric": "^7.2.0",
