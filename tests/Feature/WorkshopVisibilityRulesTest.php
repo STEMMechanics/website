@@ -219,6 +219,39 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertFalse($draftWorkshop->isPubliclyVisible());
     }
 
+    public function test_public_workshop_feed_is_valid_xml(): void
+    {
+        $this->createWorkshop(
+            title: 'XML & Robotics Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            summary: 'Build, test & explore together.'
+        );
+
+        $response = $this->get(route('workshop.feed'));
+        $response->assertOk();
+
+        $content = $response->getContent();
+        $this->assertStringStartsWith('<?xml version="1.0" encoding="UTF-8"?>', $content);
+
+        $document = new \DOMDocument;
+        $previousLibxmlSetting = libxml_use_internal_errors(true);
+        $isValid = $document->loadXML($content, LIBXML_NONET);
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlSetting);
+
+        $errorMessage = implode("\n", array_map(
+            static fn (\LibXMLError $error): string => trim($error->message).' at line '.$error->line,
+            $errors
+        ));
+
+        $this->assertTrue($isValid, $errorMessage);
+        $this->assertSame('rss', $document->documentElement?->nodeName);
+        $this->assertSame(1, $document->getElementsByTagName('item')->length);
+    }
+
     public function test_public_workshop_feed_hides_private_addresses_and_shows_hosted_for_labels(): void
     {
         $privateVenue = Location::query()->create([
