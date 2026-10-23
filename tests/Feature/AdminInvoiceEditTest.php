@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\FinanceFile;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
@@ -23,9 +24,9 @@ class AdminInvoiceEditTest extends TestCase
 
     public function test_draft_invoice_has_pdf_action_and_draft_watermark_without_issuing_it(): void
     {
-        $user = \App\Models\User::factory()->create();
-        \App\Models\UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
-        $invoice = \App\Models\Invoice::factory()->create(['status' => 'draft']);
+        $user = User::factory()->create();
+        UserGroup::create(['user_id' => $user->id, 'slug' => 'admin']);
+        $invoice = Invoice::factory()->create(['status' => 'draft']);
         $this->actingAs($user)->get(route('admin.invoice.edit', $invoice))->assertOk()->assertSee('Open PDF');
         $html = view('pdf.invoice', ['invoice' => $invoice, 'itemPages' => [$invoice->lines], 'adjustments' => collect(), 'publicPayUrl' => null])->render();
         $this->assertStringContainsString('<div class="watermark">DRAFT</div>', $html);
@@ -401,6 +402,26 @@ class AdminInvoiceEditTest extends TestCase
             ->assertSeeText('Invoice Number')
             ->assertSeeText('Linked Quote')
             ->assertSeeText('Line Items');
+    }
+
+    public function test_admin_invoice_edit_waits_for_deferred_ui_scripts_before_rendering_seeded_private_files(): void
+    {
+        $admin = $this->createAdminUser();
+        $invoice = Invoice::factory()->create(['status' => Invoice::STATUS_DRAFT]);
+        $file = FinanceFile::query()->create([
+            'path' => 'finance/private/existing-invoice-file.pdf',
+            'original_name' => 'existing-invoice-file.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $invoice->syncPrivateFinanceFiles([$file->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.invoice.edit', $invoice))
+            ->assertOk()
+            ->assertSee('existing-invoice-file.pdf', false)
+            ->assertSee("document.addEventListener('DOMContentLoaded', render, { once: true });", false);
     }
 
     public function test_admin_invoice_edit_renders_the_invoice_email_modal_fields(): void
