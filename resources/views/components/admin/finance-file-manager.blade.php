@@ -143,7 +143,7 @@
                 item.querySelector('[data-remove-id]').dataset.removeId = String(file.id);
                 for (const [selector, url] of [['[data-file-view]', file.view_url], ['[data-file-download]', file.download_url]]) {
                     const link = item.querySelector(selector);
-                    const href = SM.safeHref(url);
+                    const href = window.SM?.safeHref?.(url) ?? null;
                     if (href) link.setAttribute('href', href);
                     else {
                         link.removeAttribute('href');
@@ -340,6 +340,12 @@
             }
         });
 
-        render();
+        // The Vite application is a deferred module, so wait for it before the
+        // first render. It provides SM.safeHref, which is needed for seeded files.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', render, { once: true });
+        } else {
+            render();
+        }
     })();
 </script>
