@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f5f5973125214be56467e307c0523d87",
+    "content-hash": "270f7b062a8514172859f1fd7708e748",
     "packages": [
         {
             "name": "altcha-org/altcha",
@@ -8515,16 +8515,16 @@
         },
         {
             "name": "tales-from-a-dev/tailwind-merge-php",
-            "version": "v0.4.0",
+            "version": "v0.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/tales-from-a-dev/tailwind-merge-php.git",
-                "reference": "d20c0f87dd70207170903e4af5e8ee6a26cc8a7c"
+                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/d20c0f87dd70207170903e4af5e8ee6a26cc8a7c",
-                "reference": "d20c0f87dd70207170903e4af5e8ee6a26cc8a7c",
+                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
+                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
                 "shasum": ""
             },
             "require": {
@@ -8566,9 +8566,9 @@
             ],
             "support": {
                 "issues": "https://github.com/tales-from-a-dev/tailwind-merge-php/issues",
-                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.4.0"
+                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.5.0"
             },
-            "time": "2026-08-14T11:26:04+00:00"
+            "time": "2026-10-04T11:35:09+00:00"
         },
         {
             "name": "thecodingmachine/safe",
