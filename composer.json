@@ -21,12 +21,12 @@
         "livewire/livewire": "^4.1",
         "minishlink/web-push": "^11.0",
         "php-ffmpeg/php-ffmpeg": "^1.2",
-        "phpseclib/phpseclib": "^3.0.54",
+        "phpseclib/phpseclib": "^4.0.2",
         "predis/predis": "^3.5",
         "robthree/twofactorauth": "^3.0",
         "setasign/fpdf": "^1.8.6",
         "setasign/fpdi": "^2.6",
-        "tales-from-a-dev/tailwind-merge-php": "^0.4.0"
+        "tales-from-a-dev/tailwind-merge-php": "^0.5.0"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",
