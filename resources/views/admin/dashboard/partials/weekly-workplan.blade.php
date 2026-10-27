@@ -111,8 +111,20 @@
                     @foreach($workplan['pendingTransfers'] as $payment)
                         <a href="{{ route('admin.payment.edit', $payment) }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Pending transfer · {{ $payment->user?->getName() ?: 'Unknown customer' }}</span><span class="block text-xs text-gray-500">{{ money((float) $payment->total_amount) }} · received {{ $payment->received_on?->diffForHumans() }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
                     @endforeach
-                    @foreach($workplan['interests'] as $interest)
-                        <a href="mailto:{{ $interest->email }}" class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50"><span class="min-w-0 flex-1"><span class="font-semibold text-gray-900">Workshop interest · {{ $interest->name }}</span><span class="block text-xs text-gray-500">{{ $interest->workshop?->title }} · {{ $interest->email }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
+                    @foreach($workplan['interests'] as $interestGroup)
+                        @php($interestWorkshop = $interestGroup['workshop'])
+                        <div class="flex items-start gap-2 p-3 text-sm hover:bg-gray-50">
+                            <i class="fa-solid fa-thumbs-up mt-0.5 w-4 text-amber-600" aria-hidden="true"></i>
+                            <div class="min-w-0 flex-1">
+                                <a href="{{ route('admin.workshop.interests', $interestWorkshop) }}" class="block font-semibold text-gray-900 hover:text-primary-color hover:underline">{{ $interestWorkshop->title }}</a>
+                                <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-gray-500">
+                                    @foreach($interestGroup['interests'] as $interest)
+                                        <li><a href="mailto:{{ $interest->email }}" class="hover:text-primary-color hover:underline">{{ $interest->name ?: '-' }}</a> · {{ $interest->email }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                            <a href="{{ route('admin.workshop.interests', $interestWorkshop) }}" class="mt-1 text-xs text-gray-400 hover:text-primary-color" title="View workshop interests" aria-label="View interests for {{ $interestWorkshop->title }}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+                        </div>
                     @endforeach
                     @if($followUpCount === 0)
                         <p class="p-4 text-sm text-gray-500">No follow-ups are currently suggested.</p>

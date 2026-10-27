@@ -16,6 +16,7 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Models\WorkshopInterest;
 use App\Models\WorkshopTemplateTask;
 use App\Services\ReminderService;
 use App\Services\WeeklyWorkplanService;
@@ -193,6 +194,90 @@ class WeeklyWorkplanAutomationTest extends TestCase
 
         $this->assertTrue($workshops->contains($upcoming));
         $this->assertFalse($workshops->contains($cancelled));
+    }
+
+    public function test_workplan_groups_interests_by_upcoming_open_workshop(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::factory()->create(['user_id' => $admin->id, 'slug' => 'admin']);
+        $location = Location::factory()->create();
+        $media = Media::query()->create([
+            'name' => 'interest-workplan.png',
+            'title' => 'Interest workplan',
+            'hash' => str_repeat('i', 64),
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+
+        $open = Workshop::factory()->create([
+            'title' => 'Open robotics workshop',
+            'starts_at' => now()->addDays(3),
+            'status' => 'open',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+        $closed = Workshop::factory()->create([
+            'title' => 'Closed future workshop',
+            'starts_at' => now()->addDays(4),
+            'status' => 'closed',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+        $past = Workshop::factory()->create([
+            'title' => 'Past open workshop',
+            'starts_at' => now()->subDay(),
+            'status' => 'open',
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $media->name,
+        ]);
+
+        $interestUsers = User::factory()->count(4)->create();
+        foreach ([
+            [$open, 'Alex Example', 'alex@example.com'],
+            [$open, 'Beth Example', 'beth@example.com'],
+            [$closed, 'Closed Example', 'closed@example.com'],
+            [$past, 'Past Example', 'past@example.com'],
+        ] as $index => [$workshop, $name, $email]) {
+            WorkshopInterest::query()->create([
+                'workshop_id' => $workshop->id,
+                'user_id' => $interestUsers[$index]->id,
+                'name' => $name,
+                'email' => $email,
+                'phone' => '',
+            ]);
+        }
+
+        $workplan = app(WeeklyWorkplanService::class)->build();
+        $groups = $workplan['interests'];
+
+        $this->assertCount(1, $groups);
+        $this->assertSame($open->id, $groups->first()['workshop']->id);
+        $this->assertEqualsCanonicalizing(
+            ['alex@example.com', 'beth@example.com'],
+            $groups->first()['interests']->pluck('email')->all(),
+        );
+        $this->assertStringContainsString(
+            'Open robotics workshop',
+            (new WeeklyWorkplan($workplan))->render(),
+        );
+        $this->assertStringContainsString(
+            'Beth Example',
+            view('pdf.weekly-workplan', ['workplan' => $workplan])->render(),
+        );
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Open robotics workshop')
+            ->assertSee('Alex Example')
+            ->assertSee('alex@example.com')
+            ->assertSee('Beth Example')
+            ->assertSee('beth@example.com')
+            ->assertDontSee('closed@example.com')
+            ->assertDontSee('past@example.com');
     }
 
     public function test_admin_can_open_a_workplan_pdf_inline(): void
