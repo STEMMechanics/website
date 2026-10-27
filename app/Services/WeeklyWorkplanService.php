@@ -54,13 +54,28 @@ class WeeklyWorkplanService
                 ->orWhere(fn ($query) => $query->where('status', StoreOrder::STATUS_PENDING_PAYMENT)->where('created_at', '<', now()->subDay()));
         })->with(['user', 'items'])->orderBy('created_at')->get();
         $lowStock = $this->lowStock();
-        $interests = WorkshopInterest::query()->where('created_at', '>=', now()->subDays(30))->with('workshop')
+        $interests = WorkshopInterest::query()
+            ->where('created_at', '>=', now()->subDays(30))
+            ->whereHas('workshop', fn ($query) => $query
+                ->where('status', 'open')
+                ->where('starts_at', '>=', now()))
+            ->with(['workshop.location'])
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')->from('tickets')
                     ->whereColumn('tickets.workshop_id', 'workshop_interests.workshop_id')
                     ->whereColumn('tickets.email', 'workshop_interests.email')
                     ->whereIn('tickets.status', Ticket::activePurchasedStatuses());
-            })->orderByDesc('created_at')->limit(10)->get();
+            })
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('workshop_id')
+            ->map(fn (Collection $workshopInterests): array => [
+                'workshop' => $workshopInterests->first()->workshop,
+                'interests' => $workshopInterests->values(),
+            ])
+            ->sortByDesc(fn (array $group): int => $group['interests']->first()?->created_at?->getTimestamp() ?? 0)
+            ->take(10)
+            ->values();
         $overdue = Invoice::query()->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_SENT, Invoice::STATUS_OVERDUE])
             ->whereDate('due_date', '<', today())->where('total_amount', '>', 0)->with('user')->orderBy('due_date')->limit(10)->get();
         $enquiries = ContactEnquiry::query()->where('created_at', '>=', now()->subDays(30))

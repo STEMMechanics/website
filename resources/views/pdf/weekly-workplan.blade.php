@@ -153,7 +153,9 @@
         <h3>Overdue invoices</h3><ul>@forelse($workplan['overdue'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }} - {{ money((float) $invoice->displayOutstandingAmount()) }} outstanding</li>@empty<li>None.</li>@endforelse</ul>
         <h3>Other</h3><ul>
             @foreach($workplan['pendingTransfers'] as $payment)<li>Pending transfer - {{ $payment->user?->getName() ?: 'Unknown customer' }} - {{ money((float) $payment->total_amount) }}</li>@endforeach
-            @foreach($workplan['interests'] as $interest)<li>Workshop interest - {{ $interest->name }} - {{ $interest->workshop?->title }}</li>@endforeach
+            @foreach($workplan['interests'] as $interestGroup)
+                <li>{{ $interestGroup['workshop']->title }}<ul>@foreach($interestGroup['interests'] as $interest)<li>{{ $interest->name }} - {{ $interest->email }}</li>@endforeach</ul></li>
+            @endforeach
             @foreach($workplan['enquiries'] as $enquiry)<li>Website enquiry - {{ $enquiry->name }} - {{ $enquiry->subject }}</li>@endforeach
             @if($workplan['pendingTransfers']->isEmpty() && $workplan['interests']->isEmpty() && $workplan['enquiries']->isEmpty())<li>None.</li>@endif
         </ul>

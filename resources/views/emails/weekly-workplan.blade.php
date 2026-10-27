@@ -90,12 +90,15 @@ Scheduled for **{{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }}**
 - No stock currently needs replenishing.
 @endforelse
 
-<div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Workshop interest without a booking ({{ $workplan['interests']->count() }})</div>
+<div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Workshop interest without a booking ({{ $workplan['interests']->count() }} workshops)</div>
 
-@forelse($workplan['interests'] as $interest)
-- {{ $interest->name }} ({{ $interest->email }}) – {{ $interest->workshop?->title }} · {{ $interest->workshop?->getLocationName() ?: 'Location not set' }}
+@forelse($workplan['interests'] as $interestGroup)
+- **{{ $interestGroup['workshop']->title }}** · {{ $interestGroup['workshop']->getLocationName() ?: 'Location not set' }}
+@foreach($interestGroup['interests'] as $interest)
+  - {{ $interest->name }} ({{ $interest->email }})
+@endforeach
 @empty
-- None recorded in the last 30 days.
+- None recorded for upcoming open workshops in the last 30 days.
 @endforelse
 
 <div style="margin:22px 0 10px; color:#334155; font-size:18px; line-height:1.3; font-weight:800;">Recent website enquiries ({{ $workplan['enquiries']->count() }})</div>
