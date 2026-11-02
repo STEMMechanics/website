@@ -80,7 +80,14 @@ class SiteOptionController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $this->validateRequest($request);
-        if (in_array($validated['name'], ['finance.fortnight-start', 'finance.cash-buffer', 'finance.owner-hourly-rate'], true)
+        if (in_array($validated['name'], [
+            'finance.fortnight-start',
+            'finance.cash-buffer',
+            'finance.owner-hourly-rate',
+            'media.variant-quality',
+            'media.editor-quality',
+            'media.flyer-quality',
+        ], true)
             || str_starts_with($validated['name'], 'store.costing.')) {
             $validated['value'] = $this->validateValueRequest($request, $validated['name'])['value'];
         }
@@ -288,6 +295,14 @@ class SiteOptionController extends Controller
 
         if ($optionName === 'media.upload.non-admin-max-bytes') {
             $rules['value'] = ['required', 'integer', 'min:1', 'max:1099511627776'];
+        }
+
+        if (in_array($optionName, [
+            'media.variant-quality',
+            'media.editor-quality',
+            'media.flyer-quality',
+        ], true)) {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:100'];
         }
 
         if (in_array($optionName, [

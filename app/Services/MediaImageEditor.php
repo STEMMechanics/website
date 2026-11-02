@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Media;
+use App\Models\SiteOption;
 use Illuminate\Http\UploadedFile;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
@@ -111,7 +112,7 @@ class MediaImageEditor
             $image->crop($cropWidth, $cropHeight, $left, $top);
         }
 
-        $image->save($targetPath, quality: 90);
+        $image->save($targetPath, quality: $this->editorQuality());
 
         return $targetPath;
     }
@@ -139,6 +140,11 @@ class MediaImageEditor
         }
 
         return $edits;
+    }
+
+    private function editorQuality(): int
+    {
+        return max(1, min(100, SiteOption::intValue('media.editor-quality', 90)));
     }
 
     /**

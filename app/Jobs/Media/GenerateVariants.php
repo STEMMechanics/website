@@ -3,6 +3,7 @@
 namespace App\Jobs\Media;
 
 use App\Models\Media;
+use App\Models\SiteOption;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
@@ -145,7 +146,7 @@ class GenerateVariants implements ShouldQueue
                 }
 
                 $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
-                $image->save($variantFile, quality: 75);
+                $image->save($variantFile, quality: $this->variantQuality());
                 $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
 
                 return;
@@ -169,7 +170,7 @@ class GenerateVariants implements ShouldQueue
                 $image->scaleDown($width, $height);
 
                 $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
-                $image->save($variantFile, quality: 75);
+                $image->save($variantFile, quality: $this->variantQuality());
                 $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
 
                 return;
@@ -212,7 +213,7 @@ class GenerateVariants implements ShouldQueue
                     $manager = new ImageManager(new Driver);
                     $image = $manager->decodePath($tempImage);
                     $image->scaleDown($width, $height);
-                    $image->save($variantFile, quality: 75);
+                    $image->save($variantFile, quality: $this->variantQuality());
 
                     $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
                 } catch (Throwable $e) {
@@ -280,7 +281,7 @@ class GenerateVariants implements ShouldQueue
 
             $image->scaleDown($width, $height);
             $variantFile = $tempDir.'/'.$media->hash.'-'.$variantName.'.webp';
-            $image->save($variantFile, quality: 75);
+            $image->save($variantFile, quality: $this->variantQuality());
 
             $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
         }
@@ -289,6 +290,11 @@ class GenerateVariants implements ShouldQueue
     private function buildProcessingError(string $message, Throwable $e): string
     {
         return mb_substr(trim($message.' '.$e->getMessage()), 0, 2000);
+    }
+
+    private function variantQuality(): int
+    {
+        return max(1, min(100, SiteOption::intValue('media.variant-quality', 75)));
     }
 
     private function isVariantReady(Media $media, string $variantName): bool

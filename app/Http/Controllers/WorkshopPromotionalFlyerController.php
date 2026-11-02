@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SiteOption;
 use App\Models\Workshop;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\Request;
@@ -156,7 +157,10 @@ class WorkshopPromotionalFlyerController extends Controller
                     ->resize($scaledWidth, $scaledHeight)
                     ->crop(1200, 425, $offsetX, $offsetY);
 
-                return $image->encodeUsingFormat(Format::JPEG, quality: 84)->toDataUri()->toString();
+                return $image->encodeUsingFormat(
+                    Format::JPEG,
+                    quality: max(1, min(100, SiteOption::intValue('media.flyer-quality', 84))),
+                )->toDataUri()->toString();
             } catch (Throwable $exception) {
                 $lastError = $exception;
             }
