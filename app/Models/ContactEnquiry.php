@@ -10,4 +10,6 @@ class ContactEnquiry extends Model
     use HasFactory;
 
     protected $fillable = ['user_id', 'name', 'email', 'subject', 'message'];
+
+    protected $casts = ['completed_at' => 'datetime'];
 }
