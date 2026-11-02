@@ -49,6 +49,22 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $this->assertTrue($organisation->contacts()->whereKey($contact->id)->exists());
     }
 
+    public function test_organisation_shipping_toggle_updates_shipping_fields(): void
+    {
+        $admin = $this->createAdminUser();
+        $organisation = Organisation::factory()->create([
+            'billing_address' => '10 Billing Street',
+            'shipping_address' => '20 Shipping Road',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.organisation.edit', $organisation))
+            ->assertOk()
+            ->assertSee('name="shipping_same_billing"', false)
+            ->assertSee('x-on:change="SM.updateShippingAddress()"', false)
+            ->assertSee('name="shipping_address"', false);
+    }
+
     public function test_deleting_an_organisation_returns_the_expected_redirect_for_ajax_and_standard_requests(): void
     {
         $admin = $this->createAdminUser();

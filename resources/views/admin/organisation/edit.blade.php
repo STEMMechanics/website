@@ -145,7 +145,7 @@
                     <h3 class="font-semibold text-gray-900">Shipping Address</h3>
                     <p class="text-xs text-gray-500">Used for deliveries when a contact inherits the organisation shipping address.</p>
                 </div>
-                <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shippingSameBilling" x-model="shippingSameBilling" />
+                <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shippingSameBilling" x-model="shippingSameBilling" x-on:change="SM.updateShippingAddress()" />
                 <div x-show="!shippingSameBilling" x-cloak>
                 <x-ui.input label="Address" name="shipping_address" value="{{ old('shipping_address', $organisation->shipping_address ?? '') }}" />
                 <x-ui.input label="Address 2" name="shipping_address2" value="{{ old('shipping_address2', $organisation->shipping_address2 ?? '') }}" />
