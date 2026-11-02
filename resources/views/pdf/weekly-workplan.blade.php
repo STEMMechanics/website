@@ -40,14 +40,14 @@
         .content-grid .right-column { padding-left: 5px; }
         .coming { padding: 8px 10px; border-left: 4px solid #1da1e6; background: #f8fafc; }
         .coming h2 { margin-top: 0; }
-        .website { margin-top: 10px; padding: 8px 10px; border-left: 4px solid #64748b; background: #f8fafc; }
+        .website { margin-top: 8px; padding: 6px 8px; border-left: 4px solid #64748b; background: #f8fafc; }
         .website h2 { margin-top: 0; border-color: #94a3b8; color: #475569; }
         .website-stats { table-layout: fixed; }
-        .website-stats td { width: 50%; padding: 4px; vertical-align: top; }
-        .website-stat { padding: 6px; background: #f1f5f9; }
-        .website-stat strong { display: block; color: #0f172a; font-size: 13px; }
-        .website-stat span { color: #64748b; font-size: 7px; font-weight: 700; text-transform: uppercase; }
-        .website-stat small { display: block; margin-top: 2px; font-size: 7px; font-weight: 700; }
+        .website-stats td { width: 50%; padding: 2px 3px; vertical-align: top; }
+        .website-stat { padding: 4px 6px; background: #f1f5f9; }
+        .website-stat strong { display: inline; color: #0f172a; font-size: 11px; }
+        .website-stat span { display: block; color: #64748b; font-size: 6.5px; font-weight: 700; text-transform: uppercase; }
+        .website-stat small { display: inline; margin-left: 3px; font-size: 6.5px; font-weight: 700; }
         .growth { color: #047857; }
         .decline { color: #be123c; }
         .neutral { color: #64748b; }
@@ -80,24 +80,32 @@
             <td class="pink"><strong>{{ $workplan['dueInvoices']->count() }}</strong><span>Invoices due</span></td>
             <td class="violet"><strong>{{ $workplan['workshops']->count() }}</strong><span>Workshops</span></td>
             <td class="emerald"><strong>{{ $workplan['reminders']->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())->count() }}</strong><span>Reminders</span></td>
-            <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() + $workplan['pendingTransfers']->count() + $workplan['interests']->count() + $workplan['enquiries']->count() + $workplan['lowStock']->count() }}</strong><span>Follow-ups</span></td>
+            <td class="amber"><strong>{{ $workplan['quotes']->count() + $workplan['orders']->count() + $workplan['overdue']->count() + $workplan['pendingTransfers']->count() + $workplan['interests']->count() + $workplan['pdfEnquiries']->count() + $workplan['lowStock']->count() }}</strong><span>Follow-ups</span></td>
         </tr>
     </table>
 
     <table class="content-grid">
         <tr>
             <td class="left-column">
+    @if($workplan['scheduledInvoices']->isNotEmpty() || $workplan['dueInvoices']->isNotEmpty() || $workplan['workshops']->isNotEmpty() || $workplan['reminders']->isNotEmpty())
     <div class="section coming">
         <h2>Coming up this fortnight</h2>
+        @if($workplan['scheduledInvoices']->isNotEmpty())
         <h3>Invoice emails scheduled</h3>
-        <ul>@forelse($workplan['scheduledInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - Sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} ({{ money((float) $invoice->total_amount) }})</li>@empty<li>None scheduled.</li>@endforelse</ul>
+        <ul>@foreach($workplan['scheduledInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - Sends {{ $invoice->issue_date?->format('D j M') }} to {{ $invoice->user?->getName() ?: $invoice->billing_name }} ({{ money((float) $invoice->total_amount) }})</li>@endforeach</ul>
+        @endif
+        @if($workplan['dueInvoices']->isNotEmpty())
         <h3>Invoices due for payment</h3>
-        <ul>@forelse($workplan['dueInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }}, due {{ $invoice->due_date?->format('D j M') }} ({{ money((float) $invoice->displayOutstandingAmount()) }} outstanding)</li>@empty<li>None due.</li>@endforelse</ul>
+        <ul>@foreach($workplan['dueInvoices'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }}, due {{ $invoice->due_date?->format('D j M') }} ({{ money((float) $invoice->displayOutstandingAmount()) }} outstanding)</li>@endforeach</ul>
+        @endif
+        @if($workplan['workshops']->isNotEmpty())
         <h3>Workshops</h3>
-        <ul>@forelse($workplan['workshops'] as $workshop)<li>{{ $workshop->title }} - {{ $workshop->starts_at?->format('D j M, g:ia') }}{{ trim((string) $workshop->getLocationName()) !== '' ? ' - '.$workshop->getLocationName() : '' }}</li>@empty<li>No workshops.</li>@endforelse</ul>
+        <ul>@foreach($workplan['workshops'] as $workshop)<li>{{ $workshop->title }} - {{ $workshop->starts_at?->format('D j M, g:ia') }}{{ trim((string) $workshop->getLocationName()) !== '' ? ' - '.$workshop->getLocationName() : '' }}</li>@endforeach</ul>
+        @endif
+        @if($workplan['reminders']->isNotEmpty())
         <h3>Tasks and reminders</h3>
         <ul>
-            @forelse($workplan['reminders'] as $reminder)
+            @foreach($workplan['reminders'] as $reminder)
                 @php
                     $reminderWorkshop = $reminder->kind === \App\Services\ReminderService::WORKSHOP_TASK_KIND && $reminder->remindable instanceof \App\Models\Workshop
                         ? $reminder->remindable
@@ -108,11 +116,11 @@
                     $reminderLocation = $reminderWorkshop ? trim((string) $reminderWorkshop->getLocationName()) : '';
                 @endphp
                 <li class="{{ $reminder->isCompletedWorkshopTask() ? 'completed' : '' }}">@if($reminderWorkshop){{ $reminderWorkshop->title }} · {{ $reminderTaskName }}@else{{ $reminderTaskName }}@endif — {{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderLocation !== '' ? ' · '.$reminderLocation : '' }}</li>
-            @empty
-                <li>No reminders.</li>
-            @endforelse
+            @endforeach
         </ul>
+        @endif
     </div>
+    @endif
     <div class="section website">
         <h2>Website last fortnight</h2>
         <table class="website-stats">
@@ -137,30 +145,39 @@
         <p><strong>Subject:</strong> {{ $workplan['newsletter']['subject'] }}</p>
         <ul class="muted"><li>Sends {{ $workplan['newsletter']['sendAt']->format('D j M, g:ia') }} - {{ $workplan['newsletter']['heading'] }}</li></ul>
         @foreach($workplan['newsletter']['contentSections'] as $newsletterSection)
+            @if($newsletterSection['items']->isNotEmpty())
             <h3>{{ $newsletterSection['title'] }}</h3>
-            <ul>@forelse($newsletterSection['items'] as $item)<li>{{ $item->title }}@if($newsletterSection['type'] === 'workshops') - {{ $item->starts_at?->format('D j M, g:ia') }}{{ trim((string) $item->getLocationName()) !== '' ? ' - '.$item->getLocationName() : '' }}@endif</li>@empty<li>No items selected.</li>@endforelse</ul>
+            <ul>@foreach($newsletterSection['items'] as $item)<li>{{ $item->title }}@if($newsletterSection['type'] === 'workshops') - {{ $item->starts_at?->format('D j M, g:ia') }}{{ trim((string) $item->getLocationName()) !== '' ? ' - '.$item->getLocationName() : '' }}@endif</li>@endforeach</ul>
+            @endif
         @endforeach
     </div>
 
+    @if($workplan['quotes']->isNotEmpty() || $workplan['orders']->isNotEmpty() || $workplan['overdue']->isNotEmpty() || $workplan['pendingTransfers']->isNotEmpty() || $workplan['interests']->isNotEmpty() || $workplan['pdfEnquiries']->isNotEmpty() || $workplan['lowStock']->isNotEmpty())
     <div class="section followups">
         <h2>Suggested follow-ups</h2>
-        @if($workplan['quotes']->isEmpty() && $workplan['orders']->isEmpty() && $workplan['overdue']->isEmpty() && $workplan['pendingTransfers']->isEmpty() && $workplan['interests']->isEmpty() && $workplan['enquiries']->isEmpty() && $workplan['lowStock']->isEmpty())
-        <p class="muted">No follow-ups are currently suggested.</p>
-        @else
-        <h3>Quotes</h3><ul>@forelse($workplan['quotes'] as $quote)<li>{{ $quote->quote_number }} - {{ $quote->user?->getName() }} - {{ money((float) $quote->total_amount) }}</li>@empty<li>None.</li>@endforelse</ul>
-        <h3>Orders</h3><ul>@forelse($workplan['orders'] as $order)<li>{{ $order->order_number }} - {{ $order->user?->getName() ?: $order->billing_name }} - {{ $order->statusLabel() }} - {{ money((float) $order->total_amount) }}</li>@empty<li>None.</li>@endforelse</ul>
-        <h3>Stock to replenish</h3><ul>@forelse($workplan['lowStock'] as $stock)<li>{{ $stock['title'] }} - {{ $stock['available'] === 0 ? 'Out of stock' : $stock['available'].' remaining' }}{{ $stock['shared'] ? ' (shared stock)' : '' }}@if($stock['threshold'] !== null) - threshold {{ $stock['threshold'] }}@endif</li>@empty<li>None.</li>@endforelse</ul>
-        <h3>Overdue invoices</h3><ul>@forelse($workplan['overdue'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }} - {{ money((float) $invoice->displayOutstandingAmount()) }} outstanding</li>@empty<li>None.</li>@endforelse</ul>
+        @if($workplan['quotes']->isNotEmpty())
+        <h3>Quotes</h3><ul>@foreach($workplan['quotes'] as $quote)<li>{{ $quote->quote_number }} - {{ $quote->user?->getName() }} - {{ money((float) $quote->total_amount) }}</li>@endforeach</ul>
+        @endif
+        @if($workplan['orders']->isNotEmpty())
+        <h3>Orders</h3><ul>@foreach($workplan['orders'] as $order)<li>{{ $order->order_number }} - {{ $order->user?->getName() ?: $order->billing_name }} - {{ $order->statusLabel() }} - {{ money((float) $order->total_amount) }}</li>@endforeach</ul>
+        @endif
+        @if($workplan['lowStock']->isNotEmpty())
+        <h3>Stock to replenish</h3><ul>@foreach($workplan['lowStock'] as $stock)<li>{{ $stock['title'] }} - {{ $stock['available'] === 0 ? 'Out of stock' : $stock['available'].' remaining' }}{{ $stock['shared'] ? ' (shared stock)' : '' }}@if($stock['threshold'] !== null) - threshold {{ $stock['threshold'] }}@endif</li>@endforeach</ul>
+        @endif
+        @if($workplan['overdue']->isNotEmpty())
+        <h3>Overdue invoices</h3><ul>@foreach($workplan['overdue'] as $invoice)<li>{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?: $invoice->billing_name }} - {{ money((float) $invoice->displayOutstandingAmount()) }} outstanding</li>@endforeach</ul>
+        @endif
+        @if($workplan['pendingTransfers']->isNotEmpty() || $workplan['interests']->isNotEmpty() || $workplan['pdfEnquiries']->isNotEmpty())
         <h3>Other</h3><ul>
             @foreach($workplan['pendingTransfers'] as $payment)<li>Pending transfer - {{ $payment->user?->getName() ?: 'Unknown customer' }} - {{ money((float) $payment->total_amount) }}</li>@endforeach
             @foreach($workplan['interests'] as $interestGroup)
                 <li>{{ $interestGroup['workshop']->title }}<ul>@foreach($interestGroup['interests'] as $interest)<li>{{ $interest->name }} - {{ $interest->email }}</li>@endforeach</ul></li>
             @endforeach
-            @foreach($workplan['enquiries'] as $enquiry)<li>Website enquiry - {{ $enquiry->name }} - {{ $enquiry->subject }}</li>@endforeach
-            @if($workplan['pendingTransfers']->isEmpty() && $workplan['interests']->isEmpty() && $workplan['enquiries']->isEmpty())<li>None.</li>@endif
+            @foreach($workplan['pdfEnquiries'] as $enquiry)<li>Website enquiry - {{ $enquiry->name }} - {{ $enquiry->subject }}</li>@endforeach
         </ul>
         @endif
     </div>
+    @endif
             </td>
         </tr>
     </table>

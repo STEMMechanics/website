@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContactEnquiry;
 use App\Models\Workshop;
 use App\Models\WorkshopRunSheetTask;
 use App\Services\ReminderService;
@@ -11,6 +12,21 @@ use Illuminate\Support\Facades\DB;
 
 class WorkplanCheckoffController extends Controller
 {
+    public function enquiry(Request $request, ContactEnquiry $enquiry): JsonResponse
+    {
+        $data = $request->validate(['checked' => ['required', 'boolean']]);
+
+        $enquiry = DB::transaction(function () use ($enquiry, $data): ContactEnquiry {
+            $locked = ContactEnquiry::query()->lockForUpdate()->findOrFail($enquiry->id);
+            $locked->completed_at = $data['checked'] ? ($locked->completed_at ?? now()) : null;
+            $locked->save();
+
+            return $locked;
+        });
+
+        return response()->json(['checked' => $enquiry->completed_at !== null]);
+    }
+
     public function invoice(Request $request, \App\Models\Invoice $invoice): JsonResponse
     {
         $data = $request->validate([
