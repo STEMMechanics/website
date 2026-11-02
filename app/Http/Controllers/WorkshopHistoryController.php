@@ -174,8 +174,8 @@ class WorkshopHistoryController extends Controller
     /**
      * @return array{
      *     columns: SupportCollection<int, array{id: string, organisation_id: string, organisation_name: string, location_name: string}>,
-     *     columnGroups: SupportCollection<int, array{id: string, name: string, columns: SupportCollection<int, array{id: non-falsy-string, organisation_id: string, organisation_name: string, location_name: string}>}>,
-     *     rows: SupportCollection<int, array{title: string, cells: array<non-falsy-string, non-empty-list<array{date: string, edit_url: string}>>}>,
+     *     columnGroups: SupportCollection<int, array{id: string, name: string, columns: SupportCollection<int, array{id: string, organisation_id: string, organisation_name: string, location_name: string}>}>,
+     *     rows: SupportCollection<int, array{title: string, cells: array<string, non-empty-list<array{date: string, edit_url: string}>>}>,
      *     workshopCount: int
      * }
      */

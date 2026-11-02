@@ -350,6 +350,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/dashboard/actions', [AdminDashboardController::class, 'actions'])->name('admin.dashboard.actions');
     Route::post('/admin/dashboard/actions/dismiss', [AdminDashboardController::class, 'dismissAction'])->name('admin.dashboard.actions.dismiss');
     Route::patch('/admin/dashboard/invoices/{invoice}/follow-up', [WorkplanCheckoffController::class, 'invoice'])->name('admin.workplan.invoice.follow-up');
+    Route::patch('/admin/dashboard/enquiries/{enquiry}/follow-up', [WorkplanCheckoffController::class, 'enquiry'])->name('admin.workplan.enquiry.follow-up');
     Route::patch('/admin/dashboard/workshops/{workshop}/checkoff', [WorkplanCheckoffController::class, 'workshop'])->name('admin.workplan.workshop.checkoff');
     Route::patch('/admin/dashboard/workshops/{workshop}/tasks/{task}/checkoff', [WorkplanCheckoffController::class, 'task'])->name('admin.workplan.task.checkoff');
     Route::get('/admin/dashboard/workplan.pdf', [AdminDashboardController::class, 'viewWorkplan'])->name('admin.dashboard.workplan.pdf');

@@ -4,7 +4,8 @@
         + $workplan['interests']->count()
         + $workplan['overdue']->count()
         + $workplan['pendingTransfers']->count()
-        + $workplan['lowStock']->count();
+        + $workplan['lowStock']->count()
+        + $workplan['dashboardEnquiries']->count();
     $outstandingReminderCount = $workplan['reminders']
         ->reject(fn ($reminder) => $reminder->isCompletedWorkshopTask())
         ->count() + count($allocationTasks ?? []);
@@ -126,6 +127,20 @@
                             <a href="{{ route('admin.workshop.interests', $interestWorkshop) }}" class="mt-1 text-xs text-gray-400 hover:text-primary-color" title="View workshop interests" aria-label="View interests for {{ $interestWorkshop->title }}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
                         </div>
                     @endforeach
+                    @foreach($workplan['dashboardEnquiries'] as $enquiry)
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.enquiry.follow-up', $enquiry)), @js($enquiry->completed_at !== null))" :data-checked="checked" data-checked="{{ $enquiry->completed_at !== null ? 'true' : 'false' }}">
+                            <i class="fa-regular fa-envelope mt-0.5 w-4 text-sky-600" aria-hidden="true"></i>
+                            <x-ui.checkbox bare small title="Mark website enquiry complete" :aria-label="'Mark website enquiry from '.$enquiry->name.' complete'" x-model="checked" @change="save()" x-bind:disabled="saving" :checked="$enquiry->completed_at !== null" />
+                            <div data-workplan-label class="min-w-0 flex-1">
+                                <a href="mailto:{{ $enquiry->email }}" class="block min-w-0 hover:text-primary-color">
+                                    <span class="block font-semibold text-gray-900">Website enquiry · {{ $enquiry->name }}</span>
+                                    <span class="block text-xs text-gray-500">{{ $enquiry->subject }} · {{ $enquiry->email }}</span>
+                                </a>
+                                <span x-show="checked" x-cloak class="block text-xs text-gray-500">Completed · hidden from PDF · removed from Dashboard after 2 days</span>
+                                <span x-show="!checked" class="block text-xs text-gray-500">Received {{ $enquiry->created_at->diffForHumans() }}</span>
+                            </div>
+                        </div>
+                    @endforeach
                     @if($followUpCount === 0)
                         <p class="p-4 text-sm text-gray-500">No follow-ups are currently suggested.</p>
                     @endif
@@ -172,7 +187,7 @@
 
             <section class="mb-5 min-w-0 break-inside-avoid self-start">
                 <h3 class="font-semibold text-gray-900">Website last fortnight</h3>
-                <div class="mt-2 grid grid-cols-2 gap-3 rounded-xl border border-gray-200 p-3">
+                <div class="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-gray-200 p-2">
                     @foreach([
                         'page_views' => 'Page views',
                         'visitors' => 'Unique visitors',
@@ -180,10 +195,12 @@
                         'workshop_views' => 'Workshop views',
                     ] as $statKey => $statLabel)
                         @php($change = $workplan['websiteChanges'][$statKey])
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $statLabel }}</div>
-                            <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($workplan['stats'][$statKey]) }}</div>
-                            <div class="mt-1 text-xs font-semibold {{ $change['direction'] === 'growth' ? 'text-emerald-700' : ($change['direction'] === 'decline' ? 'text-rose-700' : 'text-gray-500') }}">{{ $change['label'] }}</div>
+                        <div class="rounded-lg bg-gray-50 p-2">
+                            <div class="flex items-center justify-between gap-1">
+                                <div class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{{ $statLabel }}</div>
+                                <div class="text-lg font-bold text-gray-900">{{ number_format($workplan['stats'][$statKey]) }}</div>
+                            </div>
+                            <div class="mt-0.5 text-[10px] font-semibold {{ $change['direction'] === 'growth' ? 'text-emerald-700' : ($change['direction'] === 'decline' ? 'text-rose-700' : 'text-gray-500') }}">{{ $change['label'] }}</div>
                         </div>
                     @endforeach
                 </div>

@@ -80,6 +80,11 @@ class WeeklyWorkplanService
             ->whereDate('due_date', '<', today())->where('total_amount', '>', 0)->with('user')->orderBy('due_date')->limit(10)->get();
         $enquiries = ContactEnquiry::query()->where('created_at', '>=', now()->subDays(30))
             ->orderByDesc('created_at')->limit(10)->get();
+        $dashboardEnquiries = ContactEnquiry::query()->where('created_at', '>=', now()->subDays(30))
+            ->where(fn ($query) => $query->whereNull('completed_at')->orWhere('completed_at', '>', now()->subDays(2)))
+            ->orderByDesc('created_at')->limit(10)->get();
+        $pdfEnquiries = ContactEnquiry::query()->where('created_at', '>=', now()->subDays(30))
+            ->whereNull('completed_at')->orderByDesc('created_at')->limit(10)->get();
         $pendingTransfers = Payment::query()->pendingBankTransfers()->where('received_on', '<', now()->subDays(2))
             ->with('user')->orderBy('received_on')->limit(10)->get();
         $newsletter = $this->newsletterPreview();
@@ -104,7 +109,7 @@ class WeeklyWorkplanService
             $key => $this->percentageChange((int) $stats[$key], $previous),
         ])->all();
 
-        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'pendingTransfers', 'newsletter', 'lowStock') + [
+        return compact('weekStart', 'weekEnd', 'scheduledInvoices', 'dueInvoices', 'workshops', 'reminders', 'quotes', 'orders', 'interests', 'overdue', 'enquiries', 'dashboardEnquiries', 'pdfEnquiries', 'pendingTransfers', 'newsletter', 'lowStock') + [
             'stats' => $stats,
             'websiteChanges' => $websiteChanges,
         ];
