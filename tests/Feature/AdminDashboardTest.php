@@ -115,7 +115,7 @@ class AdminDashboardTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_website_enquiries_are_not_suggested_dashboard_follow_ups(): void
+    public function test_recent_website_enquiries_are_suggested_dashboard_follow_ups(): void
     {
         $admin = $this->createAdminUser();
         ContactEnquiry::query()->create([
@@ -128,9 +128,9 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('No follow-ups are currently suggested.')
-            ->assertDontSee('Website enquiry')
-            ->assertDontSee('Website question');
+            ->assertSee('Website enquiry')
+            ->assertSee('Website question')
+            ->assertSee('Mark website enquiry from Website visitor complete');
     }
 
     public function test_all_time_dashboard_has_no_period_comparisons_or_filter_chips(): void
