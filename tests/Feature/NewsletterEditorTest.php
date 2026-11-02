@@ -8,10 +8,12 @@ use App\Models\Location;
 use App\Models\Media;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Services\NewsletterProductSelectionService;
+use App\Services\NewsletterWorkshopSelectionService;
 use App\Services\WeeklyWorkplanService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -133,6 +135,18 @@ class NewsletterEditorTest extends TestCase
         $this->assertTrue($ids->contains($beforeRelease->id));
         $this->assertFalse($ids->contains($late->id));
         $this->assertFalse($ids->contains($outside->id));
+    }
+
+    public function test_newsletter_release_uses_the_configured_site_schedule(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-20 10:00:00'));
+        SiteOption::query()->updateOrCreate(['name' => NewsletterWorkshopSelectionService::SEND_DAY_OPTION], ['value' => '5']);
+        SiteOption::query()->updateOrCreate(['name' => NewsletterWorkshopSelectionService::SEND_TIME_OPTION], ['value' => '09:30']);
+
+        $this->assertSame(
+            '2026-09-25 09:30',
+            app(NewsletterWorkshopSelectionService::class)->nextRelease()->format('Y-m-d H:i'),
+        );
     }
 
     public function test_workshop_controls_require_an_admin_and_validate_the_workshop(): void

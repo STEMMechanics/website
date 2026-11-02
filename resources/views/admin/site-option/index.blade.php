@@ -299,14 +299,20 @@
             const inputType = String(row.dataset.optionInputType || 'textarea');
             const decodedValue = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
             modalValue.value = decodedValue;
-            modalNumber.type = inputType === 'date' ? 'date' : 'number';
+            modalNumber.type = inputType === 'date' ? 'date' : (inputType === 'time' ? 'time' : 'number');
             modalNumber.removeAttribute('min');
             modalNumber.removeAttribute('max');
-            modalNumber.step = ['finance.cash-buffer', 'finance.owner-hourly-rate'].includes(row.dataset.optionName) ? '0.01' : '1';
+            modalNumber.step = inputType === 'time'
+                ? '60'
+                : (['finance.cash-buffer', 'finance.owner-hourly-rate'].includes(row.dataset.optionName) ? '0.01' : '1');
+            if (inputType === 'number' && row.dataset.optionName === 'newsletter.send-day') {
+                modalNumber.min = '0';
+                modalNumber.max = '6';
+            }
             modalNumber.value = decodedValue;
             modalBoolean.value = decodedValue === '0' ? '0' : '1';
             modalValue.classList.toggle('hidden', inputType !== 'textarea');
-            modalNumber.classList.toggle('hidden', !['number', 'date'].includes(inputType));
+            modalNumber.classList.toggle('hidden', !['number', 'date', 'time'].includes(inputType));
             modalBoolean.classList.toggle('hidden', inputType !== 'boolean');
             modalSecret.value = '';
             modalSecret.classList.toggle('hidden', inputType !== 'secret');
@@ -328,7 +334,7 @@
             modal.classList.add('flex');
             modal.setAttribute('aria-hidden', 'false');
             setTimeout(() => {
-                if (['number', 'date'].includes(inputType)) {
+                if (['number', 'date', 'time'].includes(inputType)) {
                     modalNumber.focus();
                     return;
                 }
@@ -439,7 +445,7 @@
                 const row = rowForId(currentOptionId);
                 const inputType = String(row?.dataset.optionInputType || 'textarea');
                 let valueToSave = modalValue.value;
-                if (['number', 'date'].includes(inputType)) {
+                if (['number', 'date', 'time'].includes(inputType)) {
                     valueToSave = modalNumber.value;
                 }
                 if (inputType === 'boolean') {

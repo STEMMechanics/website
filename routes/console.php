@@ -12,6 +12,7 @@ use App\Services\DashboardSnapshot;
 use App\Services\FileBackupUploadService;
 use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
+use App\Services\NewsletterWorkshopSelectionService;
 use App\Services\SponsorshipBillingScheduleService;
 use App\Services\SponsorshipService;
 use App\Services\WorkshopWelcomeService;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Storage;
  * To access the cronjob, run `crontab -u www-data -e` and add the following line:
  * * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
  */
+$newsletterSchedule = app(NewsletterWorkshopSelectionService::class);
+
 Artisan::command('email:send', function () {
     $subjects = [
         '🚀 Your STEM Adventure Awaits!',
@@ -59,7 +62,9 @@ Artisan::command('email:send', function () {
         $selector->clearPresentation($draft);
         new UpcomingWorkshops('', storeSelection: $selector->selection());
     }
-})->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, '16:00');
+})->purpose('Send newsletter to confirmed subscribers')
+    ->weeklyOn($newsletterSchedule->sendDay(), $newsletterSchedule->sendTime())
+    ->timezone((string) config('app.timezone', 'UTC'));
 
 Artisan::command('cleanup', function () {
 
