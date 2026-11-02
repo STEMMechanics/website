@@ -820,14 +820,14 @@ class FileBackupService
             }
 
             $groupState = $this->summarizeCurrentStates(array_merge([$baseEntry], $children));
-            $groupSize = (int) ($baseEntry['size'] ?? 0);
-            $groupLastModified = (int) ($baseEntry['last_modified'] ?? 0);
+            $groupSize = (int) $baseEntry['size'];
+            $groupLastModified = (int) $baseEntry['last_modified'];
             foreach ($children as $childEntry) {
                 $groupSize += (int) ($childEntry['size'] ?? 0);
                 $groupLastModified = max($groupLastModified, (int) ($childEntry['last_modified'] ?? 0));
             }
             $groupSearchText = array_filter(array_merge(
-                [(string) ($baseEntry['search_text'] ?? '')],
+                [(string) $baseEntry['search_text']],
                 array_map(fn (array $child): string => (string) ($child['search_text'] ?? ''), $children)
             ));
 
